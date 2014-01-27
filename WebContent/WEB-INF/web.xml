@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd" id="WebApp_ID" version="3.0">
+  <display-name>Monolith</display-name>
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+    <welcome-file>index.htm</welcome-file>
+    <welcome-file>index.jsp</welcome-file>
+    <welcome-file>default.html</welcome-file>
+    <welcome-file>default.htm</welcome-file>
+    <welcome-file>default.jsp</welcome-file>
+  </welcome-file-list>
+  <!-- 
+  <filter>
+    <filter-name>SecurityFilter</filter-name>
+    <filter-class>waffle.servlet.NegotiateSecurityFilter</filter-class>
+    <init-param>
+      <param-name>principalFormat</param-name>
+      <param-value>fqn</param-value>
+    </init-param>
+    <init-param>
+      <param-name>roleFormat</param-name>
+      <param-value>both</param-value>
+    </init-param>
+    <init-param>
+      <param-name>allowGuestLogin</param-name>
+      <param-value>false</param-value>
+    </init-param>
+    <init-param>
+      <param-name>securityFilterProviders</param-name>
+      <param-value>
+    		waffle.servlet.spi.NegotiateSecurityFilterProvider
+    		waffle.servlet.spi.BasicSecurityFilterProvider
+    	</param-value>
+    </init-param>
+    <init-param>
+      <param-name>waffle.servlet.spi.NegotiateSecurityFilterProvider/protocols</param-name>
+      <param-value>
+    		Negotiate
+    		NTLM
+    	</param-value>
+    </init-param>
+    <init-param>
+      <param-name>waffle.servlet.spi.BasicSecurityFilterProvider/realm</param-name>
+      <param-value>WaffleFilterDemo</param-value>
+    </init-param>
+  </filter>  -->
+  <filter>
+    <filter-name>UserDBFilter</filter-name>
+    <filter-class>prerna.web.conf.UserDBFilter</filter-class>
+  </filter>
+<!-- <filter-mapping>
+    <filter-name>SecurityFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+  </filter-mapping> -->  
+  <filter-mapping>
+    <filter-name>UserDBFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+  </filter-mapping>
+  <absolute-ordering>
+    <!-- <name>SecurityFilter</name> -->
+    <name>UserDBFilter</name>
+  </absolute-ordering>
+  <servlet>
+    <servlet-name>Resteasy</servlet-name>
+    <servlet-class>
+org.apache.cxf.jaxrs.servlet.CXFNonSpringJaxrsServlet
+</servlet-class>
+    <init-param>
+      <param-name>javax.ws.rs.Application</param-name>
+      <param-value>com.restfully.shop.services.ShoppingApplication</param-value>
+    </init-param>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Resteasy</servlet-name>
+    <url-pattern>/api/*</url-pattern>
+  </servlet-mapping>
+  <!--
+  <security-constraint>
+    <web-resource-collection>
+      <web-resource-name>Demo Application</web-resource-name>
+      <url-pattern>/api/*</url-pattern>
+      <http-method>GET</http-method>
+      <http-method>POST</http-method>
+    </web-resource-collection>
+    <auth-constraint>
+      <role-name>BUILTIN\Users</role-name>
+    </auth-constraint>
+  </security-constraint>-->
+  <context-param>
+    <description>Location to store uploaded file</description>
+    <param-name>file-upload</param-name>
+    <param-value>
+         C:\\Users\\bisutton\\workspace\\
+    </param-value>
+  </context-param>
+  <context-param>
+    <description>The place where the core RDF Map gets picked from</description>
+    <param-name>RDF-MAP</param-name>
+    <param-value>
+         C:\\Users\\bisutton\\workspace\\Semoss\\RDF_Map.prop
+     </param-value>
+  </context-param>
+  <servlet>
+    <description></description>
+    <display-name>Uploader</display-name>
+    <servlet-name>Uploader</servlet-name>
+    <servlet-class>prerna.upload.Uploader</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Uploader</servlet-name>
+    <url-pattern>/Uploader</url-pattern>
+  </servlet-mapping>
+  <listener>
+    <listener-class>
+        prerna.web.conf.DBLoader
+    </listener-class>
+  </listener>
+  <listener>
+    <listener-class> 
+        prerna.web.conf.UserDBLoader
+    </listener-class>
+  </listener>
+</web-app>
