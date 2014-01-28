@@ -300,7 +300,7 @@ public class EngineResource {
 		if(coreEngine instanceof AbstractEngine)
 			filterFunction.setFilterHash(((AbstractEngine)coreEngine).getBaseHash());
 		System.out.println(form.getFirst("query"));
-		return getSO(filterFunction.invoke(form.getFirst("query")+""));
+		return getSO(filterFunction.process(form.getFirst("query")+""));
 	}	
 
 	// runs a query against the engine while filtering out everything included in baseHash
@@ -316,7 +316,7 @@ public class EngineResource {
 		if(coreEngine instanceof AbstractEngine)
 			filterFunction.setFilterHash(((AbstractEngine)coreEngine).getBaseHash());
 		System.out.println(form.getFirst("query"));
-		return getSO(filterFunction.invoke(form.getFirst("query")+""));
+		return getSO(filterFunction.process(form.getFirst("query")+""));
 	}	
 	
 	// gets a particular insight
