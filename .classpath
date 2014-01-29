@@ -19,7 +19,7 @@
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/commons-math3-3.2.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/css-engine-swing-api.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/cxf-2.7.7.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/d2rq-0.7.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/d2rq-0.8.1.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/d2rqUpdate.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/dom4j-1.6.1.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/engine-gecko.jar"/>
