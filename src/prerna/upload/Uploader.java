@@ -2,7 +2,6 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -10,10 +9,8 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -26,14 +23,13 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
-import org.apache.commons.io.FilenameUtils;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 import prerna.ui.components.CSVMetamodelBuilder;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.DIHelper;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 /**
  * Servlet implementation class Uploader
@@ -56,7 +52,7 @@ public class Uploader extends HttpServlet {
 	public StreamingOutput uploadCSVFileToMeta(@Context HttpServletRequest request) {
 		List headers = null;
 		try {
-			File file;
+			File file = null;
 			
 			DiskFileItemFactory factory = new DiskFileItemFactory();
 			// maximum size that will be stored in memory
@@ -77,6 +73,7 @@ public class Uploader extends HttpServlet {
 
 			// collect all of the data input on the form
 			Hashtable inputData = new Hashtable();
+			ArrayList<File> allFiles = new ArrayList<File>();
 			while (i.hasNext()) {
 				FileItem fi = (FileItem) i.next();
 				// Get the uploaded file parameters
@@ -101,6 +98,7 @@ public class Uploader extends HttpServlet {
 						file = new File(value);
 					}
 					fi.write(file);
+					allFiles.add(file);
 					System.out.println( "CSV importer saved Filename: " + fileName + "  to "+ file);
 				} else
 					System.err.println("Type is " + fi.getFieldName()
@@ -116,7 +114,7 @@ public class Uploader extends HttpServlet {
 			}
 			CSVMetamodelBuilder builder = new CSVMetamodelBuilder();
 //			builder.setFile(inputData.get("uploadFile")+"");
-			headers = builder.getHeaders(inputData.get("uploadFile")+"");
+			headers = builder.getHeaders(allFiles);
 			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
