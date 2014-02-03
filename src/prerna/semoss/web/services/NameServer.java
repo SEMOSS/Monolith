@@ -32,6 +32,7 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
 import prerna.rdf.engine.api.IEngine;
 import prerna.ui.components.ImportDataProcessor;
+import prerna.upload.Uploader;
 import prerna.util.DIHelper;
 
 import com.google.gson.Gson;
@@ -163,138 +164,12 @@ public class NameServer {
 	}	
 	
 	// uploader functionality
-	@POST
 	@Path("/insight/upload")
-	@Produces("text/html")
-	public Response uploadFile(@Context HttpServletRequest request) {
-		String htmlResponse = "";
-		try {
-			int maxFileSize = 50 * 1024;
-			int maxMemSize = 4 * 1024;
-			File file;
-			String filePath = context.getInitParameter("file-upload");
-			// Check that we have a file upload request
-			boolean isMultipart = ServletFileUpload.isMultipartContent(request);
-
-			// java.io.PrintWriter out = response.getWriter( );
-			if (!isMultipart) {
-				htmlResponse += "<html>";
-				htmlResponse += "<head>";
-				htmlResponse += "<title>Servlet upload</title>";
-				htmlResponse += "</head>";
-				htmlResponse += "<body>";
-				htmlResponse += "<p>No file uploaded</p>";
-				htmlResponse += "</body>";
-				htmlResponse += "</html>";
-				return Response.status(200).entity(htmlResponse).build();
-			}
-			DiskFileItemFactory factory = new DiskFileItemFactory();
-			// maximum size that will be stored in memory
-			factory.setSizeThreshold(maxMemSize);
-			// Location to save data that is larger than maxMemSize.
-			factory.setRepository(new File("c:\\temp"));
-
-			// Create a new file upload handler
-			ServletFileUpload upload = new ServletFileUpload(factory);
-			// maximum file size to be uploaded.
-			upload.setSizeMax(maxFileSize);
-
-			// Parse the request to get file items.
-			List fileItems = upload.parseRequest(request);
-
-			// Process the uploaded file items
-			Iterator i = fileItems.iterator();
-
-			htmlResponse += "<html>";
-			htmlResponse += "<head>";
-			htmlResponse += "<title>Servlet upload</title>";
-			htmlResponse += "</head>";
-			htmlResponse += "<body>";
-			// collect all of the data input on the form
-			Hashtable inputData = new Hashtable();
-			while (i.hasNext()) {
-				FileItem fi = (FileItem) i.next();
-				// Get the uploaded file parameters
-				String fieldName = fi.getFieldName();
-				String fileName = fi.getName();
-				String contentType = fi.getContentType();
-				String value = fi.getString();
-				boolean isInMemory = fi.isInMemory();
-				long sizeInBytes = fi.getSize();
-				if (!fi.isFormField()) {
-					// Write the file
-					if (fileName.lastIndexOf("\\") >= 0) {
-						value = filePath
-								+ fileName
-										.substring(fileName.lastIndexOf("\\"));
-						file = new File(value);
-					} 
-					else if (fileName.equals("")){
-						continue;
-					}
-					else {
-						value = filePath
-								+ fileName
-										.substring(fileName.lastIndexOf("\\") + 1);
-						file = new File(value);
-					}
-					fi.write(file);
-					htmlResponse += "Uploaded Filename: " + fileName + "  to "
-							+ file + " <br>";
-				} else
-					System.err.println("Type is " + fi.getFieldName()
-							+ fi.getString());
-				htmlResponse += "Importing data: " + fieldName + "   " + value
-						+ " <br>";
-				
-				//need to handle multiple files getting selected for upload
-				if(inputData.get(fieldName)!=null)
-					value = inputData.get(fieldName) + ";" + value;
-				
-				inputData.put(fieldName, value);
-
-			}
-			htmlResponse += "</body>";
-			htmlResponse += "</html>";
-
-			System.out.println(inputData);
-			// time to run the import
-			ImportDataProcessor importer = new ImportDataProcessor();
-			importer.setBaseDirectory(DIHelper.getInstance().getProperty(
-					"BaseFolder"));
-
-			// figure out what type of import we need to do based on parameters
-			// selected
-			String methodString = inputData.get("importMethod") + "";
-			ImportDataProcessor.IMPORT_METHOD importMethod = 
-					methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-					: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-							: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
-									: null;
-			String typeString = inputData.get("importType") + "";
-			ImportDataProcessor.IMPORT_TYPE importType = 
-					typeString.equals("Comma Seperated Value (.csv)") ? ImportDataProcessor.IMPORT_TYPE.CSV
-					: typeString.equals("Microsoft Excel") ? ImportDataProcessor.IMPORT_TYPE.EXCEL
-							: typeString.equals("NLP") ? ImportDataProcessor.IMPORT_TYPE.NLP
-									: null;
-			
-			//call the right process method with correct parameters
-			importer.runProcessor(importMethod, importType, inputData.get("uploadFile")+"", 
-					inputData.get("customBaseURI")+"", inputData.get("newDBname")+"", 
-					"","","","");
-					//inputData.get("mapFile")+"", inputData.get("dbPropFile")+"", inputData.get("questionFile")+"", inputData.get("existingDBname")+"");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (FileUploadException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		return Response.status(200).entity(htmlResponse).build();
+	public Object uploadFile(@Context HttpServletRequest request) {
+		Uploader upload = new Uploader();
+		String filePath = context.getInitParameter("file-upload");
+		upload.setFilePath(filePath);
+		return upload;
 	}
 
 	
