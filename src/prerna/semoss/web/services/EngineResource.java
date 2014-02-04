@@ -338,7 +338,7 @@ public class EngineResource {
 	@POST
 	@Path("update")
 	@Produces("application/json")
-	public StreamingOutput insertData2DB(@QueryParam("query") String query)
+	public StreamingOutput insertData2DB(MultivaluedMap<String, String> form)
 	{
 		// returns the insight
 		// based on the current ID get the data
@@ -346,7 +346,7 @@ public class EngineResource {
 		// this will also cache it
 		SesameJenaUpdateWrapper wrapper = new SesameJenaUpdateWrapper();
 		wrapper.setEngine(coreEngine);
-		wrapper.setQuery(query);
+		wrapper.setQuery(form.getFirst("query")+"");
 		boolean success = wrapper.execute();
 		return getSO("success");
 	}	
