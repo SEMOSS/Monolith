@@ -335,8 +335,8 @@ public class EngineResource {
 		return null;
 	}	
 
-	@GET
-	@Path("insert")
+	@POST
+	@Path("update")
 	@Produces("application/json")
 	public StreamingOutput insertData2DB(@QueryParam("query") String query)
 	{
