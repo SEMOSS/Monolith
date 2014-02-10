@@ -11,6 +11,7 @@ import java.util.List;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.FormParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -25,27 +26,32 @@ import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
 import prerna.ui.components.CSVMetamodelBuilder;
+import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.DIHelper;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * Servlet implementation class Uploader
  */
 public class Uploader extends HttpServlet {
 
-	int maxFileSize = 50 * 1024;
+	int maxFileSize = 10000 * 1024;
 	int maxMemSize = 4 * 1024;
 	String output = "";
 
 	String filePath;
-	
+
 	public void setFilePath(String filePath){
 		this.filePath = filePath;
 	}
-	
+
 	@POST
 	@Path("/csv/meta")
 	@Produces("application/json")
@@ -53,7 +59,7 @@ public class Uploader extends HttpServlet {
 		List headers = null;
 		try {
 			File file = null;
-			
+
 			DiskFileItemFactory factory = new DiskFileItemFactory();
 			// maximum size that will be stored in memory
 			factory.setSizeThreshold(maxMemSize);
@@ -85,7 +91,7 @@ public class Uploader extends HttpServlet {
 					if (fileName.lastIndexOf("\\") >= 0) {
 						value = filePath
 								+ fileName
-										.substring(fileName.lastIndexOf("\\"));
+								.substring(fileName.lastIndexOf("\\"));
 						file = new File(value);
 					} 
 					else if (fileName.equals("")){
@@ -94,7 +100,7 @@ public class Uploader extends HttpServlet {
 					else {
 						value = filePath
 								+ fileName
-										.substring(fileName.lastIndexOf("\\") + 1);
+								.substring(fileName.lastIndexOf("\\") + 1);
 						file = new File(value);
 					}
 					fi.write(file);
@@ -104,18 +110,18 @@ public class Uploader extends HttpServlet {
 					System.err.println("Type is " + fi.getFieldName()
 							+ fi.getString());
 				System.out.println( "Importing data: " + fieldName + "   " + value);
-				
+
 				//need to handle multiple files getting selected for upload
 				if(inputData.get(fieldName)!=null)
 					value = inputData.get(fieldName) + ";" + value;
-				
-				inputData.put(fieldName, value);
 
+				inputData.put(fieldName, value);
 			}
+
 			CSVMetamodelBuilder builder = new CSVMetamodelBuilder();
-//			builder.setFile(inputData.get("uploadFile")+"");
+			//			builder.setFile(inputData.get("uploadFile")+"");
 			headers = builder.getHeaders(allFiles);
-			
+
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -133,10 +139,52 @@ public class Uploader extends HttpServlet {
 	@POST
 	@Path("/csv/upload")
 	@Produces("text/html")
-	public Response uploadCSVFile(@Context HttpServletRequest request) {
+	public Response uploadCSVFile(@FormParam ("dbImportOption") String dbImportOption, 
+			@FormParam ("filename") String filename,
+			@FormParam ("dbName") String dbName,
+			@FormParam ("designateBaseUri") String baseURI,
+			@FormParam ("rows") List<String> rows)
+	{
 
-		return Response.status(200).entity("test").build();
+		Gson gson = new Gson();
+		List<Hashtable<String, String>> rowsList = new ArrayList<Hashtable<String, String>>();
+		CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
+
+		for(String str : rows) {
+			// subject and object keys link to array list for concatenations, while the predicate is always a string
+			Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+			if(!mRow.get("predicate").toString().equals("semoss.org/ontologies/relation/contains")){
+				propWriter.addRelationship((ArrayList<String>) mRow.get("selectedSubject"),mRow.get("predicate").toString(), (ArrayList<String>) mRow.get("selectedObject"));
+			}
+			else{
+				propWriter.addProperty((ArrayList<String>) mRow.get("selectedSubject"), (ArrayList<String>) mRow.get("selectedObject"));
+			}
+		}
+
+		propWriter.columnDecomp(filePath + filename.toString());
+		
+		Hashtable<String, String> propFile = propWriter.getPropHash(); 
+		
+		ImportDataProcessor importer = new ImportDataProcessor();
+		importer.setPropHash(propFile);
+		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
+
+		// figure out what type of import we need to do based on parameters
+		// selected
+		String methodString = dbImportOption.toString();
+		ImportDataProcessor.IMPORT_METHOD importMethod = 
+				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
+						: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+										: null;
+
+		//call the right process method with correct parameters
+		importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + filename.toString()+"", 
+				baseURI.toString(), dbName.toString(),"","","","");
+
+		return Response.status(200).entity("Holla!").build();
 	}
+
 
 	@POST
 	@Path("/excel/upload")
@@ -145,7 +193,7 @@ public class Uploader extends HttpServlet {
 		String htmlResponse = "";
 		try {
 			File file;
-			
+
 			DiskFileItemFactory factory = new DiskFileItemFactory();
 			// maximum size that will be stored in memory
 			factory.setSizeThreshold(maxMemSize);
@@ -181,7 +229,7 @@ public class Uploader extends HttpServlet {
 					if (fileName.lastIndexOf("\\") >= 0) {
 						value = filePath
 								+ fileName
-										.substring(fileName.lastIndexOf("\\"));
+								.substring(fileName.lastIndexOf("\\"));
 						file = new File(value);
 					} 
 					else if (fileName.equals("")){
@@ -190,7 +238,7 @@ public class Uploader extends HttpServlet {
 					else {
 						value = filePath
 								+ fileName
-										.substring(fileName.lastIndexOf("\\") + 1);
+								.substring(fileName.lastIndexOf("\\") + 1);
 						file = new File(value);
 					}
 					fi.write(file);
@@ -201,11 +249,11 @@ public class Uploader extends HttpServlet {
 							+ fi.getString());
 				htmlResponse += "Importing data: " + fieldName + "   " + value
 						+ " <br>";
-				
+
 				//need to handle multiple files getting selected for upload
 				if(inputData.get(fieldName)!=null)
 					value = inputData.get(fieldName) + ";" + value;
-				
+
 				inputData.put(fieldName, value);
 
 			}
@@ -223,15 +271,15 @@ public class Uploader extends HttpServlet {
 			String methodString = inputData.get("importMethod") + "";
 			ImportDataProcessor.IMPORT_METHOD importMethod = 
 					methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-					: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-							: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
-									: null;
-			
+							: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+									: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+											: null;
+
 			//call the right process method with correct parameters
 			importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("uploadFile")+"", 
 					inputData.get("customBaseURI")+"", inputData.get("newDBname")+"", 
 					"","","","");
-					//inputData.get("mapFile")+"", inputData.get("dbPropFile")+"", inputData.get("questionFile")+"", inputData.get("existingDBname")+"");
+			//inputData.get("mapFile")+"", inputData.get("dbPropFile")+"", inputData.get("questionFile")+"", inputData.get("existingDBname")+"");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -250,10 +298,10 @@ public class Uploader extends HttpServlet {
 	{
 		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
 		output = gson.toJson(vec);
-		   return new StreamingOutput() {
-		         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-		            PrintStream ps = new PrintStream(outputStream);
-		            ps.println(output);
-		         }};		
+		return new StreamingOutput() {
+			public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+				PrintStream ps = new PrintStream(outputStream);
+				ps.println(output);
+			}};		
 	}
 }
