@@ -4,12 +4,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -23,6 +21,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.openrdf.repository.RepositoryConnection;
 
 import prerna.om.Insight;
+import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.InMemorySesameEngine;
@@ -147,8 +146,28 @@ public class EngineResource {
 		Hashtable outputHash = new Hashtable();
 		outputHash.put("result", in);
 		
+		
+		Vector <SEMOSSParam> paramVector = coreEngine.getParams(insight);
+		System.err.println("Params are " + paramVector);
+		Hashtable newHash = new Hashtable();
+
+		for(int paramIndex = 0;paramIndex < paramVector.size();paramIndex++)
+		{
+			SEMOSSParam param = paramVector.elementAt(paramIndex);
+			if(param.isDepends().equalsIgnoreCase("false"))
+			{
+				// do the logic to get the stuff
+				String query = param.getQuery();
+				newHash.put(param.getName(), coreEngine.getParamValues(param.getName(), param.getType(), in.getId(), query));
+			}
+			else
+				newHash.put(param.getName(), param);
+		}
+		
+		
+		// OLD LOGIC
 		// get the sparql parameters now
-		Hashtable paramHash = Utility.getParamTypeHash(in.getSparql());
+		/*Hashtable paramHash = Utility.getParamTypeHash(in.getSparql());
 		Iterator <String> keys = paramHash.keySet().iterator();
 		Hashtable newHash = new Hashtable();
 		while(keys.hasNext())
@@ -156,7 +175,7 @@ public class EngineResource {
 			String paramName = keys.next();
 			String paramType = paramHash.get(paramName) + "";
 			newHash.put(paramName, coreEngine.getParamValues(paramName, paramType, in.getId()));
-		}
+		}*/
 		outputHash.put("options", newHash);
 		return getSO(outputHash);
 	}	
@@ -372,13 +391,17 @@ public class EngineResource {
 	@GET
 	@Path("fill")
 	@Produces("application/json")
-	public StreamingOutput getFillEntity(@QueryParam("type") String typeToFill)
+	public StreamingOutput getFillEntity(@QueryParam("type") String typeToFill, @QueryParam("query") String query)
 	{
 		// returns the insight
 		// based on the current ID get the data
 		// typically is a JSON of the insight
 		// this will also cache it
-		 return getSO(coreEngine.getParamValues("", typeToFill, ""));
+		if(typeToFill != null)
+			return getSO(coreEngine.getParamValues("", typeToFill, ""));
+		else if(query != null)
+			return getSO(coreEngine.getParamValues("", "", "", query));
+		return null;
 	}	
 
 }
