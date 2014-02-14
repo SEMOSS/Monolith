@@ -18,6 +18,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.log4j.Logger;
 import org.openrdf.repository.RepositoryConnection;
 
 import prerna.om.Insight;
@@ -31,6 +32,8 @@ import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.Utility;
 
 import com.google.gson.Gson;
@@ -42,20 +45,132 @@ public class EngineResource {
 	// essentially this is a wrapper over the engine
 	IEngine coreEngine = null;
 	String output = "";
+	Logger logger = Logger.getLogger(getClass());
 	public void setEngine(IEngine coreEngine)
 	{
 		System.out.println("Setting core engine to " + coreEngine);
 		this.coreEngine = coreEngine;
 	}
 	
-	
+	//gets all node types connected to a given node type
 	@GET
 	@Path("neighbors")
 	@Produces("application/json")
-	public StreamingOutput getNeighbors(@QueryParam("node") String type, @Context HttpServletRequest request)
+	public StreamingOutput getNeighbors(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
 	{
-		return null;
+		Vector<String> finalTypes = new Vector<String>();
+		if(coreEngine instanceof AbstractEngine){
+			Vector<String> downNodes = ((AbstractEngine) coreEngine).getDownstreamBaseTypeConnections(type);
+			finalTypes.addAll(downNodes);
+			Vector<String> upNodes = ((AbstractEngine) coreEngine).getUpstreamBaseTypeConnections(type);
+			finalTypes.addAll(upNodes);
+		}
+		return getSO(finalTypes);
 	}
+
+	//gets all node types connected to a specific node instance
+	@GET
+	@Path("neighbors/instance")
+	@Produces("application/json")
+	public StreamingOutput getNeighborsInstance(@QueryParam("node") String uri, @Context HttpServletRequest request)
+	{
+		Vector<String> finalList = new Vector<String>();
+		if(coreEngine instanceof AbstractEngine){
+			AbstractEngine engine = (AbstractEngine) coreEngine;
+			//get node type
+			String type = Utility.getConceptType(coreEngine, uri);
+			
+			//DOWNSTREAM PROCESSING
+			//get node types connected to this type
+			Vector<String> downNodeTypes = engine.getDownstreamBaseTypeConnections(type);
+			
+			//for each available type, ensure each type has at least one instance connected to original node
+			String downAskQuery = "ASK { "
+					+ "{?connectedNode a <@NODE_TYPE@>} "
+					+ "{<" + uri + "> ?rel ?connectedNode}"
+							+ "}" ;
+			for (String connectedType : downNodeTypes){
+				String filledDownAskQuery = downAskQuery.replace("@NODE_TYPE@", connectedType);
+				logger.info("Checking type " + connectedType + " with query " + filledDownAskQuery);
+				if(engine.execAskQuery(filledDownAskQuery))
+					finalList.add(connectedType);
+			}
+			
+			//UPSTREAM PROCESSING
+			//get node types connected to this type
+			Vector<String> upNodeTypes = engine.getUpstreamBaseTypeConnections(type);
+			
+			//for each available type, ensure each type has at least one instance connected to original node
+			String upAskQuery = "ASK { "
+					+ "{?connectedNode a <@NODE_TYPE@>} "
+					+ "{<" + uri + "> ?rel ?connectedNode}"
+							+ "}" ;
+			for (String connectedType : upNodeTypes){
+				String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
+				logger.info("Checking type " + connectedType + " with query " + filledUpAskQuery);
+				if(engine.execAskQuery(filledUpAskQuery))
+					finalList.add(connectedType);
+			}
+		}
+		return getSO(finalList);
+	}
+	
+	// performs extend functionality (currently only for a graph play sheet)
+	// upnode or downnode or both can be null
+	// must pass in (upNode and downNodeType) or (downNode and upNodeType) or (upNodeType and downNodeType) -- depending on where / how the user wants to traverse
+	// need to figure out how javascript is going to tell which playsheet is getting extended so that for Traverse From All only adds to those on the graph
+	@GET
+	@Path("output/extend")
+	@Produces("application/json")
+	public StreamingOutput createOverlayOutput(@QueryParam("upNode") String upNodeUri, 
+			@QueryParam("upNodeType") String upNodeType, 
+			@QueryParam("downNode") String downNodeUri, 
+			@QueryParam("downNodeType") String downNodeType)
+	{
+		Object obj = null;
+		String prefix = "";
+		String nodeUri = "";
+		if(upNodeUri != null){
+			logger.info("Processing downstream traversal for node instance " + upNodeUri);
+			prefix = "";
+			nodeUri = "(<" + upNodeUri + ">)";
+			upNodeType = Utility.getConceptType(coreEngine, upNodeUri);
+		}
+		else if(downNodeUri != null){
+			logger.info("Processing upstream traversal for node instance " + downNodeUri);
+			prefix = "_2";
+			nodeUri = "(<" + downNodeUri + ">)";
+			downNodeType = Utility.getConceptType(coreEngine, downNodeUri);
+		}
+		
+		try
+		{
+			IPlaySheet ps = (IPlaySheet)Class.forName("prerna.ui.components.playsheets.GraphPlaySheet").newInstance();
+			String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
+			sparql = sparql.replace("@FILTER_VALUES@", nodeUri).replace("@SUBJECT_TYPE@", upNodeType).replace("@OBJECT_TYPE@", downNodeType);
+			System.err.println("SPARQL is " + sparql);
+			ps.setRDFEngine(coreEngine);
+			ps.setQuery(sparql);
+			
+			if(!(ps instanceof GraphPlaySheet))
+				obj = ps.getData();
+			else
+			{
+				GraphPlaySheet gps = (GraphPlaySheet)ps;
+				gps.createData();
+				gps.runAnalytics();
+				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)ps).getData();
+				InMemorySesameEngine imse = new InMemorySesameEngine();
+				imse.setRepositoryConnection(rc);
+				imse.openDB(null);
+				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.baseFilterHash);
+			}
+		}catch(Exception ex)
+		{
+			ex.printStackTrace();
+		}
+		return getSO(obj);
+	}	
 	
 	// gets all the insights for a given type and tag in all the engines
 	// both tag and type are optional
