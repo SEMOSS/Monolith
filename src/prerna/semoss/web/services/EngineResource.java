@@ -103,7 +103,7 @@ public class EngineResource {
 			//for each available type, ensure each type has at least one instance connected to original node
 			String upAskQuery = "ASK { "
 					+ "{?connectedNode a <@NODE_TYPE@>} "
-					+ "{<" + uri + "> ?rel ?connectedNode}"
+					+ "{?connectedNode ?rel <" + uri + ">}"
 							+ "}" ;
 			for (String connectedType : upNodeTypes){
 				String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
