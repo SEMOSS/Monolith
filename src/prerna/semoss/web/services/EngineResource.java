@@ -58,12 +58,12 @@ public class EngineResource {
 	@Produces("application/json")
 	public StreamingOutput getNeighbors(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
 	{
-		Vector<String> finalTypes = new Vector<String>();
+		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
 		if(coreEngine instanceof AbstractEngine){
-			Vector<String> downNodes = ((AbstractEngine) coreEngine).getDownstreamBaseTypeConnections(type);
-			finalTypes.addAll(downNodes);
-			Vector<String> upNodes = ((AbstractEngine) coreEngine).getUpstreamBaseTypeConnections(type);
-			finalTypes.addAll(upNodes);
+			Vector<String> downNodes = ((AbstractEngine) coreEngine).getToNeighbors(type, 0);
+			finalTypes.put("downstream", downNodes);
+			Vector<String> upNodes = ((AbstractEngine) coreEngine).getFromNeighbors(type, 0);
+			finalTypes.put("upstream", upNodes);
 		}
 		return getSO(finalTypes);
 	}
@@ -74,7 +74,7 @@ public class EngineResource {
 	@Produces("application/json")
 	public StreamingOutput getNeighborsInstance(@QueryParam("node") String uri, @Context HttpServletRequest request)
 	{
-		Vector<String> finalList = new Vector<String>();
+		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
 		if(coreEngine instanceof AbstractEngine){
 			AbstractEngine engine = (AbstractEngine) coreEngine;
 			//get node type
@@ -82,37 +82,41 @@ public class EngineResource {
 			
 			//DOWNSTREAM PROCESSING
 			//get node types connected to this type
-			Vector<String> downNodeTypes = engine.getDownstreamBaseTypeConnections(type);
+			Vector<String> downNodeTypes = engine.getToNeighbors(type, 0);
 			
 			//for each available type, ensure each type has at least one instance connected to original node
 			String downAskQuery = "ASK { "
 					+ "{?connectedNode a <@NODE_TYPE@>} "
 					+ "{<" + uri + "> ?rel ?connectedNode}"
 							+ "}" ;
+			Vector<String> validDownTypes = new Vector<String>();
 			for (String connectedType : downNodeTypes){
 				String filledDownAskQuery = downAskQuery.replace("@NODE_TYPE@", connectedType);
 				logger.info("Checking type " + connectedType + " with query " + filledDownAskQuery);
 				if(engine.execAskQuery(filledDownAskQuery))
-					finalList.add(connectedType);
+					validDownTypes.add(connectedType);
 			}
+			finalTypes.put("downstream", validDownTypes);
 			
 			//UPSTREAM PROCESSING
 			//get node types connected to this type
-			Vector<String> upNodeTypes = engine.getUpstreamBaseTypeConnections(type);
+			Vector<String> upNodeTypes = engine.getFromNeighbors(type, 0);
 			
 			//for each available type, ensure each type has at least one instance connected to original node
 			String upAskQuery = "ASK { "
 					+ "{?connectedNode a <@NODE_TYPE@>} "
 					+ "{?connectedNode ?rel <" + uri + ">}"
 							+ "}" ;
+			Vector<String> validUpTypes = new Vector<String>();
 			for (String connectedType : upNodeTypes){
 				String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
 				logger.info("Checking type " + connectedType + " with query " + filledUpAskQuery);
 				if(engine.execAskQuery(filledUpAskQuery))
-					finalList.add(connectedType);
+					validUpTypes.add(connectedType);
 			}
+			finalTypes.put("upstream", validUpTypes);
 		}
-		return getSO(finalList);
+		return getSO(finalTypes);
 	}
 	
 	// performs extend functionality (currently only for a graph play sheet)
