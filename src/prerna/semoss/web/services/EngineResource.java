@@ -264,7 +264,8 @@ public class EngineResource {
 		
 		Vector <SEMOSSParam> paramVector = coreEngine.getParams(insight);
 		System.err.println("Params are " + paramVector);
-		Hashtable newHash = new Hashtable();
+		Hashtable optionsHash = new Hashtable();
+		Hashtable paramsHash = new Hashtable();
 
 		for(int paramIndex = 0;paramIndex < paramVector.size();paramIndex++)
 		{
@@ -273,10 +274,11 @@ public class EngineResource {
 			{
 				// do the logic to get the stuff
 				String query = param.getQuery();
-				newHash.put(param.getName(), coreEngine.getParamValues(param.getName(), param.getType(), in.getId(), query));
+				optionsHash.put(param.getName(), coreEngine.getParamValues(param.getName(), param.getType(), in.getId(), query));
 			}
 			else
-				newHash.put(param.getName(), param);
+				optionsHash.put(param.getName(), "");
+			paramsHash.put(param.getName(), param);
 		}
 		
 		
@@ -291,7 +293,8 @@ public class EngineResource {
 			String paramType = paramHash.get(paramName) + "";
 			newHash.put(paramName, coreEngine.getParamValues(paramName, paramType, in.getId()));
 		}*/
-		outputHash.put("options", newHash);
+		outputHash.put("options", optionsHash);
+		outputHash.put("params", paramsHash);
 		return getSO(outputHash);
 	}	
 
@@ -299,7 +302,7 @@ public class EngineResource {
 	@GET
 	@Path("output")
 	@Produces("application/json")
-	public StreamingOutput createOutput(@QueryParam("insight") String insight, @QueryParam("params") String params)
+	public StreamingOutput createOutput(@QueryParam("insight") String insight, @QueryParam("params") String params, @Context HttpServletRequest request)
 	{
 		// executes the output and gives the data
 		// executes the create runner
