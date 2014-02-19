@@ -28,6 +28,7 @@ import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.InMemorySesameEngine;
 import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
 import prerna.rdf.util.RDFJSONConverter;
+import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
@@ -350,33 +351,20 @@ public class EngineResource {
 			}
 		}
 		
-		System.out.println("Insight is " + insight);
-		Insight in = coreEngine.getInsight(insight);
-		String output = in.getOutput();
+		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
+		exQueryProcessor.processQuestionQuery(coreEngine.getEngineName(), insight, paramHash);
 		Object obj = null;
-		
 		try
 		{
-			IPlaySheet ps = (IPlaySheet)Class.forName(output).newInstance();
-			String sparql = in.getSparql();
-			System.out.println("Param Hash is " + paramHash);
-			// need to replace the whole params with the base params first
-			sparql = Utility.normalizeParam(sparql);
-			System.out.println("SPARQL " + sparql);
-			sparql = Utility.fillParam(sparql, paramHash);
-			System.err.println("SPARQL is " + sparql);
-			ps.setRDFEngine(coreEngine);
-			ps.setQuery(sparql);
-			ps.setQuestionID(in.getId());
-			ps.setTitle("Sample ");
-			ps.createData();
-			ps.runAnalytics();
-			if(!(ps instanceof GraphPlaySheet))
-				obj = ps.getData();
+			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
+			playSheet.createData();
+			playSheet.runAnalytics();
+			if(!(playSheet instanceof GraphPlaySheet))
+				obj = playSheet.getData();
 			else
 			{
-				GraphPlaySheet gps = (GraphPlaySheet)ps;
-				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)ps).getData();
+				GraphPlaySheet gps = (GraphPlaySheet)playSheet;
+				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)playSheet).getData();
 				InMemorySesameEngine imse = new InMemorySesameEngine();
 				imse.setRepositoryConnection(rc);
 				imse.openDB(null);
@@ -387,6 +375,76 @@ public class EngineResource {
 			ex.printStackTrace();
 		}
 		return getSO(obj);
+//		Hashtable <String, Object> paramHash = new Hashtable<String, Object>();
+//		if(params != null)
+//		{
+//			StringTokenizer tokenz = new StringTokenizer(params,"~");
+//			while(tokenz.hasMoreTokens())
+//			{
+//				String thisToken = tokenz.nextToken();
+//				int index = thisToken.indexOf("$");
+//				String key = thisToken.substring(0, index);
+//				String value = thisToken.substring(index+1);
+//				// attempt to see if 
+//				boolean found = false;
+//				try{
+//					double dub = Double.parseDouble(value);
+//					paramHash.put(key, dub);
+//					found = true;
+//				}catch (Exception ignored)
+//				{
+//				}
+//				if(!found){
+//					try{
+//						int dub = Integer.parseInt(value);
+//						paramHash.put(key, dub);
+//						found = true;
+//					}catch (Exception ignored)
+//					{
+//					}
+//				}
+//				//if(!found)
+//					paramHash.put(key, value);
+//			}
+//		}
+//		
+//		System.out.println("Insight is " + insight);
+//		Insight in = coreEngine.getInsight(insight);
+//		String output = in.getOutput();
+//		Object obj = null;
+//		
+//		try
+//		{
+//			IPlaySheet ps = (IPlaySheet)Class.forName(output).newInstance();
+//			String sparql = in.getSparql();
+//			System.out.println("Param Hash is " + paramHash);
+//			// need to replace the whole params with the base params first
+//			sparql = Utility.normalizeParam(sparql);
+//			System.out.println("SPARQL " + sparql);
+//			sparql = Utility.fillParam(sparql, paramHash);
+//			System.err.println("SPARQL is " + sparql);
+//			ps.setRDFEngine(coreEngine);
+//			ps.setQuery(sparql);
+//			ps.setQuestionID(in.getId());
+//			ps.setTitle("Sample ");
+//			ps.createData();
+//			ps.runAnalytics();
+//			if(!(ps instanceof GraphPlaySheet))
+//				obj = ps.getData();
+//			else
+//			{
+//				GraphPlaySheet gps = (GraphPlaySheet)ps;
+//				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)ps).getData();
+//				InMemorySesameEngine imse = new InMemorySesameEngine();
+//				imse.setRepositoryConnection(rc);
+//				imse.openDB(null);
+//				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.baseFilterHash);
+//			}
+//		}catch(Exception ex)
+//		{
+//			ex.printStackTrace();
+//		}
+//		return getSO(obj);
 	}	
 
 	// executes a particular insight
@@ -526,4 +584,16 @@ public class EngineResource {
 		return null;
 	}	
 
+	
+	// gets all types from a given db
+	
+	@GET
+	@Path("conceptType")
+	@Produces("application/json")
+	public StreamingOutput getConceptType()
+	{
+		
+		return getSO(coreEngine.getParamValues("", "", "", "SELECT ?entity WHERE { {?entity <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://semoss.org/ontologies/Concept> ;} }"));
+	}	
+	
 }
