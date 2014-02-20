@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -56,7 +57,7 @@ public class Uploader extends HttpServlet {
 	@Path("/csv/meta")
 	@Produces("application/json")
 	public StreamingOutput uploadCSVFileToMeta(@Context HttpServletRequest request) {
-		List headers = null;
+		Hashtable<String, Hashtable<String, Set<String>>> dataTypes	= new Hashtable<String, Hashtable<String, Set<String>>>();
 		try {
 			File file = null;
 
@@ -119,8 +120,8 @@ public class Uploader extends HttpServlet {
 			}
 
 			CSVMetamodelBuilder builder = new CSVMetamodelBuilder();
-			//			builder.setFile(inputData.get("uploadFile")+"");
-			headers = builder.getHeaders(allFiles);
+			builder.setFiles(allFiles);
+			dataTypes = builder.returnDataTypes();
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -133,7 +134,7 @@ public class Uploader extends HttpServlet {
 			e.printStackTrace();
 		}
 
-		return getSO(headers);
+		return getSO(dataTypes);
 	}
 
 	@POST
@@ -147,7 +148,6 @@ public class Uploader extends HttpServlet {
 	{
 
 		Gson gson = new Gson();
-		List<Hashtable<String, String>> rowsList = new ArrayList<Hashtable<String, String>>();
 		CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
 
 		for(String str : rows) {
