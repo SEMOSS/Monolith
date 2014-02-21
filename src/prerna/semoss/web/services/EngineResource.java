@@ -157,19 +157,19 @@ public class EngineResource {
 			ps.setRDFEngine(coreEngine);
 			ps.setQuery(sparql);
 			
-			if(!(ps instanceof GraphPlaySheet))
+//			if(!(ps instanceof GraphPlaySheet))
 				obj = ps.getData();
-			else
-			{
-				GraphPlaySheet gps = (GraphPlaySheet)ps;
-				gps.createData();
-				gps.runAnalytics();
-				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)ps).getData();
-				InMemorySesameEngine imse = new InMemorySesameEngine();
-				imse.setRepositoryConnection(rc);
-				imse.openDB(null);
-				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.baseFilterHash);
-			}
+//			else
+//			{
+//				GraphPlaySheet gps = (GraphPlaySheet)ps;
+//				gps.createData();
+//				gps.runAnalytics();
+//				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)ps).getData();
+//				InMemorySesameEngine imse = new InMemorySesameEngine();
+//				imse.setRepositoryConnection(rc);
+//				imse.openDB(null);
+//				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.semossGraph.baseFilterHash);
+//			}
 		}catch(Exception ex)
 		{
 			ex.printStackTrace();
@@ -359,17 +359,17 @@ public class EngineResource {
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
 			playSheet.createData();
 			playSheet.runAnalytics();
-			if(!(playSheet instanceof GraphPlaySheet))
+//			if(!(playSheet instanceof GraphPlaySheet))
 				obj = playSheet.getData();
-			else
-			{
-				GraphPlaySheet gps = (GraphPlaySheet)playSheet;
-				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)playSheet).getData();
-				InMemorySesameEngine imse = new InMemorySesameEngine();
-				imse.setRepositoryConnection(rc);
-				imse.openDB(null);
-				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.baseFilterHash);
-			}
+//			else
+//			{
+//				GraphPlaySheet gps = (GraphPlaySheet)playSheet;
+//				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)playSheet).getData();
+//				InMemorySesameEngine imse = new InMemorySesameEngine();
+//				imse.setRepositoryConnection(rc);
+//				imse.openDB(null);
+//				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.semossGraph.baseFilterHash);
+//			}
 		}catch(Exception ex)
 		{
 			ex.printStackTrace();
