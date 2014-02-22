@@ -158,6 +158,7 @@ public class EngineResource {
 			ps.setQuery(sparql);
 			
 //			if(!(ps instanceof GraphPlaySheet))
+			ps.createData();
 				obj = ps.getData();
 //			else
 //			{
