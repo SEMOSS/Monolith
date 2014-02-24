@@ -24,6 +24,7 @@ import org.openrdf.repository.RepositoryConnection;
 
 import prerna.om.Insight;
 import prerna.om.SEMOSSParam;
+import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.InMemorySesameEngine;
@@ -192,6 +193,38 @@ public class EngineResource {
 		}
 		return getSO(obj);
 	}	
+	
+	// temporary function for getting chart it data
+	// will be replaced with query builder
+	@GET
+	@Path("output/chartData")
+	@Produces("application/json")
+	public StreamingOutput getPlaySheetChartData(
+			@QueryParam("playSheetID") String playSheetID,
+			@Context HttpServletRequest request)
+	{
+		// get the playsheet from session
+		HttpSession session = ((HttpServletRequest)request).getSession(false);
+		IPlaySheet playSheet = (IPlaySheet) session.getAttribute(playSheetID);
+		
+		Hashtable<String, Vector<SEMOSSVertex>> newHash = new Hashtable<String, Vector<SEMOSSVertex>>();
+		if(playSheet instanceof GraphPlaySheet){
+			Hashtable<String, SEMOSSVertex> nodeHash = ((GraphPlaySheet)playSheet).getGraphData().getVertStore();
+			// need to create type hash... its the way chartit wants the data..
+			for( SEMOSSVertex vert : nodeHash.values()){
+				String type = vert.getProperty(Constants.VERTEX_TYPE) + "";
+				Vector<SEMOSSVertex> typeVert = newHash.get(type);
+				if(typeVert == null)
+					typeVert = new Vector<SEMOSSVertex>();
+				typeVert.add(vert);
+				newHash.put(type, typeVert);
+			}
+		}
+		else
+			logger.error("Currently cannot chart it from playsheets other than graph play sheet");
+		
+		return getSO(newHash);
+	}
 	
 	// gets all the insights for a given type and tag in all the engines
 	// both tag and type are optional
