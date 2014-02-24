@@ -8,6 +8,7 @@ import java.util.StringTokenizer;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -35,6 +36,7 @@ import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
 
 import com.google.gson.Gson;
@@ -130,7 +132,9 @@ public class EngineResource {
 	public StreamingOutput createOverlayOutput(@QueryParam("upNode") String upNodeUri, 
 			@QueryParam("upNodeType") String upNodeType, 
 			@QueryParam("downNode") String downNodeUri, 
-			@QueryParam("downNodeType") String downNodeType)
+			@QueryParam("downNodeType") String downNodeType,
+			@QueryParam("playSheetID") String playSheetID,
+			@Context HttpServletRequest request)
 	{
 		Object obj = null;
 		String prefix = "";
@@ -150,16 +154,23 @@ public class EngineResource {
 		
 		try
 		{
-			IPlaySheet ps = (IPlaySheet)Class.forName("prerna.ui.components.playsheets.GraphPlaySheet").newInstance();
+			// get the playsheet from session
+			HttpSession session = ((HttpServletRequest)request).getSession(false);
+			IPlaySheet playSheet = (IPlaySheet) session.getAttribute(playSheetID);
+			// this check probably isn't needed... for the time being, though, if the ps is not in session, create a new graph play sheet
+			if(playSheet == null)
+				playSheet = (IPlaySheet)Class.forName("prerna.ui.components.playsheets.GraphPlaySheet").newInstance();
+			
 			String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
 			sparql = sparql.replace("@FILTER_VALUES@", nodeUri).replace("@SUBJECT_TYPE@", upNodeType).replace("@OBJECT_TYPE@", downNodeType);
 			System.err.println("SPARQL is " + sparql);
-			ps.setRDFEngine(coreEngine);
-			ps.setQuery(sparql);
+			playSheet.setRDFEngine(coreEngine);
+			playSheet.setQuery(sparql);
+			playSheet.createData();
+			playSheet.runAnalytics();
 			
 //			if(!(ps instanceof GraphPlaySheet))
-			ps.createData();
-				obj = ps.getData();
+			obj = playSheet.getData();
 //			else
 //			{
 //				GraphPlaySheet gps = (GraphPlaySheet)ps;
@@ -171,6 +182,10 @@ public class EngineResource {
 //				imse.openDB(null);
 //				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.semossGraph.baseFilterHash);
 //			}
+				
+			// put the playsheet back in session
+			if(playSheet.getQuestionID() != null)
+				session.setAttribute(playSheet.getQuestionID(), playSheet);
 		}catch(Exception ex)
 		{
 			ex.printStackTrace();
@@ -371,10 +386,15 @@ public class EngineResource {
 //				imse.openDB(null);
 //				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.semossGraph.baseFilterHash);
 //			}
+				
+			//store the playsheet in session
+			HttpSession session = ((HttpServletRequest)request).getSession(false);
+			session.setAttribute(playSheet.getQuestionID(), playSheet);
 		}catch(Exception ex)
 		{
 			ex.printStackTrace();
 		}
+		
 		return getSO(obj);
 //		Hashtable <String, Object> paramHash = new Hashtable<String, Object>();
 //		if(params != null)
