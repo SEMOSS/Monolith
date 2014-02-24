@@ -7,6 +7,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -48,8 +49,7 @@ public class Uploader extends HttpServlet {
 	String output = "";
 
 	String filePath;
-	String[] headers;
-	
+
 	public void setFilePath(String filePath){
 		this.filePath = filePath;
 	}
@@ -58,7 +58,7 @@ public class Uploader extends HttpServlet {
 	@Path("/csv/meta")
 	@Produces("application/json")
 	public StreamingOutput uploadCSVFileToMeta(@Context HttpServletRequest request) {
-		Hashtable<String, Hashtable<String, Set<String>>> dataTypes	= new Hashtable<String, Hashtable<String, Set<String>>>();
+		Hashtable<String, Hashtable<String, LinkedHashSet<String>>> dataTypes	= new Hashtable<String, Hashtable<String, LinkedHashSet<String>>>();
 		try {
 			File file = null;
 			DiskFileItemFactory factory = new DiskFileItemFactory();
@@ -120,7 +120,6 @@ public class Uploader extends HttpServlet {
 			CSVMetamodelBuilder builder = new CSVMetamodelBuilder();
 			builder.setFiles(allFiles);
 			dataTypes = builder.returnDataTypes();
-			this.headers = builder.getHeader();
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -141,6 +140,7 @@ public class Uploader extends HttpServlet {
 	@Produces("text/html")
 	public Response uploadCSVFile(@FormParam ("dbImportOption") String dbImportOption, 
 			@FormParam ("filename") String filename,
+			@FormParam ("filenameheaders") String headersList,
 			@FormParam ("dbName") String dbName,
 			@FormParam ("designateBaseUri") String baseURI,
 			@FormParam ("relationship") List<String> rel,
@@ -153,19 +153,36 @@ public class Uploader extends HttpServlet {
 		for(String str : rel) {
 			// subject and object keys link to array list for concatenations, while the predicate is always a string
 			Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-			System.out.println(mRow);
-			propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"),mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+			
+			if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
+			{
+				propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+			}
 		}
-		
+
 		for(String str: prop) {
 			Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-			System.out.println(mRow);
-			propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType"));
+			if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
+			{
+				propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+			}
 		}
-			
-		propWriter.columnTypes(this.headers);
-		Hashtable<String, String> propFile = propWriter.getPropHash(); 
 		
+		ArrayList<String> headers = new ArrayList<String>();
+		JsonElement jElement = new JsonParser().parse(headersList);
+		System.out.println(headersList);
+		JsonArray jArray = jElement.getAsJsonArray();
+		for(int i = 0; i < jArray.size(); i++)
+		{
+			JsonObject jObject = jArray.get(i).getAsJsonObject();
+			// adds annoying "" that must be parsed out
+			String header = jObject.get("name").toString();
+			headers.add(header.substring(1,header.length()-1));
+		}
+		
+		propWriter.columnTypes(headers);
+		Hashtable<String, String> propFile = propWriter.getPropHash(); 
+
 		ImportDataProcessor importer = new ImportDataProcessor();
 		importer.setPropHash(propFile);
 		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
