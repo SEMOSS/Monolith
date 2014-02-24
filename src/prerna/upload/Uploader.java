@@ -60,13 +60,11 @@ public class Uploader extends HttpServlet {
 		Hashtable<String, Hashtable<String, Set<String>>> dataTypes	= new Hashtable<String, Hashtable<String, Set<String>>>();
 		try {
 			File file = null;
-
 			DiskFileItemFactory factory = new DiskFileItemFactory();
 			// maximum size that will be stored in memory
 			factory.setSizeThreshold(maxMemSize);
 			// Location to save data that is larger than maxMemSize.
 			factory.setRepository(new File("c:\\temp"));
-
 			// Create a new file upload handler
 			ServletFileUpload upload = new ServletFileUpload(factory);
 			// maximum file size to be uploaded.
@@ -144,25 +142,27 @@ public class Uploader extends HttpServlet {
 			@FormParam ("filename") String filename,
 			@FormParam ("dbName") String dbName,
 			@FormParam ("designateBaseUri") String baseURI,
-			@FormParam ("rows") List<String> rows)
+			@FormParam ("relationship") List<String> rel,
+			@FormParam ("property") List<String> prop)
 	{
 
 		Gson gson = new Gson();
 		CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
 
-		for(String str : rows) {
+		for(String str : rel) {
 			// subject and object keys link to array list for concatenations, while the predicate is always a string
 			Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-			if(!mRow.get("predicate").toString().equals("semoss.org/ontologies/relation/contains")){
-				propWriter.addRelationship((ArrayList<String>) mRow.get("selectedSubject"),mRow.get("predicate").toString(), (ArrayList<String>) mRow.get("selectedObject"));
-			}
-			else{
-				propWriter.addProperty((ArrayList<String>) mRow.get("selectedSubject"), (ArrayList<String>) mRow.get("selectedObject"));
-			}
+			System.out.println(mRow);
+			propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"),mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
 		}
-
-		propWriter.columnDecomp(filePath + filename.toString());
 		
+		for(String str: prop) {
+			Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+			System.out.println(mRow);
+			propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType"));
+		}
+			
+		propWriter.columnTypes(filePath + filename.toString());
 		Hashtable<String, String> propFile = propWriter.getPropHash(); 
 		
 		ImportDataProcessor importer = new ImportDataProcessor();
@@ -170,7 +170,6 @@ public class Uploader extends HttpServlet {
 		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
 
 		// figure out what type of import we need to do based on parameters
-		// selected
 		String methodString = dbImportOption.toString();
 		ImportDataProcessor.IMPORT_METHOD importMethod = 
 				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
