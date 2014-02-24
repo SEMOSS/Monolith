@@ -48,7 +48,8 @@ public class Uploader extends HttpServlet {
 	String output = "";
 
 	String filePath;
-
+	String[] headers;
+	
 	public void setFilePath(String filePath){
 		this.filePath = filePath;
 	}
@@ -113,13 +114,13 @@ public class Uploader extends HttpServlet {
 				//need to handle multiple files getting selected for upload
 				if(inputData.get(fieldName)!=null)
 					value = inputData.get(fieldName) + ";" + value;
-
 				inputData.put(fieldName, value);
 			}
 
 			CSVMetamodelBuilder builder = new CSVMetamodelBuilder();
 			builder.setFiles(allFiles);
 			dataTypes = builder.returnDataTypes();
+			this.headers = builder.getHeader();
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -162,7 +163,7 @@ public class Uploader extends HttpServlet {
 			propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType"));
 		}
 			
-		propWriter.columnTypes(filePath + filename.toString());
+		propWriter.columnTypes(this.headers);
 		Hashtable<String, String> propFile = propWriter.getPropHash(); 
 		
 		ImportDataProcessor importer = new ImportDataProcessor();
