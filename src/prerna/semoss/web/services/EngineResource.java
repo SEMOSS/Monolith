@@ -207,23 +207,26 @@ public class EngineResource {
 		HttpSession session = ((HttpServletRequest)request).getSession(false);
 		IPlaySheet playSheet = (IPlaySheet) session.getAttribute(playSheetID);
 		
-		Hashtable<String, Vector<SEMOSSVertex>> newHash = new Hashtable<String, Vector<SEMOSSVertex>>();
+		Hashtable<String, Vector<SEMOSSVertex>> typeHash = new Hashtable<String, Vector<SEMOSSVertex>>();
 		if(playSheet instanceof GraphPlaySheet){
 			Hashtable<String, SEMOSSVertex> nodeHash = ((GraphPlaySheet)playSheet).getGraphData().getVertStore();
 			// need to create type hash... its the way chartit wants the data..
+			logger.info("creating type hash...");
 			for( SEMOSSVertex vert : nodeHash.values()){
 				String type = vert.getProperty(Constants.VERTEX_TYPE) + "";
-				Vector<SEMOSSVertex> typeVert = newHash.get(type);
+				Vector<SEMOSSVertex> typeVert = typeHash.get(type);
 				if(typeVert == null)
 					typeVert = new Vector<SEMOSSVertex>();
 				typeVert.add(vert);
-				newHash.put(type, typeVert);
+				typeHash.put(type, typeVert);
 			}
 		}
 		else
 			logger.error("Currently cannot chart it from playsheets other than graph play sheet");
 		
-		return getSO(newHash);
+		Hashtable retHash = new Hashtable();
+		retHash.put("Nodes", typeHash);
+		return getSO(retHash);
 	}
 	
 	// gets all the insights for a given type and tag in all the engines
