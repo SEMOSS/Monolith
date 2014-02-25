@@ -160,7 +160,7 @@ public class Uploader extends HttpServlet {
 			}
 		}
 
-		for(String str: prop) {
+		for(String str : prop) {
 			Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
 			if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
 			{
@@ -168,18 +168,9 @@ public class Uploader extends HttpServlet {
 			}
 		}
 		
-		ArrayList<String> headers = new ArrayList<String>();
-		JsonElement jElement = new JsonParser().parse(headersList);
-		System.out.println(headersList);
-		JsonArray jArray = jElement.getAsJsonArray();
-		for(int i = 0; i < jArray.size(); i++)
-		{
-			JsonObject jObject = jArray.get(i).getAsJsonObject();
-			// adds annoying "" that must be parsed out
-			String header = jObject.get("name").toString();
-			headers.add(header.substring(1,header.length()-1));
-		}
-		
+		Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
+		ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
+
 		propWriter.columnTypes(headers);
 		Hashtable<String, String> propFile = propWriter.getPropHash(); 
 
