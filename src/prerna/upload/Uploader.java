@@ -9,7 +9,6 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -34,10 +33,6 @@ import prerna.util.DIHelper;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 /**
  * Servlet implementation class Uploader
@@ -54,13 +49,10 @@ public class Uploader extends HttpServlet {
 		this.filePath = filePath;
 	}
 
-	@POST
-	@Path("/csv/meta")
-	@Produces("application/json")
-	public StreamingOutput uploadCSVFileToMeta(@Context HttpServletRequest request) {
-		Hashtable<String, Hashtable<String, LinkedHashSet<String>>> dataTypes	= new Hashtable<String, Hashtable<String, LinkedHashSet<String>>>();
+	public List<FileItem> processRequest(@Context HttpServletRequest request)
+	{
+		List<FileItem> fileItems = null;
 		try {
-			File file = null;
 			DiskFileItemFactory factory = new DiskFileItemFactory();
 			// maximum size that will be stored in memory
 			factory.setSizeThreshold(maxMemSize);
@@ -71,59 +63,8 @@ public class Uploader extends HttpServlet {
 			// maximum file size to be uploaded.
 			upload.setSizeMax(maxFileSize);
 
-			// Parse the request to get file items.
-			List fileItems = upload.parseRequest(request);
-
-			// Process the uploaded file items
-			Iterator i = fileItems.iterator();
-
-			// collect all of the data input on the form
-			Hashtable inputData = new Hashtable();
-			ArrayList<File> allFiles = new ArrayList<File>();
-			while (i.hasNext()) {
-				FileItem fi = (FileItem) i.next();
-				// Get the uploaded file parameters
-				String fieldName = fi.getFieldName();
-				String fileName = fi.getName();
-				String value = fi.getString();
-				if (!fi.isFormField()) {
-					// Write the file
-					if (fileName.lastIndexOf("\\") >= 0) {
-						value = filePath
-								+ fileName
-								.substring(fileName.lastIndexOf("\\"));
-						file = new File(value);
-					} 
-					else if (fileName.equals("")){
-						continue;
-					}
-					else {
-						value = filePath
-								+ fileName
-								.substring(fileName.lastIndexOf("\\") + 1);
-						file = new File(value);
-					}
-					fi.write(file);
-					allFiles.add(file);
-					System.out.println( "CSV importer saved Filename: " + fileName + "  to "+ file);
-				} else
-					System.err.println("Type is " + fi.getFieldName()
-							+ fi.getString());
-				System.out.println( "Importing data: " + fieldName + "   " + value);
-
-				//need to handle multiple files getting selected for upload
-				if(inputData.get(fieldName)!=null)
-					value = inputData.get(fieldName) + ";" + value;
-				inputData.put(fieldName, value);
-			}
-
-			CSVMetamodelBuilder builder = new CSVMetamodelBuilder();
-			builder.setFiles(allFiles);
-			dataTypes = builder.returnDataTypes();
-
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// Parse the request to get file items
+			fileItems = upload.parseRequest(request);
 		} catch (FileUploadException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -131,6 +72,68 @@ public class Uploader extends HttpServlet {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
+		return fileItems;
+	}
+
+	@POST
+	@Path("/csv/meta")
+	@Produces("application/json")
+	public StreamingOutput uploadCSVFileToMeta(@Context HttpServletRequest request) 
+	{
+		File file;
+		Hashtable<String, Hashtable<String, LinkedHashSet<String>>> dataTypes	= new Hashtable<String, Hashtable<String, LinkedHashSet<String>>>();
+		List<FileItem> fileItems = processRequest(request);
+		// Process the uploaded file items
+		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
+
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = new Hashtable<String, String>();
+		ArrayList<File> allFiles = new ArrayList<File>();
+		while(iteratorFileItems.hasNext()) 
+		{
+			FileItem fi = (FileItem) iteratorFileItems.next();
+			// Get the uploaded file parameters
+			String fieldName = fi.getFieldName();
+			String fileName = fi.getName();
+			String value = fi.getString();
+			if (!fi.isFormField()) {
+				// Write the file
+				if (fileName.lastIndexOf("\\") >= 0) {
+					value = filePath + fileName.substring(fileName.lastIndexOf("\\"));
+					file = new File(value);
+				} 
+				else if (fileName.equals("")){
+					continue;
+				}
+				else {
+					value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
+					file = new File(value);
+				}
+				try {
+					fi.write(file);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				allFiles.add(file);
+				System.out.println( "CSV importer saved Filename: " + fileName + "  to "+ file);
+			} else {
+				System.err.println("Type is " + fi.getFieldName() + fi.getString());
+			}
+			//need to handle multiple files getting selected for upload
+			if(inputData.get(fieldName) != null)
+			{
+				value = inputData.get(fieldName) + ";" + value;
+			}
+			inputData.put(fieldName, value);
+		}
+
+		CSVMetamodelBuilder builder = new CSVMetamodelBuilder();
+		builder.setFiles(allFiles);
+		dataTypes = builder.returnDataTypes();
+
+
 
 		return getSO(dataTypes);
 	}
@@ -153,7 +156,7 @@ public class Uploader extends HttpServlet {
 		for(String str : rel) {
 			// subject and object keys link to array list for concatenations, while the predicate is always a string
 			Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-			
+
 			if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
 			{
 				propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
@@ -167,7 +170,7 @@ public class Uploader extends HttpServlet {
 				propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
 			}
 		}
-		
+
 		Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
 		ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
 
@@ -300,6 +303,79 @@ public class Uploader extends HttpServlet {
 		}
 
 		return Response.status(200).entity(htmlResponse).build();
+	}
+
+
+	@POST
+	@Path("/nlp/upload")
+	@Produces("text/html")
+	public Response uploadNLPFile(@Context HttpServletRequest request) {
+		{
+			File file;
+			List<FileItem> fileItems = processRequest(request);
+			// Process the uploaded file items
+			Iterator<FileItem> iteratorFileItems = fileItems.iterator();
+
+			// collect all of the data input on the form
+			Hashtable<String, String> inputData = new Hashtable<String, String>();
+			while(iteratorFileItems.hasNext()) 
+			{
+				FileItem fi = (FileItem) iteratorFileItems.next();
+				// Get the uploaded file parameters
+				String fieldName = fi.getFieldName();
+				String fileName = fi.getName();
+				String value = fi.getString();
+				if (!fi.isFormField()) {
+					// Write the file
+					if (fileName.lastIndexOf("\\") >= 0) {
+						value = filePath + fileName.substring(fileName.lastIndexOf("\\"));
+						file = new File(value);
+					} 
+					else if (fileName.equals("")){
+						continue;
+					}
+					else {
+						value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
+						file = new File(value);
+					}
+					try {
+						fi.write(file);
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					System.out.println( "CSV importer saved Filename: " + fileName + "  to "+ file);
+				} else {
+					System.err.println("Type is " + fi.getFieldName() + fi.getString());
+				}
+				//need to handle multiple files getting selected for upload
+				if(inputData.get(fieldName) != null)
+				{
+					value = inputData.get(fieldName) + ";" + value;
+				}
+				inputData.put(fieldName, value);
+			}
+			
+			System.out.println(inputData);
+			// time to run the import
+			ImportDataProcessor importer = new ImportDataProcessor();
+			importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
+
+			// figure out what type of import we need to do based on parameters
+			// selected
+			String methodString = inputData.get("importMethod") + "";
+			ImportDataProcessor.IMPORT_METHOD importMethod = 
+					methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
+							: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+									: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+											: null;
+
+			//call the right process method with correct parameters
+			boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("uploadFile")+"", 
+					inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
+
+			return Response.status(200).entity(isSuccessful).build();
+		}
 	}
 
 	private StreamingOutput getSO(Object vec)
