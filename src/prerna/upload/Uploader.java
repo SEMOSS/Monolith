@@ -97,13 +97,9 @@ public class Uploader extends HttpServlet {
 			String fieldName = fi.getFieldName();
 			String fileName = fi.getName();
 			String value = fi.getString();
-			if (!fi.isFormField()) {
-				// Write the file
-				if (fileName.lastIndexOf("\\") >= 0) {
-					value = filePath + fileName.substring(fileName.lastIndexOf("\\"));
-					file = new File(value);
-				} 
-				else if (fileName.equals("")){
+			if (!fi.isFormField()) 
+			{
+				if (fileName.equals("")){
 					continue;
 				}
 				else {
@@ -118,7 +114,9 @@ public class Uploader extends HttpServlet {
 				}
 				allFiles.add(file);
 				System.out.println( "CSV importer saved Filename: " + fileName + "  to "+ file);
-			} else {
+			} 
+			else 
+			{
 				System.err.println("Type is " + fi.getFieldName() + fi.getString());
 			}
 			//need to handle multiple files getting selected for upload
@@ -229,7 +227,8 @@ public class Uploader extends HttpServlet {
 			htmlResponse += "<body>";
 			// collect all of the data input on the form
 			Hashtable inputData = new Hashtable();
-			while (i.hasNext()) {
+			while (i.hasNext()) 
+			{
 				FileItem fi = (FileItem) i.next();
 				// Get the uploaded file parameters
 				String fieldName = fi.getFieldName();
@@ -255,7 +254,8 @@ public class Uploader extends HttpServlet {
 					fi.write(file);
 					htmlResponse += "Uploaded Filename: " + fileName + "  to "
 							+ file + " <br>";
-				} else
+				} 
+				else
 					System.err.println("Type is " + fi.getFieldName()
 							+ fi.getString());
 				htmlResponse += "Importing data: " + fieldName + "   " + value
@@ -288,9 +288,7 @@ public class Uploader extends HttpServlet {
 
 			//call the right process method with correct parameters
 			importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("uploadFile")+"", 
-					inputData.get("customBaseURI")+"", inputData.get("newDBname")+"", 
-					"","","","");
-			//inputData.get("mapFile")+"", inputData.get("dbPropFile")+"", inputData.get("questionFile")+"", inputData.get("existingDBname")+"");
+					inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -325,13 +323,9 @@ public class Uploader extends HttpServlet {
 				String fieldName = fi.getFieldName();
 				String fileName = fi.getName();
 				String value = fi.getString();
-				if (!fi.isFormField()) {
-					// Write the file
-					if (fileName.lastIndexOf("\\") >= 0) {
-						value = filePath + fileName.substring(fileName.lastIndexOf("\\"));
-						file = new File(value);
-					} 
-					else if (fileName.equals("")){
+				if (!fi.isFormField()) 
+				{
+					if (fileName.equals("")){
 						continue;
 					}
 					else {
@@ -344,8 +338,18 @@ public class Uploader extends HttpServlet {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-					System.out.println( "CSV importer saved Filename: " + fileName + "  to "+ file);
-				} else {
+					System.out.println("NLP importer saved Filename: " + fileName + "  to "+ file);
+				} 
+				else if(fieldName.equals("nlptext"))
+				{
+					System.out.println(value);
+				}
+				else if(fieldName.equals("nlphttpurl"))
+				{
+					System.out.println(value);
+				}
+				else 
+				{
 					System.err.println("Type is " + fi.getFieldName() + fi.getString());
 				}
 				//need to handle multiple files getting selected for upload
@@ -371,7 +375,7 @@ public class Uploader extends HttpServlet {
 											: null;
 
 			//call the right process method with correct parameters
-			boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("uploadFile")+"", 
+			boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file"), 
 					inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
 
 			return Response.status(200).entity(isSuccessful).build();
