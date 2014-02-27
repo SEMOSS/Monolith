@@ -377,8 +377,14 @@ public class Uploader extends HttpServlet {
 			//call the right process method with correct parameters
 			boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file"), 
 					inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
-
-			return Response.status(200).entity(isSuccessful).build();
+			
+			String outputText = "";
+			if(isSuccessful)
+				outputText = "NLP Loading was a success.";
+			else
+				outputText = "NLP Loading has failed.";
+			
+			return Response.status(200).entity(outputText).build();
 		}
 	}
 
