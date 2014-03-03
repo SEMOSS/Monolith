@@ -307,15 +307,90 @@ public class Uploader extends HttpServlet {
 	@POST
 	@Path("/nlp/upload")
 	@Produces("text/html")
-	public Response uploadNLPFile(@Context HttpServletRequest request) {
+	public Response uploadNLPFile(@Context HttpServletRequest request) 
+	{
+		File file;
+		List<FileItem> fileItems = processRequest(request);
+		// Process the uploaded file items
+		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
+
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = new Hashtable<String, String>();
+		while(iteratorFileItems.hasNext()) 
 		{
+			FileItem fi = (FileItem) iteratorFileItems.next();
+			// Get the uploaded file parameters
+			String fieldName = fi.getFieldName();
+			String fileName = fi.getName();
+			String value = fi.getString();
+			if (!fi.isFormField()) 
+			{
+				if (fileName.equals("")){
+					continue;
+				}
+				else {
+					value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
+					file = new File(value);
+				}
+				try {
+					fi.write(file);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				System.out.println("NLP importer saved Filename: " + fileName + "  to "+ file);
+			} 
+			else 
+			{
+				System.out.println("Type is " + fi.getFieldName() + fi.getString());
+			}
+			//need to handle multiple files getting selected for upload
+			if(inputData.get(fieldName) != null)
+			{
+				value = inputData.get(fieldName) + ";" + value;
+			}
+			inputData.put(fieldName, value);
+		}
+
+		System.out.println(inputData);
+		// time to run the import
+		ImportDataProcessor importer = new ImportDataProcessor();
+		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
+
+		// figure out what type of import we need to do based on parameters
+		// selected
+		String methodString = inputData.get("importMethod") + "";
+		ImportDataProcessor.IMPORT_METHOD importMethod = 
+				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
+						: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+										: null;
+
+		//call the right process method with correct parameters
+		boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file"), 
+				inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
+
+		String outputText = "";
+		if(isSuccessful)
+			outputText = "NLP Loading was a success.";
+		else
+			outputText = "NLP Loading has failed.";
+
+		return Response.status(200).entity(outputText).build();
+	}
+
+	@POST
+	@Path("/d2rq/upload")
+	@Produces("text/html")
+	public Response uploadD2RQFile(@Context HttpServletRequest request) 
+	{
 			File file;
 			List<FileItem> fileItems = processRequest(request);
 			// Process the uploaded file items
 			Iterator<FileItem> iteratorFileItems = fileItems.iterator();
 
 			// collect all of the data input on the form
-			Hashtable<String, String> inputData = new Hashtable<String, String>();
+			Hashtable<String, Object> inputData = new Hashtable<String, Object>();
 			while(iteratorFileItems.hasNext()) 
 			{
 				FileItem fi = (FileItem) iteratorFileItems.next();
@@ -339,27 +414,25 @@ public class Uploader extends HttpServlet {
 						e.printStackTrace();
 					}
 					System.out.println("NLP importer saved Filename: " + fileName + "  to "+ file);
+					inputData.put(fieldName, value);
 				} 
-				else if(fieldName.equals("nlptext"))
+				else if(fieldName.equals("accountPassword"))
 				{
-					System.out.println(value);
-				}
-				else if(fieldName.equals("nlphttpurl"))
-				{
-					System.out.println(value);
+					inputData.put(fieldName, value.toCharArray());
 				}
 				else 
 				{
 					System.err.println("Type is " + fi.getFieldName() + fi.getString());
+					inputData.put(fieldName, value);
 				}
 				//need to handle multiple files getting selected for upload
 				if(inputData.get(fieldName) != null)
 				{
 					value = inputData.get(fieldName) + ";" + value;
+					inputData.put(fieldName, value);
 				}
-				inputData.put(fieldName, value);
 			}
-			
+
 			System.out.println(inputData);
 			// time to run the import
 			ImportDataProcessor importer = new ImportDataProcessor();
@@ -374,19 +447,21 @@ public class Uploader extends HttpServlet {
 									: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 											: null;
 
-			//call the right process method with correct parameters
-			boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file"), 
-					inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
 			
+			//call the right process method with correct parameters
+			boolean isSuccessful = importer.processNewRDBMS((String) inputData.get("customBaseURI"), (String) inputData.get("file"), 
+					(String) inputData.get("newDBname"), (String) inputData.get("dbType"), 
+					(String) inputData.get("dbUrl"), (String) inputData.get("accountName"), (char[]) inputData.get("accountPassword"));
+
 			String outputText = "";
 			if(isSuccessful)
-				outputText = "NLP Loading was a success.";
+				outputText = "R2RQ Loading was a success.";
 			else
-				outputText = "NLP Loading has failed.";
-			
+				outputText = "R2RQ Loading has failed.";
+
 			return Response.status(200).entity(outputText).build();
-		}
 	}
+
 
 	private StreamingOutput getSO(Object vec)
 	{
