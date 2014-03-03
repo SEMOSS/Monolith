@@ -390,7 +390,7 @@ public class Uploader extends HttpServlet {
 			Iterator<FileItem> iteratorFileItems = fileItems.iterator();
 
 			// collect all of the data input on the form
-			Hashtable<String, Object> inputData = new Hashtable<String, Object>();
+			Hashtable<String, String> inputData = new Hashtable<String, String>();
 			while(iteratorFileItems.hasNext()) 
 			{
 				FileItem fi = (FileItem) iteratorFileItems.next();
@@ -413,13 +413,9 @@ public class Uploader extends HttpServlet {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
-					System.out.println("NLP importer saved Filename: " + fileName + "  to "+ file);
+					System.out.println("d2rq importer saved Filename: " + fileName + "  to "+ file);
 					inputData.put(fieldName, value);
 				} 
-				else if(fieldName.equals("accountPassword"))
-				{
-					inputData.put(fieldName, value.toCharArray());
-				}
 				else 
 				{
 					System.err.println("Type is " + fi.getFieldName() + fi.getString());
@@ -446,12 +442,11 @@ public class Uploader extends HttpServlet {
 							: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
 									: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 											: null;
-
 			
 			//call the right process method with correct parameters
 			boolean isSuccessful = importer.processNewRDBMS((String) inputData.get("customBaseURI"), (String) inputData.get("file"), 
 					(String) inputData.get("newDBname"), (String) inputData.get("dbType"), 
-					(String) inputData.get("dbUrl"), (String) inputData.get("accountName"), (char[]) inputData.get("accountPassword"));
+					(String) inputData.get("dbUrl"), (String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
 
 			String outputText = "";
 			if(isSuccessful)
