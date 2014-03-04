@@ -72,6 +72,22 @@ public class EngineResource {
 		return getSO(finalTypes);
 	}
 
+	//gets all node types connected to a given node type along with the verbs connecting the given types
+	@GET
+	@Path("neighbors/verbs")
+	@Produces("application/json")
+	public StreamingOutput getNeighborsWithVerbs(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
+	{
+		Hashtable<String, Hashtable<String, Vector<String>>> finalTypes = new Hashtable<String, Hashtable<String, Vector<String>>>();
+		if(coreEngine instanceof AbstractEngine){
+			Hashtable<String, Vector<String>> downNodes = ((AbstractEngine) coreEngine).getToNeighborsWithVerbs(type, 0);
+			finalTypes.put("downstream", downNodes);
+			Hashtable<String, Vector<String>> upNodes = ((AbstractEngine) coreEngine).getFromNeighborsWithVerbs(type, 0);
+			finalTypes.put("upstream", upNodes);
+		}
+		return getSO(finalTypes);
+	}
+	
 	//gets all node types connected to a specific node instance
 	@GET
 	@Path("neighbors/instance")
