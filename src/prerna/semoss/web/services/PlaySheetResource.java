@@ -25,6 +25,7 @@ import com.google.gson.GsonBuilder;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.api.IEngine;
+import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.AbstractRDFPlaySheet;
@@ -120,8 +121,7 @@ public class PlaySheetResource {
 		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
 
 		//get necessary info about params passed in
-		String targetType = Utility.getInstanceName(upNodeType);
-		String filterValues = getNodesOfType(targetType);
+		String filterValues = getNodesOfType(upNodeType);
 		
 		//process traversal
 		Object obj = runPlaySheetTraversal(sparql, upNodeType, downNodeType, filterValues);
@@ -148,8 +148,7 @@ public class PlaySheetResource {
 		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
 
 		//get necessary info about params passed in
-		String targetType = Utility.getInstanceName(downNodeType);
-		String filterValues = getNodesOfType(targetType);
+		String filterValues = getNodesOfType(downNodeType);
 		
 		//process traversal
 		Object obj = runPlaySheetTraversal(sparql, upNodeType, downNodeType, filterValues);
@@ -189,6 +188,63 @@ public class PlaySheetResource {
 		
 		Object obj = runPlaySheetOverlay();
 		return getSO(obj);
+	}
+
+	//gets all node types connected to a specific node instance
+	@GET
+	@Path("neighbors/type")
+	@Produces("application/json")
+	public StreamingOutput getNeighborsInstance(@QueryParam("node") String uri, @Context HttpServletRequest request)
+	{
+		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
+		if(coreEngine instanceof AbstractEngine){
+			AbstractEngine engine = (AbstractEngine) coreEngine;
+			//get node type
+			String type = Utility.getConceptType(coreEngine, uri);
+			
+			//DOWNSTREAM PROCESSING
+			//get node types connected to this type
+			Vector<String> downNodeTypes = engine.getToNeighbors(type, 0);
+			
+			//for each available type, ensure each type has at least one instance connected to a node of the original node's type
+			String filterValues = getNodesOfType(type);
+			Vector<String> validDownTypes = new Vector<String>();
+			if(!filterValues.isEmpty())//empty bindings acts as no bindings at all, so need to have this check
+			{
+				String downAskQuery = "ASK { "
+						+ "{?connectedNode a <@NODE_TYPE@>} "
+						+ "{?nodes ?rel ?connectedNode}"
+						+ "}" 
+						+ "BINDINGS ?nodes {" + filterValues + "}";
+				for (String connectedType : downNodeTypes){
+					String filledDownAskQuery = downAskQuery.replace("@NODE_TYPE@", connectedType);
+					logger.info("Checking type " + connectedType + " with query " + filledDownAskQuery);
+					if(engine.execAskQuery(filledDownAskQuery))
+						validDownTypes.add(connectedType);
+				}
+				finalTypes.put("downstream", validDownTypes);
+				
+				//UPSTREAM PROCESSING
+				//get node types connected to this type
+				Vector<String> upNodeTypes = engine.getFromNeighbors(type, 0);
+				
+				//for each available type, ensure each type has at least one instance connected to original node
+				String upAskQuery = "ASK { "
+						+ "{?connectedNode a <@NODE_TYPE@>} "
+						+ "{?connectedNode ?rel ?nodes}"
+						+ "}" 
+						+ "BINDINGS ?nodes {" + filterValues + "}";
+				Vector<String> validUpTypes = new Vector<String>();
+				for (String connectedType : upNodeTypes){
+					String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
+					logger.info("Checking type " + connectedType + " with query " + filledUpAskQuery);
+					if(engine.execAskQuery(filledUpAskQuery))
+						validUpTypes.add(connectedType);
+				}
+				finalTypes.put("upstream", validUpTypes);
+			}
+		}
+		return getSO(finalTypes);
 	}
 	
 	// temporary function for getting chart it data
@@ -279,7 +335,8 @@ public class PlaySheetResource {
 	}
 	
 	//returns a string ready for the BINDINGS of a query that has all nodes of the type targetType
-	private String getNodesOfType(String targetType){
+	private String getNodesOfType(String nodeType){
+		String targetType = Utility.getInstanceName(nodeType);
 		String filterValues = "";
 		//get necessary info about params passed in
 		if(playSheet instanceof GraphPlaySheet){
