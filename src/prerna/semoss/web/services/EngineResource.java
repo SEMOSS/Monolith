@@ -399,38 +399,7 @@ public class EngineResource {
 		// key$value~key2:value2 etc
 		// need to find a way to handle other types than strings
 		System.out.println("Params is " + params);
-		Hashtable <String, Object> paramHash = new Hashtable<String, Object>();
-		if(params != null)
-		{
-			StringTokenizer tokenz = new StringTokenizer(params,"~");
-			while(tokenz.hasMoreTokens())
-			{
-				String thisToken = tokenz.nextToken();
-				int index = thisToken.indexOf("$");
-				String key = thisToken.substring(0, index);
-				String value = thisToken.substring(index+1);
-				// attempt to see if 
-				boolean found = false;
-				try{
-					double dub = Double.parseDouble(value);
-					paramHash.put(key, dub);
-					found = true;
-				}catch (Exception ignored)
-				{
-				}
-				if(!found){
-					try{
-						int dub = Integer.parseInt(value);
-						paramHash.put(key, dub);
-						found = true;
-					}catch (Exception ignored)
-					{
-					}
-				}
-				//if(!found)
-					paramHash.put(key, value);
-			}
-		}
+		Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
 		
 		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
 		exQueryProcessor.processQuestionQuery(coreEngine.getEngineName(), insight, paramHash);
