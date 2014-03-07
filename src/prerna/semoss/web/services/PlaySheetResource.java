@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Hashtable;
+import java.util.StringTokenizer;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -24,6 +25,7 @@ import com.google.gson.GsonBuilder;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.api.IEngine;
+import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.AbstractRDFPlaySheet;
 import prerna.ui.components.playsheets.GraphPlaySheet;
@@ -157,6 +159,37 @@ public class PlaySheetResource {
 		
 		return getSO(obj);
 	}	
+
+	// temporary function for getting chart it data
+	// will be replaced with query builder
+	@GET
+	@Path("overlay")
+	@Produces("application/json")
+	public StreamingOutput createPlaySheetOverlay(
+			@QueryParam("insight") String insight, 
+			@QueryParam("params") String params, 
+			@Context HttpServletRequest request)
+	{
+		// executes the output and gives the data
+		// executes the create runner
+		// once complete, it would plug the output into the session
+		// need to find a way where I can specify if I want to keep the result or not
+		// params are typically passed on as
+		// pairs like this
+		// key$value~key2:value2 etc
+		System.out.println("Params is " + params);
+		Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
+		
+		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
+		exQueryProcessor.setAppendBoolean(true);
+		exQueryProcessor.setPlaySheet(playSheet);
+		exQueryProcessor.processQuestionQuery(coreEngine.getEngineName(), insight, paramHash);
+		
+		playSheet = exQueryProcessor.getPlaySheet();
+		
+		Object obj = runPlaySheetOverlay();
+		return getSO(obj);
+	}
 	
 	// temporary function for getting chart it data
 	// will be replaced with query builder
@@ -207,12 +240,14 @@ public class PlaySheetResource {
 	private Object runPlaySheetTraversal(String sparql, String upNodeType, String downNodeType, String filterValues){
 		//fill the sparql
 		sparql = sparql.replace("@FILTER_VALUES@", filterValues).replace("@SUBJECT_TYPE@", upNodeType).replace("@OBJECT_TYPE@", downNodeType);
-		Object obj = runPlaySheetOverlay(sparql);
+		playSheet.setQuery(sparql);
+		Object obj = runPlaySheetOverlay();
 		return obj;
 	}
 
-	//basic overlay processing with a given sparql
-	private Object runPlaySheetOverlay(String sparql){
+	//basic overlay processing
+	//sparql query must already be set on the playsheet
+	private Object runPlaySheetOverlay(){
 		Object obj = null;
 
 		try
@@ -221,13 +256,10 @@ public class PlaySheetResource {
 			if(playSheet == null)
 				playSheet = (IPlaySheet)Class.forName("prerna.ui.components.playsheets.GraphPlaySheet").newInstance();
 			
-			System.err.println("SPARQL is " + sparql);
-			
 			if(playSheet instanceof AbstractRDFPlaySheet)
 				((AbstractRDFPlaySheet)playSheet).setAppend(true);
 			
 			playSheet.setRDFEngine(coreEngine);
-			playSheet.setQuery(sparql);
 			playSheet.createData();
 			playSheet.runAnalytics();
 			
