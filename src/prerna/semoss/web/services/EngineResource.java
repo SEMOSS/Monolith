@@ -12,6 +12,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
@@ -54,6 +55,18 @@ public class EngineResource {
 	{
 		System.out.println("Setting core engine to " + coreEngine);
 		this.coreEngine = coreEngine;
+	}
+	
+	// All playsheet specific manipulations will go through this
+	@Path("p-{playSheetID}")
+	public Object uploadFile(@PathParam("playSheetID") String playSheetID, @Context HttpServletRequest request) {
+		PlaySheetResource psr = new PlaySheetResource();
+		// get the playsheet from session
+		HttpSession session = ((HttpServletRequest)request).getSession(false);
+		IPlaySheet playSheet = (IPlaySheet) session.getAttribute(playSheetID);
+		psr.setPlaySheet(playSheet);
+		psr.setEngine(coreEngine);
+		return psr;
 	}
 	
 	//gets all node types connected to a given node type
