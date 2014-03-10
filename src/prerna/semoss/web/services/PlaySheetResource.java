@@ -110,10 +110,11 @@ public class PlaySheetResource {
 	@Path("extend/downstream/type")
 	@Produces("application/json")
 	public Object createDownstreamTypeTraversal( 
-			@QueryParam("upNodeType") String upNodeType, 
+			@QueryParam("upNode") String upNodeUri, 
 			@QueryParam("downNodeType") String downNodeType,
 			@Context HttpServletRequest request)
 	{
+		String upNodeType = Utility.getConceptType(coreEngine, upNodeUri);
 		logger.info("Processing downstream traversal for node type " + upNodeType);
 		
 		//get the query
@@ -138,9 +139,10 @@ public class PlaySheetResource {
 	@Produces("application/json")
 	public Object createUpstreamTypeTraversal( 
 			@QueryParam("upNodeType") String upNodeType, 
-			@QueryParam("downNodeType") String downNodeType,
+			@QueryParam("downNode") String downNodeUri,
 			@Context HttpServletRequest request)
 	{
+		String downNodeType = Utility.getConceptType(coreEngine, downNodeUri);
 		logger.info("Processing upstream traversal for node type " + downNodeType);
 		
 		//get the query
