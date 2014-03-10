@@ -3,7 +3,9 @@ package prerna.semoss.web.services;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
@@ -31,6 +33,7 @@ import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.InMemorySesameEngine;
 import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
 import prerna.rdf.util.RDFJSONConverter;
+import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.GraphPlaySheet;
@@ -637,18 +640,42 @@ public class EngineResource {
 		else if(query != null)
 			return getSO(coreEngine.getParamValues("", "", "", query));
 		return null;
+	}		
+	
+	// gets all numeric properties associated with a specific node type
+	@GET
+	@Path("properties/node/type/numeric")
+	@Produces("application/json")
+	public StreamingOutput getNumericNodeProperties(
+			@QueryParam("nodeType")  String nodeUri)
+	{
+		String nodePropQuery = "SELECT DISTINCT ?entity WHERE {{?source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@NODE_TYPE_URI@>} {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Relation/Contains>} {?source ?entity ?prop } FILTER(ISNUMERIC(?prop))}";
+
+		//fill the query
+		String query = nodePropQuery.replace("@NODE_TYPE_URI@", nodeUri);
+		
+		logger.info("Running node property query " + query);
+
+		return getSO(coreEngine.getEntityOfType(query));
 	}	
 
-	
-	// gets all types from a given db
-	
+	// gets all numeric edge properties for a specific edge type
 	@GET
-	@Path("conceptType")
+	@Path("properties/edge/type/numeric")
 	@Produces("application/json")
-	public StreamingOutput getConceptType()
+	public StreamingOutput getNumericEdgeProperties(
+			@QueryParam("source")  String sourceTypeUri,
+			@QueryParam("target")  String targetTypeUri,
+			@QueryParam("verb")  String verbTypeUri)
 	{
+		String edgePropQuery = "SELECT DISTINCT ?entity WHERE {{?source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@SOURCE_TYPE@>} {?target <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@TARGET_TYPE@>} {?verb <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <@VERB_TYPE@>}{?source ?verb ?target;} {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Relation/Contains>} {?verb ?entity ?prop } FILTER(ISNUMERIC(?prop))}";
+
+		//fill the query
+		String query = edgePropQuery.replace("@SOURCE_TYPE@", sourceTypeUri).replace("@TARGET_TYPE@", targetTypeUri).replace("@VERB_TYPE@", verbTypeUri);
 		
-		return getSO(coreEngine.getParamValues("", "", "", "SELECT ?entity WHERE { {?entity <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://semoss.org/ontologies/Concept> ;} }"));
+		logger.info("Running edge property query " + query);
+
+		return getSO(coreEngine.getEntityOfType(query));
 	}	
 	
 }
