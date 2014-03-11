@@ -122,7 +122,13 @@ public class PlaySheetResource {
 		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
 
 		//get necessary info about params passed in
-		String filterValues = getNodesOfType(upNodeType);
+		//need to get the type from the node because the queried type will failed if ActiveSystem (because stored on the node is just type of System)
+		String searchType = upNodeType;
+		if(playSheet instanceof GraphPlaySheet){
+			SEMOSSVertex vert = ((GraphPlaySheet)playSheet).getGraphData().getVertStore().get(upNodeUri);
+			searchType = vert.getProperty(Constants.VERTEX_TYPE)+"";
+		}
+		String filterValues = getNodesOfType(searchType);
 		
 		//process traversal
 		Object obj = runPlaySheetTraversal(sparql, upNodeType, downNodeType, filterValues);
@@ -150,7 +156,13 @@ public class PlaySheetResource {
 		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
 
 		//get necessary info about params passed in
-		String filterValues = getNodesOfType(downNodeType);
+		//need to get the type from the node because the queried type will failed if ActiveSystem (because stored on the node is just type of System)
+		String searchType = downNodeType;
+		if(playSheet instanceof GraphPlaySheet){
+			SEMOSSVertex vert = ((GraphPlaySheet)playSheet).getGraphData().getVertStore().get(downNodeUri);
+			searchType = vert.getProperty(Constants.VERTEX_TYPE)+"";
+		}
+		String filterValues = getNodesOfType(searchType);
 		
 		//process traversal
 		Object obj = runPlaySheetTraversal(sparql, upNodeType, downNodeType, filterValues);
@@ -209,7 +221,13 @@ public class PlaySheetResource {
 			Vector<String> downNodeTypes = engine.getToNeighbors(type, 0);
 			
 			//for each available type, ensure each type has at least one instance connected to a node of the original node's type
-			String filterValues = getNodesOfType(type);
+			//need to get the type from the node because the queried type will failed if ActiveSystem (because stored on the node is just type of System)
+			String searchType = type;
+			if(playSheet instanceof GraphPlaySheet){
+				SEMOSSVertex vert = ((GraphPlaySheet)playSheet).getGraphData().getVertStore().get(uri);
+				searchType = vert.getProperty(Constants.VERTEX_TYPE)+"";
+			}
+			String filterValues = getNodesOfType(searchType);
 			Vector<String> validDownTypes = new Vector<String>();
 			if(!filterValues.isEmpty())//empty bindings acts as no bindings at all, so need to have this check
 			{
