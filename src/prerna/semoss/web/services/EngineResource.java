@@ -32,6 +32,10 @@ import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.InMemorySesameEngine;
 import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
+import prerna.rdf.query.builder.AbstractCustomVizBuilder;
+import prerna.rdf.query.builder.CustomVizHeatMapBuilder;
+import prerna.rdf.query.builder.ICustomVizBuilder;
+import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.RDFJSONConverter;
 import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ExecuteQueryProcessor;
@@ -41,6 +45,7 @@ import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
 
@@ -54,6 +59,8 @@ public class EngineResource {
 	IEngine coreEngine = null;
 	String output = "";
 	Logger logger = Logger.getLogger(getClass());
+	Hashtable<String, SEMOSSQuery> vizHash = new Hashtable<String, SEMOSSQuery>();
+	
 	public void setEngine(IEngine coreEngine)
 	{
 		System.out.println("Setting core engine to " + coreEngine);
@@ -658,7 +665,7 @@ public class EngineResource {
 
 		return getSO(coreEngine.getEntityOfType(query));
 	}	
-
+	
 	// gets all numeric edge properties for a specific edge type
 	@GET
 	@Path("properties/edge/type/numeric")
@@ -678,4 +685,56 @@ public class EngineResource {
 		return getSO(coreEngine.getEntityOfType(query));
 	}	
 	
+	@GET
+	@Path("customViz")
+	@Produces("application/json")
+	public StreamingOutput getVizData(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
+	{
+		String heatMapName = "testName";
+		Gson gson = new Gson();
+		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
+		String vizType = (String) dataHash.get(AbstractCustomVizBuilder.vizTypeKey);
+		ICustomVizBuilder viz = null;
+		if(vizType.equals(PlaySheetEnum.Heat_Map.getSheetName()))
+		{
+			viz = new CustomVizHeatMapBuilder();
+		}
+		viz.setJSONDataHash(dataHash);
+		viz.setVisualType(PlaySheetEnum.Heat_Map.getSheetName());
+		viz.buildQuery();
+		String query = viz.getQuery();
+		
+		Object obj = null;
+		try
+		{
+			String playSheetClassName = PlaySheetEnum.getClassFromName(PlaySheetEnum.Heat_Map.getSheetName());
+			IPlaySheet playSheet = (IPlaySheet) Class.forName(playSheetClassName).getConstructor(null).newInstance(null);
+			playSheet.setQuery(query);
+			playSheet.setRDFEngine(coreEngine);
+			playSheet.createData();
+			playSheet.runAnalytics();
+//			if(!(playSheet instanceof GraphPlaySheet))
+				obj = playSheet.getData();
+//			else
+//			{
+//				GraphPlaySheet gps = (GraphPlaySheet)playSheet;
+//				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)playSheet).getData();
+//				InMemorySesameEngine imse = new InMemorySesameEngine();
+//				imse.setRepositoryConnection(rc);
+//				imse.openDB(null);
+//				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.semossGraph.baseFilterHash);
+//			}
+				
+			//store the playsheet in session
+			HttpSession session = ((HttpServletRequest)request).getSession(false);
+			session.setAttribute(heatMapName, playSheet);
+		}catch(Exception ex)
+		{
+			ex.printStackTrace();
+		}
+		
+		return getSO(obj);
+	}	
+
+
 }
