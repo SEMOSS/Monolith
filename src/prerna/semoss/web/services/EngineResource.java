@@ -3,10 +3,7 @@ package prerna.semoss.web.services;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.List;
-import java.util.StringTokenizer;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -23,24 +20,19 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
-import org.openrdf.repository.RepositoryConnection;
 
 import prerna.om.Insight;
 import prerna.om.SEMOSSParam;
-import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.AbstractEngine;
-import prerna.rdf.engine.impl.InMemorySesameEngine;
 import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
 import prerna.rdf.query.builder.AbstractCustomVizBuilder;
 import prerna.rdf.query.builder.CustomVizHeatMapBuilder;
 import prerna.rdf.query.builder.ICustomVizBuilder;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.RDFJSONConverter;
-import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
-import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.Constants;
@@ -160,112 +152,6 @@ public class EngineResource {
 			finalTypes.put("upstream", validUpTypes);
 		}
 		return getSO(finalTypes);
-	}
-	
-	// performs extend functionality (currently only for a graph play sheet)
-	// upnode or downnode or both can be null
-	// must pass in (upNode and downNodeType) or (downNode and upNodeType) or (upNodeType and downNodeType) -- depending on where / how the user wants to traverse
-	// need to figure out how javascript is going to tell which playsheet is getting extended so that for Traverse From All only adds to those on the graph
-	@GET
-	@Path("output/extend")
-	@Produces("application/json")
-	public StreamingOutput createOverlayOutput(@QueryParam("upNode") String upNodeUri, 
-			@QueryParam("upNodeType") String upNodeType, 
-			@QueryParam("downNode") String downNodeUri, 
-			@QueryParam("downNodeType") String downNodeType,
-			@QueryParam("playSheetID") String playSheetID,
-			@Context HttpServletRequest request)
-	{
-		Object obj = null;
-		String prefix = "";
-		String nodeUri = "";
-		if(upNodeUri != null){
-			logger.info("Processing downstream traversal for node instance " + upNodeUri);
-			prefix = "";
-			nodeUri = "(<" + upNodeUri + ">)";
-			upNodeType = Utility.getConceptType(coreEngine, upNodeUri);
-		}
-		else if(downNodeUri != null){
-			logger.info("Processing upstream traversal for node instance " + downNodeUri);
-			prefix = "_2";
-			nodeUri = "(<" + downNodeUri + ">)";
-			downNodeType = Utility.getConceptType(coreEngine, downNodeUri);
-		}
-		
-		try
-		{
-			// get the playsheet from session
-			HttpSession session = ((HttpServletRequest)request).getSession(false);
-			IPlaySheet playSheet = (IPlaySheet) session.getAttribute(playSheetID);
-			// this check probably isn't needed... for the time being, though, if the ps is not in session, create a new graph play sheet
-			if(playSheet == null)
-				playSheet = (IPlaySheet)Class.forName("prerna.ui.components.playsheets.GraphPlaySheet").newInstance();
-			
-			String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
-			sparql = sparql.replace("@FILTER_VALUES@", nodeUri).replace("@SUBJECT_TYPE@", upNodeType).replace("@OBJECT_TYPE@", downNodeType);
-			System.err.println("SPARQL is " + sparql);
-			playSheet.setRDFEngine(coreEngine);
-			playSheet.setQuery(sparql);
-			playSheet.createData();
-			playSheet.runAnalytics();
-			
-//			if(!(ps instanceof GraphPlaySheet))
-			obj = playSheet.getData();
-//			else
-//			{
-//				GraphPlaySheet gps = (GraphPlaySheet)ps;
-//				gps.createData();
-//				gps.runAnalytics();
-//				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)ps).getData();
-//				InMemorySesameEngine imse = new InMemorySesameEngine();
-//				imse.setRepositoryConnection(rc);
-//				imse.openDB(null);
-//				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.semossGraph.baseFilterHash);
-//			}
-				
-			// put the playsheet back in session
-			if(playSheet.getQuestionID() != null)
-				session.setAttribute(playSheet.getQuestionID(), playSheet);
-		}catch(Exception ex)
-		{
-			ex.printStackTrace();
-		}
-		return getSO(obj);
-	}	
-	
-	// temporary function for getting chart it data
-	// will be replaced with query builder
-	@GET
-	@Path("output/chartData")
-	@Produces("application/json")
-	public StreamingOutput getPlaySheetChartData(
-			@QueryParam("playSheetID") String playSheetID,
-			@Context HttpServletRequest request)
-	{
-		// get the playsheet from session
-		HttpSession session = ((HttpServletRequest)request).getSession(false);
-		IPlaySheet playSheet = (IPlaySheet) session.getAttribute(playSheetID);
-		
-		Hashtable<String, Vector<SEMOSSVertex>> typeHash = new Hashtable<String, Vector<SEMOSSVertex>>();
-		if(playSheet instanceof GraphPlaySheet){
-			Hashtable<String, SEMOSSVertex> nodeHash = ((GraphPlaySheet)playSheet).getGraphData().getVertStore();
-			// need to create type hash... its the way chartit wants the data..
-			logger.info("creating type hash...");
-			for( SEMOSSVertex vert : nodeHash.values()){
-				String type = vert.getProperty(Constants.VERTEX_TYPE) + "";
-				Vector<SEMOSSVertex> typeVert = typeHash.get(type);
-				if(typeVert == null)
-					typeVert = new Vector<SEMOSSVertex>();
-				typeVert.add(vert);
-				typeHash.put(type, typeVert);
-			}
-		}
-		else
-			logger.error("Currently cannot chart it from playsheets other than graph play sheet");
-		
-		Hashtable retHash = new Hashtable();
-		retHash.put("Nodes", typeHash);
-		return getSO(retHash);
 	}
 	
 	// gets all the insights for a given type and tag in all the engines
@@ -522,20 +408,6 @@ public class EngineResource {
 		return null;
 	}	
 
-	
-	
-	// gets a particular insight
-	@GET
-	@Path("overlay")
-	@Produces("application/json")
-	public StreamingOutput overlayOutput(@QueryParam("outputID") String id, @QueryParam("params") String params)
-	{
-		// returns the insight
-		// based on the current ID get the data
-		// typically is a JSON of the insight
-		return null;
-	}	
-	
 	// gets a particular insight
 	// not sure if I should keep it as it is or turn this into a post because of the query
 	@POST
