@@ -296,6 +296,53 @@ public class PlaySheetResource {
 		retHash.put("Nodes", typeHash);
 		return getSO(retHash);
 	}
+
+	// temporary function for getting chart it data
+	// will be replaced with query builder
+	@GET
+	@Path("undo")
+	@Produces("application/json")
+	public StreamingOutput undo(
+			@Context HttpServletRequest request)
+	{
+		Object obj = null;
+		if ( playSheet instanceof GraphPlaySheet){
+			GraphPlaySheet gps = (GraphPlaySheet)playSheet;
+			GraphDataModel gdm = gps.getGraphData();
+			gdm.setUndo(true);
+			gdm.undoData();
+			gdm.fillStoresFromModel();
+			gps.setAppend(true);
+			obj = gps.getData();
+		}
+
+		// put the playsheet back in session
+		storePlaySheet(request);
+		return getSO(obj);
+	}
+
+	// temporary function for getting chart it data
+	// will be replaced with query builder
+	@GET
+	@Path("redo")
+	@Produces("application/json")
+	public StreamingOutput redo(
+			@Context HttpServletRequest request)
+	{
+		Object obj = null;
+		if ( playSheet instanceof GraphPlaySheet){
+			GraphPlaySheet gps = (GraphPlaySheet)playSheet;
+			gps.setAppend(true);
+			GraphDataModel gdm = gps.getGraphData();
+			gdm.redoData();
+			gdm.fillStoresFromModel();
+			obj = gps.getData();
+		}
+
+		// put the playsheet back in session
+		storePlaySheet(request);
+		return getSO(obj);
+	}
 	
 	private StreamingOutput getSO(Object vec)
 	{
