@@ -25,6 +25,7 @@ import prerna.om.Insight;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.AbstractEngine;
+import prerna.rdf.engine.impl.RDFFileSesameEngine;
 import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
 import prerna.rdf.query.builder.AbstractCustomVizBuilder;
 import prerna.rdf.query.builder.CustomVizHeatMapBuilder;
@@ -33,6 +34,7 @@ import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.RDFJSONConverter;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
+import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.Constants;
@@ -70,6 +72,45 @@ public class EngineResource {
 		psr.setEngine(coreEngine);
 		return psr;
 	}
+	
+	//gets all edges and nodes from owl file to display as metamodel
+	@GET
+	@Path("metamodel")
+	@Produces("application/json")
+	public StreamingOutput getMetamodel(@Context HttpServletRequest request)
+	{
+		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
+		//hard code playsheet attributes since no insight exists for this
+		String sparql = "SELECT ?s ?p ?o WHERE {?s ?p ?o} LIMIT 1";
+		String playSheetName = "prerna.ui.components.playsheets.GraphPlaySheet";
+		String title = "Metamodel";
+		String id = coreEngine.getEngineName() + "-Metamodel";
+		AbstractEngine eng = ((AbstractEngine)coreEngine).getBaseDataEngine();
+		eng.setEngineName(id);
+		eng.setBaseData((RDFFileSesameEngine) eng);
+		eng.setBaseHash(new Hashtable());
+		
+		exQueryProcessor.prepareQueryOutputPlaySheet(eng, sparql, playSheetName, title, id);
+		Object obj = null;
+		try
+		{
+			GraphPlaySheet playSheet= (GraphPlaySheet) exQueryProcessor.getPlaySheet();
+			playSheet.getGraphData().setSubclassCreate(true);//this makes the base queries use subclass instead of type--necessary for the metamodel query
+			playSheet.createData();
+			playSheet.runAnalytics();
+
+			obj = playSheet.getData();
+			
+			HttpSession session = ((HttpServletRequest)request).getSession(false);
+			session.setAttribute(playSheet.getQuestionID(), playSheet);
+		}catch(Exception ex)
+		{
+			ex.printStackTrace();
+		}
+		
+		return getSO(obj);
+	}
+
 	
 	//gets all node types connected to a given node type
 	@GET
