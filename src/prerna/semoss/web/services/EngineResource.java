@@ -88,7 +88,9 @@ public class EngineResource {
 		AbstractEngine eng = ((AbstractEngine)coreEngine).getBaseDataEngine();
 		eng.setEngineName(id);
 		eng.setBaseData((RDFFileSesameEngine) eng);
-		eng.setBaseHash(new Hashtable());
+		Hashtable filterHash = new Hashtable();
+		filterHash.put("http://semoss.org/ontologies/Relation", "http://semoss.org/ontologies/Relation");
+		eng.setBaseHash(filterHash);
 		
 		exQueryProcessor.prepareQueryOutputPlaySheet(eng, sparql, playSheetName, title, id);
 		Object obj = null;
