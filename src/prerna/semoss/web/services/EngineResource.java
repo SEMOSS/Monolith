@@ -202,14 +202,16 @@ public class EngineResource {
 	@GET
 	@Path("insights")
 	@Produces("application/json")
-	public StreamingOutput getInsights(@QueryParam("node") String type, @QueryParam("tag") String tag,@QueryParam("perspective") String perspective, @Context HttpServletRequest request)
+	public StreamingOutput getInsights(@QueryParam("nodeType") String type, @QueryParam("tag") String tag,@QueryParam("perspective") String perspective, @Context HttpServletRequest request)
 	{
 		// if the type is null then send all the insights else only that
 		Vector result = null;
 		if(perspective != null)
 			result = coreEngine.getInsights(perspective);
 		else if(type != null)
-			result = coreEngine.getInsight4Type(tag);
+			result = coreEngine.getInsight4Type(type);
+		else if(tag != null)
+			result = coreEngine.getInsight4Tag(tag);
 		else 
 			result = coreEngine.getInsights();
 
