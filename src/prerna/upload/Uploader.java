@@ -188,10 +188,10 @@ public class Uploader extends HttpServlet {
 										: null;
 
 		//call the right process method with correct parameters
-		importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + filename.toString()+"", 
+		boolean doneLoading = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + filename.toString()+"", 
 				baseURI.toString(), dbName.toString(),"","","","");
 
-		return Response.status(200).entity("Holla!").build();
+		return Response.status(200).entity(doneLoading).build();
 	}
 
 
@@ -414,12 +414,10 @@ public class Uploader extends HttpServlet {
 						e.printStackTrace();
 					}
 					System.out.println("d2rq importer saved Filename: " + fileName + "  to "+ file);
-					inputData.put(fieldName, value);
 				} 
 				else 
 				{
 					System.err.println("Type is " + fi.getFieldName() + fi.getString());
-					inputData.put(fieldName, value);
 				}
 				//need to handle multiple files getting selected for upload
 				if(inputData.get(fieldName) != null)
@@ -427,6 +425,7 @@ public class Uploader extends HttpServlet {
 					value = inputData.get(fieldName) + ";" + value;
 					inputData.put(fieldName, value);
 				}
+				inputData.put(fieldName, value);
 			}
 
 			System.out.println(inputData);
