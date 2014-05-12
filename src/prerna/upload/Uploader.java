@@ -188,10 +188,16 @@ public class Uploader extends HttpServlet {
 										: null;
 
 		//call the right process method with correct parameters
-		boolean doneLoading = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + filename.toString()+"", 
+		boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + filename.toString()+"", 
 				baseURI.toString(), dbName.toString(),"","","","");
 
-		return Response.status(200).entity(doneLoading).build();
+		String outputText = "";
+		if(isSuccessful)
+			outputText = "CSV Loading was a success.";
+		else
+			outputText = "CSV Loading has failed.";
+
+		return Response.status(200).entity(outputText).build();
 	}
 
 
@@ -199,108 +205,75 @@ public class Uploader extends HttpServlet {
 	@Path("/excel/upload")
 	@Produces("text/html")
 	public Response uploadExcelFile(@Context HttpServletRequest request) {
-		String htmlResponse = "";
-		try {
-			File file;
 
-			DiskFileItemFactory factory = new DiskFileItemFactory();
-			// maximum size that will be stored in memory
-			factory.setSizeThreshold(maxMemSize);
-			// Location to save data that is larger than maxMemSize.
-			factory.setRepository(new File("c:\\temp"));
+		File file;
+		List<FileItem> fileItems = processRequest(request);
+		// Process the uploaded file items
+		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
 
-			// Create a new file upload handler
-			ServletFileUpload upload = new ServletFileUpload(factory);
-			// maximum file size to be uploaded.
-			upload.setSizeMax(maxFileSize);
-
-			// Parse the request to get file items.
-			List fileItems = upload.parseRequest(request);
-
-			// Process the uploaded file items
-			Iterator i = fileItems.iterator();
-
-			htmlResponse += "<html>";
-			htmlResponse += "<head>";
-			htmlResponse += "<title>Servlet upload</title>";
-			htmlResponse += "</head>";
-			htmlResponse += "<body>";
-			// collect all of the data input on the form
-			Hashtable inputData = new Hashtable();
-			while (i.hasNext()) 
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = new Hashtable<String, String>();
+		while(iteratorFileItems.hasNext()) 
+		{
+			FileItem fi = (FileItem) iteratorFileItems.next();
+			// Get the uploaded file parameters
+			String fieldName = fi.getFieldName();
+			String fileName = fi.getName();
+			String value = fi.getString();
+			if (!fi.isFormField()) 
 			{
-				FileItem fi = (FileItem) i.next();
-				// Get the uploaded file parameters
-				String fieldName = fi.getFieldName();
-				String fileName = fi.getName();
-				String value = fi.getString();
-				if (!fi.isFormField()) {
-					// Write the file
-					if (fileName.lastIndexOf("\\") >= 0) {
-						value = filePath
-								+ fileName
-								.substring(fileName.lastIndexOf("\\"));
-						file = new File(value);
-					} 
-					else if (fileName.equals("")){
-						continue;
-					}
-					else {
-						value = filePath
-								+ fileName
-								.substring(fileName.lastIndexOf("\\") + 1);
-						file = new File(value);
-					}
+				if (fileName.equals("")){
+					continue;
+				}
+				else {
+					value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
+					file = new File(value);
+				}
+				try {
 					fi.write(file);
-					htmlResponse += "Uploaded Filename: " + fileName + "  to "
-							+ file + " <br>";
-				} 
-				else
-					System.err.println("Type is " + fi.getFieldName()
-							+ fi.getString());
-				htmlResponse += "Importing data: " + fieldName + "   " + value
-						+ " <br>";
-
-				//need to handle multiple files getting selected for upload
-				if(inputData.get(fieldName)!=null)
-					value = inputData.get(fieldName) + ";" + value;
-
-				inputData.put(fieldName, value);
-
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				System.out.println("Excel importer saved Filename: " + fileName + "  to "+ file);
+			} 
+			else 
+			{
+				System.out.println("Type is " + fi.getFieldName() + fi.getString());
 			}
-			htmlResponse += "</body>";
-			htmlResponse += "</html>";
-
-			System.out.println(inputData);
-			// time to run the import
-			ImportDataProcessor importer = new ImportDataProcessor();
-			importer.setBaseDirectory(DIHelper.getInstance().getProperty(
-					"BaseFolder"));
-
-			// figure out what type of import we need to do based on parameters
-			// selected
-			String methodString = inputData.get("importMethod") + "";
-			ImportDataProcessor.IMPORT_METHOD importMethod = 
-					methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-							: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-									: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
-											: null;
-
-			//call the right process method with correct parameters
-			importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("uploadFile")+"", 
-					inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (FileUploadException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			//need to handle multiple files getting selected for upload
+			if(inputData.get(fieldName) != null)
+			{
+				value = inputData.get(fieldName) + ";" + value;
+			}
+			inputData.put(fieldName, value);
 		}
 
-		return Response.status(200).entity(htmlResponse).build();
+		System.out.println(inputData);
+		// time to run the import
+		ImportDataProcessor importer = new ImportDataProcessor();
+		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
+
+		// figure out what type of import we need to do based on parameters
+		// selected
+		String methodString = inputData.get("importMethod") + "";
+		ImportDataProcessor.IMPORT_METHOD importMethod = 
+				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
+						: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+										: null;
+
+		//call the right process method with correct parameters
+		boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+				inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
+
+		String outputText = "";
+		if(isSuccessful)
+			outputText = "Excel Loading was a success.";
+		else
+			outputText = "Excel Loading has failed.";
+
+		return Response.status(200).entity(outputText).build();
 	}
 
 
