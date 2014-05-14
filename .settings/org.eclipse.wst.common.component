@@ -2,7 +2,7 @@
     <wb-module deploy-name="Monolith">
         <wb-resource deploy-path="/" source-path="/WebContent" tag="defaultRootSource"/>
         <wb-resource deploy-path="/WEB-INF/classes" source-path="/src"/>
-        <wb-resource deploy-path="/WEB-INF/classes" source-path="/srcSemoss"/>
+        <wb-resource deploy-path="/WEB-INF/classes" source-path="/Semosssrc"/>
         <property name="java-output-path" value="/Monolith/build/classes"/>
         <property name="context-root" value="Monolith"/>
     </wb-module>
