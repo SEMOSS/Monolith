@@ -35,6 +35,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>Semosssrc</name>
+			<type>2</type>
+			<location>C:/Users/tomtchen/workspace/SEMOSS/src</location>
+		</link>
+		<link>
 			<name>srcSemoss</name>
 			<type>2</type>
 			<location>C:/Users/bisutton/workspace/Semoss/src</location>
