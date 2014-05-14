@@ -25,6 +25,7 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.io.FileUtils;
 
 import prerna.ui.components.CSVMetamodelBuilder;
 import prerna.ui.components.CSVPropFileBuilder;
@@ -188,9 +189,15 @@ public class Uploader extends HttpServlet {
 										: null;
 
 		//call the right process method with correct parameters
-		boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + filename.toString()+"", 
+		boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
 				baseURI.toString(), dbName.toString(),"","","","");
-
+		
+		try {
+			FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder") + "\\db\\" + dbName.toString() + "\\" + dbName.toString() + "_PROP.prop"), propWriter.getPropFile());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
 		String outputText = "";
 		if(isSuccessful)
 			outputText = "CSV Loading was a success.";
