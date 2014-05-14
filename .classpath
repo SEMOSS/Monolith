@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="src" path="srcSemoss"/>
+	<classpathentry kind="src" path="Semosssrc"/>
 	<classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.web.container"/>
 	<classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.module.container"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/antlr-3.4-complete.jar"/>
@@ -54,8 +54,6 @@
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jung-api-2.0.1.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jung-graph-impl-2.0.1.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jung-visualization-2.0.1.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jxbrowser-3.3.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/license.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/linked-data-sail-0.7.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/log4j-1.2.15.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/lpsolve55j.jar"/>
@@ -72,7 +70,6 @@
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/rdfflow-0.7.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/ripple-base-0.7.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/ripple-rdf-0.7.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/runtime.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/semoss-core.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/sesame-http-client-2.6.6.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/sesame-model-2.6.6.jar"/>
@@ -95,23 +92,23 @@
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/wstx-asl-3.2.6.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/xercesImpl-2.7.1.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/xmlbeans-2.3.0.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/xulrunner-linux.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/xulrunner-linux64.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/xulrunner-mac.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/xulrunner-windows.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/xulrunner15-mac.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/xulrunner15-windows.jar"/>
-	<classpathentry kind="con" path="org.eclipse.jst.server.core.container/org.eclipse.jst.server.tomcat.runtimeTarget/Apache Tomcat v7.0">
-		<attributes>
-			<attribute name="owner.project.facets" value="jst.web"/>
-		</attributes>
-	</classpathentry>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/eclipse">
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/javax.mail.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/resteasy-multipart-provider-3.0.6.Final.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/stanford-corenlp-3.3.0-javadoc.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/stanford-corenlp-3.3.0-models.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/stanford-corenlp-3.3.0-sources.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/stanford-corenlp-3.3.0.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/tika-app-1.2.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/d2rq-0.7.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/itextpdf-5.5.0.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/jre7">
 		<attributes>
 			<attribute name="owner.project.facets" value="java"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/javax.mail.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/resteasy-multipart-provider-3.0.6.Final.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jst.server.core.container/org.eclipse.jst.server.tomcat.runtimeTarget/Apache Tomcat v7.0"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jxbrowser-4.3.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jxbrowser-win-4.3.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/runtime.jar"/>
 	<classpathentry kind="output" path="WebContent/WEB-INF/classes"/>
 </classpath>
