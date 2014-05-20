@@ -29,6 +29,7 @@ import prerna.rdf.engine.impl.RDFFileSesameEngine;
 import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
 import prerna.rdf.query.builder.AbstractCustomVizBuilder;
 import prerna.rdf.query.builder.CustomVizHeatMapBuilder;
+import prerna.rdf.query.builder.CustomVizTableBuilder;
 import prerna.rdf.query.builder.ICustomVizBuilder;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.RDFJSONConverter;
@@ -628,6 +629,7 @@ public class EngineResource {
 			IPlaySheet playSheet = (IPlaySheet) Class.forName(playSheetClassName).getConstructor(null).newInstance(null);
 			playSheet.setQuery(query);
 			playSheet.setRDFEngine(coreEngine);
+			playSheet.setQuestionID(heatMapName);
 			playSheet.createData();
 			playSheet.runAnalytics();
 //			if(!(playSheet instanceof GraphPlaySheet))
@@ -645,6 +647,44 @@ public class EngineResource {
 			//store the playsheet in session
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			session.setAttribute(heatMapName, playSheet);
+		}catch(Exception ex)
+		{
+			ex.printStackTrace();
+		}
+		
+		return getSO(obj);
+	}	
+	
+	@GET
+	@Path("customVizTable")
+	@Produces("application/json")
+	public StreamingOutput getVizTable(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
+		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
+		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
+		tableViz.setJSONDataHash(dataHash);
+		tableViz.setEngine(coreEngine);
+		tableViz.buildQuery();
+		String query = tableViz.getQuery() + " LIMIT 50";
+		System.out.println(query);
+		Object obj = null;
+		try
+		{
+			String playSheetClassName = PlaySheetEnum.getClassFromName(PlaySheetEnum.Grid.getSheetName());
+			IPlaySheet playSheet = (IPlaySheet) Class.forName(playSheetClassName).getConstructor(null).newInstance(null);
+			playSheet.setQuery(query);
+			playSheet.setRDFEngine(coreEngine);
+			//should through what questionID this should be
+			playSheet.setQuestionID("VizBuilder");
+			playSheet.createData();
+			playSheet.runAnalytics();
+			obj = playSheet.getData();
+
+				
+			//store the playsheet in session, do i need to do this here?
+			HttpSession session = ((HttpServletRequest)request).getSession(false);
+			session.setAttribute("VizBuilder", playSheet);
 		}catch(Exception ex)
 		{
 			ex.printStackTrace();
