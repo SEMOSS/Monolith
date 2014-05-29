@@ -36,6 +36,7 @@ import prerna.rdf.util.RDFJSONConverter;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.GraphPlaySheet;
+import prerna.ui.helpers.PlaysheetCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.Constants;
@@ -349,20 +350,16 @@ public class EngineResource {
 		try
 		{
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
-			playSheet.createData();
-			playSheet.runAnalytics();
-//			if(!(playSheet instanceof GraphPlaySheet))
-				obj = playSheet.getData();
-//			else
-//			{
-//				GraphPlaySheet gps = (GraphPlaySheet)playSheet;
-//				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)playSheet).getData();
-//				InMemorySesameEngine imse = new InMemorySesameEngine();
-//				imse.setRepositoryConnection(rc);
-//				imse.openDB(null);
-//				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.semossGraph.baseFilterHash);
-//			}
-				
+			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
+			playRunner.setCreateSwingView(false);
+			Thread playThread = new Thread(playRunner);
+			playThread.start();
+			while(playThread.isAlive()){
+				//wait for processing to finish before getting the data
+			}
+			
+			obj = playSheet.getData();
+
 			//store the playsheet in session
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			session.setAttribute(playSheet.getQuestionID(), playSheet);
