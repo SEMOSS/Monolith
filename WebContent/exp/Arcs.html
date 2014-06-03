@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>D3: Pie layout</title>
+		<script type="text/javascript" src="../app/lib/d3.js"></script>
+		<style type="text/css">
+
+			text {
+				font-family: sans-serif;
+				font-size: 12px;
+				fill: white;
+			}
+			.brush .extent {
+  stroke: #fff;
+  fill-opacity: .125;
+  shape-rendering: crispEdges;
+}
+
+		</style>
+	</head>
+	<body>
+		<script type="text/javascript">
+
+			//Width and height
+			var w = 400;
+			var h = 400;
+
+			var dataset = [ 10,10,10,10,10,10,10];
+
+			var popRadius = 12; // how big you want the popup radius tobe
+			
+			var centerX = w/2;
+			var centerY = h/2;
+
+			var outerRadius = 300 / 2;
+			var innerRadius = outerRadius - (popRadius*6);
+			var offset = 0;
+			outerRadius = 150; // radius of the circle to paint
+			var circumRadius = outerRadius - (popRadius * 3); 
+			var numNodes = 4; // total number of nodes you want
+			var spreadAngle = 90;//angles to which to spread the popups to
+			
+			var popText;
+			var cir;
+			var rect;
+			var text;
+
+			//Create SVG element
+			var svg = d3.select("body")
+						.append("svg")
+						.attr("width", w)
+						.attr("height", h);
+			
+			
+			
+			var color = d3.scale.category10();
+			
+			var pie = d3.layout.pie();
+			
+			var line = d3.svg.line()
+		    .x(function(d,i) {return d.x; })
+		    .y(function(d,i) { return d.y; })
+		    .interpolate("linear");
+
+						
+			var angles = new Array(numNodes);
+			
+			var createAngles = function()
+			{
+				angles = new Array(numNodes);
+				for(angleIndex = 0;angleIndex < numNodes;angleIndex++)
+				{
+					angles[angleIndex] = angleIndex*(spreadAngle/numNodes) + 15;
+				}
+			};
+			
+			// show it as a pie chart
+			var show = false;
+			var arcs = svg.selectAll("arcs").data(pie(dataset))
+			.enter()
+			.append("g")
+			.attr("class", "arc")
+			.attr("transform", "translate(200,200)")
+			.on("click",function(){
+				if(!show)
+				{
+					show = true;
+					//http://localhost:9080/Monolith/api/engine/e-TAP_Core_Data/perspectives
+					//pullJson("http://localhost:9080/Monolith/api/engine/all"); 
+					d3.selectAll("[semoss=temp]").remove();
+					d3.selectAll("[semoss=temp2]").remove();
+					pullJson("http://localhost:9080/Monolith/api/engine/e-TAP_Core_Data/perspectives"); 
+				}
+				else
+				{
+					show = false;
+					console.log("removing");
+					d3.selectAll("[semoss=temp]").remove();
+					d3.selectAll("[semoss=temp2]").remove();
+					//d3.selectAll("path").remove();
+					pullJson("http://localhost:9080/Monolith/api/engine/all");
+					//lines.remove();
+				//cir.attr("display", "none");
+				//lines.remove();
+				}
+				
+			});
+
+			// or just a simple circle
+			/*var bigCircle = svg
+							.append("circle")
+							.attr("cx", 0)
+							.attr("cy", 0)
+							.attr("r", outerRadius)
+							.attr("fill", "blue")
+							.attr("transform", "translate(" + outerRadius + "," + outerRadius + ")")
+							.on("click",function(){paintCircles(); paintLines();});
+			*/
+			
+						
+			var paintCircles = function(){
+				console.log("Angles...  " + angles);
+				cir = svg.selectAll("circles").data(angles).enter().append("circle")
+				.on("click", function(d,i)
+				{
+					//alert(d3.select(this).attr("cx"));
+					d3.selectAll("[semoss=temp2]").remove();
+					triggerOnClick(d3.select(this), i);
+	
+				})
+				.on("mouseenter", function(d,i)
+				{
+					// empty right ?
+					console.log(" Index is " + i);
+					console.log("mouse...  " + d3.mouse(this));
+					expand(d3.select(this));
+					showText(d3.select(this),i, d3.mouse(this)[0], d3.mouse(this)[1]);	
+				})
+				.on("mouseout", function()
+				{
+					restore(d3.select(this));
+					console.log("out");
+					text.remove();
+					rect.remove();
+					removePulsate();
+				})
+				.attr("cx", function(d,i)
+				{
+						var output = outerRadius;
+						if (i != 0)
+						{
+							output = (Math.cos(angles[i-1]*.017)*circumRadius);
+							output = centerX - output;
+						}
+						output = centerX;
+						return output;
+				})
+				.attr("cy", function(d,i) 
+				{
+					console.log("here");
+					var output = outerRadius;
+					if (i != 0)
+					{
+						output = (Math.sin(angles[i-1]*.017)*circumRadius);
+						output = centerY - output;
+					}
+					output = centerY;
+					return output;
+				})
+				.attr("r", popRadius)
+				.transition()
+				.duration(350)
+				.ease("linear")
+				.attr("cx", function(d,i) {
+						var output = (Math.cos(d*.017)*circumRadius);
+						output = centerX - output;
+						//console.log("Final CX....  " + (Math.sin(d)*150) + " .. " +  output + "... " + d);
+						prevX = output;
+						return output;
+				})
+				.attr("cy", function(d,i)
+				{
+						var output = (Math.sin(d*.017)*circumRadius);
+						output = centerY - output;
+						//console.log("Final CY....  " + (Math.sin(d)*150) + " .. " + output + "... " + d);
+						prevY = output;
+						return output;
+				})
+				.attr("semoss", "temp")
+				.transition()
+				.duration(2000)
+				.ease("bounce")
+				.attr("r", popRadius);
+			};
+
+			// >> Brushing
+			
+			var height = 50;
+			
+			var x = d3.scale.ordinal()
+		    //.domain(data)
+		    .rangePoints([0, 300], 1);
+			
+			var brush = d3.svg.brush()
+			 .x(x)
+			 //.attr('transform', 'translate(150,150)')
+			 .on("brush", brushmove)
+			 .on("brushend", brushend);
+
+			var brushIt = function()
+			{
+				console.log("brush.. ");
+				svg.append("g")
+			 .attr("class", "brush")
+			 .call(brush)
+				.selectAll("rect")
+			 .attr('height', 150);
+			}
+			//var lines = svg.selectAll("lines").data(angles).enter();
+
+			
+			function brushmove() {
+console.log("Brush move");
+}
+
+				function brushend() {
+					console.log("ok.. we know this works");
+				}
+
+				//<< Brushing
+			
+			console.log("Num Circles " + angles.length);
+			var paintLines = function(){
+				svg.selectAll("lines").data(angles).enter()
+				.append("path")
+				.attr("d", function(d, i)
+				{
+					var tlineData = new Array(2);
+					
+					var data1 = {};
+					data1["x"] = centerX;
+					data1["y"] = centerY;
+					
+					//console.log(data1);
+					
+					var data2 = {};
+					data2["x"] = centerX;
+					data2["y"] = centerY;
+					
+					var data3 = {};
+					data3["x"] = 0;
+					data3["y"] = 0;
+					
+					tlineData[0] = data1;
+					tlineData[1] = data2;
+					//tlineData[2] = data3;
+
+					//return line(tlineData);						
+			
+				})
+				.attr("fill", "none")
+				.transition()
+				.duration(200)
+				.ease("linear")
+				.attr("d", function(d, i){
+
+					var tlineData = new Array(2);
+					
+					var data1 = {};
+					var x = (Math.cos(d*.017)*circumRadius);
+					x = centerX - x;
+					var y = (Math.sin(d*.017)*circumRadius);
+					y = centerY - y;
+
+					data1["x"] = x;
+					data1["y"] = y;
+					
+					console.log(data1);
+					
+					var data2 = {};
+					data2["x"] = centerX;
+					data2["y"] = centerY;
+					
+					var data3 = {};
+					data3["x"] = 0;
+					data3["y"] = 0;
+					
+					tlineData[0] = data2;
+					tlineData[1] = data1;
+					//tlineData[2] = data3;
+
+					return line(tlineData);
+					})
+				.transition()
+				//.ease("linear")
+				//.attr("d", function(d, i){return line(tlineData);})
+				.attr("stroke", "orange")
+				.attr("stroke-width", 1)
+				.attr("semoss", "temp")
+				.attr("tension", 20);
+		};
+						
+			
+			
+			//var arcScaler = d3.scale.linear().domain([d3.min(dataset), d3.max(dataset)]).range([0,2*Math.PI]);
+			
+			//var vis = d3.select("#svg_donut");
+			var last = 0;
+			
+			var arc = d3.svg.arc()
+			.innerRadius(innerRadius)
+			.outerRadius(outerRadius);
+
+			arcs.append("path")
+			.attr("d", arc)
+			.attr("stroke","black")
+			.attr("fill", function(d,i){return "gray";});
+			
+			/*arcs.append("circle")
+			.attr("cx", 150)
+			.attr("cy", 150)
+			.attr("fill", "red")
+			.attr("r", 30);
+			*/
+			
+			arcs.append("text")
+			.attr("transform", function(d){
+					return "translate(" + eval(arc.centroid(d)) + ")";
+					})
+			.attr("text-anchor", "middle");
+			//.text(function(d) { return "cupcake";});
+			
+			//.attr("transform", "translate(100,100)");
+			
+			//lines.on("click", function(){alert("hello");});
+
+			// events
+			
+			var myNode = svg.append("circle");
+			
+			var expand = function(node)
+			{
+				curRadius = eval(popRadius + 20);
+				console.log(curRadius);
+				var opacity = 1;
+							myNode.attr("r", popRadius)
+							.attr("cx",node.attr("cx"))
+							.attr("cy", node.attr("cy"))
+							.attr("fill", "blue")
+							.attr("stroke", "red")
+							.attr("stroke-width", 2)
+							.style("opacity", 0.2);
+				
+				for(var rad = popRadius;rad < popRadius*5;rad++)
+				{
+					myNode.transition()
+					.duration(300)
+					.ease("quad")
+					.attr("r", rad)
+					//.style("opacity", opacity);
+					.each("end", function()
+					{
+						//for(var opa = opacity;opa > 0;opa = opa - .01)
+						//	myNode.transition().duration(20).style("opacity", opa);
+						//d3.select(this).remove();
+						myNode.style("opacity", 0.0);
+						myNode.attr("r", 0);
+					});
+				}
+			};
+			
+			var vis = d3.select("#svg_donut");
+			var arc = d3.svg.arc()
+			.innerRadius(innerRadius)
+			.outerRadius(outerRadius)
+			.startAngle(0)
+			.endAngle(0.5*Math.PI); //.5*Math.PI);
+
+			var arc2 = d3.svg.arc()
+			.innerRadius(innerRadius)
+			.outerRadius(outerRadius)
+			.startAngle(.5*Math.PI)
+			.endAngle(Math.PI);
+
+			var makeArc = function(startAngle, endAngle, innerRadius, outerRadius)
+			{
+				return d3.svg.arc()
+				.innerRadius(innerRadius)
+				.outerRadius(outerRadius)
+				.startAngle(startAngle)
+				.endAngle(endAngle);
+			};
+			 var twoPi = 2 * Math.PI;
+			 
+			function arcTween() {
+				  var i = d3.interpolate(0, twoPi * 1/3);
+				  return function(t) {
+					  
+				    return arc.startAngle(i(t))();
+				  };
+				}
+			
+			var arcer = [10];
+			
+			var myArc = svg.append("path")
+			.attr("d", arc())
+			.on("click", function(){
+				svg.append("path")
+				.attr("d", arc())
+				.attr("fill", "blue")
+				.attr("transform", "translate(200,200)")
+				.transition()
+				.delay(2000)
+				.duration(2000)
+				.attrTween("d", arcTweenBack);
+				})
+			//.attr("innerRadius",200)
+			.attr("fill", "red")
+			.transition()
+			.delay(200)
+			//.attr("d", makeArc(0, 0, 20, 200))
+			.attr("transform", "translate(200,200)")
+			.style("opacity", "0.2")
+			.attr("fill", "blue")
+			.transition()
+			.duration(2000)
+			.ease("cubic")
+			.attrTween("d", arcTween)
+			.transition()
+			.duration(2000)
+			.ease("cubic")
+			.attrTween("d", arcTweenBack);
+						
+			
+			
+			function arcTween()
+			{		
+				console.log(data);
+				 //console.log("Path.. " + d3.select(this).attr("d"));
+				 var i = d3.interpolate(0, 0.5*Math.PI);
+				 var i2 = d3.interpolate(0.5*Math.PI, Math.PI);
+				 var i3 = d3.interpolate(0.5*Math.PI, 0);
+				 var i4 = d3.interpolate(Math.PI, 0.5*Math.PI);
+				  return function(t) {
+				    return arc
+				    .startAngle(i(t))
+				    .endAngle(i2(t))();
+				  };
+					/*.on("click", function(){
+						d3.select(this)
+						.transition()
+						.duration(2000)
+						.attrTween("d",arcTweenBack);
+					})();
+				  };*/
+			};
+
+			function arcTweenBack()
+			{		
+				console.log(data);
+				 //console.log("Path.. " + d3.select(this).attr("d"));
+				 var i = d3.interpolate(0.5*Math.PI, 0);
+				 var i2 = d3.interpolate(Math.PI, 0.5*Math.PI);
+				  return function(t) {
+					  //console.log("going back");
+				    return 
+				    arc.startAngle(i(t))
+				    .endAngle(i2(t))();
+				  };
+			};
+
+			function arcTween2()
+			{		
+				 console.log("Path.. " + d3.select(this).attr("d"));
+				 var i = d3.interpolate(0, 0.5*Math.PI);
+				  return function(t) {
+				    return arc.startAngle(i(t))();
+				  };
+			};
+			
+			/*svg.append("path")
+			.attr("d", arc2)
+			.attr("fill", "blue")
+			.attr("transform", "translate(200,200)");
+			*/
+			
+			var removePulsate = function()
+			{
+				//myNode.remove();
+				//myNode = svg.append("circle");				
+			}
+			
+			var triggerOnClick = function(node,i)
+			{
+				console.log("WTF ?");
+				svg.append("circle")
+				.attr("cx",centerX)
+				.attr("cy", centerY)
+				.attr("fill", "blue")
+				.attr("r", popRadius)
+				.attr("semoss", "temp");
+				
+				svg.append("text")
+				.attr("x", centerX)
+				.attr("y", centerY)
+				.attr("text-anchor", "middle")
+				.text(popText[i])
+				.style("fill", "black")
+				.attr("semoss", "temp2");
+				//.attr("semoss", "temp");
+
+			};
+
+			var restore = function(node)
+			{
+				curRadius = popRadius;
+				console.log(curRadius);
+				node.transition().duration(20).attr("r", curRadius).style("opacity", 1);				
+			};
+
+			var showText = function(node,i, mousex, mousey)
+			{
+				//console.log(i);
+				if(!typeof text === 'undefined')
+					text.remove();
+				if(!rect === 'undefined')
+					rect.remove();
+				
+				var text2 = popText[i];
+
+				rect = svg.append("rect")
+				/*.attr("transform", function(d){
+						return "translate(" + node.attr("cx") + "," + node.attr("cy") + ")";
+						})
+				*/
+				//.attr("text-anchor", "middle")
+				//.text(popText[i])
+				.attr("x",mousex) //node.attr("cx"))
+				.attr("y",mousey) //eval(node.attr("cy") - popRadius))
+				.attr("rx", 5)
+				.attr("ry", 5)
+				.attr("width", 6.25*(text2.length) + popRadius)
+				.attr("height", 20)
+				.attr("opacity", 10)
+				.attr("fill", color(1));
+
+				text = svg.append("text")
+				//.attr("text-anchor", "middle")
+				.text(popText[i])
+				.attr("x", mousex) //node.attr("cx"))
+				.attr("y",mousey+popRadius) //node.attr("cy"))
+				.attr("opacity", 10)
+				.attr("fill", "white");
+//console.log("text");
+
+				
+
+			};
+			
+			var data; // a global
+
+			var pullJson = function(url)
+			{
+				//http://localhost:9080/Monolith/api/engine/e-TAP_Core_Data/perspectives
+				d3.json(url, function(error, json) 
+				{
+					console.log("Got data ?");
+				  	if (error) return console.warn(error);
+				  	data = json;
+				  	
+				  	
+				  	// set the number of nodes
+				  	numNodes = Object.keys(data).length;
+				  	
+				  	// put the text
+				  	popText = data;
+				  	//console.log(popText);
+				  	
+				  	if(numNodes > 0 && numNodes <= 6)
+				  		spreadAngle = 90;
+			  		else if(numNodes > 6 && numNodes <= 12)
+			  			spreadAngle = 180;
+		  			else if(numNodes > 12 && numNodes <= 18)
+		  				spreadAngle = 270;
+		  			else
+		  				spreadAngle = 360;
+				  	spreadAngle = 360;
+				  	createAngles();
+				  	paintCircles(); 
+				  	//paintLines();  	
+				  	//brushIt();
+					console.log(Object.keys(data).length);
+				});
+				
+			};
+			
+
+			
+	</script>
+	</body>
+</html>

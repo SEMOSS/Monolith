@@ -1,0 +1,1044 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>D3: Pie layout</title>
+		<script type="text/javascript" src="../app/lib/d3.js"></script>
+		<style type="text/css">
+
+			text {
+				font-family: sans-serif;
+				font-size: 12px;
+				fill: white;
+			}
+			.brush .extent {
+  stroke: #fff;
+  fill-opacity: .125;
+  shape-rendering: crispEdges;
+}
+
+		</style>
+	</head>
+	<body>
+		<svg width="700" height="660">
+		  <defs>
+		    <pattern id="image" x="0" y="0" patternUnits="userSpaceOnUse" height="20" width="20">
+		      <image x="0" y="0" width="20" height="20" xlink:href="http://www.clker.com/cliparts/8/8/2/2/1195423990759977006molumen_multicolor_power_buttons_5.svg.med.png"></image>
+		    </pattern>
+		  </defs>
+		</svg>
+		<script type="text/javascript">
+
+			/*
+			Basic Context Menu - When nothing is given
+			
+			SELECT CONTEXT_MENU, SUB_MENU, MENU_TYPE, SUB_MENU_TYPE, MENU_URL, SUB_MENU URL WHERE
+			{
+				BIND {<http://semoss.org/ontologies/concept/}
+			}
+			
+		  <circle id='top' cx="180" cy="120" r="80" fill="url(#image)"/>
+			
+			*/
+			
+			/*
+			The base menu for the user would come from 
+			/api/user/contextmenu
+
+			Each item on the menu will be connected to anything the user selects - Very similar to how the metamodel navigation works
+			i.e. each of these items would suggest what is the next URL to go for with parameterized data so that the clicked node will be embedded
+
+			If this is not available, then we have reached a leaf node and it is upto the page to hand this
+			Each page will have a loadData event - and 
+
+			When a traverse menu is clicked, this shows all the node that are being traversed
+
+			The metamodel would be the following
+
+			ContextMenu subment	menu1
+			ContextMenu submenu menu2
+			ContextMenu submenu menu3
+			ContextMenu submenu menu4
+
+			menu1 data URL // this would be utilized to to pull the link data
+			menu2 data URL
+
+			menu1 type "UserItem"
+			menu1 label	Database
+
+			menu1 submenu menu11 
+			menu1 submenu menu12 
+
+			menu11 type "Generated"
+			menu12 type "Generated"
+
+			menu11 data URL // menu 11 would be parameterized - so as to embed the information selected from the node
+			menu12 data URL // menu 12 would be parameterized - so as to embed the information selected from the node
+
+			menu11 submenu menu111
+			menu11 submenu menu112
+
+			menu111 type "Generated"
+
+			menu111	data	URL
+
+			menu11 linkitem menu111
+			menu11 linkitem menu112
+
+			menu111 link URL
+
+			When there is no follow then it would just load it on the page
+
+			User links DB1
+			User creates DB2
+
+			User has ContextMenu
+
+			Context menu can start from anypoint - when no point is provided the default is assumed
+
+			When menu is user defined - It will display that and the URL would be utilized when the user clicks on something. With the patterns and everything. 
+			Depending on where the submenu is coming from. If the submenu is user defined and not generated, then the URL is not used
+			When menu is generated - It will pull the data upfront from the URL and show it. With the submenu for this indicating what happens when you click on 
+			one of these links. If ths submenu is user defined then the URL is utilized
+
+
+			*/
+
+		
+			//Width and height
+			var w = window.screen.width * .75;
+			var h = window.screen.height * .75;
+
+			var dataset = [10]; // 10,10,10,10,10,10,10];
+
+			var popRadius = 12; // how big you want the popup radius tobe
+			
+			var centerX = w/2; // this needs to be adjusted
+			var centerY = h/2;
+
+			var outerRadius = 300 / 2;
+			var innerRadius = outerRadius - (popRadius*6);
+			var offset = 0;
+			outerRadius = 150; // radius of the circle to paint
+			var circumRadius = outerRadius - (popRadius * 3); 
+			var numNodes = 4; // total number of nodes you want
+			var spreadAngle = 90;//angles to which to spread the popups to
+			
+			var popText;
+			var cir;
+			var rect;
+			var text;
+			
+			var starter = null;
+			
+			var lookups = {};
+
+			var lastURL, nextURL;
+			
+			//console.log("w... " + w + "height... " + h);
+			//Create SVG element
+			/*var svg = d3.select("body")
+						.append("svg")
+						.attr("width", w)
+						.attr("height", h);
+			*/
+			
+			var svg = d3.select("svg")
+			.attr("width", w)
+			.attr("height", h);
+			
+			
+			var color = d3.scale.category10();
+			
+			var pie = d3.layout.pie();
+			
+			var line = d3.svg.line()
+		    .x(function(d,i) {return d.x; })
+		    .y(function(d,i) { return d.y; })
+		    .interpolate("linear");
+
+						
+			var angles = new Array(numNodes);
+			
+			var createAngles = function()
+			{
+				angles = new Array(numNodes);
+				
+				for(angleIndex = 0;angleIndex < numNodes;angleIndex++)
+				{
+					angles[angleIndex] = angleIndex*(spreadAngle/numNodes) + 15;
+				}
+			};
+			
+			// show it as a pie chart
+			var show = false;
+			var arcs = svg.selectAll("arcs").data(pie(dataset))
+			.enter()
+			.append("g")
+			.attr("class", "arc")
+			.attr("transform", "translate(" + centerX + "," + centerY + ")")
+			.on("click",function(){
+				if(!show)
+				{
+					show = true;
+					//http://localhost:9080/Monolith/api/engine/e-TAP_Core_Data/perspectives
+					//pullJson("http://localhost:9080/Monolith/api/engine/all"); 
+					d3.selectAll("[semoss=temp]").remove();
+					d3.selectAll("[semoss=temp2]").remove();
+					pullJson("http://localhost:9080/Monolith/api/engine/e-TAP_Core_Data/insights"); 
+				}
+				else
+				{
+					show = false;
+					//console.log("removing");
+					d3.selectAll("[semoss=temp]").remove();
+					d3.selectAll("[semoss=temp2]").remove();
+					//d3.selectAll("path").remove();
+					pullJson("http://localhost:9080/Monolith/api/engine/all");
+					//lines.remove();
+				//cir.attr("display", "none");
+				//lines.remove();
+				}
+				
+			});
+
+			// or just a simple circle
+			/*var bigCircle = svg
+							.append("circle")
+							.attr("cx", 0)
+							.attr("cy", 0)
+							.attr("r", outerRadius)
+							.attr("fill", "blue")
+							.attr("transform", "translate(" + outerRadius + "," + outerRadius + ")")
+							.on("click",function(){paintCircles(); paintLines();});
+			*/
+			
+			function cleanup()
+			{
+				text.remove();
+				rect.remove();
+				d3.selectAll("[semoss=temp]").remove();
+				d3.selectAll("[semoss=temp2]").remove();				
+			}
+			
+			var paintNavigation = function(){
+				// need to find a way to paint 2 things
+				// reset 
+				// back
+				var navAngles = [0,15];
+				
+				// get the reset done
+				svg.append("circle")
+				.on("click", function()
+				{
+					console.log("Clicked the reset");
+					cleanup();
+					getNodes(starter,"");
+				})
+				.attr("cx", function()
+				{
+					var output = outerRadius;
+					output = (Math.cos(345*.017)*circumRadius);
+					output = centerX - output;
+					//output = centerX;
+					return output;
+				})
+				.attr("cy", function(d,i) 
+				{
+					//console.log("here");
+					var output = outerRadius;
+					output = (Math.sin(345*.017)*circumRadius);
+					output = centerY - output;
+					//output = centerY;
+					return output;
+				})
+				.attr("r", popRadius)
+				//.attr("fill", "red")
+				.style("fill", "url(#image)");
+			};
+			
+						
+			var paintCircles = function(){
+				//console.log("Angles...  " + angles);
+				cir = svg.selectAll("circles").data(angles).enter().append("circle")
+				.on("click", function(d,i)
+				{
+					//alert(d3.select(this).attr("cx"));
+					cleanup();					
+					triggerOnClick(d3.select(this), i);
+					
+					loadNewNodes(i);	
+				})
+				.on("mouseenter", function(d,i)
+				{
+					// empty right ?
+					//console.log(" Index is " + i);
+					//console.log("mouse...  " + d3.mouse(this));
+					expand(d3.select(this));
+					showText(d3.select(this),i, d3.mouse(this)[0], d3.mouse(this)[1]);	
+				})
+				.on("mouseout", function()
+				{
+					restore(d3.select(this));
+					//console.log("out");
+					text.remove();
+					rect.remove();
+					//d3.selectAll("[semoss=temp]").remove();
+					d3.selectAll("[semoss=temp2]").remove();
+					removePulsate();
+				})
+				.attr("cx", function(d,i)
+				{
+						var output = outerRadius;
+						if (i != 0)
+						{
+							output = (Math.cos(angles[i-1]*.017)*circumRadius);
+							output = centerX - output;
+						}
+						output = centerX;
+						return output;
+				})
+				.attr("cy", function(d,i) 
+				{
+					//console.log("here");
+					var output = outerRadius;
+					if (i != 0)
+					{
+						output = (Math.sin(angles[i-1]*.017)*circumRadius);
+						output = centerY - output;
+					}
+					output = centerY;
+					return output;
+				})
+				.attr("r", popRadius)
+				.transition()
+				.duration(350)
+				.ease("linear")
+				.attr("cx", function(d,i) {
+						var output = (Math.cos(d*.017)*circumRadius);
+						output = centerX - output;
+						//console.log("Final CX....  " + (Math.sin(d)*150) + " .. " +  output + "... " + d);
+						prevX = output;
+						return output;
+				})
+				.attr("cy", function(d,i)
+				{
+						var output = (Math.sin(d*.017)*circumRadius);
+						output = centerY - output;
+						//console.log("Final CY....  " + (Math.sin(d)*150) + " .. " + output + "... " + d);
+						prevY = output;
+						return output;
+				})
+				.attr("semoss", "temp")
+				.transition()
+				.duration(2000)
+				.ease("bounce")
+				.attr("r", popRadius);
+			};
+
+			
+			//console.log("Num Circles " + angles.length);
+			var paintLines = function(){
+				svg.selectAll("lines").data(angles).enter()
+				.append("path")
+				.attr("d", function(d, i)
+				{
+					var tlineData = new Array(2);
+					
+					var data1 = {};
+					data1["x"] = centerX;
+					data1["y"] = centerY;
+					
+					//console.log(data1);
+					
+					var data2 = {};
+					data2["x"] = centerX;
+					data2["y"] = centerY;
+					
+					var data3 = {};
+					data3["x"] = 0;
+					data3["y"] = 0;
+					
+					tlineData[0] = data1;
+					tlineData[1] = data2;
+					//tlineData[2] = data3;
+
+					//return line(tlineData);						
+			
+				})
+				.attr("fill", "none")
+				.transition()
+				.duration(200)
+				.ease("linear")
+				.attr("d", function(d, i){
+
+					var tlineData = new Array(2);
+					
+					var data1 = {};
+					var x = (Math.cos(d*.017)*circumRadius);
+					x = centerX - x;
+					var y = (Math.sin(d*.017)*circumRadius);
+					y = centerY - y;
+
+					data1["x"] = x;
+					data1["y"] = y;
+					
+					//console.log(data1);
+					
+					var data2 = {};
+					data2["x"] = centerX;
+					data2["y"] = centerY;
+					
+					var data3 = {};
+					data3["x"] = 0;
+					data3["y"] = 0;
+					
+					tlineData[0] = data2;
+					tlineData[1] = data1;
+					//tlineData[2] = data3;
+
+					return line(tlineData);
+					})
+				.transition()
+				//.ease("linear")
+				//.attr("d", function(d, i){return line(tlineData);})
+				.attr("stroke", "orange")
+				.attr("stroke-width", 1)
+				.attr("semoss", "temp")
+				.attr("tension", 20);
+		};
+						
+			
+			
+			//var arcScaler = d3.scale.linear().domain([d3.min(dataset), d3.max(dataset)]).range([0,2*Math.PI]);
+			
+			//var vis = d3.select("#svg_donut");
+			var last = 0;
+			
+			var arc = d3.svg.arc()
+			.innerRadius(innerRadius)
+			.outerRadius(outerRadius);
+
+			arcs.append("path")
+			.attr("d", arc)
+			.attr("stroke","black")
+			.attr("fill", function(d,i){return "gray";});
+			
+			/*arcs.append("circle")
+			.attr("cx", 150)
+			.attr("cy", 150)
+			.attr("fill", "red")
+			.attr("r", 30);
+			*/
+			
+			arcs.append("text")
+			.attr("transform", function(d){
+					return "translate(" + eval(arc.centroid(d)) + ")";
+					})
+			.attr("text-anchor", "middle");
+			//.text(function(d) { return "cupcake";});
+			
+			//.attr("transform", "translate(100,100)");
+			
+			//lines.on("click", function(){alert("hello");});
+
+			// events
+			
+			var myNode = svg.append("circle");
+			
+			var expand = function(node)
+			{
+				curRadius = eval(popRadius + 20);
+				//console.log(curRadius);
+				var opacity = 1;
+							myNode.attr("r", popRadius)
+							.attr("cx",node.attr("cx"))
+							.attr("cy", node.attr("cy"))
+							.attr("fill", "blue")
+							.attr("stroke", "red")
+							.attr("stroke-width", 2)
+							.style("opacity", 0.2);
+				
+				for(var rad = popRadius;rad < popRadius*5;rad++)
+				{
+					myNode.transition()
+					.duration(300)
+					.ease("quad")
+					.attr("r", rad)
+					//.style("opacity", opacity);
+					.each("end", function()
+					{
+						//for(var opa = opacity;opa > 0;opa = opa - .01)
+						//	myNode.transition().duration(20).style("opacity", opa);
+						//d3.select(this).remove();
+						myNode.style("opacity", 0.0);
+						myNode.attr("r", 0);
+					});
+				}
+			};
+			
+			var vis = d3.select("#svg_donut");
+			var arc = d3.svg.arc()
+			.innerRadius(innerRadius)
+			.outerRadius(outerRadius)
+			.startAngle(0)
+			.endAngle(0.5*Math.PI); //.5*Math.PI);
+
+			var arc2 = d3.svg.arc()
+			.innerRadius(innerRadius)
+			.outerRadius(outerRadius)
+			.startAngle(.5*Math.PI)
+			.endAngle(Math.PI);
+
+			var makeArc = function(startAngle, endAngle, innerRadius, outerRadius)
+			{
+				return d3.svg.arc()
+				.innerRadius(innerRadius)
+				.outerRadius(outerRadius)
+				.startAngle(startAngle)
+				.endAngle(endAngle);
+			};
+			 var twoPi = 2 * Math.PI;
+			 
+			function arcTween() {
+				  var i = d3.interpolate(0, twoPi * 1/3);
+				  return function(t) {
+					  
+				    return arc.startAngle(i(t))();
+				  };
+				}
+			
+			var arcer = [10];
+			
+			/*var myArc = svg.append("path")
+			.attr("d", arc())
+			.on("click", function(){
+				svg.append("path")
+				.attr("d", arc())
+				.attr("fill", "blue")
+				.attr("transform", "translate(200,200)")
+				.transition()
+				.delay(2000)
+				.duration(2000)
+				.attrTween("d", arcTweenBack);
+				})
+			//.attr("innerRadius",200)
+			.attr("fill", "red")
+			.transition()
+			.delay(200)
+			//.attr("d", makeArc(0, 0, 20, 200))
+			.attr("transform", "translate(200,200)")
+			.style("opacity", "0.2")
+			.attr("fill", "blue")
+			.transition()
+			.duration(2000)
+			.ease("cubic")
+			.attrTween("d", arcTween)
+			.transition()
+			.duration(2000)
+			.ease("cubic")
+			.attrTween("d", arcTweenBack);
+						
+			*/
+			
+			function arcTween()
+			{		
+				//console.log(data);
+				 //console.log("Path.. " + d3.select(this).attr("d"));
+				 var i = d3.interpolate(0, 0.5*Math.PI);
+				 var i2 = d3.interpolate(0.5*Math.PI, Math.PI);
+				 var i3 = d3.interpolate(0.5*Math.PI, 0);
+				 var i4 = d3.interpolate(Math.PI, 0.5*Math.PI);
+				  return function(t) {
+				    return arc
+				    .startAngle(i(t))
+				    .endAngle(i2(t))();
+				  };
+					/*.on("click", function(){
+						d3.select(this)
+						.transition()
+						.duration(2000)
+						.attrTween("d",arcTweenBack);
+					})();
+				  };*/
+			};
+
+			function arcTweenBack()
+			{		
+				//console.log(data);
+				 //console.log("Path.. " + d3.select(this).attr("d"));
+				 var i = d3.interpolate(0.5*Math.PI, 0);
+				 var i2 = d3.interpolate(Math.PI, 0.5*Math.PI);
+				  return function(t) {
+					  //console.log("going back");
+				    return 
+				    arc.startAngle(i(t))
+				    .endAngle(i2(t))();
+				  };
+			};
+
+			function arcTween2()
+			{		
+				// console.log("Path.. " + d3.select(this).attr("d"));
+				 var i = d3.interpolate(0, 0.5*Math.PI);
+				  return function(t) {
+				    return arc.startAngle(i(t))();
+				  };
+			};
+			
+			/*svg.append("path")
+			.attr("d", arc2)
+			.attr("fill", "blue")
+			.attr("transform", "translate(200,200)");
+			*/
+			
+			var removePulsate = function()
+			{
+				//myNode.remove();
+				//myNode = svg.append("circle");				
+			}
+			
+			var triggerOnClick = function(node,i)
+			{
+				svg.append("circle")
+				.attr("cx",centerX )
+				.attr("cy", centerY)
+				.attr("fill", "blue")
+				.attr("r", popRadius)
+				.attr("semoss", "temp2");
+				
+				svg.append("text")
+				.attr("x", centerX)
+				.attr("y", centerY)
+				.attr("text-anchor", "middle")
+				.text(popText[i]["Name"])
+				.style("fill", "black")
+				.attr("semoss", "temp2");
+				
+				svg.selectAll("[semoss=temp2]")
+				.call(wrap, outerRadius + popRadius);
+				//.attr("x", centerX)
+				//.attr("y", centerY)
+				//.attr("transform", "translate(" + centerX + "," + centerY+ ")");
+
+				
+				/*
+				svg.append("svg:foreignObject")
+				//.attr("width", 100)
+				//.attr("height", 40)
+				.attr("fill", "red")
+				.attr("x",centerX - innerRadius) //node.attr("cx"))
+				.attr("y",centerY) //eval(node.attr("cy") - popRadius))
+				.append("xhtml:body")
+				.html('<div style="width:' +  innerRadius + 'px;text-align:center; height: 200px;background-color:"aqua"; font-size: 8px">' + popText[i] + '</div>');
+				//.attr("semoss", "temp");
+				*/
+			};
+
+			var restore = function(node)
+			{
+				curRadius = popRadius;
+				//console.log(curRadius);
+				node.transition().duration(20).attr("r", curRadius).style("opacity", 1);				
+			};
+
+			function wrap(text, width) {
+				  text.each(function() {
+				    var text = d3.select(this);
+				        var words = text.text().split(/\s+/).reverse();
+				        var word;
+				        var line = [];
+				        var lineNumber = 0;
+				        var lineHeight = 1.1; // ems
+				        var y = text.attr("y");
+				        var x = text.attr("x");
+				        var dy = 1;//parseFloat(text.attr("dy"));
+				        var dx = 1;//parseFloat(text.attr("dy"));				        
+				        var tspan = text.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
+				    while (word = words.pop()) {
+				      line.push(word);
+				      tspan.text(line.join(" "));
+				      if (tspan.node().getComputedTextLength() > width) {
+				        line.pop();
+				        tspan.text(line.join(" "));
+				        line = [word];
+				        tspan = text.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+				      }
+				    }
+				  });
+				}
+			
+			var showText = function(node,i, mousex, mousey)
+			{
+				//console.log(i);
+				if(!typeof text === 'undefined')
+					text.remove();
+				if(!rect === 'undefined')
+					rect.remove();
+				
+				//console.log(popText[0]);
+				//console.log("I is " + i + " >>>> " + popText[i]["Name"] + "<<<");
+				var text2 = popText[i]["Name"];
+
+				rect = svg.append("rect")
+				/*.attr("transform", function(d){
+						return "translate(" + node.attr("cx") + "," + node.attr("cy") + ")";
+						})
+				*/
+				//.attr("text-anchor", "middle")
+				//.text(popText[i])
+				.attr("x",mousex) //node.attr("cx"))
+				.attr("y",mousey) //eval(node.attr("cy") - popRadius))
+				.attr("rx", 5)
+				.attr("ry", 5)
+				.attr("width", 6.25*(text2.length) + popRadius)
+				.attr("height", 20)
+				.attr("opacity", 10)
+				.attr("fill", color(1));
+
+				text = svg.append("text")
+				//.attr("text-anchor", "middle")
+				.text(popText[i]["Name"])
+				.attr("x", mousex) //node.attr("cx"))
+				.attr("y",mousey+popRadius) //node.attr("cy"))
+				.attr("opacity", 10)
+				.attr("fill", "white");
+
+				triggerOnClick(node, i);				
+				//console.log("Foreign Object");
+
+
+				/*text = svg.append("foreignObject")
+				.attr("width", 100)
+				.attr("height", 40)
+				.attr("fill", "red")
+				.attr("x",mousex) //node.attr("cx"))
+				.attr("y",mousey) //eval(node.attr("cy") - popRadius))
+				.append("xhtml:body")
+				.html('<div style="width: 300px;height: 200px;background-color:"aqua"; font-size: 8px">' + popText[i] + '</div>');
+				 */
+				
+
+			};
+			
+			var data; // a global
+
+			var pullJson = function(url)
+			{
+				//http://localhost:9080/Monolith/api/engine/e-TAP_Core_Data/perspectives
+				d3.json(url, function(error, json) 
+				{
+					//console.log("Got data ?");
+				  	if (error) return console.warn(error);
+				  	data = json;
+
+				  	console.log(data);
+				  	// set the number of nodes
+				  	numNodes = Object.keys(data).length;
+				  	
+				  	// put the text
+				  	popText = data;
+				  	//console.log(popText);
+				  	
+				  	if(numNodes > 0 && numNodes <= 6)
+				  		spreadAngle = 90;
+			  		else if(numNodes > 6 && numNodes <= 12)
+			  			spreadAngle = 180;
+		  			else if(numNodes > 12 && numNodes <= 18)
+		  				spreadAngle = 270;
+		  			else
+		  				spreadAngle = 360;
+				  	spreadAngle = 360;
+				  	createAngles();
+				  	paintCircles(); 
+				  	//paintLines();  	
+				  	//brushIt();
+					//console.log(Object.keys(data).length);
+				});
+				
+			};
+			
+			var paintFromArray = function()
+			{
+				//http://localhost:9080/Monolith/api/engine/e-TAP_Core_Data/perspectives
+				d3.json(url, function(error, json) 
+				{
+					//console.log("Got data ?");
+				  	if (error) return console.warn(error);
+				  	data = json;
+				  	
+				  	
+				  	// set the number of nodes
+				  	numNodes = Object.keys(data).length;
+				  	
+				  	// put the text
+				  	popText = data;
+				  	//console.log(popText);
+				  	
+				  	if(numNodes > 0 && numNodes <= 6)
+				  		spreadAngle = 90;
+			  		else if(numNodes > 6 && numNodes <= 12)
+			  			spreadAngle = 180;
+		  			else if(numNodes > 12 && numNodes <= 18)
+		  				spreadAngle = 270;
+		  			else
+		  				spreadAngle = 360;
+				  	spreadAngle = 360;
+				  	createAngles();
+				  	paintCircles(); 
+				  	//paintLines();  	
+				  	//brushIt();
+					//console.log(Object.keys(data).length);
+				});
+				
+			};
+
+			
+			// >> Brushing
+			
+			var height = 50;
+			
+			var x = d3.scale.ordinal()
+		    //.domain(data)
+		    .rangePoints([0, 300], 1);
+			
+			var brush = d3.svg.brush()
+			 .x(x)
+			 //.attr('transform', 'translate(150,150)')
+			 .on("brush", brushmove)
+			 .on("brushend", brushend);
+
+			var brushIt = function()
+			{
+				console.log("brush.. ");
+				svg.append("g")
+			 .attr("class", "brush")
+			 .call(brush)
+				.selectAll("rect")
+			 .attr('height', 150);
+			}
+			//var lines = svg.selectAll("lines").data(angles).enter();
+
+			
+			function brushmove() {
+			console.log("Brush move");
+			}
+
+				function brushend() {
+					console.log("ok.. we know this works");
+				}
+
+				//<< Brushing
+
+			// >>>>>> Context Menu
+			
+			function getNodes(url, start)
+			{
+				d3.json(url+start, function(error, json) 
+				{
+					console.log("Got data ?");
+				  	if (error) return console.warn(error);
+				  	data = json;
+				  	
+				  	if(starter == null)
+				  		starter = url+start;
+
+					console.log(data);
+	
+					//data = eval("{'Submenus':['Databases','Insights'],'Insights':{'URL':'','Submenus':['EMPTY'],'Type':'Generated','Label':'Insights'},'Databases':{'URL':'/Monolith/api/engine/all','Submenus':['Category'],'Type':'Generated','Category':{'URL':'/Monolith/api/engine/e-@engineName@/perspectives','Type':'Generated','Label':'Category'},'Label':'Databases'},'Menu':'ContextMenu'}");
+					var metaArray = [];
+					var newArray = []; // data array
+					// get the submenus from the data
+					var subMenuArray = data["Submenus"];
+					var menuURL = data["URL"];
+					var menuType = data["Type"];
+					var menuFiller = data["Filler"];
+					
+					//lookups[menuFiller] = menuFiller;
+					
+					
+					for(var smIndex = 0;smIndex < subMenuArray.length;smIndex++)
+					{
+						var smArray = {};
+						var smElementName = subMenuArray[smIndex];
+						
+						// get the element next
+						var sm = data[smElementName];
+						smArray["Name"] = smElementName;
+						smArray["MetaType"] = smElementName;
+						// next I need to find if the type is generated
+						var type = sm["Type"];
+						smArray["Type"] = type;
+						var URL = sm["URL"];
+						smArray["URL"] = URL;
+						var childMenu = sm["Submenus"];
+						if(childMenu[0] == "EMPTY")
+							smArray["Child"] = false;
+						else
+							smArray["Child"] = true;
+
+						var subFiller = data["Filler"];						
+						smArray["Filler"] = subFiller;
+						
+						//console.log("Submenu " + smArray["Child"]);
+						metaArray.push(smArray);
+						
+					}
+					if(menuType == "UserDefined")
+					{
+						data = metaArray;
+						
+						//data = newArray;
+						// paint it
+						
+					  	numNodes = Object.keys(data).length;
+						//console.log("Number of nodes " + numNodes);							
+					  	
+					  	// put the text
+					  	popText = data;
+					  	//popText = JSON.stringify(newArray);
+					  	//console.log("Pop " + popText[0]["Name"]);
+					  	//console.log(popText);
+					  	
+					  	if(numNodes > 0 && numNodes <= 6)
+					  		spreadAngle = 90;
+				  		else if(numNodes > 6 && numNodes <= 12)
+				  			spreadAngle = 180;
+			  			else if(numNodes > 12 && numNodes <= 18)
+			  				spreadAngle = 270;
+			  			else
+			  				spreadAngle = 270;
+					  	
+					  	//spreadAngle = 360;
+					  	createAngles();
+					  	paintCircles(); 
+					  	//paintLines();  	
+					  	//brushIt();
+						//console.log(Object.keys(data).length);
+					}
+					else
+					{
+						// load it from the URL
+						var pullURL = "http://localhost:9080" + menuURL;
+						//pullURL = "http://localhost:9080" + url;
+						pullURL = replaceFields(pullURL);
+						
+						console.log("Pull URL is " + pullURL);
+						
+						newArray = [];
+						
+						d3.json(pullURL, function(error, json) 
+						{
+							var instanceData = json;
+							
+							console.log("Instance is " + instanceData);
+							// for each of this, we need to put it with the submenu data for this
+							var subElementMeta = metaArray[0];
+							var type = subElementMeta["Type"];
+							var metaType = subElementMeta["MetaType"];
+							var URL = subElementMeta["URL"];
+							var child = subElementMeta["Child"];
+							var filler = subElementMeta["Filler"];
+							for(var instanceIndex = 0;instanceIndex < instanceData.length;instanceIndex++)			
+							{
+								var smArray = {};
+								
+								// get the element next
+								var sm = instanceData[instanceIndex];
+								smArray["Name"] = sm;
+								// next I need to find if the type is generated
+								smArray["Type"] = type;
+								smArray["URL"] = URL;
+								smArray["MetaType"] = metaType;
+								smArray["Child"] = child;
+								smArray["Filler"] = filler;
+								var jssm = JSON.stringify(smArray);
+								//console.log(JSON.stringify(smArray));	
+								// push it into the new array
+								newArray.push(smArray);
+							}
+							data = newArray;
+							// paint it
+							
+						  	numNodes = Object.keys(data).length;
+							console.log("Number of nodes " + numNodes);							
+						  	
+						  	// put the text
+						  	popText = data;
+						  	
+						  	if(numNodes > 0 && numNodes <= 6)
+						  		spreadAngle = 90;
+					  		else if(numNodes > 6 && numNodes <= 12)
+					  			spreadAngle = 180;
+				  			else if(numNodes > 12 && numNodes <= 18)
+				  				spreadAngle = 270;
+				  			else
+				  				spreadAngle = 270;
+						  	//spreadAngle = 360;
+						  	createAngles();
+						  	paintCircles(); 
+						  	//paintLines();  	
+						  	//brushIt();
+							//console.log(Object.keys(data).length);
+						});						
+					}
+				});				
+				
+			}
+			
+			getNodes("http://localhost:9080/Monolith/api/engine/e-UserEngine/menu?start=" , "ContextM");	
+			paintNavigation();
+			
+			
+			function loadNewNodes(i)
+			{
+				var elemSelected = data[i];
+				var url = elemSelected["URL"];
+				var childMenu = elemSelected["Child"];
+				var filler = elemSelected["Filler"];
+				lookups[filler] = elemSelected["Name"];
+				console.log("Child is " + childMenu);
+				console.log("Going to load " + 	JSON.stringify(elemSelected));
+				if(childMenu)
+				{
+					// clean up and reload
+					console.log("Element " + elemSelected + "   " + url);
+					d3.selectAll("[semoss=temp]").remove();
+					d3.selectAll("[semoss=temp2]").remove();
+					getNodes("http://localhost:9080/Monolith/api/engine/e-UserEngine/menu?start=" , elemSelected["MetaType"]);						
+				}
+				else
+				{
+					// give it to the page to handle
+					console.log("This is where I would give the handle to page");
+				}
+			}
+			
+			function replaceFields(url)
+			{
+				var pat = /@*@/g;
+				//console.log(url);
+				while (m = pat.exec(url)) {
+					var startIndex = m.index;
+					m = pat.exec(url);
+					var endIndex = m.index;
+					
+					// get the word in between
+					//console.log(startIndex + "<<>>" + endIndex);
+					var replacer = url.slice(startIndex, endIndex + 1);
+					var variableName = replacer.slice(1, replacer.length - 1);
+					
+					//console.log(replacer + " <<>> " + variableName);
+					url = url.replace(replacer, lookups[variableName]);
+				} 
+				return url;
+			}
+			
+			//<<<<<< Context Menu
+				
+				
+	</script>
+	</body>
+</html>
