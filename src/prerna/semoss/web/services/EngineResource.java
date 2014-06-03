@@ -3,6 +3,7 @@ package prerna.semoss.web.services;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Vector;
 
@@ -26,6 +27,8 @@ import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.RDFFileSesameEngine;
+import prerna.rdf.engine.impl.SesameJenaSelectStatement;
+import prerna.rdf.engine.impl.SesameJenaSelectWrapper;
 import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
 import prerna.rdf.query.builder.AbstractCustomVizBuilder;
 import prerna.rdf.query.builder.CustomVizHeatMapBuilder;
@@ -39,10 +42,7 @@ import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.helpers.PlaysheetCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
-import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
-import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
 
 import com.google.gson.Gson;
@@ -351,12 +351,13 @@ public class EngineResource {
 		{
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
 			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
-			playRunner.setCreateSwingView(false);
+			playRunner.runWeb();
+			/*playRunner.setCreateSwingView(false);
 			Thread playThread = new Thread(playRunner);
 			playThread.start();
 			while(playThread.isAlive()){
 				//wait for processing to finish before getting the data
-			}
+			}*/
 			
 			obj = playSheet.getData();
 
@@ -689,6 +690,153 @@ public class EngineResource {
 		
 		return getSO(obj);
 	}	
+
+  	@GET
+	@Path("menu")
+	@Produces("application/json")	
+	public StreamingOutput getMenu(@QueryParam("user") String user, @QueryParam("start") String starter, @Context HttpServletRequest request)
+	{
+		String finalString = null;
+		if(user == null)
+			user = "All";
+		if(starter == null)
+			starter = "ContextMenu";
+		
+		 String menuSubMenuQuery = "SELECT ?Menu ?MType ?MURL ?Submenu ?SMenuLabel ?SURL ?SType ?ChildMenu ?ChURL ?ChLabel ?CType ?MenuFiller ?SFiller ?CFiller WHERE " +
+	   		"{BIND( <http://semoss.org/ontologies/Concept/Owner/" + user + "> AS ?User) " +
+	   		"{?Menu <http://semoss.org/ontologies/Relation/Owner> ?User} " +
+	   		"{?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} " +
+	   		"{?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel} " +
+	   		"{?Menu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?MenuFiller} " +
+	   		"{?Menu <http://semoss.org/ontologies/Relation/Contains/Type> ?MType} " +
+	   		"{?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} " +
+	   		"{?Submenu <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} " +
+	   		"OPTIONAL " +
+	   			"{" +
+	   			"{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL> ?SURL}  " +
+	   			"{?Submenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?SFiller}  " +
+	   			"{?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} " +
+	   			"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}" +
+		   		"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} " +
+	   			"}" +
+	   		"OPTIONAL " +
+	   			"{" +
+	   			"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;} " +
+	   			"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?CFiller;} " +
+	   			"} " +
+	   		  "OPTIONAL " +
+	   		  "{" +
+	   		  		"{?Menu <http://semoss.org/ontologies/Relation/Contains/URL> ?MURL}" +
+	   		  "}" +
+	   		  "FILTER regex(str(?MenuLabel),'" + starter + "', 'i')}";
+		 
+		// menuSubMenuQuery = "SELECT ?Menu ?Submenu ?SMenuLabel ?SURL ?SType ?ChildMenu ?ChURL ?ChLabel WHERE {BIND( <http://semoss.org/ontologies/Concept/Owner/All> AS ?User) {?Menu <http://semoss.org/ontologies/Relation/Owner> ?User} }";
+		 //{?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} {?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel} {?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} {?Submenu <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} OPTIONAL {{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL> ?SURL}  {?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}} FILTER regex(str(?MenuLabel), 'Data', 'i')}";
+		 
+		SesameJenaSelectWrapper wrapper = new SesameJenaSelectWrapper();
+		wrapper.setEngine(coreEngine);
+		wrapper.setQuery(menuSubMenuQuery);
+		wrapper.setEngineType(IEngine.ENGINE_TYPE.SESAME);
+		wrapper.executeQuery();
+		
+		System.out.println("Query.... " + menuSubMenuQuery);
+		System.out.println("Variables " + wrapper.getVariables());
+		
+		Hashtable allMenu = new Hashtable();
+		ArrayList<String> subMenus = new ArrayList();
+		
+		while(wrapper.hasNext())
+		{
+			System.out.println("New record");
+			SesameJenaSelectStatement stmt = wrapper.next();
+			String menu = (String)stmt.getVar("Menu");
+
+			String menuType = ((String)stmt.getVar("MType")).replace("\"", "");
+			String menuURL = ((String)stmt.getVar("MURL")).replace("\"", "").replace("*","/");
+			String menuFiller = ((String)stmt.getVar("MenuFiller")).replace("\"", "");
+			
+			String subMenu = ((String)stmt.getVar("Submenu")).replace("\"", "");
+			String subMenuLabel = ((String)stmt.getVar("SMenuLabel")).replace("\"", "");
+			String sType = ((String)stmt.getVar("SType")).replace("\"", "");
+			String surl = ((String)stmt.getVar("SURL")).replace("\"", "").replace("*","/"); // eventually it will be a * instead of a -
+			String sFiller = ((String)stmt.getVar("SFiller")).replace("\"", "");
+
+			allMenu.put("Menu", starter);
+			allMenu.put("Type", menuType);
+			allMenu.put("URL", menuURL);
+			allMenu.put("Filler", menuFiller);
+			
+
+			// submenu
+			Hashtable smenuHash = new Hashtable();
+			if(allMenu.containsKey(subMenuLabel))
+				smenuHash = (Hashtable)allMenu.get(subMenuLabel);
+			else
+				subMenus.add(subMenuLabel);
+			
+			smenuHash.put("Label", subMenuLabel);
+			smenuHash.put("Type", sType);
+			smenuHash.put("URL", surl);
+			smenuHash.put("Filler", sFiller);
+
+			// finally the sub sub menu
+			String childMenu = ((String)stmt.getVar("ChildMenu")).replace("\"", "");
+			String chMenuLabel = ((String)stmt.getVar("ChLabel")).replace("\"","");
+			String chURL = ((String)stmt.getVar("ChURL")).replace("\"", "").replace("*","/"); // eventually I will put this as a * so it can be replaced
+			String cType = ((String)stmt.getVar("CType")).replace("\"", "");
+			String cFiller = ((String)stmt.getVar("CFiller")).replace("\"", "");
+
+			ArrayList <String> childMenus = new ArrayList();
+			if(chMenuLabel != null && chMenuLabel.length() != 0)
+			{
+				System.out.println(" Child Menu for " + subMenuLabel + "  Child is " + childMenu);
+				Hashtable childMenuHash = new Hashtable();
+				if(smenuHash.containsKey(chMenuLabel))
+				{
+					System.out.println("Has the child menu label [" + chMenuLabel + "]");
+					childMenuHash = (Hashtable)smenuHash.get(chMenuLabel);
+				}
+				else
+					childMenus.add(chMenuLabel);
+				
+				childMenuHash.put("Label", chMenuLabel);
+				childMenuHash.put("URL", chURL);
+				childMenuHash.put("Type", cType);
+				childMenuHash.put("Filler", cFiller);
+				
+				System.out.println("Child menus is " + childMenus);
+
+				if(childMenus.size() > 0)
+					smenuHash.put("Submenus", childMenus);
+				smenuHash.put(chMenuLabel, childMenuHash);
+			}
+			
+			System.out.println("Submenu " + smenuHash);
+			allMenu.put("Submenus", subMenus);
+			allMenu.put(subMenuLabel, smenuHash);
+		}
+
+		// master the hashtable for empty
+		for(int subMenuIndex = 0;subMenuIndex < subMenus.size();subMenuIndex++)
+		{
+			Hashtable thisMenu = (Hashtable)allMenu.get(subMenus.get(subMenuIndex));
+			if(!thisMenu.containsKey("Submenus") || ((ArrayList)thisMenu.get("Submenus")).size() == 0)
+			{
+				ArrayList tempList = new ArrayList();
+				tempList.add("EMPTY");
+				thisMenu.put("Submenus", tempList);
+			}
+		}
+		if(subMenus.size() == 0)
+		{
+			subMenus.add("EMPTY");
+			allMenu.put("Submenus", subMenus);
+		}	
+		
+		System.out.println(">>>.... " + new GsonBuilder().setPrettyPrinting().create().toJson(allMenu));
+		
+		return getSO(allMenu);
+	}
 
 
 }
