@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>D3: Pie layout</title>
+		<script type="text/javascript" src="../app/lib/d3.js"></script>
+		<style type="text/css">
+
+			text {
+				font-family: sans-serif;
+				font-size: 12px;
+				fill: white;
+			}
+
+		</style>
+	</head>
+	<body>
+		<script type="text/javascript">
+
+			//Width and height
+			var w = 300;
+			var h = 300;
+
+			var dataset = [ 20, 10, 20, 45, 10, 25 ];
+
+			var popRadius = 12; // how big you want the popup radius tobe
+
+			var outerRadius = w / 2;
+			var innerRadius = outerRadius - (popRadius * 2);
+			var offset = 0;
+			outerRadius = 150; // radius of the circle to paint
+			var centerX = outerRadius; // what you want the epicenter to be x
+			var centerY = outerRadius; // what you want the epicenter to be y
+			
+			var circumRadius = outerRadius - popRadius; 
+			var numNodes = 4; // total number of nodes you want
+			var spreadAngle = 90;//angles to which to spread the popups to
+			
+			var popText;
+			var cir;
+			var rect;
+			var text;
+
+			//Create SVG element
+			var svg = d3.select("body")
+						.append("svg")
+						.attr("width", w)
+						.attr("height", h);
+			
+			
+			
+			var color = d3.scale.category10();
+			
+			var pie = d3.layout.pie();
+			
+			var line = d3.svg.line()
+		    .x(function(d,i) {return d.x; })
+		    .y(function(d,i) { return d.y; })
+		    .interpolate("basis");
+
+						
+			var angles = new Array(numNodes);
+			
+			var createAngles = function()
+			{
+				angles = new Array(numNodes);
+				for(angleIndex = 0;angleIndex < numNodes;angleIndex++)
+				{
+					angles[angleIndex] = angleIndex*(spreadAngle/numNodes);
+				}
+			};
+			
+			// show it as a pie chart
+			var show = false;
+			var arcs = svg.selectAll("arcs").data(pie(dataset))
+			.enter()
+			.append("g")
+			.attr("class", "arc")
+			.attr("transform", "translate(150,150)")
+			.on("click",function(){
+				if(!show)
+				{
+					show = true;
+					//http://localhost:9080/Monolith/api/engine/e-TAP_Core_Data/perspectives
+					//pullJson("http://localhost:9080/Monolith/api/engine/all"); 
+					d3.selectAll("[semoss=temp]").remove();
+					wheelIt(outerRadius, outerRadius, "http://localhost:9080/Monolith/api/engine/e-TAP_Core_Data/perspectives"); 
+				}
+				else
+				{
+					show = false;
+					console.log("removing");
+					d3.selectAll("[semoss*='temp']").remove();
+					//d3.selectAll("path").remove();
+					wheelIt(outerRadius, outerRadius, "http://localhost:9080/Monolith/api/engine/all");
+					//lines.remove();
+				//cir.attr("display", "none");
+				//lines.remove();
+				}
+				
+			});
+
+			// or just a simple circle
+			/*var bigCircle = svg
+							.append("circle")
+							.attr("cx", 0)
+							.attr("cy", 0)
+							.attr("r", outerRadius)
+							.attr("fill", "blue")
+							.attr("transform", "translate(" + outerRadius + "," + outerRadius + ")")
+							.on("click",function(){paintCircles(); paintLines();});
+			*/
+					
+			var paintCircles = function(){
+				console.log("Angles...  " + angles);
+				cir = svg.selectAll("circles").data(angles).enter().append("circle")
+				.on("click", function(d,i)
+				{
+					//alert(d3.select(this).attr("cx"));
+					triggerOnClick(d3.select(this));
+	
+				})
+				.on("mouseenter", function(d,i)
+				{
+					// empty right ?
+					console.log(" Index is " + i);
+					console.log("mouse...  " + d3.mouse(this));
+					expand(d3.select(this));
+					showText(d3.select(this),i, d3.mouse(this)[0], d3.mouse(this)[1]);	
+				})
+				.on("mouseout", function()
+				{
+					restore(d3.select(this));
+					console.log("out");
+					text.remove();
+					rect.remove();
+				})
+				.attr("cx", function(d,i)
+				{
+						var output = outerRadius;
+						if (i != 0)
+						{
+							output = (Math.cos(angles[i-1]*.017)*circumRadius);
+							output = centerX - output;
+						}
+						return output;
+				})
+				.attr("cy", function(d,i) 
+				{
+					console.log("here");
+					var output = outerRadius;
+					if (i != 0)
+					{
+						output = (Math.sin(angles[i-1]*.017)*circumRadius);
+						output = centerY - output;
+					}
+					return output;
+				})
+				.attr("r", popRadius)
+				.transition()
+				.duration(200)
+				.ease("linear")
+				.attr("cx", function(d,i) {
+						var output = (Math.cos(d*.017)*circumRadius);
+						output = centerX - output;
+						//console.log("Final CX....  " + (Math.sin(d)*150) + " .. " +  output + "... " + d);
+						prevX = output;
+						return output;
+				})
+				.attr("cy", function(d,i)
+				{
+						var output = (Math.sin(d*.017)*circumRadius);
+						output = centerY - output;
+						//console.log("Final CY....  " + (Math.sin(d)*150) + " .. " + output + "... " + d);
+						prevY = output;
+						return output;
+				})
+				.attr("semoss", "temp")
+				.transition()
+				.duration(200)
+				.ease("bounce")
+				.attr("r", popRadius);
+			};
+
+			var paintLines = function(){
+				svg.selectAll("lines").data(angles).enter()
+							.append("path")
+							.attr("d", function(d, i)
+							{
+								var tlineData = new Array(2);
+								
+								var data1 = {};
+								data1["x"] = centerX;
+								data1["y"] = centerY;
+								
+								//console.log(data1);
+								
+								var data2 = {};
+								data2["x"] = centerX;
+								data2["y"] = centerY;
+								
+								tlineData[0] = data1;
+								tlineData[1] = data2;
+
+								//return line(tlineData);						
+						
+							})
+							.transition()
+							.duration(200)
+							.ease("linear")
+							.attr("d", function(d, i){
+
+								var tlineData = new Array(2);
+								
+								var data1 = {};
+								var x = (Math.cos(d*.017)*circumRadius);
+								x = centerX - x;
+								var y = (Math.sin(d*.017)*circumRadius);
+								y = centerY - y;
+
+								data1["x"] = x;
+								data1["y"] = y;
+								
+								console.log(data1);
+								
+								var data2 = {};
+								data2["x"] = centerX;
+								data2["y"] = centerY;
+								
+								tlineData[0] = data1;
+								tlineData[1] = data2;
+
+								return line(tlineData);
+								})
+							.transition()
+							.ease("elastic")
+							//.attr("d", function(d, i){return line(tlineData);})
+							.attr("stroke", "orange")
+							.attr("stroke-width", 1)
+							.attr("fill", "black")
+							.attr("semoss", "temp")
+							.attr("tension", 20);
+					};
+
+			var arcScaler = d3.scale.linear().domain([d3.min(dataset), d3.max(dataset)]).range([0,2*Math.PI]);
+			
+			//var vis = d3.select("#svg_donut");
+			var last = 0;
+			
+			var arc = d3.svg.arc()
+			.innerRadius(innerRadius)
+			.outerRadius(outerRadius);
+
+			arcs.append("path")
+			.attr("d", arc)
+			.attr("fill", function(d,i){return color(i);});
+			
+			arcs.append("text")
+			.attr("transform", function(d){
+					return "translate(" + eval(arc.centroid(d)) + ")";
+					})
+			.attr("text-anchor", "middle");
+			//.text(function(d) { return "cupcake";});
+			
+			//.attr("transform", "translate(100,100)");
+			
+			//lines.on("click", function(){alert("hello");});
+
+			// events
+			
+			var expand = function(node)
+			{
+				curRadius = eval(popRadius + 20);
+				console.log(curRadius);
+				node.transition().duration(20).attr("r", curRadius);				
+			};
+
+			var restore = function(node)
+			{
+				curRadius = popRadius;
+				console.log(curRadius);
+				node.transition().duration(20).attr("r", curRadius);				
+			};
+
+			var showText = function(node,i, mousex, mousey)
+			{
+				//console.log(i);
+				if(!typeof text === 'undefined')
+					text.remove();
+				if(!rect === 'undefined')
+					rect.remove();
+				
+				var text2 = popText[i];
+
+				rect = svg.append("rect")
+				/*.attr("transform", function(d){
+						return "translate(" + node.attr("cx") + "," + node.attr("cy") + ")";
+						})
+				*/
+				//.attr("text-anchor", "middle")
+				//.text(popText[i])
+				.attr("x",mousex) //node.attr("cx"))
+				.attr("y",mousey) //eval(node.attr("cy") - popRadius))
+				.attr("rx", 5)
+				.attr("ry", 5)
+				.attr("width", 6.25*(text2.length) + popRadius)
+				.attr("height", 20)
+				.attr("opacity", 10)
+				.attr("fill", color(1));
+
+				text = svg.append("text")
+				//.attr("text-anchor", "middle")
+				.text(popText[i])
+				.attr("x", mousex) //node.attr("cx"))
+				.attr("y",mousey+popRadius) //node.attr("cy"))
+				.attr("opacity", 10)
+				.attr("fill", "white");
+			};
+			
+			var data; // a global
+
+			var pullJson = function(url)
+			{
+				//http://localhost:9080/Monolith/api/engine/e-TAP_Core_Data/perspectives
+				d3.json(url, function(error, json) 
+				{
+					console.log("Got data ?");
+				  	if (error) return console.warn(error);
+				  	data = json;
+				  	
+				  	
+				  	// set the number of nodes
+				  	numNodes = Object.keys(data).length;
+				  	
+				  	// put the text
+				  	popText = data;
+				  	//console.log(popText);
+				  	
+				  	if(numNodes > 0 && numNodes <= 6)
+				  		spreadAngle = 90;
+			  		else if(numNodes > 6 && numNodes <= 12)
+			  			spreadAngle = 180;
+		  			else if(numNodes > 12 && numNodes <= 18)
+		  				spreadAngle = 270;
+		  			else
+		  				spreadAngle = 360;
+				  	
+				  	createAngles();
+				  	paintCircles(); 
+				  	paintLines();  	
+					console.log(Object.keys(data).length);
+				});
+				
+			};
+			
+			var triggerOnClick = function(node)
+			{
+				console.log("triggering on click    " + node);
+			}
+			
+			// this is the main function
+			// you pass it the location and what you want to paint
+			var wheelIt = function(xLocation, yLocation, urlLocation)
+			{
+				
+				centerX = xLocation;
+				centerY = yLocation;
+				pullJson(urlLocation);
+			}
+			
+			
+
+			
+	</script>
+	</body>
+</html>
