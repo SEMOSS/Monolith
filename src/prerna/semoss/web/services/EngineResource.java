@@ -204,14 +204,17 @@ public class EngineResource {
 	@GET
 	@Path("insights")
 	@Produces("application/json")
-	public StreamingOutput getInsights(@QueryParam("nodeType") String type, @QueryParam("tag") String tag,@QueryParam("perspective") String perspective, @Context HttpServletRequest request)
+	public StreamingOutput getInsights(@QueryParam("nodeType") String type, @QueryParam("nodeInstance") String instance, @QueryParam("tag") String tag,@QueryParam("perspective") String perspective, @Context HttpServletRequest request)
 	{
 		// if the type is null then send all the insights else only that
 		Vector result = null;
 		if(perspective != null)
-			result = coreEngine.getInsights(perspective);
-		else if(type != null)
+			result = ((AbstractEngine)coreEngine).getInsights(perspective, true);
+		else if(type != null || instance != null) 
+		{
+			if(instance != null) type = Utility.getConceptType(coreEngine, instance);
 			result = coreEngine.getInsight4Type(type);
+		}
 		else if(tag != null)
 			result = coreEngine.getInsight4Tag(tag);
 		else 
@@ -351,13 +354,12 @@ public class EngineResource {
 		{
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
 			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
-			playRunner.runWeb();
-			/*playRunner.setCreateSwingView(false);
+			playRunner.setCreateSwingView(false);
 			Thread playThread = new Thread(playRunner);
 			playThread.start();
 			while(playThread.isAlive()){
 				//wait for processing to finish before getting the data
-			}*/
+			}
 			
 			obj = playSheet.getData();
 
