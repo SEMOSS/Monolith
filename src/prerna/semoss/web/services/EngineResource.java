@@ -207,20 +207,22 @@ public class EngineResource {
 	public StreamingOutput getInsights(@QueryParam("nodeType") String type, @QueryParam("nodeInstance") String instance, @QueryParam("tag") String tag,@QueryParam("perspective") String perspective, @Context HttpServletRequest request)
 	{
 		// if the type is null then send all the insights else only that
-		Vector result = null;
+		Vector<String> resultInsights = null;
 		if(perspective != null)
-			result = ((AbstractEngine)coreEngine).getInsights(perspective, true);
+			resultInsights = coreEngine.getInsights(perspective);
 		else if(type != null || instance != null) 
 		{
 			if(instance != null) type = Utility.getConceptType(coreEngine, instance);
-			result = coreEngine.getInsight4Type(type);
+			resultInsights = coreEngine.getInsight4Type(type);
 		}
 		else if(tag != null)
-			result = coreEngine.getInsight4Tag(tag);
+			resultInsights = coreEngine.getInsight4Tag(tag);
 		else 
-			result = coreEngine.getInsights();
+			resultInsights = coreEngine.getInsights();
+		
+		Vector<Hashtable<String, String>> resultInsightObjects = coreEngine.getOutputs4Insights(resultInsights);
 
-		return getSO(result);
+		return getSO(resultInsightObjects);
 	}
 	// gets all the insights for a given type and tag in all the engines
 	// both tag and type are optional
