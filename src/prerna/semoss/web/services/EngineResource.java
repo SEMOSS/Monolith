@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Hashtable;
 import java.util.Vector;
 
@@ -669,6 +670,9 @@ public class EngineResource {
 		tableViz.setEngine(coreEngine);
 		tableViz.buildQuery();
 		String query = tableViz.getQuery() + " LIMIT 50";
+		
+		Hashtable<String, Hashtable<String, String>> varObjHash = tableViz.getVarObjHash();
+		Collection<Hashtable<String, String>> varObjVector = varObjHash.values();
 		System.out.println(query);
 		Object obj = null;
 		try
@@ -682,6 +686,9 @@ public class EngineResource {
 			playSheet.createData();
 			playSheet.runAnalytics();
 			obj = playSheet.getData();
+			
+			//add variable info to return data
+			((Hashtable)obj).put("variableHeaders", varObjVector);
 
 				
 			//store the playsheet in session, do i need to do this here?
