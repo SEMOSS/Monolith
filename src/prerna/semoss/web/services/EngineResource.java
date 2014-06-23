@@ -669,7 +669,12 @@ public class EngineResource {
 		tableViz.setJSONDataHash(dataHash);
 		tableViz.setEngine(coreEngine);
 		tableViz.buildQuery();
-		String query = tableViz.getQuery() + " LIMIT 50";
+		String query = tableViz.getQuery();
+		if(dataHash.get("filter") == null)
+		{
+			query += "LIMIT 50";
+		}
+		String filterQuery = "SELECT DISTINCT @VAR_NAME@" + query.substring(query.indexOf(" WHERE "));
 		
 		Hashtable<String, Hashtable<String, String>> varObjHash = tableViz.getVarObjHash();
 		Collection<Hashtable<String, String>> varObjVector = varObjHash.values();
@@ -689,8 +694,7 @@ public class EngineResource {
 			
 			//add variable info to return data
 			((Hashtable)obj).put("variableHeaders", varObjVector);
-
-				
+			((Hashtable)obj).put("filterQuery", filterQuery);
 			//store the playsheet in session, do i need to do this here?
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			session.setAttribute("VizBuilder", playSheet);
