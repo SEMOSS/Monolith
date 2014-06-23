@@ -670,11 +670,11 @@ public class EngineResource {
 		tableViz.setEngine(coreEngine);
 		tableViz.buildQuery();
 		String query = tableViz.getQuery();
+		String filterQuery = "SELECT DISTINCT ?@VAR_NAME@" + query.substring(query.indexOf(" WHERE "));
 		if(dataHash.get("filter") == null)
 		{
 			query += "LIMIT 50";
 		}
-		String filterQuery = "SELECT DISTINCT @VAR_NAME@" + query.substring(query.indexOf(" WHERE "));
 		
 		Hashtable<String, Hashtable<String, String>> varObjHash = tableViz.getVarObjHash();
 		Collection<Hashtable<String, String>> varObjVector = varObjHash.values();
