@@ -670,7 +670,11 @@ public class EngineResource {
 		tableViz.setEngine(coreEngine);
 		tableViz.buildQuery();
 		String query = tableViz.getQuery();
-		String filterQuery = "SELECT DISTINCT ?@VAR_NAME@" + query.substring(query.indexOf(" WHERE ")) + "ORDER BY ?@VAR_NAME@";
+		String filterQuery = "SELECT DISTINCT ?@VAR_NAME@" + query.substring(query.indexOf(" WHERE "));
+		if(filterQuery.contains("BINDINGS"))
+		{
+			filterQuery = filterQuery.substring(0,filterQuery.indexOf("BINDINGS")) + "ORDER BY ?@VAR_NAME@ " + filterQuery.substring(filterQuery.indexOf("BINDINGS"));
+		}
 		if(dataHash.get("filter") == null)
 		{
 			query += "LIMIT 50";
