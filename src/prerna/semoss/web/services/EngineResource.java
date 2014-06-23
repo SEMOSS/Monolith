@@ -670,7 +670,7 @@ public class EngineResource {
 		tableViz.setEngine(coreEngine);
 		tableViz.buildQuery();
 		String query = tableViz.getQuery();
-		String filterQuery = "SELECT DISTINCT ?@VAR_NAME@" + query.substring(query.indexOf(" WHERE "));
+		String filterQuery = "SELECT DISTINCT ?@VAR_NAME@" + query.substring(query.indexOf(" WHERE ")) + "ORDER BY ?@VAR_NAME@";
 		if(dataHash.get("filter") == null)
 		{
 			query += "LIMIT 50";
