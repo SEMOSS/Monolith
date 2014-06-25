@@ -187,14 +187,20 @@ public class Uploader extends HttpServlet {
 		String methodString = dbImportOption.toString();
 		ImportDataProcessor.IMPORT_METHOD importMethod = 
 				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-						: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-								: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 										: null;
 
 		//call the right process method with correct parameters
-		boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
-				baseURI.toString(), dbName.toString(),"","","","");
-
+		boolean isSuccessful = false;
+		if(methodString.equals("Create new database engine")) {
+			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
+					baseURI.toString(), dbName.toString(),"","","","");
+		} else {
+			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
+					baseURI.toString(), "","","","", dbName.toString());
+		}
+		
 		try {
 			FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder") + "\\db\\" + dbName.toString() + "\\" + dbName.toString() + "_PROP.prop"), propWriter.getPropFile());
 		} catch (IOException e) {
@@ -270,14 +276,23 @@ public class Uploader extends HttpServlet {
 		String methodString = inputData.get("importMethod") + "";
 		ImportDataProcessor.IMPORT_METHOD importMethod = 
 				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-						: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-								: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 										: null;
-
+		
 		//call the right process method with correct parameters
-		boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-				inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
-
+		boolean isSuccessful = false;
+		String dbName = "";
+		if(methodString.equals("Create new database engine")) {
+			dbName = inputData.get("newDBname");
+			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+					inputData.get("customBaseURI")+"", dbName,"","","","");
+		} else {
+			dbName = inputData.get("addDBname");
+			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+					inputData.get("customBaseURI")+"", "","","","", dbName);
+		}
+		
 		String outputText = "";
 		if(isSuccessful) {
 			outputText = "Excel Loading was a success.";
@@ -347,14 +362,23 @@ public class Uploader extends HttpServlet {
 		String methodString = inputData.get("importMethod") + "";
 		ImportDataProcessor.IMPORT_METHOD importMethod = 
 				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-						: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-								: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 										: null;
 
 		//call the right process method with correct parameters
-		boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file"), 
-				inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
-
+		boolean isSuccessful = false;
+		String dbName = "";
+		if(methodString.equals("Create new database engine")) {
+			dbName = inputData.get("newDBname");
+			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+					inputData.get("customBaseURI")+"", dbName,"","","","");
+		} else {
+			dbName = inputData.get("addDBname");
+			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+					inputData.get("customBaseURI")+"", "","","","", dbName);
+		}
+		
 		String outputText = "";
 		if(isSuccessful) {
 			outputText = "NLP Loading was a success.";
@@ -425,14 +449,14 @@ public class Uploader extends HttpServlet {
 		String methodString = inputData.get("importMethod") + "";
 		ImportDataProcessor.IMPORT_METHOD importMethod = 
 				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-						: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-								: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 										: null;
 
 		//call the right process method with correct parameters
 		boolean isSuccessful = importer.processNewRDBMS((String) inputData.get("customBaseURI"), (String) inputData.get("file"), 
-				(String) inputData.get("newDBname"), (String) inputData.get("dbType"), 
-				(String) inputData.get("dbUrl"), (String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
+				 (String) inputData.get("newDBname"), (String) inputData.get("dbType"), (String) inputData.get("dbUrl"), 
+				 (String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
 
 		String outputText = "";
 		if(isSuccessful) {
