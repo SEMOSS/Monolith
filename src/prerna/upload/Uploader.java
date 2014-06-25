@@ -80,7 +80,7 @@ public class Uploader extends HttpServlet {
 	@POST
 	@Path("/csv/meta")
 	@Produces("application/json")
-	public StreamingOutput uploadCSVFileToMeta(@Context HttpServletRequest request) 
+	public Response uploadCSVFileToMeta(@Context HttpServletRequest request) 
 	{
 		File file;
 		Hashtable<String, Hashtable<String, LinkedHashSet<String>>> dataTypes	= new Hashtable<String, Hashtable<String, LinkedHashSet<String>>>();
@@ -131,10 +131,13 @@ public class Uploader extends HttpServlet {
 		CSVMetamodelBuilder builder = new CSVMetamodelBuilder();
 		builder.setFiles(allFiles);
 		dataTypes = builder.returnDataTypes();
-
-
-
-		return getSO(dataTypes);
+		
+		if(!dataTypes.isEmpty()) {
+			return Response.status(200).entity(getSO(dataTypes)).build();
+		} else {
+			String outputText = "CSV Loading has failed.";
+			return Response.status(400).entity(outputText).build();
+		}
 	}
 
 	@POST
@@ -191,20 +194,21 @@ public class Uploader extends HttpServlet {
 		//call the right process method with correct parameters
 		boolean isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
 				baseURI.toString(), dbName.toString(),"","","","");
-		
+
 		try {
 			FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder") + "\\db\\" + dbName.toString() + "\\" + dbName.toString() + "_PROP.prop"), propWriter.getPropFile());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
-		String outputText = "";
-		if(isSuccessful)
-			outputText = "CSV Loading was a success.";
-		else
-			outputText = "CSV Loading has failed.";
 
-		return Response.status(200).entity(outputText).build();
+		String outputText = "";
+		if(isSuccessful) {
+			outputText = "CSV Loading was a success.";
+			return Response.status(200).entity(outputText).build();
+		} else {
+			outputText = "CSV Loading has failed.";
+			return Response.status(400).entity(outputText).build();
+		}
 	}
 
 
@@ -275,12 +279,13 @@ public class Uploader extends HttpServlet {
 				inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
 
 		String outputText = "";
-		if(isSuccessful)
+		if(isSuccessful) {
 			outputText = "Excel Loading was a success.";
-		else
+			return Response.status(200).entity(outputText).build();
+		} else {
 			outputText = "Excel Loading has failed.";
-
-		return Response.status(200).entity(outputText).build();
+			return Response.status(400).entity(outputText).build();
+		}
 	}
 
 
@@ -351,12 +356,14 @@ public class Uploader extends HttpServlet {
 				inputData.get("customBaseURI")+"", inputData.get("newDBname")+"","","","","");
 
 		String outputText = "";
-		if(isSuccessful)
+		if(isSuccessful) {
 			outputText = "NLP Loading was a success.";
-		else
+			return Response.status(200).entity(outputText).build();
+		} else {
 			outputText = "NLP Loading has failed.";
-
-		return Response.status(200).entity(outputText).build();
+			return Response.status(400).entity(outputText).build();
+		}
+		
 	}
 
 	@POST
@@ -364,76 +371,77 @@ public class Uploader extends HttpServlet {
 	@Produces("text/html")
 	public Response uploadD2RQFile(@Context HttpServletRequest request) 
 	{
-			File file;
-			List<FileItem> fileItems = processRequest(request);
-			// Process the uploaded file items
-			Iterator<FileItem> iteratorFileItems = fileItems.iterator();
+		File file;
+		List<FileItem> fileItems = processRequest(request);
+		// Process the uploaded file items
+		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
 
-			// collect all of the data input on the form
-			Hashtable<String, String> inputData = new Hashtable<String, String>();
-			while(iteratorFileItems.hasNext()) 
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = new Hashtable<String, String>();
+		while(iteratorFileItems.hasNext()) 
+		{
+			FileItem fi = (FileItem) iteratorFileItems.next();
+			// Get the uploaded file parameters
+			String fieldName = fi.getFieldName();
+			String fileName = fi.getName();
+			String value = fi.getString();
+			if (!fi.isFormField()) 
 			{
-				FileItem fi = (FileItem) iteratorFileItems.next();
-				// Get the uploaded file parameters
-				String fieldName = fi.getFieldName();
-				String fileName = fi.getName();
-				String value = fi.getString();
-				if (!fi.isFormField()) 
-				{
-					if (fileName.equals("")){
-						continue;
-					}
-					else {
-						value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
-						file = new File(value);
-					}
-					try {
-						fi.write(file);
-					} catch (Exception e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					System.out.println("d2rq importer saved Filename: " + fileName + "  to "+ file);
-				} 
-				else 
-				{
-					System.err.println("Type is " + fi.getFieldName() + fi.getString());
+				if (fileName.equals("")){
+					continue;
 				}
-				//need to handle multiple files getting selected for upload
-				if(inputData.get(fieldName) != null)
-				{
-					value = inputData.get(fieldName) + ";" + value;
-					inputData.put(fieldName, value);
+				else {
+					value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
+					file = new File(value);
 				}
+				try {
+					fi.write(file);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				System.out.println("d2rq importer saved Filename: " + fileName + "  to "+ file);
+			} 
+			else 
+			{
+				System.err.println("Type is " + fi.getFieldName() + fi.getString());
+			}
+			//need to handle multiple files getting selected for upload
+			if(inputData.get(fieldName) != null)
+			{
+				value = inputData.get(fieldName) + ";" + value;
 				inputData.put(fieldName, value);
 			}
+			inputData.put(fieldName, value);
+		}
 
-			System.out.println(inputData);
-			// time to run the import
-			ImportDataProcessor importer = new ImportDataProcessor();
-			importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
+		System.out.println(inputData);
+		// time to run the import
+		ImportDataProcessor importer = new ImportDataProcessor();
+		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
 
-			// figure out what type of import we need to do based on parameters
-			// selected
-			String methodString = inputData.get("importMethod") + "";
-			ImportDataProcessor.IMPORT_METHOD importMethod = 
-					methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-							: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-									: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
-											: null;
-			
-			//call the right process method with correct parameters
-			boolean isSuccessful = importer.processNewRDBMS((String) inputData.get("customBaseURI"), (String) inputData.get("file"), 
-					(String) inputData.get("newDBname"), (String) inputData.get("dbType"), 
-					(String) inputData.get("dbUrl"), (String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
+		// figure out what type of import we need to do based on parameters
+		// selected
+		String methodString = inputData.get("importMethod") + "";
+		ImportDataProcessor.IMPORT_METHOD importMethod = 
+				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
+						: methodString.equals("Add To existing database engine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("Modify/Replace data in existing engine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+										: null;
 
-			String outputText = "";
-			if(isSuccessful)
-				outputText = "R2RQ Loading was a success.";
-			else
-				outputText = "R2RQ Loading has failed.";
+		//call the right process method with correct parameters
+		boolean isSuccessful = importer.processNewRDBMS((String) inputData.get("customBaseURI"), (String) inputData.get("file"), 
+				(String) inputData.get("newDBname"), (String) inputData.get("dbType"), 
+				(String) inputData.get("dbUrl"), (String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
 
+		String outputText = "";
+		if(isSuccessful) {
+			outputText = "R2RQ Loading was a success.";
 			return Response.status(200).entity(outputText).build();
+		} else {
+			outputText = "R2RQ Loading has failed.";
+			return Response.status(400).entity(outputText).build();
+		}
 	}
 
 
