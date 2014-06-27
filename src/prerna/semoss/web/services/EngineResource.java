@@ -220,8 +220,9 @@ public class EngineResource {
 			resultInsights = coreEngine.getInsight4Tag(tag);
 		else 
 			resultInsights = coreEngine.getInsights();
-		
-		Vector<Hashtable<String, String>> resultInsightObjects = coreEngine.getOutputs4Insights(resultInsights);
+
+		//Vector<Hashtable<String,String>> resultInsightObjects = coreEngine.getOutputs4Insights(resultInsights);
+		Vector<Insight> resultInsightObjects = ((AbstractEngine)coreEngine).getInsight2(resultInsights.toArray(new String[resultInsights.size()]));
 
 		return getSO(resultInsightObjects);
 	}
@@ -662,6 +663,58 @@ public class EngineResource {
 	@Path("customVizTable")
 	@Produces("application/json")
 	public StreamingOutput getVizTable(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
+		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
+		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
+		tableViz.setJSONDataHash(dataHash);
+		tableViz.setEngine(coreEngine);
+		tableViz.buildQuery();
+		String query = tableViz.getQuery();
+		String filterQuery = "SELECT DISTINCT ?@VAR_NAME@" + query.substring(query.indexOf(" WHERE "));
+		if(filterQuery.contains("BINDINGS"))
+		{
+			filterQuery = filterQuery.substring(0,filterQuery.indexOf("BINDINGS")) + "ORDER BY ?@VAR_NAME@ " + filterQuery.substring(filterQuery.indexOf("BINDINGS"));
+		}
+		if(dataHash.get("filter") == null)
+		{
+			query += "LIMIT 50";
+		}
+		
+		Hashtable<String, Hashtable<String, String>> varObjHash = tableViz.getVarObjHash();
+		Collection<Hashtable<String, String>> varObjVector = varObjHash.values();
+		System.out.println(query);
+		Object obj = null;
+		try
+		{
+			String playSheetClassName = PlaySheetEnum.getClassFromName(PlaySheetEnum.Grid.getSheetName());
+			IPlaySheet playSheet = (IPlaySheet) Class.forName(playSheetClassName).getConstructor(null).newInstance(null);
+			playSheet.setQuery(query);
+			playSheet.setRDFEngine(coreEngine);
+			//should through what questionID this should be
+			playSheet.setQuestionID("VizBuilder");
+			playSheet.createData();
+			playSheet.runAnalytics();
+			obj = playSheet.getData();
+			
+			//add variable info to return data
+			((Hashtable)obj).put("variableHeaders", varObjVector);
+			((Hashtable)obj).put("filterQuery", filterQuery);
+			//store the playsheet in session, do i need to do this here?
+			HttpSession session = ((HttpServletRequest)request).getSession(false);
+			session.setAttribute("VizBuilder", playSheet);
+		}catch(Exception ex)
+		{
+			ex.printStackTrace();
+		}
+		
+		return getSO(obj);
+	}	
+	
+	@GET
+	@Path("customVizPathProperties")
+	@Produces("application/json")
+	public StreamingOutput getPathProperties(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
