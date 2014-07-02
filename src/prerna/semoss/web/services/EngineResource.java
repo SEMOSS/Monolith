@@ -291,7 +291,7 @@ public class EngineResource {
 		// returns the insight
 		// typically is a JSON of the insight
 		System.out.println("Insight is " + insight);
-		Insight in = coreEngine.getInsight(insight);
+		Insight in = ((AbstractEngine)coreEngine).getInsight2(insight).get(0);
 		System.out.println("Insight is " + in);
 		System.out.println(in.getOutput());
 		Hashtable outputHash = new Hashtable();
@@ -681,8 +681,8 @@ public class EngineResource {
 			query += "LIMIT 50";
 		}
 		
-		Hashtable<String, Hashtable<String, String>> varObjHash = tableViz.getVarObjHash();
-		Collection<Hashtable<String, String>> varObjVector = varObjHash.values();
+		ArrayList<Hashtable<String, String>> varObjV = tableViz.getVarObjHash();
+		Collection<Hashtable<String, String>> varObjVector = varObjV;
 		System.out.println(query);
 		Object obj = null;
 		try
@@ -716,50 +716,16 @@ public class EngineResource {
 	@Produces("application/json")
 	public StreamingOutput getPathProperties(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
 	{
+		logger.info("Getting properties for path");
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
 		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
 		tableViz.setJSONDataHash(dataHash);
 		tableViz.setEngine(coreEngine);
-		tableViz.buildQuery();
+		tableViz.buildBasicQuery();
 		String query = tableViz.getQuery();
-		String filterQuery = "SELECT DISTINCT ?@VAR_NAME@" + query.substring(query.indexOf(" WHERE "));
-		if(filterQuery.contains("BINDINGS"))
-		{
-			filterQuery = filterQuery.substring(0,filterQuery.indexOf("BINDINGS")) + "ORDER BY ?@VAR_NAME@ " + filterQuery.substring(filterQuery.indexOf("BINDINGS"));
-		}
-		if(dataHash.get("filter") == null)
-		{
-			query += "LIMIT 50";
-		}
-		
-		Hashtable<String, Hashtable<String, String>> varObjHash = tableViz.getVarObjHash();
-		Collection<Hashtable<String, String>> varObjVector = varObjHash.values();
-		System.out.println(query);
-		Object obj = null;
-		try
-		{
-			String playSheetClassName = PlaySheetEnum.getClassFromName(PlaySheetEnum.Grid.getSheetName());
-			IPlaySheet playSheet = (IPlaySheet) Class.forName(playSheetClassName).getConstructor(null).newInstance(null);
-			playSheet.setQuery(query);
-			playSheet.setRDFEngine(coreEngine);
-			//should through what questionID this should be
-			playSheet.setQuestionID("VizBuilder");
-			playSheet.createData();
-			playSheet.runAnalytics();
-			obj = playSheet.getData();
-			
-			//add variable info to return data
-			((Hashtable)obj).put("variableHeaders", varObjVector);
-			((Hashtable)obj).put("filterQuery", filterQuery);
-			//store the playsheet in session, do i need to do this here?
-			HttpSession session = ((HttpServletRequest)request).getSession(false);
-			session.setAttribute("VizBuilder", playSheet);
-		}catch(Exception ex)
-		{
-			ex.printStackTrace();
-		}
-		
+		logger.info("Basic query produced for properties: " + query);
+		Object obj = tableViz.getVarObjHash();
 		return getSO(obj);
 	}	
 
