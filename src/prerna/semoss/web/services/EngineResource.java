@@ -48,6 +48,7 @@ import prerna.util.Utility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.internal.StringMap;
 
 public class EngineResource {
 	
@@ -662,12 +663,22 @@ public class EngineResource {
 	@GET
 	@Path("customVizTable")
 	@Produces("application/json")
-	public StreamingOutput getVizTable(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
+	public StreamingOutput getVizTable(@QueryParam("QueryData") String pathObject, @QueryParam("SelectedVars") String varsObject, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
 		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
 		tableViz.setJSONDataHash(dataHash);
+		if(varsObject != null) {
+			ArrayList<Object> varsObjArray = gson.fromJson(varsObject, ArrayList.class);
+			ArrayList<Hashtable<String,String>> varsArray = new ArrayList<Hashtable<String,String>>();
+			for(Object varsObj : varsObjArray){
+				Hashtable newHash = new Hashtable();
+				newHash.putAll((StringMap)varsObj);
+				varsArray.add(newHash);
+			}
+			tableViz.setPropV(varsArray);
+		}
 		tableViz.setEngine(coreEngine);
 		tableViz.buildQuery();
 		String query = tableViz.getQuery();
@@ -681,7 +692,7 @@ public class EngineResource {
 			query += "LIMIT 50";
 		}
 		
-		ArrayList<Hashtable<String, String>> varObjV = tableViz.getVarObjHash();
+		ArrayList<Hashtable<String, String>> varObjV = tableViz.getReturnVarObjHash();
 		Collection<Hashtable<String, String>> varObjVector = varObjV;
 		System.out.println(query);
 		Object obj = null;
@@ -722,10 +733,7 @@ public class EngineResource {
 		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
 		tableViz.setJSONDataHash(dataHash);
 		tableViz.setEngine(coreEngine);
-		tableViz.buildBasicQuery();
-		String query = tableViz.getQuery();
-		logger.info("Basic query produced for properties: " + query);
-		Object obj = tableViz.getVarObjHash();
+		Object obj = tableViz.getPropsFromPath();
 		return getSO(obj);
 	}	
 
