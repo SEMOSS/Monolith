@@ -50,6 +50,14 @@ public class Uploader extends HttpServlet {
 		this.filePath = filePath;
 	}
 
+	public void writeFile(FileItem fi, File file){
+		try {
+			fi.write(file);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
 	public List<FileItem> processRequest(@Context HttpServletRequest request)
 	{
 		List<FileItem> fileItems = null;
@@ -83,14 +91,14 @@ public class Uploader extends HttpServlet {
 	public Response uploadCSVFileToMeta(@Context HttpServletRequest request) 
 	{
 		File file;
-		Hashtable<String, Hashtable<String, LinkedHashSet<String>>> dataTypes	= new Hashtable<String, Hashtable<String, LinkedHashSet<String>>>();
 		List<FileItem> fileItems = processRequest(request);
 		// Process the uploaded file items
 		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
 
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = new Hashtable<String, String>();
-		ArrayList<File> allFiles = new ArrayList<File>();
+		ArrayList<File> allLoadingFiles = new ArrayList<File>();
+		ArrayList<File> propFiles = new ArrayList<File>();
 		while(iteratorFileItems.hasNext()) 
 		{
 			FileItem fi = (FileItem) iteratorFileItems.next();
@@ -100,22 +108,26 @@ public class Uploader extends HttpServlet {
 			String value = fi.getString();
 			if (!fi.isFormField()) 
 			{
-				if (fileName.equals("")){
+				if(fileName.equals("")) {
 					continue;
 				}
 				else {
-					value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
-					file = new File(value);
+					if(fieldName.equals("file"))
+					{
+						value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
+						file = new File(value);
+						writeFile(fi, file);
+						allLoadingFiles.add(file);
+						System.out.println( "CSV importer saved Filename: " + fileName + "  to "+ file);
+					} else if(fieldName.equals("propFile")) {
+						value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
+						file = new File(value);
+						writeFile(fi, file);
+						propFiles.add(file);
+						System.out.println( "CSV importer saved propfile: " + fileName + "  to "+ file);
+					}
 				}
-				try {
-					fi.write(file);
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				allFiles.add(file);
-				System.out.println( "CSV importer saved Filename: " + fileName + "  to "+ file);
-			} 
+			}
 			else 
 			{
 				System.err.println("Type is " + fi.getFieldName() + fi.getString());
@@ -128,12 +140,20 @@ public class Uploader extends HttpServlet {
 			inputData.put(fieldName, value);
 		}
 
+		Hashtable<String, Object> returnHash = new Hashtable<String, Object>();
+
 		CSVMetamodelBuilder builder = new CSVMetamodelBuilder();
-		builder.setFiles(allFiles);
-		dataTypes = builder.returnDataTypes();
-		
+		builder.setFiles(allLoadingFiles);
+		Hashtable<String, Hashtable<String, LinkedHashSet<String>>> dataTypes = builder.returnDataTypes();
+		returnHash.put("dataTypes", dataTypes);
+		if(propFiles.size() > 0) { 
+			builder.setPropFiles(propFiles);
+			Hashtable<String, ArrayList<Hashtable<String, String[]>>> propData = builder.returnPropFileDataResults();
+			returnHash.put("propData", propData);
+		}
+				
 		if(!dataTypes.isEmpty()) {
-			return Response.status(200).entity(getSO(dataTypes)).build();
+			return Response.status(200).entity(getSO(returnHash)).build();
 		} else {
 			String outputText = "CSV Loading has failed.";
 			return Response.status(400).entity(outputText).build();
