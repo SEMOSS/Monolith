@@ -57,7 +57,7 @@ public class Uploader extends HttpServlet {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public List<FileItem> processRequest(@Context HttpServletRequest request)
 	{
 		List<FileItem> fileItems = null;
@@ -81,8 +81,55 @@ public class Uploader extends HttpServlet {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
 		return fileItems;
+	}
+
+	public Hashtable<String, String> getInputData(List<FileItem> fileItems) 
+	{
+		// Process the uploaded file items
+		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
+
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = new Hashtable<String, String>();
+		ArrayList<File> allLoadingFiles = new ArrayList<File>();
+		File file;
+
+		while(iteratorFileItems.hasNext()) 
+		{
+			FileItem fi = (FileItem) iteratorFileItems.next();
+			// Get the uploaded file parameters
+			String fieldName = fi.getFieldName();
+			String fileName = fi.getName();
+			String value = fi.getString();
+			if (!fi.isFormField()) 
+			{
+				if(fileName.equals("")) {
+					continue;
+				}
+				else {
+					if(fieldName.equals("file"))
+					{
+						value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
+						file = new File(value);
+						writeFile(fi, file);
+						allLoadingFiles.add(file);
+						System.out.println( "Saved Filename: " + fileName + "  to "+ file);
+					} 
+				}
+			}
+			else 
+			{
+				System.err.println("Type is " + fi.getFieldName() + fi.getString());
+			}
+			//need to handle multiple files getting selected for upload
+			if(inputData.get(fieldName) != null)
+			{
+				value = inputData.get(fieldName) + ";" + value;
+			}
+			inputData.put(fieldName, value);
+		}
+
+		return inputData;
 	}
 
 	@POST
@@ -118,13 +165,13 @@ public class Uploader extends HttpServlet {
 						file = new File(value);
 						writeFile(fi, file);
 						allLoadingFiles.add(file);
-						System.out.println( "CSV importer saved Filename: " + fileName + "  to "+ file);
+						System.out.println( "Saved Filename: " + fileName + "  to "+ file);
 					} else if(fieldName.equals("propFile")) {
 						value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
 						file = new File(value);
 						writeFile(fi, file);
 						propFiles.add(file);
-						System.out.println( "CSV importer saved propfile: " + fileName + "  to "+ file);
+						System.out.println( "Saved propfile: " + fileName + "  to "+ file);
 					}
 				}
 			}
@@ -151,7 +198,7 @@ public class Uploader extends HttpServlet {
 			Hashtable<String, ArrayList<Hashtable<String, String[]>>> propData = builder.returnPropFileDataResults();
 			returnHash.put("propData", propData);
 		}
-				
+
 		if(!dataTypes.isEmpty()) {
 			return Response.status(200).entity(getSO(returnHash)).build();
 		} else {
@@ -220,7 +267,7 @@ public class Uploader extends HttpServlet {
 			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
 					baseURI.toString(), "","","","", dbName.toString());
 		}
-		
+
 		try {
 			FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder") + "\\db\\" + dbName.toString() + "\\" + dbName.toString() + "_PROP.prop"), propWriter.getPropFile());
 		} catch (IOException e) {
@@ -241,51 +288,12 @@ public class Uploader extends HttpServlet {
 	@POST
 	@Path("/excel/upload")
 	@Produces("text/html")
-	public Response uploadExcelFile(@Context HttpServletRequest request) {
-
-		File file;
+	public Response uploadExcelFile(@Context HttpServletRequest request) 
+	{
 		List<FileItem> fileItems = processRequest(request);
-		// Process the uploaded file items
-		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
-
 		// collect all of the data input on the form
-		Hashtable<String, String> inputData = new Hashtable<String, String>();
-		while(iteratorFileItems.hasNext()) 
-		{
-			FileItem fi = (FileItem) iteratorFileItems.next();
-			// Get the uploaded file parameters
-			String fieldName = fi.getFieldName();
-			String fileName = fi.getName();
-			String value = fi.getString();
-			if (!fi.isFormField()) 
-			{
-				if (fileName.equals("")){
-					continue;
-				}
-				else {
-					value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
-					file = new File(value);
-				}
-				try {
-					fi.write(file);
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				System.out.println("Excel importer saved Filename: " + fileName + "  to "+ file);
-			} 
-			else 
-			{
-				System.out.println("Type is " + fi.getFieldName() + fi.getString());
-			}
-			//need to handle multiple files getting selected for upload
-			if(inputData.get(fieldName) != null)
-			{
-				value = inputData.get(fieldName) + ";" + value;
-			}
-			inputData.put(fieldName, value);
-		}
-
+		Hashtable<String, String> inputData = getInputData(fileItems);
+		
 		System.out.println(inputData);
 		// time to run the import
 		ImportDataProcessor importer = new ImportDataProcessor();
@@ -299,7 +307,7 @@ public class Uploader extends HttpServlet {
 						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
 								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 										: null;
-		
+
 		//call the right process method with correct parameters
 		boolean isSuccessful = false;
 		String dbName = "";
@@ -312,7 +320,7 @@ public class Uploader extends HttpServlet {
 			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
 					inputData.get("customBaseURI")+"", "","","","", dbName);
 		}
-		
+
 		String outputText = "";
 		if(isSuccessful) {
 			outputText = "Excel Loading was a success.";
@@ -323,54 +331,14 @@ public class Uploader extends HttpServlet {
 		}
 	}
 
-
 	@POST
 	@Path("/nlp/upload")
 	@Produces("text/html")
 	public Response uploadNLPFile(@Context HttpServletRequest request) 
 	{
-		File file;
 		List<FileItem> fileItems = processRequest(request);
-		// Process the uploaded file items
-		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
-
 		// collect all of the data input on the form
-		Hashtable<String, String> inputData = new Hashtable<String, String>();
-		while(iteratorFileItems.hasNext()) 
-		{
-			FileItem fi = (FileItem) iteratorFileItems.next();
-			// Get the uploaded file parameters
-			String fieldName = fi.getFieldName();
-			String fileName = fi.getName();
-			String value = fi.getString();
-			if (!fi.isFormField()) 
-			{
-				if (fileName.equals("")){
-					continue;
-				}
-				else {
-					value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
-					file = new File(value);
-				}
-				try {
-					fi.write(file);
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				System.out.println("NLP importer saved Filename: " + fileName + "  to "+ file);
-			} 
-			else 
-			{
-				System.out.println("Type is " + fi.getFieldName() + fi.getString());
-			}
-			//need to handle multiple files getting selected for upload
-			if(inputData.get(fieldName) != null)
-			{
-				value = inputData.get(fieldName) + ";" + value;
-			}
-			inputData.put(fieldName, value);
-		}
+		Hashtable<String, String> inputData = getInputData(fileItems);
 
 		System.out.println(inputData);
 		// time to run the import
@@ -398,7 +366,7 @@ public class Uploader extends HttpServlet {
 			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
 					inputData.get("customBaseURI")+"", "","","","", dbName);
 		}
-		
+
 		String outputText = "";
 		if(isSuccessful) {
 			outputText = "NLP Loading was a success.";
@@ -407,7 +375,7 @@ public class Uploader extends HttpServlet {
 			outputText = "NLP Loading has failed.";
 			return Response.status(400).entity(outputText).build();
 		}
-		
+
 	}
 
 	@POST
@@ -415,50 +383,10 @@ public class Uploader extends HttpServlet {
 	@Produces("text/html")
 	public Response uploadD2RQFile(@Context HttpServletRequest request) 
 	{
-		File file;
 		List<FileItem> fileItems = processRequest(request);
-		// Process the uploaded file items
-		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
-
 		// collect all of the data input on the form
-		Hashtable<String, String> inputData = new Hashtable<String, String>();
-		while(iteratorFileItems.hasNext()) 
-		{
-			FileItem fi = (FileItem) iteratorFileItems.next();
-			// Get the uploaded file parameters
-			String fieldName = fi.getFieldName();
-			String fileName = fi.getName();
-			String value = fi.getString();
-			if (!fi.isFormField()) 
-			{
-				if (fileName.equals("")){
-					continue;
-				}
-				else {
-					value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
-					file = new File(value);
-				}
-				try {
-					fi.write(file);
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				System.out.println("d2rq importer saved Filename: " + fileName + "  to "+ file);
-			} 
-			else 
-			{
-				System.err.println("Type is " + fi.getFieldName() + fi.getString());
-			}
-			//need to handle multiple files getting selected for upload
-			if(inputData.get(fieldName) != null)
-			{
-				value = inputData.get(fieldName) + ";" + value;
-				inputData.put(fieldName, value);
-			}
-			inputData.put(fieldName, value);
-		}
-
+		Hashtable<String, String> inputData = getInputData(fileItems);
+		
 		System.out.println(inputData);
 		// time to run the import
 		ImportDataProcessor importer = new ImportDataProcessor();
@@ -475,8 +403,8 @@ public class Uploader extends HttpServlet {
 
 		//call the right process method with correct parameters
 		boolean isSuccessful = importer.processNewRDBMS((String) inputData.get("customBaseURI"), (String) inputData.get("file"), 
-				 (String) inputData.get("newDBname"), (String) inputData.get("dbType"), (String) inputData.get("dbUrl"), 
-				 (String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
+				(String) inputData.get("newDBname"), (String) inputData.get("dbType"), (String) inputData.get("dbUrl"), 
+				(String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
 
 		String outputText = "";
 		if(isSuccessful) {
