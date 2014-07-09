@@ -59,6 +59,8 @@ public class EngineResource {
 	String output = "";
 	Logger logger = Logger.getLogger(getClass());
 	Hashtable<String, SEMOSSQuery> vizHash = new Hashtable<String, SEMOSSQuery>();
+	// to send class name if error occurs
+	String className = this.getClass().getName();
 	
 	public void setEngine(IEngine coreEngine)
 	{
@@ -82,8 +84,15 @@ public class EngineResource {
 	@GET
 	@Path("metamodel")
 	@Produces("application/json")
-	public StreamingOutput getMetamodel(@Context HttpServletRequest request)
+	public Response getMetamodel(@Context HttpServletRequest request)
 	{
+		if(coreEngine == null) {
+			Hashtable<String, String> errorHash = new Hashtable<String, String>();
+			errorHash.put("Message", "No engine defined.");
+			errorHash.put("Class", className);
+			return Response.status(400).entity(getSO(errorHash)).build();
+		}
+		
 		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
 		//hard code playsheet attributes since no insight exists for this
 		String sparql = "SELECT ?s ?p ?o WHERE {?s ?p ?o} LIMIT 1";
@@ -110,12 +119,15 @@ public class EngineResource {
 			
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			session.setAttribute(playSheet.getQuestionID(), playSheet);
-		}catch(Exception ex)
-		{
+		} catch (Exception ex) { 
 			ex.printStackTrace();
+			Hashtable<String, String> errorHash = new Hashtable<String, String>();
+			errorHash.put("Message", "Error processing query.");
+			errorHash.put("Class", className);
+			return Response.status(500).entity(getSO(errorHash)).build();
 		}
 		
-		return getSO(obj);
+		return Response.status(200).entity(getSO(obj)).build();
 	}
 
 	
@@ -353,10 +365,9 @@ public class EngineResource {
 		
 		// if insight is null throw bad data exception
 		if(insight == null) {
-			Class<? extends EngineResource> c = this.getClass();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "No question defined.");
-			errorHash.put("Class", c.getName());
+			errorHash.put("Class", className);
 			return Response.status(400).entity(getSO(errorHash)).build();
 		}
 		
@@ -366,7 +377,6 @@ public class EngineResource {
 		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
 		exQueryProcessor.processQuestionQuery(coreEngine.getEngineName(), insight, paramHash);
 		Object obj = null;
-		
 		try {
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
 			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
@@ -383,10 +393,9 @@ public class EngineResource {
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			session.setAttribute(playSheet.getQuestionID(), playSheet);
 		} catch (Exception ex) { //need to specify the different exceptions 
-			Class<? extends EngineResource> c = this.getClass();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error occured processing question.");
-			errorHash.put("Class", c.getName());
+			errorHash.put("Class", className);
 			return Response.status(400).entity(getSO(errorHash)).build();
 		}
 		
