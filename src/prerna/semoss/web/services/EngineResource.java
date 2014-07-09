@@ -135,7 +135,7 @@ public class EngineResource {
 	@GET
 	@Path("neighbors")
 	@Produces("application/json")
-	public StreamingOutput getNeighbors(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
+	public Response getNeighbors(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
 	{
 		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
 		if(coreEngine instanceof AbstractEngine){
@@ -143,15 +143,15 @@ public class EngineResource {
 			finalTypes.put("downstream", downNodes);
 			Vector<String> upNodes = ((AbstractEngine) coreEngine).getFromNeighbors(type, 0);
 			finalTypes.put("upstream", upNodes);
-		}
-		return getSO(finalTypes);
+		} 
+		return Response.status(200).entity(getSO(finalTypes)).build();
 	}
 
 	//gets all node types connected to a given node type along with the verbs connecting the given types
 	@GET
 	@Path("neighbors/verbs")
 	@Produces("application/json")
-	public StreamingOutput getNeighborsWithVerbs(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
+	public Response getNeighborsWithVerbs(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
 	{
 		Hashtable<String, Hashtable<String, Vector<String>>> finalTypes = new Hashtable<String, Hashtable<String, Vector<String>>>();
 		if(coreEngine instanceof AbstractEngine){
@@ -160,14 +160,14 @@ public class EngineResource {
 			Hashtable<String, Vector<String>> upNodes = ((AbstractEngine) coreEngine).getFromNeighborsWithVerbs(type, 0);
 			finalTypes.put("upstream", upNodes);
 		}
-		return getSO(finalTypes);
+		return Response.status(200).entity(getSO(finalTypes)).build();
 	}
 	
 	//gets all node types connected to a specific node instance
 	@GET
 	@Path("neighbors/instance")
 	@Produces("application/json")
-	public StreamingOutput getNeighborsInstance(@QueryParam("node") String uri, @Context HttpServletRequest request)
+	public Response getNeighborsInstance(@QueryParam("node") String uri, @Context HttpServletRequest request)
 	{
 		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
 		if(coreEngine instanceof AbstractEngine){
@@ -211,7 +211,7 @@ public class EngineResource {
 			}
 			finalTypes.put("upstream", validUpTypes);
 		}
-		return getSO(finalTypes);
+		return Response.status(200).entity(getSO(finalTypes)).build();
 	}
 	
 	// gets all the insights for a given type and tag in all the engines
@@ -219,7 +219,7 @@ public class EngineResource {
 	@GET
 	@Path("insights")
 	@Produces("application/json")
-	public StreamingOutput getInsights(@QueryParam("nodeType") String type, @QueryParam("nodeInstance") String instance, @QueryParam("tag") String tag,@QueryParam("perspective") String perspective, @Context HttpServletRequest request)
+	public Response getInsights(@QueryParam("nodeType") String type, @QueryParam("nodeInstance") String instance, @QueryParam("tag") String tag,@QueryParam("perspective") String perspective, @Context HttpServletRequest request)
 	{
 		// if the type is null then send all the insights else only that
 		Vector<String> resultInsights = null;
@@ -238,8 +238,9 @@ public class EngineResource {
 		//Vector<Hashtable<String,String>> resultInsightObjects = coreEngine.getOutputs4Insights(resultInsights);
 		Vector<Insight> resultInsightObjects = ((AbstractEngine)coreEngine).getInsight2(resultInsights.toArray(new String[resultInsights.size()]));
 
-		return getSO(resultInsightObjects);
+		return Response.status(200).entity(getSO(resultInsightObjects)).build();
 	}
+	
 	// gets all the insights for a given type and tag in all the engines
 	// both tag and type are optional
 	@GET
@@ -765,7 +766,6 @@ public class EngineResource {
 	@Produces("application/json")	
 	public StreamingOutput getMenu(@QueryParam("user") String user, @QueryParam("start") String starter, @Context HttpServletRequest request)
 	{
-		String finalString = null;
 		if(user == null)
 			user = "All";
 		if(starter == null)
