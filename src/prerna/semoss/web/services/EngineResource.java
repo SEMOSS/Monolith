@@ -19,6 +19,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
@@ -339,7 +340,7 @@ public class EngineResource {
 	@GET
 	@Path("output")
 	@Produces("application/json")
-	public StreamingOutput createOutput(@QueryParam("insight") String insight, @QueryParam("params") String params, @Context HttpServletRequest request)
+	public Response createOutput(@QueryParam("insight") String insight, @QueryParam("params") String params, @Context HttpServletRequest request)
 	{
 		// executes the output and gives the data
 		// executes the create runner
@@ -349,34 +350,45 @@ public class EngineResource {
 		// pairs like this
 		// key$value~key2:value2 etc
 		// need to find a way to handle other types than strings
+		
+		// if insight is null throw bad data exception
+		if(insight == null) {
+			Hashtable<String, String> errorHash = new Hashtable<String, String>();
+			errorHash.put("Message", "No question defined.");
+			errorHash.put("Class", this.getClass().getName());
+			return Response.status(400).entity(errorHash).build();
+		}
+		
 		System.out.println("Params is " + params);
 		Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
 		
 		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
 		exQueryProcessor.processQuestionQuery(coreEngine.getEngineName(), insight, paramHash);
 		Object obj = null;
-		try
-		{
+		
+		try {
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
 			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
 			playRunner.setCreateSwingView(false);
 			Thread playThread = new Thread(playRunner);
 			playThread.start();
-			while(playThread.isAlive()){
+			while(playThread.isAlive()) {
 				//wait for processing to finish before getting the data
 			}
 			
 			obj = playSheet.getData();
 
-			//store the playsheet in session
+			// store the playsheet in session
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			session.setAttribute(playSheet.getQuestionID(), playSheet);
-		}catch(Exception ex)
-		{
-			ex.printStackTrace();
+		} catch (Exception ex) { //need to specify the different exceptions 
+			Hashtable<String, String> errorHash = new Hashtable<String, String>();
+			errorHash.put("Message", "Error occured processing question.");
+			errorHash.put("Class", this.getClass().getName());
+			return Response.status(500).entity(errorHash).build();
 		}
 		
-		return getSO(obj);
+		return Response.status(200).entity(getSO(obj)).build();
 //		Hashtable <String, Object> paramHash = new Hashtable<String, Object>();
 //		if(params != null)
 //		{
