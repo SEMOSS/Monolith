@@ -93,7 +93,7 @@ public class EngineResource {
 		AbstractEngine eng = ((AbstractEngine)coreEngine).getBaseDataEngine();
 		eng.setEngineName(id);
 		eng.setBaseData((RDFFileSesameEngine) eng);
-		Hashtable filterHash = new Hashtable();
+		Hashtable<String, String> filterHash = new Hashtable<String, String>();
 		filterHash.put("http://semoss.org/ontologies/Relation", "http://semoss.org/ontologies/Relation");
 		eng.setBaseHash(filterHash);
 		
@@ -353,10 +353,11 @@ public class EngineResource {
 		
 		// if insight is null throw bad data exception
 		if(insight == null) {
+			Class<? extends EngineResource> c = this.getClass();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "No question defined.");
-			errorHash.put("Class", this.getClass().getName());
-			return Response.status(400).entity(errorHash).build();
+			errorHash.put("Class", c.getName());
+			return Response.status(400).entity(getSO(errorHash)).build();
 		}
 		
 		System.out.println("Params is " + params);
@@ -382,10 +383,11 @@ public class EngineResource {
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			session.setAttribute(playSheet.getQuestionID(), playSheet);
 		} catch (Exception ex) { //need to specify the different exceptions 
+			Class<? extends EngineResource> c = this.getClass();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error occured processing question.");
-			errorHash.put("Class", this.getClass().getName());
-			return Response.status(500).entity(errorHash).build();
+			errorHash.put("Class", c.getName());
+			return Response.status(400).entity(getSO(errorHash)).build();
 		}
 		
 		return Response.status(200).entity(getSO(obj)).build();
