@@ -246,7 +246,7 @@ public class EngineResource {
 	@GET
 	@Path("pinsights")
 	@Produces("application/json")
-	public StreamingOutput getPInsights(@Context HttpServletRequest request)
+	public Response getPInsights(@Context HttpServletRequest request)
 	{
 		// if the type is null then send all the insights else only that
 		Vector perspectives = null;
@@ -258,7 +258,7 @@ public class EngineResource {
 			if(insights != null)
 				retP.put(perspectives.elementAt(pIndex), insights);
 		}
-		return getSO(retP);
+		return Response.status(200).entity(getSO(retP)).build();
 	}
 
 	
@@ -280,11 +280,11 @@ public class EngineResource {
 	@GET
 	@Path("perspectives")
 	@Produces("application/json")
-	public StreamingOutput getPerspectives(@Context HttpServletRequest request)
+	public Response getPerspectives(@Context HttpServletRequest request)
 	{
 		// if the type is null then send all the insights else only that
 		Vector vec = coreEngine.getPerspectives();
-		return getSO(vec);
+		return Response.status(200).entity(getSO(vec)).build();
 	}
 
 	// gets all the tags for a given insight across all the engines
@@ -301,7 +301,7 @@ public class EngineResource {
 	@GET
 	@Path("insight")
 	@Produces("application/json")
-	public StreamingOutput getInsightDefinition(@QueryParam("insight") String insight)
+	public Response getInsightDefinition(@QueryParam("insight") String insight)
 	{
 		// returns the insight
 		// typically is a JSON of the insight
@@ -309,7 +309,7 @@ public class EngineResource {
 		Insight in = ((AbstractEngine)coreEngine).getInsight2(insight).get(0);
 		System.out.println("Insight is " + in);
 		System.out.println(in.getOutput());
-		Hashtable outputHash = new Hashtable();
+		Hashtable outputHash = new Hashtable<String, Hashtable>();
 		outputHash.put("result", in);
 		
 		
@@ -346,7 +346,8 @@ public class EngineResource {
 		}*/
 		outputHash.put("options", optionsHash);
 		outputHash.put("params", paramsHash);
-		return getSO(outputHash);
+		
+		return Response.status(200).entity(getSO(outputHash)).build();
 	}	
 
 	// executes a particular insight
@@ -394,10 +395,11 @@ public class EngineResource {
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			session.setAttribute(playSheet.getQuestionID(), playSheet);
 		} catch (Exception ex) { //need to specify the different exceptions 
+			ex.printStackTrace();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error occured processing question.");
 			errorHash.put("Class", className);
-			return Response.status(400).entity(getSO(errorHash)).build();
+			return Response.status(500).entity(getSO(errorHash)).build();
 		}
 		
 		return Response.status(200).entity(getSO(obj)).build();
@@ -488,21 +490,21 @@ public class EngineResource {
 	@POST
 	@Path("querys")
 	@Produces("application/json")
-	public StreamingOutput queryDataSelect(MultivaluedMap<String, String> form)
+	public Response queryDataSelect(MultivaluedMap<String, String> form)
 	{
 		// returns the insight
 		// based on the current ID get the data
 		// typically is a JSON of the insight
 		// this will also cache it
 		System.out.println(form.getFirst("query"));
-		return getSO(RDFJSONConverter.getSelectAsJSON(form.getFirst("query")+"", coreEngine));
+		return Response.status(200).entity(getSO(RDFJSONConverter.getSelectAsJSON(form.getFirst("query")+"", coreEngine))).build();
 	}	
 
 	// runs a query against the engine while filtering out everything included in baseHash
 	@POST
 	@Path("querys/filter/noBase")
 	@Produces("application/json")
-	public StreamingOutput queryDataSelectWithoutBase(MultivaluedMap<String, String> form)
+	public Response queryDataSelectWithoutBase(MultivaluedMap<String, String> form)
 	{
 		// create and set the filter class
 		// send the query
@@ -511,14 +513,14 @@ public class EngineResource {
 		if(coreEngine instanceof AbstractEngine)
 			filterFunction.setFilterHash(((AbstractEngine)coreEngine).getBaseHash());
 		System.out.println(form.getFirst("query"));
-		return getSO(filterFunction.process(form.getFirst("query")+""));
+		return Response.status(200).entity(getSO(filterFunction.process(form.getFirst("query")+""))).build();
 	}	
 
 	// runs a query against the engine while filtering out everything included in baseHash
 	@POST
 	@Path("querys/filter/onlyBase")
 	@Produces("application/json")
-	public StreamingOutput queryDataSelectOnlyBase(MultivaluedMap<String, String> form)
+	public Response queryDataSelectOnlyBase(MultivaluedMap<String, String> form)
 	{
 		// create and set the filter class
 		// send the query
@@ -527,7 +529,8 @@ public class EngineResource {
 		if(coreEngine instanceof AbstractEngine)
 			filterFunction.setFilterHash(((AbstractEngine)coreEngine).getBaseHash());
 		System.out.println(form.getFirst("query"));
-		return getSO(filterFunction.process(form.getFirst("query")+""));
+		
+		return Response.status(200).entity(getSO(filterFunction.process(form.getFirst("query")+""))).build();
 	}	
 	
 	// gets a particular insight
@@ -549,7 +552,7 @@ public class EngineResource {
 	@POST
 	@Path("update")
 	@Produces("application/json")
-	public StreamingOutput insertData2DB(MultivaluedMap<String, String> form)
+	public Response insertData2DB(MultivaluedMap<String, String> form)
 	{
 		// returns the insight
 		// based on the current ID get the data
@@ -559,7 +562,14 @@ public class EngineResource {
 		wrapper.setEngine(coreEngine);
 		wrapper.setQuery(form.getFirst("query")+"");
 		boolean success = wrapper.execute();
-		return getSO("success");
+		if(success) {
+			return Response.status(200).entity(getSO("success")).build();
+		} else {
+			Hashtable<String, String> errorHash = new Hashtable<String, String>();
+			errorHash.put("Message", "Error processing query.");
+			errorHash.put("Class", className);
+			return Response.status(500).entity(getSO(errorHash)).build();
+		}
 	}	
 
 	// gets a particular insight
@@ -583,41 +593,40 @@ public class EngineResource {
 	@GET
 	@Path("fill")
 	@Produces("application/json")
-	public StreamingOutput getFillEntity(@QueryParam("type") String typeToFill, @QueryParam("query") String query)
+	public Response getFillEntity(@QueryParam("type") String typeToFill, @QueryParam("query") String query)
 	{
 		// returns the insight
 		// based on the current ID get the data
 		// typically is a JSON of the insight
 		// this will also cache it
-		if(typeToFill != null)
-			return getSO(coreEngine.getParamValues("", typeToFill, ""));
-		else if(query != null)
-			return getSO(coreEngine.getParamValues("", "", "", query));
-		return null;
+		if(typeToFill != null) {
+			return Response.status(200).entity(getSO(coreEngine.getParamValues("", typeToFill, ""))).build();
+		} else if(query != null) {
+			return Response.status(200).entity(getSO(coreEngine.getParamValues("", "", "", query))).build();
+		}
+		return Response.status(200).entity(getSO(null)).build();
 	}		
 	
 	// gets all numeric properties associated with a specific node type
 	@GET
 	@Path("properties/node/type/numeric")
 	@Produces("application/json")
-	public StreamingOutput getNumericNodeProperties(
+	public Response getNumericNodeProperties(
 			@QueryParam("nodeType")  String nodeUri)
 	{
 		String nodePropQuery = "SELECT DISTINCT ?entity WHERE {{?source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@NODE_TYPE_URI@>} {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Relation/Contains>} {?source ?entity ?prop } FILTER(ISNUMERIC(?prop))}";
 
 		//fill the query
 		String query = nodePropQuery.replace("@NODE_TYPE_URI@", nodeUri);
-		
 		logger.info("Running node property query " + query);
-
-		return getSO(coreEngine.getEntityOfType(query));
+		return Response.status(200).entity(getSO(coreEngine.getEntityOfType(query))).build();
 	}	
 	
 	// gets all numeric edge properties for a specific edge type
 	@GET
 	@Path("properties/edge/type/numeric")
 	@Produces("application/json")
-	public StreamingOutput getNumericEdgeProperties(
+	public Response getNumericEdgeProperties(
 			@QueryParam("source")  String sourceTypeUri,
 			@QueryParam("target")  String targetTypeUri,
 			@QueryParam("verb")  String verbTypeUri)
@@ -626,16 +635,14 @@ public class EngineResource {
 
 		//fill the query
 		String query = edgePropQuery.replace("@SOURCE_TYPE@", sourceTypeUri).replace("@TARGET_TYPE@", targetTypeUri).replace("@VERB_TYPE@", verbTypeUri);
-		
 		logger.info("Running edge property query " + query);
-
-		return getSO(coreEngine.getEntityOfType(query));
+		return Response.status(200).entity(getSO(coreEngine.getEntityOfType(query))).build();
 	}	
 	
 	@GET
 	@Path("customViz")
 	@Produces("application/json")
-	public StreamingOutput getVizData(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
+	public Response getVizData(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
 	{
 		String heatMapName = "testName";
 		Gson gson = new Gson();
@@ -676,18 +683,20 @@ public class EngineResource {
 			//store the playsheet in session
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			session.setAttribute(heatMapName, playSheet);
-		}catch(Exception ex)
-		{
+		} catch(Exception ex) {
 			ex.printStackTrace();
+			Hashtable<String, String> errorHash = new Hashtable<String, String>();
+			errorHash.put("Message", "Error occured processing query.");
+			errorHash.put("Class", className);
+			return Response.status(500).entity(getSO(errorHash)).build();
 		}
-		
-		return getSO(obj);
+		return Response.status(200).entity(getSO(obj)).build();
 	}	
 	
 	@GET
 	@Path("customVizTable")
 	@Produces("application/json")
-	public StreamingOutput getVizTable(@QueryParam("QueryData") String pathObject, @QueryParam("SelectedVars") String varsObject, @Context HttpServletRequest request)
+	public Response getVizTable(@QueryParam("QueryData") String pathObject, @QueryParam("SelectedVars") String varsObject, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
@@ -738,18 +747,21 @@ public class EngineResource {
 			//store the playsheet in session, do i need to do this here?
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			session.setAttribute("VizBuilder", playSheet);
-		}catch(Exception ex)
-		{
+		} catch(Exception ex) {
 			ex.printStackTrace();
+			Hashtable<String, String> errorHash = new Hashtable<String, String>();
+			errorHash.put("Message", "Error occured processing query.");
+			errorHash.put("Class", className);
+			return Response.status(500).entity(getSO(errorHash)).build();
 		}
 		
-		return getSO(obj);
+		return Response.status(200).entity(getSO(obj)).build();
 	}	
 	
 	@GET
 	@Path("customVizPathProperties")
 	@Produces("application/json")
-	public StreamingOutput getPathProperties(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
+	public Response getPathProperties(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
 	{
 		logger.info("Getting properties for path");
 		Gson gson = new Gson();
@@ -758,13 +770,13 @@ public class EngineResource {
 		tableViz.setJSONDataHash(dataHash);
 		tableViz.setEngine(coreEngine);
 		Object obj = tableViz.getPropsFromPath();
-		return getSO(obj);
+		return Response.status(200).entity(getSO(obj)).build();
 	}	
 
   	@GET
 	@Path("menu")
 	@Produces("application/json")	
-	public StreamingOutput getMenu(@QueryParam("user") String user, @QueryParam("start") String starter, @Context HttpServletRequest request)
+	public Response getMenu(@QueryParam("user") String user, @QueryParam("start") String starter, @Context HttpServletRequest request)
 	{
 		if(user == null)
 			user = "All";
@@ -838,10 +850,12 @@ public class EngineResource {
 
 			// submenu
 			Hashtable smenuHash = new Hashtable();
-			if(allMenu.containsKey(subMenuLabel))
+			if(allMenu.containsKey(subMenuLabel)) {
 				smenuHash = (Hashtable)allMenu.get(subMenuLabel);
-			else
+			}
+			else {
 				subMenus.add(subMenuLabel);
+			}
 			
 			smenuHash.put("Label", subMenuLabel);
 			smenuHash.put("Type", sType);
@@ -865,9 +879,9 @@ public class EngineResource {
 					System.out.println("Has the child menu label [" + chMenuLabel + "]");
 					childMenuHash = (Hashtable)smenuHash.get(chMenuLabel);
 				}
-				else
+				else {
 					childMenus.add(chMenuLabel);
-				
+				}
 				childMenuHash.put("Label", chMenuLabel);
 				childMenuHash.put("URL", chURL);
 				childMenuHash.put("Type", cType);
@@ -875,8 +889,9 @@ public class EngineResource {
 				
 				System.out.println("Child menus is " + childMenus);
 
-				if(childMenus.size() > 0)
+				if(childMenus.size() > 0) {
 					smenuHash.put("Submenus", childMenus);
+				}
 				smenuHash.put(chMenuLabel, childMenuHash);
 			}
 			
@@ -904,8 +919,6 @@ public class EngineResource {
 		
 		System.out.println(">>>.... " + new GsonBuilder().setPrettyPrinting().create().toJson(allMenu));
 		
-		return getSO(allMenu);
+		return Response.status(200).entity(getSO(allMenu)).build();
 	}
-
-
 }
