@@ -696,7 +696,7 @@ public class EngineResource {
 	@GET
 	@Path("customVizTable")
 	@Produces("application/json")
-	public Response getVizTable(@QueryParam("QueryData") String pathObject, @QueryParam("SelectedVars") String varsObject, @Context HttpServletRequest request)
+	public Response getVizTable(@QueryParam("QueryData") String pathObject, @QueryParam("SelectedProps") String varsObject, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
@@ -715,14 +715,18 @@ public class EngineResource {
 		tableViz.setEngine(coreEngine);
 		tableViz.buildQuery();
 		String query = tableViz.getQuery();
-		String filterQuery = "SELECT DISTINCT ?@VAR_NAME@" + query.substring(query.indexOf(" WHERE "));
-		if(filterQuery.contains("BINDINGS"))
+		String queryPattern = tableViz.getQueryPattern();
+		String filterQuery = "SELECT DISTINCT ?@VAR_NAME@ " + queryPattern;
+		
+		//Limit the query as necessary and store limiting information
+		Hashtable limitHash = new Hashtable();
+		int fullTableRowNum = tableViz.runCountQuery();
+		limitHash.put("fullSize", fullTableRowNum);
+		int limitSize = 1000;
+		if(fullTableRowNum > limitSize)
 		{
-			filterQuery = filterQuery.substring(0,filterQuery.indexOf("BINDINGS")) + "ORDER BY ?@VAR_NAME@ " + filterQuery.substring(filterQuery.indexOf("BINDINGS"));
-		}
-		if(dataHash.get("filter") == null)
-		{
-			query += "LIMIT 50";
+			query += "LIMIT " + limitSize;
+			limitHash.put("limited", limitSize);
 		}
 		
 		ArrayList<Hashtable<String, String>> varObjV = tableViz.getReturnVarObjHash();
@@ -741,12 +745,6 @@ public class EngineResource {
 			playSheet.runAnalytics();
 			obj = playSheet.getData();
 			
-			//add variable info to return data
-			((Hashtable)obj).put("variableHeaders", varObjVector);
-			((Hashtable)obj).put("filterQuery", filterQuery);
-			//store the playsheet in session, do i need to do this here?
-			HttpSession session = ((HttpServletRequest)request).getSession(false);
-			session.setAttribute("VizBuilder", playSheet);
 		} catch(Exception ex) {
 			ex.printStackTrace();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -754,6 +752,11 @@ public class EngineResource {
 			errorHash.put("Class", className);
 			return Response.status(500).entity(getSO(errorHash)).build();
 		}
+		
+		//add variable info to return data
+		((Hashtable)obj).put("variableHeaders", varObjVector);
+		((Hashtable)obj).put("filterQuery", filterQuery);
+		((Hashtable)obj).put("limit", limitHash);
 		
 		return Response.status(200).entity(getSO(obj)).build();
 	}	
