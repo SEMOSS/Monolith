@@ -729,7 +729,7 @@ public class EngineResource {
 			limitHash.put("limited", limitSize);
 		}
 		
-		ArrayList<Hashtable<String, String>> varObjV = tableViz.getReturnVarObjHash();
+		ArrayList<Hashtable<String, String>> varObjV = tableViz.getHeaderArray();
 		Collection<Hashtable<String, String>> varObjVector = varObjV;
 		System.out.println(query);
 		Object obj = null;
