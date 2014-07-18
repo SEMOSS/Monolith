@@ -27,6 +27,11 @@ import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.io.FileUtils;
 
+import prerna.error.EngineException;
+import prerna.error.FileReaderException;
+import prerna.error.FileWriterException;
+import prerna.error.HeaderClassException;
+import prerna.error.NLPException;
 import prerna.ui.components.CSVMetamodelBuilder;
 import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
@@ -38,6 +43,7 @@ import com.google.gson.GsonBuilder;
 /**
  * Servlet implementation class Uploader
  */
+@SuppressWarnings("serial")
 public class Uploader extends HttpServlet {
 
 	int maxFileSize = 10000 * 1024;
@@ -207,6 +213,7 @@ public class Uploader extends HttpServlet {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@POST
 	@Path("/csv/upload")
 	@Produces("text/html")
@@ -259,29 +266,41 @@ public class Uploader extends HttpServlet {
 										: null;
 
 		//call the right process method with correct parameters
-		boolean isSuccessful = false;
-		if(methodString.equals("Create new database engine")) {
-			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
-					baseURI.toString(), dbName.toString(),"","","","");
-		} else {
-			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
-					baseURI.toString(), "","","","", dbName.toString());
+		try {
+			if(methodString.equals("Create new database engine")) {
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
+						baseURI.toString(), dbName.toString(),"","","","");
+			} else {
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
+						baseURI.toString(), "","","","", dbName.toString());
+			}
+		} catch (EngineException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (FileReaderException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (HeaderClassException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (FileWriterException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (NLPException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
 		}
 
 		try {
 			FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder") + "\\db\\" + dbName.toString() + "\\" + dbName.toString() + "_PROP.prop"), propWriter.getPropFile());
 		} catch (IOException e) {
 			e.printStackTrace();
-		}
-
-		String outputText = "";
-		if(isSuccessful) {
-			outputText = "CSV Loading was a success.";
-			return Response.status(200).entity(outputText).build();
-		} else {
-			outputText = "CSV Loading has failed.";
+			String outputText = "Failure to write CSV Prop File based on user-defined metamodel.";
 			return Response.status(400).entity(outputText).build();
 		}
+
+		String outputText = "CSV Loading was a success.";
+		return Response.status(200).entity(outputText).build();
 	}
 
 
@@ -293,7 +312,7 @@ public class Uploader extends HttpServlet {
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
-		
+
 		System.out.println(inputData);
 		// time to run the import
 		ImportDataProcessor importer = new ImportDataProcessor();
@@ -309,33 +328,42 @@ public class Uploader extends HttpServlet {
 										: null;
 
 		//call the right process method with correct parameters
-		boolean isSuccessful = false;
 		String dbName = "";
-		if(methodString.equals("Create new database engine")) {
-			dbName = inputData.get("newDBname");
-			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-					inputData.get("customBaseURI")+"", dbName,"","","","");
-		} else {
-			dbName = inputData.get("addDBname");
-			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-					inputData.get("customBaseURI")+"", "","","","", dbName);
+		try {
+			if(methodString.equals("Create new database engine")) {
+				dbName = inputData.get("newDBname");
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+						inputData.get("customBaseURI")+"", dbName,"","","","");
+			} else {
+				dbName = inputData.get("addDBname");
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+						inputData.get("customBaseURI")+"", "","","","", dbName);
+			}
+		} catch (EngineException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (FileReaderException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (HeaderClassException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (FileWriterException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (NLPException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
 		}
 
-		String outputText = "";
-		if(isSuccessful) {
-			outputText = "Excel Loading was a success.";
-			return Response.status(200).entity(outputText).build();
-		} else {
-			outputText = "Excel Loading has failed.";
-			return Response.status(400).entity(outputText).build();
-		}
+		String outputText = "Excel Loading was a success.";
+		return Response.status(200).entity(outputText).build();
 	}
 
 	@POST
 	@Path("/nlp/upload")
 	@Produces("text/html")
-	public Response uploadNLPFile(@Context HttpServletRequest request) 
-	{
+	public Response uploadNLPFile(@Context HttpServletRequest request) {
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
@@ -355,27 +383,36 @@ public class Uploader extends HttpServlet {
 										: null;
 
 		//call the right process method with correct parameters
-		boolean isSuccessful = false;
 		String dbName = "";
-		if(methodString.equals("Create new database engine")) {
-			dbName = inputData.get("newDBname");
-			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-					inputData.get("customBaseURI")+"", dbName,"","","","");
-		} else {
-			dbName = inputData.get("addDBname");
-			isSuccessful = importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-					inputData.get("customBaseURI")+"", "","","","", dbName);
+		try {
+			if(methodString.equals("Create new database engine")) {
+				dbName = inputData.get("newDBname");
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+						inputData.get("customBaseURI")+"", dbName,"","","","");
+			} else {
+				dbName = inputData.get("addDBname");
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+						inputData.get("customBaseURI")+"", "","","","", dbName);
+			}
+		} catch (EngineException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (FileReaderException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (HeaderClassException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (FileWriterException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (NLPException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
 		}
 
-		String outputText = "";
-		if(isSuccessful) {
-			outputText = "NLP Loading was a success.";
-			return Response.status(200).entity(outputText).build();
-		} else {
-			outputText = "NLP Loading has failed.";
-			return Response.status(400).entity(outputText).build();
-		}
-
+		String outputText = "NLP Loading was a success.";
+		return Response.status(200).entity(outputText).build();
 	}
 
 	@POST
@@ -386,7 +423,7 @@ public class Uploader extends HttpServlet {
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
-		
+
 		System.out.println(inputData);
 		// time to run the import
 		ImportDataProcessor importer = new ImportDataProcessor();
@@ -394,12 +431,12 @@ public class Uploader extends HttpServlet {
 
 		// figure out what type of import we need to do based on parameters
 		// selected
-		String methodString = inputData.get("importMethod") + "";
-		ImportDataProcessor.IMPORT_METHOD importMethod = 
-				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
-										: null;
+		//		String methodString = inputData.get("importMethod") + "";
+		//		ImportDataProcessor.IMPORT_METHOD importMethod = 
+		//				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
+		//						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+		//								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+		//										: null;
 
 		//call the right process method with correct parameters
 		boolean isSuccessful = importer.processNewRDBMS((String) inputData.get("customBaseURI"), (String) inputData.get("file"), 
