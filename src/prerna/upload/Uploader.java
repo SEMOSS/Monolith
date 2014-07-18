@@ -197,18 +197,30 @@ public class Uploader extends HttpServlet {
 
 		CSVMetamodelBuilder builder = new CSVMetamodelBuilder();
 		builder.setFiles(allLoadingFiles);
-		Hashtable<String, Hashtable<String, LinkedHashSet<String>>> dataTypes = builder.returnDataTypes();
+		Hashtable<String, Hashtable<String, LinkedHashSet<String>>> dataTypes = null;
+		try {
+			dataTypes = builder.returnDataTypes();
+		} catch (FileReaderException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		}
 		returnHash.put("dataTypes", dataTypes);
 		if(propFiles.size() > 0) { 
 			builder.setPropFiles(propFiles);
-			Hashtable<String, ArrayList<Hashtable<String, String[]>>> propData = builder.returnPropFileDataResults();
+			Hashtable<String, ArrayList<Hashtable<String, String[]>>> propData = null;
+			try {
+				propData = builder.returnPropFileDataResults();
+			} catch (FileReaderException e) {
+				e.printStackTrace();
+				return Response.status(400).entity(e.getMessage()).build();
+			}
 			returnHash.put("propData", propData);
 		}
 
 		if(!dataTypes.isEmpty()) {
 			return Response.status(200).entity(getSO(returnHash)).build();
 		} else {
-			String outputText = "CSV Loading has failed.";
+			String outputText = "Found no data to process inside the CSV file";
 			return Response.status(400).entity(outputText).build();
 		}
 	}
@@ -418,8 +430,7 @@ public class Uploader extends HttpServlet {
 	@POST
 	@Path("/d2rq/upload")
 	@Produces("text/html")
-	public Response uploadD2RQFile(@Context HttpServletRequest request) 
-	{
+	public Response uploadD2RQFile(@Context HttpServletRequest request) {
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
@@ -435,22 +446,23 @@ public class Uploader extends HttpServlet {
 		//		ImportDataProcessor.IMPORT_METHOD importMethod = 
 		//				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
 		//						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-		//								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 		//										: null;
 
 		//call the right process method with correct parameters
-		boolean isSuccessful = importer.processNewRDBMS((String) inputData.get("customBaseURI"), (String) inputData.get("file"), 
-				(String) inputData.get("newDBname"), (String) inputData.get("dbType"), (String) inputData.get("dbUrl"), 
-				(String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
-
-		String outputText = "";
-		if(isSuccessful) {
-			outputText = "R2RQ Loading was a success.";
-			return Response.status(200).entity(outputText).build();
-		} else {
-			outputText = "R2RQ Loading has failed.";
-			return Response.status(400).entity(outputText).build();
+		try {
+			importer.processNewRDBMS((String) inputData.get("customBaseURI"), (String) inputData.get("file"), 
+					(String) inputData.get("newDBname"), (String) inputData.get("dbType"), (String) inputData.get("dbUrl"), 
+					(String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
+		} catch (FileReaderException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (EngineException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
 		}
+
+		String outputText = "R2RQ Loading was a success.";
+		return Response.status(200).entity(outputText).build();
 	}
 
 
