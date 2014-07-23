@@ -21,6 +21,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.StreamingOutput;
 
 import prerna.rdf.engine.api.IEngine;
+import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
 import prerna.upload.Uploader;
 
 import com.google.gson.Gson;
@@ -29,7 +30,8 @@ import com.ibm.icu.util.StringTokenizer;
 
 @Path("/engine")
 public class NameServer {
-	 @Context ServletContext context;
+
+	@Context ServletContext context;
 	String output = "";
 	Hashtable helpHash = null;
 	// gets the specific database
@@ -42,6 +44,19 @@ public class NameServer {
 		HttpSession session = request.getSession();
 		IEngine engine = (IEngine)session.getAttribute(db);
 		EngineResource res = new EngineResource();
+		res.setEngine(engine);
+		return res;
+	}
+
+	@Path("s-{engine}")
+	public Object getEngineProxy(@PathParam("engine") String db, @Context HttpServletRequest request)
+	{
+		// this is the name server
+		// this needs to return stuff
+		System.out.println(" Getting DB... " + db);
+		HttpSession session = request.getSession();
+		IEngine engine = (IEngine)session.getAttribute(db);
+		EngineRemoteResource res = new EngineRemoteResource();
 		res.setEngine(engine);
 		return res;
 	}
@@ -115,6 +130,29 @@ public class NameServer {
 		return getSO(enginesV);
 	}	
 
+
+	@GET
+	@Path("add")
+	@Produces("application/json")
+	public void addEngine(@Context HttpServletRequest request, @QueryParam("api") String api, @QueryParam("database") String database)
+	{
+		// would be cool to give this as an HTML
+		RemoteSemossSesameEngine newEngine = new RemoteSemossSesameEngine();
+		newEngine.setAPI(api);
+		newEngine.setDatabase(database);
+		HttpSession session = request.getSession();
+		String engines = (String)session.getAttribute("ENGINES");
+		// temporal
+		newEngine.openDB(null);
+		if(newEngine.isConnected())
+		{
+			engines = engines + ":" + database;
+			session.setAttribute(database, newEngine);
+		}
+
+	}	
+
+	
 	// gets a particular insight
 	@GET
 	@Path("help")
