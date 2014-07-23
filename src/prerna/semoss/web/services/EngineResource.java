@@ -382,13 +382,14 @@ public class EngineResource {
 		try {
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
 			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
-			playRunner.setCreateSwingView(false);
-			Thread playThread = new Thread(playRunner);
+			//playRunner.setCreateSwingView(false);
+			playRunner.runWeb();
+			/*Thread playThread = new Thread(playRunner);
 			playThread.start();
 			while(playThread.isAlive()) {
 				//wait for processing to finish before getting the data
 			}
-			
+			*/
 			obj = playSheet.getData();
 
 			// store the playsheet in session

@@ -29,7 +29,7 @@ public class UserDBFilter implements Filter {
 			FilterChain arg2) throws IOException, ServletException {
 		// TODO Auto-generated method stub
 		// assign specific DBs to a given user based on what has already been loaded
-		System.out.println("This would add the user DBs to that user");
+		System.out.println("This would add the user DBs to that user ");
 		// loads the user specific databases and adds database to the users session
 		// try to see if this guys session is already loaded
 		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
