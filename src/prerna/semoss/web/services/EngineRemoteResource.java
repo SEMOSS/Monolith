@@ -229,6 +229,7 @@ public class EngineRemoteResource {
 			// I can avoid the wrapper BS below by just putting through an interface
 			// good things come to people who wait
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
+			QueryResultHash.getInstance().cleanObject(id);
 			if(wrapper instanceof SesameJenaSelectCheater)
 			{
 				System.out.println(" Cheater.... ");
