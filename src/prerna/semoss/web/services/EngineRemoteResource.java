@@ -6,11 +6,10 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 
-import javax.ws.rs.GET;
+import javax.ws.rs.FormParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.FormParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.StreamingOutput;
 import javax.xml.bind.DatatypeConverter;
@@ -24,7 +23,9 @@ import prerna.rdf.engine.impl.SesameJenaSelectStatement;
 import prerna.rdf.engine.impl.SesameJenaSelectWrapper;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.web.services.util.GraphStreamingOutput;
 import prerna.web.services.util.QueryResultHash;
+import prerna.web.services.util.TupleStreamingOutput;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -231,71 +232,24 @@ public class EngineRemoteResource {
 			if(wrapper instanceof SesameJenaSelectCheater)
 			{
 				System.out.println(" Cheater.... ");
-				retValue = ((SesameJenaSelectCheater)wrapper).next();
-				try {
-					ByteArrayOutputStream bos = new ByteArrayOutputStream();
-					ObjectOutputStream oos = new ObjectOutputStream(bos);
-					oos.writeObject(((SesameJenaConstructStatement)(retValue)).getSubject());
-					oos.writeObject(((SesameJenaConstructStatement)(retValue)).getPredicate());
-					oos.writeObject(((SesameJenaConstructStatement)(retValue)).getObject());
-					oos.flush();
-					oos.close();
-					((SesameJenaConstructStatement)(retValue)).setSerialRep(DatatypeConverter.printBase64Binary(bos.toByteArray()));					
-					//((SesameJenaSelectStatement)(retValue)).setRawPropHashRep(DatatypeConverter.printBase64Binary(bos.toByteArray()));
-					
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+				return new TupleStreamingOutput(((SesameJenaSelectCheater)wrapper).tqr);
 			}
 			else if(wrapper instanceof SesameJenaConstructWrapper)
 			{
 				System.out.println(" Construct.... ");
-				retValue = ((SesameJenaConstructWrapper)wrapper).next();
-				try {
-					ByteArrayOutputStream bos = new ByteArrayOutputStream();
-					ObjectOutputStream oos = new ObjectOutputStream(bos);
-					oos.writeObject(((SesameJenaConstructStatement)(retValue)).getSubject());
-					oos.writeObject(((SesameJenaConstructStatement)(retValue)).getPredicate());
-					oos.writeObject(((SesameJenaConstructStatement)(retValue)).getObject());
-					oos.flush();
-					oos.close();
-					((SesameJenaConstructStatement)(retValue)).setSerialRep(DatatypeConverter.printBase64Binary(bos.toByteArray()));					
-					//((SesameJenaSelectStatement)(retValue)).setRawPropHashRep(DatatypeConverter.printBase64Binary(bos.toByteArray()));
-					
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				
+				return new GraphStreamingOutput(((SesameJenaConstructWrapper)(wrapper)).gqr);				
 			}
 			else if(wrapper instanceof SesameJenaSelectWrapper)
 			{
 				System.out.println(" Select.... ");
-
-				retValue = ((SesameJenaSelectWrapper)wrapper).next();
-				try {
-					ByteArrayOutputStream bos = new ByteArrayOutputStream();
-					ObjectOutputStream oos = new ObjectOutputStream(bos);
-					oos.writeObject(((SesameJenaSelectStatement)(retValue)).getPropHash());
-					oos.writeObject(((SesameJenaSelectStatement)(retValue)).rawPropHash);
-					oos.flush();
-					oos.close();
-					((SesameJenaSelectStatement)(retValue)).setSerialRep(DatatypeConverter.printBase64Binary(bos.toByteArray()));					
-					//((SesameJenaSelectStatement)(retValue)).setRawPropHashRep(DatatypeConverter.printBase64Binary(bos.toByteArray()));
-					
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-
+				return new TupleStreamingOutput(((SesameJenaSelectWrapper)(wrapper)).tqr);
 			}
 		}
 		// set the data into the statement
 		
 		
 		// not sure if I should flesh the entire select query object or just the data hash yet
-		return getSO(retValue);
+		return null;
 	}
 
 	@POST
@@ -323,6 +277,33 @@ public class EngineRemoteResource {
 	public String getProperty(@FormParam("key") String key)
 	{
 		return coreEngine.getProperty(key);
+	}
+
+
+	@POST
+	@Path("streamTester")
+	@Produces("application/text")
+	public StreamingOutput getStreamTester()
+	{
+		   return new StreamingOutput() {
+		         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+		            PrintStream ps = new PrintStream(outputStream);
+		            ObjectOutputStream os = new ObjectOutputStream(outputStream);
+		            Integer myInt = null;
+		            for(int i = 0;i< 1000000;i++)
+		            {
+		            	myInt = new Integer(i);
+			            //ps.println("Sending " + i);
+		            	os.writeObject(myInt);
+			            if(i %1000 == 0)
+							try {
+								Thread.sleep(200);
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+		            }
+		         }};		
 	}
 
 }
