@@ -723,7 +723,7 @@ public class EngineResource {
 		Hashtable limitHash = new Hashtable();
 		int fullTableRowNum = tableViz.runCountQuery();
 		limitHash.put("fullSize", fullTableRowNum);
-		int limitSize = 1000;
+		int limitSize = 100;
 		if(fullTableRowNum > limitSize)
 		{
 			query += "LIMIT " + limitSize;
