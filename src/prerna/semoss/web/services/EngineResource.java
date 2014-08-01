@@ -694,25 +694,20 @@ public class EngineResource {
 		return Response.status(200).entity(getSO(obj)).build();
 	}	
 	
-	@GET
+	@POST
 	@Path("customVizTable")
 	@Produces("application/json")
-	public Response getVizTable(@QueryParam("QueryData") String pathObject, @QueryParam("SelectedProps") String varsObject, @Context HttpServletRequest request)
+	public Response getVizTable(@QueryParam("QueryData") String pathObject, MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
 		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
+		
+		ArrayList<Hashtable<String,String>> nodePropArray = getHashArrayFromString(form.getFirst("SelectedNodeProps") + "");
+		ArrayList<Hashtable<String,String>> edgePropArray = getHashArrayFromString(form.getFirst("SelectedEdgeProps") + "");
+		tableViz.setPropV(nodePropArray, edgePropArray);
+		
 		tableViz.setJSONDataHash(dataHash);
-		if(varsObject != null) {
-			ArrayList<Object> varsObjArray = gson.fromJson(varsObject, ArrayList.class);
-			ArrayList<Hashtable<String,String>> varsArray = new ArrayList<Hashtable<String,String>>();
-			for(Object varsObj : varsObjArray){
-				Hashtable newHash = new Hashtable();
-				newHash.putAll((StringMap)varsObj);
-				varsArray.add(newHash);
-			}
-			tableViz.setPropV(varsArray);
-		}
 		tableViz.setEngine(coreEngine);
 		tableViz.buildQuery();
 		String query = tableViz.getQuery();
@@ -925,4 +920,19 @@ public class EngineResource {
 		
 		return Response.status(200).entity(getSO(allMenu)).build();
 	}
+  	
+  	private ArrayList<Hashtable<String,String>> getHashArrayFromString(String arrayString){
+  		System.err.println("MY STRING " + arrayString);
+  		ArrayList<Hashtable<String,String>> retArray = new ArrayList<Hashtable<String,String>>();
+		if(arrayString != null) {
+			Gson gson = new Gson();
+			ArrayList<Object> varsObjArray = gson.fromJson(arrayString, ArrayList.class);
+			for(Object varsObj : varsObjArray){
+				Hashtable newHash = new Hashtable();
+				newHash.putAll((StringMap)varsObj);
+				retArray.add(newHash);
+			}
+		}
+		return retArray;
+  	}
 }
