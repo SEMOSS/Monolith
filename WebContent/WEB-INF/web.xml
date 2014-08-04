@@ -25,7 +25,7 @@
     <servlet-class>org.apache.cxf.jaxrs.servlet.CXFNonSpringJaxrsServlet</servlet-class>
     <init-param>
       <param-name>javax.ws.rs.Application</param-name>
-      <param-value>com.restfully.shop.services.ShoppingApplication</param-value>
+      <param-value>prerna.semoss.web.app.MonolithApplication</param-value>
     </init-param>
   </servlet>
   <servlet-mapping>
