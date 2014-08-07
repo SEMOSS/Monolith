@@ -700,7 +700,7 @@ public class EngineResource {
 	public Response getVizTable(@QueryParam("QueryData") String pathObject, MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
+		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
 		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
 		
 		ArrayList<Hashtable<String,String>> nodePropArray = getHashArrayFromString(form.getFirst("SelectedNodeProps") + "");
@@ -710,9 +710,7 @@ public class EngineResource {
 		tableViz.setJSONDataHash(dataHash);
 		tableViz.setEngine(coreEngine);
 		tableViz.buildQuery();
-		String query = tableViz.getQuery();
-		String queryPattern = tableViz.getQueryPattern();
-		String filterQuery = "SELECT DISTINCT ?@VAR_NAME@ " + queryPattern;
+		SEMOSSQuery semossQuery = tableViz.getSEMOSSQuery();
 		
 		//Limit the query as necessary and store limiting information
 		Hashtable limitHash = new Hashtable();
@@ -721,9 +719,11 @@ public class EngineResource {
 		int limitSize = 100;
 		if(fullTableRowNum > limitSize)
 		{
-			query += "LIMIT " + limitSize;
+			semossQuery.setLimit(limitSize);
 			limitHash.put("limited", limitSize);
 		}
+		semossQuery.createQuery();
+		String query = semossQuery.getQuery();
 		
 		ArrayList<Hashtable<String, String>> varObjV = tableViz.getHeaderArray();
 		Collection<Hashtable<String, String>> varObjVector = varObjV;
@@ -751,7 +751,6 @@ public class EngineResource {
 		
 		//add variable info to return data
 		((Hashtable)obj).put("variableHeaders", varObjVector);
-		((Hashtable)obj).put("filterQuery", filterQuery);
 		((Hashtable)obj).put("limit", limitHash);
 		
 		return Response.status(200).entity(getSO(obj)).build();
