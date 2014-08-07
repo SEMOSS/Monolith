@@ -697,10 +697,16 @@ public class EngineResource {
 	@POST
 	@Path("customVizTable")
 	@Produces("application/json")
-	public Response getVizTable(@QueryParam("QueryData") String pathObject, MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+	public Response getVizTable(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
+		Integer items = null;
+		if (form.containsKey("ItemCount"))
+			items = gson.fromJson(form.getFirst("ItemCount"), Integer.class);
+		Integer pageNumber = null;
+		if (form.containsKey("PageNumber"))
+			pageNumber = gson.fromJson(form.getFirst("PageNumber"), Integer.class);
 		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
 		
 		ArrayList<Hashtable<String,String>> nodePropArray = getHashArrayFromString(form.getFirst("SelectedNodeProps") + "");
@@ -712,21 +718,29 @@ public class EngineResource {
 		tableViz.buildQuery();
 		SEMOSSQuery semossQuery = tableViz.getSEMOSSQuery();
 		
-		//Limit the query as necessary and store limiting information
+		//get header array before adding pagination stuff
+		ArrayList<Hashtable<String, String>> varObjV = tableViz.getHeaderArray();
+		Collection<Hashtable<String, String>> varObjVector = varObjV;
+		
+		//add pagination information
 		Hashtable limitHash = new Hashtable();
 		int fullTableRowNum = tableViz.runCountQuery();
+		
+		semossQuery.addAllVarToOrderBy();// necessary for pagination
 		limitHash.put("fullSize", fullTableRowNum);
-		int limitSize = 100;
-		if(fullTableRowNum > limitSize)
-		{
+		
+		if(items!= null){
+			int limitSize = items;
 			semossQuery.setLimit(limitSize);
-			limitHash.put("limited", limitSize);
 		}
+		if(pageNumber != null) {
+			int offset = items * (pageNumber - 1);
+			semossQuery.setOffset(offset);
+		}
+			
 		semossQuery.createQuery();
 		String query = semossQuery.getQuery();
 		
-		ArrayList<Hashtable<String, String>> varObjV = tableViz.getHeaderArray();
-		Collection<Hashtable<String, String>> varObjVector = varObjV;
 		System.out.println(query);
 		Object obj = null;
 		try
