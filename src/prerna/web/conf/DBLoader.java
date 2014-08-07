@@ -36,6 +36,7 @@ public class DBLoader implements ServletContextListener {
 		// this would load the DBs from the folders
 		// get the RDF Map prop
 		String workingDir = System.getProperty("user.dir");
+		System.setProperty("file.separator", "/");
 
 		rdfPropFile = arg0.getServletContext().getInitParameter(RDFMAP);
 		DIHelper.getInstance().loadCoreProp(rdfPropFile);
