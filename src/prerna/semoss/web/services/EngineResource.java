@@ -701,7 +701,7 @@ public class EngineResource {
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
-		Integer items = null;
+		Integer items = 100;
 		if (form.containsKey("ItemCount"))
 			items = gson.fromJson(form.getFirst("ItemCount"), Integer.class);
 		Integer pageNumber = null;
