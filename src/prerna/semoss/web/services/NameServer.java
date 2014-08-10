@@ -3,6 +3,7 @@ package prerna.semoss.web.services;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Vector;
@@ -36,8 +37,7 @@ public class NameServer {
 	Hashtable helpHash = null;
 	// gets the specific database
 	@Path("e-{engine}")
-	public Object getDatabase(@PathParam("engine") String db, @Context HttpServletRequest request)
-	{
+	public Object getDatabase(@PathParam("engine") String db, @Context HttpServletRequest request) {
 		// this is the name server
 		// this needs to return stuff
 		System.out.println(" Getting DB... " + db);
@@ -49,8 +49,7 @@ public class NameServer {
 	}
 
 	@Path("s-{engine}")
-	public Object getEngineProxy(@PathParam("engine") String db, @Context HttpServletRequest request)
-	{
+	public Object getEngineProxy(@PathParam("engine") String db, @Context HttpServletRequest request) {
 		// this is the name server
 		// this needs to return stuff
 		System.out.println(" Getting DB... " + db);
@@ -118,16 +117,18 @@ public class NameServer {
 	@GET
 	@Path("all")
 	@Produces("application/json")
-	public StreamingOutput printEngines(@Context HttpServletRequest request)
-	{
+	public StreamingOutput printEngines(@Context HttpServletRequest request){
 		// would be cool to give this as an HTML
-		Vector enginesV = new Vector<String>();
+		Hashtable<String, ArrayList<String>> hashTable = new Hashtable<String, ArrayList<String>>();
+		ArrayList<String> enginesList = new ArrayList<String>();
 		HttpSession session = request.getSession();
 		String engines = (String)session.getAttribute("ENGINES");
 		StringTokenizer tokens = new StringTokenizer(engines, ":");
-		while(tokens.hasMoreTokens())
-			enginesV.add(tokens.nextToken());
-		return getSO(enginesV);
+		while(tokens.hasMoreTokens()) {
+			enginesList.add(tokens.nextToken());
+		}
+		hashTable.put("engines", enginesList);
+		return getSO(hashTable);
 	}	
 
 
@@ -201,16 +202,17 @@ public class NameServer {
 	}
 
 	
-	private StreamingOutput getSO(Object vec)
-	{
+	private StreamingOutput getSO(Object vec){
 		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
 		output = gson.toJson(vec);
-		   return new StreamingOutput() {
-		         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-		            PrintStream ps = new PrintStream(outputStream);
-		            ps.println(output);
-		         }};		
+	    return new StreamingOutput() {
+	        public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+	            PrintStream ps = new PrintStream(outputStream);
+	            ps.println(output);
+	        }
+	    };		
 	}
+	
 	private StreamingOutput getSOHTML()
 	{
 		   return new StreamingOutput() {
