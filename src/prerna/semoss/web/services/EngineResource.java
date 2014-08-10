@@ -283,8 +283,10 @@ public class EngineResource {
 	public Response getPerspectives(@Context HttpServletRequest request)
 	{
 		// if the type is null then send all the insights else only that
-		Vector vec = coreEngine.getPerspectives();
-		return Response.status(200).entity(getSO(vec)).build();
+		Hashtable<String, Vector<String>> hashtable = new Hashtable<String, Vector<String>>(); 
+		Vector<String> perspectivesVector = coreEngine.getPerspectives();
+		hashtable.put("perspectives", perspectivesVector);
+		return Response.status(200).entity(getSO(hashtable)).build();
 	}
 
 	// gets all the tags for a given insight across all the engines
