@@ -101,7 +101,7 @@
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/tika-app-1.2.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/d2rq-0.7.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/itextpdf-5.5.0.jar"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/jre7">
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/jdk64bit">
 		<attributes>
 			<attribute name="owner.project.facets" value="java"/>
 		</attributes>
@@ -110,5 +110,10 @@
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jxbrowser-4.3.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jxbrowser-win-4.3.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/runtime.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/sspace-2.0-jar-with-dependencies.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/sspace-2.0-sources.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/sspace-2.0.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/sspace-lib-1.7.1.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/ws4j-1.0.1.jar"/>
 	<classpathentry kind="output" path="WebContent/WEB-INF/classes"/>
 </classpath>
