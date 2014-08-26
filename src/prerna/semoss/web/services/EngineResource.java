@@ -6,6 +6,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -162,28 +163,45 @@ public class EngineResource {
 		}
 		return Response.status(200).entity(getSO(finalTypes)).build();
 	}
-	
+
 	//gets all node types connected to a specific node instance
-	@GET
+	@POST
 	@Path("neighbors/instance")
 	@Produces("application/json")
-	public Response getNeighborsInstance(@QueryParam("node") String uri, @Context HttpServletRequest request)
+//	@Consumes(MediaType.APPLICATION_JSON)
+	public Response getNeighborsInstance(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
+		Gson gson = new Gson();
+		List<String> uriArray = gson.fromJson(form.getFirst("node"), List.class);
+		
 		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
 		if(coreEngine instanceof AbstractEngine){
 			AbstractEngine engine = (AbstractEngine) coreEngine;
-			//get node type
-			String type = Utility.getConceptType(coreEngine, uri);
+			
+			//create bindings string
+			String bindingsString = "";
+			for(String uri : uriArray){
+				bindingsString = bindingsString + "(<" + uri + ">)";
+			}
+			logger.info("bindings string = " + bindingsString);
+			
+			String uniqueTypesQuery = "SELECT DISTINCT ?entity WHERE { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity}   FILTER NOT EXISTS { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?subtype} {?subtype <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?entity} }} BINDINGS ?subject {"+bindingsString+"}";
+			
+			//get node types
+			Vector<String> types = coreEngine.getEntityOfType(uniqueTypesQuery);
 			
 			//DOWNSTREAM PROCESSING
 			//get node types connected to this type
-			Vector<String> downNodeTypes = engine.getToNeighbors(type, 0);
+			Vector<String> downNodeTypes = new Vector<String>();
+			for(String type : types){
+				downNodeTypes.addAll(engine.getToNeighbors(type, 0));
+			}
 			
 			//for each available type, ensure each type has at least one instance connected to original node
 			String downAskQuery = "ASK { "
 					+ "{?connectedNode a <@NODE_TYPE@>} "
-					+ "{<" + uri + "> ?rel ?connectedNode}"
-							+ "}" ;
+					+ "{?node ?rel ?connectedNode}"
+							+ "} BINDINGS ?node {"+bindingsString+"}" ;
 			Vector<String> validDownTypes = new Vector<String>();
 			for (String connectedType : downNodeTypes){
 				String filledDownAskQuery = downAskQuery.replace("@NODE_TYPE@", connectedType);
@@ -195,13 +213,16 @@ public class EngineResource {
 			
 			//UPSTREAM PROCESSING
 			//get node types connected to this type
-			Vector<String> upNodeTypes = engine.getFromNeighbors(type, 0);
+			Vector<String> upNodeTypes = new Vector<String>();
+			for(String type : types){
+				upNodeTypes.addAll(engine.getFromNeighbors(type, 0));
+			}
 			
 			//for each available type, ensure each type has at least one instance connected to original node
 			String upAskQuery = "ASK { "
 					+ "{?connectedNode a <@NODE_TYPE@>} "
-					+ "{?connectedNode ?rel <" + uri + ">}"
-							+ "}" ;
+					+ "{?connectedNode ?rel ?node}"
+							+ "} BINDINGS ?node {"+bindingsString+"}" ;
 			Vector<String> validUpTypes = new Vector<String>();
 			for (String connectedType : upNodeTypes){
 				String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
