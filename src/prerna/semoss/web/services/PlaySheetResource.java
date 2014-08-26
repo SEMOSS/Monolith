@@ -4,17 +4,20 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
@@ -50,26 +53,29 @@ public class PlaySheetResource {
 	}
 
 	// Binds the upNode currently on the graph and runs traversal query
-	@GET
+	@POST
 	@Path("extend/downstream/instance")
 	@Produces("application/json")
-	public Object createDownstreamInstanceTraversal( 
-			@QueryParam("upNode") String upNodeUri, 
-			@QueryParam("downNodeType") String downNodeType,
+	public Object createDownstreamInstanceTraversal( MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request)
 	{
-		logger.info("Processing downstream traversal for node instance " + upNodeUri);
+		Gson gson = new Gson();
+		String downNodeType = form.getFirst("downNodeType");
+		List<String> upNodeList = gson.fromJson(form.getFirst("upNode"), List.class);
+		logger.info("Processing downstream traversal for node instance " + upNodeList.toString());
 		
 		//get the query
 		String prefix = "";
 		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
-		
-		//get necessary info about params passed in
-		String filterValues = "(<" + upNodeUri + ">)";
-		String upNodeType = Utility.getConceptType(coreEngine, upNodeUri);
+
+		//create bindings string
+		String bindingsString = "";
+		for(String uri : upNodeList){
+			bindingsString = bindingsString + "(<" + uri + ">)";
+		}
 		
 		//process traversal
-		Object obj = runPlaySheetTraversal(sparql, upNodeType, downNodeType, filterValues);
+		Object obj = runPlaySheetTraversal(sparql, "", downNodeType, bindingsString);
 
 		// put the playsheet back in session
 		storePlaySheet(request);
@@ -78,60 +84,29 @@ public class PlaySheetResource {
 	}	
 
 	// Binds the downNode currently on the graph and runs traversal query
-	@GET
+	@POST
 	@Path("extend/upstream/instance")
 	@Produces("application/json")
-	public Object createUpstreamInstanceTraversal( 
-			@QueryParam("downNode") String downNodeUri, 
-			@QueryParam("upNodeType") String upNodeType,
+	public Object createUpstreamInstanceTraversal( MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request)
 	{
-		logger.info("Processing upstream traversal for node instance " + downNodeUri);
+		Gson gson = new Gson();
+		String upNodeType = form.getFirst("upNodeType");
+		List<String> downNodeList = gson.fromJson(form.getFirst("downNode"), List.class);
+		logger.info("Processing upstream traversal for node instances " + downNodeList.toString());
 		
 		//get the query
 		String prefix = "_2";
 		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
 
-		//fill the query
-		String filterValues = "(<" + downNodeUri + ">)";
-		String downNodeType = Utility.getConceptType(coreEngine, downNodeUri);
-
-		//process traversal
-		Object obj = runPlaySheetTraversal(sparql, upNodeType, downNodeType, filterValues);
-
-		// put the playsheet back in session
-		storePlaySheet(request);
-		
-		return getSO(obj);
-	}	
-
-	// Binds all nodes of upNodeType currently on the graph and runs traversal query
-	@GET
-	@Path("extend/downstream/type")
-	@Produces("application/json")
-	public Object createDownstreamTypeTraversal( 
-			@QueryParam("upNode") String upNodeUri, 
-			@QueryParam("downNodeType") String downNodeType,
-			@Context HttpServletRequest request)
-	{
-		String upNodeType = Utility.getConceptType(coreEngine, upNodeUri);
-		logger.info("Processing downstream traversal for node type " + upNodeType);
-		
-		//get the query
-		String prefix = "";
-		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
-
-		//get necessary info about params passed in
-		//need to get the type from the node because the queried type will failed if ActiveSystem (because stored on the node is just type of System)
-		String searchType = upNodeType;
-		if(playSheet instanceof GraphPlaySheet){
-			SEMOSSVertex vert = ((GraphPlaySheet)playSheet).getGraphData().getVertStore().get(upNodeUri);
-			searchType = vert.getProperty(Constants.VERTEX_TYPE)+"";
+		//create bindings string
+		String bindingsString = "";
+		for(String uri : downNodeList){
+			bindingsString = bindingsString + "(<" + uri + ">)";
 		}
-		String filterValues = getNodesOfType(searchType);
-		
+
 		//process traversal
-		Object obj = runPlaySheetTraversal(sparql, upNodeType, downNodeType, filterValues);
+		Object obj = runPlaySheetTraversal(sparql, upNodeType, "", bindingsString);
 
 		// put the playsheet back in session
 		storePlaySheet(request);
@@ -139,39 +114,73 @@ public class PlaySheetResource {
 		return getSO(obj);
 	}	
 
-	// Binds all nodes of downNodeType currently on the graph and runs traversal query
-	@GET
-	@Path("extend/upstream/type")
-	@Produces("application/json")
-	public Object createUpstreamTypeTraversal( 
-			@QueryParam("upNodeType") String upNodeType, 
-			@QueryParam("downNode") String downNodeUri,
-			@Context HttpServletRequest request)
-	{
-		String downNodeType = Utility.getConceptType(coreEngine, downNodeUri);
-		logger.info("Processing upstream traversal for node type " + downNodeType);
-		
-		//get the query
-		String prefix = "_2";
-		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
-
-		//get necessary info about params passed in
-		//need to get the type from the node because the queried type will failed if ActiveSystem (because stored on the node is just type of System)
-		String searchType = downNodeType;
-		if(playSheet instanceof GraphPlaySheet){
-			SEMOSSVertex vert = ((GraphPlaySheet)playSheet).getGraphData().getVertStore().get(downNodeUri);
-			searchType = vert.getProperty(Constants.VERTEX_TYPE)+"";
-		}
-		String filterValues = getNodesOfType(searchType);
-		
-		//process traversal
-		Object obj = runPlaySheetTraversal(sparql, upNodeType, downNodeType, filterValues);
-
-		// put the playsheet back in session
-		storePlaySheet(request);
-		
-		return getSO(obj);
-	}	
+//	// Binds all nodes of upNodeType currently on the graph and runs traversal query
+//	@GET
+//	@Path("extend/downstream/type")
+//	@Produces("application/json")
+//	public Object createDownstreamTypeTraversal( 
+//			@QueryParam("upNode") String upNodeUri, 
+//			@QueryParam("downNodeType") String downNodeType,
+//			@Context HttpServletRequest request)
+//	{
+//		String upNodeType = Utility.getConceptType(coreEngine, upNodeUri);
+//		logger.info("Processing downstream traversal for node type " + upNodeType);
+//		
+//		//get the query
+//		String prefix = "";
+//		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
+//
+//		//get necessary info about params passed in
+//		//need to get the type from the node because the queried type will failed if ActiveSystem (because stored on the node is just type of System)
+//		String searchType = upNodeType;
+//		if(playSheet instanceof GraphPlaySheet){
+//			SEMOSSVertex vert = ((GraphPlaySheet)playSheet).getGraphData().getVertStore().get(upNodeUri);
+//			searchType = vert.getProperty(Constants.VERTEX_TYPE)+"";
+//		}
+//		String filterValues = getNodesOfType(searchType);
+//		
+//		//process traversal
+//		Object obj = runPlaySheetTraversal(sparql, upNodeType, downNodeType, filterValues);
+//
+//		// put the playsheet back in session
+//		storePlaySheet(request);
+//		
+//		return getSO(obj);
+//	}	
+//
+//	// Binds all nodes of downNodeType currently on the graph and runs traversal query
+//	@GET
+//	@Path("extend/upstream/type")
+//	@Produces("application/json")
+//	public Object createUpstreamTypeTraversal( 
+//			@QueryParam("upNodeType") String upNodeType, 
+//			@QueryParam("downNode") String downNodeUri,
+//			@Context HttpServletRequest request)
+//	{
+//		String downNodeType = Utility.getConceptType(coreEngine, downNodeUri);
+//		logger.info("Processing upstream traversal for node type " + downNodeType);
+//		
+//		//get the query
+//		String prefix = "_2";
+//		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
+//
+//		//get necessary info about params passed in
+//		//need to get the type from the node because the queried type will failed if ActiveSystem (because stored on the node is just type of System)
+//		String searchType = downNodeType;
+//		if(playSheet instanceof GraphPlaySheet){
+//			SEMOSSVertex vert = ((GraphPlaySheet)playSheet).getGraphData().getVertStore().get(downNodeUri);
+//			searchType = vert.getProperty(Constants.VERTEX_TYPE)+"";
+//		}
+//		String filterValues = getNodesOfType(searchType);
+//		
+//		//process traversal
+//		Object obj = runPlaySheetTraversal(sparql, upNodeType, downNodeType, filterValues);
+//
+//		// put the playsheet back in session
+//		storePlaySheet(request);
+//		
+//		return getSO(obj);
+//	}	
 
 	// temporary function for getting chart it data
 	// will be replaced with query builder

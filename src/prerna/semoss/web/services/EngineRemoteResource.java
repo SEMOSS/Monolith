@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 
 import javax.ws.rs.FormParam;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -281,9 +282,9 @@ public class EngineRemoteResource {
 	}
 
 
-	@POST
+	@GET
 	@Path("streamTester")
-	@Produces("application/text")
+	@Produces("text/html")
 	public StreamingOutput getStreamTester()
 	{
 		   return new StreamingOutput() {
@@ -297,6 +298,7 @@ public class EngineRemoteResource {
 			            //ps.println("Sending " + i);
 		            	os.writeObject(myInt);
 			            if(i %1000 == 0)
+			            	//
 							try {
 								Thread.sleep(200);
 							} catch (InterruptedException e) {
