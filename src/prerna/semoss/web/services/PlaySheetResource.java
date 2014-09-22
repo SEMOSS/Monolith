@@ -3,6 +3,7 @@ package prerna.semoss.web.services;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -25,6 +26,7 @@ import org.apache.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import prerna.algorithm.impl.SearchMasterDB;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.api.IEngine;
@@ -182,6 +184,40 @@ public class PlaySheetResource {
 //		return getSO(obj);
 //	}	
 
+	// get all insights related to a specific uri
+	// uses vertstore and edgestore if they are present (if it is a graph) otherwise just the uri
+	@POST
+	@Path("context/insights")
+	@Produces("application/json")
+	public StreamingOutput getContextInsights(
+			MultivaluedMap<String, String> form, 
+			@Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
+		ArrayList<String> selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
+		logger.info("Selected URI is " + selectedUris.toString());
+
+		SearchMasterDB searcher = new SearchMasterDB();
+		
+		//if playsheet is graph, set the vertstore and edgestore
+		//else we will have to just use the single uri
+		if(this.playSheet instanceof GraphPlaySheet){
+			GraphPlaySheet gps = (GraphPlaySheet) this.playSheet;
+			GraphDataModel gdm = gps.getGraphData();
+			Hashtable<String, SEMOSSVertex> vertStore = gdm.getVertStore();
+			searcher.setKeywordAndEdgeList(vertStore, gdm.getEdgeStore(), false);
+			ArrayList<SEMOSSVertex> selectedInstances = new ArrayList<SEMOSSVertex>();
+			for(String uri: selectedUris)
+			{
+				selectedInstances.add(vertStore.get(uri));
+			}
+			searcher.setInstanceList(selectedInstances);
+		}
+		
+		ArrayList<Hashtable<String, Object>> contextList = searcher.searchDB();
+		return getSO(contextList);
+	}
+
 	// temporary function for getting chart it data
 	// will be replaced with query builder
 	@GET
@@ -212,70 +248,70 @@ public class PlaySheetResource {
 		Object obj = runPlaySheetOverlay();
 		return getSO(obj);
 	}
-
-	//gets all node types connected to a specific node instance
-	@GET
-	@Path("neighbors/type")
-	@Produces("application/json")
-	public StreamingOutput getNeighborsInstance(@QueryParam("node") String uri, @Context HttpServletRequest request)
-	{
-		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
-		if(coreEngine instanceof AbstractEngine){
-			AbstractEngine engine = (AbstractEngine) coreEngine;
-			//get node type
-			String type = Utility.getConceptType(coreEngine, uri);
-			
-			//DOWNSTREAM PROCESSING
-			//get node types connected to this type
-			Vector<String> downNodeTypes = engine.getToNeighbors(type, 0);
-			
-			//for each available type, ensure each type has at least one instance connected to a node of the original node's type
-			//need to get the type from the node because the queried type will failed if ActiveSystem (because stored on the node is just type of System)
-			String searchType = type;
-			if(playSheet instanceof GraphPlaySheet){
-				SEMOSSVertex vert = ((GraphPlaySheet)playSheet).getGraphData().getVertStore().get(uri);
-				searchType = vert.getProperty(Constants.VERTEX_TYPE)+"";
-			}
-			String filterValues = getNodesOfType(searchType);
-			Vector<String> validDownTypes = new Vector<String>();
-			if(!filterValues.isEmpty())//empty bindings acts as no bindings at all, so need to have this check
-			{
-				String downAskQuery = "ASK { "
-						+ "{?connectedNode a <@NODE_TYPE@>} "
-						+ "{?nodes ?rel ?connectedNode}"
-						+ "}" 
-						+ "BINDINGS ?nodes {" + filterValues + "}";
-				for (String connectedType : downNodeTypes){
-					String filledDownAskQuery = downAskQuery.replace("@NODE_TYPE@", connectedType);
-					logger.info("Checking type " + connectedType + " with query " + filledDownAskQuery);
-					if(engine.execAskQuery(filledDownAskQuery))
-						validDownTypes.add(connectedType);
-				}
-				finalTypes.put("downstream", validDownTypes);
-				
-				//UPSTREAM PROCESSING
-				//get node types connected to this type
-				Vector<String> upNodeTypes = engine.getFromNeighbors(type, 0);
-				
-				//for each available type, ensure each type has at least one instance connected to original node
-				String upAskQuery = "ASK { "
-						+ "{?connectedNode a <@NODE_TYPE@>} "
-						+ "{?connectedNode ?rel ?nodes}"
-						+ "}" 
-						+ "BINDINGS ?nodes {" + filterValues + "}";
-				Vector<String> validUpTypes = new Vector<String>();
-				for (String connectedType : upNodeTypes){
-					String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
-					logger.info("Checking type " + connectedType + " with query " + filledUpAskQuery);
-					if(engine.execAskQuery(filledUpAskQuery))
-						validUpTypes.add(connectedType);
-				}
-				finalTypes.put("upstream", validUpTypes);
-			}
-		}
-		return getSO(finalTypes);
-	}
-	
+//
+//	//gets all node types connected to a specific node instance
+//	@GET
+//	@Path("neighbors/type")
+//	@Produces("application/json")
+//	public StreamingOutput getNeighborsInstance(@QueryParam("node") String uri, @Context HttpServletRequest request)
+//	{
+//		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
+//		if(coreEngine instanceof AbstractEngine){
+//			AbstractEngine engine = (AbstractEngine) coreEngine;
+//			//get node type
+//			String type = Utility.getConceptType(coreEngine, uri);
+//			
+//			//DOWNSTREAM PROCESSING
+//			//get node types connected to this type
+//			Vector<String> downNodeTypes = engine.getToNeighbors(type, 0);
+//			
+//			//for each available type, ensure each type has at least one instance connected to a node of the original node's type
+//			//need to get the type from the node because the queried type will failed if ActiveSystem (because stored on the node is just type of System)
+//			String searchType = type;
+//			if(playSheet instanceof GraphPlaySheet){
+//				SEMOSSVertex vert = ((GraphPlaySheet)playSheet).getGraphData().getVertStore().get(uri);
+//				searchType = vert.getProperty(Constants.VERTEX_TYPE)+"";
+//			}
+//			String filterValues = getNodesOfType(searchType);
+//			Vector<String> validDownTypes = new Vector<String>();
+//			if(!filterValues.isEmpty())//empty bindings acts as no bindings at all, so need to have this check
+//			{
+//				String downAskQuery = "ASK { "
+//						+ "{?connectedNode a <@NODE_TYPE@>} "
+//						+ "{?nodes ?rel ?connectedNode}"
+//						+ "}" 
+//						+ "BINDINGS ?nodes {" + filterValues + "}";
+//				for (String connectedType : downNodeTypes){
+//					String filledDownAskQuery = downAskQuery.replace("@NODE_TYPE@", connectedType);
+//					logger.info("Checking type " + connectedType + " with query " + filledDownAskQuery);
+//					if(engine.execAskQuery(filledDownAskQuery))
+//						validDownTypes.add(connectedType);
+//				}
+//				finalTypes.put("downstream", validDownTypes);
+//				
+//				//UPSTREAM PROCESSING
+//				//get node types connected to this type
+//				Vector<String> upNodeTypes = engine.getFromNeighbors(type, 0);
+//				
+//				//for each available type, ensure each type has at least one instance connected to original node
+//				String upAskQuery = "ASK { "
+//						+ "{?connectedNode a <@NODE_TYPE@>} "
+//						+ "{?connectedNode ?rel ?nodes}"
+//						+ "}" 
+//						+ "BINDINGS ?nodes {" + filterValues + "}";
+//				Vector<String> validUpTypes = new Vector<String>();
+//				for (String connectedType : upNodeTypes){
+//					String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
+//					logger.info("Checking type " + connectedType + " with query " + filledUpAskQuery);
+//					if(engine.execAskQuery(filledUpAskQuery))
+//						validUpTypes.add(connectedType);
+//				}
+//				finalTypes.put("upstream", validUpTypes);
+//			}
+//		}
+//		return getSO(finalTypes);
+//	}
+//	
 	// temporary function for getting chart it data
 	// will be replaced with query builder
 	@GET
