@@ -13,16 +13,24 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.log4j.Logger;
+
+import prerna.algorithm.impl.SearchMasterDB;
+import prerna.om.GraphDataModel;
+import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
+import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.upload.Uploader;
 
 import com.google.gson.Gson;
@@ -33,8 +41,10 @@ import com.ibm.icu.util.StringTokenizer;
 public class NameServer {
 
 	@Context ServletContext context;
+	Logger logger = Logger.getLogger(NameServer.class.getName());
 	String output = "";
 	Hashtable helpHash = null;
+	
 	// gets the specific database
 	@Path("e-{engine}")
 	public Object getDatabase(@PathParam("engine") String db, @Context HttpServletRequest request) {
@@ -200,7 +210,32 @@ public class NameServer {
 		upload.setFilePath(filePath);
 		return upload;
 	}
+	
+	// get all insights related to a specific uri
+	// preferably we would also pass vert store and edge store... the more context the better. Don't have any of that for now though.
+	@POST
+	@Path("context/insights")
+	@Produces("application/json")
+	public StreamingOutput getContextInsights(
+			MultivaluedMap<String, String> form, 
+			@Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
+		ArrayList<String> selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
+		logger.info("Selected URI is " + selectedUris.toString());
 
+		SearchMasterDB searcher = new SearchMasterDB();
+		
+		ArrayList<SEMOSSVertex> selectedInstances = new ArrayList<SEMOSSVertex>();
+		for(String uri: selectedUris)
+		{
+			selectedInstances.add(new SEMOSSVertex(uri));
+		}
+		searcher.setInstanceList(selectedInstances);
+		
+		ArrayList<Hashtable<String, Object>> contextList = searcher.searchDB();
+		return getSO(contextList);
+	}
 	
 	private StreamingOutput getSO(Object vec){
 		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
