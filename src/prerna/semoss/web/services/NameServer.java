@@ -25,6 +25,7 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
+import prerna.algorithm.impl.CreateMasterDB;
 import prerna.algorithm.impl.SearchMasterDB;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSVertex;
@@ -32,6 +33,7 @@ import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
 import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.upload.Uploader;
+import prerna.util.Utility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -44,6 +46,7 @@ public class NameServer {
 	Logger logger = Logger.getLogger(NameServer.class.getName());
 	String output = "";
 	Hashtable helpHash = null;
+	String centralApi = "https://localhost/NameServer";
 	
 	// gets the specific database
 	@Path("e-{engine}")
@@ -221,8 +224,29 @@ public class NameServer {
 			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
+		String selectedUris = form.getFirst("selectedURI");
+		logger.info("LOCALLY have registered selected URIs as ::: " + selectedUris.toString());
+		
+		Hashtable params = new Hashtable();
+		params.put("selectedURI", selectedUris);
+		
+		String contextList = Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params);
+		
+		return getSO(contextList);
+	}	
+	
+	// get all insights related to a specific uri
+	// preferably we would also pass vert store and edge store... the more context the better. Don't have any of that for now though.
+	@POST
+	@Path("central/context/insights")
+	@Produces("application/json")
+	public StreamingOutput getCentralContextInsights(
+			MultivaluedMap<String, String> form, 
+			@Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
 		ArrayList<String> selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
-		logger.info("Selected URI is " + selectedUris.toString());
+		logger.info("CENTRALLY have registered selected URIs as ::: " + selectedUris.toString());
 
 		SearchMasterDB searcher = new SearchMasterDB();
 		
@@ -233,9 +257,46 @@ public class NameServer {
 		}
 		searcher.setInstanceList(selectedInstances);
 		
-		ArrayList<Hashtable<String, Object>> contextList = searcher.findRelatedQuestions();
+		ArrayList<Hashtable<String, Object>> contextList = searcher.findRelatedQuestionsWeb();
 		return getSO(contextList);
 	}
+	
+	// local call to register an engine to the central name server and master db
+	@POST
+	@Path("context/registerEngine")
+	@Produces("application/json")
+	public StreamingOutput registerEngineApi(
+			MultivaluedMap<String, String> form, 
+			@Context HttpServletRequest request)
+	{
+		String engineApi = form.getFirst("engineAPI");
+		logger.info("LOCALLY registering engineAPI  ::: " + engineApi.toString());
+		
+		Hashtable params = new Hashtable();
+		params.put("engineAPI", engineApi);
+
+		String result = Utility.retrieveResult(centralApi + "/api/engine/central/context/registerEngine", params);
+		
+		return getSO(result);
+	}
+
+	// central call to store an engine in the master db
+	@POST
+	@Path("central/context/registerEngine")
+	@Produces("application/json")
+	public StreamingOutput registerEngine2MasterDatabase(
+			MultivaluedMap<String, String> form, 
+			@Context HttpServletRequest request)
+	{
+		String engineApi = form.getFirst("engineAPI");
+		logger.info("CENTRALLY registering engineAPI  ::: " + engineApi.toString());
+
+		CreateMasterDB creater = new CreateMasterDB();
+		String success = creater.registerEngineAPI(engineApi);
+		
+		return getSO(success);
+	}
+	
 	
 	private StreamingOutput getSO(Object vec){
 		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
