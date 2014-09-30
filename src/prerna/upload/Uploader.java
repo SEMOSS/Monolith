@@ -46,7 +46,7 @@ import com.google.gson.GsonBuilder;
 @SuppressWarnings("serial")
 public class Uploader extends HttpServlet {
 
-	int maxFileSize = 10000 * 1024;
+	int maxFileSize = 1000000 * 1024;
 	int maxMemSize = 4 * 1024;
 	String output = "";
 
