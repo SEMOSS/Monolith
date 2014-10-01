@@ -269,12 +269,14 @@ public class NameServer {
 			MultivaluedMap<String, String> form, 
 			@Context HttpServletRequest request)
 	{
-		String engineApi = form.getFirst("engineAPI");
+		String engineApi = form.getFirst("dbName");
 		logger.info("LOCALLY registering engineAPI  ::: " + engineApi.toString());
 		
+		String baseURL = request.getRequestURL().toString();
+		baseURL = baseURL.substring(0,baseURL.indexOf("/context/registerEngine"));
 		Hashtable params = new Hashtable();
-		params.put("engineAPI", engineApi);
-
+		params.put("dbName", engineApi);
+		params.put("baseURL", baseURL);
 		String result = Utility.retrieveResult(centralApi + "/api/engine/central/context/registerEngine", params);
 		
 		return getSO(result);
@@ -288,11 +290,12 @@ public class NameServer {
 			MultivaluedMap<String, String> form, 
 			@Context HttpServletRequest request)
 	{
-		String engineApi = form.getFirst("engineAPI");
-		logger.info("CENTRALLY registering engineAPI  ::: " + engineApi.toString());
+		String dbName = form.getFirst("dbName");
+		String baseURL = form.getFirst("baseURL");
+		logger.info("CENTRALLY registering engineAPI  ::: " + baseURL + " ::: " + dbName);
 
 		CreateMasterDB creater = new CreateMasterDB();
-		String success = creater.registerEngineAPI(engineApi);
+		String success = creater.registerEngineAPI(baseURL,dbName);
 		
 		return getSO(success);
 	}
