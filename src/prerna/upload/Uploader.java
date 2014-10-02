@@ -81,10 +81,8 @@ public class Uploader extends HttpServlet {
 			// Parse the request to get file items
 			fileItems = upload.parseRequest(request);
 		} catch (FileUploadException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return fileItems;
@@ -304,7 +302,7 @@ public class Uploader extends HttpServlet {
 		}
 
 		try {
-			FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder") + "\\db\\" + dbName.toString() + "\\" + dbName.toString() + "_PROP.prop"), propWriter.getPropFile());
+			FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder").concat(File.separator).concat("db").concat(File.separator).concat(dbName.toString()).concat(File.separator).concat(dbName.toString()).concat("_").concat(filename.replace(".csv", "")).concat("_PROP.prop")), propWriter.getPropFile());
 		} catch (IOException e) {
 			e.printStackTrace();
 			String outputText = "Failure to write CSV Prop File based on user-defined metamodel.";
