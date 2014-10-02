@@ -16,6 +16,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
@@ -29,6 +30,8 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeToken
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson.JacksonFactory;
@@ -52,7 +55,7 @@ public class UserResource
 	
 	@POST
 	@Produces("application/json")
-	@Path("/google")
+	@Path("/login/google")
 	public Response loginGoogle(@Context HttpServletRequest request) throws IOException {
 		Hashtable<String, String> ret = new Hashtable<String, String>();
 		
@@ -68,20 +71,21 @@ public class UserResource
 	    HashMap<String, String> h = gson.fromJson(buffer.toString(), HashMap.class);
 	    
 	    String clientId = h.get("clientId");
+		request.getSession().setAttribute("clientId", clientId);
 	    String code = h.get("code");
 		
 		// Only connect a user that is not already connected.
 		String tokenData = (String) request.getSession().getAttribute("token");
 		if (tokenData != null) {
 			ret.put("error", "User is already connected.");
-			return Response.status(204).entity(getSO(ret)).build();
+			return Response.status(200).entity(getSO(ret)).build();
 		}
 		// Ensure that this is no request forgery going on, and that the user
 		// sending us this connect request is the user that was supposed to.
 		if (request.getParameter("state") != null && request.getSession().getAttribute("state") != null && 
 				!request.getParameter("state").equals(request.getSession().getAttribute("state"))) {
 			ret.put("error", "Invalid state parameter.");
-			return Response.status(401).entity(getSO(ret)).build();
+			return Response.status(400).entity(getSO(ret)).build();
 		}
 		
 		GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
@@ -101,7 +105,7 @@ public class UserResource
 			GoogleIdToken idToken = tokenResponse.parseIdToken();
 			String gplusId = idToken.getPayload().getSubject();
 			String email = idToken.getPayload().getEmail();
-			String name = userinfo.getGivenName() + userinfo.getFamilyName();
+			String name = userinfo.getGivenName() + " " + userinfo.getFamilyName();
 			String picture = userinfo.getPicture();
 			
 			ret.put("token", tokenResponse.toString());
@@ -123,6 +127,48 @@ public class UserResource
 			return Response.status(404).entity(getSO(ret)).build();
 		}
 
+		return Response.status(200).entity(getSO(ret)).build();
+	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("/logout/google")
+	public Response logoutGoogle(@Context HttpServletRequest request) throws IOException {
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+
+		// Only disconnect a connected user.
+		String tokenData = (String) request.getSession().getAttribute("token");
+		if (tokenData == null) {
+			ret.put("error", "User is not connected.");
+			return Response.status(400).entity(getSO(ret)).build();
+		}
+		
+	    String clientId = request.getSession().getAttribute("clientId").toString();
+		
+		try {
+			// Build credential from stored token data.
+			GoogleCredential credential = new GoogleCredential.Builder()
+				.setJsonFactory(JSON_FACTORY)
+				.setTransport(TRANSPORT)
+				.setClientSecrets(clientId, CLIENT_SECRET).build()
+				.setFromTokenResponse(JSON_FACTORY.fromString(tokenData, GoogleTokenResponse.class));
+			
+			// Execute HTTP GET request to revoke current token.
+			HttpResponse revokeResponse = TRANSPORT.createRequestFactory()
+					.buildGetRequest(new GenericUrl(
+							String.format(
+									"https://accounts.google.com/o/oauth2/revoke?token=%s",
+									credential.getAccessToken()))).execute();
+			// Reset the user's session.
+			request.getSession().removeAttribute("clientId");
+			request.getSession().removeAttribute("token");
+		} catch (IOException e) {
+			// For whatever reason, the given token was invalid.
+			ret.put("error", "Failed to revoke token.");
+			return Response.status(400).entity(getSO(ret)).build();
+		}
+		
+		ret.put("success", "Successfully disconnected.");
 		return Response.status(200).entity(getSO(ret)).build();
 	}
 	
