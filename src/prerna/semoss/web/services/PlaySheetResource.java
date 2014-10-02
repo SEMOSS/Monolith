@@ -44,7 +44,7 @@ public class PlaySheetResource {
 	IPlaySheet playSheet;
 	IEngine coreEngine;
 	String output = "";
-	Logger logger = Logger.getLogger(getClass());
+	Logger logger = Logger.getLogger(PlaySheetResource.class.getName());
 	
 	public void setPlaySheet(IPlaySheet playSheet){
 		this.playSheet = playSheet;
@@ -58,8 +58,7 @@ public class PlaySheetResource {
 	@POST
 	@Path("extend/downstream/instance")
 	@Produces("application/json")
-	public Object createDownstreamInstanceTraversal( MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request)
+	public Object createDownstreamInstanceTraversal(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		String downNodeType = form.getFirst("downNodeType");
@@ -89,8 +88,7 @@ public class PlaySheetResource {
 	@POST
 	@Path("extend/upstream/instance")
 	@Produces("application/json")
-	public Object createUpstreamInstanceTraversal( MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request)
+	public Object createUpstreamInstanceTraversal(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		String upNodeType = form.getFirst("upNodeType");
@@ -190,7 +188,7 @@ public class PlaySheetResource {
 	@Path("context/insights")
 	@Produces("application/json")
 	public StreamingOutput getContextInsights(
-			MultivaluedMap<String, String> form, 
+			MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
