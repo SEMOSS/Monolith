@@ -33,6 +33,7 @@ import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
 import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.upload.Uploader;
+import prerna.util.DIHelper;
 import prerna.util.Utility;
 
 import com.google.gson.Gson;
@@ -46,16 +47,20 @@ public class NameServer {
 	Logger logger = Logger.getLogger(NameServer.class.getName());
 	String output = "";
 	Hashtable helpHash = null;
-	String centralApi = "https://localhost/NameServer";
-	
-	// gets the specific database
+
+	// gets the local database if it is available
+	// otherwise instantiates remote engine with api passed in
 	@Path("e-{engine}")
-	public Object getDatabase(@PathParam("engine") String db, @Context HttpServletRequest request) {
+	public Object getLocalDatabase(@PathParam("engine") String db, @QueryParam("api") String api, @Context HttpServletRequest request) {
 		// this is the name server
 		// this needs to return stuff
 		System.out.println(" Getting DB... " + db);
 		HttpSession session = request.getSession();
 		IEngine engine = (IEngine)session.getAttribute(db);
+		if(engine == null && api != null){ // if the engine does not exist locally and an api has been passed to find the engine remotely, add the remote engine to local context
+			addEngine(request, api, db);
+			engine = (IEngine)session.getAttribute(db);
+		}
 		EngineResource res = new EngineResource();
 		res.setEngine(engine);
 		return res;
@@ -71,6 +76,17 @@ public class NameServer {
 		EngineRemoteResource res = new EngineRemoteResource();
 		res.setEngine(engine);
 		return res;
+	}
+
+	@Path("ns-{nameServerHostname}-{webappName}")
+	public Object getCentralNameServer(@PathParam("nameServerHostname") String nsIP, @PathParam("webappName") String webappName, @Context HttpServletRequest request) {
+		// this is the name server
+		// this needs to return stuff
+		String address = "https://"+nsIP+"/"+webappName;
+		System.out.println(" Going to central name server ... " + address);
+		CentralNameServer cns = new CentralNameServer();
+		cns.setCentralApi(address);
+		return cns;
 	}
 	
 	@GET
@@ -162,6 +178,7 @@ public class NameServer {
 		{
 			engines = engines + ":" + database;
 			session.setAttribute(database, newEngine);
+			DIHelper.getInstance().setLocalProperty(database, newEngine);
 		}
 
 	}	
@@ -213,27 +230,24 @@ public class NameServer {
 		upload.setFilePath(filePath);
 		return upload;
 	}
-	
-	// get all insights related to a specific uri
-	// preferably we would also pass vert store and edge store... the more context the better. Don't have any of that for now though.
+
+	// central call to store an engine in the master db
 	@POST
-	@Path("context/insights")
+	@Path("central/context/registerEngine")
 	@Produces("application/json")
-	public StreamingOutput getContextInsights(
+	public StreamingOutput registerEngine2MasterDatabase(
 			MultivaluedMap<String, String> form, 
 			@Context HttpServletRequest request)
 	{
-		Gson gson = new Gson();
-		String selectedUris = form.getFirst("selectedURI");
-		logger.info("LOCALLY have registered selected URIs as ::: " + selectedUris.toString());
+		String dbName = form.getFirst("dbName");
+		String baseURL = form.getFirst("baseURL");
+		logger.info("CENTRALLY registering engineAPI  ::: " + baseURL + " ::: " + dbName);
+
+		CreateMasterDB creater = new CreateMasterDB();
+		String success = creater.registerEngineAPI(baseURL,dbName);
 		
-		Hashtable params = new Hashtable();
-		params.put("selectedURI", selectedUris);
-		
-		String contextList = Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params);
-		
-		return getSO(contextList);
-	}	
+		return getSO(success);
+	}
 	
 	// get all insights related to a specific uri
 	// preferably we would also pass vert store and edge store... the more context the better. Don't have any of that for now though.
@@ -260,46 +274,6 @@ public class NameServer {
 		ArrayList<Hashtable<String, Object>> contextList = searcher.findRelatedQuestionsWeb();
 		return getSO(contextList);
 	}
-	
-	// local call to register an engine to the central name server and master db
-	@POST
-	@Path("context/registerEngine")
-	@Produces("application/json")
-	public StreamingOutput registerEngineApi(
-			MultivaluedMap<String, String> form, 
-			@Context HttpServletRequest request)
-	{
-		String engineApi = form.getFirst("dbName");
-		logger.info("LOCALLY registering engineAPI  ::: " + engineApi.toString());
-		
-		String baseURL = request.getRequestURL().toString();
-		baseURL = baseURL.substring(0,baseURL.indexOf("/context/registerEngine"));
-		Hashtable params = new Hashtable();
-		params.put("dbName", engineApi);
-		params.put("baseURL", baseURL);
-		String result = Utility.retrieveResult(centralApi + "/api/engine/central/context/registerEngine", params);
-		
-		return getSO(result);
-	}
-
-	// central call to store an engine in the master db
-	@POST
-	@Path("central/context/registerEngine")
-	@Produces("application/json")
-	public StreamingOutput registerEngine2MasterDatabase(
-			MultivaluedMap<String, String> form, 
-			@Context HttpServletRequest request)
-	{
-		String dbName = form.getFirst("dbName");
-		String baseURL = form.getFirst("baseURL");
-		logger.info("CENTRALLY registering engineAPI  ::: " + baseURL + " ::: " + dbName);
-
-		CreateMasterDB creater = new CreateMasterDB();
-		String success = creater.registerEngineAPI(baseURL,dbName);
-		
-		return getSO(success);
-	}
-	
 	
 	private StreamingOutput getSO(Object vec){
 		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
