@@ -28,11 +28,14 @@ import org.apache.log4j.Logger;
 import prerna.algorithm.impl.CreateMasterDB;
 import prerna.algorithm.impl.SearchMasterDB;
 import prerna.om.GraphDataModel;
+import prerna.om.SEMOSSEdge;
 import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
+import prerna.rdf.query.builder.CustomVizTableBuilder;
 import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.upload.Uploader;
+import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 
@@ -272,6 +275,38 @@ public class NameServer {
 		searcher.setInstanceList(selectedInstances);
 		
 		ArrayList<Hashtable<String, Object>> contextList = searcher.findRelatedQuestionsWeb();
+		return getSO(contextList);
+	}
+	
+	// get all insights related to a specific uri
+	// preferably we would also pass vert store and edge store... the more context the better. Don't have any of that for now though.
+	@POST
+	@Path("central/context/databases")
+	@Produces("application/json")
+	public StreamingOutput getCentralContextDatabases(
+			MultivaluedMap<String, String> form, 
+			@Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
+		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
+		logger.info("CENTRALLY have registered query data as ::: " + dataHash.toString());
+
+		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
+		tableViz.setJSONDataHash(dataHash);
+		tableViz.parsePath();
+		ArrayList<Hashtable<String, String>> nodeV = tableViz.getNodeV();
+		ArrayList<Hashtable<String, String>> predV = tableViz.getPredV();
+
+		SearchMasterDB searcher = new SearchMasterDB();
+		
+		for (Hashtable<String, String> nodeHash : nodeV){
+			searcher.addToKeywordList(Utility.getInstanceName(nodeHash.get(tableViz.uriKey)));
+		}
+		for (Hashtable<String, String> edgeHash : predV){
+			searcher.addToEdgeList(Utility.getInstanceName(edgeHash.get("Subject")), Utility.getInstanceName(edgeHash.get("Object")));
+		}
+		
+		ArrayList<Hashtable<String, Object>> contextList = searcher.findRelatedEnginesWeb();
 		return getSO(contextList);
 	}
 	
