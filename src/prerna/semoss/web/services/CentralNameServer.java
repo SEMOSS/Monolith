@@ -73,20 +73,19 @@ public class CentralNameServer {
 	// local call to get all engines related to a metamodel path
 	// expecting vert store and edge store of metamodel level data
 	@POST
-	@Path("context/engines")
+	@Path("context/databases")
 	@Produces("application/json")
 	public StreamingOutput getContextDatabases(
 			MultivaluedMap<String, String> form, 
 			@Context HttpServletRequest request)
 	{
-		Gson gson = new Gson();
-		String selectedUris = form.getFirst("selectedURI");
-		logger.info("LOCALLY have registered selected URIs as ::: " + selectedUris.toString());
+		String queryData = form.getFirst("QueryData");
+		logger.info("LOCALLY have registered selected URIs as ::: " + queryData.toString());
 		
 		Hashtable params = new Hashtable();
-		params.put("selectedURI", selectedUris);
+		params.put("QueryData", queryData);
 		
-		String contextList = Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params);
+		String contextList = Utility.retrieveResult(centralApi + "/api/engine/central/context/databases", params);
 		
 		return getSO(contextList);
 	}	
