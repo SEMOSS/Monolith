@@ -9,8 +9,13 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Vector;
 
+import javax.servlet.ServletInputStream;
+import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -19,6 +24,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -58,7 +64,7 @@ public class EngineResource {
 	// essentially this is a wrapper over the engine
 	IEngine coreEngine = null;
 	String output = "";
-	Logger logger = Logger.getLogger(getClass());
+	Logger logger = Logger.getLogger(EngineResource.class.getName());
 	Hashtable<String, SEMOSSQuery> vizHash = new Hashtable<String, SEMOSSQuery>();
 	// to send class name if error occurs
 	String className = this.getClass().getName();
@@ -163,7 +169,7 @@ public class EngineResource {
 		}
 		return Response.status(200).entity(getSO(finalTypes)).build();
 	}
-
+	
 	//gets all node types connected to a specific node instance
 	@POST
 	@Path("neighbors/instance")
@@ -257,7 +263,9 @@ public class EngineResource {
 			resultInsights = coreEngine.getInsights();
 
 		//Vector<Hashtable<String,String>> resultInsightObjects = coreEngine.getOutputs4Insights(resultInsights);
-		Vector<Insight> resultInsightObjects = ((AbstractEngine)coreEngine).getInsight2(resultInsights.toArray(new String[resultInsights.size()]));
+		Vector<Insight> resultInsightObjects = null;
+		if(resultInsights!=null)
+			resultInsightObjects = ((AbstractEngine)coreEngine).getInsight2(resultInsights.toArray(new String[resultInsights.size()]));
 
 		return Response.status(200).entity(getSO(resultInsightObjects)).build();
 	}
@@ -377,7 +385,7 @@ public class EngineResource {
 	@GET
 	@Path("output")
 	@Produces("application/json")
-	public Response createOutput(@QueryParam("insight") String insight, @QueryParam("params") String params, @Context HttpServletRequest request)
+	public Response createOutput(@QueryParam("insight") String insight, @QueryParam("params") String params, @Context HttpServletRequest request, @Context HttpServletResponse response)
 	{
 		// executes the output and gives the data
 		// executes the create runner
@@ -393,6 +401,7 @@ public class EngineResource {
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "No question defined.");
 			errorHash.put("Class", className);
+//			return getSO(errorHash);
 			return Response.status(400).entity(getSO(errorHash)).build();
 		}
 		
@@ -404,6 +413,12 @@ public class EngineResource {
 		Object obj = null;
 		try {
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
+			
+//			if(playSheet instanceof IStreamable){
+//				ServletOutputStream stream = response.getOutputStream();
+//				((IStreamable) playSheet).setOutputStream(stream);
+//			}
+			
 			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
 			//playRunner.setCreateSwingView(false);
 			playRunner.runWeb();
@@ -423,9 +438,11 @@ public class EngineResource {
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error occured processing question.");
 			errorHash.put("Class", className);
+//			return getSO(errorHash);
 			return Response.status(500).entity(getSO(errorHash)).build();
 		}
-		
+
+//		return getSO("");
 		return Response.status(200).entity(getSO(obj)).build();
 //		Hashtable <String, Object> paramHash = new Hashtable<String, Object>();
 //		if(params != null)
