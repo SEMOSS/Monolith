@@ -123,5 +123,6 @@
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/google-http-client-jackson-1.17.0-rc.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/google-oauth-client-1.17.0-rc.jar"/>
 	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jackson-core-asl-1.9.11.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/weka.jar"/>
 	<classpathentry kind="output" path="WebContent/WEB-INF/classes"/>
 </classpath>
