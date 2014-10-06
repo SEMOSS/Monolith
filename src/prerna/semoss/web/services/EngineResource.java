@@ -766,7 +766,7 @@ public class EngineResource {
 		Hashtable limitHash = new Hashtable();
 		int fullTableRowNum = tableViz.runCountQuery();
 		
-		semossQuery.addAllVarToOrderBy();// necessary for pagination
+//		semossQuery.addAllVarToOrderBy();// necessary for pagination
 		limitHash.put("fullSize", fullTableRowNum);
 		
 		if(items!= null){
