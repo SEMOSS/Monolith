@@ -111,6 +111,24 @@ public class CentralNameServer {
 		return getSO(result);
 	}
 	
+	// local call to UNregister an engine to the central name server and master db
+	@POST
+	@Path("context/unregisterEngine")
+	@Produces("application/json")
+	public StreamingOutput unregisterEngineApi(
+			MultivaluedMap<String, String> form, 
+			@Context HttpServletRequest request)
+	{
+		String engineApi = form.getFirst("dbName");
+		logger.info("LOCALLY removing engineAPI  ::: " + engineApi.toString());
+		
+		Hashtable params = new Hashtable();
+		params.put("dbName", engineApi);
+		String result = Utility.retrieveResult(centralApi + "/api/engine/central/context/unregisterEngine", params);
+		
+		return getSO(result);
+	}
+	
 
 	private StreamingOutput getSO(Object vec){
 		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
