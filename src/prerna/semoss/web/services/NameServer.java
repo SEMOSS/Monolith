@@ -26,6 +26,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.log4j.Logger;
 
 import prerna.algorithm.impl.CreateMasterDB;
+import prerna.algorithm.impl.DeleteMasterDB;
 import prerna.algorithm.impl.SearchMasterDB;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSEdge;
@@ -248,6 +249,23 @@ public class NameServer {
 
 		CreateMasterDB creater = new CreateMasterDB();
 		String success = creater.registerEngineAPI(baseURL,dbName);
+		
+		return getSO(success);
+	}
+
+	// central call to remove an engine from the master db
+	@POST
+	@Path("central/context/unregisterEngine")
+	@Produces("application/json")
+	public StreamingOutput unregisterEngine2MasterDatabase(
+			MultivaluedMap<String, String> form, 
+			@Context HttpServletRequest request)
+	{
+		String dbName = form.getFirst("dbName");
+		logger.info("CENTRALLY removing engineAPI  ::: " + dbName);
+
+		DeleteMasterDB deleater = new DeleteMasterDB();
+		String success = deleater.deleteEngineWeb(dbName);
 		
 		return getSO(success);
 	}
