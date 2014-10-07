@@ -49,7 +49,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.internal.StringMap;
 import com.restfb.DefaultFacebookClient;
 import com.restfb.FacebookClient;
-import com.restfb.FacebookClient.AccessToken;
+import com.restfb.Parameter;
 import com.restfb.types.User;
 import com.sun.jna.platform.win32.Secur32;
 import com.sun.jna.platform.win32.Secur32Util;
@@ -132,7 +132,9 @@ public class UserResource
 			ret.put("id", gplusId);
 			ret.put("name", name);
 			ret.put("email", email);
-			ret.put("picture", picture);
+			if(picture != null && !picture.isEmpty()) {
+				ret.put("picture", picture);
+			}
 
 			//TODO: Look for the authenticated user and grab permissions, or add if not found
 			SEMOSSPrincipal me = new SEMOSSPrincipal(gplusId, name, SEMOSSPrincipal.LOGIN_TYPES.Google, email, picture);
@@ -253,7 +255,7 @@ public class UserResource
 		
 		FacebookClient fb = new DefaultFacebookClient(accessToken, this.FACEBOOK_APP_SECRET);
 		
-		User me = fb.fetchObject("me", User.class);
+		User me = fb.fetchObject("me", User.class, Parameter.with("fields", "id, name, email, picture"));
 		String id = me.getId();
 		String email = me.getEmail();
 		String name = me.getName();
