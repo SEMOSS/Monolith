@@ -82,14 +82,13 @@ public class NameServer {
 		return res;
 	}
 
-	@Path("ns-{nameServerHostname}-{webappName}")
-	public Object getCentralNameServer(@PathParam("nameServerHostname") String nsIP, @PathParam("webappName") String webappName, @Context HttpServletRequest request) {
+	@Path("centralNameServer")
+	public Object getCentralNameServer(@QueryParam("centralServerUrl") String url, @Context HttpServletRequest request) {
 		// this is the name server
 		// this needs to return stuff
-		String address = "https://"+nsIP+"/"+webappName;
-		System.out.println(" Going to central name server ... " + address);
+		System.out.println(" Going to central name server ... " + url);
 		CentralNameServer cns = new CentralNameServer();
-		cns.setCentralApi(address);
+		cns.setCentralApi(url);
 		return cns;
 	}
 	
