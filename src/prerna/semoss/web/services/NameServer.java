@@ -242,14 +242,25 @@ public class NameServer {
 			MultivaluedMap<String, String> form, 
 			@Context HttpServletRequest request)
 	{
-		String dbName = form.getFirst("dbName");
+		Gson gson = new Gson();
+		ArrayList<String> dbArray = gson.fromJson(form.getFirst("dbName"), ArrayList.class);
 		String baseURL = form.getFirst("baseURL");
-		logger.info("CENTRALLY registering engineAPI  ::: " + baseURL + " ::: " + dbName);
 
 		CreateMasterDB creater = new CreateMasterDB();
-		String success = creater.registerEngineAPI(baseURL,dbName);
+		Hashtable<String, String> resultHash = new Hashtable<String, String>();
+		for(String db : dbArray){
+			String successString = creater.registerEngineAPI(baseURL,db);
+			resultHash.put(db, successString);
+		}
 		
-		return getSO(success);
+//		String dbName = form.getFirst("dbName");
+//		String baseURL = form.getFirst("baseURL");
+//		logger.info("CENTRALLY registering engineAPI  ::: " + baseURL + " ::: " + dbName);
+//
+//		CreateMasterDB creater = new CreateMasterDB();
+//		String success = creater.registerEngineAPI(baseURL,dbName);
+		
+		return getSO(resultHash);
 	}
 
 	// central call to remove an engine from the master db
@@ -260,13 +271,19 @@ public class NameServer {
 			MultivaluedMap<String, String> form, 
 			@Context HttpServletRequest request)
 	{
-		String dbName = form.getFirst("dbName");
-		logger.info("CENTRALLY removing engineAPI  ::: " + dbName);
+		Gson gson = new Gson();
+		ArrayList<String> dbArray = gson.fromJson(form.getFirst("dbName"), ArrayList.class);
+		logger.info("CENTRALLY removing dbs  ::: " + dbArray.toString());
+
 
 		DeleteMasterDB deleater = new DeleteMasterDB();
-		String success = deleater.deleteEngineWeb(dbName);
+		Hashtable<String, String> resultHash = new Hashtable<String, String>();
+		for(String db : dbArray){
+			String successString = deleater.deleteEngineWeb(db);
+			resultHash.put(db, successString);
+		}
 		
-		return getSO(success);
+		return getSO(resultHash);
 	}
 	
 	// get all insights related to a specific uri
