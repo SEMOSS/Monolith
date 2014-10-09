@@ -272,7 +272,7 @@ public class NameServer {
 			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		ArrayList<String> dbArray = gson.fromJson(form.getFirst("dbName"), ArrayList.class);
+		ArrayList<String> dbArray = gson.fromJson(form.getFirst("dbName")+"", ArrayList.class);
 		logger.info("CENTRALLY removing dbs  ::: " + dbArray.toString());
 
 
