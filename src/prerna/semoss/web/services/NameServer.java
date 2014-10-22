@@ -38,6 +38,7 @@ import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.PlaySheetEnum;
 import prerna.util.Utility;
 
 import com.google.gson.Gson;
@@ -388,4 +389,16 @@ public class NameServer {
 		   };
 	}
 
+	@GET
+	@Path("playsheets")
+	@Produces("application/json")
+	public StreamingOutput getPlaySheets(@Context HttpServletRequest request){
+		Hashtable<String, String> hashTable = new Hashtable<String, String>();
+
+		ArrayList<String> sheetNames = PlaySheetEnum.getAllSheetNames();
+		for(int i=0; i<sheetNames.size(); i++){
+			hashTable.put(sheetNames.get(i), PlaySheetEnum.getClassFromName(sheetNames.get(i)));
+		}
+		return getSO(hashTable);
+	}	
 }
