@@ -381,14 +381,18 @@ public class EngineResource {
 		outputHash.put("params", paramsHash);
 		
 		return Response.status(200).entity(getSO(outputHash)).build();
-	}	
+	}
 
 	// executes a particular insight
-	@GET
+	@POST
 	@Path("output")
 	@Produces("application/json")
-	public Response createOutput(@QueryParam("insight") String insight, @QueryParam("params") String params, @Context HttpServletRequest request, @Context HttpServletResponse response)
+	public Response createOutput(MultivaluedMap<String, String> form,/*@QueryParam("insight") String insight, @QueryParam("params") String params,*/ @Context HttpServletRequest request, @Context HttpServletResponse response)
 	{
+		String insight = form.getFirst("insight");
+		String params = form.getFirst("params");
+		String playsheet = form.getFirst("playsheet");
+		String sparql = form.getFirst("sparql");
 		// executes the output and gives the data
 		// executes the create runner
 		// once complete, it would plug the output into the session
@@ -398,13 +402,39 @@ public class EngineResource {
 		// key$value~key2:value2 etc
 		// need to find a way to handle other types than strings
 		
-		// if insight is null throw bad data exception
-		if(insight == null) {
-			Hashtable<String, String> errorHash = new Hashtable<String, String>();
-			errorHash.put("Message", "No question defined.");
-			errorHash.put("Class", className);
-//			return getSO(errorHash);
-			return Response.status(400).entity(getSO(errorHash)).build();
+		// if insight, playsheet and sparql are null throw bad data exception
+		if(insight.equals("null")) {
+			//check for sparql and playsheet; if not null then parameters have been passed in for preview functionality
+			if(sparql != null && playsheet != null){
+				
+				ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
+				exQueryProcessor.prepareQueryOutputPlaySheet(coreEngine, sparql, playsheet, "Preview Question", "");
+				Object obj = null;
+				try {
+					IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
+					
+					PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
+					playRunner.runWeb();
+					
+					obj = playSheet.getData();
+
+				} catch (Exception ex) { //need to specify the different exceptions 
+					ex.printStackTrace();
+					Hashtable<String, String> errorHash = new Hashtable<String, String>();
+					errorHash.put("Message", "Error occured processing question.");
+					errorHash.put("Class", className);
+					return Response.status(500).entity(getSO(errorHash)).build();
+				}
+				
+				return Response.status(200).entity(getSO(obj)).build();
+			}
+			else{
+				Hashtable<String, String> errorHash = new Hashtable<String, String>();
+				errorHash.put("Message", "No question defined.");
+				errorHash.put("Class", className);
+	//			return getSO(errorHash);
+				return Response.status(400).entity(getSO(errorHash)).build();
+			}
 		}
 		
 		System.out.println("Params is " + params);
@@ -990,145 +1020,4 @@ public class EngineResource {
 		}
 		return retArray;
   	}
-  	
-	@POST
-	@Path("insights/add")
-	@Produces("application/json")
-	public Response addInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-	{
-		Gson gson = new Gson();
-		String selectedEngine = form.getFirst("engine");
-		String perspective = form.getFirst("perspective");
-		String questionKey = form.getFirst("questionKey");
-		String question = form.getFirst("question");
-		String sparql = form.getFirst("sparql");
-		String layout = form.getFirst("layout");
-		String questionDescription = form.getFirst("questionDescription");
-		if(questionDescription.equals("")){
-			questionDescription=null;
-		}
-		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
-		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
-		Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
-		ArrayList<String> questionList = gson.fromJson(form.getFirst("questionList"), ArrayList.class);
-		boolean existingPerspective = form.getFirst("existingPerspective").equals("true");
-		boolean existingAutoGenQuestionKey = form.getFirst("existingAutoGenQuestionKey").equals("true");
-
-		String xmlFile = "db/" + selectedEngine + "/" + selectedEngine
-				+ "_Questions.XML";
-		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-
-		QuestionAdministrator.selectedEngine = selectedEngine;
-
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine, questionList, perspective, "Add Question");
-		questionAdmin.existingAutoGenQuestionKey = existingAutoGenQuestionKey;
-		questionAdmin.existingPerspective = existingPerspective;
-		questionAdmin.questionList = questionList;
-		
-		questionKey = questionAdmin.createQuestionKey(perspective);
-		questionAdmin.addQuestion(perspective, questionKey, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
-		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
-		return Response.status(200).entity("Success").build();
-	}
-  	
-	@POST
-	@Path("insights/edit")
-	@Produces("application/json")
-	public Response editInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-	{
-		Gson gson = new Gson();
-		String selectedEngine = form.getFirst("engine");
-		String perspective = form.getFirst("perspective");
-		String questionKey = form.getFirst("questionKey");
-		String question = form.getFirst("question");
-		String sparql = form.getFirst("sparql");
-		String layout = form.getFirst("layout");
-		String questionDescription = form.getFirst("questionDescription");
-		if(questionDescription.equals("")){
-			questionDescription=null;
-		}
-		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
-		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
-		Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
-		ArrayList<String> questionList = gson.fromJson(form.getFirst("questionList"), ArrayList.class);
-		//boolean existingPerspective = form.getFirst("existingPerspective").equals("true");
-		//boolean existingAutoGenQuestionKey = form.getFirst("existingAutoGenQuestionKey").equals("true");
-		
-		String currentPerspective = gson.fromJson(form.getFirst("currentPerspective"), String.class);
-		String currentQuestionKey = form.getFirst("questionKey");
-		String currentQuestion = form.getFirst("currentQuestion");
-		String currentSparql = form.getFirst("currentSparql");
-		String currentLayout = form.getFirst("currentLayout");
-		String currentQuestionDescription = form.getFirst("currentQuestionDescription");
-		Vector<String> currentParameterDependList = gson.fromJson(form.getFirst("currentParameterDependList"), Vector.class);
-		Vector<String> currentParameterQueryList = gson.fromJson(form.getFirst("currentParameterQueryList"), Vector.class);
-		Vector<String> currentParameterOptionList = gson.fromJson(form.getFirst("currentParameterOptionList"), Vector.class);
-		String currentNumberofQuestions = form.getFirst("currentNumberOfQuestions");
-		
-		//store the current info for each question that is being selected; for deleting the selected
-		//question then adding the new modified question
-		QuestionAdministrator.currentPerspective = currentPerspective;
-		QuestionAdministrator.currentQuestion = currentQuestion;
-		QuestionAdministrator.currentQuestionKey = currentQuestionKey;
-		QuestionAdministrator.currentLayout = currentLayout;
-		QuestionAdministrator.currentQuestionDescription = currentQuestionDescription;
-		QuestionAdministrator.currentSparql = currentSparql;
-		QuestionAdministrator.currentParameterDependListVector = currentParameterDependList;
-		QuestionAdministrator.currentParameterQueryListVector = currentParameterQueryList;
-		QuestionAdministrator.currentParameterOptionListVector = currentParameterOptionList;
-		QuestionAdministrator.currentNumberofQuestions = currentNumberofQuestions;
-		
-		String xmlFile = "db/" + selectedEngine + "/" + selectedEngine
-				+ "_Questions.XML";
-		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-		
-		QuestionAdministrator.selectedEngine = selectedEngine;
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine, questionList, perspective, "Edit Question");
-
-		questionAdmin.modifyQuestion(perspective, questionKey, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
-		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
-		
-		return Response.status(200).entity("Success").build();
-	}
-	
-	@POST
-	@Path("insights/delete")
-	@Produces("application/json")
-	public Response deleteInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-	{
-		Gson gson = new Gson();
-		String selectedEngine = form.getFirst("engine");
-		String perspective = form.getFirst("perspective");
-		String questionKey = form.getFirst("questionKey");
-		String question = form.getFirst("question");
-		String sparql = form.getFirst("sparql");
-		String layout = form.getFirst("layout");
-		String questionDescription = form.getFirst("questionDescription");
-		if(questionDescription.equals("")){
-			questionDescription=null;
-		}
-		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
-		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
-		Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
-		ArrayList<String> questionList = gson.fromJson(form.getFirst("questionList"), ArrayList.class);
-		//boolean existingPerspective = form.getFirst("existingPerspective").equals("true");
-		//boolean existingAutoGenQuestionKey = form.getFirst("existingAutoGenQuestionKey").equals("true");
-
-		QuestionAdministrator.selectedEngine = selectedEngine;
-
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine, questionList, perspective, "Delete Question");
-		//questionAdmin.existingAutoGenQuestionKey = existingAutoGenQuestionKey;
-		//questionAdmin.existingPerspective = existingPerspective;
-		questionAdmin.questionList = questionList;
-		
-		String xmlFile = "db/" + selectedEngine + "/" + selectedEngine
-				+ "_Questions.XML";
-		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-		
-		//questionKey = questionAdmin.createQuestionKey(perspective);
-		questionAdmin.deleteQuestion(perspective, questionKey, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
-		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
-		
-		return Response.status(200).entity("Success").build();
-	}
 }
