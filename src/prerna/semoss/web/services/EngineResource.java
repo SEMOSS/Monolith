@@ -403,7 +403,7 @@ public class EngineResource {
 		// need to find a way to handle other types than strings
 		
 		// if insight, playsheet and sparql are null throw bad data exception
-		if(insight.equals("null")) {
+		if(insight == null) {
 			//check for sparql and playsheet; if not null then parameters have been passed in for preview functionality
 			if(sparql != null && playsheet != null){
 				
