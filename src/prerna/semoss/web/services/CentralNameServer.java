@@ -4,20 +4,15 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Enumeration;
+import java.util.Arrays;
 import java.util.Hashtable;
-import java.util.Vector;
+import java.util.List;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
@@ -26,18 +21,11 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.log4j.Logger;
 
 import prerna.algorithm.impl.CreateMasterDB;
-import prerna.algorithm.impl.SearchMasterDB;
-import prerna.om.GraphDataModel;
-import prerna.om.SEMOSSVertex;
-import prerna.rdf.engine.api.IEngine;
-import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
-import prerna.ui.components.playsheets.GraphPlaySheet;
-import prerna.upload.Uploader;
+import prerna.algorithm.impl.DeleteMasterDB;
 import prerna.util.Utility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.ibm.icu.util.StringTokenizer;
 
 public class CentralNameServer {
 
@@ -45,6 +33,7 @@ public class CentralNameServer {
 	Logger logger = Logger.getLogger(CentralNameServer.class.getName());
 	String output = "";
 	String centralApi = "";
+	List<String> localDb = Arrays.asList("LocalMasterDatabase");
 	
 	public void setCentralApi(String centralApi){
 		this.centralApi = centralApi;
@@ -61,13 +50,18 @@ public class CentralNameServer {
 	{
 		String selectedUris = form.getFirst("selectedURI");
 		logger.info("LOCALLY have registered selected URIs as ::: " + selectedUris.toString());
-		
-		Hashtable params = new Hashtable();
-		params.put("selectedURI", selectedUris);
-		
-		String contextList = Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params);
-		
-		return getSO(contextList);
+
+		// if we are going to a remote name server
+		if(centralApi!=null){
+			Hashtable params = new Hashtable();
+			params.put("selectedURI", selectedUris);
+			return getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params));
+		}
+		else {
+			NameServer ns = new NameServer();
+			form.put("localMasterDbName", localDb);
+			return ns.getCentralContextInsights(form, request);
+		}
 	}	
 
 	// local call to get all engines related to a metamodel path
@@ -81,13 +75,19 @@ public class CentralNameServer {
 	{
 		String queryData = form.getFirst("QueryData");
 		logger.info("LOCALLY have registered selected URIs as ::: " + queryData.toString());
-		
-		Hashtable params = new Hashtable();
-		params.put("QueryData", queryData);
-		
-		String contextList = Utility.retrieveResult(centralApi + "/api/engine/central/context/databases", params);
-		
-		return getSO(contextList);
+
+		// if we are going to a remote name server
+		if(centralApi!=null){
+			Hashtable params = new Hashtable();
+			params.put("QueryData", queryData);
+			
+			return getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/databases", params));
+		}
+		else {
+			NameServer ns = new NameServer();
+			form.put("localMasterDbName", localDb);
+			return ns.getCentralContextDatabases(form, request);
+		}
 	}	
 	
 	// local call to register an engine to the central name server and master db
@@ -98,17 +98,26 @@ public class CentralNameServer {
 			MultivaluedMap<String, String> form, 
 			@Context HttpServletRequest request)
 	{
+		Gson gson = new Gson();
 		String engineApi = form.getFirst("dbName");
-		logger.info("LOCALLY registering engineAPI  ::: " + engineApi.toString());
+		ArrayList<String> dbArray = gson.fromJson(engineApi, ArrayList.class);
+		logger.info("LOCALLY have engineAPI  ::: " + engineApi.toString());
 		
-		String baseURL = request.getRequestURL().toString();
-		baseURL = baseURL.substring(0,baseURL.indexOf("/api/engine/")) + "/api/engine";
-		Hashtable params = new Hashtable();
-		params.put("dbName", engineApi);
-		params.put("baseURL", baseURL);
-		String result = Utility.retrieveResult(centralApi + "/api/engine/central/context/registerEngine", params);
-		
-		return getSO(result);
+		// if we are going to a remote name server
+		if(centralApi!=null){
+			String baseURL = request.getRequestURL().toString();
+			baseURL = baseURL.substring(0,baseURL.indexOf("/api/engine/")) + "/api/engine";
+			Hashtable params = new Hashtable();
+			params.put("dbName", engineApi);
+			params.put("baseURL", baseURL);
+			return getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/registerEngine", params));
+		}
+		else{
+			logger.info("LOCALLY registering engineAPI  ::: " + dbArray.toString());
+			NameServer ns = new NameServer();
+			form.put("localMasterDbName", localDb);
+			return ns.registerEngine2MasterDatabase(form, request);
+		}
 	}
 	
 	// local call to UNregister an engine to the central name server and master db
@@ -119,14 +128,24 @@ public class CentralNameServer {
 			MultivaluedMap<String, String> form, 
 			@Context HttpServletRequest request)
 	{
+		Gson gson = new Gson();
 		String engineApi = form.getFirst("dbName");
-		logger.info("LOCALLY removing engineAPI  ::: " + engineApi.toString());
-		
-		Hashtable params = new Hashtable();
-		params.put("dbName", engineApi);
-		String result = Utility.retrieveResult(centralApi + "/api/engine/central/context/unregisterEngine", params);
-		
-		return getSO(result);
+		ArrayList<String> dbArray = gson.fromJson(engineApi, ArrayList.class);
+		logger.info("LOCALLY have engineAPI  ::: " + dbArray.toString());
+
+		// if we are going to a remote name server
+		if(centralApi!=null){
+			Hashtable params = new Hashtable();
+			params.put("dbName", engineApi);
+			String result = Utility.retrieveResult(centralApi + "/api/engine/central/context/unregisterEngine", params);
+			return getSO(result);
+		}
+		else{
+			logger.info("LOCALLY removing engineAPI  ::: " + dbArray.toString());
+			NameServer ns = new NameServer();
+			form.put("localMasterDbName", localDb);
+			return ns.unregisterEngine2MasterDatabase(form, request);
+		}
 	}
 	
 
