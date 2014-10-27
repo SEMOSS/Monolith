@@ -53,17 +53,29 @@ public class NameServer {
 	String output = "";
 	Hashtable helpHash = null;
 
-	// gets the local database if it is available
-	// otherwise instantiates remote engine with api passed in
+	// gets the engine resource necessary for all engine calls
 	@Path("e-{engine}")
 	public Object getLocalDatabase(@PathParam("engine") String db, @QueryParam("api") String api, @Context HttpServletRequest request) {
-		// this is the name server
-		// this needs to return stuff
+		// check if api has been passed
+		// if yes:
+		// 			check if remote engine has already been started and stored in context -- if so, use that engine
+		// 			next check if local engine by that name has been started and stored in context
+		//			finally start the remote engine and store in context with api+engine name
+		// otherwise grab local engine
 		System.out.println(" Getting DB... " + db);
 		HttpSession session = request.getSession();
-		IEngine engine = (IEngine)session.getAttribute(db);
-		if(engine == null && api != null){ // if the engine does not exist locally and an api has been passed to find the engine remotely, add the remote engine to local context
-			addEngine(request, api, db);
+		IEngine engine = null;
+		if(api != null){
+			String remoteEngineKey = api+ ":" + db;
+			engine = (IEngine)session.getAttribute(remoteEngineKey);
+			if(engine == null)
+				engine = (IEngine)session.getAttribute(db);
+			if(engine == null){
+				addEngine(request, api, db);
+				engine = (IEngine)session.getAttribute(remoteEngineKey);
+			}
+		}
+		else {
 			engine = (IEngine)session.getAttribute(db);
 		}
 		EngineResource res = new EngineResource();
@@ -83,6 +95,7 @@ public class NameServer {
 		return res;
 	}
 
+	// Controls all calls controlling the central name server
 	@Path("centralNameServer")
 	public Object getCentralNameServer(@QueryParam("centralServerUrl") String url, @Context HttpServletRequest request) {
 		// this is the name server
@@ -177,12 +190,13 @@ public class NameServer {
 		HttpSession session = request.getSession();
 		String engines = (String)session.getAttribute("ENGINES");
 		// temporal
+		String remoteDbKey = api + ":" + database;
 		newEngine.openDB(null);
 		if(newEngine.isConnected())
 		{
-			engines = engines + ":" + database;
-			session.setAttribute(database, newEngine);
-			DIHelper.getInstance().setLocalProperty(database, newEngine);
+			engines = engines + ":" + remoteDbKey;
+			session.setAttribute(remoteDbKey, newEngine);
+			DIHelper.getInstance().setLocalProperty(remoteDbKey, newEngine);
 		}
 
 	}	
@@ -246,20 +260,24 @@ public class NameServer {
 		Gson gson = new Gson();
 		ArrayList<String> dbArray = gson.fromJson(form.getFirst("dbName"), ArrayList.class);
 		String baseURL = form.getFirst("baseURL");
+		String localMasterDbName = form.getFirst("localMasterDbName");
 
-		CreateMasterDB creater = new CreateMasterDB();
-		Hashtable<String, String> resultHash = new Hashtable<String, String>();
-		for(String db : dbArray){
-			String successString = creater.registerEngineAPI(baseURL,db);
-			resultHash.put(db, successString);
+		Hashtable<String, Boolean> resultHash = new Hashtable<String, Boolean>();
+		if(localMasterDbName==null){
+			CreateMasterDB creater = new CreateMasterDB();
+			for(String db : dbArray){
+				Boolean success = creater.registerEngineAPI(baseURL,db);
+				resultHash.put(db, success);
+			}
 		}
-		
-//		String dbName = form.getFirst("dbName");
-//		String baseURL = form.getFirst("baseURL");
-//		logger.info("CENTRALLY registering engineAPI  ::: " + baseURL + " ::: " + dbName);
-//
-//		CreateMasterDB creater = new CreateMasterDB();
-//		String success = creater.registerEngineAPI(baseURL,dbName);
+		else //it must be local master db thus the name of master db must have been passed 
+		{
+			CreateMasterDB creater = new CreateMasterDB(localMasterDbName);
+			for(String db : dbArray){
+				Boolean success = creater.registerEngineLocal(db);
+				resultHash.put(db, success);
+			}
+		}
 		
 		return getSO(resultHash);
 	}
@@ -275,13 +293,23 @@ public class NameServer {
 		Gson gson = new Gson();
 		ArrayList<String> dbArray = gson.fromJson(form.getFirst("dbName")+"", ArrayList.class);
 		logger.info("CENTRALLY removing dbs  ::: " + dbArray.toString());
+		String localMasterDbName = form.getFirst("localMasterDbName");
 
 
-		DeleteMasterDB deleater = new DeleteMasterDB();
-		Hashtable<String, String> resultHash = new Hashtable<String, String>();
-		for(String db : dbArray){
-			String successString = deleater.deleteEngineWeb(db);
-			resultHash.put(db, successString);
+		Hashtable<String, Boolean> resultHash = new Hashtable<String, Boolean>();
+		if(localMasterDbName == null){
+			DeleteMasterDB deleater = new DeleteMasterDB();
+			for(String db : dbArray){
+				Boolean success = deleater.deleteEngineWeb(db);
+				resultHash.put(db, success);
+			}
+		}
+		else {
+			DeleteMasterDB deleater = new DeleteMasterDB(localMasterDbName);
+			for(String db : dbArray){
+				Boolean success = deleater.deleteEngine(db);
+				resultHash.put(db, success);
+			}
 		}
 		
 		return getSO(resultHash);
@@ -298,18 +326,26 @@ public class NameServer {
 	{
 		Gson gson = new Gson();
 		ArrayList<String> selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
+		String localMasterDbName = form.getFirst("localMasterDbName");
 		logger.info("CENTRALLY have registered selected URIs as ::: " + selectedUris.toString());
 
-		SearchMasterDB searcher = new SearchMasterDB();
 		
 		ArrayList<SEMOSSVertex> selectedInstances = new ArrayList<SEMOSSVertex>();
 		for(String uri: selectedUris)
 		{
 			selectedInstances.add(new SEMOSSVertex(uri));
 		}
-		searcher.setInstanceList(selectedInstances);
-		
-		ArrayList<Hashtable<String, Object>> contextList = searcher.findRelatedQuestionsWeb();
+		ArrayList<Hashtable<String, Object>> contextList = null;
+		if(localMasterDbName != null) {
+			SearchMasterDB searcher = new SearchMasterDB(localMasterDbName);
+			searcher.setInstanceList(selectedInstances);
+			contextList = searcher.findRelatedQuestions();
+		}
+		else {
+			SearchMasterDB searcher = new SearchMasterDB();
+			searcher.setInstanceList(selectedInstances);
+			contextList = searcher.findRelatedQuestionsWeb();
+		}
 		return getSO(contextList);
 	}
 	
@@ -324,6 +360,7 @@ public class NameServer {
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
+		String localMasterDbName = form.getFirst("localMasterDbName");
 		logger.info("CENTRALLY have registered query data as ::: " + dataHash.toString());
 
 		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
@@ -333,6 +370,8 @@ public class NameServer {
 		ArrayList<Hashtable<String, String>> predV = tableViz.getPredV();
 
 		SearchMasterDB searcher = new SearchMasterDB();
+		if(localMasterDbName != null)
+			searcher = new SearchMasterDB(localMasterDbName);
 		
 		for (Hashtable<String, String> nodeHash : nodeV){
 			searcher.addToKeywordList(Utility.getInstanceName(nodeHash.get(tableViz.uriKey)));
@@ -340,8 +379,11 @@ public class NameServer {
 		for (Hashtable<String, String> edgeHash : predV){
 			searcher.addToEdgeList(Utility.getInstanceName(edgeHash.get("Subject")), Utility.getInstanceName(edgeHash.get("Object")));
 		}
-		
-		ArrayList<Hashtable<String, Object>> contextList = searcher.findRelatedEnginesWeb();
+		ArrayList<Hashtable<String, Object>> contextList = null;
+		if(localMasterDbName != null)
+			contextList = searcher.findRelatedEngines();
+		else
+			contextList = searcher.findRelatedEnginesWeb();
 		return getSO(contextList);
 	}
 	
