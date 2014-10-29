@@ -454,7 +454,7 @@ public class EngineResource {
 		Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
 		
 		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
-		exQueryProcessor.processQuestionQuery(coreEngine.getEngineName(), insight, paramHash);
+		exQueryProcessor.processQuestionQuery(coreEngine, insight, paramHash);
 		Object obj = null;
 		try {
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
