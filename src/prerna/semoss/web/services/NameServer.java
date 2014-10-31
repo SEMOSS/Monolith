@@ -165,15 +165,15 @@ public class NameServer {
 	@Produces("application/json")
 	public StreamingOutput printEngines(@Context HttpServletRequest request){
 		// would be cool to give this as an HTML
-		Hashtable<String, ArrayList<String>> hashTable = new Hashtable<String, ArrayList<String>>();
-		ArrayList<String> enginesList = new ArrayList<String>();
+		Hashtable<String, ArrayList<Hashtable<String,String>>> hashTable = new Hashtable<String, ArrayList<Hashtable<String,String>>>();
+//		ArrayList<String> enginesList = new ArrayList<String>();
 		HttpSession session = request.getSession();
-		String engines = (String)session.getAttribute("ENGINES");
-		StringTokenizer tokens = new StringTokenizer(engines, ":");
-		while(tokens.hasMoreTokens()) {
-			enginesList.add(tokens.nextToken());
-		}
-		hashTable.put("engines", enginesList);
+		ArrayList<Hashtable<String,String>> engines = (ArrayList<Hashtable<String,String>>)session.getAttribute(Constants.ENGINES);
+//		StringTokenizer tokens = new StringTokenizer(engines, ":");
+//		while(tokens.hasMoreTokens()) {
+//			enginesList.add(tokens.nextToken());
+//		}
+		hashTable.put("engines", engines);
 		return getSO(hashTable);
 	}	
 
@@ -188,13 +188,17 @@ public class NameServer {
 		newEngine.setAPI(api);
 		newEngine.setDatabase(database);
 		HttpSession session = request.getSession();
-		String engines = (String)session.getAttribute("ENGINES");
+		ArrayList<Hashtable<String,String>> engines = (ArrayList<Hashtable<String,String>>)session.getAttribute(Constants.ENGINES);
 		// temporal
 		String remoteDbKey = api + ":" + database;
 		newEngine.openDB(null);
 		if(newEngine.isConnected())
 		{
-			engines = engines + ":" + remoteDbKey;
+			Hashtable<String, String> engineHash = new Hashtable<String, String>();
+			engineHash.put("name", database);
+			engineHash.put("api", api);
+			engines.add(engineHash);
+			session.setAttribute(Constants.ENGINES, engines);
 			session.setAttribute(remoteDbKey, newEngine);
 			DIHelper.getInstance().setLocalProperty(remoteDbKey, newEngine);
 		}
