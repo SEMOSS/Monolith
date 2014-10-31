@@ -31,6 +31,7 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
+import prerna.insights.admin.QuestionAdmin;
 import prerna.om.Insight;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.api.IEngine;
@@ -400,7 +401,7 @@ public class EngineResource {
 	@POST
 	@Path("output")
 	@Produces("application/json")
-	public Response createOutput(MultivaluedMap<String, String> form,/*@QueryParam("insight") String insight, @QueryParam("params") String params,*/ @Context HttpServletRequest request, @Context HttpServletResponse response)
+	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
 	{
 		String insight = form.getFirst("insight");
 		String params = form.getFirst("params");
@@ -1033,4 +1034,13 @@ public class EngineResource {
 		}
 		return retArray;
   	}
+  	
+  	@Path("/insights/modification")
+	public Object uploadFile(@Context HttpServletRequest request) {
+  		QuestionAdmin questionAdmin = new QuestionAdmin(this.coreEngine);
+
+		return questionAdmin;
+	}
+  	
+
 }
