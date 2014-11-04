@@ -13,6 +13,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import prerna.rdf.engine.api.IEngine;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 
@@ -49,11 +50,15 @@ public class UserDBFilter implements Filter {
 				// this would do some check to see
 				String engineName = tokens.nextToken();
 				System.out.println(" >>> " + engineName);
-				Hashtable<String, String> engineHash = new Hashtable<String, String> ();
-				engineHash.put("name", engineName);
-				engines.add(engineHash);
+				IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(engineName);
+				boolean hidden = (engine.getProperty(Constants.HIDDEN_DATABASE) != null && Boolean.parseBoolean(engine.getProperty(Constants.HIDDEN_DATABASE)));
+				if(!hidden) {
+					Hashtable<String, String> engineHash = new Hashtable<String, String> ();
+					engineHash.put("name", engineName);
+					engines.add(engineHash);
+				}
 				// set this guy into the session of our user
-				session.setAttribute(engineName, DIHelper.getInstance().getLocalProp(engineName));
+				session.setAttribute(engineName, engine);
 				// and over
 			}			
 			session.setAttribute(Constants.ENGINES, engines);
