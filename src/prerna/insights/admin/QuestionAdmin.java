@@ -44,6 +44,9 @@ public class QuestionAdmin {
 		String sparql = form.getFirst("sparql");
 		String layout = form.getFirst("layout");
 		String questionDescription = form.getFirst("questionDescription");
+		if(questionDescription.equals("null")){
+			questionDescription = null;
+		}
 
 		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
 		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
@@ -84,6 +87,9 @@ public class QuestionAdmin {
 		String sparql = form.getFirst("sparql");
 		String layout = form.getFirst("layout");
 		String questionDescription = form.getFirst("questionDescription");
+		if(questionDescription.equals("null")){
+			questionDescription = null;
+		}
 
 		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
 		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
@@ -143,6 +149,9 @@ public class QuestionAdmin {
 		String sparql = form.getFirst("sparql");
 		String layout = form.getFirst("layout");
 		String questionDescription = form.getFirst("questionDescription");
+		if(questionDescription.equals("null")){
+			questionDescription = null;
+		}
 
 		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
 		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
