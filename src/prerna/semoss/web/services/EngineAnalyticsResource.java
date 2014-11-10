@@ -5,6 +5,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Vector;
 
+import prerna.algorithm.cluster.LocalOutlierFactorAlgorithm;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.RDFFileSesameEngine;
@@ -87,40 +88,56 @@ public class EngineAnalyticsResource {
 		return allData;
 	}
 	
-	public Hashtable<String, Object> getQuestionsWithoutParams(IEngine engine, String engineName, boolean isEngineMaster) {
+	public List<Hashtable<String, String>> getQuestionsWithoutParams(IEngine engine) {
 		final String getInsightsWithoutParamsQuery = "SELECT DISTINCT ?questionDescription WHERE { BIND(@ENGINE_NAME@ AS ?engine) {?engineInsight <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Engine:Insight>} {?engine ?engineInsight ?insight} {?insight <http://semoss.org/ontologies/Relation/Contains/Description> ?questionDescription} MINUS{?insight <PARAM:TYPE> ?entity} }";
-		final String getInsightsWithoutParamsFromMasterDBQuery = "SELECT DISTINCT ?questionDescription ?timesClicked WHERE { BIND(@ENGINE_NAME@ AS ?engine) {?engineInsight <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Engine:Insight>} {?engine ?engineInsight ?insight} {?insight <http://semoss.org/ontologies/Relation/Contains/Description> ?questionDescription} {?insight <http://semoss.org/ontologies/Relation/PartOf> ?userInsight} {?userInsight <http://semoss.org/ontologies/Relation/Contains/TimesClicked> ?timesClicked} MINUS{?insight <PARAM:TYPE> ?entity} } ORDER BY ?timesClicked";
-				
-		List<Object[]> questionSet = new ArrayList<Object[]>();
+		
+		List<Hashtable<String, String>> retList = new ArrayList<Hashtable<String, String>>();
 		
 		RDFFileSesameEngine insightEngine = ((AbstractEngine)engine).getInsightBaseXML();
-		String query = "";
-		if(isEngineMaster) {
-			query = getInsightsWithoutParamsQuery.replace("@ENGINE_NAME@", "http://semoss.org/ontologies/Concept/Engine/".concat(engineName));
-		} else {
-			query = getInsightsWithoutParamsFromMasterDBQuery.replace("@ENGINE_NAME@", "http://semoss.org/ontologies/Concept/Engine/".concat(engineName));
-		}
+		String query = getInsightsWithoutParamsQuery.replace("@ENGINE_NAME@", "http://semoss.org/ontologies/Concept/Engine/".concat(engine.getEngineName()));
 		
 		SesameJenaSelectWrapper sjsw = Utility.processQuery(insightEngine, query);
 		String[] names = sjsw.getVariables();
 		String param1 = names[0];
 		while(sjsw.hasNext()) {
 			SesameJenaSelectStatement sjss = sjsw.next();
-			String[] question = new String[]{sjss.getVar(param1).toString()};
-			questionSet.add(question);
+			Hashtable<String, String> questionHash = new Hashtable<String, String>();
+			questionHash.put("Questions", sjss.getVar(param1).toString());
+			retList.add(questionHash);
 		}
 		
-		Hashtable<String, Object> retHash = new Hashtable<String, Object>();
-		retHash.put("data", questionSet);
-		retHash.put("headers", new String[]{"Questions"});
-		
-		return retHash;
+		return retList;
 	}
 	
-	public Hashtable<String, Object> getQuestionsForParam(IEngine engine, String typeURI) {
+	
+//	public Hashtable<String, Object> getQuestionsWithoutParamsFromMasterDB(IEngine engine, String engineName, boolean isEngineMaster) {
+//		final String getInsightsWithoutParamsFromMasterDBQuery = "SELECT DISTINCT ?questionDescription ?timesClicked WHERE { BIND(@ENGINE_NAME@ AS ?engine) {?engineInsight <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Engine:Insight>} {?engine ?engineInsight ?insight} {?insight <http://semoss.org/ontologies/Relation/Contains/Description> ?questionDescription} {?insight <http://semoss.org/ontologies/Relation/PartOf> ?userInsight} {?userInsight <http://semoss.org/ontologies/Relation/Contains/TimesClicked> ?timesClicked} MINUS{?insight <PARAM:TYPE> ?entity} } ORDER BY ?timesClicked";
+//				
+//		List<Object[]> questionSet = new ArrayList<Object[]>();
+//		
+//		RDFFileSesameEngine insightEngine = ((AbstractEngine)engine).getInsightBaseXML();
+//		String query = getInsightsWithoutParamsFromMasterDBQuery.replace("@ENGINE_NAME@", "http://semoss.org/ontologies/Concept/Engine/".concat(engineName));
+//		
+//		SesameJenaSelectWrapper sjsw = Utility.processQuery(insightEngine, query);
+//		String[] names = sjsw.getVariables();
+//		String param1 = names[0];
+//		while(sjsw.hasNext()) {
+//			SesameJenaSelectStatement sjss = sjsw.next();
+//			String[] question = new String[]{sjss.getVar(param1).toString()};
+//			questionSet.add(question);
+//		}
+//		
+//		Hashtable<String, Object> retHash = new Hashtable<String, Object>();
+//		retHash.put("data", questionSet);
+//		retHash.put("headers", new String[]{"Questions"});
+//		
+//		return retHash;
+//	}
+	
+	public List<Hashtable<String, String>> getQuestionsForParam(IEngine engine, String typeURI) {
 		final String getInsightsWithParamsQuery = "SELECT DISTINCT ?questionDescription WHERE { BIND(<@ENTITY_TYPE@> AS ?entity) BIND(@ENGINE_NAME@ AS ?engine) {?engineInsight <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Engine:Insight>} {?engine ?engineInsight ?insight} {?insight <http://semoss.org/ontologies/Relation/Contains/Description> ?questionDescription} {?insight <PARAM:TYPE> ?entity} }";
 		
-		List<Object[]> questionSet = new ArrayList<Object[]>();
+		List<Hashtable<String, String>> retList = new ArrayList<Hashtable<String, String>>();
 		
 		RDFFileSesameEngine insightEngine = ((AbstractEngine)engine).getInsightBaseXML();
 		String query = getInsightsWithParamsQuery.replace("@ENGINE_NAME@", "http://semoss.org/ontologies/Concept/Engine/".concat(engine.getEngineName()));		
@@ -131,30 +148,28 @@ public class EngineAnalyticsResource {
 		String param1 = names[0];
 		while(sjsw.hasNext()) {
 			SesameJenaSelectStatement sjss = sjsw.next();
-			String[] question = new String[]{sjss.getVar(param1).toString()};
-			questionSet.add(question);
+			Hashtable<String, String> questionHash = new Hashtable<String, String>();
+			questionHash.put("Questions", sjss.getVar(param1).toString());
+			retList.add(questionHash);
 		}
 		
-		Hashtable<String, Object> retHash = new Hashtable<String, Object>();
-		retHash.put("data", questionSet);
-		retHash.put("headers", new String[]{"Questions"});
-		
-		return retHash;
+		return retList;
 	}
 	
-	public Hashtable<String, Object> getMostInfluentialInstancesForAllTypes(IEngine engine) {
-		final String getMostConncectedInstancesQuery = "SELECT DISTINCT ?entity ?instance (COUNT(?inRel) + COUNT(?outRel) AS ?edgeCount) WHERE { { FILTER (STR(?entity)!='http://semoss.org/ontologies/Concept') {?entity <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://semoss.org/ontologies/Concept>} {?instance <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity} {?instance <http://www.w3.org/2000/01/rdf-schema#label> ?instanceLabel2} {?node2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept>} {?inRel <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} {?inRel <http://www.w3.org/2000/01/rdf-schema#label> ?relLabel2} {?node2 ?inRel ?instance} } UNION { FILTER (STR(?entity)!='http://semoss.org/ontologies/Concept') {?entity <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://semoss.org/ontologies/Concept>} {?instance <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity} {?instance <http://www.w3.org/2000/01/rdf-schema#label> ?instanceLabel1} {?node1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept>} {?outRel <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} {?outRel <http://www.w3.org/2000/01/rdf-schema#label> ?relLabel1} {?instance ?outRel ?node1} } } GROUP BY ?entity ?instance";
+	public List<Hashtable<String, String>> getMostInfluentialInstancesForAllTypes(IEngine engine) {
+		final String getMostConncectedInstancesQuery = "SELECT DISTINCT ?entity ?instance (COUNT(?inRel) + COUNT(?outRel) AS ?edgeCount) WHERE { { FILTER (STR(?entity)!='http://semoss.org/ontologies/Concept') {?entity <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://semoss.org/ontologies/Concept>} {?instance <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity} {?instance <http://www.w3.org/2000/01/rdf-schema#label> ?instanceLabel2} {?node2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept>} {?inRel <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} {?inRel <http://www.w3.org/2000/01/rdf-schema#label> ?relLabel2} {?node2 ?inRel ?instance} } UNION { FILTER (STR(?entity)!='http://semoss.org/ontologies/Concept') {?entity <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://semoss.org/ontologies/Concept>} {?instance <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity} {?instance <http://www.w3.org/2000/01/rdf-schema#label> ?instanceLabel1} {?node1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept>} {?outRel <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} {?outRel <http://www.w3.org/2000/01/rdf-schema#label> ?relLabel1} {?instance ?outRel ?node1} } } GROUP BY ?entity ?instance ORDER BY DESC(?edgeCount)";
 		return mostConnectedInstancesProcessing(engine, getMostConncectedInstancesQuery);
 	}
 	
-	public Hashtable<String, Object> getMostInfluentialInstancesForSpecificTypes(IEngine engine, String typeURI) {
-		final String getMostConnectedInstancesWithType = "SELECT DISTINCT ?entity (COUNT(?inRel) + COUNT(?outRel) AS ?edgeCount) WHERE { { {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@NODE_URI@>} {?node2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept>} {?inRel <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} {?inRel <http://www.w3.org/2000/01/rdf-schema#label> ?label2} {?node2 ?inRel ?entity} } UNION { {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@NODE_URI@>} {?node1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept>} {?outRel <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} {?outRel <http://www.w3.org/2000/01/rdf-schema#label> ?label1} {?entity ?outRel ?node1} } } GROUP BY ?entity ";
+	public List<Hashtable<String, String>> getMostInfluentialInstancesForSpecificTypes(IEngine engine, String typeURI) {
+		final String getMostConnectedInstancesWithType = "SELECT DISTINCT ?nodeType ?entity (COUNT(?inRel) + COUNT(?outRel) AS ?edgeCount) WHERE { BIND(<@NODE_URI@> AS ?nodeType) { {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?nodeType} {?node2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept>} {?inRel <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} {?inRel <http://www.w3.org/2000/01/rdf-schema#label> ?label2} {?node2 ?inRel ?entity} } UNION { {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?nodeType} {?node1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept>} {?outRel <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} {?outRel <http://www.w3.org/2000/01/rdf-schema#label> ?label1} {?entity ?outRel ?node1} } } GROUP BY ?entity ?type ORDER BY DESC(?edgeCount)";
 		String query = getMostConnectedInstancesWithType.replaceAll("@NODE_URI@", typeURI);
 		return mostConnectedInstancesProcessing(engine, query);
 	}
 
-	private Hashtable<String, Object> mostConnectedInstancesProcessing(IEngine engine, String query) {
-		List<Object[]> instanceList = new ArrayList<Object[]>();
+	private List<Hashtable<String, String>> mostConnectedInstancesProcessing(IEngine engine, String query) {
+		List<Hashtable<String, String>> retList = new ArrayList<Hashtable<String, String>>();
+		
 		SesameJenaSelectWrapper sjsw = Utility.processQuery(engine, query);
 		String[] names = sjsw.getVariables();
 		String param1 = names[0];
@@ -162,27 +177,102 @@ public class EngineAnalyticsResource {
 		String param3 = names[2];
 		while(sjsw.hasNext()) {
 			SesameJenaSelectStatement sjss = sjsw.next();
-			String[] instanceInfo = new String[]{sjss.getVar(param1).toString(), sjss.getVar(param2).toString(), sjss.getVar(param3).toString()};
-			instanceList.add(instanceInfo);
+			Hashtable<String, String> instancesHash = new Hashtable<String, String>();
+			instancesHash.put("Node Type", sjss.getVar(param1).toString());
+			instancesHash.put("Instance", sjss.getVar(param2).toString());
+			instancesHash.put("# of Edges", sjss.getVar(param3).toString());
+			retList.add(instancesHash);
 		}
 		
-		Hashtable<String, Object> retHash = new Hashtable<String, Object>();
-		retHash.put("data", instanceList);
-		retHash.put("headers", new String[]{"Node Type", "Instance", "# of Edges"});
-		
-		return retHash;
+		return retList;
 	}
 	
-//	public Hashtable<String, Object> getLargestOutliers(IEngine engine, String typeURI) {
-//		
-//	}
+	public List<Hashtable<String, Object>> getLargestOutliers(IEngine engine, String typeURI) {
+		final String basePropString = "<http://semoss.org/ontologies/Relation/Contains/@PROP@>";
+		final String baseQuery = "SELECT DISTINCT ?@TYPE@ @PROPERTIES@ WHERE { {?@TYPE@ <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@TYPE_URI@>} @PROP_TRIPLES@ }";
+		
+		final String propListQuery = "SELECT DISTINCT ?prop WHERE { {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@TYPE_URI@>} {?prop <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Relation/Contains>} {?entity ?prop ?val} }";
+		
+		SesameJenaSelectWrapper sjsw = Utility.processQuery(engine, propListQuery.replace("@TYPE_URI@", typeURI));
+		String[] names = sjsw.getVariables();
+		String retVar = names[0];
+		String propVars = "";
+		String propTriples = "";
+		while(sjsw.hasNext()) {
+			SesameJenaSelectStatement sjss = sjsw.next();
+			String varName = sjss.getVar(retVar).toString();
+			String varURI = sjss.getRawVar(retVar).toString();
+			
+			propVars.concat("?").concat(varName).concat(" ");
+			propTriples.concat("?").concat(varName).concat(" ").concat(basePropString.replace("@PROP@", varName)).concat(" ").concat("<").concat(varURI).concat(">").concat(" ");
+		}
+		
+		String query = baseQuery.replaceAll("@TYPE@", Utility.getInstanceName(typeURI)).replace("@TYPE_URI@", typeURI).replace("@PROPERTIES@", propVars).replace("@PROP_TRIPLES@", propTriples);
+		
+		ArrayList<Object[]> results = new ArrayList<Object[]>();
+		sjsw = Utility.processQuery(engine, query);
+		names = sjsw.getVariables();
+		int length = names.length;
+		while(sjsw.hasNext()) {
+			Object[] row = new Object[length];
+			SesameJenaSelectStatement sjss = sjsw.next();
+			int i = 0;
+			for(i = 0; i < length; i++) {
+				row[i] = sjss.getVar(names[i]);
+			}
+			results.add(row);
+		}
+		
+		LocalOutlierFactorAlgorithm alg = new LocalOutlierFactorAlgorithm(results, names);
+		alg.setK(25);
+		alg.execute();
+		
+		results = alg.getMasterTable();
+		double[] lof = alg.getLOF();
+		double[] lop = alg.getLOP();
+		
+		int i = 0;
+		int j = 0;
+		length = lop.length;
+		int numResults = 10;
+		Integer[] maxIndicies = new Integer[numResults];
+		for(; i < length; i++) {
+			for(; j < numResults; j++) {
+				// for the first 10 entries
+				if(maxIndicies[j] == null) {
+					maxIndicies[j] = i;
+					break;
+				}
+				else if(lof[maxIndicies[j]] < lof[i]) {
+					int k = numResults - 1;
+					// insert index in correct spot
+					for(; k < j; k--) {
+						maxIndicies[k] = maxIndicies[k - 1];
+					}
+					maxIndicies[j] = i;
+					break;
+				}
+			}
+		}
+		
+		List<Hashtable<String, Object>> retList = new ArrayList<Hashtable<String, Object>>();
+
+		i = 0;
+		for(; i < numResults; i++) {
+			int index = maxIndicies[i];
+			Hashtable<String, Object> instancesHash = new Hashtable<String, Object>();
+			instancesHash.put("Instance", results.get(index)[0]);
+			instancesHash.put("Outlier Probability", lop[index]);
+			retList.add(instancesHash);
+		}
+		
+		return retList;
+	}
 	
-	
-	
-	public Hashtable<String, Object> getPropertiesForInstance(IEngine engine, String instanceURI) {
+	public List<Hashtable<String, String>> getPropertiesForInstance(IEngine engine, String instanceURI) {
 		final String getPropertiesForInstance = "SELECT DISTINCT ?entity ?prop WHERE { BIND(<@INSTANCE_URI@> AS ?source) {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Relation/Contains>} {?source ?entity ?prop } } ORDER BY ?entity";
 
-		List<Object[]> propList = new ArrayList<Object[]>();
+		List<Hashtable<String, String>> retList = new ArrayList<Hashtable<String, String>>();
 
 		String query = getPropertiesForInstance.replace("@INSTANCE_URI@", instanceURI);
 		
@@ -192,15 +282,13 @@ public class EngineAnalyticsResource {
 		String param2 = names[1];
 		while(sjsw.hasNext()) {
 			SesameJenaSelectStatement sjss = sjsw.next();
-			String[] instanceInfo = new String[]{sjss.getVar(param1).toString(), sjss.getVar(param2).toString()};
-			propList.add(instanceInfo);
+			Hashtable<String, String> propHash = new Hashtable<String, String>();
+			propHash.put("Property", sjss.getVar(param1).toString());
+			propHash.put("Value", sjss.getVar(param2).toString());
+			retList.add(propHash);
 		}
 		
-		Hashtable<String, Object> retHash = new Hashtable<String, Object>();
-		retHash.put("data", propList);
-		retHash.put("headers", new String[]{"Property", "Value"});
-		
-		return retHash;
+		return retList;
 	}
 	
 }
