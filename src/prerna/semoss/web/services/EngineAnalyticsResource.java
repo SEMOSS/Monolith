@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
@@ -25,18 +27,21 @@ public class EngineAnalyticsResource {
 		this.engine = engine;
 	}
 	
+	@POST
 	@Path("/scatter")
 	public Response generateScatter() {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		return Response.status(200).entity(getSO(ps.generateScatter(engine))).build();		
 	}
 	
+	@POST
 	@Path("/genericQuestions")
 	public Response getQuestionsWithoutParams() {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		return Response.status(200).entity(getSO(ps.getQuestionsWithoutParams(engine))).build();		
 	}
 
+	@POST
 	@Path("/influentialInstances")
 	public Response getMostInfluentialInstances(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
@@ -47,18 +52,21 @@ public class EngineAnalyticsResource {
 		}
 	}
 	
+	@POST
 	@Path("/outliers")
 	public Response getLargestOutliers(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		return Response.status(200).entity(getSO(ps.getLargestOutliers(engine, typeURI))).build();
 	}
 	
+	@POST
 	@Path("/connectionMap")
 	public Response getConnectionMap(@QueryParam("instanceURI") String instanceURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		return Response.status(200).entity(getSO(ps.getConnectionMap(engine, instanceURI))).build();
 	}
 	
+	@POST
 	@Path("/properties")
 	public Response getPropertiesForInstance(@QueryParam("instanceURI") String instanceURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
