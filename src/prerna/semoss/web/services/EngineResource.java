@@ -1042,5 +1042,11 @@ public class EngineResource {
 		return questionAdmin;
 	}
   	
+  	@Path("/analytics")
+  	public Object runEngineAnalytics(){
+  		EngineAnalyticsResource analytics = new EngineAnalyticsResource(this.coreEngine);
+  		
+  		return analytics;
+  	}
 
 }
