@@ -17,19 +17,19 @@ public class EngineAnalyticsResource {
 		this.engine = engine;
 	}
 	
-	@Path("scatter")
+	@Path("/scatter")
 	public Hashtable<String, Object> generateScatter() {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		return ps.generateScatter(engine);		
 	}
 	
-	@Path("genericQuestions")
+	@Path("/genericQuestions")
 	public List<Hashtable<String, String>> getQuestionsWithoutParams() {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		return ps.getQuestionsWithoutParams(engine);		
 	}
 
-	@Path("influentialInstances")
+	@Path("/influentialInstances")
 	public List<Hashtable<String, String>> getMostInfluentialInstances(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		if(typeURI == null) {
@@ -39,19 +39,19 @@ public class EngineAnalyticsResource {
 		}
 	}
 	
-	@Path("outliers")
+	@Path("/outliers")
 	public List<Hashtable<String, Object>> getLargestOutliers(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		return ps.getLargestOutliers(engine, typeURI);
 	}
 	
-	@Path("connectionMap")
+	@Path("/connectionMap")
 	public Hashtable<String, List<Hashtable<String, Object>>> getConnectionMap(@QueryParam("instanceURI") String instanceURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		return ps.getConnectionMap(engine, instanceURI);
 	}
 	
-	@Path("properties")
+	@Path("/properties")
 	public List<Hashtable<String, String>> getPropertiesForInstance(@QueryParam("instanceURI") String instanceURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		return ps.getPropertiesForInstance(engine, instanceURI);
