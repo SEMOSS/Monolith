@@ -30,7 +30,7 @@ public class EngineAnalyticsResource {
 	}
 
 	@Path("influentialInstances")
-	public List<Hashtable<String, String>> getMostInfluentialInstancesForSpecificTypes(@QueryParam("typeURI") String typeURI) {
+	public List<Hashtable<String, String>> getMostInfluentialInstances(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		if(typeURI == null) {
 			return ps.getMostInfluentialInstancesForAllTypes(engine);		
