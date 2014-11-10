@@ -1,60 +1,83 @@
 package prerna.semoss.web.services;
 
-import java.util.Hashtable;
-import java.util.List;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 
 import prerna.rdf.engine.api.IEngine;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 public class EngineAnalyticsResource {
 
 	private IEngine engine;
-	
+	String output = "";
+
 	public EngineAnalyticsResource(IEngine engine) {
 		this.engine = engine;
 	}
 	
 	@Path("/scatter")
-	public Hashtable<String, Object> generateScatter() {
+	public Response generateScatter() {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
-		return ps.generateScatter(engine);		
+		return Response.status(200).entity(getSO(ps.generateScatter(engine))).build();		
 	}
 	
 	@Path("/genericQuestions")
-	public List<Hashtable<String, String>> getQuestionsWithoutParams() {
+	public Response getQuestionsWithoutParams() {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
-		return ps.getQuestionsWithoutParams(engine);		
+		return Response.status(200).entity(getSO(ps.getQuestionsWithoutParams(engine))).build();		
 	}
 
 	@Path("/influentialInstances")
-	public List<Hashtable<String, String>> getMostInfluentialInstances(@QueryParam("typeURI") String typeURI) {
+	public Response getMostInfluentialInstances(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		if(typeURI == null) {
-			return ps.getMostInfluentialInstancesForAllTypes(engine);		
+			return Response.status(200).entity(getSO(ps.getMostInfluentialInstancesForAllTypes(engine))).build();		
 		} else {
-			return ps.getMostInfluentialInstancesForSpecificTypes(engine, typeURI);		
+			return Response.status(200).entity(getSO(ps.getMostInfluentialInstancesForSpecificTypes(engine, typeURI))).build();		
 		}
 	}
 	
 	@Path("/outliers")
-	public List<Hashtable<String, Object>> getLargestOutliers(@QueryParam("typeURI") String typeURI) {
+	public Response getLargestOutliers(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
-		return ps.getLargestOutliers(engine, typeURI);
+		return Response.status(200).entity(getSO(ps.getLargestOutliers(engine, typeURI))).build();
 	}
 	
 	@Path("/connectionMap")
-	public Hashtable<String, List<Hashtable<String, Object>>> getConnectionMap(@QueryParam("instanceURI") String instanceURI) {
+	public Response getConnectionMap(@QueryParam("instanceURI") String instanceURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
-		return ps.getConnectionMap(engine, instanceURI);
+		return Response.status(200).entity(getSO(ps.getConnectionMap(engine, instanceURI))).build();
 	}
 	
 	@Path("/properties")
-	public List<Hashtable<String, String>> getPropertiesForInstance(@QueryParam("instanceURI") String instanceURI) {
+	public Response getPropertiesForInstance(@QueryParam("instanceURI") String instanceURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
-		return ps.getPropertiesForInstance(engine, instanceURI);
+		return Response.status(200).entity(getSO(ps.getPropertiesForInstance(engine, instanceURI))).build();
+	}
+	
+	private StreamingOutput getSO(Object vec)
+	{
+		if(vec != null)
+		{
+			Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
+			output = gson.toJson(vec);
+			   return new StreamingOutput() {
+			         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+			            PrintStream ps = new PrintStream(outputStream);
+			            ps.println(output);
+			         }};		
+		}
+		return null;
 	}
 	
 	//TODO: getting questions from master db is web specific and should not be semoss playsheet
