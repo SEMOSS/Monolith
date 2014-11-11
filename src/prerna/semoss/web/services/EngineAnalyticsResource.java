@@ -35,12 +35,16 @@ public class EngineAnalyticsResource {
 	}
 	
 	@POST
-	@Path("/genericQuestions")
-	public Response getQuestionsWithoutParams() {
+	@Path("/questions")
+	public Response getQuestions(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
-		return Response.status(200).entity(getSO(ps.getQuestionsWithoutParams(engine))).build();		
+		if(typeURI == null) {
+			return Response.status(200).entity(getSO(ps.getQuestionsWithoutParams(engine))).build();
+		} else {
+			return Response.status(200).entity(getSO(ps.getQuestionsForParam(engine, typeURI))).build();		
+		}
 	}
-
+	
 	@POST
 	@Path("/influentialInstances")
 	public Response getMostInfluentialInstances(@QueryParam("typeURI") String typeURI) {
