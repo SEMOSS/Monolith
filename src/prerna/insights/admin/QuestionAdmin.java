@@ -40,6 +40,7 @@ public class QuestionAdmin {
 		String selectedEngine = form.getFirst("engine");
 		String perspective = form.getFirst("perspective");
 		String questionKey = form.getFirst("questionKey");
+		String questionOrder = form.getFirst("questionOrder");
 		String question = form.getFirst("question");
 		String sparql = form.getFirst("sparql");
 		String layout = form.getFirst("layout");
@@ -69,7 +70,7 @@ public class QuestionAdmin {
 		questionAdmin.questionList = questionList;
 		
 		questionKey = questionAdmin.createQuestionKey(perspective);
-		questionAdmin.addQuestion(perspective, questionKey, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
+		questionAdmin.addQuestion(perspective, questionKey, questionOrder, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
 		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
   		
   		return Response.status(200).entity(getSO("Success")).build();
@@ -82,7 +83,8 @@ public class QuestionAdmin {
 		Gson gson = new Gson();
 		String selectedEngine = form.getFirst("engine");
 		String perspective = form.getFirst("perspective");
-		String questionKey = form.getFirst("questionKey");
+		String questionKey = form.getFirst("currentQuestionKey");
+		String questionOrder = form.getFirst("questionOrder");
 		String question = form.getFirst("question");
 		String sparql = form.getFirst("sparql");
 		String layout = form.getFirst("layout");
@@ -99,7 +101,8 @@ public class QuestionAdmin {
 		//boolean existingAutoGenQuestionKey = form.getFirst("existingAutoGenQuestionKey").equals("true");
 		
 		String currentPerspective = gson.fromJson(form.getFirst("currentPerspective"), String.class);
-		String currentQuestionKey = form.getFirst("questionKey");
+		String currentQuestionKey = form.getFirst("currentQuestionKey");
+		String currentQuestionOrder = form.getFirst("currentQuestionOrder");
 		String currentQuestion = form.getFirst("currentQuestion");
 		String currentSparql = form.getFirst("currentSparql");
 		String currentLayout = form.getFirst("currentLayout");
@@ -114,6 +117,7 @@ public class QuestionAdmin {
 		//store the current info for each question that is being selected; for deleting the selected
 		//question then adding the new modified question
 		QuestionAdministrator.currentPerspective = currentPerspective;
+		QuestionAdministrator.currentQuestionOrder = currentQuestionOrder;
 		QuestionAdministrator.currentQuestion = currentQuestion;
 		QuestionAdministrator.currentQuestionKey = currentQuestionKey;
 		QuestionAdministrator.currentLayout = currentLayout;
@@ -131,7 +135,11 @@ public class QuestionAdmin {
 		QuestionAdministrator.selectedEngine = selectedEngine;
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine, questionList, selectedPerspective, "Edit Question");
 
-		questionAdmin.modifyQuestion(perspective, questionKey, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
+		if(!perspective.equals(currentPerspective)){
+			questionKey = null;
+		}
+		
+		questionAdmin.modifyQuestion(perspective, questionKey, questionOrder, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
 		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
 		
   		return Response.status(200).entity(getSO("Success")).build();
@@ -145,6 +153,7 @@ public class QuestionAdmin {
 		String selectedEngine = form.getFirst("engine");
 		String perspective = form.getFirst("perspective");
 		String questionKey = form.getFirst("questionKey");
+		String questionOrder = form.getFirst("questionOrder");
 		String question = form.getFirst("question");
 		String sparql = form.getFirst("sparql");
 		String layout = form.getFirst("layout");
@@ -173,7 +182,7 @@ public class QuestionAdmin {
 		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
 		
 		//questionKey = questionAdmin.createQuestionKey(perspective);
-		questionAdmin.deleteQuestion(perspective, questionKey, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
+		questionAdmin.deleteQuestion(perspective, questionKey, questionOrder, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
 		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
 		
   		return Response.status(200).entity(getSO("Success")).build();
