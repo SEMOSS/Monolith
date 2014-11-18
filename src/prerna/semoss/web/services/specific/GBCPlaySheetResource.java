@@ -3,7 +3,7 @@ package prerna.semoss.web.services.specific;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -53,10 +53,12 @@ public class GBCPlaySheetResource {
 	String className = GBCPlaySheetResource.class.getName();
 	String comparisonColChartClass = "prerna.ui.components.playsheets.ComparisonColumnChartPlaySheet";
 	String presentationClass = "prerna.ui.components.specific.cbp.GBCPresentationPlaySheet";
+	String metricGraphsKey = "metricGraphs";
+	String groupGraphsKey = "groupGraphs";
 	
 	String topGridClickQuery = "SELECT DISTINCT (CONCAT(REPLACE(STR(?ReportingUnit),'^(.*[/])',''),'-',REPLACE(STR(?Study),'^[^_]+(?=_)_','')) AS ?ClientName) ?ClientMetricValue (REPLACE(STR(?PeerGroupDataType),'^(.*[/])','') AS ?PeerDataType) ?PeerGroupValue (CONCAT(SAMPLE(STR(?MetricID)),'+++',COALESCE(SAMPLE(REPLACE(STR(?DisplayDescription),'^(.*[/])','')), SAMPLE(?MetricDescription), SAMPLE(?MetricName), SAMPLE(?MetricID))) AS ?Name) WHERE { BIND(<@PASSED_TAX_HEADER_URI@> AS ?TaxonomyCategoryHeader) BIND(<@ReportingUnit-http://semoss.org/ontologies/Concept/ReportingUnit@> AS ?ReportingUnit) {?ReportingUnit <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/ReportingUnit>} {?ClientUniqueID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/ClientUniqueID> } {?MetricID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricID> } {?PeerGroupUniqueID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/PeerGroupUniqueID> } {?PeerGroupDataType <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/PeerGroupDataType> } {?Study <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Study> } {?StudyReportingUnit <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/StudyReportingUnit> } {?ClientUniqueID <http://semoss.org/ontologies/Relation/IdentifiesAs> ?MetricID } {?ReportingUnit <http://semoss.org/ontologies/Relation/ReportsIn> ?StudyReportingUnit } {?StudyReportingUnit <http://semoss.org/ontologies/Relation/Includes> ?ClientUniqueID } FILTER(?PeerGroupDataType = <@PeerGroupDataType-http://semoss.org/ontologies/Concept/PeerGroupDataType@> || ?PeerGroupDataType = <@PeerGroupDataType2-http://semoss.org/ontologies/Concept/PeerGroupDataType@> ) {?PeerGroupDataType <http://semoss.org/ontologies/Relation/MadeUpOf> ?PeerGroupUniqueID } {?HeaderMetricID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricID> } {?HeaderMetricID <http://semoss.org/ontologies/Relation/Categorized> ?TaxonomyCategoryHeader } {?HeaderMetricID <http://semoss.org/ontologies/Relation/BreaksInto> ?MetricID } {?PeerGroupUniqueID <http://semoss.org/ontologies/Relation/BelongsTo> ?MetricID } {?ClientUniqueID <http://semoss.org/ontologies/Relation/Contains/ClientMetricValue> ?ClientMetricValue } {?PeerGroupUniqueID <http://semoss.org/ontologies/Relation/Contains/PeerGroupValue> ?PeerGroupValue } {?Study <http://semoss.org/ontologies/Relation/PartOf> ?StudyReportingUnit } OPTIONAL{?DisplayDescription <http://semoss.org/ontologies/Relation/DescribesOne> ?MetricID} OPTIONAL{?MetricID <http://semoss.org/ontologies/Relation/Contains/MetricDescription> ?MetricDescription} OPTIONAL{ {?MetricID <http://semoss.org/ontologies/Relation/Contains/MetricName> ?MetricName } } } GROUP BY ?ReportingUnit ?Study ?ClientMetricValue ?PeerGroupDataType ?PeerGroupValue  ORDER BY ?ClientName BINDINGS ?Study {(<@Study-http://semoss.org/ontologies/Concept/Study@>)(<@Study2-http://semoss.org/ontologies/Concept/Study@>)}";
-	String taxCategoryClickQuery = "SELECT DISTINCT (CONCAT(REPLACE(STR(?ReportingUnit),'^(.*[/])',''),'-',REPLACE(STR(?Study),'^[^_]+(?=_)_','')) AS ?ClientName) ?ClientMetricValue (REPLACE(STR(?PeerGroupDataType),'^(.*[/])','') AS ?PeerDataType) ?PeerGroupValue (CONCAT(SAMPLE(STR(?MetricID)),'+++',COALESCE(SAMPLE(REPLACE(STR(?TaxonomyCategory),'^(.*[/])','')), SAMPLE(?MetricDescription), SAMPLE(?MetricName), SAMPLE(?MetricID))) AS ?Name) WHERE { BIND(<@PASSED_TAX_URI@> AS ?BoundTaxonomyCategory) BIND(<@ReportingUnit-http://semoss.org/ontologies/Concept/ReportingUnit@> AS ?ReportingUnit)  {?ReportingUnit <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/ReportingUnit>} {?ClientUniqueID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/ClientUniqueID> } {?MetricID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricID> } {?PeerGroupUniqueID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/PeerGroupUniqueID> } {?PeerGroupDataType <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/PeerGroupDataType> } {?TaxonomyCategoryHeader <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/TaxonomyCategory> } {?TaxonomyCategory <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/TaxonomyCategory> } {?BoundTaxonomyCategory <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/TaxonomyCategory> } {?Study <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Study> } {?StudyReportingUnit <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/StudyReportingUnit> }  {?Study <http://semoss.org/ontologies/Relation/PartOf> ?StudyReportingUnit } {?TaxonomyCategoryHeader <http://semoss.org/ontologies/Relation/DrillsInto> ?BoundTaxonomyCategory } {?TaxonomyCategoryHeader <http://semoss.org/ontologies/Relation/DrillsInto> ?TaxonomyCategory } {?ReportingUnit <http://semoss.org/ontologies/Relation/ReportsIn> ?StudyReportingUnit }{?ClientUniqueID <http://semoss.org/ontologies/Relation/Contains/ClientMetricValue> ?ClientMetricValue } {?MetricID <http://semoss.org/ontologies/Relation/Categorized> ?TaxonomyCategory} {?StudyReportingUnit <http://semoss.org/ontologies/Relation/Includes> ?ClientUniqueID } {?ClientUniqueID <http://semoss.org/ontologies/Relation/IdentifiesAs> ?MetricID } {?PeerGroupDataType <http://semoss.org/ontologies/Relation/MadeUpOf> ?PeerGroupUniqueID }  FILTER(?PeerGroupDataType = <@PeerGroupDataType-http://semoss.org/ontologies/Concept/PeerGroupDataType@> || ?PeerGroupDataType = <@PeerGroupDataType2-http://semoss.org/ontologies/Concept/PeerGroupDataType@> ){?PeerGroupUniqueID <http://semoss.org/ontologies/Relation/BelongsTo> ?MetricID } {?PeerGroupUniqueID <http://semoss.org/ontologies/Relation/Contains/PeerGroupValue> ?PeerGroupValue } OPTIONAL{?DisplayDescription <http://semoss.org/ontologies/Relation/DescribesOne> ?MetricID} OPTIONAL{?MetricID <http://semoss.org/ontologies/Relation/Contains/MetricDescription> ?MetricDescription} OPTIONAL{ {?MetricID <http://semoss.org/ontologies/Relation/Contains/MetricName> ?MetricName } } } GROUP BY ?ReportingUnit ?Study ?ClientMetricValue ?PeerGroupDataType ?PeerGroupValue ORDER BY ?ClientName BINDINGS ?Study {(<@Study-http://semoss.org/ontologies/Concept/Study@>)(<@Study2-http://semoss.org/ontologies/Concept/Study@>)}";	String metricDrillDownQuery = "SELECT DISTINCT ?TopMetricID ?MetricID ?MetricGroup WHERE { BIND(<@PASSED_METRICID@> AS ?TopMetricID) {?TopMetricID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricID> } { {?MetricID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricID> } {?TopMetricID <http://semoss.org/ontologies/Relation/BreaksInto> ?MetricID} } UNION { {?MetricGroup <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricGroup> } {?TopMetricID <http://semoss.org/ontologies/Relation/BreaksInto> ?MetricGroup} } }";
-	String metricFromTaxCatQuery = "SELECT DISTINCT ?entity WHERE { BIND(<@PASSED_TAX_URI@> AS ?BoundTaxonomyCategory) {?BoundTaxonomyCategory <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/TaxonomyCategory> } {?entity <http://semoss.org/ontologies/Relation/Categorized> ?BoundTaxonomyCategory } {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricID> } }";
+	String taxCategoryClickQuery = "SELECT DISTINCT (CONCAT(REPLACE(STR(?ReportingUnit),'^(.*[/])',''),'-',REPLACE(STR(?Study),'^[^_]+(?=_)_','')) AS ?ClientName) ?ClientMetricValue (REPLACE(STR(?PeerGroupDataType),'^(.*[/])','') AS ?PeerDataType) ?PeerGroupValue (CONCAT(SAMPLE(STR(?MetricID)),'+++',COALESCE(SAMPLE(REPLACE(STR(?TaxonomyCategory),'^(.*[/])','')), SAMPLE(?MetricDescription), SAMPLE(?MetricName), SAMPLE(?MetricID))) AS ?Name) WHERE { BIND(<@PASSED_TAX_URI@> AS ?BoundTaxonomyCategory) BIND(<@ReportingUnit-http://semoss.org/ontologies/Concept/ReportingUnit@> AS ?ReportingUnit)  {?ReportingUnit <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/ReportingUnit>} {?ClientUniqueID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/ClientUniqueID> } {?MetricID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricID> } {?PeerGroupUniqueID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/PeerGroupUniqueID> } {?PeerGroupDataType <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/PeerGroupDataType> } {?TaxonomyCategoryHeader <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/TaxonomyCategory> } {?TaxonomyCategory <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/TaxonomyCategory> } {?BoundTaxonomyCategory <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/TaxonomyCategory> } {?Study <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Study> } {?StudyReportingUnit <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/StudyReportingUnit> }  {?Study <http://semoss.org/ontologies/Relation/PartOf> ?StudyReportingUnit } {?TaxonomyCategoryHeader <http://semoss.org/ontologies/Relation/DrillsInto> ?BoundTaxonomyCategory } {?TaxonomyCategoryHeader <http://semoss.org/ontologies/Relation/DrillsInto> ?TaxonomyCategory } {?ReportingUnit <http://semoss.org/ontologies/Relation/ReportsIn> ?StudyReportingUnit }{?ClientUniqueID <http://semoss.org/ontologies/Relation/Contains/ClientMetricValue> ?ClientMetricValue } {?MetricID <http://semoss.org/ontologies/Relation/Categorized> ?TaxonomyCategory} {?StudyReportingUnit <http://semoss.org/ontologies/Relation/Includes> ?ClientUniqueID } {?ClientUniqueID <http://semoss.org/ontologies/Relation/IdentifiesAs> ?MetricID } {?PeerGroupDataType <http://semoss.org/ontologies/Relation/MadeUpOf> ?PeerGroupUniqueID }  FILTER(?PeerGroupDataType = <@PeerGroupDataType-http://semoss.org/ontologies/Concept/PeerGroupDataType@> || ?PeerGroupDataType = <@PeerGroupDataType2-http://semoss.org/ontologies/Concept/PeerGroupDataType@> ){?PeerGroupUniqueID <http://semoss.org/ontologies/Relation/BelongsTo> ?MetricID } {?PeerGroupUniqueID <http://semoss.org/ontologies/Relation/Contains/PeerGroupValue> ?PeerGroupValue } OPTIONAL{?DisplayDescription <http://semoss.org/ontologies/Relation/DescribesOne> ?MetricID} OPTIONAL{?MetricID <http://semoss.org/ontologies/Relation/Contains/MetricDescription> ?MetricDescription} OPTIONAL{ {?MetricID <http://semoss.org/ontologies/Relation/Contains/MetricName> ?MetricName } } } GROUP BY ?ReportingUnit ?Study ?ClientMetricValue ?PeerGroupDataType ?PeerGroupValue ORDER BY ?ClientName BINDINGS ?Study {(<@Study-http://semoss.org/ontologies/Concept/Study@>)(<@Study2-http://semoss.org/ontologies/Concept/Study@>)}";	
+	String metricDrillDownQuery = "SELECT DISTINCT ?TopMetricID ?MetricID ?MetricGroup WHERE { {?TopMetricID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricID> } { {?MetricID <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricID> } {?TopMetricID <http://semoss.org/ontologies/Relation/BreaksInto> ?MetricID} } UNION { {?MetricGroup <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricGroup> } {?TopMetricID <http://semoss.org/ontologies/Relation/BreaksInto> ?MetricGroup} } } BINDINGS ?TopMetricID {@PASSED_METRICIDS@}";	String metricFromTaxCatQuery = "SELECT DISTINCT ?entity WHERE { BIND(<@PASSED_TAX_URI@> AS ?BoundTaxonomyCategory) {?BoundTaxonomyCategory <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/TaxonomyCategory> } {?entity <http://semoss.org/ontologies/Relation/Categorized> ?BoundTaxonomyCategory } {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/MetricID> } }";
 	
 	public void setEngine(IEngine engine){
 		this.coreEngine = engine;
@@ -83,7 +85,10 @@ public class GBCPlaySheetResource {
 		GBCPresentationPlaySheet playsheet = (GBCPresentationPlaySheet) this.preparePlaySheet(query, presentationClass, "Drilling " + uri, uri, request);		
 		playsheet.setPlaySheetClassName(this.comparisonColChartClass);
 		
-		return Response.status(200).entity(getSO(this.runPlaySheet(playsheet))).build();
+		Hashtable retHash = new Hashtable();
+		retHash.put("mainViz", this.runPlaySheet(playsheet, true));
+		
+		return Response.status(200).entity(getSO(retHash)).build();
 	}	
 
 	// for clicking specific cell in grid or clicking top formula part of high level bar chart
@@ -113,13 +118,14 @@ public class GBCPlaySheetResource {
 		playsheet.setPlaySheetClassName(this.comparisonColChartClass);
 		
 		Hashtable retHash = new Hashtable();
-		retHash.put("mainViz", this.runPlaySheet(playsheet));
+		retHash.put("mainViz", this.runPlaySheet(playsheet, false));
 		
 		// get the metric id associated with this taxonomy uri
 		String entityQuery = this.metricFromTaxCatQuery.replace("@PASSED_TAX_URI@", uri);
 		Vector<String> metric = this.coreEngine.getEntityOfType(entityQuery); // this should only return one!!
 		if(metric.size()>0){
-			ArrayList drillData = this.getDownstreamGraphData(metric.get(0), request);
+			Hashtable<String, Hashtable<String, Vector<String>>> downstreamGraphs = getDownstreamGraphs(metric); // should only be one inner hash as there was only one metric in array
+			Vector drillData = this.getDownstreamGraphData(downstreamGraphs.get(metric.get(0)), request);
 			retHash.put("drillViz", drillData);
 		}
 		
@@ -132,7 +138,9 @@ public class GBCPlaySheetResource {
 	@Produces("application/json")
 	public Object registerMetricClick(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
-		String uri = form.getFirst("clickedUri");
+		Gson gson = new Gson();
+		Vector<String> metricGraphs = gson.fromJson(form.getFirst("downstreamMetrics"), Vector.class);
+		Vector<String> groupGraphs = gson.fromJson(form.getFirst("downstreamGroups"), Vector.class);
 		
 		// when clicking specific cell in grid or clicking top formula part of high level bar chart
 		
@@ -140,38 +148,47 @@ public class GBCPlaySheetResource {
 		// 2. show bar chart of each one of them
 		// 3. if a metric group is returned... throw into metric group query
 		
-		ArrayList masterList = getDownstreamGraphData(uri, request);
+		Vector masterList = getDownstreamGraphData(metricGraphs, groupGraphs, request);
 		
 		return getSO(masterList);
 	}	
 	
-	private Hashtable<String, ArrayList<String>> getDownstreamGraphs(String uri){
-		ArrayList<String> metricGraphs = new ArrayList<String>();
-		ArrayList<String> groupGraphs = new ArrayList<String>();
-		
+	private Hashtable<String, Hashtable<String, Vector<String>>> getDownstreamGraphs(Vector<String> uris){
 		// two possibilities for what the downstream graph will be
 		// either it will be a specific metric or a metric group that points to a couple of metrics
 		// need to keep these separate as the queries will be different
 		
+		// create bindings
+		String bindings = "";
+		for(String uri : uris){
+			bindings = bindings + "(<" + uri + ">)";
+		}
+		
 		String query = this.metricDrillDownQuery;
-		query = query.replace("@PASSED_METRICID@", uri);
+		query = query.replace("@PASSED_METRICIDS@", bindings);
 		SesameJenaSelectWrapper sjsw = Utility.processQuery(this.coreEngine, query);
+
+		Hashtable<String, Hashtable<String, Vector<String>>> masterHash = new Hashtable<String, Hashtable<String, Vector<String>>>();
 		
 		// query returns in the order ?headMetricID ?childMetricID ?childMetricGroup
 		String[] names = sjsw.getVariables();
 		while (sjsw.hasNext()){
 			SesameJenaSelectStatement sjss = sjsw.next();
+			String topId = sjss.getRawVar(names[0])+"";
+			Hashtable<String, Vector<String>> uriHash = masterHash.containsKey(topId) ? masterHash.get(topId) : new Hashtable<String, Vector<String>>();
 			if(sjss.getRawVar(names[1]) != null){
+				Vector<String> metricGraphs = uriHash.containsKey(this.metricGraphsKey) ? uriHash.get(this.metricGraphsKey) : new Vector<String>();
 				metricGraphs.add(sjss.getRawVar(names[1])+"");
+				uriHash.put(this.metricGraphsKey, metricGraphs);
 			}
 			else if(sjss.getRawVar(names[2]) != null){
+				Vector<String> groupGraphs = uriHash.containsKey(this.groupGraphsKey) ? uriHash.get(this.groupGraphsKey) : new Vector<String>();
 				groupGraphs.add(sjss.getRawVar(names[2])+"");
+				uriHash.put(this.groupGraphsKey, groupGraphs);
 			}
+			masterHash.put(topId, uriHash);
 		}
-		Hashtable<String, ArrayList<String>> retHash = new Hashtable<String, ArrayList<String>>();
-		retHash.put("metricGraphs", metricGraphs);
-		retHash.put("groupGraphs", groupGraphs);
-		return retHash;
+		return masterHash;
 	}
 	
 	private IPlaySheet preparePlaySheet(String sparql, String playsheet, String title, String id, HttpServletRequest request){
@@ -183,20 +200,24 @@ public class GBCPlaySheetResource {
         return playSheet;
 	}
 	
-	private Object runPlaySheet(IPlaySheet playSheet){
+	private Object runPlaySheet(IPlaySheet playSheet, boolean getDownstreamGraphs){
         Object obj = null;
         try {
                PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
                playRunner.runWeb();
                
                obj = playSheet.getData();
+               
+               if(getDownstreamGraphs) { 
+	               //add downstream graphs so we know what legend items are clickable
+		   			Vector<String> drilledUris = (Vector<String>) ((Hashtable)((Hashtable)obj).get("specificData")).get("seriesList");
+		   			Hashtable<String, Hashtable<String, Vector<String>>> downstreamGraphs = getDownstreamGraphs(drilledUris);
+		   			((Hashtable)obj).put("downstreamGraphs", downstreamGraphs);
+               }
 
         } catch (Exception ex) { //need to specify the different exceptions 
                ex.printStackTrace();
-               Hashtable<String, String> errorHash = new Hashtable<String, String>();
-               errorHash.put("Message", "Error occured processing question.");
-               errorHash.put("Class", className);
-               return Response.status(500).entity(getSO(errorHash)).build();
+               return new Hashtable<String, String>();
         }
         
         return obj;
@@ -216,35 +237,46 @@ public class GBCPlaySheetResource {
 		}
 		return null;
 	}
+
+	private Vector getDownstreamGraphData(Hashtable<String,Vector<String>> hash, HttpServletRequest request){
+		Vector<String> metricGraphs = new Vector<String>();
+		if(hash.containsKey(this.metricGraphsKey)){
+			metricGraphs = hash.get(this.metricGraphsKey);
+		}
+		Vector<String> groupGraphs =  new Vector<String>();
+		if(hash.containsKey(this.groupGraphsKey)){
+			groupGraphs = hash.get(this.groupGraphsKey);
+		}
+		return getDownstreamGraphData(metricGraphs, groupGraphs, request);
+	}
 	
-	private ArrayList getDownstreamGraphData(String uri, HttpServletRequest request){
-		Hashtable<String, ArrayList<String>> downstreamGraphs = getDownstreamGraphs(uri);
+	private Vector getDownstreamGraphData(Vector<String> metricGraphs, Vector<String> groupGraphs, HttpServletRequest request){
 		
-		ArrayList masterList = new ArrayList();
+		Vector masterList = new Vector();
 		Hashtable<String, String> passedParams = new Hashtable<String, String>();
 		
-		ArrayList<String> metricGraphs = downstreamGraphs.get("metricGraphs");
 		for(String metricUri : metricGraphs){
 			String queryKey = "QUAD_COMPARISON_COL_CHART_QUERY";
 			passedParams.put("MetricID", metricUri);
 
-			GBCPresentationPlaySheet playsheet = (GBCPresentationPlaySheet) this.preparePlaySheet("", presentationClass, "Drilling " + uri, uri, request);		
+			GBCPresentationPlaySheet playsheet = (GBCPresentationPlaySheet) this.preparePlaySheet("", presentationClass, "Drilling " + metricUri, metricUri, request);		
 			playsheet.setPlaySheetClassName(this.comparisonColChartClass);
 			playsheet.setGenericQuery(queryKey, passedParams);
 			
-			masterList.add(runPlaySheet(playsheet));
+			Hashtable data = (Hashtable) runPlaySheet(playsheet, true);
+			masterList.add(data);
 		}
 		
-		ArrayList<String> groupGraphs = downstreamGraphs.get("groupGraphs");
 		for(String groupUri : groupGraphs) {
 			String queryKey = "GROUP_QUAD_COMPARISON_COL_CHART_QUERY";
 			passedParams.put("MetricGroup", groupUri);
 
-			GBCPresentationPlaySheet playsheet = (GBCPresentationPlaySheet) this.preparePlaySheet("", presentationClass, "Drilling " + uri, uri, request);		
+			GBCPresentationPlaySheet playsheet = (GBCPresentationPlaySheet) this.preparePlaySheet("", presentationClass, "Drilling " + groupUri, groupUri, request);		
 			playsheet.setPlaySheetClassName(this.comparisonColChartClass);
 			playsheet.setGenericQuery(queryKey, passedParams);
-			
-			masterList.add(runPlaySheet(playsheet));
+
+			Hashtable data = (Hashtable) runPlaySheet(playsheet, true);
+			masterList.add(data);
 		}
 		return masterList;
 	}
