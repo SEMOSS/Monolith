@@ -1,0 +1,206 @@
+package prerna.semoss.web.services;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Hashtable;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Set;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
+
+import org.apache.log4j.Logger;
+
+import prerna.rdf.engine.api.IEngine;
+import prerna.rdf.query.builder.AbstractQueryBuilder;
+import prerna.rdf.query.builder.BarChartQueryBuilder;
+import prerna.rdf.query.builder.CustomVizTableBuilder;
+import prerna.rdf.query.builder.GenericTableQueryBuilder;
+import prerna.rdf.query.builder.HeatMapQueryBuilder;
+import prerna.rdf.query.builder.PieChartQueryBuilder;
+import prerna.rdf.query.builder.ScatterPlotQueryBuilder;
+import prerna.rdf.query.util.ISPARQLReturnModifier;
+import prerna.rdf.query.util.SEMOSSQuery;
+import prerna.rdf.query.util.SEMOSSQueryHelper;
+import prerna.rdf.query.util.SPARQLAbstractReturnModifier;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+
+public class ExploreQuery {
+	Logger logger = Logger.getLogger(ExploreQuery.class.getName());
+	
+	IEngine coreEngine;
+	String output = "";
+	String query = "";
+	
+	public ExploreQuery(IEngine coreEngine){
+		this.coreEngine = coreEngine;
+	}
+	
+	public void getSelectedValues(ArrayList<Hashtable<String, String>> selectedVars, LinkedHashMap<String, ArrayList<String>> colLabelHash, LinkedHashMap<String, ArrayList<String>> colMathFuncHash) {
+		for (int i=0; i < selectedVars.size(); i++) {
+			Hashtable<String, String> hash = selectedVars.get(i);
+			String mathFunction = hash.get("hasGrouping");
+			String selected = hash.get("selected");
+			String labelType = hash.get("varLabel");
+			
+			if(!selected.isEmpty()){
+				ArrayList<String> labelList = new ArrayList<String>();
+				ArrayList<String> mathList = new ArrayList<String>();
+	
+				if(colLabelHash.containsKey(labelType)){
+					labelList = colLabelHash.get(labelType);
+					mathList = colMathFuncHash.get(labelType);
+				}
+				
+				labelList.add(selected);
+				mathList.add(mathFunction);
+				
+				colLabelHash.put(labelType, labelList);
+				colMathFuncHash.put(labelType, mathList);
+			}
+		}
+		logger.info("Math Functions are: "+ colMathFuncHash.toString() + "; LabelHash: " + colLabelHash.toString());
+	}
+	
+	@POST
+	@Path("exploreQuery")
+	@Produces("application/json")
+	public Response generateExploreQuery(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
+		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
+		
+		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
+		
+		ArrayList<Hashtable<String,String>> nodePropArray = gson.fromJson(form.getFirst("SelectedNodeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
+		ArrayList<Hashtable<String,String>> edgePropArray = gson.fromJson(form.getFirst("SelectedEdgeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
+		ArrayList<Hashtable<String, String>> selectedVars = gson.fromJson(form.getFirst("Groupings") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
+		ArrayList<Hashtable<String, String>> parameters = gson.fromJson(form.getFirst("Parameters") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
+		
+		logger.info("Node Properties: " + nodePropArray);
+		logger.info("Edge Properties: " + edgePropArray);
+		logger.info("Selected Vars: " + selectedVars);
+		logger.info("Parameters: " + parameters);
+		
+		String layout = form.getFirst("SelectedLayout").replace("\"", "");
+		
+		tableViz.setPropV(nodePropArray, edgePropArray);
+		
+		tableViz.setJSONDataHash(dataHash);
+		tableViz.setEngine(coreEngine);
+		tableViz.buildQuery();
+		SEMOSSQuery semossQuery = tableViz.getSEMOSSQuery();
+		
+		//remove retVars; we don't want to use the existing retVars because it has everything selected on the metamodel path.
+		semossQuery.removeReturnVariables();
+		
+		LinkedHashMap<String, ArrayList<String>> colLabelHash = new LinkedHashMap<String, ArrayList<String>>();
+		LinkedHashMap<String, ArrayList<String>> colMathHash = new LinkedHashMap<String, ArrayList<String>>();
+		getSelectedValues(selectedVars, colLabelHash, colMathHash);
+		
+		AbstractQueryBuilder abstractQuery = null;
+		
+		if(layout.equals("Heat Map")){	
+			String xAxisColName = colLabelHash.get("X-Axis").get(0);
+			String yAxisColName = colLabelHash.get("Y-Axis").get(0);
+			String heatName = colLabelHash.get("Heat").get(0);
+			String heatMathFunc = colMathHash.get("Heat").get(0);
+			
+			abstractQuery = new HeatMapQueryBuilder(xAxisColName, yAxisColName, heatName, heatMathFunc, parameters, semossQuery);
+		}
+		else if(layout.equals("Scatter Plot")){
+			String frontEndxAxisName = "X-Axis";
+			String frontEndyAxisName = "Y-Axis";
+			String frontEndzAxisName = "Z-Axis (Optional)";
+			String frontEndSeriesName = "Series (Optional)";
+			String frontEndLabelName = "Label";
+			
+			String labelColName = colLabelHash.get(frontEndLabelName).get(0);
+			String xAxisColName = colLabelHash.get(frontEndxAxisName).get(0);
+			String yAxisColName = colLabelHash.get(frontEndyAxisName).get(0);
+			
+			String zAxisColName = null;
+			if(colLabelHash.get(frontEndzAxisName) != null ){
+				zAxisColName = colLabelHash.get(frontEndzAxisName).get(0);
+			}
+			String xAxisMathFunc = colMathHash.get(frontEndxAxisName).get(0);
+			String yAxisMathFunc = colMathHash.get(frontEndyAxisName).get(0);
+			
+			String zAxisMathFunc = null;
+			if(colLabelHash.get(frontEndzAxisName) != null){
+				zAxisMathFunc = colMathHash.get(frontEndzAxisName).get(0);
+			}
+			String seriesColName = null;
+			if(colLabelHash.get(frontEndSeriesName) != null){
+				seriesColName = colLabelHash.get(frontEndSeriesName).get(0); 
+			}
+			abstractQuery = new ScatterPlotQueryBuilder(labelColName, xAxisColName, yAxisColName, zAxisColName, xAxisMathFunc, yAxisMathFunc, zAxisMathFunc, seriesColName, parameters, semossQuery);
+		}
+		else if(layout.equals("Pie Chart")){
+			String label = colLabelHash.get("Label").get(0);
+			String valueName = colLabelHash.get("Value").get(0);
+			String valueMathFunc = colMathHash.get("Value").get(0);
+			
+			abstractQuery = new PieChartQueryBuilder (label, valueName, valueMathFunc, parameters, semossQuery);
+		}
+		else if(layout.equals("Bar Chart")){
+			String labelColName = colLabelHash.get("Label").get(0);
+			ArrayList<String> valueColNames = colLabelHash.get("Value");
+			ArrayList<String> valueMathFunctions = colMathHash.get("Value");
+			if(colLabelHash.get("Extra Value") != null) {
+				valueColNames.addAll(colLabelHash.get("Extra Value"));
+				valueMathFunctions.addAll(colMathHash.get("Extra Value"));
+			}
+			
+			abstractQuery = new BarChartQueryBuilder (labelColName, valueColNames, valueMathFunctions, parameters, semossQuery);
+		}
+		//takes care of regular select queries without math functions or changes to select vars
+		else {
+			//This takes in parallel coordinates and parallel sets
+			ArrayList<String> labelList = new ArrayList<String>();
+			Set<String> keySet = colLabelHash.keySet();
+			
+			for(String key : keySet) {
+				labelList.add(colLabelHash.get(key).get(0));
+			}
+			
+			abstractQuery = new GenericTableQueryBuilder(labelList, parameters, semossQuery);
+		}
+		
+		abstractQuery.buildQuery();
+		query = abstractQuery.getQuery();
+		
+		return Response.status(200).entity(getSO(query)).build();
+	}
+	
+	private StreamingOutput getSO(Object vec)
+	{
+		if(vec != null)
+		{
+			Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
+			output = gson.toJson(vec);
+			   return new StreamingOutput() {
+			         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+			            PrintStream ps = new PrintStream(outputStream);
+			            ps.println(output);
+			         }
+			   };		
+		}
+		return null;
+	}
+}
