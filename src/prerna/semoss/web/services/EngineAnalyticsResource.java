@@ -3,6 +3,8 @@ package prerna.semoss.web.services;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.Hashtable;
+import java.util.List;
 
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -13,6 +15,7 @@ import javax.ws.rs.core.StreamingOutput;
 
 import prerna.rdf.engine.api.IEngine;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
+import prerna.util.Utility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -38,9 +41,21 @@ public class EngineAnalyticsResource {
 	public Response getQuestions(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		if(typeURI == null) {
-			return Response.status(200).entity(getSO(ps.getQuestionsWithoutParams(engine))).build();
+			List<Hashtable<String, String>> questionList = ps.getQuestionsWithoutParams(engine);
+			if(questionList.isEmpty()) {
+				String errorMessage = "No insights exist that do not contain a paramter input.";
+				return Response.status(400).entity(getSO(errorMessage)).build();
+			} else {
+				return Response.status(200).entity(getSO(questionList)).build();
+			}
 		} else {
-			return Response.status(200).entity(getSO(ps.getQuestionsForParam(engine, typeURI))).build();		
+			List<Hashtable<String, String>> questionList = ps.getQuestionsForParam(engine, typeURI);
+			if(questionList.isEmpty()) {
+				String errorMessage = "No insights exist that contain " + Utility.getInstanceName(typeURI) + " as a paramter input.";
+				return Response.status(400).entity(getSO(errorMessage)).build();
+			} else {
+				return Response.status(200).entity(getSO(questionList)).build();
+			}
 		}
 	}
 	
@@ -59,7 +74,16 @@ public class EngineAnalyticsResource {
 	@Path("/outliers")
 	public Response getLargestOutliers(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
-		return Response.status(200).entity(getSO(ps.getLargestOutliers(engine, typeURI))).build();
+		List<Hashtable<String, Object>> results = ps.getLargestOutliers(engine, typeURI); 
+		if(results == null) {
+			String errorMessage = "No properties or edge connections to determine outliers among concepts of type ".concat(Utility.getInstanceName(typeURI));
+			return Response.status(400).entity(getSO(errorMessage)).build();
+		}
+		if(results.isEmpty()) {
+			String errorMessage = "Insufficient sample size of instances of type ".concat(Utility.getInstanceName(typeURI).concat(" to determine outliers"));
+			return Response.status(400).entity(getSO(errorMessage)).build();
+		}
+		return Response.status(200).entity(getSO(results)).build();
 	}
 	
 	@POST
