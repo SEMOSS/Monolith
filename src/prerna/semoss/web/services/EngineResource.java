@@ -5,8 +5,10 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Set;
 import java.util.Vector;
 
 import javax.servlet.ServletInputStream;
@@ -45,7 +47,11 @@ import prerna.rdf.query.builder.AbstractCustomVizBuilder;
 import prerna.rdf.query.builder.CustomVizHeatMapBuilder;
 import prerna.rdf.query.builder.CustomVizTableBuilder;
 import prerna.rdf.query.builder.ICustomVizBuilder;
+import prerna.rdf.query.util.ISPARQLReturnModifier;
 import prerna.rdf.query.util.SEMOSSQuery;
+import prerna.rdf.query.util.SEMOSSQueryHelper;
+import prerna.rdf.query.util.SPARQLAbstractReturnModifier;
+import prerna.rdf.query.util.TriplePart;
 import prerna.rdf.util.RDFJSONConverter;
 import prerna.semoss.web.services.specific.GBCPlaySheetResource;
 import prerna.ui.components.ExecuteQueryProcessor;
@@ -61,6 +67,7 @@ import prerna.util.Utility;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
 
 public class EngineResource {
 	
@@ -1036,7 +1043,7 @@ public class EngineResource {
   	}
   	
   	@Path("/insights/modification")
-	public Object uploadFile(@Context HttpServletRequest request) {
+	public Object modifyInsight(@Context HttpServletRequest request) {
   		QuestionAdmin questionAdmin = new QuestionAdmin(this.coreEngine);
 
 		return questionAdmin;
@@ -1049,4 +1056,11 @@ public class EngineResource {
   		return analytics;
   	}
 
+	@Path("/explore")
+	public Object generateQuery(@Context HttpServletRequest request)
+	{
+		ExploreQuery exploreQuery = new ExploreQuery(this.coreEngine);
+		
+		return exploreQuery;
+	}
 }
