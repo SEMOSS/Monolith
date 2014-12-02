@@ -54,29 +54,50 @@ public class PlaySheetResource {
 		this.coreEngine = engine;
 	}
 
-	// Binds the upNode currently on the graph and runs traversal query
+	// Binds the upNode currently on the graph and runs traversal query. Can take multiple instances and one type or multiple types and one instance
 	@POST
 	@Path("extend/downstream/instance")
 	@Produces("application/json")
 	public Object createDownstreamInstanceTraversal(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		String downNodeType = form.getFirst("downNodeType");
+		List<String> downNodeTypes = gson.fromJson(form.getFirst("downNodeTypes"), List.class);
 		List<String> upNodeList = gson.fromJson(form.getFirst("upNode"), List.class);
-		logger.info("Processing downstream traversal for node instance " + upNodeList.toString());
+		logger.info("Processing downstream traversal for node instance " + upNodeList.toString() + " to types " + downNodeTypes.toString());
 		
 		//get the query
 		String prefix = "";
-		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
-
-		//create bindings string
-		String bindingsString = "";
-		for(String uri : upNodeList){
-			bindingsString = bindingsString + "(<" + uri + ">)";
+		String filterValues = "";
+		String sparql = "";
+		String downNodeType = "";
+		if(downNodeTypes.size() == 1) 
+		{
+			sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
+	
+			//create bindings string using upNode list because there is only one type
+			for(String uri : upNodeList){
+				filterValues = filterValues + "(<" + uri + ">)";
+			}
+			downNodeType = downNodeTypes.get(0);
+		}
+		else if (upNodeList.size() == 1)//down node types has more than 1 so we need to put the types in the bindings
+		{
+			sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY_MULTI_TYPE + prefix);
+	
+			//create bindings string using upNode list because there is only one type
+			for(String uri : downNodeTypes){
+				downNodeType = downNodeType + "(<" + uri + ">)";
+			}
+			filterValues = upNodeList.get(0);
+		}
+		else 
+		{
+			logger.error("Too many arguments passed to traverse freely");
+			return getSO("Too many arguments passed to traverse freely");
 		}
 		
 		//process traversal
-		Object obj = runPlaySheetTraversal(sparql, "", downNodeType, bindingsString);
+		Object obj = runPlaySheetTraversal(sparql, "", downNodeType, filterValues);
 
 		// put the playsheet back in session
 		storePlaySheet(request);
@@ -84,29 +105,50 @@ public class PlaySheetResource {
 		return getSO(obj);
 	}	
 
-	// Binds the downNode currently on the graph and runs traversal query
+	// Binds the downNode currently on the graph and runs traversal query. Can take multiple instances and one type or multiple types and one instance
 	@POST
 	@Path("extend/upstream/instance")
 	@Produces("application/json")
 	public Object createUpstreamInstanceTraversal(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		String upNodeType = form.getFirst("upNodeType");
+		List<String> upNodeTypes = gson.fromJson(form.getFirst("upNodeTypes"), List.class);
 		List<String> downNodeList = gson.fromJson(form.getFirst("downNode"), List.class);
 		logger.info("Processing upstream traversal for node instances " + downNodeList.toString());
 		
 		//get the query
 		String prefix = "_2";
-		String sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
-
-		//create bindings string
-		String bindingsString = "";
-		for(String uri : downNodeList){
-			bindingsString = bindingsString + "(<" + uri + ">)";
+		String filterValues = "";
+		String sparql = "";
+		String upNodeType = "";
+		if(upNodeTypes.size() == 1) 
+		{
+			sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
+	
+			//create bindings string using downNode list because there is only one type
+			for(String uri : downNodeList){
+				filterValues = filterValues + "(<" + uri + ">)";
+			}
+			upNodeType = upNodeTypes.get(0);
+		}
+		else if (downNodeList.size() == 1)//up node types has more than 1 so we need to put the types in the bindings
+		{
+			sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY_MULTI_TYPE + prefix);
+	
+			//create bindings string using upNode list because there is only one type
+			for(String uri : upNodeTypes){
+				upNodeType = upNodeType + "(<" + uri + ">)";
+			}
+			filterValues = downNodeList.get(0);
+		}
+		else 
+		{
+			logger.error("Too many arguments passed to traverse freely");
+			return getSO("Too many arguments passed to traverse freely");
 		}
 
 		//process traversal
-		Object obj = runPlaySheetTraversal(sparql, upNodeType, "", bindingsString);
+		Object obj = runPlaySheetTraversal(sparql, upNodeType, "", filterValues);
 
 		// put the playsheet back in session
 		storePlaySheet(request);
