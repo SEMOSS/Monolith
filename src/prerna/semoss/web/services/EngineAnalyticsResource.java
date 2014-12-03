@@ -13,6 +13,9 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import prerna.rdf.engine.api.IEngine;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.util.Utility;
@@ -22,6 +25,8 @@ import com.google.gson.GsonBuilder;
 
 public class EngineAnalyticsResource {
 
+	private static final Logger LOGGER = LogManager.getLogger(EngineAnalyticsResource.class.getName());
+	
 	private IEngine engine;
 	String output = "";
 
@@ -33,6 +38,7 @@ public class EngineAnalyticsResource {
 	@Path("/scatter")
 	public Response generateScatter() {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
+		LOGGER.info("Creating scatterplot for " + engine.getEngineName() + "'s base page...");
 		return Response.status(200).entity(getSO(ps.generateScatter(engine))).build();		
 	}
 	
@@ -41,6 +47,7 @@ public class EngineAnalyticsResource {
 	public Response getQuestions(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		if(typeURI == null) {
+			LOGGER.info("Creating generic question list...");
 			List<Hashtable<String, String>> questionList = ps.getQuestionsWithoutParams(engine);
 			if(questionList.isEmpty()) {
 				String errorMessage = "No insights exist that do not contain a paramter input.";
@@ -49,6 +56,7 @@ public class EngineAnalyticsResource {
 				return Response.status(200).entity(getSO(questionList)).build();
 			}
 		} else {
+			LOGGER.info("Creating question list with parameter of type " + typeURI + "...");
 			List<Hashtable<String, String>> questionList = ps.getQuestionsForParam(engine, typeURI);
 			if(questionList.isEmpty()) {
 				String errorMessage = "No insights exist that contain " + Utility.getInstanceName(typeURI) + " as a paramter input.";
@@ -64,8 +72,10 @@ public class EngineAnalyticsResource {
 	public Response getMostInfluentialInstances(@QueryParam("typeURI") String typeURI) {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		if(typeURI == null) {
+			LOGGER.info("Creating list of instances with most edge connections across all concepts...");
 			return Response.status(200).entity(getSO(ps.getMostInfluentialInstancesForAllTypes(engine))).build();		
 		} else {
+			LOGGER.info("Creating list of instances with most edge connections of type " + typeURI + "...");
 			return Response.status(200).entity(getSO(ps.getMostInfluentialInstancesForSpecificTypes(engine, typeURI))).build();		
 		}
 	}
@@ -73,8 +83,15 @@ public class EngineAnalyticsResource {
 	@POST
 	@Path("/outliers")
 	public Response getLargestOutliers(@QueryParam("typeURI") String typeURI) {
+		if(typeURI == null) {
+			String errorMessage = "No typeURI provided";
+			return Response.status(400).entity(getSO(errorMessage)).build();
+		}
+		
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
+		LOGGER.info("Running outlier algorithm for instances of type " + typeURI + "...");
 		List<Hashtable<String, Object>> results = ps.getLargestOutliers(engine, typeURI); 
+		
 		if(results == null) {
 			String errorMessage = "No properties or edge connections to determine outliers among concepts of type ".concat(Utility.getInstanceName(typeURI));
 			return Response.status(400).entity(getSO(errorMessage)).build();
@@ -89,6 +106,12 @@ public class EngineAnalyticsResource {
 	@POST
 	@Path("/connectionMap")
 	public Response getConnectionMap(@QueryParam("instanceURI") String instanceURI) {
+		if(instanceURI == null) {
+			String errorMessage = "No instanceURI provided";
+			return Response.status(400).entity(getSO(errorMessage)).build();
+		}
+		
+		LOGGER.info("Creating instance mapping to concepts...");
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		return Response.status(200).entity(getSO(ps.getConnectionMap(engine, instanceURI))).build();
 	}
@@ -96,6 +119,12 @@ public class EngineAnalyticsResource {
 	@POST
 	@Path("/properties")
 	public Response getPropertiesForInstance(@QueryParam("instanceURI") String instanceURI) {
+		if(instanceURI == null) {
+			String errorMessage = "No instanceURI provided";
+			return Response.status(400).entity(getSO(errorMessage)).build();
+		}
+		
+		LOGGER.info("Creating list of properties for " + instanceURI + "...");
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		return Response.status(200).entity(getSO(ps.getPropertiesForInstance(engine, instanceURI))).build();
 	}
