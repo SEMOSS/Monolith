@@ -186,7 +186,10 @@ public class Uploader extends HttpServlet {
 						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
 								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 										: null;
-
+		if(importMethod == null) {
+			String errorMessage = "Import method \'" + methodString + "\' is not supported";
+			return Response.status(400).entity(errorMessage).build();
+		}
 		//call the right process method with correct parameters
 		String dbName = inputData.get("dbName");
 		String filename = inputData.get("filename");
@@ -251,7 +254,10 @@ public class Uploader extends HttpServlet {
 						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
 								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 										: null;
-
+		if(importMethod == null) {
+			String errorMessage = "Import method \'" + methodString + "\' is not supported";
+			return Response.status(400).entity(errorMessage).build();
+		}
 		//call the right process method with correct parameters
 		String dbName = "";
 		try {
