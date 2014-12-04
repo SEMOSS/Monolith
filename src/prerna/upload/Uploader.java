@@ -7,7 +7,6 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.List;
 
 import javax.servlet.http.HttpServlet;
@@ -32,7 +31,6 @@ import prerna.error.FileReaderException;
 import prerna.error.FileWriterException;
 import prerna.error.HeaderClassException;
 import prerna.error.NLPException;
-import prerna.ui.components.CSVMetamodelBuilder;
 import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.DIHelper;
@@ -77,7 +75,7 @@ public class Uploader extends HttpServlet {
 			ServletFileUpload upload = new ServletFileUpload(factory);
 			// maximum file size to be uploaded.
 			upload.setSizeMax(maxFileSize);
-
+			
 			// Parse the request to get file items
 			fileItems = upload.parseRequest(request);
 		} catch (FileUploadException e) {
@@ -136,127 +134,41 @@ public class Uploader extends HttpServlet {
 		return inputData;
 	}
 
-	@POST
-	@Path("/csv/meta")
-	@Produces("application/json")
-	public Response uploadCSVFileToMeta(@Context HttpServletRequest request) 
-	{
-		File file;
-		List<FileItem> fileItems = processRequest(request);
-		// Process the uploaded file items
-		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
-
-		// collect all of the data input on the form
-		Hashtable<String, String> inputData = new Hashtable<String, String>();
-		ArrayList<File> allLoadingFiles = new ArrayList<File>();
-		ArrayList<File> propFiles = new ArrayList<File>();
-		while(iteratorFileItems.hasNext()) 
-		{
-			FileItem fi = (FileItem) iteratorFileItems.next();
-			// Get the uploaded file parameters
-			String fieldName = fi.getFieldName();
-			String fileName = fi.getName();
-			String value = fi.getString();
-			if (!fi.isFormField()) 
-			{
-				if(fileName.equals("")) {
-					continue;
-				}
-				else {
-					if(fieldName.equals("file"))
-					{
-						value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
-						file = new File(value);
-						writeFile(fi, file);
-						allLoadingFiles.add(file);
-						System.out.println( "Saved Filename: " + fileName + "  to "+ file);
-					} else if(fieldName.equals("propFile")) {
-						value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
-						file = new File(value);
-						writeFile(fi, file);
-						propFiles.add(file);
-						System.out.println( "Saved propfile: " + fileName + "  to "+ file);
-					}
-				}
-			}
-			else 
-			{
-				System.err.println("Type is " + fi.getFieldName() + fi.getString());
-			}
-			//need to handle multiple files getting selected for upload
-			if(inputData.get(fieldName) != null)
-			{
-				value = inputData.get(fieldName) + ";" + value;
-			}
-			inputData.put(fieldName, value);
-		}
-
-		Hashtable<String, Object> returnHash = new Hashtable<String, Object>();
-
-		CSVMetamodelBuilder builder = new CSVMetamodelBuilder();
-		builder.setFiles(allLoadingFiles);
-		Hashtable<String, Hashtable<String, LinkedHashSet<String>>> dataTypes = null;
-		try {
-			dataTypes = builder.returnDataTypes();
-		} catch (FileReaderException e) {
-			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
-		}
-		returnHash.put("dataTypes", dataTypes);
-		if(propFiles.size() > 0) { 
-			builder.setPropFiles(propFiles);
-			Hashtable<String, ArrayList<Hashtable<String, String[]>>> propData = null;
-			try {
-				propData = builder.returnPropFileDataResults();
-			} catch (FileReaderException e) {
-				e.printStackTrace();
-				return Response.status(400).entity(e.getMessage()).build();
-			}
-			returnHash.put("propData", propData);
-		}
-
-		if(!dataTypes.isEmpty()) {
-			return Response.status(200).entity(getSO(returnHash)).build();
-		} else {
-			String outputText = "Found no data to process inside the CSV file";
-			return Response.status(400).entity(outputText).build();
-		}
-	}
-
 	@SuppressWarnings("unchecked")
 	@POST
 	@Path("/csv/upload")
 	@Produces("text/html")
-	public Response uploadCSVFile(@FormParam ("dbImportOption") String dbImportOption, 
-			@FormParam ("filename") String filename,
-			@FormParam ("filenameheaders") String headersList,
-			@FormParam ("dbName") String dbName,
-			@FormParam ("designateBaseUri") String baseURI,
-			@FormParam ("relationship") List<String> rel,
-			@FormParam ("property") List<String> prop)
+	public Response uploadCSVFile(@Context HttpServletRequest request)
 	{
-
+		List<FileItem> fileItems = processRequest(request);
+		Hashtable<String, String> inputData = getInputData(fileItems);
+		
 		Gson gson = new Gson();
 		CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
-
-		for(String str : rel) {
-			// subject and object keys link to array list for concatenations, while the predicate is always a string
-			Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-
-			if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
-			{
-				propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+		List<String> rel = gson.fromJson(inputData.get("relationship"), List.class);
+		if(rel != null) {
+			for(String str : rel) {
+				// subject and object keys link to array list for concatenations, while the predicate is always a string
+				Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+				if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
+				{
+					propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+				}
 			}
 		}
 
-		for(String str : prop) {
-			Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-			if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
-			{
-				propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+		List<String> prop = gson.fromJson(inputData.get("properties"), List.class);
+		if(prop != null) {
+			for(String str : prop) {
+				Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+				if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
+				{
+					propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+				}
 			}
 		}
 
+		String headersList = inputData.get("filenameheaders"); 
 		Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
 		ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
 
@@ -268,7 +180,7 @@ public class Uploader extends HttpServlet {
 		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
 
 		// figure out what type of import we need to do based on parameters
-		String methodString = dbImportOption.toString();
+		String methodString = inputData.get("dbImportOption");
 		ImportDataProcessor.IMPORT_METHOD importMethod = 
 				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
 						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
@@ -276,13 +188,16 @@ public class Uploader extends HttpServlet {
 										: null;
 
 		//call the right process method with correct parameters
+		String dbName = inputData.get("dbName");
+		String filename = inputData.get("filename");
+		
 		try {
 			if(methodString.equals("Create new database engine")) {
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
-						baseURI.toString(), dbName.toString(),"","","","");
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
+						inputData.get("designateBaseUri"), dbName,"","","","");
 			} else {
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, filePath + "\\" + filename.toString(), 
-						baseURI.toString(), "","","","", dbName.toString());
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
+						inputData.get("designateBaseUri"), "","","","", dbName);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
