@@ -11,7 +11,6 @@ import java.util.List;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.FormParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -34,6 +33,7 @@ import prerna.error.NLPException;
 import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.DIHelper;
+import prerna.util.Utility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -220,7 +220,7 @@ public class Uploader extends HttpServlet {
 		}
 
 		try {
-			FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder").concat(File.separator).concat("db").concat(File.separator).concat(dbName.toString()).concat(File.separator).concat(dbName.toString()).concat("_").concat(filename.replace(".csv", "")).concat("_PROP.prop")), propWriter.getPropFile());
+			FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder").concat(File.separator).concat("db").concat(File.separator).concat(Utility.cleanString(dbName, true).toString()).concat(File.separator).concat(dbName.toString()).concat("_").concat(filename.replace(".csv", "")).concat("_PROP.prop")), propWriter.getPropFile());
 		} catch (IOException e) {
 			e.printStackTrace();
 			String outputText = "Failure to write CSV Prop File based on user-defined metamodel.";
