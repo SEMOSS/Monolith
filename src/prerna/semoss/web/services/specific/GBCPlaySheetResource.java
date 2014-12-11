@@ -124,7 +124,9 @@ public class GBCPlaySheetResource {
 		Vector<String> metric = this.coreEngine.getEntityOfType(entityQuery); // this should only return one!!
 		if(metric.size()>0){
 			Hashtable<String, ArrayList<String>> downstreamGraphs = getDownstreamGraphs(new ArrayList<String>(metric)); // should only be one inner hash as there was only one metric in array
-			ArrayList drillData = this.getDownstreamGraphData(downstreamGraphs.get(metric.get(0)), request);
+			ArrayList drillData = new ArrayList();
+			if(!downstreamGraphs.isEmpty())
+				drillData = this.getDownstreamGraphData(downstreamGraphs.get(metric.get(0)), request);
 			retHash.put("drillViz", drillData);
 		}
 		
@@ -156,31 +158,34 @@ public class GBCPlaySheetResource {
 		// two possibilities for what the downstream graph will be
 		// either it will be a specific metric or a metric group that points to a couple of metrics
 		// need to keep these separate as the queries will be different
-		
-		// create bindings
-		String bindings = "";
-		for(String uri : uris){
-			bindings = bindings + "(<" + uri + ">)";
-		}
-		
-		String query = this.metricDrillDownQuery;
-		query = query.replace("@PASSED_METRICIDS@", bindings);
-		SesameJenaSelectWrapper sjsw = Utility.processQuery(this.coreEngine, query);
 
 		Hashtable<String, ArrayList<String>> masterHash = new Hashtable<String, ArrayList<String>>();
-		//instatiate so never return empty
-		for(String uri : uris){
-			masterHash.put(uri, new ArrayList<String>());
-		}
 		
-		// query returns in the order ?headMetricID ?childMetricID ?childMetricGroup
-		String[] names = sjsw.getVariables();
-		while (sjsw.hasNext()){
-			SesameJenaSelectStatement sjss = sjsw.next();
-			String topId = sjss.getRawVar(names[0])+"";
-			ArrayList<String> chartArray = masterHash.get(topId);
-			if(sjss.getRawVar(names[1]) != null){
-				chartArray.add(sjss.getRawVar(names[1])+"");
+		if ( !uris.isEmpty()){
+			// create bindings
+			String bindings = "";
+			for(String uri : uris){
+				bindings = bindings + "(<" + uri + ">)";
+			}
+			
+			String query = this.metricDrillDownQuery;
+			query = query.replace("@PASSED_METRICIDS@", bindings);
+			SesameJenaSelectWrapper sjsw = Utility.processQuery(this.coreEngine, query);
+	
+			//instatiate so never return empty
+			for(String uri : uris){
+				masterHash.put(uri, new ArrayList<String>());
+			}
+			
+			// query returns in the order ?headMetricID ?childMetricID ?childMetricGroup
+			String[] names = sjsw.getVariables();
+			while (sjsw.hasNext()){
+				SesameJenaSelectStatement sjss = sjsw.next();
+				String topId = sjss.getRawVar(names[0])+"";
+				ArrayList<String> chartArray = masterHash.get(topId);
+				if(sjss.getRawVar(names[1]) != null){
+					chartArray.add(sjss.getRawVar(names[1])+"");
+				}
 			}
 		}
 		return masterHash;
