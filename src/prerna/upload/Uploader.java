@@ -142,41 +142,53 @@ public class Uploader extends HttpServlet {
 	{
 		List<FileItem> fileItems = processRequest(request);
 		Hashtable<String, String> inputData = getInputData(fileItems);
-		
 		Gson gson = new Gson();
-		CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
-		List<String> rel = gson.fromJson(inputData.get("relationship"), List.class);
-		if(rel != null) {
-			for(String str : rel) {
-				// subject and object keys link to array list for concatenations, while the predicate is always a string
-				Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-				if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
-				{
-					propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+		List<String> allFileData = gson.fromJson(inputData.get("fileInfoArray"), List.class);
+		int size = allFileData.size();
+		
+		Hashtable<String, String>[] propHashArr = new Hashtable[size];
+		String[] propFileArr = new String[size];
+		
+		int i = 0;
+		for(i = 0; i < size; i++) {
+			Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
+			
+			CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
+
+			List<String> rel = gson.fromJson(itemForFile.get("rowsRelationship"), List.class);
+			if(rel != null) {
+				for(String str : rel) {
+					// subject and object keys link to array list for concatenations, while the predicate is always a string
+					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+					if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
+					{
+						propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+					}
 				}
 			}
-		}
 
-		List<String> prop = gson.fromJson(inputData.get("properties"), List.class);
-		if(prop != null) {
-			for(String str : prop) {
-				Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-				if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
-				{
-					propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+			List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
+			if(prop != null) {
+				for(String str : prop) {
+					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+					if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
+					{
+						propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+					}
 				}
 			}
+
+			String headersList = itemForFile.get("allHeaders"); 
+			Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
+			ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
+
+			propWriter.columnTypes(headers);
+			propHashArr[i] = propWriter.getPropHash(); 
+			propFileArr[i] = propWriter.getPropFile();
 		}
-
-		String headersList = inputData.get("filenameheaders"); 
-		Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
-		ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
-
-		propWriter.columnTypes(headers);
-		Hashtable<String, String> propFile = propWriter.getPropHash(); 
-
+						
 		ImportDataProcessor importer = new ImportDataProcessor();
-		importer.setPropHash(propFile);
+		importer.setPropHashArr(propHashArr);
 		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
 
 		// figure out what type of import we need to do based on parameters
@@ -220,7 +232,9 @@ public class Uploader extends HttpServlet {
 		}
 
 		try {
-			FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder").concat(File.separator).concat("db").concat(File.separator).concat(Utility.cleanString(dbName, true).toString()).concat(File.separator).concat(dbName.toString()).concat("_").concat(filename.replace(".csv", "")).concat("_PROP.prop")), propWriter.getPropFile());
+			for(String propFile : propFileArr) {
+				FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder").concat(File.separator).concat("db").concat(File.separator).concat(Utility.cleanString(dbName, true).toString()).concat(File.separator).concat(dbName.toString()).concat("_").concat(filename.replace(".csv", "")).concat("_PROP.prop")), propFile);
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 			String outputText = "Failure to write CSV Prop File based on user-defined metamodel.";
