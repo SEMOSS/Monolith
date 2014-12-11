@@ -148,7 +148,7 @@ public class Uploader extends HttpServlet {
 		
 		Hashtable<String, String>[] propHashArr = new Hashtable[size];
 		String[] propFileArr = new String[size];
-		
+		String[] fileNames = inputData.get("filename").split(";");
 		int i = 0;
 		for(i = 0; i < size; i++) {
 			Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
@@ -204,7 +204,6 @@ public class Uploader extends HttpServlet {
 		}
 		//call the right process method with correct parameters
 		String dbName = inputData.get("dbName");
-		String filename = inputData.get("filename");
 		
 		try {
 			if(methodString.equals("Create new database engine")) {
@@ -232,8 +231,8 @@ public class Uploader extends HttpServlet {
 		}
 
 		try {
-			for(String propFile : propFileArr) {
-				FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder").concat(File.separator).concat("db").concat(File.separator).concat(Utility.cleanString(dbName, true).toString()).concat(File.separator).concat(dbName.toString()).concat("_").concat(filename.replace(".csv", "")).concat("_PROP.prop")), propFile);
+			for(i = 0; i < size; i++) {
+				FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder").concat(File.separator).concat("db").concat(File.separator).concat(Utility.cleanString(dbName, true).toString()).concat(File.separator).concat(dbName.toString()).concat("_").concat(fileNames[i].replace(".csv", "")).concat("_PROP.prop")), propFileArr[i]);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
