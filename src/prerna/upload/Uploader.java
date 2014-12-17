@@ -183,7 +183,7 @@ public class Uploader extends HttpServlet {
 			ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
 
 			propWriter.columnTypes(headers);
-			propHashArr[i] = propWriter.getPropHash(); 
+			propHashArr[i] = propWriter.getPropHash(itemForFile.get("csvStartLineCount"), itemForFile.get("csvEndLineCount")); 
 			propFileArr[i] = propWriter.getPropFile();
 		}
 						
