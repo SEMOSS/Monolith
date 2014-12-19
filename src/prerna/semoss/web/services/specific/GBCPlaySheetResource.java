@@ -96,7 +96,7 @@ public class GBCPlaySheetResource {
 //		playsheet.setPlaySheetClassName(this.comparisonColChartClass);
 		
 		Hashtable retHash = new Hashtable();
-		retHash.put("mainViz", getDownstreamGraphData(new ArrayList<String>(charts), request));
+		retHash.put("mainViz", getDownstreamGraphData(new ArrayList<String>(charts), true, request));
 		
 		return Response.status(200).entity(getSO(retHash)).build();
 	}	
@@ -125,7 +125,7 @@ public class GBCPlaySheetResource {
 		String chartEntityQuery = this.chartFromTaxCatQuery.replace("@PASSED_TAX_URI@", uri);
 		Vector<String> charts = this.coreEngine.getEntityOfType(chartEntityQuery); // this can return multiple now
 		Hashtable retHash = new Hashtable();
-		retHash.put("mainViz", getDownstreamGraphData(new ArrayList<String>(charts), request));
+		retHash.put("mainViz", getDownstreamGraphData(new ArrayList<String>(charts), false, request));
 		
 		// get the chart metric id associated with this taxonomy uri
 		String metricEntityQuery = this.chartMetricFromTaxCatQuery.replace("@PASSED_TAX_URI@", uri);
@@ -135,7 +135,7 @@ public class GBCPlaySheetResource {
 			Hashtable<String, ArrayList<String>> downstreamGraphs = getDownstreamGraphs(new ArrayList<String>(metricList)); // should only be one inner hash as there was only one metric in array
 			ArrayList drillData = new ArrayList();
 			if(!downstreamGraphs.isEmpty() && downstreamGraphs.containsKey(metric));
-				drillData = this.getDownstreamGraphData(downstreamGraphs.get(metric), request);
+				drillData = this.getDownstreamGraphData(downstreamGraphs.get(metric), true, request);
 			retHash.put("drillViz", drillData);
 		}
 		
@@ -158,7 +158,7 @@ public class GBCPlaySheetResource {
 		// 2. show bar chart of each one of them
 		// 3. if a metric group is returned... throw into metric group query
 		
-		ArrayList masterList = getDownstreamGraphData(downstreamGraphs, request);
+		ArrayList masterList = getDownstreamGraphData(downstreamGraphs, true, request);
 		
 		return getSO(masterList);
 	}	
@@ -247,7 +247,7 @@ public class GBCPlaySheetResource {
 		return null;
 	}
 	
-	private ArrayList getDownstreamGraphData(ArrayList<String> chartArray, HttpServletRequest request){
+	private ArrayList getDownstreamGraphData(ArrayList<String> chartArray, boolean getDownstream, HttpServletRequest request){
 		
 		ArrayList masterList = new ArrayList();
 		Hashtable<String, String> passedParams = new Hashtable<String, String>();
@@ -259,7 +259,7 @@ public class GBCPlaySheetResource {
 			playsheet.setPlaySheetClassName(this.comparisonColChartClass);
 			playsheet.setGenericQuery(queryKey, passedParams);
 			
-			Hashtable data = (Hashtable) runPlaySheet(playsheet, true);
+			Hashtable data = (Hashtable) runPlaySheet(playsheet, getDownstream);
 			masterList.add(data);
 		}
 
