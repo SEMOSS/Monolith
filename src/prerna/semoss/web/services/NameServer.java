@@ -28,6 +28,7 @@ import org.apache.log4j.Logger;
 import prerna.algorithm.impl.CreateMasterDB;
 import prerna.algorithm.impl.DeleteMasterDB;
 import prerna.algorithm.impl.SearchMasterDB;
+import prerna.error.EngineException;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSEdge;
 import prerna.om.SEMOSSVertex;
@@ -55,7 +56,7 @@ public class NameServer {
 
 	// gets the engine resource necessary for all engine calls
 	@Path("e-{engine}")
-	public Object getLocalDatabase(@PathParam("engine") String db, @QueryParam("api") String api, @Context HttpServletRequest request) {
+	public Object getLocalDatabase(@PathParam("engine") String db, @QueryParam("api") String api, @Context HttpServletRequest request) throws EngineException {
 		// check if api has been passed
 		// if yes:
 		// 			check if remote engine has already been started and stored in context -- if so, use that engine
@@ -78,6 +79,8 @@ public class NameServer {
 		else {
 			engine = (IEngine)session.getAttribute(db);
 		}
+		if(engine == null)
+			throw new EngineException("The engine " + db + " at " + api + " cannot be found");
 		EngineResource res = new EngineResource();
 		res.setEngine(engine);
 		return res;
