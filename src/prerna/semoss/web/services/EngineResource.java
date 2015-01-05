@@ -62,6 +62,7 @@ import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
+import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
 
 import com.google.gson.Gson;
@@ -429,16 +430,25 @@ public class EngineResource {
 			if(sparql != null && playsheet != null){
 				
 				ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
-				exQueryProcessor.prepareQueryOutputPlaySheet(coreEngine, sparql, playsheet, "Preview Question", "");
 				Object obj = null;
 				try {
-					IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
+					QuestionPlaySheetStore.getInstance().idCount++;
+					String insightID = QuestionPlaySheetStore.getInstance().getIDCount() + "";
+					
+					exQueryProcessor.prepareQueryOutputPlaySheet(coreEngine, sparql, playsheet, coreEngine.getEngineName() + ": " + insightID, "");
+					IPlaySheet playSheet = exQueryProcessor.getPlaySheet();
+
+					playSheet.setQuestionID(insightID);
 					
 					PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
 					playRunner.runWeb();
 					
 					obj = playSheet.getData();
-
+					
+					
+					// store the playsheet in session
+					HttpSession session = ((HttpServletRequest)request).getSession(false);
+					session.setAttribute(playSheet.getQuestionID(), playSheet);
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();

@@ -24,8 +24,10 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.log4j.Logger;
 
 import prerna.rdf.engine.api.IEngine;
+import prerna.rdf.query.builder.AbstractBaseMetaModelQueryBuilder;
 import prerna.rdf.query.builder.AbstractQueryBuilder;
 import prerna.rdf.query.builder.BarChartQueryBuilder;
+import prerna.rdf.query.builder.CustomVizGraphBuilder;
 import prerna.rdf.query.builder.CustomVizTableBuilder;
 import prerna.rdf.query.builder.GenericTableQueryBuilder;
 import prerna.rdf.query.builder.HeatMapQueryBuilder;
@@ -35,6 +37,8 @@ import prerna.rdf.query.util.ISPARQLReturnModifier;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.query.util.SEMOSSQueryHelper;
 import prerna.rdf.query.util.SPARQLAbstractReturnModifier;
+import prerna.rdf.query.util.SPARQLConstants;
+import prerna.rdf.query.util.SPARQLTriple;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -84,9 +88,7 @@ public class ExploreQuery {
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
-		
-		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
-		
+
 		ArrayList<Hashtable<String,String>> nodePropArray = gson.fromJson(form.getFirst("SelectedNodeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
 		ArrayList<Hashtable<String,String>> edgePropArray = gson.fromJson(form.getFirst("SelectedEdgeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
 		ArrayList<Hashtable<String, String>> selectedVars = gson.fromJson(form.getFirst("Groupings") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
@@ -99,12 +101,31 @@ public class ExploreQuery {
 		
 		String layout = form.getFirst("SelectedLayout").replace("\"", "");
 		
-		tableViz.setPropV(nodePropArray, edgePropArray);
+		AbstractBaseMetaModelQueryBuilder customViz = null;
+		if(layout.equals("Network Graph"))
+			customViz = new CustomVizGraphBuilder();
+		else
+			customViz = new CustomVizTableBuilder();
 		
-		tableViz.setJSONDataHash(dataHash);
-		tableViz.setEngine(coreEngine);
-		tableViz.buildQuery();
-		SEMOSSQuery semossQuery = tableViz.getSEMOSSQuery();
+		customViz.setPropV(nodePropArray, edgePropArray);
+		
+		customViz.setJSONDataHash(dataHash);
+		customViz.setEngine(coreEngine);
+		customViz.buildQuery();
+
+		logger.info("CustomViz query is: " + customViz.getQuery());
+		SEMOSSQuery semossQuery = customViz.getSEMOSSQuery();
+
+		if(layout.equals("Network Graph")) {
+			if(!parameters.isEmpty()) {
+				logger.info("Adding parameters: " + parameters);
+				SEMOSSQueryHelper.addParametersToQuery(parameters, semossQuery, "Main");
+			}
+			semossQuery.createQuery();
+
+			query = semossQuery.getQuery();
+			return Response.status(200).entity(getSO(query)).build();
+		}
 		
 		//remove retVars; we don't want to use the existing retVars because it has everything selected on the metamodel path.
 		semossQuery.removeReturnVariables();
