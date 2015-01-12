@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 import prerna.algorithm.impl.CreateMasterDB;
 import prerna.algorithm.impl.DeleteMasterDB;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -55,7 +56,7 @@ public class CentralNameServer {
 		if(centralApi!=null){
 			Hashtable params = new Hashtable();
 			params.put("selectedURI", selectedUris);
-			return getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params));
+			return WebUtility.getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params));
 		}
 		else {
 			NameServer ns = new NameServer();
@@ -81,7 +82,7 @@ public class CentralNameServer {
 			Hashtable params = new Hashtable();
 			params.put("QueryData", queryData);
 			
-			return getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/databases", params));
+			return WebUtility.getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/databases", params));
 		}
 		else {
 			NameServer ns = new NameServer();
@@ -110,7 +111,7 @@ public class CentralNameServer {
 			Hashtable params = new Hashtable();
 			params.put("dbName", engineApi);
 			params.put("baseURL", baseURL);
-			return getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/registerEngine", params));
+			return WebUtility.getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/registerEngine", params));
 		}
 		else{
 			logger.info("LOCALLY registering engineAPI  ::: " + dbArray.toString());
@@ -138,7 +139,7 @@ public class CentralNameServer {
 			Hashtable params = new Hashtable();
 			params.put("dbName", engineApi);
 			String result = Utility.retrieveResult(centralApi + "/api/engine/central/context/unregisterEngine", params);
-			return getSO(result);
+			return WebUtility.getSO(result);
 		}
 		else{
 			logger.info("LOCALLY removing engineAPI  ::: " + dbArray.toString());
@@ -146,17 +147,5 @@ public class CentralNameServer {
 			form.put("localMasterDbName", localDb);
 			return ns.unregisterEngine2MasterDatabase(form, request);
 		}
-	}
-	
-
-	private StreamingOutput getSO(Object vec){
-		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-		output = gson.toJson(vec);
-	    return new StreamingOutput() {
-	        public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-	            PrintStream ps = new PrintStream(outputStream);
-	            ps.println(output);
-	        }
-	    };		
 	}
 }

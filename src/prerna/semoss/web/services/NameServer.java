@@ -41,6 +41,7 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -177,7 +178,7 @@ public class NameServer {
 //			enginesList.add(tokens.nextToken());
 //		}
 		hashTable.put("engines", engines);
-		return getSO(hashTable);
+		return WebUtility.getSO(hashTable);
 	}	
 
 
@@ -286,7 +287,7 @@ public class NameServer {
 			}
 		}
 		
-		return getSO(resultHash);
+		return WebUtility.getSO(resultHash);
 	}
 
 	// central call to remove an engine from the master db
@@ -319,7 +320,7 @@ public class NameServer {
 			}
 		}
 		
-		return getSO(resultHash);
+		return WebUtility.getSO(resultHash);
 	}
 	
 	// get all insights related to a specific uri
@@ -353,7 +354,7 @@ public class NameServer {
 			searcher.setInstanceList(selectedInstances);
 			contextList = searcher.findRelatedQuestionsWeb();
 		}
-		return getSO(contextList);
+		return WebUtility.getSO(contextList);
 	}
 	
 	// get all insights related to a specific uri
@@ -391,18 +392,7 @@ public class NameServer {
 			contextList = searcher.findRelatedEngines();
 		else
 			contextList = searcher.findRelatedEnginesWeb();
-		return getSO(contextList);
-	}
-	
-	private StreamingOutput getSO(Object vec){
-		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-		output = gson.toJson(vec);
-	    return new StreamingOutput() {
-	        public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-	            PrintStream ps = new PrintStream(outputStream);
-	            ps.println(output);
-	        }
-	    };		
+		return WebUtility.getSO(contextList);
 	}
 	
 	private StreamingOutput getSOHTML()
@@ -448,6 +438,6 @@ public class NameServer {
 		for(int i=0; i<sheetNames.size(); i++){
 			hashTable.put(sheetNames.get(i), PlaySheetEnum.getClassFromName(sheetNames.get(i)));
 		}
-		return getSO(hashTable);
+		return WebUtility.getSO(hashTable);
 	}	
 }

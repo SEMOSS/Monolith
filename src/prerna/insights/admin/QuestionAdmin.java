@@ -19,6 +19,7 @@ import javax.ws.rs.core.StreamingOutput;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.QuestionAdministrator;
 import prerna.util.DIHelper;
+import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -73,7 +74,7 @@ public class QuestionAdmin {
 		questionAdmin.addQuestion(perspective, questionKey, questionOrder, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
 		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
   		
-  		return Response.status(200).entity(getSO("Success")).build();
+  		return Response.status(200).entity(WebUtility.getSO("Success")).build();
   	}
  
   	@POST
@@ -142,7 +143,7 @@ public class QuestionAdmin {
 		questionAdmin.modifyQuestion(perspective, questionKey, questionOrder, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
 		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
 		
-  		return Response.status(200).entity(getSO("Success")).build();
+  		return Response.status(200).entity(WebUtility.getSO("Success")).build();
   	}
   	
   	@POST
@@ -185,21 +186,6 @@ public class QuestionAdmin {
 		questionAdmin.deleteQuestion(perspective, questionKey, questionOrder, question, sparql, layout, questionDescription, parameterDependList, parameterQueryList, parameterOptionList);
 		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
 		
-  		return Response.status(200).entity(getSO("Success")).build();
+  		return Response.status(200).entity(WebUtility.getSO("Success")).build();
   	}
-	
-	private StreamingOutput getSO(Object vec)
-	{
-		if(vec != null)
-		{
-			Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-			output = gson.toJson(vec);
-			   return new StreamingOutput() {
-			         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-			            PrintStream ps = new PrintStream(outputStream);
-			            ps.println(output);
-			         }};		
-		}
-		return null;
-	}
 }
