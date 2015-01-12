@@ -3,6 +3,8 @@ package prerna.semoss.web.services;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -64,6 +66,7 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -75,7 +78,7 @@ public class EngineResource {
 	// gets everything specific to an engine
 	// essentially this is a wrapper over the engine
 	IEngine coreEngine = null;
-	String output = "";
+	byte[] output ;
 	Logger logger = Logger.getLogger(EngineResource.class.getName());
 	Hashtable<String, SEMOSSQuery> vizHash = new Hashtable<String, SEMOSSQuery>();
 	// to send class name if error occurs
@@ -121,7 +124,7 @@ public class EngineResource {
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "No engine defined.");
 			errorHash.put("Class", className);
-			return Response.status(400).entity(getSO(errorHash)).build();
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
 		
 		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
@@ -155,10 +158,10 @@ public class EngineResource {
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error processing query.");
 			errorHash.put("Class", className);
-			return Response.status(500).entity(getSO(errorHash)).build();
+			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
 		
-		return Response.status(200).entity(getSO(obj)).build();
+		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}
 
 	
@@ -175,7 +178,7 @@ public class EngineResource {
 			Vector<String> upNodes = ((AbstractEngine) coreEngine).getFromNeighbors(type, 0);
 			finalTypes.put("upstream", upNodes);
 		} 
-		return Response.status(200).entity(getSO(finalTypes)).build();
+		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
 	}
 
 	//gets all node types connected to a given node type along with the verbs connecting the given types
@@ -191,7 +194,7 @@ public class EngineResource {
 			Hashtable<String, Vector<String>> upNodes = ((AbstractEngine) coreEngine).getFromNeighborsWithVerbs(type, 0);
 			finalTypes.put("upstream", upNodes);
 		}
-		return Response.status(200).entity(getSO(finalTypes)).build();
+		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
 	}
 	
 	//gets all node types connected to a specific node instance
@@ -262,7 +265,7 @@ public class EngineResource {
 			}
 			finalTypes.put("upstream", validUpTypes);
 		}
-		return Response.status(200).entity(getSO(finalTypes)).build();
+		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
 	}
 	
 	// gets all the insights for a given type and tag in all the engines
@@ -291,7 +294,7 @@ public class EngineResource {
 		if(resultInsights!=null)
 			resultInsightObjects = ((AbstractEngine)coreEngine).getInsight2(resultInsights.toArray(new String[resultInsights.size()]));
 
-		return Response.status(200).entity(getSO(resultInsightObjects)).build();
+		return Response.status(200).entity(WebUtility.getSO(resultInsightObjects)).build();
 	}
 	
 	// gets all the insights for a given type and tag in all the engines
@@ -311,23 +314,7 @@ public class EngineResource {
 			if(insights != null)
 				retP.put(perspectives.elementAt(pIndex), insights);
 		}
-		return Response.status(200).entity(getSO(retP)).build();
-	}
-
-	
-	private StreamingOutput getSO(Object vec)
-	{
-		if(vec != null)
-		{
-			Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-			output = gson.toJson(vec);
-			   return new StreamingOutput() {
-			         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-			            PrintStream ps = new PrintStream(outputStream);
-			            ps.println(output);
-			         }};		
-		}
-		return null;
+		return Response.status(200).entity(WebUtility.getSO(retP)).build();
 	}
 
 	@GET
@@ -339,7 +326,7 @@ public class EngineResource {
 		Hashtable<String, Vector<String>> hashtable = new Hashtable<String, Vector<String>>(); 
 		Vector<String> perspectivesVector = coreEngine.getPerspectives();
 		hashtable.put("perspectives", perspectivesVector);
-		return Response.status(200).entity(getSO(hashtable)).build();
+		return Response.status(200).entity(WebUtility.getSO(hashtable)).build();
 	}
 
 	// gets all the tags for a given insight across all the engines
@@ -402,7 +389,7 @@ public class EngineResource {
 		outputHash.put("options", optionsHash);
 		outputHash.put("params", paramsHash);
 		
-		return Response.status(200).entity(getSO(outputHash)).build();
+		return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
 	}
 
 	// executes a particular insight
@@ -454,17 +441,17 @@ public class EngineResource {
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
 					errorHash.put("Message", "Error occured processing question.");
 					errorHash.put("Class", className);
-					return Response.status(500).entity(getSO(errorHash)).build();
+					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
 				
-				return Response.status(200).entity(getSO(obj)).build();
+				return Response.status(200).entity(WebUtility.getSO(obj)).build();
 			}
 			else{
 				Hashtable<String, String> errorHash = new Hashtable<String, String>();
 				errorHash.put("Message", "No question defined.");
 				errorHash.put("Class", className);
 	//			return getSO(errorHash);
-				return Response.status(400).entity(getSO(errorHash)).build();
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
 		
@@ -502,11 +489,11 @@ public class EngineResource {
 			errorHash.put("Message", "Error occured processing question.");
 			errorHash.put("Class", className);
 //			return getSO(errorHash);
-			return Response.status(500).entity(getSO(errorHash)).build();
+			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
 
 //		return getSO("");
-		return Response.status(200).entity(getSO(obj)).build();
+		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 //		Hashtable <String, Object> paramHash = new Hashtable<String, Object>();
 //		if(params != null)
 //		{
@@ -601,7 +588,7 @@ public class EngineResource {
 		// typically is a JSON of the insight
 		// this will also cache it
 		System.out.println(form.getFirst("query"));
-		return Response.status(200).entity(getSO(RDFJSONConverter.getSelectAsJSON(form.getFirst("query")+"", coreEngine))).build();
+		return Response.status(200).entity(WebUtility.getSO(RDFJSONConverter.getSelectAsJSON(form.getFirst("query")+"", coreEngine))).build();
 	}	
 
 	// runs a query against the engine while filtering out everything included in baseHash
@@ -617,7 +604,7 @@ public class EngineResource {
 		if(coreEngine instanceof AbstractEngine)
 			filterFunction.setFilterHash(((AbstractEngine)coreEngine).getBaseHash());
 		System.out.println(form.getFirst("query"));
-		return Response.status(200).entity(getSO(filterFunction.process(form.getFirst("query")+""))).build();
+		return Response.status(200).entity(WebUtility.getSO(filterFunction.process(form.getFirst("query")+""))).build();
 	}	
 
 	// runs a query against the engine while filtering out everything included in baseHash
@@ -634,7 +621,7 @@ public class EngineResource {
 			filterFunction.setFilterHash(((AbstractEngine)coreEngine).getBaseHash());
 		System.out.println(form.getFirst("query"));
 		
-		return Response.status(200).entity(getSO(filterFunction.process(form.getFirst("query")+""))).build();
+		return Response.status(200).entity(WebUtility.getSO(filterFunction.process(form.getFirst("query")+""))).build();
 	}	
 	
 	// gets a particular insight
@@ -667,12 +654,12 @@ public class EngineResource {
 		wrapper.setQuery(form.getFirst("query")+"");
 		boolean success = wrapper.execute();
 		if(success) {
-			return Response.status(200).entity(getSO("success")).build();
+			return Response.status(200).entity(WebUtility.getSO("success")).build();
 		} else {
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error processing query.");
 			errorHash.put("Class", className);
-			return Response.status(500).entity(getSO(errorHash)).build();
+			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
 	}	
 
@@ -704,11 +691,11 @@ public class EngineResource {
 		// typically is a JSON of the insight
 		// this will also cache it
 		if(typeToFill != null) {
-			return Response.status(200).entity(getSO(coreEngine.getParamValues("", typeToFill, ""))).build();
+			return Response.status(200).entity(WebUtility.getSO(coreEngine.getParamValues("", typeToFill, ""))).build();
 		} else if(query != null) {
-			return Response.status(200).entity(getSO(coreEngine.getParamValues("", "", "", query))).build();
+			return Response.status(200).entity(WebUtility.getSO(coreEngine.getParamValues("", "", "", query))).build();
 		}
-		return Response.status(200).entity(getSO(null)).build();
+		return Response.status(200).entity(WebUtility.getSO(null)).build();
 	}		
 	
 	// gets all numeric properties associated with a specific node type
@@ -723,7 +710,7 @@ public class EngineResource {
 		//fill the query
 		String query = nodePropQuery.replace("@NODE_TYPE_URI@", nodeUri);
 		logger.info("Running node property query " + query);
-		return Response.status(200).entity(getSO(coreEngine.getEntityOfType(query))).build();
+		return Response.status(200).entity(WebUtility.getSO(coreEngine.getEntityOfType(query))).build();
 	}	
 	
 	// gets all numeric edge properties for a specific edge type
@@ -740,7 +727,7 @@ public class EngineResource {
 		//fill the query
 		String query = edgePropQuery.replace("@SOURCE_TYPE@", sourceTypeUri).replace("@TARGET_TYPE@", targetTypeUri).replace("@VERB_TYPE@", verbTypeUri);
 		logger.info("Running edge property query " + query);
-		return Response.status(200).entity(getSO(coreEngine.getEntityOfType(query))).build();
+		return Response.status(200).entity(WebUtility.getSO(coreEngine.getEntityOfType(query))).build();
 	}	
 	
 	@GET
@@ -792,9 +779,9 @@ public class EngineResource {
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error occured processing query.");
 			errorHash.put("Class", className);
-			return Response.status(500).entity(getSO(errorHash)).build();
+			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
-		return Response.status(200).entity(getSO(obj)).build();
+		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
 	
 	@POST
@@ -863,14 +850,14 @@ public class EngineResource {
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error occured processing query.");
 			errorHash.put("Class", className);
-			return Response.status(500).entity(getSO(errorHash)).build();
+			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
 		
 		//add variable info to return data
 		((Hashtable)obj).put("variableHeaders", varObjVector);
 		((Hashtable)obj).put("limit", limitHash);
 		
-		return Response.status(200).entity(getSO(obj)).build();
+		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
 	
 	@GET
@@ -885,7 +872,7 @@ public class EngineResource {
 		tableViz.setJSONDataHash(dataHash);
 		tableViz.setEngine(coreEngine);
 		Object obj = tableViz.getPropsFromPath();
-		return Response.status(200).entity(getSO(obj)).build();
+		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
 
   	@GET
@@ -1034,7 +1021,7 @@ public class EngineResource {
 		
 		System.out.println(">>>.... " + new GsonBuilder().setPrettyPrinting().create().toJson(allMenu));
 		
-		return Response.status(200).entity(getSO(allMenu)).build();
+		return Response.status(200).entity(WebUtility.getSO(allMenu)).build();
 	}
   	
   	private ArrayList<Hashtable<String,String>> getHashArrayFromString(String arrayString){

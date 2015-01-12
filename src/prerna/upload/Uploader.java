@@ -396,16 +396,4 @@ public class Uploader extends HttpServlet {
 		String outputText = "R2RQ Loading was a success.";
 		return Response.status(200).entity(outputText).build();
 	}
-
-
-	private StreamingOutput getSO(Object vec)
-	{
-		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-		output = gson.toJson(vec);
-		return new StreamingOutput() {
-			public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-				PrintStream ps = new PrintStream(outputStream);
-				ps.println(output);
-			}};		
-	}
 }
