@@ -38,6 +38,7 @@ import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class PlaySheetResource {
 
@@ -93,7 +94,7 @@ public class PlaySheetResource {
 		else 
 		{
 			logger.error("Too many arguments passed to traverse freely");
-			return getSO("Too many arguments passed to traverse freely");
+			return WebUtility.getSO("Too many arguments passed to traverse freely");
 		}
 		
 		//process traversal
@@ -102,7 +103,7 @@ public class PlaySheetResource {
 		// put the playsheet back in session
 		storePlaySheet(request);
 		
-		return getSO(obj);
+		return WebUtility.getSO(obj);
 	}	
 
 	// Binds the downNode currently on the graph and runs traversal query. Can take multiple instances and one type or multiple types and one instance
@@ -144,7 +145,7 @@ public class PlaySheetResource {
 		else 
 		{
 			logger.error("Too many arguments passed to traverse freely");
-			return getSO("Too many arguments passed to traverse freely");
+			return WebUtility.getSO("Too many arguments passed to traverse freely");
 		}
 
 		//process traversal
@@ -153,7 +154,7 @@ public class PlaySheetResource {
 		// put the playsheet back in session
 		storePlaySheet(request);
 		
-		return getSO(obj);
+		return WebUtility.getSO(obj);
 	}	
 
 //	// Binds all nodes of upNodeType currently on the graph and runs traversal query
@@ -255,7 +256,7 @@ public class PlaySheetResource {
 		}
 		
 		ArrayList<Hashtable<String, Object>> contextList = searcher.findRelatedQuestions();
-		return getSO(contextList);
+		return WebUtility.getSO(contextList);
 	}
 
 	// temporary function for getting chart it data
@@ -286,7 +287,7 @@ public class PlaySheetResource {
 		playSheet = exQueryProcessor.getPlaySheet();
 		
 		Object obj = runPlaySheetOverlay();
-		return getSO(obj);
+		return WebUtility.getSO(obj);
 	}
 //
 //	//gets all node types connected to a specific node instance
@@ -379,7 +380,7 @@ public class PlaySheetResource {
 		
 		Hashtable retHash = new Hashtable();
 		retHash.put("Nodes", typeHash);
-		return getSO(retHash);
+		return WebUtility.getSO(retHash);
 	}
 
 	// temporary function for getting chart it data
@@ -403,7 +404,7 @@ public class PlaySheetResource {
 
 		// put the playsheet back in session
 		storePlaySheet(request);
-		return getSO(obj);
+		return WebUtility.getSO(obj);
 	}
 
 	// temporary function for getting chart it data
@@ -426,22 +427,7 @@ public class PlaySheetResource {
 
 		// put the playsheet back in session
 		storePlaySheet(request);
-		return getSO(obj);
-	}
-	
-	private StreamingOutput getSO(Object vec)
-	{
-		if(vec != null)
-		{
-			Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-			output = gson.toJson(vec);
-			   return new StreamingOutput() {
-			         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-			            PrintStream ps = new PrintStream(outputStream);
-			            ps.println(output);
-			         }};		
-		}
-		return null;
+		return WebUtility.getSO(obj);
 	}
 	
 	// fills the traversal query and calls overlay

@@ -26,6 +26,7 @@ import prerna.util.DIHelper;
 import prerna.web.services.util.GraphStreamingOutput;
 import prerna.web.services.util.QueryResultHash;
 import prerna.web.services.util.TupleStreamingOutput;
+import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -53,7 +54,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput getFromNeighbors(@FormParam("nodeType") String nodeType, @FormParam("neighborHood") int neighborHood) {
 		// TODO Auto-generated method stub
-		return getSO(coreEngine.getFromNeighbors(nodeType, neighborHood));
+		return WebUtility.getSO(coreEngine.getFromNeighbors(nodeType, neighborHood));
 	}
 
 	@POST
@@ -61,7 +62,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput getToNeighbors(@FormParam("nodeType") String nodeType, @FormParam("neighborHood") int neighborHood) {
 		// TODO Auto-generated method stub
-		return getSO(coreEngine.getToNeighbors(nodeType, neighborHood));
+		return WebUtility.getSO(coreEngine.getToNeighbors(nodeType, neighborHood));
 	}
 
 	@POST
@@ -69,7 +70,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput getNeighbors(@FormParam("nodeType") String nodeType, @FormParam("neighborHood") int neighborHood) {
 		// TODO Auto-generated method stub
-		return getSO(coreEngine.getNeighbors(nodeType, neighborHood));
+		return WebUtility.getSO(coreEngine.getNeighbors(nodeType, neighborHood));
 	}
 
 	@POST
@@ -90,25 +91,9 @@ public class EngineRemoteResource {
 		((IRemoteQueryable)sjw).setRemoteAPI(uriBase + coreEngine.getEngineName());
 		QueryResultHash.getInstance().addObject(sjw);		
 		
-		return getSO(sjw);
+		return WebUtility.getSO(sjw);
 	}
 	
-	private StreamingOutput getSO(Object vec)
-	{
-		if(vec != null)
-		{
-			Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-			output = gson.toJson(vec);
-			   return new StreamingOutput() {
-			         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-			            PrintStream ps = new PrintStream(outputStream);
-			            ps.println(output);
-			         }};		
-		}
-		return null;
-	}
-
-
 	@POST
 	@Path("execSelectQuery")
 	@Produces("application/json")
@@ -125,7 +110,7 @@ public class EngineRemoteResource {
 		((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineName());
 		QueryResultHash.getInstance().addObject(sjsw);		
 	
-		return getSO(sjsw);
+		return WebUtility.getSO(sjsw);
 	}
 
 
@@ -145,7 +130,7 @@ public class EngineRemoteResource {
 		((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineName());
 		QueryResultHash.getInstance().addObject(sjsw);		
 	
-		return getSO(sjsw);
+		return WebUtility.getSO(sjsw);
 	}
 
 	@POST
@@ -153,7 +138,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput getEntityOfType(@FormParam("sparqlQuery") String sparqlQuery) {
 		// TODO Auto-generated method stub
-		return getSO(coreEngine.getEntityOfType(sparqlQuery));
+		return WebUtility.getSO(coreEngine.getEntityOfType(sparqlQuery));
 	}
 
 	@POST
@@ -161,7 +146,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput execAskQuery(@FormParam("query") String query) {
 		// TODO Auto-generated method stub
-		return getSO(coreEngine.execAskQuery(query));
+		return WebUtility.getSO(coreEngine.execAskQuery(query));
 	}
 
 
@@ -171,7 +156,7 @@ public class EngineRemoteResource {
 	public StreamingOutput getParamValues(@FormParam("label") String label, @FormParam("type") String type,
 			@FormParam("insightId") String insightId, @FormParam("query") String query) {
 		// TODO Auto-generated method stub
-		return getSO(coreEngine.getParamValues(label, type, insightId, query));
+		return WebUtility.getSO(coreEngine.getParamValues(label, type, insightId, query));
 	}
 	
 	@POST
@@ -215,7 +200,7 @@ public class EngineRemoteResource {
 				QueryResultHash.getInstance().cleanObject(id);
 		}
 		
-		return getSO(retValue);
+		return WebUtility.getSO(retValue);
 	}
 
 	@POST
@@ -269,7 +254,7 @@ public class EngineRemoteResource {
 				retValue = ((SesameJenaSelectWrapper)wrapper).BVnext();
 		}
 		// not sure if I should flesh the entire select query object or just the data hash yet
-		return getSO(retValue);
+		return WebUtility.getSO(retValue);
 	}	
 	
 	@POST

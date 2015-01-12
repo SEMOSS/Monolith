@@ -39,6 +39,7 @@ import prerna.rdf.query.util.SEMOSSQueryHelper;
 import prerna.rdf.query.util.SPARQLAbstractReturnModifier;
 import prerna.rdf.query.util.SPARQLConstants;
 import prerna.rdf.query.util.SPARQLTriple;
+import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -124,7 +125,7 @@ public class ExploreQuery {
 			semossQuery.createQuery();
 
 			query = semossQuery.getQuery();
-			return Response.status(200).entity(getSO(query)).build();
+			return Response.status(200).entity(WebUtility.getSO(query)).build();
 		}
 		
 		//remove retVars; we don't want to use the existing retVars because it has everything selected on the metamodel path.
@@ -206,22 +207,6 @@ public class ExploreQuery {
 		abstractQuery.buildQuery();
 		query = abstractQuery.getQuery();
 		
-		return Response.status(200).entity(getSO(query)).build();
-	}
-	
-	private StreamingOutput getSO(Object vec)
-	{
-		if(vec != null)
-		{
-			Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-			output = gson.toJson(vec);
-			   return new StreamingOutput() {
-			         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-			            PrintStream ps = new PrintStream(outputStream);
-			            ps.println(output);
-			         }
-			   };		
-		}
-		return null;
+		return Response.status(200).entity(WebUtility.getSO(query)).build();
 	}
 }
