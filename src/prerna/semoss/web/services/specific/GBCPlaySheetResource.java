@@ -45,6 +45,7 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class GBCPlaySheetResource {
 
@@ -98,7 +99,7 @@ public class GBCPlaySheetResource {
 		Hashtable retHash = new Hashtable();
 		retHash.put("mainViz", getDownstreamGraphData(new ArrayList<String>(charts), true, request));
 		
-		return Response.status(200).entity(getSO(retHash)).build();
+		return Response.status(200).entity(WebUtility.getSO(retHash)).build();
 	}	
 
 	// for clicking specific cell in grid or clicking top formula part of high level bar chart
@@ -139,7 +140,7 @@ public class GBCPlaySheetResource {
 			retHash.put("drillViz", drillData);
 		}
 		
-		return getSO(retHash);
+		return WebUtility.getSO(retHash);
 	}	
 
 	// for any subsequent drill downs once metric ids are known
@@ -160,7 +161,7 @@ public class GBCPlaySheetResource {
 		
 		ArrayList masterList = getDownstreamGraphData(downstreamGraphs, true, request);
 		
-		return getSO(masterList);
+		return WebUtility.getSO(masterList);
 	}	
 	
 	private Hashtable<String, ArrayList<String>> getDownstreamGraphs(ArrayList<String> uris){
@@ -230,21 +231,6 @@ public class GBCPlaySheetResource {
         }
         
         return obj;
-	}
-	
-	private StreamingOutput getSO(Object vec)
-	{
-		if(vec != null)
-		{
-			Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-			output = gson.toJson(vec);
-			   return new StreamingOutput() {
-			         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-			            PrintStream ps = new PrintStream(outputStream);
-			            ps.println(output);
-			         }};		
-		}
-		return null;
 	}
 	
 	private ArrayList getDownstreamGraphData(ArrayList<String> chartArray, boolean getDownstream, HttpServletRequest request){

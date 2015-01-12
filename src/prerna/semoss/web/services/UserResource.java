@@ -30,6 +30,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
 import prerna.auth.SEMOSSPrincipal;
+import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
 
 import com.google.api.client.auth.oauth2.TokenResponseException;
@@ -98,14 +99,14 @@ public class UserResource
 		String tokenData = (String) request.getSession().getAttribute("token");
 		if (tokenData != null) {
 			ret.put("error", "User is already connected.");
-			return Response.status(200).entity(getSO(ret)).build();
+			return Response.status(200).entity(WebUtility.getSO(ret)).build();
 		}
 		// Ensure that this is no request forgery going on, and that the user
 		// sending us this connect request is the user that was supposed to.
 		if (request.getParameter("state") != null && request.getSession().getAttribute("state") != null && 
 				!request.getParameter("state").equals(request.getSession().getAttribute("state"))) {
 			ret.put("error", "Invalid state parameter.");
-			return Response.status(400).entity(getSO(ret)).build();
+			return Response.status(400).entity(WebUtility.getSO(ret)).build();
 		}
 
 		GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
@@ -144,15 +145,15 @@ public class UserResource
 		} catch (TokenResponseException e) {
 			ret.put("success", "false");
 			ret.put("error", "Failed to upgrade the auth code: " + e.getMessage());
-			return Response.status(400).entity(getSO(ret)).build();
+			return Response.status(400).entity(WebUtility.getSO(ret)).build();
 		} catch (IOException e) {
 			ret.put("success", "false");
 			ret.put("error", "Failed to read the token data from google: " + e.getMessage());
-			return Response.status(404).entity(getSO(ret)).build();
+			return Response.status(404).entity(WebUtility.getSO(ret)).build();
 		}
 		
 		ret.put("success", "true");
-		return Response.status(200).entity(getSO(ret)).build();
+		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 
 	@GET
@@ -166,7 +167,7 @@ public class UserResource
 		if (tokenData == null) {
 			ret.put("success", "false");
 			ret.put("error", "User is not connected.");
-			return Response.status(400).entity(getSO(ret)).build();
+			return Response.status(400).entity(WebUtility.getSO(ret)).build();
 		}
 
 		String clientId = request.getSession().getAttribute("clientId").toString();
@@ -193,11 +194,11 @@ public class UserResource
 			// For whatever reason, the given token was invalid.
 			ret.put("success", "false");
 			ret.put("error", "Failed to revoke token.");
-			return Response.status(400).entity(getSO(ret)).build();
+			return Response.status(400).entity(WebUtility.getSO(ret)).build();
 		}
 
 		ret.put("success", "true");
-		return Response.status(200).entity(getSO(ret)).build();
+		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 	
 	@POST
@@ -243,7 +244,7 @@ public class UserResource
 			    		if(k.get("error") != null) {
 			    			ret.put("success", "false");
 			    			ret.put("error", h.get("error").toString());
-			    			return Response.status(200).entity(getSO(ret)).build();
+			    			return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			    		}
 		            }
 		        }
@@ -270,7 +271,7 @@ public class UserResource
 		ret.put("email", email);
 		
 		ret.put("success", "true");
-		return Response.status(200).entity(getSO(ret)).build();
+		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 	
 	@GET
@@ -284,7 +285,7 @@ public class UserResource
 		if (tokenData == null) {
 			ret.put("success", "false");
 			ret.put("error", "User is not connected.");
-			return Response.status(400).entity(getSO(ret)).build();
+			return Response.status(400).entity(WebUtility.getSO(ret)).build();
 		}
 
 		String clientId = request.getSession().getAttribute("clientId").toString();
@@ -306,7 +307,7 @@ public class UserResource
 		    		if(h.get("error") != null) {
 		    			ret.put("success", "false");
 		    			ret.put("error", h.get("error").toString());
-		    			return Response.status(200).entity(getSO(ret)).build();
+		    			return Response.status(200).entity(WebUtility.getSO(ret)).build();
 		    		}
 		        }
 		    }
@@ -316,7 +317,7 @@ public class UserResource
 		}
 		
 		ret.put("success", "true");
-		return Response.status(200).entity(getSO(ret)).build();
+		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 
 	@GET
@@ -382,20 +383,5 @@ public class UserResource
 		}
 		
 		return tokenValidity;
-	}
-
-	private StreamingOutput getSO(Object vec)
-	{
-		if(vec != null)
-		{
-			Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-			output = gson.toJson(vec);
-			return new StreamingOutput() {
-				public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-					PrintStream ps = new PrintStream(outputStream);
-					ps.println(output);
-				}};		
-		}
-		return null;
 	}
 }

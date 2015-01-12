@@ -19,6 +19,7 @@ import org.apache.log4j.Logger;
 import prerna.rdf.engine.api.IEngine;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -39,7 +40,7 @@ public class EngineAnalyticsResource {
 	public Response generateScatter() {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		LOGGER.info("Creating scatterplot for " + engine.getEngineName() + "'s base page...");
-		return Response.status(200).entity(getSO(ps.generateScatter(engine))).build();		
+		return Response.status(200).entity(WebUtility.getSO(ps.generateScatter(engine))).build();		
 	}
 	
 	@POST
@@ -51,18 +52,18 @@ public class EngineAnalyticsResource {
 			List<Hashtable<String, String>> questionList = ps.getQuestionsWithoutParams(engine);
 			if(questionList.isEmpty()) {
 				String errorMessage = "No insights exist that do not contain a paramter input.";
-				return Response.status(400).entity(getSO(errorMessage)).build();
+				return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 			} else {
-				return Response.status(200).entity(getSO(questionList)).build();
+				return Response.status(200).entity(WebUtility.getSO(questionList)).build();
 			}
 		} else {
 			LOGGER.info("Creating question list with parameter of type " + typeURI + "...");
 			List<Hashtable<String, String>> questionList = ps.getQuestionsForParam(engine, typeURI);
 			if(questionList.isEmpty()) {
 				String errorMessage = "No insights exist that contain " + Utility.getInstanceName(typeURI) + " as a paramter input.";
-				return Response.status(400).entity(getSO(errorMessage)).build();
+				return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 			} else {
-				return Response.status(200).entity(getSO(questionList)).build();
+				return Response.status(200).entity(WebUtility.getSO(questionList)).build();
 			}
 		}
 	}
@@ -73,10 +74,10 @@ public class EngineAnalyticsResource {
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
 		if(typeURI == null) {
 			LOGGER.info("Creating list of instances with most edge connections across all concepts...");
-			return Response.status(200).entity(getSO(ps.getMostInfluentialInstancesForAllTypes(engine))).build();		
+			return Response.status(200).entity(WebUtility.getSO(ps.getMostInfluentialInstancesForAllTypes(engine))).build();		
 		} else {
 			LOGGER.info("Creating list of instances with most edge connections of type " + typeURI + "...");
-			return Response.status(200).entity(getSO(ps.getMostInfluentialInstancesForSpecificTypes(engine, typeURI))).build();		
+			return Response.status(200).entity(WebUtility.getSO(ps.getMostInfluentialInstancesForSpecificTypes(engine, typeURI))).build();		
 		}
 	}
 	
@@ -85,7 +86,7 @@ public class EngineAnalyticsResource {
 	public Response getLargestOutliers(@QueryParam("typeURI") String typeURI) {
 		if(typeURI == null) {
 			String errorMessage = "No typeURI provided";
-			return Response.status(400).entity(getSO(errorMessage)).build();
+			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 		}
 		
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
@@ -94,13 +95,13 @@ public class EngineAnalyticsResource {
 		
 		if(results == null) {
 			String errorMessage = "No properties or edge connections to determine outliers among concepts of type ".concat(Utility.getInstanceName(typeURI));
-			return Response.status(400).entity(getSO(errorMessage)).build();
+			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 		}
 		if(results.isEmpty()) {
 			String errorMessage = "Insufficient sample size of instances of type ".concat(Utility.getInstanceName(typeURI).concat(" to determine outliers"));
-			return Response.status(400).entity(getSO(errorMessage)).build();
+			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 		}
-		return Response.status(200).entity(getSO(results)).build();
+		return Response.status(200).entity(WebUtility.getSO(results)).build();
 	}
 	
 	@POST
@@ -108,12 +109,12 @@ public class EngineAnalyticsResource {
 	public Response getConnectionMap(@QueryParam("instanceURI") String instanceURI) {
 		if(instanceURI == null) {
 			String errorMessage = "No instanceURI provided";
-			return Response.status(400).entity(getSO(errorMessage)).build();
+			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 		}
 		
 		LOGGER.info("Creating instance mapping to concepts...");
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
-		return Response.status(200).entity(getSO(ps.getConnectionMap(engine, instanceURI))).build();
+		return Response.status(200).entity(WebUtility.getSO(ps.getConnectionMap(engine, instanceURI))).build();
 	}
 	
 	@POST
@@ -121,27 +122,12 @@ public class EngineAnalyticsResource {
 	public Response getPropertiesForInstance(@QueryParam("instanceURI") String instanceURI) {
 		if(instanceURI == null) {
 			String errorMessage = "No instanceURI provided";
-			return Response.status(400).entity(getSO(errorMessage)).build();
+			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 		}
 		
 		LOGGER.info("Creating list of properties for " + instanceURI + "...");
 		AnalyticsBasePlaySheet ps = new AnalyticsBasePlaySheet();
-		return Response.status(200).entity(getSO(ps.getPropertiesForInstance(engine, instanceURI))).build();
-	}
-	
-	private StreamingOutput getSO(Object vec)
-	{
-		if(vec != null)
-		{
-			Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-			output = gson.toJson(vec);
-			   return new StreamingOutput() {
-			         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-			            PrintStream ps = new PrintStream(outputStream);
-			            ps.println(output);
-			         }};		
-		}
-		return null;
+		return Response.status(200).entity(WebUtility.getSO(ps.getPropertiesForInstance(engine, instanceURI))).build();
 	}
 	
 	//TODO: getting questions from master db is web specific and should not be semoss playsheet
