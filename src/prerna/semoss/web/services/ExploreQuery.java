@@ -1,48 +1,35 @@
 package prerna.semoss.web.services;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.query.builder.AbstractBaseMetaModelQueryBuilder;
 import prerna.rdf.query.builder.AbstractQueryBuilder;
-import prerna.rdf.query.builder.BarChartQueryBuilder;
 import prerna.rdf.query.builder.CustomVizGraphBuilder;
 import prerna.rdf.query.builder.CustomVizTableBuilder;
+import prerna.rdf.query.builder.GenericChartQueryBuilder;
 import prerna.rdf.query.builder.GenericTableQueryBuilder;
 import prerna.rdf.query.builder.HeatMapQueryBuilder;
 import prerna.rdf.query.builder.PieChartQueryBuilder;
 import prerna.rdf.query.builder.ScatterPlotQueryBuilder;
-import prerna.rdf.query.util.ISPARQLReturnModifier;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.query.util.SEMOSSQueryHelper;
-import prerna.rdf.query.util.SPARQLAbstractReturnModifier;
-import prerna.rdf.query.util.SPARQLConstants;
-import prerna.rdf.query.util.SPARQLTriple;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 public class ExploreQuery {
@@ -180,7 +167,7 @@ public class ExploreQuery {
 			
 			abstractQuery = new PieChartQueryBuilder (label, valueName, valueMathFunc, parameters, semossQuery);
 		}
-		else if(layout.equals("Bar Chart")){
+		else if(layout.equals("Bar Chart") || layout.equals("Line Chart")){
 			String labelColName = colLabelHash.get("Label").get(0);
 			ArrayList<String> valueColNames = colLabelHash.get("Value");
 			ArrayList<String> valueMathFunctions = colMathHash.get("Value");
@@ -189,7 +176,7 @@ public class ExploreQuery {
 				valueMathFunctions.addAll(colMathHash.get("Extra Value"));
 			}
 			
-			abstractQuery = new BarChartQueryBuilder (labelColName, valueColNames, valueMathFunctions, parameters, semossQuery);
+			abstractQuery = new GenericChartQueryBuilder (labelColName, valueColNames, valueMathFunctions, parameters, semossQuery);
 		}
 		//takes care of regular select queries without math functions or changes to select vars
 		else {
