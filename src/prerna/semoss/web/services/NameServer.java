@@ -6,7 +6,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Hashtable;
-import java.util.Vector;
+import java.util.List;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -29,13 +29,10 @@ import prerna.algorithm.impl.CreateMasterDB;
 import prerna.algorithm.impl.DeleteMasterDB;
 import prerna.algorithm.impl.SearchMasterDB;
 import prerna.error.EngineException;
-import prerna.om.GraphDataModel;
-import prerna.om.SEMOSSEdge;
 import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
 import prerna.rdf.query.builder.CustomVizTableBuilder;
-import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -44,8 +41,6 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.ibm.icu.util.StringTokenizer;
 
 @Path("/engine")
 public class NameServer {
@@ -343,7 +338,7 @@ public class NameServer {
 		{
 			selectedInstances.add(new SEMOSSVertex(uri));
 		}
-		ArrayList<Hashtable<String, Object>> contextList = null;
+		List<Hashtable<String, Object>> contextList = null;
 		if(localMasterDbName != null) {
 			SearchMasterDB searcher = new SearchMasterDB(localMasterDbName);
 			searcher.setInstanceList(selectedInstances);
@@ -387,7 +382,7 @@ public class NameServer {
 		for (Hashtable<String, String> edgeHash : predV){
 			searcher.addToEdgeList(Utility.getInstanceName(edgeHash.get("Subject")), Utility.getInstanceName(edgeHash.get("Object")));
 		}
-		ArrayList<Hashtable<String, Object>> contextList = null;
+		List<Hashtable<String, Object>> contextList = null;
 		if(localMasterDbName != null)
 			contextList = searcher.findRelatedEngines();
 		else

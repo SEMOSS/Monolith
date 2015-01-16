@@ -255,7 +255,7 @@ public class PlaySheetResource {
 			searcher.setInstanceList(selectedInstances);
 		}
 		
-		ArrayList<Hashtable<String, Object>> contextList = searcher.findRelatedQuestions();
+		List<Hashtable<String, Object>> contextList = searcher.findRelatedQuestions();
 		return WebUtility.getSO(contextList);
 	}
 
