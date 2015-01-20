@@ -178,6 +178,17 @@ public class ExploreQuery {
 			
 			abstractQuery = new GenericChartQueryBuilder (labelColName, valueColNames, valueMathFunctions, parameters, semossQuery);
 		}
+		else if(layout.equals("World Map")){
+			String siteLabel = colLabelHash.get("Label").get(0);
+			String lat = colLabelHash.get("Latitude").get(0);
+			String lon = colLabelHash.get("Longitude").get(0);
+			ArrayList<String> labelList = new ArrayList<String>();
+			labelList.add(siteLabel);
+			labelList.add(lat);
+			labelList.add(lon);
+			
+			abstractQuery = new GenericTableQueryBuilder (labelList, parameters, semossQuery);
+		}
 		//takes care of regular select queries without math functions or changes to select vars
 		else {
 			//This takes in parallel coordinates and parallel sets
