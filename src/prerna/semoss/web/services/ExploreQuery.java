@@ -115,8 +115,10 @@ public class ExploreQuery {
 			return Response.status(200).entity(WebUtility.getSO(query)).build();
 		}
 		
-		//remove retVars; we don't want to use the existing retVars because it has everything selected on the metamodel path.
-		semossQuery.removeReturnVariables();
+		//The existing retVars contains all the variables (from the selected metamodel path).  We want to clear these to build visualization-specific queries.
+		if(!layout.equals("Grid")) {
+			semossQuery.removeReturnVariables();
+		}
 		
 		LinkedHashMap<String, ArrayList<String>> colLabelHash = new LinkedHashMap<String, ArrayList<String>>();
 		LinkedHashMap<String, ArrayList<String>> colMathHash = new LinkedHashMap<String, ArrayList<String>>();
@@ -180,7 +182,7 @@ public class ExploreQuery {
 		}
 		//takes care of regular select queries without math functions or changes to select vars
 		else {
-			//This takes in parallel coordinates, world map, and parallel sets
+			//This takes in parallel coordinates, world map, grid, and parallel sets
 			ArrayList<String> labelList = new ArrayList<String>();
 			Set<String> keySet = colLabelHash.keySet();
 			
