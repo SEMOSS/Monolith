@@ -122,12 +122,7 @@ public class GBCPlaySheetResource {
 		// 7. use metric break down to get children metrics
 		// 8. show bar chart of each one of them
 
-		// get the chart metric id associated with this taxonomy uri
-		String chartEntityQuery = this.chartFromTaxCatQuery.replace("@PASSED_TAX_URI@", uri);
-		Vector<String> charts = this.coreEngine.getEntityOfType(chartEntityQuery); // this can return multiple now
 		Hashtable retHash = new Hashtable();
-		retHash.put("mainViz", getDownstreamGraphData(new ArrayList<String>(charts), false, request));
-		
 		// get the chart metric id associated with this taxonomy uri
 		String metricEntityQuery = this.chartMetricFromTaxCatQuery.replace("@PASSED_TAX_URI@", uri);
 		Vector<String> metricList = this.coreEngine.getEntityOfType(metricEntityQuery); // this should only return one!!
@@ -139,6 +134,18 @@ public class GBCPlaySheetResource {
 				drillData = this.getDownstreamGraphData(downstreamGraphs.get(metric), true, request);
 			retHash.put("drillViz", drillData);
 		}
+
+		// get the chart metric id associated with this taxonomy uri
+		String chartEntityQuery = this.chartFromTaxCatQuery.replace("@PASSED_TAX_URI@", uri);
+		Vector<String> charts = this.coreEngine.getEntityOfType(chartEntityQuery); // this can return multiple now
+		ArrayList<Hashtable> mainViz = null;
+		if(retHash.isEmpty()){
+			mainViz = getDownstreamGraphData(new ArrayList<String>(charts), true, request);
+		}
+		else{
+			mainViz = getDownstreamGraphData(new ArrayList<String>(charts), false, request);
+		}
+		retHash.put("mainViz", mainViz);
 		
 		return WebUtility.getSO(retHash);
 	}	
@@ -233,9 +240,9 @@ public class GBCPlaySheetResource {
         return obj;
 	}
 	
-	private ArrayList getDownstreamGraphData(ArrayList<String> chartArray, boolean getDownstream, HttpServletRequest request){
+	private ArrayList<Hashtable> getDownstreamGraphData(ArrayList<String> chartArray, boolean getDownstream, HttpServletRequest request){
 		
-		ArrayList masterList = new ArrayList();
+		ArrayList<Hashtable> masterList = new ArrayList<Hashtable> ();
 		Hashtable<String, String> passedParams = new Hashtable<String, String>();
 		for(String chartId : chartArray){
 			String queryKey = "QUAD_COMPARISON_CHART_ID_COL_CHART_QUERY";
