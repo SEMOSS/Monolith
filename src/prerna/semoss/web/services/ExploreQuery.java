@@ -90,7 +90,7 @@ public class ExploreQuery {
 		String layout = form.getFirst("SelectedLayout").replace("\"", "");
 		
 		AbstractBaseMetaModelQueryBuilder customViz = null;
-		if(layout.equals("Network Graph"))
+		if(layout.equals("ForceGraph"))
 			customViz = new CustomVizGraphBuilder();
 		else
 			customViz = new CustomVizTableBuilder();
@@ -104,7 +104,7 @@ public class ExploreQuery {
 		logger.info("CustomViz query is: " + customViz.getQuery());
 		SEMOSSQuery semossQuery = customViz.getSEMOSSQuery();
 
-		if(layout.equals("Network Graph")) {
+		if(layout.equals("ForceGraph")) {
 			if(!parameters.isEmpty()) {
 				logger.info("Adding parameters: " + parameters);
 				SEMOSSQueryHelper.addParametersToQuery(parameters, semossQuery, "Main");
@@ -116,7 +116,7 @@ public class ExploreQuery {
 		}
 		
 		//The existing retVars contains all the variables (from the selected metamodel path).  We want to clear these to build visualization-specific queries.
-		if(!layout.equals("Grid")) {
+		if(!layout.equals("GridTable")) {
 			semossQuery.removeReturnVariables();
 		}
 		
@@ -126,7 +126,7 @@ public class ExploreQuery {
 		
 		AbstractQueryBuilder abstractQuery = null;
 		
-		if(layout.equals("Heat Map")){	
+		if(layout.equals("HeatMap")){	
 			String xAxisColName = colLabelHash.get("X-Axis").get(0);
 			String yAxisColName = colLabelHash.get("Y-Axis").get(0);
 			String heatName = colLabelHash.get("Heat").get(0);
@@ -134,7 +134,7 @@ public class ExploreQuery {
 			
 			abstractQuery = new HeatMapQueryBuilder(xAxisColName, yAxisColName, heatName, heatMathFunc, parameters, semossQuery);
 		}
-		else if(layout.equals("Scatter Plot")){
+		else if(layout.equals("ScatterChart")){
 			String frontEndxAxisName = "X-Axis";
 			String frontEndyAxisName = "Y-Axis";
 			String frontEndzAxisName = "Z-Axis (Optional)";
@@ -162,14 +162,14 @@ public class ExploreQuery {
 			}
 			abstractQuery = new ScatterPlotQueryBuilder(labelColName, xAxisColName, yAxisColName, zAxisColName, xAxisMathFunc, yAxisMathFunc, zAxisMathFunc, seriesColName, parameters, semossQuery);
 		}
-		else if(layout.equals("Pie Chart")){
+		else if(layout.equals("PieChart")){
 			String label = colLabelHash.get("Label").get(0);
 			String valueName = colLabelHash.get("Value").get(0);
 			String valueMathFunc = colMathHash.get("Value").get(0);
 			
 			abstractQuery = new PieChartQueryBuilder (label, valueName, valueMathFunc, parameters, semossQuery);
 		}
-		else if(layout.equals("Bar Chart") || layout.equals("Line Chart")){
+		else if(layout.equals("ColumnChart") || layout.equals("LineChart")){
 			String labelColName = colLabelHash.get("Label").get(0);
 			ArrayList<String> valueColNames = colLabelHash.get("Value");
 			ArrayList<String> valueMathFunctions = colMathHash.get("Value");
