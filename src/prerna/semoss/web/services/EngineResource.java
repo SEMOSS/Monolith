@@ -55,7 +55,6 @@ import prerna.rdf.query.util.SEMOSSQueryHelper;
 import prerna.rdf.query.util.SPARQLAbstractReturnModifier;
 import prerna.rdf.query.util.TriplePart;
 import prerna.rdf.util.RDFJSONConverter;
-import prerna.semoss.web.services.specific.GBCPlaySheetResource;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.GraphPlaySheet;
@@ -100,18 +99,6 @@ public class EngineResource {
 		psr.setPlaySheet(playSheet);
 		psr.setEngine(coreEngine);
 		return psr;
-	}
-
-	// sends it on to GBCResource for specific gbc processing
-	@Path("gbc")
-	@Produces("application/json")
-	public Object gbc(
-			@Context HttpServletRequest request)
-	{
-		GBCPlaySheetResource gbcps = new GBCPlaySheetResource();
-		gbcps.setEngine(coreEngine);
-		
-		return gbcps;
 	}
 	
 	//gets all edges and nodes from owl file to display as metamodel
