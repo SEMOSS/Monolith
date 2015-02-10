@@ -55,6 +55,7 @@ public class UserDBFilter implements Filter {
 				if(!hidden) {
 					Hashtable<String, String> engineHash = new Hashtable<String, String> ();
 					engineHash.put("name", engineName);
+					engineHash.put("type", engine.getEngineType() + "");
 					engines.add(engineHash);
 				}
 				// set this guy into the session of our user
