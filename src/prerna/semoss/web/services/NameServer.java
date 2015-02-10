@@ -24,12 +24,13 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
+import org.openrdf.repository.RepositoryException;
+import org.openrdf.rio.RDFParseException;
 
-import prerna.algorithm.impl.CreateMasterDB;
-import prerna.algorithm.impl.DeleteMasterDB;
-import prerna.algorithm.impl.SearchMasterDB;
 import prerna.error.EngineException;
-import prerna.om.SEMOSSVertex;
+import prerna.nameserver.CreateMasterDB;
+import prerna.nameserver.DeleteMasterDB;
+import prerna.nameserver.SearchMasterDB;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
 import prerna.rdf.query.builder.CustomVizTableBuilder;
@@ -37,7 +38,6 @@ import prerna.upload.Uploader;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
@@ -104,7 +104,7 @@ public class NameServer {
 		cns.setCentralApi(url);
 		return cns;
 	}
-	
+
 	@GET
 	@Path("neighbors")
 	@Produces("application/json")
@@ -112,7 +112,7 @@ public class NameServer {
 	{
 		return null;
 	}
-	
+
 	// gets all the insights for a given type and tag in all the engines
 	// both tag and type are optional
 	@GET
@@ -125,7 +125,7 @@ public class NameServer {
 		// for now I will do this as a running list
 		return null;
 	}
-	
+
 	// gets all the tags for a given insight across all the engines
 	@GET
 	@Path("tags")
@@ -135,7 +135,7 @@ public class NameServer {
 		// if the tag is empty, this will give back all the tags in the engines
 		return null;
 	}
-	
+
 	// gets a particular insight
 	@GET
 	@Path("tags")
@@ -146,7 +146,7 @@ public class NameServer {
 		// typically is a JSON of the insight
 		return null;
 	}	
-	
+
 	// gets a particular insight
 	@GET
 	@Path("/insight/create")
@@ -165,13 +165,13 @@ public class NameServer {
 	public StreamingOutput printEngines(@Context HttpServletRequest request){
 		// would be cool to give this as an HTML
 		Hashtable<String, ArrayList<Hashtable<String,String>>> hashTable = new Hashtable<String, ArrayList<Hashtable<String,String>>>();
-//		ArrayList<String> enginesList = new ArrayList<String>();
+		//		ArrayList<String> enginesList = new ArrayList<String>();
 		HttpSession session = request.getSession();
 		ArrayList<Hashtable<String,String>> engines = (ArrayList<Hashtable<String,String>>)session.getAttribute(Constants.ENGINES);
-//		StringTokenizer tokens = new StringTokenizer(engines, ":");
-//		while(tokens.hasMoreTokens()) {
-//			enginesList.add(tokens.nextToken());
-//		}
+		//		StringTokenizer tokens = new StringTokenizer(engines, ":");
+		//		while(tokens.hasMoreTokens()) {
+		//			enginesList.add(tokens.nextToken());
+		//		}
 		hashTable.put("engines", engines);
 		return WebUtility.getSO(hashTable);
 	}	
@@ -204,7 +204,7 @@ public class NameServer {
 
 	}	
 
-	
+
 	// gets a particular insight
 	@GET
 	@Path("help")
@@ -242,7 +242,7 @@ public class NameServer {
 		}
 		return getSOHTML();
 	}	
-	
+
 	// uploader functionality
 	@Path("/insight/upload")
 	public Object uploadFile(@Context HttpServletRequest request) {
@@ -266,22 +266,38 @@ public class NameServer {
 		String localMasterDbName = form.getFirst("localMasterDbName");
 
 		Hashtable<String, Boolean> resultHash = new Hashtable<String, Boolean>();
-		if(localMasterDbName==null){
-			CreateMasterDB creater = new CreateMasterDB();
-			for(String db : dbArray){
-				Boolean success = creater.registerEngineAPI(baseURL,db);
-				resultHash.put(db, success);
+
+		ServletContext servletContext = request.getServletContext();
+		String contextPath = servletContext.getRealPath(System.getProperty("file.separator"));
+		String wordNet = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "WordNet-3.1";
+		String wordNetDir  = contextPath + wordNet;
+
+		if(localMasterDbName==null) {
+			try {
+				CreateMasterDB creater = new CreateMasterDB();
+				creater.setWordnetPath(wordNetDir);
+				resultHash = creater.registerEngineAPI(baseURL, dbArray);
+			} catch (EngineException e) {
+				e.printStackTrace();
+			} catch (RDFParseException e) {
+				e.printStackTrace();
+			} catch (RepositoryException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
 		else //it must be local master db thus the name of master db must have been passed 
 		{
-			CreateMasterDB creater = new CreateMasterDB(localMasterDbName);
-			for(String db : dbArray){
-				Boolean success = creater.registerEngineLocal(db);
-				resultHash.put(db, success);
+			try {
+				CreateMasterDB creater = new CreateMasterDB(localMasterDbName);
+				creater.setWordnetPath(wordNetDir);
+				resultHash = creater.registerEngineLocal(dbArray);
+			} catch (EngineException e) {
+				e.printStackTrace();
 			}
 		}
-		
+
 		return WebUtility.getSO(resultHash);
 	}
 
@@ -302,22 +318,16 @@ public class NameServer {
 		Hashtable<String, Boolean> resultHash = new Hashtable<String, Boolean>();
 		if(localMasterDbName == null){
 			DeleteMasterDB deleater = new DeleteMasterDB();
-			for(String db : dbArray){
-				Boolean success = deleater.deleteEngineWeb(db);
-				resultHash.put(db, success);
-			}
+			resultHash = deleater.deleteEngineWeb(dbArray);
 		}
 		else {
 			DeleteMasterDB deleater = new DeleteMasterDB(localMasterDbName);
-			for(String db : dbArray){
-				Boolean success = deleater.deleteEngine(db);
-				resultHash.put(db, success);
-			}
+			resultHash = deleater.deleteEngine(dbArray);
 		}
-		
+
 		return WebUtility.getSO(resultHash);
 	}
-	
+
 	// get all insights related to a specific uri
 	// preferably we would also pass vert store and edge store... the more context the better. Don't have any of that for now though.
 	@POST
@@ -332,28 +342,29 @@ public class NameServer {
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		logger.info("CENTRALLY have registered selected URIs as ::: " + selectedUris.toString());
 
-		
-		ArrayList<SEMOSSVertex> selectedInstances = new ArrayList<SEMOSSVertex>();
-		for(String uri: selectedUris)
-		{
-			selectedInstances.add(new SEMOSSVertex(uri));
-		}
+		ServletContext servletContext = request.getServletContext();
+		String contextPath = servletContext.getRealPath(System.getProperty("file.separator"));
+		String wordNet = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "WordNet-3.1";
+		String wordNetDir  = contextPath + wordNet;
+
+		String nlp = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator") + "englishPCFG.ser";
+		String nlpPath = contextPath + nlp;
+
 		List<Hashtable<String, Object>> contextList = null;
 		if(localMasterDbName != null) {
-			SearchMasterDB searcher = new SearchMasterDB(localMasterDbName);
-			searcher.setInstanceList(selectedInstances);
-			contextList = searcher.findRelatedQuestions();
+			SearchMasterDB searcher = new SearchMasterDB(localMasterDbName, wordNetDir, nlpPath);
+			contextList = searcher.getRelatedInsights(selectedUris);
 		}
 		else {
-			SearchMasterDB searcher = new SearchMasterDB();
-			searcher.setInstanceList(selectedInstances);
-			contextList = searcher.findRelatedQuestionsWeb();
+			SearchMasterDB searcher = new SearchMasterDB(wordNetDir, nlpPath);
+			contextList = searcher.getRelatedInsightsWeb(selectedUris);
 		}
 		return WebUtility.getSO(contextList);
 	}
-	
+
 	// get all insights related to a specific uri
 	// preferably we would also pass vert store and edge store... the more context the better. Don't have any of that for now though.
+	//TODO: need new logic for this
 	@POST
 	@Path("central/context/databases")
 	@Produces("application/json")
@@ -372,55 +383,55 @@ public class NameServer {
 		ArrayList<Hashtable<String, String>> nodeV = tableViz.getNodeV();
 		ArrayList<Hashtable<String, String>> predV = tableViz.getPredV();
 
-		SearchMasterDB searcher = new SearchMasterDB();
-		if(localMasterDbName != null)
-			searcher = new SearchMasterDB(localMasterDbName);
-		
-		for (Hashtable<String, String> nodeHash : nodeV){
-			searcher.addToKeywordList(Utility.getInstanceName(nodeHash.get(tableViz.uriKey)));
-		}
-		for (Hashtable<String, String> edgeHash : predV){
-			searcher.addToEdgeList(Utility.getInstanceName(edgeHash.get("Subject")), Utility.getInstanceName(edgeHash.get("Object")));
-		}
+		//		SearchMasterDB searcher = new SearchMasterDB();
+		//		if(localMasterDbName != null)
+		//			searcher = new SearchMasterDB(localMasterDbName);
+		//		
+		//		for (Hashtable<String, String> nodeHash : nodeV){
+		//			searcher.addToKeywordList(Utility.getInstanceName(nodeHash.get(tableViz.uriKey)));
+		//		}
+		//		for (Hashtable<String, String> edgeHash : predV){
+		//			searcher.addToEdgeList(Utility.getInstanceName(edgeHash.get("Subject")), Utility.getInstanceName(edgeHash.get("Object")));
+		//		}
 		List<Hashtable<String, Object>> contextList = null;
-		if(localMasterDbName != null)
-			contextList = searcher.findRelatedEngines();
-		else
-			contextList = searcher.findRelatedEnginesWeb();
+		//		if(localMasterDbName != null)
+		//			contextList = searcher.findRelatedEngines();
+		//		else
+		//			contextList = searcher.findRelatedEnginesWeb();
 		return WebUtility.getSO(contextList);
 	}
-	
+
 	private StreamingOutput getSOHTML()
 	{
-		   return new StreamingOutput() {
-		         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-		        	 PrintStream out = new PrintStream(outputStream);
-					  try {
-						//java.io.PrintWriter out = response.getWriter();
-						     out.println("<html>");
-						     out.println("<head>");
-						     out.println("<title>Servlet upload</title>");  
-						     out.println("</head>");
-						     out.println("<body>");
-						     
-						     Enumeration <String> keys = helpHash.keys();
-						     while(keys.hasMoreElements())
-						     {
-						    	 String key = keys.nextElement();
-						    	 String value = (String)helpHash.get(key);
-						    	 out.println("<em>" + key + "</em>");
-						    	 out.println("<a href='#'>" + value + "</a>");
-						    	 out.println("</br>");
-						     }
-						     
-						     out.println("</body>");
-						     out.println("</html>");
-					} catch (Exception e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+		return new StreamingOutput() {
+			public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+				PrintStream out = new PrintStream(outputStream);
+				try {
+					//java.io.PrintWriter out = response.getWriter();
+					out.println("<html>");
+					out.println("<head>");
+					out.println("<title>Servlet upload</title>");  
+					out.println("</head>");
+					out.println("<body>");
+
+					Enumeration <String> keys = helpHash.keys();
+					while(keys.hasMoreElements())
+					{
+						String key = keys.nextElement();
+						String value = (String)helpHash.get(key);
+						out.println("<em>" + key + "</em>");
+						out.println("<a href='#'>" + value + "</a>");
+						out.println("</br>");
 					}
-		         }
-		   };
+
+					out.println("</body>");
+					out.println("</html>");
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		};
 	}
 
 	@GET
