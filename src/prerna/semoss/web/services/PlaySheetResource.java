@@ -1,36 +1,26 @@
 package prerna.semoss.web.services;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.StringTokenizer;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
-import prerna.algorithm.impl.SearchMasterDB;
+import prerna.nameserver.SearchMasterDB;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.api.IEngine;
-import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.AbstractRDFPlaySheet;
@@ -39,6 +29,8 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
+
+import com.google.gson.Gson;
 
 public class PlaySheetResource {
 
@@ -224,40 +216,6 @@ public class PlaySheetResource {
 //		
 //		return getSO(obj);
 //	}	
-
-	// get all insights related to a specific uri
-	// uses vertstore and edgestore if they are present (if it is a graph) otherwise just the uri
-	@POST
-	@Path("context/insights")
-	@Produces("application/json")
-	public StreamingOutput getContextInsights(
-			MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request)
-	{
-		Gson gson = new Gson();
-		ArrayList<String> selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
-		logger.info("Selected URI is " + selectedUris.toString());
-
-		SearchMasterDB searcher = new SearchMasterDB();
-		
-		//if playsheet is graph, set the vertstore and edgestore
-		//else we will have to just use the single uri
-		if(this.playSheet instanceof GraphPlaySheet){
-			GraphPlaySheet gps = (GraphPlaySheet) this.playSheet;
-			GraphDataModel gdm = gps.getGraphData();
-			Hashtable<String, SEMOSSVertex> vertStore = gdm.getVertStore();
-			searcher.setKeywordAndEdgeList(vertStore, gdm.getEdgeStore(), false);
-			ArrayList<SEMOSSVertex> selectedInstances = new ArrayList<SEMOSSVertex>();
-			for(String uri: selectedUris)
-			{
-				selectedInstances.add(vertStore.get(uri));
-			}
-			searcher.setInstanceList(selectedInstances);
-		}
-		
-		List<Hashtable<String, Object>> contextList = searcher.findRelatedQuestions();
-		return WebUtility.getSO(contextList);
-	}
 
 	// temporary function for getting chart it data
 	// will be replaced with query builder

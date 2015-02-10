@@ -1,8 +1,5 @@
 package prerna.semoss.web.services;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
@@ -13,20 +10,16 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
-import prerna.algorithm.impl.CreateMasterDB;
-import prerna.algorithm.impl.DeleteMasterDB;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 public class CentralNameServer {
 
