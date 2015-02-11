@@ -1,6 +1,5 @@
 package prerna.semoss.web.services;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -12,24 +11,21 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.StreamingOutput;
-import javax.xml.bind.DatatypeConverter;
 
+import prerna.rdf.engine.api.IConstructWrapper;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.api.IRemoteQueryable;
-import prerna.rdf.engine.impl.SesameJenaConstructStatement;
 import prerna.rdf.engine.impl.SesameJenaConstructWrapper;
 import prerna.rdf.engine.impl.SesameJenaSelectCheater;
-import prerna.rdf.engine.impl.SesameJenaSelectStatement;
 import prerna.rdf.engine.impl.SesameJenaSelectWrapper;
+import prerna.rdf.engine.wrappers.SesameConstructWrapper;
+import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.GraphStreamingOutput;
 import prerna.web.services.util.QueryResultHash;
 import prerna.web.services.util.TupleStreamingOutput;
 import prerna.web.services.util.WebUtility;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 // the primary class that will expose any engine through a remote interface
 
@@ -83,13 +79,18 @@ public class EngineRemoteResource {
 		// The wrapper consists of a unique number, the actual output object
 		// sets this wrapper in the memory
 		System.out.println("Executing GRAPH Query " + query);
+		
+		IConstructWrapper sjw = WrapperManager.getInstance().getCWrapper(coreEngine, query);
+		
+		/*
 		SesameJenaConstructWrapper sjw = new SesameJenaConstructWrapper();
 		sjw.setQuery(query);
 		sjw.setEngine(coreEngine);
 		sjw.execute();
+		*/
 		// need someway to get an indirection for now hardcoded
 		((IRemoteQueryable)sjw).setRemoteAPI(uriBase + coreEngine.getEngineName());
-		QueryResultHash.getInstance().addObject(sjw);		
+		QueryResultHash.getInstance().addObject((SesameConstructWrapper)sjw);		
 		
 		return WebUtility.getSO(sjw);
 	}
