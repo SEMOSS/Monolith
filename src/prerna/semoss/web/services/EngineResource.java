@@ -73,6 +73,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
+import com.ibm.icu.util.StringTokenizer;
 
 public class EngineResource {
 	
@@ -1050,11 +1051,31 @@ public class EngineResource {
 			System.out.println("Deleting smss " + smss);
 			File smssFile = new File(smss);
 			smssFile.delete();
+			
+			//remove from session
+			HttpSession session = request.getSession();
+			ArrayList<Hashtable<String,String>> engines = (ArrayList<Hashtable<String,String>>)session.getAttribute(Constants.ENGINES);
+			for(Hashtable<String, String> engine : engines){
+				String engName = engine.get("name");
+				if(engName.equals(engineName)){
+					engines.remove(engine);
+					System.out.println("Removed from engines");
+					session.setAttribute(Constants.ENGINES, engines);
+					break;//
+				}
+			}
+			session.removeAttribute(engineName);
+			
+			//remove from dihelper... this is absurd
+			String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
+			engineNames.replace(";" + engineName, "");
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		
-		return "success";
+		
+		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 }
 
