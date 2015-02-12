@@ -1070,13 +1070,14 @@ public class EngineResource {
 			String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
 			engineNames = engineNames.replace(";" + engineName, "");
 			DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engineNames);
-			
+
+			return Response.status(200).entity(WebUtility.getSO("Success")).build();
 		} catch (IOException e) {
 			e.printStackTrace();
+			return Response.status(400).entity(WebUtility.getSO("IOException")).build();
 		}
 		
 		
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 }
 
