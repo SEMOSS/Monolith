@@ -1068,7 +1068,8 @@ public class EngineResource {
 			
 			//remove from dihelper... this is absurd
 			String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
-			engineNames.replace(";" + engineName, "");
+			engineNames = engineNames.replace(";" + engineName, "");
+			DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engineNames);
 			
 		} catch (IOException e) {
 			e.printStackTrace();
