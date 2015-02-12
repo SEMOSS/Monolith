@@ -188,4 +188,17 @@ public class QuestionAdmin {
 		
   		return Response.status(200).entity(WebUtility.getSO("Success")).build();
   	}
+  	
+  	@POST
+	@Path("deletePerspective")
+	@Produces("application/json")
+  	public Response deletePerspective(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
+		String perspective = form.getFirst("perspective");
+		
+		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
+		questionAdmin.deleteAllFromPersp(perspective);
+
+		
+  		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+  	}
 }
