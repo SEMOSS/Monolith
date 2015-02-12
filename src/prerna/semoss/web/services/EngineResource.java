@@ -1,10 +1,12 @@
 package prerna.semoss.web.services;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -33,6 +35,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
 import prerna.insights.admin.QuestionAdmin;
@@ -42,13 +45,12 @@ import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.QuestionAdministrator;
 import prerna.rdf.engine.impl.RDFFileSesameEngine;
+import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
 import prerna.rdf.engine.impl.SesameJenaSelectStatement;
 import prerna.rdf.engine.impl.SesameJenaSelectWrapper;
 import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
 import prerna.rdf.query.builder.AbstractCustomVizBuilder;
-import prerna.rdf.query.builder.CustomVizHeatMapBuilder;
-import prerna.rdf.query.builder.CustomVizTableBuilder;
-import prerna.rdf.query.builder.ICustomVizBuilder;
+import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
 import prerna.rdf.query.util.ISPARQLReturnModifier;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.query.util.SEMOSSQueryHelper;
@@ -61,6 +63,7 @@ import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.helpers.PlaysheetCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
+import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
@@ -717,60 +720,6 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(coreEngine.getEntityOfType(query))).build();
 	}	
 	
-	@GET
-	@Path("customViz")
-	@Produces("application/json")
-	public Response getVizData(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
-	{
-		String heatMapName = "testName";
-		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
-		String vizType = (String) dataHash.get(AbstractCustomVizBuilder.vizTypeKey);
-		ICustomVizBuilder viz = null;
-		if(vizType.equals(PlaySheetEnum.Heat_Map.getSheetName()))
-		{
-			viz = new CustomVizHeatMapBuilder();
-		}
-		viz.setJSONDataHash(dataHash);
-		viz.setVisualType(PlaySheetEnum.Heat_Map.getSheetName());
-		viz.buildQuery();
-		String query = viz.getQuery();
-		
-		Object obj = null;
-		try
-		{
-			String playSheetClassName = PlaySheetEnum.getClassFromName(PlaySheetEnum.Heat_Map.getSheetName());
-			IPlaySheet playSheet = (IPlaySheet) Class.forName(playSheetClassName).getConstructor(null).newInstance(null);
-			playSheet.setQuery(query);
-			playSheet.setRDFEngine(coreEngine);
-			playSheet.setQuestionID(heatMapName);
-			playSheet.createData();
-			playSheet.runAnalytics();
-//			if(!(playSheet instanceof GraphPlaySheet))
-				obj = playSheet.getData();
-//			else
-//			{
-//				GraphPlaySheet gps = (GraphPlaySheet)playSheet;
-//				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)playSheet).getData();
-//				InMemorySesameEngine imse = new InMemorySesameEngine();
-//				imse.setRepositoryConnection(rc);
-//				imse.openDB(null);
-//				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.semossGraph.baseFilterHash);
-//			}
-				
-			//store the playsheet in session
-			HttpSession session = ((HttpServletRequest)request).getSession(false);
-			session.setAttribute(heatMapName, playSheet);
-		} catch(Exception ex) {
-			ex.printStackTrace();
-			Hashtable<String, String> errorHash = new Hashtable<String, String>();
-			errorHash.put("Message", "Error occured processing query.");
-			errorHash.put("Class", className);
-			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
-		}
-		return Response.status(200).entity(WebUtility.getSO(obj)).build();
-	}	
-	
 	@POST
 	@Path("customVizTable")
 	@Produces("application/json")
@@ -1047,4 +996,75 @@ public class EngineResource {
 		
 		return exploreQuery;
 	}
+
+	@POST
+	@Path("/delete")
+	@Produces("application/json")
+	public Object deleteEngine(@Context HttpServletRequest request)
+	{
+		String engineName = this.coreEngine.getEngineName();
+		System.out.println("closing " + engineName);
+		this.coreEngine.closeDB();
+		System.out.println("db closed");
+		System.out.println("deleting folder");
+		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
+		String insightLoc = baseFolder + "/" + this.coreEngine.getProperty(Constants.INSIGHTS);
+		System.out.println("insight file is  " + insightLoc);
+		File insightFile = new File(insightLoc);
+		File engineFolder = new File(insightFile.getParent());
+		String folderName = engineFolder.getName();
+		try {
+			System.out.println("checking folder " + folderName + " against db " + engineName);//this check is to ensure we are deleting the right folder
+			if(folderName.equals(engineName))
+			{
+				System.out.println("folder getting deleted is " + engineFolder.getAbsolutePath());
+				FileUtils.deleteDirectory(engineFolder);
+			}
+			else{
+				logger.error("Cannot delete database folder as folder name does not line up with engine name");
+				//try deleting each file individually
+				System.out.println("Deleting insight file " + insightLoc);
+				insightFile.delete();
+
+				String ontoLoc = baseFolder + "/" + this.coreEngine.getProperty(Constants.ONTOLOGY);
+				if(ontoLoc != null){
+					System.out.println("Deleting onto file " + ontoLoc);
+					File ontoFile = new File(ontoLoc);
+					ontoFile.delete();
+				}
+
+				String owlLoc = baseFolder + "/" + this.coreEngine.getProperty(Constants.OWL);
+				if(owlLoc != null){
+					System.out.println("Deleting owl file " + owlLoc);
+					File owlFile = new File(owlLoc);
+					owlFile.delete();
+				}
+
+				String jnlLoc = baseFolder + "/" + this.coreEngine.getProperty("com.bigdata.journal.AbstractJournal.file");
+				if(jnlLoc != null){
+					System.out.println("Deleting jnl file " + jnlLoc);
+					File jnlFile = new File(jnlLoc);
+					jnlFile.delete();
+				}
+			}
+			String smss = this.coreEngine.getSMSS();
+			System.out.println("Deleting smss " + smss);
+			File smssFile = new File(smss);
+			smssFile.delete();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		return "success";
+	}
 }
+
+
+
+
+
+
+
+
+
+
