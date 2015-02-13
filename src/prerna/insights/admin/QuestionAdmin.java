@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -23,6 +24,7 @@ import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 public class QuestionAdmin {
 	
@@ -197,6 +199,21 @@ public class QuestionAdmin {
 		
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
 		questionAdmin.deleteAllFromPersp(perspective);
+
+		
+  		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+  	}
+  	
+  	@POST
+	@Path("reorderPerspective")
+	@Produces("application/json")
+  	public Response reorderPerspective(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
+		Gson gson = new Gson();
+		String perspective = form.getFirst("perspective");
+		Vector<Hashtable<String, Object>> insightArray = gson.fromJson(form.getFirst("insights") + "", new TypeToken<Vector<Hashtable<String, Object>>>() {}.getType());
+		
+		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
+		questionAdmin.reorderPerspective(perspective, insightArray);
 
 		
   		return Response.status(200).entity(WebUtility.getSO("Success")).build();
