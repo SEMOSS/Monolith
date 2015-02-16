@@ -49,7 +49,7 @@ import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
 import prerna.rdf.engine.impl.SesameJenaSelectStatement;
 import prerna.rdf.engine.impl.SesameJenaSelectWrapper;
 import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
-import prerna.rdf.query.builder.CustomVizTableBuilder;
+import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
 import prerna.rdf.query.util.ISPARQLReturnModifier;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.query.util.SEMOSSQueryHelper;
@@ -733,7 +733,7 @@ public class EngineResource {
 		Integer pageNumber = null;
 		if (form.containsKey("PageNumber"))
 			pageNumber = gson.fromJson(form.getFirst("PageNumber"), Integer.class);
-		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
+		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
 		
 		ArrayList<Hashtable<String,String>> nodePropArray = getHashArrayFromString(form.getFirst("SelectedNodeProps") + "");
 		ArrayList<Hashtable<String,String>> edgePropArray = getHashArrayFromString(form.getFirst("SelectedEdgeProps") + "");
@@ -804,7 +804,7 @@ public class EngineResource {
 		logger.info("Getting properties for path");
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
-		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
+		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
 		tableViz.setJSONDataHash(dataHash);
 		tableViz.setEngine(coreEngine);
 		Object obj = tableViz.getPropsFromPath();
