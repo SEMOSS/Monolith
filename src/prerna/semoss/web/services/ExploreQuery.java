@@ -16,15 +16,15 @@ import javax.ws.rs.core.Response;
 import org.apache.log4j.Logger;
 
 import prerna.rdf.engine.api.IEngine;
-import prerna.rdf.query.builder.AbstractBaseMetaModelQueryBuilder;
-import prerna.rdf.query.builder.AbstractQueryBuilder;
-import prerna.rdf.query.builder.CustomVizGraphBuilder;
-import prerna.rdf.query.builder.CustomVizTableBuilder;
-import prerna.rdf.query.builder.GenericChartQueryBuilder;
-import prerna.rdf.query.builder.GenericTableQueryBuilder;
-import prerna.rdf.query.builder.HeatMapQueryBuilder;
-import prerna.rdf.query.builder.PieChartQueryBuilder;
-import prerna.rdf.query.builder.ScatterPlotQueryBuilder;
+import prerna.rdf.query.builder.AbstractSPARQLQueryBuilder;
+import prerna.rdf.query.builder.AbstractSpecificQueryBuilder;
+import prerna.rdf.query.builder.SPARQLQueryGraphBuilder;
+import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
+import prerna.rdf.query.builder.SpecificGenericChartQueryBuilder;
+import prerna.rdf.query.builder.SpecificHeatMapQueryBuilder;
+import prerna.rdf.query.builder.SpecificPieChartQueryBuilder;
+import prerna.rdf.query.builder.SpecificScatterPlotQueryBuilder;
+import prerna.rdf.query.builder.SpecificTableQueryBuilder;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.query.util.SEMOSSQueryHelper;
 import prerna.web.services.util.WebUtility;
@@ -89,11 +89,11 @@ public class ExploreQuery {
 		
 		String layout = form.getFirst("SelectedLayout").replace("\"", "");
 		
-		AbstractBaseMetaModelQueryBuilder customViz = null;
+		AbstractSPARQLQueryBuilder customViz = null;
 		if(layout.equals("ForceGraph"))
-			customViz = new CustomVizGraphBuilder();
+			customViz = new SPARQLQueryGraphBuilder();
 		else
-			customViz = new CustomVizTableBuilder();
+			customViz = new SPARQLQueryTableBuilder();
 		
 		customViz.setPropV(nodePropArray, edgePropArray);
 		
@@ -124,7 +124,7 @@ public class ExploreQuery {
 		LinkedHashMap<String, ArrayList<String>> colMathHash = new LinkedHashMap<String, ArrayList<String>>();
 		getSelectedValues(selectedVars, colLabelHash, colMathHash);
 		
-		AbstractQueryBuilder abstractQuery = null;
+		AbstractSpecificQueryBuilder abstractQuery = null;
 		
 		if(layout.equals("HeatMap")){	
 			String xAxisColName = colLabelHash.get("X-Axis").get(0);
@@ -132,7 +132,7 @@ public class ExploreQuery {
 			String heatName = colLabelHash.get("Heat").get(0);
 			String heatMathFunc = colMathHash.get("Heat").get(0);
 			
-			abstractQuery = new HeatMapQueryBuilder(xAxisColName, yAxisColName, heatName, heatMathFunc, parameters, semossQuery);
+			abstractQuery = new SpecificHeatMapQueryBuilder(xAxisColName, yAxisColName, heatName, heatMathFunc, parameters, semossQuery);
 		}
 		else if(layout.equals("ScatterChart")){
 			String frontEndxAxisName = "X-Axis";
@@ -160,14 +160,14 @@ public class ExploreQuery {
 			if(colLabelHash.get(frontEndSeriesName) != null){
 				seriesColName = colLabelHash.get(frontEndSeriesName).get(0); 
 			}
-			abstractQuery = new ScatterPlotQueryBuilder(labelColName, xAxisColName, yAxisColName, zAxisColName, xAxisMathFunc, yAxisMathFunc, zAxisMathFunc, seriesColName, parameters, semossQuery);
+			abstractQuery = new SpecificScatterPlotQueryBuilder(labelColName, xAxisColName, yAxisColName, zAxisColName, xAxisMathFunc, yAxisMathFunc, zAxisMathFunc, seriesColName, parameters, semossQuery);
 		}
 		else if(layout.equals("PieChart")){
 			String label = colLabelHash.get("Label").get(0);
 			String valueName = colLabelHash.get("Value").get(0);
 			String valueMathFunc = colMathHash.get("Value").get(0);
 			
-			abstractQuery = new PieChartQueryBuilder (label, valueName, valueMathFunc, parameters, semossQuery);
+			abstractQuery = new SpecificPieChartQueryBuilder (label, valueName, valueMathFunc, parameters, semossQuery);
 		}
 		else if(layout.equals("ColumnChart") || layout.equals("LineChart")){
 			String labelColName = colLabelHash.get("Label").get(0);
@@ -178,7 +178,7 @@ public class ExploreQuery {
 				valueMathFunctions.addAll(colMathHash.get("Extra Value"));
 			}
 			
-			abstractQuery = new GenericChartQueryBuilder (labelColName, valueColNames, valueMathFunctions, parameters, semossQuery);
+			abstractQuery = new SpecificGenericChartQueryBuilder (labelColName, valueColNames, valueMathFunctions, parameters, semossQuery);
 		}
 		//takes care of regular select queries without math functions or changes to select vars
 		else {
@@ -190,7 +190,7 @@ public class ExploreQuery {
 				labelList.add(colLabelHash.get(key).get(0));
 			}
 			
-			abstractQuery = new GenericTableQueryBuilder(labelList, parameters, semossQuery);
+			abstractQuery = new SpecificTableQueryBuilder(labelList, parameters, semossQuery);
 		}
 		
 		abstractQuery.buildQuery();
