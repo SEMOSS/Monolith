@@ -33,7 +33,7 @@ import prerna.nameserver.DeleteMasterDB;
 import prerna.nameserver.SearchMasterDB;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
-import prerna.rdf.query.builder.CustomVizTableBuilder;
+import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -377,7 +377,7 @@ public class NameServer {
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		logger.info("CENTRALLY have registered query data as ::: " + dataHash.toString());
 
-		CustomVizTableBuilder tableViz = new CustomVizTableBuilder();
+		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
 		tableViz.setJSONDataHash(dataHash);
 		tableViz.parsePath();
 		ArrayList<Hashtable<String, String>> nodeV = tableViz.getNodeV();
