@@ -29,35 +29,22 @@ package prerna.semoss.web.services;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Set;
 import java.util.Vector;
 
-import javax.servlet.ServletInputStream;
-import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -70,18 +57,14 @@ import prerna.om.Insight;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.AbstractEngine;
-import prerna.rdf.engine.impl.QuestionAdministrator;
 import prerna.rdf.engine.impl.RDFFileSesameEngine;
-import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
 import prerna.rdf.engine.impl.SesameJenaSelectStatement;
 import prerna.rdf.engine.impl.SesameJenaSelectWrapper;
 import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
+import prerna.rdf.query.builder.IQueryBuilder;
+import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
-import prerna.rdf.query.util.ISPARQLReturnModifier;
 import prerna.rdf.query.util.SEMOSSQuery;
-import prerna.rdf.query.util.SEMOSSQueryHelper;
-import prerna.rdf.query.util.SPARQLAbstractReturnModifier;
-import prerna.rdf.query.util.TriplePart;
 import prerna.rdf.util.RDFJSONConverter;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
@@ -100,7 +83,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
-import com.ibm.icu.util.StringTokenizer;
 
 public class EngineResource {
 	
@@ -753,7 +735,14 @@ public class EngineResource {
 	public Response getVizTable(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
+		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+		
+		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
+		builder.setJSONDataHash(dataHash);
+		builder.buildQuery();
+		String query = builder.getQuery();
+		
+		/*Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
 		Integer items = 100;
 		if (form.containsKey("ItemCount"))
 			items = gson.fromJson(form.getFirst("ItemCount"), Integer.class);
@@ -792,7 +781,7 @@ public class EngineResource {
 		}
 			
 		semossQuery.createQuery();
-		String query = semossQuery.getQuery();
+		String query = semossQuery.getQuery();*/
 		
 		System.out.println(query);
 		Object obj = null;
@@ -815,10 +804,15 @@ public class EngineResource {
 			errorHash.put("Class", className);
 			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
-		
-		//add variable info to return data
-		((Hashtable)obj).put("variableHeaders", varObjVector);
-		((Hashtable)obj).put("limit", limitHash);
+
+		//still need filter queries for RDF... not sure what this is going to look like in the future yet
+		if(builder instanceof SPARQLQueryTableBuilder) {
+			ArrayList<Hashtable<String, String>> varObjV = ((SPARQLQueryTableBuilder)builder).getHeaderArray();
+			Collection<Hashtable<String, String>> varObjVector = varObjV;
+			
+			//add variable info to return data
+			((Hashtable)obj).put("variableHeaders", varObjVector);
+		}
 		
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
@@ -831,10 +825,12 @@ public class EngineResource {
 		logger.info("Getting properties for path");
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
-		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
-		tableViz.setJSONDataHash(dataHash);
-		tableViz.setEngine(coreEngine);
-		Object obj = tableViz.getPropsFromPath();
+		Object obj = QueryBuilderHelper.getPropsFromPath(this.coreEngine, dataHash);
+		
+//		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
+//		tableViz.setJSONDataHash(dataHash);
+//		tableViz.setEngine(coreEngine);
+//		Object obj = tableViz.getPropsFromPath();
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
 
