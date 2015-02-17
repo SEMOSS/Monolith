@@ -57,6 +57,7 @@ import org.openrdf.rio.RDFParseException;
 import prerna.error.EngineException;
 import prerna.nameserver.CreateMasterDB;
 import prerna.nameserver.DeleteMasterDB;
+import prerna.nameserver.SearchEngineMasterDB;
 import prerna.nameserver.SearchMasterDB;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
@@ -354,6 +355,38 @@ public class NameServer {
 		}
 
 		return WebUtility.getSO(resultHash);
+	}
+	
+	// search based on a string input
+	@POST
+	@Path("central/context/searchEngineResults")
+	@Produces("application/json")
+	public StreamingOutput getSearchEngineResults(
+			MultivaluedMap<String, String> form, 
+			@Context HttpServletRequest request)
+	{
+		String searchString = form.getFirst("searchString");
+		logger.info("Searching based on input: " + searchString);
+		String localMasterDbName = form.getFirst("localMasterDbName");
+
+		ServletContext servletContext = request.getServletContext();
+		String contextPath = servletContext.getRealPath(System.getProperty("file.separator"));
+		String wordNet = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "WordNet-3.1";
+		String wordNetDir  = contextPath + wordNet;
+
+		String nlp = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator") + "englishPCFG.ser";
+		String nlpPath = contextPath + nlp;
+		
+		List<Hashtable<String, Object>> contextList = null;
+		if(localMasterDbName == null){
+			SearchEngineMasterDB search = new SearchEngineMasterDB(wordNetDir, nlpPath);
+			contextList = search.getWebInsightsFromSearchString(searchString);
+		} else {
+			SearchEngineMasterDB search = new SearchEngineMasterDB(localMasterDbName, wordNetDir, nlpPath);
+			contextList = search.getLocalInsightsFromSearchString(searchString);
+		}
+
+		return WebUtility.getSO(contextList);
 	}
 
 	// get all insights related to a specific uri
