@@ -238,36 +238,4 @@ public class QuestionAdmin {
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 
-	@POST
-	@Path("deletePerspective")
-	@Produces("application/json")
-	public Response deletePerspective(MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request) {
-		String perspective = form.getFirst("perspective");
-
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(
-				this.coreEngine);
-		questionAdmin.deleteAllFromPersp(perspective);
-
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
-	}
-
-	@POST
-	@Path("reorderPerspective")
-	@Produces("application/json")
-	public Response reorderPerspective(MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request) {
-		Gson gson = new Gson();
-		String perspective = form.getFirst("perspective");
-		Vector<Hashtable<String, Object>> insightArray = gson.fromJson(
-				form.getFirst("insights") + "",
-				new TypeToken<Vector<Hashtable<String, Object>>>() {
-				}.getType());
-
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(
-				this.coreEngine);
-		questionAdmin.reorderPerspective(perspective, insightArray);
-
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
-	}
 }
