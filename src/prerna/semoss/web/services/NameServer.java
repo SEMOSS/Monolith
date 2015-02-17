@@ -55,6 +55,7 @@ import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
 import prerna.error.EngineException;
+import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.CreateMasterDB;
 import prerna.nameserver.DeleteMasterDB;
 import prerna.nameserver.SearchEngineMasterDB;
@@ -62,7 +63,6 @@ import prerna.nameserver.SearchMasterDB;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
 import prerna.rdf.query.builder.QueryBuilderHelper;
-import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -507,4 +507,12 @@ public class NameServer {
 		}
 		return WebUtility.getSO(hashTable);
 	}	
+  	
+  	@Path("/dbAdmin")
+	public Object modifyInsight(@Context HttpServletRequest request) {
+  		DBAdminResource questionAdmin = new DBAdminResource();
+
+		return questionAdmin;
+	}
+  	
 }

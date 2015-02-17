@@ -83,8 +83,8 @@ public class DBAdminResource {
 			for (String questionTitle: questions){
 				//davy this is what we really need to create
 //				questionAdmin.deleteQuestion(perspectivesString, questionTitle);
-//				questionAdmin.saveXML();
 			}
+			questionAdmin.createQuestionXMLFile();
 			
 		}
 		else if (perspectivesString!=null){
@@ -92,7 +92,7 @@ public class DBAdminResource {
 			IEngine engine = getEngine(enginesString, request);
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
 			for(String perspective: perspectives){
-//				results.put(perspective, questionAdmin.deleteAllFromPersp(perspective));
+				results.put(perspective, questionAdmin.deleteAllFromPersp(perspective));
 			}
 			
 		}
@@ -105,36 +105,27 @@ public class DBAdminResource {
 		}
   		return Response.status(200).entity(WebUtility.getSO(results)).build();
 	}
-	
-
-	@POST
-	@Path("/edit")
+  	
+  	@POST
+	@Path("reorderPerspective")
 	@Produces("application/json")
-	public Object deleteEngine(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-	{
+  	public Response reorderPerspective(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
 		Gson gson = new Gson();
-		
+		String perspective = form.getFirst("perspective");
 		String enginesString = form.getFirst("engine");
-		String perspectivesString = form.getFirst("perspective");
-		String questionsString = form.getFirst("question");
+		Vector<Hashtable<String, Object>> insightArray = gson.fromJson(form.getFirst("insights") + "", new TypeToken<Vector<Hashtable<String, Object>>>() {}.getType());
 
-		Hashtable<String, Boolean> results = new Hashtable<String, Boolean>();
+		IEngine engine = getEngine(enginesString, request);
+		QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
+		questionAdmin.reorderPerspective(perspective, insightArray);
+
 		
-		if (questionsString!=null){
-			//will this be just for editing the metadata? We need to think about what exactly this does
-		}
-		else if (perspectivesString!=null){
-			//eventually we will be able to edit perspective
-		}
-		else if(enginesString!=null){
-			//eventually we will be able to edit engines
-		}
-  		return Response.status(200).entity(WebUtility.getSO(results)).build();
-	}
+  		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+  	}
 
-	@Path("/add")
+	@Path("/insight")
 	@Produces("application/json")
-	public Object add(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+	public Object insight(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		String enginesString = form.getFirst("engine");
 		IEngine engine = getEngine(enginesString, request);
@@ -221,23 +212,6 @@ public class DBAdminResource {
 		
 		
 	}
-  	
-  	@POST
-	@Path("reorderPerspective")
-	@Produces("application/json")
-  	public Response reorderPerspective(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
-		Gson gson = new Gson();
-		String perspective = form.getFirst("perspective");
-		String enginesString = form.getFirst("engine");
-		Vector<Hashtable<String, Object>> insightArray = gson.fromJson(form.getFirst("insights") + "", new TypeToken<Vector<Hashtable<String, Object>>>() {}.getType());
-
-		IEngine engine = getEngine(enginesString, request);
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
-		questionAdmin.reorderPerspective(perspective, insightArray);
-
-		
-  		return Response.status(200).entity(WebUtility.getSO("Success")).build();
-  	}
   	
   	private IEngine getEngine(String engineName, HttpServletRequest request){
 		HttpSession session = request.getSession();
