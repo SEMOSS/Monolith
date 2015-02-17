@@ -60,6 +60,7 @@ import prerna.nameserver.DeleteMasterDB;
 import prerna.nameserver.SearchMasterDB;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
+import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
@@ -404,11 +405,11 @@ public class NameServer {
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		logger.info("CENTRALLY have registered query data as ::: " + dataHash.toString());
 
-		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
-		tableViz.setJSONDataHash(dataHash);
-		tableViz.parsePath();
-		ArrayList<Hashtable<String, String>> nodeV = tableViz.getNodeV();
-		ArrayList<Hashtable<String, String>> predV = tableViz.getPredV();
+//		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
+//		tableViz.setJSONDataHash(dataHash);
+		Hashtable parsedPath = QueryBuilderHelper.parsePath(dataHash);
+//		ArrayList<Hashtable<String, String>> nodeV = tableViz.getNodeV();
+//		ArrayList<Hashtable<String, String>> predV = tableViz.getPredV();
 
 		//		SearchMasterDB searcher = new SearchMasterDB();
 		//		if(localMasterDbName != null)
