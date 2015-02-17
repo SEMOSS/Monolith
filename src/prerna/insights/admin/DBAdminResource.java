@@ -70,9 +70,9 @@ public class DBAdminResource {
 	{
 		Gson gson = new Gson();
 		
-		String enginesString = form.getFirst("engines");
-		String perspectivesString = form.getFirst("perspectives");
-		String questionsString = form.getFirst("questions");
+		String enginesString = form.getFirst("engine");
+		String perspectivesString = form.getFirst("perspective");
+		String questionsString = form.getFirst("question");
 
 		Hashtable<String, Boolean> results = new Hashtable<String, Boolean>();
 		
@@ -92,7 +92,7 @@ public class DBAdminResource {
 			IEngine engine = getEngine(enginesString, request);
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
 			for(String perspective: perspectives){
-				results.put(perspective, questionAdmin.deleteAllFromPersp(perspective));
+//				results.put(perspective, questionAdmin.deleteAllFromPersp(perspective));
 			}
 			
 		}
@@ -114,9 +114,9 @@ public class DBAdminResource {
 	{
 		Gson gson = new Gson();
 		
-		String enginesString = form.getFirst("engines");
-		String perspectivesString = form.getFirst("perspectives");
-		String questionsString = form.getFirst("questions");
+		String enginesString = form.getFirst("engine");
+		String perspectivesString = form.getFirst("perspective");
+		String questionsString = form.getFirst("question");
 
 		Hashtable<String, Boolean> results = new Hashtable<String, Boolean>();
 		
@@ -132,33 +132,14 @@ public class DBAdminResource {
   		return Response.status(200).entity(WebUtility.getSO(results)).build();
 	}
 
-	@POST
 	@Path("/add")
 	@Produces("application/json")
 	public Object add(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
-		Gson gson = new Gson();
-		
-		String enginesString = form.getFirst("engines");
-		String perspectivesString = form.getFirst("perspectives");
-		String questionsString = form.getFirst("questions");
-
-		Hashtable<String, Boolean> results = new Hashtable<String, Boolean>();
-		
-		if (questionsString!=null){
-			Vector<String> questions = gson.fromJson(questionsString, Vector.class);
-			
-			//davy... we need this code
-			
-		}
-		else if (perspectivesString!=null){
-			//do we want to be able to add an empty perspective?
-			
-		}
-		else if(enginesString!=null){
-			//probably not going to have anything here...
-		}
-  		return Response.status(200).entity(WebUtility.getSO(results)).build();
+		String enginesString = form.getFirst("engine");
+		IEngine engine = getEngine(enginesString, request);
+		QuestionAdmin admin = new QuestionAdmin(engine);
+		return admin;
 	}
 	
 	public boolean deleteEngine(IEngine coreEngine, HttpServletRequest request)
