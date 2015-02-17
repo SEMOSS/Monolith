@@ -83,8 +83,6 @@ public class QuestionAdmin {
 		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
 		Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
 		ArrayList<String> questionList = gson.fromJson(form.getFirst("questionList"), ArrayList.class);
-		boolean existingPerspective = form.getFirst("existingPerspective").equals("true");
-		boolean existingAutoGenQuestionKey = form.getFirst("existingAutoGenQuestionKey").equals("true");
 
 		String selectedPerspective = form.getFirst("selectedPerspective");
 		
@@ -92,11 +90,7 @@ public class QuestionAdmin {
 				+ "_Questions.XML";
 		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
 
-		QuestionAdministrator.selectedEngine = selectedEngine;
-
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine, questionList, selectedPerspective, "Add Question");
-		questionAdmin.existingAutoGenQuestionKey = existingAutoGenQuestionKey;
-		questionAdmin.existingPerspective = existingPerspective;
 		questionAdmin.questionList = questionList;
 		
 		questionKey = questionAdmin.createQuestionKey(perspective);
@@ -162,7 +156,6 @@ public class QuestionAdmin {
 				+ "_Questions.XML";
 		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
 		
-		QuestionAdministrator.selectedEngine = selectedEngine;
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine, questionList, selectedPerspective, "Edit Question");
 
 		if(!perspective.equals(currentPerspective)){
@@ -199,8 +192,6 @@ public class QuestionAdmin {
 		//boolean existingPerspective = form.getFirst("existingPerspective").equals("true");
 		//boolean existingAutoGenQuestionKey = form.getFirst("existingAutoGenQuestionKey").equals("true");
 		String selectedPerspective = form.getFirst("selectedPerspective");
-
-		QuestionAdministrator.selectedEngine = selectedEngine;
 
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine, questionList, selectedPerspective, "Delete Question");
 		//questionAdmin.existingAutoGenQuestionKey = existingAutoGenQuestionKey;
