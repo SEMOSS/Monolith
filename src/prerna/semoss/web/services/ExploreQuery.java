@@ -110,7 +110,6 @@ public class ExploreQuery {
 		ArrayList<Hashtable<String, String>> parameters = gson.fromJson(form.getFirst("Parameters") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
 		
 		logger.info("Node Properties: " + nodePropArray);
-		logger.info("Edge Properties: " + edgePropArray);
 		logger.info("Selected Vars: " + selectedVars);
 		logger.info("Parameters: " + parameters);
 		
@@ -122,10 +121,9 @@ public class ExploreQuery {
 		else
 			customViz = new SPARQLQueryTableBuilder();
 		
-		customViz.setPropV(nodePropArray, edgePropArray);
+		customViz.setPropV(nodePropArray);
 		
 		customViz.setJSONDataHash(dataHash);
-		customViz.setEngine(coreEngine);
 		customViz.buildQuery();
 
 		logger.info("CustomViz query is: " + customViz.getQuery());
