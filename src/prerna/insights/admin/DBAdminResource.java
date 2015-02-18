@@ -99,7 +99,7 @@ public class DBAdminResource {
 		else if(enginesString!=null){
 			Vector<String> engines = gson.fromJson(enginesString, Vector.class);
 			for(String engineString: engines){
-				IEngine engine = getEngine(enginesString, request);
+				IEngine engine = getEngine(engineString, request);
 				results.put(engineString, deleteEngine(engine, request));
 			}
 		}
