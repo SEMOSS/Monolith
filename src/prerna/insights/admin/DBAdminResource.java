@@ -129,7 +129,7 @@ public class DBAdminResource {
 	{
 		String enginesString = form.getFirst("engine");
 		IEngine engine = getEngine(enginesString, request);
-		QuestionAdmin admin = new QuestionAdmin(engine);
+		QuestionAdmin admin = new QuestionAdmin(engine, form);
 		return admin;
 	}
 	
