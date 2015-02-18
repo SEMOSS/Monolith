@@ -76,7 +76,7 @@ public class QuestionAdmin {
 		String sparql = form.getFirst("sparql");
 		String layout = form.getFirst("layout");
 		String questionDescription = form.getFirst("questionDescription");
-		if (questionDescription.equals("null")) {
+		if (questionDescription!=null && questionDescription.equals("null")) {
 			questionDescription = null;
 		}
 
@@ -123,7 +123,7 @@ public class QuestionAdmin {
 		String sparql = form.getFirst("sparql");
 		String layout = form.getFirst("layout");
 		String questionDescription = form.getFirst("questionDescription");
-		if (questionDescription.equals("null")) {
+		if (questionDescription!=null && questionDescription.equals("null")) {
 			questionDescription = null;
 		}
 
