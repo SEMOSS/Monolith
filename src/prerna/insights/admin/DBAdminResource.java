@@ -82,7 +82,7 @@ public class DBAdminResource {
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
 			for (String questionTitle: questions){
 				//davy this is what we really need to create
-//				questionAdmin.deleteQuestion(perspectivesString, questionTitle);
+				questionAdmin.deleteQuestion(perspectivesString, questionTitle);
 			}
 			questionAdmin.createQuestionXMLFile();
 			
