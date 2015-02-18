@@ -998,13 +998,6 @@ public class EngineResource {
 		return retArray;
   	}
   	
-  	@Path("/insights/modification")
-	public Object modifyInsight(@Context HttpServletRequest request) {
-  		QuestionAdmin questionAdmin = new QuestionAdmin(this.coreEngine);
-
-		return questionAdmin;
-	}
-  	
   	@Path("/analytics")
   	public Object runEngineAnalytics(){
   		EngineAnalyticsResource analytics = new EngineAnalyticsResource(this.coreEngine);
@@ -1020,88 +1013,6 @@ public class EngineResource {
 		return exploreQuery;
 	}
 
-	@POST
-	@Path("/delete")
-	@Produces("application/json")
-	public Object deleteEngine(@Context HttpServletRequest request)
-	{
-		String engineName = this.coreEngine.getEngineName();
-		System.out.println("closing " + engineName);
-		this.coreEngine.closeDB();
-		System.out.println("db closed");
-		System.out.println("deleting folder");
-		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-		String insightLoc = baseFolder + "/" + this.coreEngine.getProperty(Constants.INSIGHTS);
-		System.out.println("insight file is  " + insightLoc);
-		File insightFile = new File(insightLoc);
-		File engineFolder = new File(insightFile.getParent());
-		String folderName = engineFolder.getName();
-		try {
-			System.out.println("checking folder " + folderName + " against db " + engineName);//this check is to ensure we are deleting the right folder
-			if(folderName.equals(engineName))
-			{
-				System.out.println("folder getting deleted is " + engineFolder.getAbsolutePath());
-				FileUtils.deleteDirectory(engineFolder);
-			}
-			else{
-				logger.error("Cannot delete database folder as folder name does not line up with engine name");
-				//try deleting each file individually
-				System.out.println("Deleting insight file " + insightLoc);
-				insightFile.delete();
-
-				String ontoLoc = baseFolder + "/" + this.coreEngine.getProperty(Constants.ONTOLOGY);
-				if(ontoLoc != null){
-					System.out.println("Deleting onto file " + ontoLoc);
-					File ontoFile = new File(ontoLoc);
-					ontoFile.delete();
-				}
-
-				String owlLoc = baseFolder + "/" + this.coreEngine.getProperty(Constants.OWL);
-				if(owlLoc != null){
-					System.out.println("Deleting owl file " + owlLoc);
-					File owlFile = new File(owlLoc);
-					owlFile.delete();
-				}
-
-				String jnlLoc = baseFolder + "/" + this.coreEngine.getProperty("com.bigdata.journal.AbstractJournal.file");
-				if(jnlLoc != null){
-					System.out.println("Deleting jnl file " + jnlLoc);
-					File jnlFile = new File(jnlLoc);
-					jnlFile.delete();
-				}
-			}
-			String smss = this.coreEngine.getSMSS();
-			System.out.println("Deleting smss " + smss);
-			File smssFile = new File(smss);
-			smssFile.delete();
-			
-			//remove from session
-			HttpSession session = request.getSession();
-			ArrayList<Hashtable<String,String>> engines = (ArrayList<Hashtable<String,String>>)session.getAttribute(Constants.ENGINES);
-			for(Hashtable<String, String> engine : engines){
-				String engName = engine.get("name");
-				if(engName.equals(engineName)){
-					engines.remove(engine);
-					System.out.println("Removed from engines");
-					session.setAttribute(Constants.ENGINES, engines);
-					break;//
-				}
-			}
-			session.removeAttribute(engineName);
-			
-			//remove from dihelper... this is absurd
-			String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
-			engineNames = engineNames.replace(";" + engineName, "");
-			DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engineNames);
-
-			return Response.status(200).entity(WebUtility.getSO("Success")).build();
-		} catch (IOException e) {
-			e.printStackTrace();
-			return Response.status(400).entity(WebUtility.getSO("IOException")).build();
-		}
-		
-		
-	}
 }
 
 
