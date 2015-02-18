@@ -57,16 +57,17 @@ public class QuestionAdmin {
 
 	IEngine coreEngine;
 	String output = "";
+	MultivaluedMap<String, String> form;
 
-	public QuestionAdmin(IEngine coreEngine) {
+	public QuestionAdmin(IEngine coreEngine, MultivaluedMap<String, String> form) {
 		this.coreEngine = coreEngine;
+		this.form = form;
 	}
 
 	@POST
 	@Path("add")
 	@Produces("application/json")
-	public Response addInsight(MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request) {
+	public Response addInsight(@Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		String selectedEngine = form.getFirst("engine");
 		String perspective = form.getFirst("perspective");
@@ -112,8 +113,7 @@ public class QuestionAdmin {
 	@POST
 	@Path("edit")
 	@Produces("application/json")
-	public Response editInsight(MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request) {
+	public Response editInsight(@Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		String selectedEngine = form.getFirst("engine");
 		String perspective = form.getFirst("perspective");
@@ -188,8 +188,7 @@ public class QuestionAdmin {
 	@POST
 	@Path("delete")
 	@Produces("application/json")
-	public Response deleteInsight(MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request) {
+	public Response deleteInsight(@Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		String selectedEngine = form.getFirst("engine");
 		String perspective = form.getFirst("perspective");
