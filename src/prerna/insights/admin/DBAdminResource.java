@@ -50,6 +50,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
 import prerna.rdf.engine.api.IEngine;
+import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.QuestionAdministrator;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -60,7 +61,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 public class DBAdminResource {
-	
+
+	final static int MAX_CHAR = 100;
 	Logger logger = Logger.getLogger(DBAdminResource.class.getName());
 
 	@POST
@@ -76,20 +78,39 @@ public class DBAdminResource {
 		
 		if (questionsString!=null){
 			Vector<String> questions = gson.fromJson(questionsString, Vector.class);
-			IEngine engine = getEngine(enginesString, request);
+			AbstractEngine engine = getEngine(enginesString, request);
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
-			questionAdmin.deleteQuestions(perspectivesString, questions);
-			questionAdmin.createQuestionXMLFile();
-			
+			try{
+				questionAdmin.deleteQuestions(perspectivesString, questions);
+				questionAdmin.createQuestionXMLFile();
+			}catch (RuntimeException e){
+				//reload question xml from file if it errored
+				//otherwise xml gets corrupted
+				System.out.println("caught exception while deleting questions.................");
+				e.printStackTrace();
+				System.out.println("reverting xml........................");
+				questionAdmin.revertQuestionXML();
+				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
+			}
 		}
 		else if (perspectivesString!=null){
-			Vector<String> perspectives = gson.fromJson(perspectivesString, Vector.class);
-			IEngine engine = getEngine(enginesString, request);
+			AbstractEngine engine = getEngine(enginesString, request);
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
-			for(String perspective: perspectives){
-				questionAdmin.deleteAllFromPersp(perspective);
+			try{
+				Vector<String> perspectives = gson.fromJson(perspectivesString, Vector.class);
+				for(String perspective: perspectives){
+					questionAdmin.deleteAllFromPersp(perspective);
+				}
+				questionAdmin.createQuestionXMLFile();
+			}catch (RuntimeException e){
+				//reload question xml from file if it errored
+				//otherwise xml gets corrupted
+				System.out.println("caught exception while deleting perspectives.................");
+				e.printStackTrace();
+				System.out.println("reverting xml........................");
+				questionAdmin.revertQuestionXML();
+				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
 			}
-			questionAdmin.createQuestionXMLFile();
 			
 		}
 		else if(enginesString!=null){
@@ -111,10 +132,19 @@ public class DBAdminResource {
 		String enginesString = form.getFirst("engine");
 		Vector<Hashtable<String, Object>> insightArray = gson.fromJson(form.getFirst("insights") + "", new TypeToken<Vector<Hashtable<String, Object>>>() {}.getType());
 
-		IEngine engine = getEngine(enginesString, request);
+		AbstractEngine engine = getEngine(enginesString, request);
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
-		questionAdmin.reorderPerspective(perspective, insightArray);
-		questionAdmin.createQuestionXMLFile();
+		try{
+			questionAdmin.reorderPerspective(perspective, insightArray);
+			questionAdmin.createQuestionXMLFile();
+		} catch(RuntimeException e){
+
+			System.out.println("caught exception while reordering.................");
+			e.printStackTrace();
+			System.out.println("reverting xml........................");
+			questionAdmin.revertQuestionXML();
+			return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
+		}
 
 		
   		return Response.status(200).entity(WebUtility.getSO("Success")).build();
@@ -125,7 +155,7 @@ public class DBAdminResource {
 	public Object insight(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		String enginesString = form.getFirst("engine");
-		IEngine engine = getEngine(enginesString, request);
+		AbstractEngine engine = getEngine(enginesString, request);
 		QuestionAdmin admin = new QuestionAdmin(engine, form);
 		return admin;
 	}
@@ -210,9 +240,9 @@ public class DBAdminResource {
 		
 	}
   	
-  	private IEngine getEngine(String engineName, HttpServletRequest request){
+  	private AbstractEngine getEngine(String engineName, HttpServletRequest request){
 		HttpSession session = request.getSession();
-		IEngine engine = (IEngine)session.getAttribute(engineName);
+		AbstractEngine engine = (AbstractEngine)session.getAttribute(engineName);
 		return engine;
   	}
 }

@@ -45,6 +45,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import prerna.rdf.engine.api.IEngine;
+import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.QuestionAdministrator;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
@@ -55,11 +56,12 @@ import com.google.gson.reflect.TypeToken;
 
 public class QuestionAdmin {
 
-	IEngine coreEngine;
+	AbstractEngine coreEngine;
 	String output = "";
+	final static int MAX_CHAR = 100;
 	MultivaluedMap<String, String> form;
 
-	public QuestionAdmin(IEngine coreEngine, MultivaluedMap<String, String> form) {
+	public QuestionAdmin(AbstractEngine coreEngine, MultivaluedMap<String, String> form) {
 		this.coreEngine = coreEngine;
 		this.form = form;
 	}
@@ -86,11 +88,19 @@ public class QuestionAdmin {
 
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
 
-		questionKey = questionAdmin.createQuestionKey(perspective);
-		questionAdmin.cleanAddQuestion(perspective, questionKey, questionOrder,
-				question, sparql, layout, questionDescription,
-				parameterDependList, parameterQueryList, parameterOptionList);
-		questionAdmin.createQuestionXMLFile();
+		try{
+			questionKey = questionAdmin.createQuestionKey(perspective);
+			questionAdmin.cleanAddQuestion(perspective, questionKey, questionOrder,
+					question, sparql, layout, questionDescription,
+					parameterDependList, parameterQueryList, parameterOptionList);
+			questionAdmin.createQuestionXMLFile();
+		}catch(RuntimeException e){
+			System.out.println("caught exception while adding question.................");
+			e.printStackTrace();
+			System.out.println("reverting xml........................");
+			questionAdmin.revertQuestionXML();
+			return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
+		}
 
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
@@ -134,15 +144,22 @@ public class QuestionAdmin {
 			questionKey = null;
 		}
 
-		questionAdmin.modifyQuestion(perspective, questionKey, questionOrder,
-				question, sparql, layout, questionDescription,
-				parameterDependList, parameterQueryList, parameterOptionList,
-				currentPerspective, currentQuestionKey, currentQuestionOrder,
-				currentQuestion, currentSparql, currentLayout,
-				currentQuestionDescription, currentParameterDependList,
-				currentParameterQueryList, currentParameterOptionList,
-				currentNumberofQuestions);
-		questionAdmin.createQuestionXMLFile();
+		try{
+			questionAdmin.modifyQuestion(perspective, questionKey, questionOrder,
+					question, sparql, layout, questionDescription,
+					parameterDependList, parameterQueryList, parameterOptionList,
+					currentPerspective, currentQuestionKey, currentQuestionOrder,
+					currentQuestion, currentSparql, currentLayout,
+					currentQuestionDescription, currentParameterDependList,
+					currentParameterQueryList, currentParameterOptionList,
+					currentNumberofQuestions);
+		}catch(RuntimeException e){
+			System.out.println("caught exception while modifying question.................");
+			e.printStackTrace();
+			System.out.println("reverting xml........................");
+			questionAdmin.revertQuestionXML();
+			return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
+		}
 
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
@@ -169,10 +186,18 @@ public class QuestionAdmin {
 
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
 
-		questionAdmin.cleanDeleteQuestion(perspective, questionKey, questionOrder,
-				question, sparql, layout, questionDescription,
-				parameterDependList, parameterQueryList, parameterOptionList);
-		questionAdmin.createQuestionXMLFile();
+		try{
+			questionAdmin.cleanDeleteQuestion(perspective, questionKey, questionOrder,
+					question, sparql, layout, questionDescription,
+					parameterDependList, parameterQueryList, parameterOptionList);
+			questionAdmin.createQuestionXMLFile();
+		}catch(RuntimeException e){
+			System.out.println("caught exception while deleting question.................");
+			e.printStackTrace();
+			System.out.println("reverting xml........................");
+			questionAdmin.revertQuestionXML();
+			return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
+		}
 
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
