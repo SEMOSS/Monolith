@@ -69,7 +69,6 @@ public class QuestionAdmin {
 	@Produces("application/json")
 	public Response addInsight(@Context HttpServletRequest request) {
 		Gson gson = new Gson();
-		String selectedEngine = form.getFirst("engine");
 		String perspective = form.getFirst("perspective");
 		String questionKey = form.getFirst("questionKey");
 		String questionOrder = form.getFirst("questionOrder");
@@ -81,31 +80,17 @@ public class QuestionAdmin {
 			questionDescription = null;
 		}
 
-		Vector<String> parameterDependList = gson.fromJson(
-				form.getFirst("parameterDependList"), Vector.class);
-		Vector<String> parameterQueryList = gson.fromJson(
-				form.getFirst("parameterQueryList"), Vector.class);
-		Vector<String> parameterOptionList = gson.fromJson(
-				form.getFirst("parameterOptionList"), Vector.class);
-		ArrayList<String> questionList = gson.fromJson(
-				form.getFirst("questionList"), ArrayList.class);
+		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
+		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
+		Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
 
-		String selectedPerspective = form.getFirst("selectedPerspective");
-
-		String xmlFile = "db/" + selectedEngine + "/" + selectedEngine
-				+ "_Questions.XML";
-		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(
-				this.coreEngine, questionList, selectedPerspective,
-				"Add Question");
-		questionAdmin.questionList = questionList;
+		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
 
 		questionKey = questionAdmin.createQuestionKey(perspective);
-		questionAdmin.addQuestion(perspective, questionKey, questionOrder,
+		questionAdmin.cleanAddQuestion(perspective, questionKey, questionOrder,
 				question, sparql, layout, questionDescription,
 				parameterDependList, parameterQueryList, parameterOptionList);
-		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
+		questionAdmin.createQuestionXMLFile();
 
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
@@ -115,7 +100,6 @@ public class QuestionAdmin {
 	@Produces("application/json")
 	public Response editInsight(@Context HttpServletRequest request) {
 		Gson gson = new Gson();
-		String selectedEngine = form.getFirst("engine");
 		String perspective = form.getFirst("perspective");
 		String questionKey = form.getFirst("currentQuestionKey");
 		String questionOrder = form.getFirst("questionOrder");
@@ -127,21 +111,11 @@ public class QuestionAdmin {
 			questionDescription = null;
 		}
 
-		Vector<String> parameterDependList = gson.fromJson(
-				form.getFirst("parameterDependList"), Vector.class);
-		Vector<String> parameterQueryList = gson.fromJson(
-				form.getFirst("parameterQueryList"), Vector.class);
-		Vector<String> parameterOptionList = gson.fromJson(
-				form.getFirst("parameterOptionList"), Vector.class);
-		ArrayList<String> questionList = gson.fromJson(
-				form.getFirst("questionList"), ArrayList.class);
-		// boolean existingPerspective =
-		// form.getFirst("existingPerspective").equals("true");
-		// boolean existingAutoGenQuestionKey =
-		// form.getFirst("existingAutoGenQuestionKey").equals("true");
+		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
+		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
+		Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
 
-		String currentPerspective = gson.fromJson(
-				form.getFirst("currentPerspective"), String.class);
+		String currentPerspective = gson.fromJson(form.getFirst("currentPerspective"), String.class);
 		String currentQuestionKey = form.getFirst("currentQuestionKey");
 		String currentQuestionOrder = form.getFirst("currentQuestionOrder");
 		String currentQuestion = form.getFirst("currentQuestion");
@@ -149,24 +123,12 @@ public class QuestionAdmin {
 		String currentLayout = form.getFirst("currentLayout");
 		String currentQuestionDescription = form
 				.getFirst("currentQuestionDescription");
-		Vector<String> currentParameterDependList = gson.fromJson(
-				form.getFirst("currentParameterDependList"), Vector.class);
-		Vector<String> currentParameterQueryList = gson.fromJson(
-				form.getFirst("currentParameterQueryList"), Vector.class);
-		Vector<String> currentParameterOptionList = gson.fromJson(
-				form.getFirst("currentParameterOptionList"), Vector.class);
-		String currentNumberofQuestions = form
-				.getFirst("currentNumberOfQuestions");
-
-		String selectedPerspective = form.getFirst("selectedPerspective");
-
-		String xmlFile = "db/" + selectedEngine + "/" + selectedEngine
-				+ "_Questions.XML";
-		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(
-				this.coreEngine, questionList, selectedPerspective,
-				"Edit Question");
+		Vector<String> currentParameterDependList = gson.fromJson(form.getFirst("currentParameterDependList"), Vector.class);
+		Vector<String> currentParameterQueryList = gson.fromJson(form.getFirst("currentParameterQueryList"), Vector.class);
+		Vector<String> currentParameterOptionList = gson.fromJson(form.getFirst("currentParameterOptionList"), Vector.class);
+		String currentNumberofQuestions = form.getFirst("currentNumberOfQuestions");
+		
+		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
 
 		if (!perspective.equals(currentPerspective)) {
 			questionKey = null;
@@ -180,7 +142,7 @@ public class QuestionAdmin {
 				currentQuestionDescription, currentParameterDependList,
 				currentParameterQueryList, currentParameterOptionList,
 				currentNumberofQuestions);
-		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
+		questionAdmin.createQuestionXMLFile();
 
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
@@ -190,7 +152,6 @@ public class QuestionAdmin {
 	@Produces("application/json")
 	public Response deleteInsight(@Context HttpServletRequest request) {
 		Gson gson = new Gson();
-		String selectedEngine = form.getFirst("engine");
 		String perspective = form.getFirst("perspective");
 		String questionKey = form.getFirst("questionKey");
 		String questionOrder = form.getFirst("questionOrder");
@@ -202,37 +163,16 @@ public class QuestionAdmin {
 			questionDescription = null;
 		}
 
-		Vector<String> parameterDependList = gson.fromJson(
-				form.getFirst("parameterDependList"), Vector.class);
-		Vector<String> parameterQueryList = gson.fromJson(
-				form.getFirst("parameterQueryList"), Vector.class);
-		Vector<String> parameterOptionList = gson.fromJson(
-				form.getFirst("parameterOptionList"), Vector.class);
-		ArrayList<String> questionList = gson.fromJson(
-				form.getFirst("questionList"), ArrayList.class);
-		// boolean existingPerspective =
-		// form.getFirst("existingPerspective").equals("true");
-		// boolean existingAutoGenQuestionKey =
-		// form.getFirst("existingAutoGenQuestionKey").equals("true");
-		String selectedPerspective = form.getFirst("selectedPerspective");
+		Vector<String> parameterDependList = gson.fromJson( form.getFirst("parameterDependList"), Vector.class);
+		Vector<String> parameterQueryList = gson.fromJson( form.getFirst("parameterQueryList"), Vector.class);
+		Vector<String> parameterOptionList = gson.fromJson( form.getFirst("parameterOptionList"), Vector.class);
 
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(
-				this.coreEngine, questionList, selectedPerspective,
-				"Delete Question");
-		// questionAdmin.existingAutoGenQuestionKey =
-		// existingAutoGenQuestionKey;
-		// questionAdmin.existingPerspective = existingPerspective;
-		questionAdmin.questionList = questionList;
+		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
 
-		String xmlFile = "db/" + selectedEngine + "/" + selectedEngine
-				+ "_Questions.XML";
-		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-
-		// questionKey = questionAdmin.createQuestionKey(perspective);
-		questionAdmin.deleteQuestion(perspective, questionKey, questionOrder,
+		questionAdmin.cleanDeleteQuestion(perspective, questionKey, questionOrder,
 				question, sparql, layout, questionDescription,
 				parameterDependList, parameterQueryList, parameterOptionList);
-		questionAdmin.createQuestionXMLFile(xmlFile, baseFolder);
+		questionAdmin.createQuestionXMLFile();
 
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
