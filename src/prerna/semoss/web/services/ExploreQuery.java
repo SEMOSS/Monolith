@@ -45,6 +45,7 @@ import org.apache.log4j.Logger;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.query.builder.AbstractSPARQLQueryBuilder;
 import prerna.rdf.query.builder.AbstractSpecificQueryBuilder;
+import prerna.rdf.query.builder.IQueryBuilder;
 import prerna.rdf.query.builder.SPARQLQueryGraphBuilder;
 import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
 import prerna.rdf.query.builder.SpecificGenericChartQueryBuilder;
@@ -102,14 +103,19 @@ public class ExploreQuery {
 	public Response generateExploreQuery(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
+		
+		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
+		builder.setJSONDataHash(dataHash);
+		
+//		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
 
-		ArrayList<Hashtable<String,String>> nodePropArray = gson.fromJson(form.getFirst("SelectedNodeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
-		ArrayList<Hashtable<String,String>> edgePropArray = gson.fromJson(form.getFirst("SelectedEdgeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
+//		ArrayList<Hashtable<String,String>> nodePropArray = gson.fromJson(form.getFirst("SelectedNodeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
+//		ArrayList<Hashtable<String,String>> edgePropArray = gson.fromJson(form.getFirst("SelectedEdgeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
 		ArrayList<Hashtable<String, String>> selectedVars = gson.fromJson(form.getFirst("Groupings") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
 		ArrayList<Hashtable<String, String>> parameters = gson.fromJson(form.getFirst("Parameters") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
 		
-		logger.info("Node Properties: " + nodePropArray);
+//		logger.info("Node Properties: " + nodePropArray);
 		logger.info("Selected Vars: " + selectedVars);
 		logger.info("Parameters: " + parameters);
 		
@@ -121,7 +127,7 @@ public class ExploreQuery {
 		else
 			customViz = new SPARQLQueryTableBuilder();
 		
-		customViz.setPropV(nodePropArray);
+//		customViz.setPropV(nodePropArray);
 		
 		customViz.setJSONDataHash(dataHash);
 		customViz.buildQuery();

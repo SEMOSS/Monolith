@@ -73,17 +73,12 @@ public class DBAdminResource {
 		String enginesString = form.getFirst("engine");
 		String perspectivesString = form.getFirst("perspective");
 		String questionsString = form.getFirst("question");
-
-		Hashtable<String, Boolean> results = new Hashtable<String, Boolean>();
 		
 		if (questionsString!=null){
 			Vector<String> questions = gson.fromJson(questionsString, Vector.class);
 			IEngine engine = getEngine(enginesString, request);
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
-			for (String questionTitle: questions){
-				//davy this is what we really need to create
-				questionAdmin.deleteQuestion(perspectivesString, questionTitle);
-			}
+			questionAdmin.deleteQuestions(perspectivesString, questions);
 			questionAdmin.createQuestionXMLFile();
 			
 		}
@@ -92,18 +87,19 @@ public class DBAdminResource {
 			IEngine engine = getEngine(enginesString, request);
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
 			for(String perspective: perspectives){
-				results.put(perspective, questionAdmin.deleteAllFromPersp(perspective));
+				questionAdmin.deleteAllFromPersp(perspective);
 			}
+			questionAdmin.createQuestionXMLFile();
 			
 		}
 		else if(enginesString!=null){
 			Vector<String> engines = gson.fromJson(enginesString, Vector.class);
 			for(String engineString: engines){
 				IEngine engine = getEngine(engineString, request);
-				results.put(engineString, deleteEngine(engine, request));
+				deleteEngine(engine, request);
 			}
 		}
-  		return Response.status(200).entity(WebUtility.getSO(results)).build();
+  		return Response.status(200).entity(WebUtility.getSO("success")).build();
 	}
   	
   	@POST
@@ -118,6 +114,7 @@ public class DBAdminResource {
 		IEngine engine = getEngine(enginesString, request);
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
 		questionAdmin.reorderPerspective(perspective, insightArray);
+		questionAdmin.createQuestionXMLFile();
 
 		
   		return Response.status(200).entity(WebUtility.getSO("Success")).build();
