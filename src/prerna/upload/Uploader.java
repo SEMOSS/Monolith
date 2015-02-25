@@ -232,13 +232,22 @@ public class Uploader extends HttpServlet {
 		//call the right process method with correct parameters
 		String dbName = inputData.get("dbName");
 		
+		
+		String dataOutputType = inputData.get("dataOutputType");
+		
+		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF; // needs to be set later
+		
+		if(dataOutputType.equalsIgnoreCase("RDBMS"))
+			storeType = ImportDataProcessor.DB_TYPE.RDBMS; // needs to be set later
+		
 		try {
 			if(methodString.equals("Create new database engine")) {
+				// force fitting the RDBMS here
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), dbName,"","","","");
+						inputData.get("designateBaseUri"), dbName,"","","","", storeType);
 			} else {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), "","","","", dbName);
+						inputData.get("designateBaseUri"), "","","","", dbName, storeType);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
@@ -299,16 +308,17 @@ public class Uploader extends HttpServlet {
 			return Response.status(400).entity(errorMessage).build();
 		}
 		//call the right process method with correct parameters
+		ImportDataProcessor.DB_TYPE dbType = ImportDataProcessor.DB_TYPE.RDBMS;
 		String dbName = "";
 		try {
 			if(methodString.equals("Create new database engine")) {
 				dbName = inputData.get("newDBname");
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("customBaseURI")+"", dbName,"","","","");
+						inputData.get("customBaseURI")+"", dbName,"","","","",dbType);
 			} else {
 				dbName = inputData.get("addDBname");
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("customBaseURI")+"", "","","","", dbName);
+						inputData.get("customBaseURI")+"", "","","","", dbName,dbType);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
@@ -354,16 +364,17 @@ public class Uploader extends HttpServlet {
 										: null;
 
 		//call the right process method with correct parameters
+		ImportDataProcessor.DB_TYPE dbType = ImportDataProcessor.DB_TYPE.RDBMS;
 		String dbName = "";
 		try {
 			if(methodString.equals("Create new database engine")) {
 				dbName = inputData.get("newDBname");
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("customBaseURI")+"", dbName,"","","","");
+						inputData.get("customBaseURI")+"", dbName,"","","","", dbType);
 			} else {
 				dbName = inputData.get("addDBname");
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("customBaseURI")+"", "","","","", dbName);
+						inputData.get("customBaseURI")+"", "","","","", dbName, dbType);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
