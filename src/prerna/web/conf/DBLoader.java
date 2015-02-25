@@ -104,11 +104,6 @@ public class DBLoader implements ServletContextListener {
 				watcherInstance.setExtension(ext);
 				synchronized(monitor)
 				{
-					watcherInstance.loadFirst();
-					// test this engine
-//					IEngine engine = (IEngine)DIHelper.getInstance().getLocalProp("NOAA3");
-//					System.err.println("Engine is " + engine);
-//					testQuery(engine);
 					Thread thread = new Thread(watcherInstance);
 					thread.start();
 				}
