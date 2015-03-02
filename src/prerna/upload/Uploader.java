@@ -29,8 +29,6 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -41,10 +39,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
@@ -63,7 +59,6 @@ import prerna.util.DIHelper;
 import prerna.util.Utility;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 /**
  * Servlet implementation class Uploader
