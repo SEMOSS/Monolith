@@ -358,16 +358,18 @@ public class NameServer {
 	}
 	
 	// search based on a string input
-	@POST
+	@GET
 	@Path("central/context/searchEngineResults")
 	@Produces("application/json")
 	public StreamingOutput getSearchEngineResults(
-			MultivaluedMap<String, String> form, 
+//			MultivaluedMap<String, String> form
+			@QueryParam("searchString") String searchString,
+			@QueryParam("localMasterDbName") String localMasterDbName,
 			@Context HttpServletRequest request)
 	{
-		String searchString = form.getFirst("searchString");
+//		String searchString = form.getFirst("searchString");
 		logger.info("Searching based on input: " + searchString);
-		String localMasterDbName = form.getFirst("localMasterDbName");
+//		String localMasterDbName = form.getFirst("localMasterDbName");
 
 		ServletContext servletContext = request.getServletContext();
 		String contextPath = servletContext.getRealPath(System.getProperty("file.separator"));
