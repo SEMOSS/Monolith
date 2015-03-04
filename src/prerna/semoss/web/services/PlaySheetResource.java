@@ -58,6 +58,7 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 public class PlaySheetResource {
 
@@ -474,5 +475,19 @@ public class PlaySheetResource {
 		}
 		return filterValues;
 	}
-
+	
+    //for handling playsheet specific tool calls
+    @POST
+    @Path("registerControlPanelClick")
+    @Produces("application/json")
+    public StreamingOutput registerControlPanelClick(MultivaluedMap<String, String> form, 
+                  @Context HttpServletRequest request)
+    {
+           Gson gson = new Gson();
+           Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());           
+           AbstractRDFPlaySheet ps = (AbstractRDFPlaySheet) this.playSheet;           
+           Hashtable retHash = ps.registerControlPanelClick(dataHash);           
+           return WebUtility.getSO(retHash);
+    }
+    
 }
