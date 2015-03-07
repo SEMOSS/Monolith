@@ -58,6 +58,7 @@ import prerna.rdf.query.util.SEMOSSQueryHelper;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
+import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
 public class ExploreQuery {
@@ -106,7 +107,11 @@ public class ExploreQuery {
 		
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		builder.setJSONDataHash(dataHash);
+		builder.setJSONDataHash(dataHash); // I am not sure we have an idea for why we set this
+		
+		Object relTriples = ((StringMap)dataHash.get("QueryData")).get("relTriples");
+		
+		
 		
 //		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
 
@@ -223,8 +228,14 @@ public class ExploreQuery {
 			
 			abstractQuery = new SpecificTableQueryBuilder(labelList, parameters, semossQuery);
 		}
-		
-		abstractQuery.buildQuery();
+		if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE)
+			abstractQuery.buildQuery();
+		else if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
+		{
+			abstractQuery.buildQueryR();
+			abstractQuery.addJoins((ArrayList<ArrayList<String>>)relTriples);
+			abstractQuery.addParameters();
+		}
 		query = abstractQuery.getQuery();
 		
 		return Response.status(200).entity(WebUtility.getSO(query)).build();
