@@ -27,8 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Hashtable;
@@ -49,10 +47,8 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
-import prerna.insights.admin.QuestionAdmin;
 import prerna.om.Insight;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.api.IEngine;
@@ -64,6 +60,7 @@ import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
 import prerna.rdf.query.builder.IQueryBuilder;
 import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
+import prerna.rdf.query.builder.SQLQueryTableBuilder;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.RDFJSONConverter;
 import prerna.ui.components.ExecuteQueryProcessor;
@@ -72,8 +69,6 @@ import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.helpers.PlaysheetCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
-import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
@@ -366,7 +361,15 @@ public class EngineResource {
 			{
 				// do the logic to get the stuff
 				String query = param.getQuery();
-				optionsHash.put(param.getName(), coreEngine.getParamValues(param.getName(), param.getType(), in.getId(), query));
+				// do a bifurcation based on the engine
+				if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE)
+					optionsHash.put(param.getName(), coreEngine.getParamValues(param.getName(), param.getType(), in.getId(), query));
+				else if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
+				{
+					String type = param.getType();
+					type = type.substring(type.lastIndexOf(":") + 1);
+					optionsHash.put(param.getName(), coreEngine.getParamValues(param.getName(), type, in.getId(), query));
+				}
 			}
 			else
 				optionsHash.put(param.getName(), "");
@@ -808,6 +811,14 @@ public class EngineResource {
 		//still need filter queries for RDF... not sure what this is going to look like in the future yet
 		if(builder instanceof SPARQLQueryTableBuilder) {
 			ArrayList<Hashtable<String, String>> varObjV = ((SPARQLQueryTableBuilder)builder).getHeaderArray();
+			Collection<Hashtable<String, String>> varObjVector = varObjV;
+			
+			//add variable info to return data
+			((Hashtable)obj).put("variableHeaders", varObjVector);
+		}
+		
+		if(builder instanceof SQLQueryTableBuilder) {
+			ArrayList<Hashtable<String, String>> varObjV = ((SQLQueryTableBuilder)builder).getHeaderArray();
 			Collection<Hashtable<String, String>> varObjVector = varObjV;
 			
 			//add variable info to return data
