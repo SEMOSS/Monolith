@@ -232,9 +232,9 @@ public class ExploreQuery {
 			abstractQuery.buildQuery();
 		else if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
 		{
-			abstractQuery.buildQueryR();
 			abstractQuery.addJoins((ArrayList<ArrayList<String>>)relTriples);
 			abstractQuery.addParameters();
+			abstractQuery.buildQueryR();
 		}
 		query = abstractQuery.getQuery();
 		
