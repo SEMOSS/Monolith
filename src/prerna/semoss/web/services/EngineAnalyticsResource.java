@@ -34,22 +34,26 @@ import java.util.List;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import prerna.rdf.engine.api.IEngine;
-import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
-import prerna.ui.components.playsheets.ClassifyClusterPlaySheet;
 import prerna.ui.components.playsheets.ClusteringVizPlaySheet;
+import prerna.ui.components.playsheets.DatasetSimilarityPlaySheet;
+import prerna.ui.components.playsheets.LocalOutlierPlaySheet;
 import prerna.ui.components.playsheets.MatrixRegressionVizPlaySheet;
 import prerna.ui.components.playsheets.NumericalCorrelationVizPlaySheet;
 import prerna.ui.components.playsheets.WekaAprioriVizPlaySheet;
+import prerna.ui.components.playsheets.WekaClassificationPlaySheet;
 import prerna.util.MachineLearningEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
+
+import com.google.gson.Gson;
 
 public class EngineAnalyticsResource {
 	
@@ -77,57 +81,68 @@ public class EngineAnalyticsResource {
 	
 	@POST
 	@Path("/runAlgorithm")
-	public Response runAlgorithm(@QueryParam("algorithm") String algorithm) {
-		IPlaySheet ps = null;
+	public Response runAlgorithm(MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
+		String query = form.getFirst("query");
+		String algorithm = form.getFirst("algorithm");
+		ArrayList<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
 		
 		if (algorithm.equals("Clustering")) {
-			ps = new ClusteringVizPlaySheet();
+			ClusteringVizPlaySheet ps = new ClusteringVizPlaySheet();
 			LOGGER.info("Running Clustering on " + engine.getEngineName() + "...");
+			return Response.status(200).entity(WebUtility.getSO(ps)).build(); // send front end int[]
 			
 		} else if (algorithm.equals("AssociationLearning")) {
-			ps = new WekaAprioriVizPlaySheet();
+			WekaAprioriVizPlaySheet ps = new WekaAprioriVizPlaySheet();
 			ps.setRDFEngine(engine);
 			ps.createData();
 			LOGGER.info("Running Association Learning on " + engine.getEngineName() + "...");
+			return Response.status(200).entity(WebUtility.getSO(ps)).build(); // send front end double[]
 			
 		} else if (algorithm.equals("Classify")) {
-			ps = new ClassifyClusterPlaySheet();
+			WekaClassificationPlaySheet ps = new WekaClassificationPlaySheet();
 			LOGGER.info("Running Classify on " + engine.getEngineName() + "...");
+			return Response.status(200).entity(WebUtility.getSO(ps)).build(); // send front end double[]
 			
 		} else if (algorithm.equals("Outliers")) {
-			ps = new ClassifyClusterPlaySheet();
+			LocalOutlierPlaySheet ps = new LocalOutlierPlaySheet();
+			if (configParameters.size() == 1) {
+				Integer k = Integer.parseInt(configParameters.get(0));
+				ps.setKNeighbors(k);
+			}
+			ps.setRDFEngine(engine);
+			ps.setQuery(query);
+			ps.createData();
+			ps.runAnalytics();
 			
 			LOGGER.info("Running Outliers on " + engine.getEngineName() + "...");
-			
+			return Response.status(200).entity(WebUtility.getSO(ps.getLop())).build(); // send front end double[]
 		} else if (algorithm.equals("Similarity")) {
-			ps = new ClassifyClusterPlaySheet();
+			DatasetSimilarityPlaySheet ps = new DatasetSimilarityPlaySheet();
 			
 			LOGGER.info("Running Similarity on " + engine.getEngineName() + "...");
-			
-		} else if (algorithm.equals("Predictability")) {
-			ps = new ClassifyClusterPlaySheet();
-			
-			LOGGER.info("Running Predictability on " + engine.getEngineName() + "...");
+			return Response.status(200).entity(WebUtility.getSO(ps)).build(); // send front end double[]
 			
 		} else if (algorithm.equals("MatrixRegression")) {
-			ps = new MatrixRegressionVizPlaySheet();
+			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
 			ps.setRDFEngine(engine);
 			ps.createData();
 			LOGGER.info("Running Matrix Regression on " + engine.getEngineName() + "...");
+			return Response.status(200).entity(WebUtility.getSO(ps)).build(); // send front end double[]
 			
 		} else if (algorithm.equals("NumericalCorrelation")) {
-			ps = new NumericalCorrelationVizPlaySheet();
+			NumericalCorrelationVizPlaySheet ps = new NumericalCorrelationVizPlaySheet();
 			ps.setRDFEngine(engine);
 			ps.createData();
 			LOGGER.info("Running Numerical Correlation on " + engine.getEngineName() + "...");
+			return Response.status(200).entity(WebUtility.getSO(ps)).build(); // send front end double[]
 			
 		} else {
 			String errorMessage = "Selected algorithm does not exist";
 			LOGGER.info("Selected algorithm does not exist...");
-			return Response.status(200).entity(WebUtility.getSO(errorMessage)).build();
+			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 		}
 		// TODO decide on format of data to be returned
-		return Response.status(200).entity(WebUtility.getSO(ps)).build();
 	}
 	
 	// MachineLearningEnd
