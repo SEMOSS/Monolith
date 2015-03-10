@@ -104,8 +104,12 @@ public class EngineAnalyticsResource {
 			for (int i = 0; i < tempClusterAssignment.length; i++) {
 				clusterAssignment[i][0] = tempClusterAssignment[i];
 			}
+			Hashtable specificData = new Hashtable();
+			specificData.put("bigData", ps.getBarData());
+			
 			data.put("headers", headers);
 			data.put("dataSeries", clusterAssignment);
+			data.put("specificData", specificData);
 			
 			LOGGER.info("Running Clustering on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end int[]
