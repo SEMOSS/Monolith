@@ -98,7 +98,7 @@ public class EngineAnalyticsResource {
 			}
 			ps.createData();
 			
-			String[] headers = { "clusterAssignment" };
+			String[] headers = { "ClusterAssignment" };
 			int[][] clusterAssignment = { ps.getClusterAssignment() };
 			data.put("headers", headers);
 			data.put("dataSeries", clusterAssignment);
@@ -158,13 +158,13 @@ public class EngineAnalyticsResource {
 			ps.setQuery(query);
 			ps.createData();
 			ps.runAnalytics();
-			String[] headers = { "count", "lop" };
+			String[] headers = { "Count", "Lop" };
 			Object[][] dataArray = new Object[ps.getLop().length][2];
-			int[] count = { 1 };
+			int count = 1;
 			
 			for (int i = 0; i < dataArray.length; i++) {
 				dataArray[i][0] = count;
-				double[] tempLop = { ps.getLop()[i] };
+				double tempLop = ps.getLop()[i];
 				dataArray[i][1] = tempLop;
 			}
 			data.put("headers", headers);
@@ -178,7 +178,7 @@ public class EngineAnalyticsResource {
 			ps.setQuery(query);
 			ps.createData();
 			ps.runAnalytics();
-			String[] headers = { "simValues" };
+			String[] headers = { "SimValues" };
 			double[][] simValues = { ps.getSimValues() };
 			data.put("headers", headers);
 			data.put("dataSeries", simValues);
