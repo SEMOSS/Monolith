@@ -98,14 +98,14 @@ public class EngineAnalyticsResource {
 			}
 			ps.createData();
 			
-			String[] headers = { "ClusterAssignment" };
+			String[] headers = { "ClusterID" };
 			int[] tempClusterAssignment = ps.getClusterAssignment();
 			int[][] clusterAssignment = new int[tempClusterAssignment.length][1];
 			for (int i = 0; i < tempClusterAssignment.length; i++) {
 				clusterAssignment[i][0] = tempClusterAssignment[i];
 			}
 			Hashtable specificData = new Hashtable();
-			specificData.put("bigData", ps.getBarData());
+			specificData.put("barData", ps.getBarData());
 			
 			data.put("headers", headers);
 			data.put("dataSeries", clusterAssignment);
