@@ -101,8 +101,7 @@ public class EngineAnalyticsResource {
 			String[] headers = { "clusterAssignment" };
 			int[][] clusterAssignment = { ps.getClusterAssignment() };
 			data.put("headers", headers);
-			data.put("data", clusterAssignment);
-			data.put("specificData", "");
+			data.put("dataSeries", clusterAssignment);
 			
 			LOGGER.info("Running Clustering on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end int[]
@@ -169,8 +168,7 @@ public class EngineAnalyticsResource {
 				dataArray[i][1] = tempLop;
 			}
 			data.put("headers", headers);
-			data.put("data", dataArray);
-			data.put("specificData", "");
+			data.put("dataSeries", dataArray);
 			
 			LOGGER.info("Running Outliers on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end double[]
@@ -183,8 +181,7 @@ public class EngineAnalyticsResource {
 			String[] headers = { "simValues" };
 			double[][] simValues = { ps.getSimValues() };
 			data.put("headers", headers);
-			data.put("data", simValues);
-			data.put("specificData", "");
+			data.put("dataSeries", simValues);
 			
 			LOGGER.info("Running Similarity on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
