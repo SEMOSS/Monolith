@@ -158,17 +158,11 @@ public class EngineAnalyticsResource {
 			ps.setQuery(query);
 			ps.createData();
 			ps.runAnalytics();
-			String[] headers = { "Count", "Lop" };
-			Object[][] dataArray = new Object[ps.getLop().length][2];
-			int count = 1;
+			String[] headers = { "Lop" };
+			double[][] lop = { ps.getLop() };
 			
-			for (int i = 0; i < dataArray.length; i++) {
-				dataArray[i][0] = count;
-				double tempLop = ps.getLop()[i];
-				dataArray[i][1] = tempLop;
-			}
 			data.put("headers", headers);
-			data.put("dataSeries", dataArray);
+			data.put("dataSeries", lop);
 			
 			LOGGER.info("Running Outliers on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end double[]
