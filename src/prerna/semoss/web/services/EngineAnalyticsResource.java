@@ -97,9 +97,12 @@ public class EngineAnalyticsResource {
 				ps.setNumClusters(numClusters);
 			}
 			ps.createData();
+			
 			String[] headers = { "clusterAssignment" };
+			int[][] clusterAssignment = { ps.getClusterAssignment() };
 			data.put("headers", headers);
-			data.put("dataSeries", ps.getClusterAssignment());
+			data.put("data", clusterAssignment);
+			data.put("specificData", "");
 			
 			LOGGER.info("Running Clustering on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end int[]
@@ -156,9 +159,18 @@ public class EngineAnalyticsResource {
 			ps.setQuery(query);
 			ps.createData();
 			ps.runAnalytics();
-			String[] headers = { "lop" };
+			String[] headers = { "count", "lop" };
+			Object[][] dataArray = new Object[ps.getLop().length][2];
+			int[] count = { 1 };
+			
+			for (int i = 0; i < dataArray.length; i++) {
+				dataArray[i][0] = count;
+				double[] tempLop = { ps.getLop()[i] };
+				dataArray[i][1] = tempLop;
+			}
 			data.put("headers", headers);
-			data.put("dataSeries", ps.getLop());
+			data.put("data", dataArray);
+			data.put("specificData", "");
 			
 			LOGGER.info("Running Outliers on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end double[]
@@ -169,8 +181,10 @@ public class EngineAnalyticsResource {
 			ps.createData();
 			ps.runAnalytics();
 			String[] headers = { "simValues" };
+			double[][] simValues = { ps.getSimValues() };
 			data.put("headers", headers);
-			data.put("dataSeries", ps.getSimValues());
+			data.put("data", simValues);
+			data.put("specificData", "");
 			
 			LOGGER.info("Running Similarity on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
