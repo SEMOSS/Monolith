@@ -99,7 +99,11 @@ public class EngineAnalyticsResource {
 			ps.createData();
 			
 			String[] headers = { "ClusterAssignment" };
-			int[][] clusterAssignment = { ps.getClusterAssignment() };
+			int[] tempClusterAssignment = ps.getClusterAssignment();
+			int[][] clusterAssignment = new int[1][tempClusterAssignment.length];
+			for (int i = 0; i < tempClusterAssignment.length; i++) {
+				clusterAssignment[0][i] = tempClusterAssignment[i];
+			}
 			data.put("headers", headers);
 			data.put("dataSeries", clusterAssignment);
 			
@@ -158,8 +162,12 @@ public class EngineAnalyticsResource {
 			ps.setQuery(query);
 			ps.createData();
 			ps.runAnalytics();
-			String[] headers = { "Lop" };
-			double[][] lop = { ps.getLop() };
+			String[] headers = { "LOP" };
+			double[] tempLop = ps.getLop();
+			double[][] lop = new double[1][tempLop.length];
+			for (int i = 0; i < tempLop.length; i++) {
+				lop[0][i] = tempLop[i];
+			}
 			
 			data.put("headers", headers);
 			data.put("dataSeries", lop);
@@ -173,7 +181,11 @@ public class EngineAnalyticsResource {
 			ps.createData();
 			ps.runAnalytics();
 			String[] headers = { "SimValues" };
-			double[][] simValues = { ps.getSimValues() };
+			double[] tempSimValues = ps.getSimValues();
+			double[][] simValues = new double[1][tempSimValues.length];
+			for (int i = 0; i < tempSimValues.length; i++) {
+				simValues[0][i] = tempSimValues[i];
+			}
 			data.put("headers", headers);
 			data.put("dataSeries", simValues);
 			
