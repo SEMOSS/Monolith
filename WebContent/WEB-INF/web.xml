@@ -17,12 +17,16 @@
   </absolute-ordering>
   <servlet>
     <servlet-name>Resteasy</servlet-name>
-    <servlet-class>org.apache.cxf.jaxrs.servlet.CXFNonSpringJaxrsServlet</servlet-class>
+    <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
     <init-param>
       <param-name>javax.ws.rs.Application</param-name>
       <param-value>prerna.semoss.web.app.MonolithApplication</param-value>
     </init-param>
   </servlet>
+  <context-param>
+    <param-name>resteasy.servlet.mapping.prefix</param-name>
+    <param-value>/api</param-value>
+  </context-param>
   <servlet-mapping>
     <servlet-name>Resteasy</servlet-name>
     <url-pattern>/api/*</url-pattern>

@@ -73,7 +73,6 @@ import com.google.api.client.json.jackson.JacksonFactory;
 import com.google.api.services.oauth2.Oauth2;
 import com.google.api.services.oauth2.model.Userinfoplus;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.internal.StringMap;
 import com.restfb.DefaultFacebookClient;
 import com.restfb.FacebookClient;
