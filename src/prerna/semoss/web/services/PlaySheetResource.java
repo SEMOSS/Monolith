@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Vector;
@@ -44,7 +43,6 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
-import prerna.nameserver.SearchMasterDB;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.api.IEngine;

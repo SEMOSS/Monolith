@@ -29,8 +29,6 @@ package prerna.insights.admin;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Vector;
@@ -39,12 +37,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
@@ -57,7 +54,6 @@ import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 public class DBAdminResource {
@@ -150,13 +146,12 @@ public class DBAdminResource {
   		return Response.status(200).entity(WebUtility.getSO("Success")).build();
   	}
 
-	@Path("/insight")
-	@Produces("application/json")
-	public Object insight(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+	@Path("insight-{engine}")
+	public Object insight(@PathParam("engine") String engineString, @Context HttpServletRequest request)
 	{
-		String enginesString = form.getFirst("engine");
-		AbstractEngine engine = getEngine(enginesString, request);
-		QuestionAdmin admin = new QuestionAdmin(engine, form);
+//		String enginesString = form.getFirst("engine");
+		AbstractEngine engine = getEngine(engineString, request);
+		QuestionAdmin admin = new QuestionAdmin(engine);
 		return admin;
 	}
 	

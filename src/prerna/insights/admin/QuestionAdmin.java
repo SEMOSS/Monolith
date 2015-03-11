@@ -27,49 +27,38 @@
  *******************************************************************************/
 package prerna.insights.admin;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 
-import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.QuestionAdministrator;
-import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 
 public class QuestionAdmin {
 
 	AbstractEngine coreEngine;
 	String output = "";
 	final static int MAX_CHAR = 100;
-	MultivaluedMap<String, String> form;
+//	MultivaluedMap<String, String> form;
 
-	public QuestionAdmin(AbstractEngine coreEngine, MultivaluedMap<String, String> form) {
+	public QuestionAdmin(AbstractEngine coreEngine) {
 		this.coreEngine = coreEngine;
-		this.form = form;
+//		this.form = form;
 	}
 
 	@POST
 	@Path("add")
 	@Produces("application/json")
-	public Response addInsight(@Context HttpServletRequest request) {
+	public Response addInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		String perspective = form.getFirst("perspective");
 		String questionKey = form.getFirst("questionKey");
@@ -108,7 +97,7 @@ public class QuestionAdmin {
 	@POST
 	@Path("edit")
 	@Produces("application/json")
-	public Response editInsight(@Context HttpServletRequest request) {
+	public Response editInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		String perspective = form.getFirst("perspective");
 		String questionKey = form.getFirst("currentQuestionKey");
@@ -167,7 +156,7 @@ public class QuestionAdmin {
 	@POST
 	@Path("delete")
 	@Produces("application/json")
-	public Response deleteInsight(@Context HttpServletRequest request) {
+	public Response deleteInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		String perspective = form.getFirst("perspective");
 		String questionKey = form.getFirst("questionKey");
