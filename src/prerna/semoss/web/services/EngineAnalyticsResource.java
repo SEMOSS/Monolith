@@ -188,7 +188,7 @@ public class EngineAnalyticsResource {
 			double[] tempSimValues = ps.getSimValues();
 			double[][] simValues = new double[tempSimValues.length][1];
 			for (int i = 0; i < tempSimValues.length; i++) {
-				simValues[i][0] = tempSimValues[i];
+				simValues[i][0] = (double) Math.round(tempSimValues[i] * 100000) / 100000;
 			}
 			data.put("headers", headers);
 			data.put("dataSeries", simValues);
