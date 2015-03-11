@@ -76,7 +76,6 @@ import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
 public class EngineResource {
@@ -107,8 +106,13 @@ public class EngineResource {
 		psr.setEngine(coreEngine);
 		return psr;
 	}
-	
-	//gets all edges and nodes from owl file to display as metamodel
+
+	/**
+	 * Gets all edges and nodes from owl file to display as metamodel
+	 * Sets the owl in a GraphPlaySheet and sets subclasscreate to create the metamodel
+	 * @param request
+	 * @return same payload as GraphPlaySheet. Returns nodes and edges and all playsheet data (id, title, playsheet name)
+	 */
 	@GET
 	@Path("metamodel")
 	@Produces("application/json")
@@ -262,8 +266,16 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
 	}
 	
-	// gets all the insights for a given type and tag in all the engines
-	// both tag and type are optional
+	/**
+	 * Gets all the insights for a given perspective, instance, type, or tag (in that order) in the given engine
+	 * 
+	 * @param type is the URI of a perspective (e.g. http://semoss.org/ontologies/Concept/Director)
+	 * @param instance is the URI of an instance (e.g. http://semoss.org/ontologies/Concept/Director/Ang_Lee)
+	 * @param tag currently isn't used--will be used to tag insights (TODO)
+	 * @param perspective is just the name of the perspective (e.g. Movie-Perspective)
+	 * @param request
+	 * @return Vector of Insights where each Insight has a label and a propHash with the propHash containing order, output, engine, sparql, uri and id
+	 */
 	@GET
 	@Path("insights")
 	@Produces("application/json")
@@ -311,6 +323,11 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(retP)).build();
 	}
 
+	/**
+	 * Gets a list of perspectives for the given engine
+	 * @param request
+	 * @return a hashtable with "perspectives" pointing to to array of perspectives (e.g. ["Generic-Perspective","Movie-Perspective"])
+	 */
 	@GET
 	@Path("perspectives")
 	@Produces("application/json")
@@ -333,7 +350,12 @@ public class EngineResource {
 		return null;
 	}
 	
-	// gets a particular insight
+	/**
+	 * Uses the title of an insight to get the Insight object as well as the options and params
+	 * Insight object has label (e.g. What is the list of Directors?) and propHash which contains order, output, engine, sparql, uri, id
+	 * @param insight
+	 * @return
+	 */
 	@GET
 	@Path("insight")
 	@Produces("application/json")
@@ -394,16 +416,21 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
 	}
 
-	// executes a particular insight
+	/**
+	 * Executes a particular insight or runs a custom query on the specified playsheet
+	 * To run custom query: must pass playsheet and sparql
+	 * To run stored insight: must pass insight (the actual question), and a string of params
+	 * @param form
+	 * @param request
+	 * @param response
+	 * @return playsheet.getData()--it depends on the playsheet
+	 */
 	@POST
 	@Path("output")
 	@Produces("application/json")
 	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
 	{
 		String insight = form.getFirst("insight");
-		String params = form.getFirst("params");
-		String playsheet = form.getFirst("playsheet");
-		String sparql = form.getFirst("sparql");
 		// executes the output and gives the data
 		// executes the create runner
 		// once complete, it would plug the output into the session
@@ -415,6 +442,8 @@ public class EngineResource {
 		
 		// if insight, playsheet and sparql are null throw bad data exception
 		if(insight == null) {
+			String playsheet = form.getFirst("playsheet");
+			String sparql = form.getFirst("sparql");
 			//check for sparql and playsheet; if not null then parameters have been passed in for preview functionality
 			if(sparql != null && playsheet != null){
 				
@@ -456,7 +485,8 @@ public class EngineResource {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
-		
+
+		String params = form.getFirst("params");
 		System.out.println("Params is " + params);
 		Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
 		
@@ -993,21 +1023,21 @@ public class EngineResource {
 		
 		return Response.status(200).entity(WebUtility.getSO(allMenu)).build();
 	}
-  	
-  	private ArrayList<Hashtable<String,String>> getHashArrayFromString(String arrayString){
-  		System.err.println("MY STRING " + arrayString);
-  		ArrayList<Hashtable<String,String>> retArray = new ArrayList<Hashtable<String,String>>();
-		if(arrayString != null) {
-			Gson gson = new Gson();
-			ArrayList<Object> varsObjArray = gson.fromJson(arrayString, ArrayList.class);
-			for(Object varsObj : varsObjArray){
-				Hashtable newHash = new Hashtable();
-				newHash.putAll((StringMap)varsObj);
-				retArray.add(newHash);
-			}
-		}
-		return retArray;
-  	}
+//  	
+//  	private ArrayList<Hashtable<String,String>> getHashArrayFromString(String arrayString){
+//  		System.err.println("MY STRING " + arrayString);
+//  		ArrayList<Hashtable<String,String>> retArray = new ArrayList<Hashtable<String,String>>();
+//		if(arrayString != null) {
+//			Gson gson = new Gson();
+//			ArrayList<Object> varsObjArray = gson.fromJson(arrayString, ArrayList.class);
+//			for(Object varsObj : varsObjArray){
+//				Hashtable newHash = new Hashtable();
+//				newHash.putAll((StringMap)varsObj);
+//				retArray.add(newHash);
+//			}
+//		}
+//		return retArray;
+//  	}
   	
   	@Path("/analytics")
   	public Object runEngineAnalytics(){
