@@ -91,8 +91,8 @@ public class EngineAnalyticsResource {
 		if (algorithm.equals("Clustering")) {
 			ClusteringVizPlaySheet ps = new ClusteringVizPlaySheet();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
-			errorHash.put("Message", "Cannot cluser using specified categories.");
-			errorHash.put("Class", ps.getName());
+			errorHash.put("Message", "Cannot cluster using specified categories.");
+			errorHash.put("Class", ps.getClass().getName());
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
 			if (configParameters.size() == 1) {
