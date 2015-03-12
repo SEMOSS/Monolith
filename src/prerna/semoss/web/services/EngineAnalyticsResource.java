@@ -90,13 +90,21 @@ public class EngineAnalyticsResource {
 		
 		if (algorithm.equals("Clustering")) {
 			ClusteringVizPlaySheet ps = new ClusteringVizPlaySheet();
+			Hashtable<String, String> errorHash = new Hashtable<String, String>();
+			errorHash.put("Message", "Cannot cluser using specified categories.");
+			errorHash.put("Class", ps.getName());
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
 			if (configParameters.size() == 1) {
 				Integer numClusters = Integer.parseInt(configParameters.get(0));
 				ps.setNumClusters(numClusters);
 			}
-			ps.createData();
+			
+			try {
+				ps.createData();
+			} catch (NullPointerException e) {
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
 			
 			String[] headers = { "ClusterID" };
 			int[] tempClusterAssignment = ps.getClusterAssignment();
@@ -104,11 +112,11 @@ public class EngineAnalyticsResource {
 			for (int i = 0; i < tempClusterAssignment.length; i++) {
 				clusterAssignment[i][0] = tempClusterAssignment[i];
 			}
-			Hashtable specificData = new Hashtable();
+			Hashtable<String, Hashtable<String, Hashtable<String, Object>>[]> specificData = new Hashtable<String, Hashtable<String, Hashtable<String, Object>>[]>();
 			specificData.put("barData", ps.getBarData());
 			
 			data.put("headers", headers);
-			data.put("dataSeries", clusterAssignment);
+			data.put("data", clusterAssignment);
 			data.put("specificData", specificData);
 			
 			LOGGER.info("Running Clustering on " + engine.getEngineName() + "...");
@@ -139,7 +147,7 @@ public class EngineAnalyticsResource {
 			
 			// String[] headers = { "" }; //TODO figure out what is returned
 			// data.put("headers", headers);
-			// data.put("dataSeries", );
+			// data.put("data", );
 			
 			LOGGER.info("Running Association Learning on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
@@ -174,7 +182,11 @@ public class EngineAnalyticsResource {
 			}
 			
 			data.put("headers", headers);
-			data.put("dataSeries", lop);
+			data.put("data", lop);
+			Hashtable<String, String> specificData = new Hashtable<String, String>();
+			specificData.put("x-axis", "LOP");
+			specificData.put("z-axis", "COUNT");
+			data.put("specificData", specificData);
 			
 			LOGGER.info("Running Outliers on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end double[]
@@ -191,7 +203,7 @@ public class EngineAnalyticsResource {
 				simValues[i][0] = (double) Math.round(tempSimValues[i] * 100000) / 100000;
 			}
 			data.put("headers", headers);
-			data.put("dataSeries", simValues);
+			data.put("data", simValues);
 			
 			LOGGER.info("Running Similarity on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
@@ -203,7 +215,7 @@ public class EngineAnalyticsResource {
 			
 			// String[] headers = { "" }; //TODO figure out what is returned
 			// data.put("headers", headers);
-			// data.put("dataSeries", );
+			// data.put("data", );
 			LOGGER.info("Running Matrix Regression on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
 			
@@ -214,7 +226,7 @@ public class EngineAnalyticsResource {
 			
 			// String[] headers = { "" }; //TODO figure out what is returned
 			// data.put("headers", headers);
-			// data.put("dataSeries", );
+			// data.put("data", );
 			LOGGER.info("Running Numerical Correlation on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
 			
