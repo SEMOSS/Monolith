@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Vector;
+import java.util.concurrent.TimeUnit;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -42,6 +43,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -72,6 +75,7 @@ import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
+import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
@@ -1053,6 +1057,86 @@ public class EngineResource {
 		
 		return exploreQuery;
 	}
+	
+	
+	// test
+	
+	@GET
+	   @Path("comet")
+	   @Produces("text/plain")
+	   public void cometTry(final @Suspended AsyncResponse response,  @Context HttpServletRequest request) {
+		   System.out.println("Dropped in here >>>>>> 2" + "comet");
+		   /*
+		   Thread t = new Thread()
+		      {
+		         @Override
+		         public void run()
+		         {
+		            try
+		            {
+		            	System.out.println("Came into thread ");
+		               Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
+		               //jaxrs.
+		               Thread.sleep(1000);
+		               response.resume(jaxrs);
+		            }
+		            catch (Exception e)
+		            {
+		               e.printStackTrace();
+		            }
+		         }
+		      };
+		      t.start();*/
+			   HttpSession session = request.getSession();
+			   InMemoryHash.getInstance().put("respo", response);
+			   response.setTimeout(1000, TimeUnit.MINUTES);
+			   final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
+			   System.out.println("Is the response done..  ? " + myResponse.isDone());
+	 		   
+			   //myResponse.resume("Hello");
+			   System.err.println("Put the response here");
+		
+	      }   
+
+	   @GET
+	   @Path("/trigger")
+	   @Produces("application/xml")
+	   public String trigger(@Context HttpServletRequest request) {
+		   System.out.println("Dropped in here >>>>>> 2" + "trigger");
+		   HttpSession session = request.getSession();
+		   final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
+
+		   if(myResponse != null) {
+			   System.out.println("Is the response done..  ? " + myResponse.isDone());
+			   myResponse.resume("Hello2222");
+			   myResponse.resume("Hola again");
+			   System.out.println("MyResponse is not null");
+			   /*
+			   Thread t = new Thread()
+			      {
+			         @Override
+			         public void run()
+			         {
+			            try
+			            {
+			            	System.out.println("Came into thread ");
+			               Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
+			               //jaxrs.
+			               Thread.sleep(1000);
+			               myResponse.resume(jaxrs);
+			            }
+			            catch (Exception e)
+			            {
+			               e.printStackTrace();
+			            }
+			         }
+			      };
+			      t.start();*/
+		   }
+	       //Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
+		   //myResponse.resume(jaxrs);
+		      return "Returned.. ";
+	      }   
 
 }
 
