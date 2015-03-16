@@ -43,6 +43,7 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
+import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -54,7 +55,7 @@ public class CentralNameServer {
 	Logger logger = Logger.getLogger(CentralNameServer.class.getName());
 	String output = "";
 	String centralApi = "";
-	List<String> localDb = Arrays.asList("LocalMasterDatabase");
+	List<String> localDb = Arrays.asList(Constants.LOCAL_MASTER_DB_NAME);
 	
 	public void setCentralApi(String centralApi){
 		this.centralApi = centralApi;
