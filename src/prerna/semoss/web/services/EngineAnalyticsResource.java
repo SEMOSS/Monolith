@@ -87,10 +87,11 @@ public class EngineAnalyticsResource {
 		String algorithm = form.getFirst("algorithm");
 		ArrayList<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
 		Hashtable<String, Object> data = new Hashtable<String, Object>();
+		Hashtable<String, String> errorHash = new Hashtable<String, String>();
 		
 		if (algorithm.equals("Clustering")) {
 			ClusteringVizPlaySheet ps = new ClusteringVizPlaySheet();
-			Hashtable<String, String> errorHash = new Hashtable<String, String>();
+			
 			errorHash.put("Message", "Cannot cluster using specified categories.");
 			errorHash.put("Class", ps.getClass().getName());
 			ps.setRDFEngine(engine);
@@ -105,7 +106,7 @@ public class EngineAnalyticsResource {
 			} catch (NullPointerException e) {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-			
+			String title = "Cluster by " + ps.getNames()[0];
 			String[] headers = { "ClusterID" };
 			int[] tempClusterAssignment = ps.getClusterAssignment();
 			int[][] clusterAssignment = new int[tempClusterAssignment.length][1];
@@ -115,6 +116,7 @@ public class EngineAnalyticsResource {
 			Hashtable<String, Hashtable<String, Hashtable<String, Object>>[]> specificData = new Hashtable<String, Hashtable<String, Hashtable<String, Object>>[]>();
 			specificData.put("barData", ps.getBarData());
 			
+			data.put("title", title);
 			data.put("headers", headers);
 			data.put("data", clusterAssignment);
 			data.put("specificData", specificData);
@@ -170,10 +172,18 @@ public class EngineAnalyticsResource {
 				Integer k = Integer.parseInt(configParameters.get(0));
 				ps.setKNeighbors(k);
 			}
+			errorHash.put("Message", "Cannot run outlier algorithm on specified categories.");
+			errorHash.put("Class", ps.getClass().getName());
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
-			ps.createData();
-			ps.runAnalytics();
+			try {
+				ps.createData();
+				ps.runAnalytics();
+			} catch (NullPointerException e) {
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+			
+			String title = "Outliers on " + ps.getNames()[0];
 			String[] headers = { "LOP" };
 			double[] tempLop = ps.getLop();
 			double[][] lop = new double[tempLop.length][1];
@@ -181,6 +191,7 @@ public class EngineAnalyticsResource {
 				lop[i][0] = tempLop[i];
 			}
 			
+			data.put("title", title);
 			data.put("headers", headers);
 			data.put("data", lop);
 			Hashtable<String, String> specificData = new Hashtable<String, String>();
@@ -194,16 +205,34 @@ public class EngineAnalyticsResource {
 			DatasetSimilarityPlaySheet ps = new DatasetSimilarityPlaySheet();
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
-			ps.createData();
-			ps.runAnalytics();
+			
+			errorHash.put("Message", "Cannot run similarity algorithm on specified categories.");
+			errorHash.put("Class", ps.getClass().getName());
+			
+			try {
+				ps.createData();
+				ps.runAnalytics();
+			} catch (NullPointerException e) {
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+			
+			String label = ps.getNames()[0];
+			String title = "Similarity on " + label;
 			String[] headers = { "SimValues" };
 			double[] tempSimValues = ps.getSimValues();
 			double[][] simValues = new double[tempSimValues.length][1];
 			for (int i = 0; i < tempSimValues.length; i++) {
 				simValues[i][0] = (double) Math.round(tempSimValues[i] * 100000) / 100000;
 			}
+			
+			Hashtable<String, String> dataTableAlign = new Hashtable<String, String>();
+			dataTableAlign.put("label", label);
+			dataTableAlign.put("value 1", "SimValues");
+			
+			data.put("title", title);
 			data.put("headers", headers);
 			data.put("data", simValues);
+			data.put("dataTableAlign", dataTableAlign);
 			
 			LOGGER.info("Running Similarity on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
