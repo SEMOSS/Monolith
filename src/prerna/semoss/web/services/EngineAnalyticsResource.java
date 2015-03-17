@@ -84,6 +84,9 @@ public class EngineAnalyticsResource {
 	public Response runAlgorithm(MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		String query = form.getFirst("query");
+		if (query.contains("+++")) {
+			query = query.substring(0, query.indexOf("+++"));
+		}
 		String algorithm = form.getFirst("algorithm");
 		ArrayList<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
 		Hashtable<String, Object> data = new Hashtable<String, Object>();
@@ -181,6 +184,8 @@ public class EngineAnalyticsResource {
 				ps.runAnalytics();
 			} catch (NullPointerException e) {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			} catch (ArrayIndexOutOfBoundsException e) {
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build());
 			}
 			
 			String title = "Outliers on " + ps.getNames()[0];
