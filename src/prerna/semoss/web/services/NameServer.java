@@ -56,8 +56,8 @@ import org.openrdf.rio.RDFParseException;
 
 import prerna.error.EngineException;
 import prerna.insights.admin.DBAdminResource;
-import prerna.nameserver.CreateMasterDB;
-import prerna.nameserver.DeleteMasterDB;
+import prerna.nameserver.AddToMasterDB;
+import prerna.nameserver.DeleteFromMasterDB;
 import prerna.nameserver.SearchEngineMasterDB;
 import prerna.nameserver.SearchMasterDB;
 import prerna.rdf.engine.api.IEngine;
@@ -303,11 +303,9 @@ public class NameServer {
 
 		if(localMasterDbName==null) {
 			try {
-				CreateMasterDB creater = new CreateMasterDB();
+				AddToMasterDB creater = new AddToMasterDB();
 				creater.setWordnetPath(wordNetDir);
 				resultHash = creater.registerEngineAPI(baseURL, dbArray);
-			} catch (EngineException e) {
-				e.printStackTrace();
 			} catch (RDFParseException e) {
 				e.printStackTrace();
 			} catch (RepositoryException e) {
@@ -318,13 +316,9 @@ public class NameServer {
 		}
 		else //it must be local master db thus the name of master db must have been passed 
 		{
-			try {
-				CreateMasterDB creater = new CreateMasterDB(localMasterDbName);
-				creater.setWordnetPath(wordNetDir);
-				resultHash = creater.registerEngineLocal(dbArray);
-			} catch (EngineException e) {
-				e.printStackTrace();
-			}
+			AddToMasterDB creater = new AddToMasterDB(localMasterDbName);
+			creater.setWordnetPath(wordNetDir);
+			resultHash = creater.registerEngineLocal(dbArray);
 		}
 
 		return WebUtility.getSO(resultHash);
@@ -346,11 +340,11 @@ public class NameServer {
 
 		Hashtable<String, Boolean> resultHash = new Hashtable<String, Boolean>();
 		if(localMasterDbName == null){
-			DeleteMasterDB deleater = new DeleteMasterDB();
+			DeleteFromMasterDB deleater = new DeleteFromMasterDB();
 			resultHash = deleater.deleteEngineWeb(dbArray);
 		}
 		else {
-			DeleteMasterDB deleater = new DeleteMasterDB(localMasterDbName);
+			DeleteFromMasterDB deleater = new DeleteFromMasterDB(localMasterDbName);
 			resultHash = deleater.deleteEngine(dbArray);
 		}
 
