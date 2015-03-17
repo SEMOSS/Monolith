@@ -185,7 +185,7 @@ public class EngineAnalyticsResource {
 			} catch (NullPointerException e) {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			} catch (ArrayIndexOutOfBoundsException e) {
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build());
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			
 			String title = "Outliers on " + ps.getNames()[0];
