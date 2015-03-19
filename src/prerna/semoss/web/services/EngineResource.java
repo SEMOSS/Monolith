@@ -83,7 +83,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 public class EngineResource {
-	
+
 	// gets everything specific to an engine
 	// essentially this is a wrapper over the engine
 	IEngine coreEngine = null;
@@ -92,13 +92,13 @@ public class EngineResource {
 	Hashtable<String, SEMOSSQuery> vizHash = new Hashtable<String, SEMOSSQuery>();
 	// to send class name if error occurs
 	String className = this.getClass().getName();
-	
+
 	public void setEngine(IEngine coreEngine)
 	{
 		System.out.println("Setting core engine to " + coreEngine);
 		this.coreEngine = coreEngine;
 	}
-	
+
 	// All playsheet specific manipulations will go through this
 	@Path("p-{playSheetID}")
 	public Object uploadFile(@PathParam("playSheetID") String playSheetID, @Context HttpServletRequest request) {
@@ -128,7 +128,7 @@ public class EngineResource {
 			errorHash.put("Class", className);
 			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
-		
+
 		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
 		//hard code playsheet attributes since no insight exists for this
 		String sparql = "SELECT ?s ?p ?o WHERE {?s ?p ?o} LIMIT 1";
@@ -141,7 +141,7 @@ public class EngineResource {
 		Hashtable<String, String> filterHash = new Hashtable<String, String>();
 		filterHash.put("http://semoss.org/ontologies/Relation", "http://semoss.org/ontologies/Relation");
 		eng.setBaseHash(filterHash);
-		
+
 		exQueryProcessor.prepareQueryOutputPlaySheet(eng, sparql, playSheetName, title, id);
 		Object obj = null;
 		try
@@ -152,7 +152,7 @@ public class EngineResource {
 			playSheet.runAnalytics();
 
 			obj = playSheet.getData();
-			
+
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			session.setAttribute(playSheet.getQuestionID(), playSheet);
 		} catch (Exception ex) { 
@@ -162,11 +162,11 @@ public class EngineResource {
 			errorHash.put("Class", className);
 			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
-		
+
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}
 
-	
+
 	//gets all node types connected to a given node type
 	@GET
 	@Path("neighbors")
@@ -198,45 +198,45 @@ public class EngineResource {
 		}
 		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
 	}
-	
+
 	//gets all node types connected to a specific node instance
 	@POST
 	@Path("neighbors/instance")
 	@Produces("application/json")
-//	@Consumes(MediaType.APPLICATION_JSON)
+	//	@Consumes(MediaType.APPLICATION_JSON)
 	public Response getNeighborsInstance(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		List<String> uriArray = gson.fromJson(form.getFirst("node"), List.class);
-		
+
 		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
 		if(coreEngine instanceof AbstractEngine){
 			AbstractEngine engine = (AbstractEngine) coreEngine;
-			
+
 			//create bindings string
 			String bindingsString = "";
 			for(String uri : uriArray){
 				bindingsString = bindingsString + "(<" + uri + ">)";
 			}
 			logger.info("bindings string = " + bindingsString);
-			
+
 			String uniqueTypesQuery = "SELECT DISTINCT ?entity WHERE { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity}   FILTER NOT EXISTS { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?subtype} {?subtype <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?entity} }} BINDINGS ?subject {"+bindingsString+"}";
-			
+
 			//get node types
 			Vector<String> types = coreEngine.getEntityOfType(uniqueTypesQuery);
-			
+
 			//DOWNSTREAM PROCESSING
 			//get node types connected to this type
 			Vector<String> downNodeTypes = new Vector<String>();
 			for(String type : types){
 				downNodeTypes.addAll(engine.getToNeighbors(type, 0));
 			}
-			
+
 			//for each available type, ensure each type has at least one instance connected to original node
 			String downAskQuery = "ASK { "
 					+ "{?connectedNode a <@NODE_TYPE@>} "
 					+ "{?node ?rel ?connectedNode}"
-							+ "} BINDINGS ?node {"+bindingsString+"}" ;
+					+ "} BINDINGS ?node {"+bindingsString+"}" ;
 			Vector<String> validDownTypes = new Vector<String>();
 			for (String connectedType : downNodeTypes){
 				String filledDownAskQuery = downAskQuery.replace("@NODE_TYPE@", connectedType);
@@ -245,19 +245,19 @@ public class EngineResource {
 					validDownTypes.add(connectedType);
 			}
 			finalTypes.put("downstream", validDownTypes);
-			
+
 			//UPSTREAM PROCESSING
 			//get node types connected to this type
 			Vector<String> upNodeTypes = new Vector<String>();
 			for(String type : types){
 				upNodeTypes.addAll(engine.getFromNeighbors(type, 0));
 			}
-			
+
 			//for each available type, ensure each type has at least one instance connected to original node
 			String upAskQuery = "ASK { "
 					+ "{?connectedNode a <@NODE_TYPE@>} "
 					+ "{?connectedNode ?rel ?node}"
-							+ "} BINDINGS ?node {"+bindingsString+"}" ;
+					+ "} BINDINGS ?node {"+bindingsString+"}" ;
 			Vector<String> validUpTypes = new Vector<String>();
 			for (String connectedType : upNodeTypes){
 				String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
@@ -269,7 +269,7 @@ public class EngineResource {
 		}
 		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
 	}
-	
+
 	/**
 	 * Gets all the insights for a given perspective, instance, type, or tag (in that order) in the given engine
 	 * 
@@ -306,7 +306,7 @@ public class EngineResource {
 
 		return Response.status(200).entity(WebUtility.getSO(resultInsightObjects)).build();
 	}
-	
+
 	// gets all the insights for a given type and tag in all the engines
 	// both tag and type are optional
 	@GET
@@ -353,7 +353,7 @@ public class EngineResource {
 		// if the tag is empty, this will give back all the tags in the engines
 		return null;
 	}
-	
+
 	/**
 	 * Uses the title of an insight to get the Insight object as well as the options and params
 	 * Insight object has label (e.g. What is the list of Directors?) and propHash which contains order, output, engine, sparql, uri, id
@@ -373,8 +373,8 @@ public class EngineResource {
 		System.out.println(in.getOutput());
 		Hashtable outputHash = new Hashtable<String, Hashtable>();
 		outputHash.put("result", in);
-		
-		
+
+
 		Vector <SEMOSSParam> paramVector = coreEngine.getParams(insight);
 		System.err.println("Params are " + paramVector);
 		Hashtable optionsHash = new Hashtable();
@@ -401,8 +401,8 @@ public class EngineResource {
 				optionsHash.put(param.getName(), "");
 			paramsHash.put(param.getName(), param);
 		}
-		
-		
+
+
 		// OLD LOGIC
 		// get the sparql parameters now
 		/*Hashtable paramHash = Utility.getParamTypeHash(in.getSparql());
@@ -416,7 +416,7 @@ public class EngineResource {
 		}*/
 		outputHash.put("options", optionsHash);
 		outputHash.put("params", paramsHash);
-		
+
 		return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
 	}
 
@@ -443,31 +443,31 @@ public class EngineResource {
 		// pairs like this
 		// key$value~key2:value2 etc
 		// need to find a way to handle other types than strings
-		
+
 		// if insight, playsheet and sparql are null throw bad data exception
 		if(insight == null) {
 			String playsheet = form.getFirst("playsheet");
 			String sparql = form.getFirst("sparql");
 			//check for sparql and playsheet; if not null then parameters have been passed in for preview functionality
 			if(sparql != null && playsheet != null){
-				
+
 				ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
 				Object obj = null;
 				try {
 					QuestionPlaySheetStore.getInstance().idCount++;
 					String insightID = QuestionPlaySheetStore.getInstance().getIDCount() + "";
-					
+
 					exQueryProcessor.prepareQueryOutputPlaySheet(coreEngine, sparql, playsheet, coreEngine.getEngineName() + ": " + insightID, "");
 					IPlaySheet playSheet = exQueryProcessor.getPlaySheet();
 
 					playSheet.setQuestionID(insightID);
-					
+
 					PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
 					playRunner.runWeb();
-					
+
 					obj = playSheet.getData();
-					
-					
+
+
 					// store the playsheet in session
 					HttpSession session = ((HttpServletRequest)request).getSession(false);
 					session.setAttribute(playSheet.getQuestionID(), playSheet);
@@ -478,14 +478,14 @@ public class EngineResource {
 					errorHash.put("Class", className);
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
-				
+
 				return Response.status(200).entity(WebUtility.getSO(obj)).build();
 			}
 			else{
 				Hashtable<String, String> errorHash = new Hashtable<String, String>();
 				errorHash.put("Message", "No question defined.");
 				errorHash.put("Class", className);
-	//			return getSO(errorHash);
+				//			return getSO(errorHash);
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
@@ -493,18 +493,18 @@ public class EngineResource {
 		String params = form.getFirst("params");
 		System.out.println("Params is " + params);
 		Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
-		
+
 		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
 		exQueryProcessor.processQuestionQuery(coreEngine, insight, paramHash);
 		Object obj = null;
 		try {
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
-			
-//			if(playSheet instanceof IStreamable){
-//				ServletOutputStream stream = response.getOutputStream();
-//				((IStreamable) playSheet).setOutputStream(stream);
-//			}
-			
+
+			//			if(playSheet instanceof IStreamable){
+			//				ServletOutputStream stream = response.getOutputStream();
+			//				((IStreamable) playSheet).setOutputStream(stream);
+			//			}
+
 			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
 			//playRunner.setCreateSwingView(false);
 			playRunner.runWeb();
@@ -513,7 +513,7 @@ public class EngineResource {
 			while(playThread.isAlive()) {
 				//wait for processing to finish before getting the data
 			}
-			*/
+			 */
 			obj = playSheet.getData();
 
 			// store the playsheet in session
@@ -524,82 +524,82 @@ public class EngineResource {
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error occured processing question.");
 			errorHash.put("Class", className);
-//			return getSO(errorHash);
+			//			return getSO(errorHash);
 			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
 
-//		return getSO("");
+		//		return getSO("");
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
-//		Hashtable <String, Object> paramHash = new Hashtable<String, Object>();
-//		if(params != null)
-//		{
-//			StringTokenizer tokenz = new StringTokenizer(params,"~");
-//			while(tokenz.hasMoreTokens())
-//			{
-//				String thisToken = tokenz.nextToken();
-//				int index = thisToken.indexOf("$");
-//				String key = thisToken.substring(0, index);
-//				String value = thisToken.substring(index+1);
-//				// attempt to see if 
-//				boolean found = false;
-//				try{
-//					double dub = Double.parseDouble(value);
-//					paramHash.put(key, dub);
-//					found = true;
-//				}catch (Exception ignored)
-//				{
-//				}
-//				if(!found){
-//					try{
-//						int dub = Integer.parseInt(value);
-//						paramHash.put(key, dub);
-//						found = true;
-//					}catch (Exception ignored)
-//					{
-//					}
-//				}
-//				//if(!found)
-//					paramHash.put(key, value);
-//			}
-//		}
-//		
-//		System.out.println("Insight is " + insight);
-//		Insight in = coreEngine.getInsight(insight);
-//		String output = in.getOutput();
-//		Object obj = null;
-//		
-//		try
-//		{
-//			IPlaySheet ps = (IPlaySheet)Class.forName(output).newInstance();
-//			String sparql = in.getSparql();
-//			System.out.println("Param Hash is " + paramHash);
-//			// need to replace the whole params with the base params first
-//			sparql = Utility.normalizeParam(sparql);
-//			System.out.println("SPARQL " + sparql);
-//			sparql = Utility.fillParam(sparql, paramHash);
-//			System.err.println("SPARQL is " + sparql);
-//			ps.setRDFEngine(coreEngine);
-//			ps.setQuery(sparql);
-//			ps.setQuestionID(in.getId());
-//			ps.setTitle("Sample ");
-//			ps.createData();
-//			ps.runAnalytics();
-//			if(!(ps instanceof GraphPlaySheet))
-//				obj = ps.getData();
-//			else
-//			{
-//				GraphPlaySheet gps = (GraphPlaySheet)ps;
-//				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)ps).getData();
-//				InMemorySesameEngine imse = new InMemorySesameEngine();
-//				imse.setRepositoryConnection(rc);
-//				imse.openDB(null);
-//				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.baseFilterHash);
-//			}
-//		}catch(Exception ex)
-//		{
-//			ex.printStackTrace();
-//		}
-//		return getSO(obj);
+		//		Hashtable <String, Object> paramHash = new Hashtable<String, Object>();
+		//		if(params != null)
+		//		{
+		//			StringTokenizer tokenz = new StringTokenizer(params,"~");
+		//			while(tokenz.hasMoreTokens())
+		//			{
+		//				String thisToken = tokenz.nextToken();
+		//				int index = thisToken.indexOf("$");
+		//				String key = thisToken.substring(0, index);
+		//				String value = thisToken.substring(index+1);
+		//				// attempt to see if 
+		//				boolean found = false;
+		//				try{
+		//					double dub = Double.parseDouble(value);
+		//					paramHash.put(key, dub);
+		//					found = true;
+		//				}catch (Exception ignored)
+		//				{
+		//				}
+		//				if(!found){
+		//					try{
+		//						int dub = Integer.parseInt(value);
+		//						paramHash.put(key, dub);
+		//						found = true;
+		//					}catch (Exception ignored)
+		//					{
+		//					}
+		//				}
+		//				//if(!found)
+		//					paramHash.put(key, value);
+		//			}
+		//		}
+		//		
+		//		System.out.println("Insight is " + insight);
+		//		Insight in = coreEngine.getInsight(insight);
+		//		String output = in.getOutput();
+		//		Object obj = null;
+		//		
+		//		try
+		//		{
+		//			IPlaySheet ps = (IPlaySheet)Class.forName(output).newInstance();
+		//			String sparql = in.getSparql();
+		//			System.out.println("Param Hash is " + paramHash);
+		//			// need to replace the whole params with the base params first
+		//			sparql = Utility.normalizeParam(sparql);
+		//			System.out.println("SPARQL " + sparql);
+		//			sparql = Utility.fillParam(sparql, paramHash);
+		//			System.err.println("SPARQL is " + sparql);
+		//			ps.setRDFEngine(coreEngine);
+		//			ps.setQuery(sparql);
+		//			ps.setQuestionID(in.getId());
+		//			ps.setTitle("Sample ");
+		//			ps.createData();
+		//			ps.runAnalytics();
+		//			if(!(ps instanceof GraphPlaySheet))
+		//				obj = ps.getData();
+		//			else
+		//			{
+		//				GraphPlaySheet gps = (GraphPlaySheet)ps;
+		//				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)ps).getData();
+		//				InMemorySesameEngine imse = new InMemorySesameEngine();
+		//				imse.setRepositoryConnection(rc);
+		//				imse.openDB(null);
+		//				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.baseFilterHash);
+		//			}
+		//		}catch(Exception ex)
+		//		{
+		//			ex.printStackTrace();
+		//		}
+		//		return getSO(obj);
 	}	
 
 	// executes a particular insight
@@ -656,10 +656,10 @@ public class EngineResource {
 		if(coreEngine instanceof AbstractEngine)
 			filterFunction.setFilterHash(((AbstractEngine)coreEngine).getBaseHash());
 		System.out.println(form.getFirst("query"));
-		
+
 		return Response.status(200).entity(WebUtility.getSO(filterFunction.process(form.getFirst("query")+""))).build();
 	}	
-	
+
 	// gets a particular insight
 	// not sure if I should keep it as it is or turn this into a post because of the query
 	@GET
@@ -713,7 +713,7 @@ public class EngineResource {
 		// this will also cache it
 		return null;
 	}	
-	
+
 	// gets a particular insight
 	// not sure if I should keep it as it is or turn this into a post because of the query
 	// Can give a set of nodeids
@@ -733,7 +733,7 @@ public class EngineResource {
 		}
 		return Response.status(200).entity(WebUtility.getSO(null)).build();
 	}		
-	
+
 	// gets all numeric properties associated with a specific node type
 	@GET
 	@Path("properties/node/type/numeric")
@@ -748,7 +748,7 @@ public class EngineResource {
 		logger.info("Running node property query " + query);
 		return Response.status(200).entity(WebUtility.getSO(coreEngine.getEntityOfType(query))).build();
 	}	
-	
+
 	// gets all numeric edge properties for a specific edge type
 	@GET
 	@Path("properties/edge/type/numeric")
@@ -765,7 +765,7 @@ public class EngineResource {
 		logger.info("Running edge property query " + query);
 		return Response.status(200).entity(WebUtility.getSO(coreEngine.getEntityOfType(query))).build();
 	}	
-	
+
 	@POST
 	@Path("customVizTable")
 	@Produces("application/json")
@@ -773,12 +773,12 @@ public class EngineResource {
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-		
+
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 		builder.setJSONDataHash(dataHash);
 		builder.buildQuery();
 		String query = builder.getQuery();
-		
+
 		/*Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
 		Integer items = 100;
 		if (form.containsKey("ItemCount"))
@@ -787,27 +787,27 @@ public class EngineResource {
 		if (form.containsKey("PageNumber"))
 			pageNumber = gson.fromJson(form.getFirst("PageNumber"), Integer.class);
 		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
-		
+
 		ArrayList<Hashtable<String,String>> nodePropArray = getHashArrayFromString(form.getFirst("SelectedNodeProps") + "");
 		ArrayList<Hashtable<String,String>> edgePropArray = getHashArrayFromString(form.getFirst("SelectedEdgeProps") + "");
 		tableViz.setPropV(nodePropArray, edgePropArray);
-		
+
 		tableViz.setJSONDataHash(dataHash);
 		tableViz.setEngine(coreEngine);
 		tableViz.buildQuery();
 		SEMOSSQuery semossQuery = tableViz.getSEMOSSQuery();
-		
+
 		//get header array before adding pagination stuff
 		ArrayList<Hashtable<String, String>> varObjV = tableViz.getHeaderArray();
 		Collection<Hashtable<String, String>> varObjVector = varObjV;
-		
+
 		//add pagination information
 		Hashtable limitHash = new Hashtable();
 		int fullTableRowNum = 100000;//tableViz.runCountQuery();
-		
+
 //		semossQuery.addAllVarToOrderBy();// necessary for pagination
 		limitHash.put("fullSize", fullTableRowNum);
-		
+
 		if(items!= null){
 			int limitSize = items;
 			semossQuery.setLimit(limitSize);
@@ -816,10 +816,10 @@ public class EngineResource {
 			int offset = items * (pageNumber - 1);
 			semossQuery.setOffset(offset);
 		}
-			
+
 		semossQuery.createQuery();
 		String query = semossQuery.getQuery();*/
-		
+
 		System.out.println(query);
 		Object obj = null;
 		try
@@ -833,7 +833,7 @@ public class EngineResource {
 			playSheet.createData();
 			playSheet.runAnalytics();
 			obj = playSheet.getData();
-			
+
 		} catch(Exception ex) {
 			ex.printStackTrace();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -846,22 +846,22 @@ public class EngineResource {
 		if(builder instanceof SPARQLQueryTableBuilder) {
 			ArrayList<Hashtable<String, String>> varObjV = ((SPARQLQueryTableBuilder)builder).getHeaderArray();
 			Collection<Hashtable<String, String>> varObjVector = varObjV;
-			
+
 			//add variable info to return data
 			((Hashtable)obj).put("variableHeaders", varObjVector);
 		}
-		
+
 		if(builder instanceof SQLQueryTableBuilder) {
 			ArrayList<Hashtable<String, String>> varObjV = ((SQLQueryTableBuilder)builder).getHeaderArray();
 			Collection<Hashtable<String, String>> varObjVector = varObjV;
-			
+
 			//add variable info to return data
 			((Hashtable)obj).put("variableHeaders", varObjVector);
 		}
-		
+
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
-	
+
 	@GET
 	@Path("customVizPathProperties")
 	@Produces("application/json")
@@ -871,15 +871,15 @@ public class EngineResource {
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
 		Object obj = QueryBuilderHelper.getPropsFromPath(this.coreEngine, dataHash);
-		
-//		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
-//		tableViz.setJSONDataHash(dataHash);
-//		tableViz.setEngine(coreEngine);
-//		Object obj = tableViz.getPropsFromPath();
+
+		//		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
+		//		tableViz.setJSONDataHash(dataHash);
+		//		tableViz.setEngine(coreEngine);
+		//		Object obj = tableViz.getPropsFromPath();
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
 
-  	@GET
+	@GET
 	@Path("menu")
 	@Produces("application/json")	
 	public Response getMenu(@QueryParam("user") String user, @QueryParam("start") String starter, @Context HttpServletRequest request)
@@ -888,50 +888,50 @@ public class EngineResource {
 			user = "All";
 		if(starter == null)
 			starter = "ContextMenu";
-		
-		 String menuSubMenuQuery = "SELECT ?Menu ?MType ?MURL ?Submenu ?SMenuLabel ?SURL ?SType ?ChildMenu ?ChURL ?ChLabel ?CType ?MenuFiller ?SFiller ?CFiller WHERE " +
-	   		"{BIND( <http://semoss.org/ontologies/Concept/Owner/" + user + "> AS ?User) " +
-	   		"{?Menu <http://semoss.org/ontologies/Relation/Owner> ?User} " +
-	   		"{?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} " +
-	   		"{?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel} " +
-	   		"{?Menu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?MenuFiller} " +
-	   		"{?Menu <http://semoss.org/ontologies/Relation/Contains/Type> ?MType} " +
-	   		"{?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} " +
-	   		"{?Submenu <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} " +
-	   		"OPTIONAL " +
-	   			"{" +
-	   			"{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL> ?SURL}  " +
-	   			"{?Submenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?SFiller}  " +
-	   			"{?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} " +
-	   			"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}" +
-		   		"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} " +
-	   			"}" +
-	   		"OPTIONAL " +
-	   			"{" +
-	   			"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;} " +
-	   			"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?CFiller;} " +
-	   			"} " +
-	   		  "OPTIONAL " +
-	   		  "{" +
-	   		  		"{?Menu <http://semoss.org/ontologies/Relation/Contains/URL> ?MURL}" +
-	   		  "}" +
-	   		  "FILTER regex(str(?MenuLabel),'" + starter + "', 'i')}";
-		 
+
+		String menuSubMenuQuery = "SELECT ?Menu ?MType ?MURL ?Submenu ?SMenuLabel ?SURL ?SType ?ChildMenu ?ChURL ?ChLabel ?CType ?MenuFiller ?SFiller ?CFiller WHERE " +
+				"{BIND( <http://semoss.org/ontologies/Concept/Owner/" + user + "> AS ?User) " +
+				"{?Menu <http://semoss.org/ontologies/Relation/Owner> ?User} " +
+				"{?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} " +
+				"{?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel} " +
+				"{?Menu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?MenuFiller} " +
+				"{?Menu <http://semoss.org/ontologies/Relation/Contains/Type> ?MType} " +
+				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} " +
+				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} " +
+				"OPTIONAL " +
+				"{" +
+				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL> ?SURL}  " +
+				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?SFiller}  " +
+				"{?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} " +
+				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}" +
+				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} " +
+				"}" +
+				"OPTIONAL " +
+				"{" +
+				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;} " +
+				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?CFiller;} " +
+				"} " +
+				"OPTIONAL " +
+				"{" +
+				"{?Menu <http://semoss.org/ontologies/Relation/Contains/URL> ?MURL}" +
+				"}" +
+				"FILTER regex(str(?MenuLabel),'" + starter + "', 'i')}";
+
 		// menuSubMenuQuery = "SELECT ?Menu ?Submenu ?SMenuLabel ?SURL ?SType ?ChildMenu ?ChURL ?ChLabel WHERE {BIND( <http://semoss.org/ontologies/Concept/Owner/All> AS ?User) {?Menu <http://semoss.org/ontologies/Relation/Owner> ?User} }";
-		 //{?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} {?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel} {?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} {?Submenu <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} OPTIONAL {{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL> ?SURL}  {?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}} FILTER regex(str(?MenuLabel), 'Data', 'i')}";
-		 
+		//{?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} {?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel} {?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} {?Submenu <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} OPTIONAL {{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL> ?SURL}  {?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}} FILTER regex(str(?MenuLabel), 'Data', 'i')}";
+
 		SesameJenaSelectWrapper wrapper = new SesameJenaSelectWrapper();
 		wrapper.setEngine(coreEngine);
 		wrapper.setQuery(menuSubMenuQuery);
 		wrapper.setEngineType(IEngine.ENGINE_TYPE.SESAME);
 		wrapper.executeQuery();
-		
+
 		System.out.println("Query.... " + menuSubMenuQuery);
 		System.out.println("Variables " + wrapper.getVariables());
-		
+
 		Hashtable allMenu = new Hashtable();
 		ArrayList<String> subMenus = new ArrayList();
-		
+
 		while(wrapper.hasNext())
 		{
 			System.out.println("New record");
@@ -941,7 +941,7 @@ public class EngineResource {
 			String menuType = ((String)stmt.getVar("MType")).replace("\"", "");
 			String menuURL = ((String)stmt.getVar("MURL")).replace("\"", "").replace("*","/");
 			String menuFiller = ((String)stmt.getVar("MenuFiller")).replace("\"", "");
-			
+
 			String subMenu = ((String)stmt.getVar("Submenu")).replace("\"", "");
 			String subMenuLabel = ((String)stmt.getVar("SMenuLabel")).replace("\"", "");
 			String sType = ((String)stmt.getVar("SType")).replace("\"", "");
@@ -952,7 +952,7 @@ public class EngineResource {
 			allMenu.put("Type", menuType);
 			allMenu.put("URL", menuURL);
 			allMenu.put("Filler", menuFiller);
-			
+
 
 			// submenu
 			Hashtable smenuHash = new Hashtable();
@@ -962,7 +962,7 @@ public class EngineResource {
 			else {
 				subMenus.add(subMenuLabel);
 			}
-			
+
 			smenuHash.put("Label", subMenuLabel);
 			smenuHash.put("Type", sType);
 			smenuHash.put("URL", surl);
@@ -992,7 +992,7 @@ public class EngineResource {
 				childMenuHash.put("URL", chURL);
 				childMenuHash.put("Type", cType);
 				childMenuHash.put("Filler", cFiller);
-				
+
 				System.out.println("Child menus is " + childMenus);
 
 				if(childMenus.size() > 0) {
@@ -1000,7 +1000,7 @@ public class EngineResource {
 				}
 				smenuHash.put(chMenuLabel, childMenuHash);
 			}
-			
+
 			System.out.println("Submenu " + smenuHash);
 			allMenu.put("Submenus", subMenus);
 			allMenu.put(subMenuLabel, smenuHash);
@@ -1022,51 +1022,57 @@ public class EngineResource {
 			subMenus.add("EMPTY");
 			allMenu.put("Submenus", subMenus);
 		}	
-		
+
 		System.out.println(">>>.... " + new GsonBuilder().setPrettyPrinting().create().toJson(allMenu));
-		
+
 		return Response.status(200).entity(WebUtility.getSO(allMenu)).build();
 	}
-//  	
-//  	private ArrayList<Hashtable<String,String>> getHashArrayFromString(String arrayString){
-//  		System.err.println("MY STRING " + arrayString);
-//  		ArrayList<Hashtable<String,String>> retArray = new ArrayList<Hashtable<String,String>>();
-//		if(arrayString != null) {
-//			Gson gson = new Gson();
-//			ArrayList<Object> varsObjArray = gson.fromJson(arrayString, ArrayList.class);
-//			for(Object varsObj : varsObjArray){
-//				Hashtable newHash = new Hashtable();
-//				newHash.putAll((StringMap)varsObj);
-//				retArray.add(newHash);
-//			}
-//		}
-//		return retArray;
-//  	}
-  	
-  	@Path("/analytics")
-  	public Object runEngineAnalytics(){
-  		EngineAnalyticsResource analytics = new EngineAnalyticsResource(this.coreEngine);
-  		
-  		return analytics;
-  	}
+	//  	
+	//  	private ArrayList<Hashtable<String,String>> getHashArrayFromString(String arrayString){
+	//  		System.err.println("MY STRING " + arrayString);
+	//  		ArrayList<Hashtable<String,String>> retArray = new ArrayList<Hashtable<String,String>>();
+	//		if(arrayString != null) {
+	//			Gson gson = new Gson();
+	//			ArrayList<Object> varsObjArray = gson.fromJson(arrayString, ArrayList.class);
+	//			for(Object varsObj : varsObjArray){
+	//				Hashtable newHash = new Hashtable();
+	//				newHash.putAll((StringMap)varsObj);
+	//				retArray.add(newHash);
+	//			}
+	//		}
+	//		return retArray;
+	//  	}
 
+	@Path("/analytics")
+	public Object runEngineAnalytics(){
+		EngineAnalyticsResource analytics = new EngineAnalyticsResource(this.coreEngine);
+
+		return analytics;
+	}
+
+	@Path("/analytics")
+	public Object runAutoGeneratedInsights(){
+		AutoGeneratedInsights AutoGeneratedInsights = new AutoGeneratedInsights(this.coreEngine);
+
+		return AutoGeneratedInsights;
+	}
+	
 	@Path("/explore")
 	public Object generateQuery(@Context HttpServletRequest request)
 	{
 		ExploreQuery exploreQuery = new ExploreQuery(this.coreEngine);
-		
+
 		return exploreQuery;
 	}
-	
-	
+
+
 	// test
-	
 	@GET
-	   @Path("comet")
-	   @Produces("text/plain")
-	   public void cometTry(final @Suspended AsyncResponse response,  @Context HttpServletRequest request) {
-		   System.out.println("Dropped in here >>>>>> 2" + "comet");
-		   /*
+	@Path("comet")
+	@Produces("text/plain")
+	public void cometTry(final @Suspended AsyncResponse response,  @Context HttpServletRequest request) {
+		System.out.println("Dropped in here >>>>>> 2" + "comet");
+		/*
 		   Thread t = new Thread()
 		      {
 		         @Override
@@ -1087,31 +1093,31 @@ public class EngineResource {
 		         }
 		      };
 		      t.start();*/
-			   HttpSession session = request.getSession();
-			   InMemoryHash.getInstance().put("respo", response);
-			   response.setTimeout(1000, TimeUnit.MINUTES);
-			   final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
-			   System.out.println("Is the response done..  ? " + myResponse.isDone());
-	 		   
-			   //myResponse.resume("Hello");
-			   System.err.println("Put the response here");
-		
-	      }   
+		HttpSession session = request.getSession();
+		InMemoryHash.getInstance().put("respo", response);
+		response.setTimeout(1000, TimeUnit.MINUTES);
+		final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
+		System.out.println("Is the response done..  ? " + myResponse.isDone());
 
-	   @GET
-	   @Path("/trigger")
-	   @Produces("application/xml")
-	   public String trigger(@Context HttpServletRequest request) {
-		   System.out.println("Dropped in here >>>>>> 2" + "trigger");
-		   HttpSession session = request.getSession();
-		   final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
+		//myResponse.resume("Hello");
+		System.err.println("Put the response here");
 
-		   if(myResponse != null) {
-			   System.out.println("Is the response done..  ? " + myResponse.isDone());
-			   myResponse.resume("Hello2222");
-			   myResponse.resume("Hola again");
-			   System.out.println("MyResponse is not null");
-			   /*
+	}   
+
+	@GET
+	@Path("/trigger")
+	@Produces("application/xml")
+	public String trigger(@Context HttpServletRequest request) {
+		System.out.println("Dropped in here >>>>>> 2" + "trigger");
+		HttpSession session = request.getSession();
+		final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
+
+		if(myResponse != null) {
+			System.out.println("Is the response done..  ? " + myResponse.isDone());
+			myResponse.resume("Hello2222");
+			myResponse.resume("Hola again");
+			System.out.println("MyResponse is not null");
+			/*
 			   Thread t = new Thread()
 			      {
 			         @Override
@@ -1132,20 +1138,10 @@ public class EngineResource {
 			         }
 			      };
 			      t.start();*/
-		   }
-	       //Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
-		   //myResponse.resume(jaxrs);
-		      return "Returned.. ";
-	      }   
+		}
+		//Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
+		//myResponse.resume(jaxrs);
+		return "Returned.. ";
+	}   
 
 }
-
-
-
-
-
-
-
-
-
-
