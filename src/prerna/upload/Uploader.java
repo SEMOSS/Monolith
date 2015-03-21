@@ -227,7 +227,6 @@ public class Uploader extends HttpServlet {
 		//call the right process method with correct parameters
 		String dbName = inputData.get("dbName");
 		
-		
 		String dataOutputType = inputData.get("dataOutputType");
 		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
 		if(dataOutputType.equalsIgnoreCase("RDBMS"))
@@ -301,21 +300,22 @@ public class Uploader extends HttpServlet {
 			return Response.status(400).entity(errorMessage).build();
 		}
 		
+		String dbName = "";
+		
 		String dataOutputType = inputData.get("dataOutputType");
 		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF; // needs to be set later
 		if(dataOutputType.equalsIgnoreCase("RDBMS"))
 			storeType = ImportDataProcessor.DB_TYPE.RDBMS; // needs to be set later
-
 		
-		String dbName = "";
 		try {
 			if(methodString.equals("Create new database engine")) {
-				// force fitting the RDBMS here
+				dbName = inputData.get("newDBname");
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), dbName,"","","","", storeType);
+						inputData.get("customBaseURI"), dbName,"","","","", storeType);
 			} else {
+				dbName = inputData.get("addDBname");
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), "","","","", dbName, storeType);
+						inputData.get("customBaseURI"), "","","","", dbName, storeType);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
@@ -361,17 +361,22 @@ public class Uploader extends HttpServlet {
 										: null;
 
 		//call the right process method with correct parameters
-		ImportDataProcessor.DB_TYPE dbType = ImportDataProcessor.DB_TYPE.RDBMS;
 		String dbName = "";
+		
+		String dataOutputType = inputData.get("dataOutputType");
+		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF; // needs to be set later
+		if(dataOutputType.equalsIgnoreCase("RDBMS"))
+			storeType = ImportDataProcessor.DB_TYPE.RDBMS; // needs to be set later
+		
 		try {
 			if(methodString.equals("Create new database engine")) {
 				dbName = inputData.get("newDBname");
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("customBaseURI")+"", dbName,"","","","", dbType);
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
+						inputData.get("customBaseURI")+"", dbName,"","","","", storeType);
 			} else {
 				dbName = inputData.get("addDBname");
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("customBaseURI")+"", "","","","", dbName, dbType);
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
+						inputData.get("customBaseURI")+"", "","","","", dbName, storeType);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
