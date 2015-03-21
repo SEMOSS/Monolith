@@ -229,11 +229,9 @@ public class Uploader extends HttpServlet {
 		
 		
 		String dataOutputType = inputData.get("dataOutputType");
-		
-		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF; // needs to be set later
-		
+		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
 		if(dataOutputType.equalsIgnoreCase("RDBMS"))
-			storeType = ImportDataProcessor.DB_TYPE.RDBMS; // needs to be set later
+			storeType = ImportDataProcessor.DB_TYPE.RDBMS;
 		
 		try {
 			if(methodString.equals("Create new database engine")) {
@@ -302,18 +300,22 @@ public class Uploader extends HttpServlet {
 			String errorMessage = "Import method \'" + methodString + "\' is not supported";
 			return Response.status(400).entity(errorMessage).build();
 		}
-		//call the right process method with correct parameters
-		ImportDataProcessor.DB_TYPE dbType = ImportDataProcessor.DB_TYPE.RDBMS;
+		
+		String dataOutputType = inputData.get("dataOutputType");
+		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF; // needs to be set later
+		if(dataOutputType.equalsIgnoreCase("RDBMS"))
+			storeType = ImportDataProcessor.DB_TYPE.RDBMS; // needs to be set later
+
+		
 		String dbName = "";
 		try {
 			if(methodString.equals("Create new database engine")) {
-				dbName = inputData.get("newDBname");
+				// force fitting the RDBMS here
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("customBaseURI")+"", dbName,"","","","",dbType);
+						inputData.get("designateBaseUri"), dbName,"","","","", storeType);
 			} else {
-				dbName = inputData.get("addDBname");
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("customBaseURI")+"", "","","","", dbName,dbType);
+						inputData.get("designateBaseUri"), "","","","", dbName, storeType);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
