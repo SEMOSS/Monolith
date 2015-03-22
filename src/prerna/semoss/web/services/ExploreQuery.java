@@ -109,6 +109,7 @@ public class ExploreQuery {
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 		builder.setJSONDataHash(dataHash); // I am not sure we have an idea for why we set this
 		
+		
 		Object relTriples = ((StringMap)dataHash.get("QueryData")).get("relTriples");
 		
 		
@@ -225,19 +226,27 @@ public class ExploreQuery {
 			for(String key : keySet) {
 				labelList.add(colLabelHash.get(key).get(0));
 			}
-			
-			abstractQuery = new SpecificTableQueryBuilder(labelList, parameters, semossQuery);
+			if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE)
+				abstractQuery = new SpecificTableQueryBuilder(labelList, parameters, semossQuery);
+			else
+				abstractQuery = null;
 		}
 		if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE)
+		{
 			abstractQuery.buildQuery();
-		else if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
+			query = abstractQuery.getQuery();
+		}
+		else if(abstractQuery != null && coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
 		{
 			abstractQuery.addJoins((ArrayList<ArrayList<String>>)relTriples);
 			abstractQuery.addParameters();
 			abstractQuery.buildQueryR();
+			query = abstractQuery.getQuery();
+		}else
+		{
+			builder.buildQuery();
+			query = builder.getQuery();
 		}
-		query = abstractQuery.getQuery();
-		
 		return Response.status(200).entity(WebUtility.getSO(query)).build();
 	}
 }
