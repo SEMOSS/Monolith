@@ -63,7 +63,7 @@ public class UserDBFilter implements Filter {
 		// loads the user specific databases and adds database to the users session
 		// try to see if this guys session is already loaded
 		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
-		boolean dbInitialized = session != null && session.getAttribute(Constants.ENGINES+"unused") != null;
+		boolean dbInitialized = session != null;
 		System.out.println("Getting into session being null");
 		if(!dbInitialized) // this is our new friend
 		{
