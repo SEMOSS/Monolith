@@ -28,14 +28,17 @@
 package prerna.upload;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -53,12 +56,15 @@ import prerna.error.FileReaderException;
 import prerna.error.FileWriterException;
 import prerna.error.HeaderClassException;
 import prerna.error.NLPException;
+import prerna.rdf.engine.api.IEngine;
 import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
+import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 
 import com.google.gson.Gson;
+import com.ibm.icu.util.StringTokenizer;
 
 /**
  * Servlet implementation class Uploader
@@ -106,6 +112,43 @@ public class Uploader extends HttpServlet {
 			e.printStackTrace();
 		}
 		return fileItems;
+	}
+	
+	public void loadEngineIntoSession(HttpServletRequest request, String engineName) {
+		Properties prop = new Properties();
+		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
+		String fileName = baseFolder + "/db/"  +  engineName + ".smss";
+		FileInputStream fileIn;
+		try {
+			fileIn = new FileInputStream(fileName);
+			prop.load(fileIn);			
+			Utility.loadEngine(fileName, prop);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		HttpSession session = request.getSession();
+		String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
+		StringTokenizer tokens = new StringTokenizer(engineNames, ";");
+		ArrayList<Hashtable<String, String>> engines = new ArrayList<Hashtable<String, String>>();
+		while(tokens.hasMoreTokens())
+		{
+			// this would do some check to see
+			String nextEngine = tokens.nextToken();
+			System.out.println(" >>> " + nextEngine);
+			IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(nextEngine);
+			boolean hidden = (engine.getProperty(Constants.HIDDEN_DATABASE) != null && Boolean.parseBoolean(engine.getProperty(Constants.HIDDEN_DATABASE)));
+			if(!hidden) {
+				Hashtable<String, String> engineHash = new Hashtable<String, String> ();
+				engineHash.put("name", nextEngine);
+				engineHash.put("type", engine.getEngineType() + "");
+				engines.add(engineHash);
+			}
+			// set this guy into the session of our user
+			session.setAttribute(nextEngine, engine);
+			// and over
+		}			
+		session.setAttribute(Constants.ENGINES, engines);
 	}
 
 	public Hashtable<String, String> getInputData(List<FileItem> fileItems) 
@@ -237,6 +280,7 @@ public class Uploader extends HttpServlet {
 				// force fitting the RDBMS here
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
 						inputData.get("designateBaseUri"), dbName,"","","","", storeType);
+				loadEngineIntoSession(request, dbName);
 			} else {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
 						inputData.get("designateBaseUri"), "","","","", dbName, storeType);
@@ -312,6 +356,7 @@ public class Uploader extends HttpServlet {
 				dbName = inputData.get("newDBname");
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
 						inputData.get("customBaseURI"), dbName,"","","","", storeType);
+				loadEngineIntoSession(request, dbName);
 			} else {
 				dbName = inputData.get("addDBname");
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
@@ -373,6 +418,7 @@ public class Uploader extends HttpServlet {
 				dbName = inputData.get("newDBname");
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
 						inputData.get("customBaseURI")+"", dbName,"","","","", storeType);
+				loadEngineIntoSession(request, dbName);
 			} else {
 				dbName = inputData.get("addDBname");
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
