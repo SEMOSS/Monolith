@@ -1,0 +1,302 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Insert title here</title>
+<script type="text/javascript" src="./app/lib/fdb-all.js"></script>
+<script type="text/javascript" src="./app/lib/dv.js"></script>
+<script type="text/javascript" src="./app/lib/papaparse.min.js"></script>
+</head>
+<body>
+Forerunner test
+<script type="text/javascript">
+
+/*Papa.parse("http://localhost:9080/Monolith/api/engine/s-Movie_DB/streamTester?count=10",{
+	
+		download:true,
+		/*step: function(results, handle)
+		{
+			console.log("Row data:", results);
+		},
+		complete: function(results)
+		{
+			console.log("Results from papa");
+			console.log(results);
+		}
+		
+		
+		
+}
+);*/
+
+var joinCount = 0;
+
+var columnName = "unicue"; // something that is used to join
+var collectionName = "newCollection";
+	
+var flatten = function(array, result)
+{
+	//var arObj = JSON.parse(JSON.stringify(array));
+	//var result = [];
+	//console.log("Came in here " + array.keys);
+	//console.log(array[0]);
+	var residue = [];
+	var count = 0;
+	for(item in array)
+	{
+		//console.log("In here too" );
+		///console.log(item + "<>" + array[item]);
+		if(Array.isArray(array[item]))
+		{
+			// come back to this
+			/*var obj = JSON.parse(JSON.stringify(array[item]));
+			console.log("Object ... " );
+			console.log(obj[0]);
+			for(item2 in obj[0])
+			result[item] = obj[0][item2];*/
+			residue[count] = array[item];
+			count++;
+		}
+		else
+		{
+			result[item] = array[item];		
+		}
+	}	
+	//console.log(array[i][obj.id]);
+	//console.log(result);
+	if(residue.length != 0)
+	{
+		//console.log("Printing residue");
+		var obj = JSON.parse(JSON.stringify(array[item]));
+		//console.log(residue);
+		return flatten(obj[0], result);
+	}
+	else
+		return result;
+}
+
+var joinCollection = function(leftCollection, rightCollection, leftName, rightName, inner, leftJoinColumn, rightJoinColumn, predict)
+{
+// left collection is the existing collection hopefully
+// rightCollection is the new collection we are trying to join
+// is it a inner join / an outer join - true / false - will implement later
+// the column name to join on for left collection
+// column name to join on the right
+// predict - predict the column names - not implemented right now
+
+var mergeName = columnName + joinCount;
+var joined = leftCollection.find(
+	{},{
+    'join': [{
+        rightName: {
+            leftJoinColumn: rightJoinColumn,
+            '$as': mergeName,
+            '$require': inner,
+            '$multi': true
+        }
+    }]
+	});
+// now convert the join into a new collection
+	for(jIdx = 0;jIdx < joined.length;jIdx++)
+	{
+		var flat = flatten(joined[jIdx], {} );
+		newColl.insert(flat);
+	}	
+
+	
+}
+
+
+var db = new ForerunnerDB();
+var itemCollection = db.collection('item');
+itemCollection.setData([{
+    _id: 1,
+    name: 'Cat Litter',
+    price: 200
+}, {
+    _id: 2,
+    name: 'Dog Food',
+    price: 100
+}]);
+itemCollection.insert({
+    _id: 3,
+    price: 400,
+    name: 'Fish Bones'
+});
+
+var max = 1000;
+
+for(idx = 0;idx < max;idx++)
+	{
+	var name = "Item" + idx;
+	itemCollection.insert({
+		_id: idx,
+		name: name,
+		price: idx*2,
+		field1: idx,
+		field2:idx,
+		field3: idx/2,
+		field4: idx,
+		field5: idx/2
+	});
+	}
+
+// trying the join
+
+
+console.log("Done loading");
+
+/*
+console.log("creating index");
+itemCollection.ensureIndex({
+    _id: 1
+});
+console.log("completed creating index");
+*/
+
+//finding result
+var output = itemCollection.find({
+    price: {
+        '$gt': 900
+    }
+});
+
+var output = itemCollection.find(
+		{name: 'Item451'}
+	);
+console.log(output[0]);
+
+console.log(itemCollection.explain({
+    name: 'Item*'
+}));
+
+console.log(">>" + output[0]["name"] + "   " + output[0]["age"]);
+var ageCollection = db.collection('ages');
+
+console.log("Creating Secondary Data for ages");
+
+for(idx = 0;idx < max;idx++)
+{
+var name = "Itemy" + idx;
+var age2 = idx%50; // 1 - 50
+if(idx %2 == 0)
+	{
+	ageCollection.insert({
+	_id: idx,
+	age: age2,
+	aName: name
+	//price: idx
+	});
+}
+}
+
+console.log("Completed - Creating Secondary Data for ages");
+
+var output2 = itemCollection.find(
+		{_id: 451}
+	);
+console.log(output2[0]);
+
+var joinCollection = db.collection('joins');
+//name: 'Item451'
+
+console.log("Performing Joins");
+
+var joined = itemCollection.find(
+		{},{
+    'join': [{
+        'ages': {
+            '_id': '_id',
+            '$as': 'dage',
+            '$require': true,
+            '$multi': true
+        }
+    }]
+});
+
+console.log("Completed Joins");
+joinCollection.insert(joined);
+
+//console.log("printing join collection");
+//console.log(itemCollection);
+//console.log(joinCollection);
+
+//finding result
+var output = itemCollection.find(
+		{_id: 451}
+);
+
+var output3 = joinCollection.find(
+		{_id: 32}
+	);
+console.log("Printing output of search");
+console.log(output3[0]);
+
+console.log("joined... " );
+console.log(joined);
+console.log(".....");
+console.log(output[0]);
+console.log(">>" + output[0]["name"] + "   " + output[0]["dage"]);
+
+console.log("Flattening object");
+//console.log(flatten(joined));
+var newColl = db.collection('Collection2');
+for(jIdx = 0;jIdx < joined.length;jIdx++)
+{
+	var flat = flatten(joined[jIdx], {} );
+	newColl.insert(flat);
+}	
+console.log("Completed Flattening");
+
+var newOutput = newColl.find({
+    price: {
+        '$gt': 0
+    }
+});
+console.log(newColl[0]);
+
+console.log("Total Output");
+console.log(newOutput.length);
+
+
+console.log("Finding stuff");
+console.log(newOutput[0]);
+
+itemCollection.save();
+
+console.log("Basic test");
+console.log(flatten(joined[7], {}));
+
+
+//------------------------
+
+
+
+var colA = ["a","a","b","b","c"];
+var colB = [0,1,2,3,4];
+
+// create a table in one call by bundling up columns
+var tab1 = dv.table([
+    {name:"A", values:colA, type:dv.type.nominal},
+    {name:"B", values:colB, type:dv.type.numeric}
+]);
+
+// create a table adding one column at a time
+// the resulting 'tab2' should be identical to 'tab1'
+var tab2 = dv.table();
+tab2.addColumn("A", colA, dv.type.nominal);
+tab2.addColumn("B", colB, dv.type.numeric);
+
+var filtered_table = tab1.where(function(table, row) {
+    return table.get("A", row).match('c*');
+});
+
+
+
+//console.log(filtered_table.rows);
+
+//----------
+
+</script>
+</body>
+</html>
