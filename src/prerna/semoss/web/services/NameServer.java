@@ -278,6 +278,8 @@ public class NameServer {
 		Uploader upload = new Uploader();
 		String filePath = context.getInitParameter("file-upload");
 		upload.setFilePath(filePath);
+		String tempFilePath = context.getInitParameter("temp-file-upload");
+		upload.setTempFilePath(tempFilePath);
 		return upload;
 	}
 
