@@ -77,9 +77,14 @@ public class Uploader extends HttpServlet {
 	String output = "";
 
 	String filePath;
+	String tempFilePath = "";
 
 	public void setFilePath(String filePath){
 		this.filePath = filePath;
+	}
+
+	public void setTempFilePath(String tempFilePath){
+		this.tempFilePath = tempFilePath;
 	}
 
 	public void writeFile(FileItem fi, File file){
@@ -98,7 +103,7 @@ public class Uploader extends HttpServlet {
 			// maximum size that will be stored in memory
 			factory.setSizeThreshold(maxMemSize);
 			// Location to save data that is larger than maxMemSize.
-			factory.setRepository(new File("c:\\temp"));
+			factory.setRepository(new File(tempFilePath)); //removing hard code to C:\\temp, get from web.xml tag temp-file-upload
 			// Create a new file upload handler
 			ServletFileUpload upload = new ServletFileUpload(factory);
 			// maximum file size to be uploaded.
