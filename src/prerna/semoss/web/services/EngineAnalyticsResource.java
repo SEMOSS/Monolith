@@ -145,27 +145,28 @@ public class EngineAnalyticsResource {
 				Double maxSupport = Double.parseDouble(configParameters.get(3));
 				ps.setMaxSupport(maxSupport);
 			}
-			
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
 			ps.createData();
-			
-			// String[] headers = { "" }; //TODO figure out what is returned
-			// data.put("headers", headers);
-			// data.put("data", );
+			data = (Hashtable) ps.getData();
+			data.remove("id");
+			data.put("title", "Association Learning: Apriori Algorithm");
 			
 			LOGGER.info("Running Association Learning on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
 			
 		} else if (algorithm.equals("Classify")) {
 			WekaClassificationPlaySheet ps = new WekaClassificationPlaySheet();
+			if(configParameters.get(0) != null) {
+				Integer classColumn = Integer.parseInt(configParameters.get(0));
+				ps.setClassColumn(classColumn);
+			}
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
 			ps.createData();
-			
-			// String[] headers = { "" }; //TODO figure out what is returned
-			// data.put("headers", headers);
-			// data.put("dataSeries", );
+			data = (Hashtable) ps.getData();
+			data.remove("id");
+			data.put("title", "Classification Algorithm: For variable " + ps.getNames()[ps.getClassColumn()]);
 			LOGGER.info("Running Classify on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
 			
@@ -241,29 +242,29 @@ public class EngineAnalyticsResource {
 			
 			LOGGER.info("Running Similarity on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
-			
 		} else if (algorithm.equals("MatrixRegression")) {
 			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
+			if(configParameters.get(0) != null) {
+				Integer bColumnIndex = Integer.parseInt(configParameters.get(0));
+				ps.setbColumnIndex(bColumnIndex);
+			}
 			ps.setRDFEngine(engine);
 			ps.createData();
-			
-			// String[] headers = { "" }; //TODO figure out what is returned
-			// data.put("headers", headers);
-			// data.put("data", );
+			data = (Hashtable) ps.getData();
+			data.remove("id");
+			data.put("title", "Matrix Regression Algorithm: For variable " + ps.getNames()[ps.getbColumnIndex()]);
+
 			LOGGER.info("Running Matrix Regression on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
-			
 		} else if (algorithm.equals("NumericalCorrelation")) {
 			NumericalCorrelationVizPlaySheet ps = new NumericalCorrelationVizPlaySheet();
 			ps.setRDFEngine(engine);
 			ps.createData();
-			
-			// String[] headers = { "" }; //TODO figure out what is returned
-			// data.put("headers", headers);
-			// data.put("data", );
+			data = (Hashtable) ps.getData();
+			data.remove("id");
+			data.put("title", "Numerical Correlation Algorithm");
 			LOGGER.info("Running Numerical Correlation on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
-			
 		} else {
 			String errorMessage = "Selected algorithm does not exist";
 			LOGGER.info("Selected algorithm does not exist...");
