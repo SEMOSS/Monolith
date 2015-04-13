@@ -123,13 +123,21 @@ public class Uploader extends HttpServlet {
 		Properties prop = new Properties();
 		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
 		String fileName = baseFolder + "/db/"  +  engineName + ".smss";
-		FileInputStream fileIn;
+		FileInputStream fileIn = null;
 		try {
 			fileIn = new FileInputStream(fileName);
 			prop.load(fileIn);			
 			Utility.loadEngine(fileName, prop);
 		} catch (IOException e) {
 			e.printStackTrace();
+		} finally {
+			try {
+				if(fileIn != null) {
+					fileIn.close();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		HttpSession session = request.getSession();
