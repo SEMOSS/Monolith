@@ -27,14 +27,18 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
@@ -46,6 +50,8 @@ import org.apache.log4j.Logger;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.api.IEngine;
+import prerna.semoss.web.services.specific.tap.AbstractControlClick;
+import prerna.semoss.web.services.specific.tap.IControlClick;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.AbstractRDFPlaySheet;
@@ -488,4 +494,24 @@ public class PlaySheetResource {
            return WebUtility.getSO(retHash);
     }
     
+    //for handling playsheet specific tool calls
+    @Path("f-{functionPackageID}-{functionsID}")
+    public IControlClick register(@PathParam("functionPackageID") String functionPackageID, @PathParam("functionsID") String functionsID, @Context HttpServletRequest request)
+    {    	
+    	IControlClick acc = null;
+		try {
+			Field f = Constants.class.getDeclaredField(functionPackageID);
+			f.setAccessible(true);
+			acc = (IControlClick) Class.forName(f.get(functionPackageID) + functionsID).getConstructor(null).newInstance(null);
+		} catch (InstantiationException | IllegalAccessException
+				| IllegalArgumentException | InvocationTargetException
+				| NoSuchMethodException | SecurityException
+				| ClassNotFoundException | NoSuchFieldException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    	acc.setEngine(this.coreEngine);
+    	acc.setPlaySheet(this.playSheet);  
+    	return acc;
+    }  
 }
