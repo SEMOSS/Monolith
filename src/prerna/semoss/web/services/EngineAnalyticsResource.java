@@ -249,6 +249,7 @@ public class EngineAnalyticsResource {
 				ps.setbColumnIndex(bColumnIndex);
 			}
 			ps.setRDFEngine(engine);
+			ps.setQuery(query);
 			ps.createData();
 			data = (Hashtable) ps.getData();
 			data.remove("id");
@@ -259,6 +260,7 @@ public class EngineAnalyticsResource {
 		} else if (algorithm.equals("NumericalCorrelation")) {
 			NumericalCorrelationVizPlaySheet ps = new NumericalCorrelationVizPlaySheet();
 			ps.setRDFEngine(engine);
+			ps.setQuery(query);
 			ps.createData();
 			data = (Hashtable) ps.getData();
 			data.remove("id");
