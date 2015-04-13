@@ -47,7 +47,7 @@ import prerna.ui.components.playsheets.DatasetSimilarityPlaySheet;
 import prerna.ui.components.playsheets.LocalOutlierPlaySheet;
 import prerna.ui.components.playsheets.MatrixRegressionVizPlaySheet;
 import prerna.ui.components.playsheets.NumericalCorrelationVizPlaySheet;
-import prerna.ui.components.playsheets.WekaAprioriPlaySheet;
+import prerna.ui.components.playsheets.WekaAprioriVizPlaySheet;
 import prerna.ui.components.playsheets.WekaClassificationPlaySheet;
 import prerna.util.MachineLearningEnum;
 import prerna.util.Utility;
@@ -128,20 +128,20 @@ public class EngineAnalyticsResource {
 			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end int[]
 			
 		} else if (algorithm.equals("AssociationLearning")) {
-			WekaAprioriPlaySheet ps = new WekaAprioriPlaySheet();
-			if (configParameters.get(0) != null) {
+			WekaAprioriVizPlaySheet ps = new WekaAprioriVizPlaySheet();
+			if (configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
 				Integer numRules = Integer.parseInt(configParameters.get(0));
 				ps.setNumRules(numRules);
 			}
-			if (configParameters.get(1) != null) {
+			if (configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
 				Double confPer = Double.parseDouble(configParameters.get(1));
 				ps.setConfPer(confPer);
 			}
-			if (configParameters.get(2) != null) {
+			if (configParameters.get(2) != null && !configParameters.get(2).isEmpty()) {
 				Double minSupport = Double.parseDouble(configParameters.get(2));
 				ps.setMinSupport(minSupport);
 			}
-			if (configParameters.get(3) != null) {
+			if (configParameters.get(3) != null && !configParameters.get(3).isEmpty()) {
 				Double maxSupport = Double.parseDouble(configParameters.get(3));
 				ps.setMaxSupport(maxSupport);
 			}
@@ -157,7 +157,7 @@ public class EngineAnalyticsResource {
 			
 		} else if (algorithm.equals("Classify")) {
 			WekaClassificationPlaySheet ps = new WekaClassificationPlaySheet();
-			if(configParameters.get(0) != null) {
+			if(configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
 				Integer classColumn = Integer.parseInt(configParameters.get(0));
 				ps.setClassColumn(classColumn);
 			}
@@ -244,7 +244,7 @@ public class EngineAnalyticsResource {
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
 		} else if (algorithm.equals("MatrixRegression")) {
 			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
-			if(configParameters.get(0) != null) {
+			if(configParameters.get(0) != null  && !configParameters.get(0).isEmpty()) {
 				Integer bColumnIndex = Integer.parseInt(configParameters.get(0));
 				ps.setbColumnIndex(bColumnIndex);
 			}
