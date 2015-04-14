@@ -41,6 +41,8 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import prerna.rdf.engine.api.IEngine;
+import prerna.rdf.engine.api.ISelectStatement;
+import prerna.rdf.engine.api.ISelectWrapper;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.ui.components.playsheets.ClusteringVizPlaySheet;
 import prerna.ui.components.playsheets.DatasetSimilarityPlaySheet;
@@ -49,6 +51,8 @@ import prerna.ui.components.playsheets.MatrixRegressionVizPlaySheet;
 import prerna.ui.components.playsheets.NumericalCorrelationVizPlaySheet;
 import prerna.ui.components.playsheets.WekaAprioriVizPlaySheet;
 import prerna.ui.components.playsheets.WekaClassificationPlaySheet;
+import prerna.util.ArrayListUtilityMethods;
+import prerna.util.ArrayUtilityMethods;
 import prerna.util.MachineLearningEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -79,6 +83,7 @@ public class EngineAnalyticsResource {
 		return Response.status(200).entity(WebUtility.getSO(algorithmList)).build();
 	}
 	
+	
 	@POST
 	@Path("/runAlgorithm")
 	public Response runAlgorithm(MultivaluedMap<String, String> form) {
@@ -87,6 +92,24 @@ public class EngineAnalyticsResource {
 		if (query.contains("+++")) {
 			query = query.substring(0, query.indexOf("+++"));
 		}
+		
+		//TODO: shift all of this to IAnalaytics interface
+		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
+		ISelectWrapper sjsw = Utility.processQuery(engine, query);
+		String[] names = sjsw.getVariables();
+		int numCol = names.length;
+		ArrayList<Object[]> list = new ArrayList<Object[]>();
+		while(sjsw.hasNext()) {
+			ISelectStatement sjss = sjsw.next();
+			Object[] vals = new Object[numCol];
+			for(int i = 0; i < numCol; i++) {
+				vals[i] = sjss.getVar(names[i]);
+			}
+			list.add(vals);
+		}
+		String[] filteredNames = ArrayUtilityMethods.filterArray(names, includeColArr);
+		ArrayList<Object[]> filteredList = ArrayListUtilityMethods.filterList(list,includeColArr);
+
 		String algorithm = form.getFirst("algorithm");
 		ArrayList<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
 		Hashtable<String, Object> data = new Hashtable<String, Object>();
@@ -105,8 +128,14 @@ public class EngineAnalyticsResource {
 			}
 			
 			try {
-				ps.createData();
+				ps.setMasterList(filteredList);
+				ps.setMasterNames(names);
+				ps.setList(filteredList);
+				ps.setNames(filteredNames);
+				ps.runAlgorithm();
+				ps.processQueryData();
 			} catch (NullPointerException e) {
+				e.printStackTrace();
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			String title = "Cluster by " + ps.getNames()[0];
@@ -147,7 +176,9 @@ public class EngineAnalyticsResource {
 			}
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
-			ps.createData();
+			ps.setList(filteredList);
+			ps.setNames(filteredNames);
+			ps.processQueryData();
 			data = (Hashtable) ps.getData();
 			data.remove("id");
 			data.put("title", "Association Learning: Apriori Algorithm");
@@ -159,11 +190,21 @@ public class EngineAnalyticsResource {
 			WekaClassificationPlaySheet ps = new WekaClassificationPlaySheet();
 			if(configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
 				Integer classColumn = Integer.parseInt(configParameters.get(0));
+				String propName = names[classColumn];
+				classColumn = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
+				if(classColumn == -1) {
+					errorHash.put("Message", "Must select column " + propName + " in filter param list to run classificaiton on it.");
+					errorHash.put("Class", ps.getClass().getName());
+					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				}
 				ps.setClassColumn(classColumn);
 			}
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
-			ps.createData();
+			ps.setList(filteredList);
+			ps.setNames(filteredNames);
+			ps.runAlgorithm();
+			ps.processQueryData();
 			data = (Hashtable) ps.getData();
 			data.remove("id");
 			data.put("title", "Classification Algorithm: For variable " + ps.getNames()[ps.getClassColumn()]);
@@ -181,7 +222,8 @@ public class EngineAnalyticsResource {
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
 			try {
-				ps.createData();
+				ps.setList(filteredList);
+				ps.setNames(filteredNames);
 				ps.runAnalytics();
 			} catch (NullPointerException e) {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
@@ -216,7 +258,8 @@ public class EngineAnalyticsResource {
 			errorHash.put("Class", ps.getClass().getName());
 			
 			try {
-				ps.createData();
+				ps.setList(filteredList);
+				ps.setNames(filteredNames);
 				ps.runAnalytics();
 			} catch (NullPointerException e) {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
@@ -246,11 +289,20 @@ public class EngineAnalyticsResource {
 			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
 			if(configParameters.get(0) != null  && !configParameters.get(0).isEmpty()) {
 				Integer bColumnIndex = Integer.parseInt(configParameters.get(0));
+				String propName = names[bColumnIndex];
+				bColumnIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
+				if(bColumnIndex == -1) {
+					errorHash.put("Message", "Must select column " + propName + " in filter param list to run matrix regression on it.");
+					errorHash.put("Class", ps.getClass().getName());
+					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				}
 				ps.setbColumnIndex(bColumnIndex);
 			}
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
-			ps.createData();
+			ps.setList(filteredList);
+			ps.setNames(filteredNames);
+			ps.processQueryData();
 			data = (Hashtable) ps.getData();
 			data.remove("id");
 			data.put("title", "Matrix Regression Algorithm: For variable " + ps.getNames()[ps.getbColumnIndex()]);
@@ -261,7 +313,9 @@ public class EngineAnalyticsResource {
 			NumericalCorrelationVizPlaySheet ps = new NumericalCorrelationVizPlaySheet();
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
-			ps.createData();
+			ps.setList(filteredList);
+			ps.setNames(filteredNames);
+			ps.processQueryData();
 			data = (Hashtable) ps.getData();
 			data.remove("id");
 			data.put("title", "Numerical Correlation Algorithm");
