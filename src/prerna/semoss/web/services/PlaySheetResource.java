@@ -479,21 +479,7 @@ public class PlaySheetResource {
 		}
 		return filterValues;
 	}
-	
-    //for handling playsheet specific tool calls
-    @POST
-    @Path("registerControlPanelClick")
-    @Produces("application/json")
-    public StreamingOutput registerControlPanelClick(MultivaluedMap<String, String> form, 
-                  @Context HttpServletRequest request)
-    {
-           Gson gson = new Gson();
-           Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());           
-           AbstractRDFPlaySheet ps = (AbstractRDFPlaySheet) this.playSheet;           
-           Hashtable retHash = ps.registerControlPanelClick(dataHash);           
-           return WebUtility.getSO(retHash);
-    }
-    
+	    
     //for handling playsheet specific tool calls
     @Path("f-{functionPackageID}-{functionsID}")
     public IControlClick register(@PathParam("functionPackageID") String functionPackageID, @PathParam("functionsID") String functionsID, @Context HttpServletRequest request)
