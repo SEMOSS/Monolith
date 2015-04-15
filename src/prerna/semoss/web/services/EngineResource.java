@@ -153,8 +153,6 @@ public class EngineResource {
 
 			obj = playSheet.getData();
 
-			HttpSession session = ((HttpServletRequest)request).getSession(false);
-			session.setAttribute(playSheet.getQuestionID(), playSheet);
 		} catch (Exception ex) { 
 			ex.printStackTrace();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -466,11 +464,10 @@ public class EngineResource {
 					playRunner.runWeb();
 
 					obj = playSheet.getData();
-
+					
 
 					// store the playsheet in session
-					HttpSession session = ((HttpServletRequest)request).getSession(false);
-					session.setAttribute(playSheet.getQuestionID(), playSheet);
+					storePSInSession((HttpServletRequest)request, playSheet, (Hashtable) obj);
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -517,8 +514,7 @@ public class EngineResource {
 			obj = playSheet.getData();
 
 			// store the playsheet in session
-			HttpSession session = ((HttpServletRequest)request).getSession(false);
-			session.setAttribute(playSheet.getQuestionID(), playSheet);
+			storePSInSession((HttpServletRequest)request, playSheet, (Hashtable) obj);
 		} catch (Exception ex) { //need to specify the different exceptions 
 			ex.printStackTrace();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -1142,6 +1138,17 @@ public class EngineResource {
 		//Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
 		//myResponse.resume(jaxrs);
 		return "Returned.. ";
-	}   
+	}  
+	
+	private void storePSInSession(HttpServletRequest request, IPlaySheet ps, Hashtable dataHash){
+		// only need to store in session playsheets that are tap specific (for control panel clicks) and graph playsheets (for traverse)
+		String className = dataHash.get("playsheet") + "";
+		String graphClassName = PlaySheetEnum.getClassFromName("Graph");
+		ArrayList<String> genericPsClasses = PlaySheetEnum.getAllSheetClasses();
+		if(!genericPsClasses.contains(className) || className.equals(graphClassName)) {
+			HttpSession session = request.getSession(false);
+			session.setAttribute(ps.getQuestionID(), ps);
+		}
+	}
 
 }
