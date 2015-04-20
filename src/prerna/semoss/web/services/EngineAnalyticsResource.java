@@ -40,6 +40,7 @@ import javax.ws.rs.core.Response;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
+import prerna.algorithm.learning.similarity.ClusterRemoveDuplicates;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.api.ISelectStatement;
 import prerna.rdf.engine.api.ISelectWrapper;
@@ -88,13 +89,40 @@ public class EngineAnalyticsResource {
 	@Path("/runAlgorithm")
 	public Response runAlgorithm(MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
+		//TODO: move to keeping state on back-end
 		String query = form.getFirst("query");
 		if (query.contains("+++")) {
 			query = query.substring(0, query.indexOf("+++"));
 		}
 		
-		//TODO: shift all of this to IAnalaytics interface
+		//TODO: add to interface to work for any column instance is located
 		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
+
+		String instanceIDString = form.getFirst("instanceID");
+		if(instanceIDString != null) {
+			int instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class) + 1;
+			String select = query;
+			String[] selectSplit = select.split("\\?");
+			if(instanceID != 0) {
+				// swap location of instanceID to be first output in return
+				String newInstance = selectSplit[instanceID];
+				String temp = selectSplit[1];
+				selectSplit[1] = newInstance;
+				selectSplit[instanceID] = temp;
+				query = selectSplit[0] + " ";
+				for(int i = 1; i < selectSplit.length; i++) {
+					query = query + " ?" + selectSplit[i];
+				}
+				
+				// also need to update the boolean array with new format
+				// instance must always be present
+				// only need to check if we include the column being changed with instance
+				includeColArr[instanceID-1] = includeColArr[0];
+				includeColArr[0] = true;
+			}
+		}
+		
+		//TODO: shift all of this to IAnalaytics interface
 		ISelectWrapper sjsw = Utility.processQuery(engine, query);
 		String[] names = sjsw.getVariables();
 		int numCol = names.length;
@@ -109,13 +137,18 @@ public class EngineAnalyticsResource {
 		}
 		String[] filteredNames = ArrayUtilityMethods.filterArray(names, includeColArr);
 		ArrayList<Object[]> filteredList = ArrayListUtilityMethods.filterList(list,includeColArr);
-
+		
 		String algorithm = form.getFirst("algorithm");
 		ArrayList<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
 		Hashtable<String, Object> data = new Hashtable<String, Object>();
 		Hashtable<String, String> errorHash = new Hashtable<String, String>();
 		
 		if (algorithm.equals("Clustering")) {
+			// format the data before sending into algorithm
+			ClusterRemoveDuplicates formatter = new ClusterRemoveDuplicates(filteredList, filteredNames);
+			ArrayList<Object[]> formattedList = formatter.getRetMasterTable();
+			String[] formattedNames = formatter.getRetVarNames();
+			
 			ClusteringVizPlaySheet ps = new ClusteringVizPlaySheet();
 			
 			errorHash.put("Message", "Cannot cluster using specified categories.");
@@ -128,10 +161,10 @@ public class EngineAnalyticsResource {
 			}
 			
 			try {
-				ps.setMasterList(filteredList);
-				ps.setMasterNames(names);
-				ps.setList(filteredList);
-				ps.setNames(filteredNames);
+				ps.setMasterList(formattedList);
+				ps.setMasterNames(formattedNames);
+				ps.setList(formattedList);
+				ps.setNames(formattedNames);
 				ps.runAlgorithm();
 				ps.processQueryData();
 			} catch (NullPointerException e) {
@@ -298,6 +331,7 @@ public class EngineAnalyticsResource {
 				}
 				ps.setbColumnIndex(bColumnIndex);
 			}
+			ps.setIncludesInstance(false);
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
 			ps.setList(filteredList);
@@ -311,6 +345,7 @@ public class EngineAnalyticsResource {
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
 		} else if (algorithm.equals("NumericalCorrelation")) {
 			NumericalCorrelationVizPlaySheet ps = new NumericalCorrelationVizPlaySheet();
+			ps.setIncludesInstance(false);
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
 			ps.setList(filteredList);
