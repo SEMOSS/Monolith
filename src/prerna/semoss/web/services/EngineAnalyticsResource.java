@@ -88,6 +88,8 @@ public class EngineAnalyticsResource {
 	@POST
 	@Path("/runAlgorithm")
 	public Response runAlgorithm(MultivaluedMap<String, String> form) {
+		String algorithm = form.getFirst("algorithm");
+
 		Gson gson = new Gson();
 		//TODO: move to keeping state on back-end
 		String query = form.getFirst("query");
@@ -99,8 +101,9 @@ public class EngineAnalyticsResource {
 		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
 
 		String instanceIDString = form.getFirst("instanceID");
-		if(instanceIDString != null) {
-			int instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class) + 1;
+		int instanceID = 0;
+		if(instanceIDString != null && algorithm.equals("Clustering")) {
+			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class) + 1;
 			String select = query;
 			String[] selectSplit = select.split("\\?");
 			if(instanceID != 0) {
@@ -138,12 +141,11 @@ public class EngineAnalyticsResource {
 		String[] filteredNames = ArrayUtilityMethods.filterArray(names, includeColArr);
 		ArrayList<Object[]> filteredList = ArrayListUtilityMethods.filterList(list,includeColArr);
 		
-		String algorithm = form.getFirst("algorithm");
 		ArrayList<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
 		Hashtable<String, Object> data = new Hashtable<String, Object>();
 		Hashtable<String, String> errorHash = new Hashtable<String, String>();
 		
-		if (algorithm.equals("Clustering")) {
+		if(algorithm.equals("Clustering")) {
 			// format the data before sending into algorithm
 			ClusterRemoveDuplicates formatter = new ClusterRemoveDuplicates(filteredList, filteredNames);
 			ArrayList<Object[]> formattedList = formatter.getRetMasterTable();
@@ -221,17 +223,15 @@ public class EngineAnalyticsResource {
 			
 		} else if (algorithm.equals("Classify")) {
 			WekaClassificationPlaySheet ps = new WekaClassificationPlaySheet();
-			if(configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
-				Integer classColumn = Integer.parseInt(configParameters.get(0));
-				String propName = names[classColumn];
-				classColumn = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
-				if(classColumn == -1) {
-					errorHash.put("Message", "Must select column " + propName + " in filter param list to run classificaiton on it.");
-					errorHash.put("Class", ps.getClass().getName());
-					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-				}
-				ps.setClassColumn(classColumn);
+			// instance id is the prop being classified for
+			String propName = names[instanceID];
+			int classColumn = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
+			if(classColumn == -1) {
+				errorHash.put("Message", "Must select column " + propName + " in filter param list to run classificaiton on it.");
+				errorHash.put("Class", ps.getClass().getName());
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
+			ps.setClassColumn(classColumn);
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
 			ps.setList(filteredList);
@@ -320,17 +320,15 @@ public class EngineAnalyticsResource {
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
 		} else if (algorithm.equals("MatrixRegression")) {
 			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
-			if(configParameters.get(0) != null  && !configParameters.get(0).isEmpty()) {
-				Integer bColumnIndex = Integer.parseInt(configParameters.get(0));
-				String propName = names[bColumnIndex];
-				bColumnIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
-				if(bColumnIndex == -1) {
-					errorHash.put("Message", "Must select column " + propName + " in filter param list to run matrix regression on it.");
-					errorHash.put("Class", ps.getClass().getName());
-					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-				}
-				ps.setbColumnIndex(bColumnIndex);
+			// instance id is the prop being approximated for
+			String propName = names[instanceID];
+			int bColumnIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
+			if(bColumnIndex == -1) {
+				errorHash.put("Message", "Must select column " + propName + " in filter param list to run classificaiton on it.");
+				errorHash.put("Class", ps.getClass().getName());
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
+			ps.setbColumnIndex(bColumnIndex);
 			ps.setIncludesInstance(false);
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
