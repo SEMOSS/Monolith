@@ -224,6 +224,7 @@ public class EngineAnalyticsResource {
 		} else if (algorithm.equals("Classify")) {
 			WekaClassificationPlaySheet ps = new WekaClassificationPlaySheet();
 			// instance id is the prop being classified for
+			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class);
 			String propName = names[instanceID];
 			int classColumn = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
 			if(classColumn == -1) {
@@ -321,6 +322,7 @@ public class EngineAnalyticsResource {
 		} else if (algorithm.equals("MatrixRegression")) {
 			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
 			// instance id is the prop being approximated for
+			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class);
 			String propName = names[instanceID];
 			int bColumnIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
 			if(bColumnIndex == -1) {
