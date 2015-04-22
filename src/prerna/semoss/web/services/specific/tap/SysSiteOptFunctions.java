@@ -30,10 +30,10 @@ public class SysSiteOptFunctions extends AbstractControlClick {
     @Produces("application/json")
 	public StreamingOutput refreshDataRegion(MultivaluedMap<String, String> form, 
             @Context HttpServletRequest request) {
-		Hashtable retHash = new Hashtable();
+
 		Gson gson = new Gson();
         Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-        //Hashtable retHash = ((SysSiteOptPlaySheet) playsheet).method();
+        Hashtable retHash = ((SysSiteOptPlaySheet) playsheet).getSystems(webDataHash);
 		return WebUtility.getSO(retHash);
 	}
 
