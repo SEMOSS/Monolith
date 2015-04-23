@@ -46,6 +46,8 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
+import prerna.auth.User;
+import prerna.auth.UserPermissionsMasterDB;
 import prerna.rdf.engine.api.IEngine;
 import prerna.rdf.engine.impl.AbstractEngine;
 import prerna.rdf.engine.impl.QuestionAdministrator;
@@ -111,9 +113,17 @@ public class DBAdminResource {
 		}
 		else if(enginesString!=null){
 			Vector<String> engines = gson.fromJson(enginesString, Vector.class);
+			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 			for(String engineString: engines){
 				IEngine engine = getEngine(engineString, request);
 				deleteEngine(engine, request);
+				if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
+						permissions.deleteEngine(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), engineString);
+					} else {
+						return Response.status(400).entity("Please log in to delete databases.").build();
+					}
+				}
 			}
 		}
   		return Response.status(200).entity(WebUtility.getSO("success")).build();
