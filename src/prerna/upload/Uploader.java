@@ -57,6 +57,8 @@ import prerna.error.FileWriterException;
 import prerna.error.HeaderClassException;
 import prerna.error.NLPException;
 import prerna.rdf.engine.api.IEngine;
+import prerna.auth.User;
+import prerna.auth.UserPermissionsMasterDB;
 import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
@@ -283,6 +285,15 @@ public class Uploader extends HttpServlet {
 		//call the right process method with correct parameters
 		String dbName = inputData.get("dbName");
 		
+		//Add engine owner for permissions
+		if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+			if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
+				addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+			} else {
+				return Response.status(400).entity("Please log in to upload data.").build();
+			}
+		}
+		
 		String dataOutputType = inputData.get("dataOutputType");
 		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
 		if(dataOutputType.equalsIgnoreCase("RDBMS"))
@@ -367,11 +378,31 @@ public class Uploader extends HttpServlet {
 		try {
 			if(methodString.equals("Create new database engine")) {
 				dbName = inputData.get("newDBname");
+				
+				//Add engine owner for permissions
+				if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
+						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+					} else {
+						return Response.status(400).entity("Please log in to upload data.").build();
+					}
+				}
+				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
 						inputData.get("customBaseURI"), dbName,"","","","", storeType);
 				loadEngineIntoSession(request, dbName);
 			} else {
 				dbName = inputData.get("addDBname");
+				
+				//Add engine owner for permissions
+				if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
+						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+					} else {
+						return Response.status(400).entity("Please log in to upload data.").build();
+					}
+				}
+				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
 						inputData.get("customBaseURI"), "","","","", dbName, storeType);
 			}
@@ -429,11 +460,27 @@ public class Uploader extends HttpServlet {
 		try {
 			if(methodString.equals("Create new database engine")) {
 				dbName = inputData.get("newDBname");
+				//Add engine owner for permissions
+				if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
+						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+					} else {
+						return Response.status(400).entity("Please log in to upload data.").build();
+					}
+				}
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
 						inputData.get("customBaseURI")+"", dbName,"","","","", storeType);
 				loadEngineIntoSession(request, dbName);
 			} else {
 				dbName = inputData.get("addDBname");
+				//Add engine owner for permissions
+				if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
+						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+					} else {
+						return Response.status(400).entity("Please log in to upload data.").build();
+					}
+				}
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
 						inputData.get("customBaseURI")+"", "","","","", dbName, storeType);
 			}
@@ -494,5 +541,10 @@ public class Uploader extends HttpServlet {
 
 		String outputText = "R2RQ Loading was a success.";
 		return Response.status(200).entity(outputText).build();
+	}
+	
+	public void addEngineOwner(String engine, String userId) {
+		UserPermissionsMasterDB masterDB = new UserPermissionsMasterDB();
+		masterDB.addEngineOwner(engine, userId);
 	}
 }
