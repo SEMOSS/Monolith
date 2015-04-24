@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Vector;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
@@ -62,6 +63,7 @@ public class DBAdminResource {
 
 	final static int MAX_CHAR = 100;
 	Logger logger = Logger.getLogger(DBAdminResource.class.getName());
+	boolean securityEnabled;
 
 	@POST
 	@Path("/delete")
@@ -117,7 +119,7 @@ public class DBAdminResource {
 			for(String engineString: engines){
 				IEngine engine = getEngine(engineString, request);
 				deleteEngine(engine, request);
-				if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+				if(this.securityEnabled) {
 					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
 						permissions.deleteEngine(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), engineString);
 					} else {
@@ -241,13 +243,15 @@ public class DBAdminResource {
 			e.printStackTrace();
 			return false;
 		}
-		
-		
 	}
   	
   	private AbstractEngine getEngine(String engineName, HttpServletRequest request){
 		HttpSession session = request.getSession();
 		AbstractEngine engine = (AbstractEngine)session.getAttribute(engineName);
 		return engine;
+  	}
+  	
+  	public void setSecurityEnabled(boolean securityEnabled) {
+  		this.securityEnabled = securityEnabled;
   	}
 }
