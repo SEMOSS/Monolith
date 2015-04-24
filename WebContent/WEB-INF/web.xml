@@ -32,6 +32,10 @@
     <url-pattern>/api/*</url-pattern>
   </servlet-mapping>
   <context-param>
+    <param-name>security-enabled</param-name>
+    <param-value>true</param-value>
+  </context-param>
+  <context-param>
     <description>Location to store uploaded file</description>
     <param-name>file-upload</param-name>
     <param-value>
@@ -52,17 +56,6 @@
          C:\\Development\\semossworkspace\\Semoss\\RDF_Map.prop
      </param-value>
   </context-param>
-
-  <servlet>
-    <description></description>
-    <display-name>Uploader</display-name>
-    <servlet-name>Uploader</servlet-name>
-    <servlet-class>prerna.upload.Uploader</servlet-class>
-  </servlet>
-  <servlet-mapping>
-    <servlet-name>Uploader</servlet-name>
-    <url-pattern>/Uploader</url-pattern>
-  </servlet-mapping>
   <listener>
     <listener-class>
         prerna.web.conf.DBLoader

@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -49,13 +50,12 @@ import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.auth.EnginePermission;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
 
 @Path("/authorization")
 public class AuthorizationResource
 {
-
+	@Context ServletContext context;
 	String output = "";
 	private final UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 	
@@ -69,7 +69,7 @@ public class AuthorizationResource
 		Hashtable<String, ArrayList<Hashtable<String, String>>> ret = new Hashtable<String, ArrayList<Hashtable<String, String>>>();
 		ArrayList<Hashtable<String, String>> allEngines = new ArrayList<Hashtable<String, String>>((ArrayList<Hashtable<String, String>>)request.getSession().getAttribute(Constants.ENGINES));
 		
-		if(!Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+		if(!Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
 			ret.put("engines", allEngines);
 			return WebUtility.getSO(ret);
 		}

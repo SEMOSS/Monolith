@@ -80,13 +80,19 @@ public class Uploader extends HttpServlet {
 
 	String filePath;
 	String tempFilePath = "";
-
+	
+	boolean securityEnabled;
+	
 	public void setFilePath(String filePath){
 		this.filePath = filePath;
 	}
 
 	public void setTempFilePath(String tempFilePath){
 		this.tempFilePath = tempFilePath;
+	}
+	
+	public void setSecurityEnabled(boolean securityEnabled) {
+		this.securityEnabled = securityEnabled;
 	}
 
 	public void writeFile(FileItem fi, File file){
@@ -105,7 +111,7 @@ public class Uploader extends HttpServlet {
 			// maximum size that will be stored in memory
 			factory.setSizeThreshold(maxMemSize);
 			// Location to save data that is larger than maxMemSize.
-			factory.setRepository(new File(tempFilePath)); //removing hard code to C:\\temp, get from web.xml tag temp-file-upload
+			factory.setRepository(new File(tempFilePath));
 			// Create a new file upload handler
 			ServletFileUpload upload = new ServletFileUpload(factory);
 			// maximum file size to be uploaded.
@@ -286,7 +292,7 @@ public class Uploader extends HttpServlet {
 		String dbName = inputData.get("dbName");
 		
 		//Add engine owner for permissions
-		if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+		if(this.securityEnabled) {
 			if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
 				addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
 			} else {
@@ -380,7 +386,7 @@ public class Uploader extends HttpServlet {
 				dbName = inputData.get("newDBname");
 				
 				//Add engine owner for permissions
-				if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+				if(this.securityEnabled) {
 					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
 						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
 					} else {
@@ -395,7 +401,7 @@ public class Uploader extends HttpServlet {
 				dbName = inputData.get("addDBname");
 				
 				//Add engine owner for permissions
-				if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+				if(this.securityEnabled) {
 					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
 						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
 					} else {
@@ -461,7 +467,7 @@ public class Uploader extends HttpServlet {
 			if(methodString.equals("Create new database engine")) {
 				dbName = inputData.get("newDBname");
 				//Add engine owner for permissions
-				if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+				if(this.securityEnabled) {
 					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
 						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
 					} else {
@@ -474,7 +480,7 @@ public class Uploader extends HttpServlet {
 			} else {
 				dbName = inputData.get("addDBname");
 				//Add engine owner for permissions
-				if(Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.SECURITY_ENABLED))) {
+				if(this.securityEnabled) {
 					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
 						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
 					} else {
