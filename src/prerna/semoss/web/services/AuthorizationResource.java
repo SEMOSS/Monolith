@@ -98,12 +98,17 @@ public class AuthorizationResource
 		Hashtable<String, Object> requestdetails;
 		
 		ArrayList<EngineAccessRequest> reqs = permissions.getEngineAccessRequestsForUser(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+		ArrayList<String> allPermissionsList = new ArrayList<String>();
+		for(EnginePermission ep : EnginePermission.values()) {
+			allPermissionsList.add(ep.getPermissionName());
+		}
 		for(EngineAccessRequest req : reqs) {
 			requestdetails = new Hashtable<String, Object>();
 			requestdetails.put("requestId", req.getRequestId());
 			requestdetails.put("engine", req.getEngineRequested());
 			requestdetails.put("user", req.getUser());
 			requestdetails.put("permissions", new ArrayList<String>(Arrays.asList(req.getPermissionsRequested())));
+			requestdetails.put("allpermissions", allPermissionsList);
 			requests.add(requestdetails);
 		}
 		
