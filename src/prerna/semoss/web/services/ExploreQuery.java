@@ -43,11 +43,13 @@ import javax.ws.rs.core.Response;
 import org.apache.log4j.Logger;
 
 import prerna.rdf.engine.api.IEngine;
+import prerna.rdf.query.builder.AbstractQueryBuilder;
 import prerna.rdf.query.builder.AbstractSPARQLQueryBuilder;
 import prerna.rdf.query.builder.AbstractSpecificQueryBuilder;
 import prerna.rdf.query.builder.IQueryBuilder;
 import prerna.rdf.query.builder.SPARQLQueryGraphBuilder;
 import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
+import prerna.rdf.query.builder.SQLQueryTableBuilder;
 import prerna.rdf.query.builder.SpecificGenericChartQueryBuilder;
 import prerna.rdf.query.builder.SpecificHeatMapQueryBuilder;
 import prerna.rdf.query.builder.SpecificPieChartQueryBuilder;
@@ -104,7 +106,6 @@ public class ExploreQuery {
 	public Response generateExploreQuery(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 		builder.setJSONDataHash(dataHash); // I am not sure we have an idea for why we set this
@@ -127,11 +128,18 @@ public class ExploreQuery {
 		
 		String layout = form.getFirst("SelectedLayout").replace("\"", "");
 		
-		AbstractSPARQLQueryBuilder customViz = null;
+		AbstractQueryBuilder customViz = null;
+		
 		if(layout.equals("ForceGraph"))
 			customViz = new SPARQLQueryGraphBuilder();
-		else
-			customViz = new SPARQLQueryTableBuilder();
+		else {
+			if(coreEngine.getEngineType() != IEngine.ENGINE_TYPE.RDBMS){
+				customViz = new SPARQLQueryTableBuilder();
+			} else {
+				customViz = new SQLQueryTableBuilder(coreEngine);
+			}
+		}
+		
 		
 //		customViz.setPropV(nodePropArray);
 		
@@ -226,7 +234,7 @@ public class ExploreQuery {
 			for(String key : keySet) {
 				labelList.add(colLabelHash.get(key).get(0));
 			}
-			if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE)
+			if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
 				abstractQuery = new SpecificTableQueryBuilder(labelList, parameters, semossQuery);
 			else
 				abstractQuery = null;
