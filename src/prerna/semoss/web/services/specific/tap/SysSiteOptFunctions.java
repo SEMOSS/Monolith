@@ -36,5 +36,17 @@ public class SysSiteOptFunctions extends AbstractControlClick {
         Hashtable retHash = ((SysSiteOptPlaySheet) playsheet).getSystems(webDataHash);
 		return WebUtility.getSO(retHash);
 	}
+	
+	@POST
+	@Path("runopt")
+    @Produces("application/json")
+	public StreamingOutput runSysSiteOptimization(MultivaluedMap<String, String> form, 
+            @Context HttpServletRequest request) {
+		Gson gson = new Gson();
+        Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+        Hashtable retHash = new Hashtable();
+        //((SysSiteOptPlaySheet) playsheet).runOpt(webDataHash);
+		return WebUtility.getSO(retHash);
+	}
 
 }
