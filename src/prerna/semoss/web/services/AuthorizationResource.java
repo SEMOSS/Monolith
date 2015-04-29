@@ -130,14 +130,14 @@ public class AuthorizationResource
 	
 	@POST
 	@Produces("application/json")
-	@Path("approveEngineAccessRequest")
+	@Path("processEngineAccessRequest")
 	public Response approveEngineAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, Boolean> ret = new Hashtable<String, Boolean>();
 		Gson gson = new Gson();
 		String requestId = form.getFirst("requestId");
 		ArrayList<String> enginePermissions = gson.fromJson(form.getFirst("permissions"), ArrayList.class);
 		
-		boolean success = permissions.approveEngineAccessRequest(requestId, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), enginePermissions.toArray(new String[enginePermissions.size()]));
+		boolean success = permissions.processEngineAccessRequest(requestId, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), enginePermissions.toArray(new String[enginePermissions.size()]));
 		
 		ret.put("success", success);
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
