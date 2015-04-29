@@ -12,7 +12,16 @@
     <filter-name>UserDBFilter</filter-name>
     <url-pattern>/api/*</url-pattern>
   </filter-mapping>
+  <filter>
+    <filter-name>UserDBInsightFilter</filter-name>
+    <filter-class>prerna.web.conf.UserDBInsightFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>UserDBInsightFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+  </filter-mapping>
   <absolute-ordering>
+  	<name>UserDBInsightFilter</name>
     <name>UserDBFilter</name>
   </absolute-ordering>
   <servlet>
