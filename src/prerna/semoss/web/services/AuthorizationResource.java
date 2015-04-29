@@ -107,7 +107,6 @@ public class AuthorizationResource
 			requestdetails.put("requestId", req.getRequestId());
 			requestdetails.put("engine", req.getEngineRequested());
 			requestdetails.put("user", req.getUser());
-			requestdetails.put("permissions", new ArrayList<String>(Arrays.asList(req.getPermissionsRequested())));
 			requestdetails.put("allpermissions", allPermissionsList);
 			requests.add(requestdetails);
 		}
@@ -121,11 +120,9 @@ public class AuthorizationResource
 	@Path("addEngineAccessRequest")
 	public Response addEngineAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, Boolean> ret = new Hashtable<String, Boolean>();
-		Gson gson = new Gson();
 		String engineName = form.getFirst("engine");
-		ArrayList<String> enginePermissions = gson.fromJson(form.getFirst("permissions"), ArrayList.class);
 		
-		boolean success = permissions.addEngineAccessRequest(engineName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), enginePermissions.toArray(new String[enginePermissions.size()]));
+		boolean success = permissions.addEngineAccessRequest(engineName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
 		
 		ret.put("success", success);
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
