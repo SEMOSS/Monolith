@@ -133,11 +133,7 @@ public class ExploreQuery {
 		if(layout.equals("ForceGraph"))
 			customViz = new SPARQLQueryGraphBuilder();
 		else {
-			if(coreEngine.getEngineType() != IEngine.ENGINE_TYPE.RDBMS){
-				customViz = new SPARQLQueryTableBuilder();
-			} else {
-				customViz = new SQLQueryTableBuilder(coreEngine);
-			}
+			customViz = (AbstractQueryBuilder) coreEngine.getQueryBuilder();
 		}
 		
 		
