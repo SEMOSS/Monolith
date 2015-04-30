@@ -165,11 +165,20 @@ public class ExploreQuery {
 			semossQuery.removeReturnVariables();
 		}
 		
+		
+		
 		LinkedHashMap<String, ArrayList<String>> colLabelHash = new LinkedHashMap<String, ArrayList<String>>();
 		LinkedHashMap<String, ArrayList<String>> colMathHash = new LinkedHashMap<String, ArrayList<String>>();
 		getSelectedValues(selectedVars, colLabelHash, colMathHash);
 		
 		AbstractSpecificQueryBuilder abstractQuery = null;
+		
+		ArrayList<String> labelList = new ArrayList<String>();
+		Set<String> keySet = colLabelHash.keySet();
+		
+		for(String key : keySet) {
+			labelList.add(colLabelHash.get(key).get(0));
+		}
 		
 		if(layout.equals("HeatMap")){	
 			String xAxisColName = colLabelHash.get("X-Axis").get(0);
@@ -177,7 +186,7 @@ public class ExploreQuery {
 			String heatName = colLabelHash.get("Heat").get(0);
 			String heatMathFunc = colMathHash.get("Heat").get(0);
 			
-			abstractQuery = new SpecificHeatMapQueryBuilder(xAxisColName, yAxisColName, heatName, heatMathFunc, parameters, semossQuery);
+			abstractQuery = new SpecificHeatMapQueryBuilder(xAxisColName, yAxisColName, heatName, heatMathFunc, parameters, semossQuery, labelList);
 		}
 		else if(layout.equals("ScatterChart")){
 			String frontEndxAxisName = "X-Axis";
@@ -228,12 +237,6 @@ public class ExploreQuery {
 		//takes care of regular select queries without math functions or changes to select vars
 		else {
 			//This takes in parallel coordinates, world map, grid, and parallel sets
-			ArrayList<String> labelList = new ArrayList<String>();
-			Set<String> keySet = colLabelHash.keySet();
-			
-			for(String key : keySet) {
-				labelList.add(colLabelHash.get(key).get(0));
-			}
 			if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
 				abstractQuery = new SpecificTableQueryBuilder(labelList, parameters, semossQuery);
 			else
@@ -248,8 +251,8 @@ public class ExploreQuery {
 		{
 			abstractQuery.addJoins((ArrayList<ArrayList<String>>)relTriples);
 			abstractQuery.addParameters();
-			abstractQuery.buildQueryR();
-			query = abstractQuery.getQuery();
+			abstractQuery.buildQueryR(); //to do add filter for chart
+			query = abstractQuery.getQuery(); 
 		}else
 		{
 			builder.buildQuery();
