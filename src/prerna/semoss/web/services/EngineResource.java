@@ -27,10 +27,14 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Properties;
 import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 
@@ -72,9 +76,12 @@ import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.helpers.PlaysheetCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
+import prerna.util.ZipDatabase;
 import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.WebUtility;
 
@@ -1069,6 +1076,47 @@ public class EngineResource {
 			HttpSession session = request.getSession(false);
 			session.setAttribute(ps.getQuestionID(), ps);
 		}
+	}
+	
+	@POST
+	@Path("/exportSAR")
+	@Produces("application/json")
+	public Response saveSAR(@QueryParam("outputPath")  String outputPath) {
+		String engineName = coreEngine.getEngineName();
+		System.out.println("closing " + engineName);
+		coreEngine.closeDB();
+		
+		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
+		String insightLoc = baseFolder + "/" + coreEngine.getProperty(Constants.INSIGHTS);
+		File insightFile = new File(insightLoc);
+		File engineFolder = new File(insightFile.getParent());
+		
+		String smss = coreEngine.getSMSS();
+		outputPath = outputPath + "\\" + engineName + ".zip";
+		//TODO: need to throw exceptions properly from the static method saveEngine
+		ZipDatabase.zipEngine(engineFolder.getAbsolutePath(), smss, outputPath);
+
+		// reload the engine
+		FileInputStream fileIn = null;
+		Properties prop = new Properties();
+		try {
+			fileIn = new FileInputStream(smss);
+			prop.load(fileIn);			
+			Utility.loadEngine(smss, prop);
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if(fileIn != null) {
+					fileIn.close();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		String successString = "Zip file with DB contentes found at " + outputPath;
+		return Response.status(200).entity(WebUtility.getSO(successString)).build();
 	}
 	
 }
