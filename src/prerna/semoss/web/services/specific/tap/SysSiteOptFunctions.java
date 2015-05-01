@@ -28,7 +28,7 @@ public class SysSiteOptFunctions extends AbstractControlClick {
 	@POST
 	@Path("update")
     @Produces("application/json")
-	public StreamingOutput refreshDataRegion(MultivaluedMap<String, String> form, 
+	public StreamingOutput updateSystemListData(MultivaluedMap<String, String> form, 
             @Context HttpServletRequest request) {
 
 		Gson gson = new Gson();
@@ -45,6 +45,22 @@ public class SysSiteOptFunctions extends AbstractControlClick {
 		Gson gson = new Gson();
         Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
         Hashtable retHash = ((SysSiteOptPlaySheet) playsheet).runOpt(webDataHash);
+		return WebUtility.getSO(retHash);
+	}
+	
+	@POST
+	@Path("overview")
+    @Produces("application/json")
+	public StreamingOutput getOverviewPageData(MultivaluedMap<String, String> form, 
+            @Context HttpServletRequest request) {
+		Gson gson = new Gson();
+		Hashtable retHash = new Hashtable();
+        Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+        String type = (String) webDataHash.get("type");
+        if (type.equals("info"))
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewInfoData();
+        if (type.equals("cost"))
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewCostData();
 		return WebUtility.getSO(retHash);
 	}
 
