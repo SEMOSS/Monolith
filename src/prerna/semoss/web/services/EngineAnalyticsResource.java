@@ -216,7 +216,7 @@ public class EngineAnalyticsResource {
 			ps.processQueryData();
 			data = (Hashtable) ps.getData();
 			if (data.get("headers") == null || data.get("data") == null) {
-				errorHash.put("Message", "Headers and/or data missing.");
+				errorHash.put("Message", "Error processing query.");
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
