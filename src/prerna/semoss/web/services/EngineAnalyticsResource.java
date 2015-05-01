@@ -85,68 +85,67 @@ public class EngineAnalyticsResource {
 		return Response.status(200).entity(WebUtility.getSO(algorithmList)).build();
 	}
 	
-	
 	@POST
 	@Path("/runAlgorithm")
 	public Response runAlgorithm(MultivaluedMap<String, String> form) {
 		String algorithm = form.getFirst("algorithm");
-
+		
 		Gson gson = new Gson();
-		//TODO: move to keeping state on back-end
+		// TODO: move to keeping state on back-end
 		String query = form.getFirst("query");
 		if (query.contains("+++")) {
 			query = query.substring(0, query.indexOf("+++"));
 		}
 		
-		//TODO: add to interface to work for any column instance is located
+		// TODO: add to interface to work for any column instance is located
 		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
-
+		
 		String instanceIDString = form.getFirst("instanceID");
 		int instanceID = 0;
-		if(instanceIDString != null && (algorithm.equals("Clustering") || algorithm.equals("SOM")) ) {
+		if (instanceIDString != null && (algorithm.equals("Clustering") || algorithm.equals("SOM"))) {
 			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class) + 1;
 			String select = query;
 			String[] selectSplit = select.split("\\?");
-			if(instanceID != 0) {
+			if (instanceID != 0) {
 				// swap location of instanceID to be first output in return
 				String newInstance = selectSplit[instanceID];
 				String temp = selectSplit[1];
 				selectSplit[1] = newInstance;
 				selectSplit[instanceID] = temp;
 				query = selectSplit[0] + " ";
-				for(int i = 1; i < selectSplit.length; i++) {
+				for (int i = 1; i < selectSplit.length; i++) {
 					query = query + " ?" + selectSplit[i];
 				}
 				
 				// also need to update the boolean array with new format
 				// instance must always be present
 				// only need to check if we include the column being changed with instance
-				includeColArr[instanceID-1] = includeColArr[0];
+				includeColArr[instanceID - 1] = includeColArr[0];
 				includeColArr[0] = true;
 			}
 		}
 		
-		//TODO: shift all of this to IAnalaytics interface
+		// TODO: shift all of this to IAnalaytics interface
 		ISelectWrapper sjsw = Utility.processQuery(engine, query);
 		String[] names = sjsw.getVariables();
 		int numCol = names.length;
 		ArrayList<Object[]> list = new ArrayList<Object[]>();
-		while(sjsw.hasNext()) {
+		while (sjsw.hasNext()) {
 			ISelectStatement sjss = sjsw.next();
 			Object[] vals = new Object[numCol];
-			for(int i = 0; i < numCol; i++) {
+			for (int i = 0; i < numCol; i++) {
 				vals[i] = sjss.getVar(names[i]);
 			}
 			list.add(vals);
 		}
 		String[] filteredNames = ArrayUtilityMethods.filterArray(names, includeColArr);
-		ArrayList<Object[]> filteredList = ArrayListUtilityMethods.filterList(list,includeColArr);
+		ArrayList<Object[]> filteredList = ArrayListUtilityMethods.filterList(list, includeColArr);
 		
 		ArrayList<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
 		Hashtable<String, Object> data = new Hashtable<String, Object>();
 		Hashtable<String, String> errorHash = new Hashtable<String, String>();
 		
-		if(algorithm.equals("Clustering")) {
+		if (algorithm.equals("Clustering")) {
 			LOGGER.info("Running Clustering on " + engine.getEngineName() + "...");
 			// format the data before sending into algorithm
 			ClusterRemoveDuplicates formatter = new ClusterRemoveDuplicates(filteredList, filteredNames);
@@ -216,6 +215,11 @@ public class EngineAnalyticsResource {
 			ps.setNames(filteredNames);
 			ps.processQueryData();
 			data = (Hashtable) ps.getData();
+			if (data.get("headers") == null || data.get("data") == null) {
+				errorHash.put("Message", "Headers and/or data missing.");
+				errorHash.put("Class", ps.getClass().getName());
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
 			data.remove("id");
 			data.put("title", "Association Learning: Apriori Algorithm");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
@@ -227,7 +231,7 @@ public class EngineAnalyticsResource {
 			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class);
 			String propName = names[instanceID];
 			int classColumn = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
-			if(classColumn == -1) {
+			if (classColumn == -1) {
 				errorHash.put("Message", "Must select column " + propName + " in filter param list to run classificaiton on it.");
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
@@ -322,7 +326,7 @@ public class EngineAnalyticsResource {
 			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class);
 			String propName = names[instanceID];
 			int bColumnIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
-			if(bColumnIndex == -1) {
+			if (bColumnIndex == -1) {
 				errorHash.put("Message", "Must select column " + propName + " in filter param list to run classificaiton on it.");
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
@@ -351,7 +355,7 @@ public class EngineAnalyticsResource {
 			data.remove("id");
 			data.put("title", "Numerical Correlation Algorithm");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
-		} else if(algorithm.equals("SOM")) {
+		} else if (algorithm.equals("SOM")) {
 			LOGGER.info("Running SOM on " + engine.getEngineName() + "...");
 			SelfOrganizingMap3DBarChartPlaySheet ps = new SelfOrganizingMap3DBarChartPlaySheet();
 			ps.setRDFEngine(engine);
