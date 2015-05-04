@@ -69,6 +69,7 @@ public class UserDBInsightFilter implements Filter {
 			ArrayList<String> userEngines = permissions.getUserAccessibleEngines(userId);
 			if(securityEnabled && !userEngines.contains(engineName)) {
 				HttpServletResponse response = (HttpServletResponse) arg1;
+				response.addHeader("userId", userId);
 				response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
 				return;
 			}
