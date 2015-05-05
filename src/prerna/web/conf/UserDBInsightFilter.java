@@ -56,22 +56,24 @@ public class UserDBInsightFilter implements Filter {
 		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		
-		String requestURI = ((HttpServletRequest) arg0).getRequestURI();
-		if(requestURI.contains(engineAPIPath)) {
-			String requestPathWithEngine = requestURI.substring(requestURI.indexOf(engineAPIPath) + engineAPIPath.length()); 
-			String engineName = requestPathWithEngine.substring(0, requestPathWithEngine.indexOf("/"));
-			
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			String userId = "";
-			if(user!= null) {
-				userId = user.getId();
-			}
-			ArrayList<String> userEngines = permissions.getUserAccessibleEngines(userId);
-			if(securityEnabled && !userEngines.contains(engineName)) {
-				HttpServletResponse response = (HttpServletResponse) arg1;
-				response.addHeader("userId", userId);
-				response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-				return;
+		if(securityEnabled) {
+			String requestURI = ((HttpServletRequest) arg0).getRequestURI();
+			if(requestURI.contains(engineAPIPath)) {
+				String requestPathWithEngine = requestURI.substring(requestURI.indexOf(engineAPIPath) + engineAPIPath.length()); 
+				String engineName = requestPathWithEngine.substring(0, requestPathWithEngine.indexOf("/"));
+				
+				User user = ((User) session.getAttribute(Constants.SESSION_USER));
+				String userId = "";
+				if(user!= null) {
+					userId = user.getId();
+				}
+				ArrayList<String> userEngines = permissions.getUserAccessibleEngines(userId);
+				if(!engineName.equals(Constants.LOCAL_MASTER_DB_NAME) && !userEngines.contains(engineName)) {
+					HttpServletResponse response = (HttpServletResponse) arg1;
+					response.addHeader("userId", userId);
+					response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+					return;
+				}
 			}
 		}
 		arg2.doFilter(arg0, arg1);
