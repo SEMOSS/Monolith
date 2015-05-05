@@ -182,7 +182,7 @@ public class ExploreQuery {
 			String heatName = colLabelHash.get("Heat").get(0);
 			String heatMathFunc = colMathHash.get("Heat").get(0);
 			
-			abstractQuery = new SpecificHeatMapQueryBuilder(xAxisColName, yAxisColName, heatName, heatMathFunc, parameters, semossQuery, labelList);
+			abstractQuery = new SpecificHeatMapQueryBuilder(xAxisColName, yAxisColName, heatName, heatMathFunc, parameters, semossQuery);
 		}
 		else if(layout.equals("ScatterChart")){
 			String frontEndxAxisName = "X-Axis";
