@@ -37,8 +37,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import prerna.rdf.engine.impl.AbstractEngine;
-import prerna.rdf.engine.impl.QuestionAdministrator;
+import prerna.engine.impl.AbstractEngine;
+import prerna.engine.impl.QuestionAdministrator;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;

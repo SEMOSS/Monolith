@@ -54,14 +54,14 @@ import org.apache.log4j.Logger;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
+import prerna.engine.api.IEngine;
+import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.error.EngineException;
 import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.DeleteFromMasterDB;
 import prerna.nameserver.SearchEngineMasterDB;
 import prerna.nameserver.SearchMasterDB;
-import prerna.rdf.engine.api.IEngine;
-import prerna.rdf.engine.impl.RemoteSemossSesameEngine;
 import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
@@ -280,7 +280,6 @@ public class NameServer {
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
-		upload.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
 		return upload;
 	}
 
@@ -510,7 +509,7 @@ public class NameServer {
   	@Path("/dbAdmin")
 	public Object modifyInsight(@Context HttpServletRequest request) {
   		DBAdminResource questionAdmin = new DBAdminResource();
-  		questionAdmin.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
+
 		return questionAdmin;
 	}
   	

@@ -51,14 +51,14 @@ import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.io.FileUtils;
 
+import prerna.auth.User;
+import prerna.auth.UserPermissionsMasterDB;
+import prerna.engine.api.IEngine;
 import prerna.error.EngineException;
 import prerna.error.FileReaderException;
 import prerna.error.FileWriterException;
 import prerna.error.HeaderClassException;
 import prerna.error.NLPException;
-import prerna.rdf.engine.api.IEngine;
-import prerna.auth.User;
-import prerna.auth.UserPermissionsMasterDB;
 import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
