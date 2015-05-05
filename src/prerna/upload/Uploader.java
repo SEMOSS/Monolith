@@ -293,8 +293,9 @@ public class Uploader extends HttpServlet {
 		
 		//Add engine owner for permissions
 		if(this.securityEnabled) {
-			if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
-				addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+				addEngineOwner(dbName, ((User) user).getId());
 			} else {
 				return Response.status(400).entity("Please log in to upload data.").build();
 			}
@@ -387,8 +388,9 @@ public class Uploader extends HttpServlet {
 				
 				//Add engine owner for permissions
 				if(this.securityEnabled) {
-					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
-						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+					Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+						addEngineOwner(dbName, ((User) user).getId());
 					} else {
 						return Response.status(400).entity("Please log in to upload data.").build();
 					}
@@ -402,8 +404,9 @@ public class Uploader extends HttpServlet {
 				
 				//Add engine owner for permissions
 				if(this.securityEnabled) {
-					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
-						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+					Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+						addEngineOwner(dbName, ((User) user).getId());
 					} else {
 						return Response.status(400).entity("Please log in to upload data.").build();
 					}
@@ -468,12 +471,14 @@ public class Uploader extends HttpServlet {
 				dbName = inputData.get("newDBname");
 				//Add engine owner for permissions
 				if(this.securityEnabled) {
-					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
-						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+					Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+						addEngineOwner(dbName, ((User) user).getId());
 					} else {
 						return Response.status(400).entity("Please log in to upload data.").build();
 					}
 				}
+				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
 						inputData.get("customBaseURI")+"", dbName,"","","","", storeType);
 				loadEngineIntoSession(request, dbName);
@@ -481,12 +486,14 @@ public class Uploader extends HttpServlet {
 				dbName = inputData.get("addDBname");
 				//Add engine owner for permissions
 				if(this.securityEnabled) {
-					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
-						addEngineOwner(dbName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+					Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+						addEngineOwner(dbName, ((User) user).getId());
 					} else {
 						return Response.status(400).entity("Please log in to upload data.").build();
 					}
 				}
+				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
 						inputData.get("customBaseURI")+"", "","","","", dbName, storeType);
 			}
