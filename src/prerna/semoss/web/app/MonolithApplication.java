@@ -33,6 +33,7 @@ import java.util.Set;
 
 import javax.ws.rs.core.Application;
 
+import prerna.semoss.web.services.AuthorizationResource;
 import prerna.semoss.web.services.NameServer;
 import prerna.semoss.web.services.UserResource;
 
@@ -40,9 +41,9 @@ public class MonolithApplication extends Application {
    private Set<Object> singletons = new HashSet<Object>();
 
    public MonolithApplication() {
-	  System.out.println("Invoked this >>>>>>. ");
       singletons.add(new UserResource());
       singletons.add(new NameServer());
+      singletons.add(new AuthorizationResource());
    }
 
    @Override
