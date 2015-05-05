@@ -42,14 +42,11 @@ import javax.ws.rs.core.Response;
 
 import org.apache.log4j.Logger;
 
-import prerna.rdf.engine.api.IEngine;
+import prerna.engine.api.IEngine;
 import prerna.rdf.query.builder.AbstractQueryBuilder;
-import prerna.rdf.query.builder.AbstractSPARQLQueryBuilder;
 import prerna.rdf.query.builder.AbstractSpecificQueryBuilder;
 import prerna.rdf.query.builder.IQueryBuilder;
 import prerna.rdf.query.builder.SPARQLQueryGraphBuilder;
-import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
-import prerna.rdf.query.builder.SQLQueryTableBuilder;
 import prerna.rdf.query.builder.SpecificGenericChartQueryBuilder;
 import prerna.rdf.query.builder.SpecificHeatMapQueryBuilder;
 import prerna.rdf.query.builder.SpecificPieChartQueryBuilder;
@@ -106,6 +103,7 @@ public class ExploreQuery {
 	public Response generateExploreQuery(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
+		
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 		builder.setJSONDataHash(dataHash); // I am not sure we have an idea for why we set this
@@ -129,13 +127,11 @@ public class ExploreQuery {
 		String layout = form.getFirst("SelectedLayout").replace("\"", "");
 		
 		AbstractQueryBuilder customViz = null;
-		
 		if(layout.equals("ForceGraph"))
 			customViz = new SPARQLQueryGraphBuilder();
 		else {
 			customViz = (AbstractQueryBuilder) coreEngine.getQueryBuilder();
 		}
-		
 		
 //		customViz.setPropV(nodePropArray);
 		
@@ -160,8 +156,6 @@ public class ExploreQuery {
 		if(!layout.equals("GridTable")) {
 			semossQuery.removeReturnVariables();
 		}
-		
-		
 		
 		LinkedHashMap<String, ArrayList<String>> colLabelHash = new LinkedHashMap<String, ArrayList<String>>();
 		LinkedHashMap<String, ArrayList<String>> colMathHash = new LinkedHashMap<String, ArrayList<String>>();
@@ -247,8 +241,8 @@ public class ExploreQuery {
 		{
 			abstractQuery.addJoins((ArrayList<ArrayList<String>>)relTriples);
 			abstractQuery.addParameters();
-			abstractQuery.buildQueryR(); //to do add filter for chart
-			query = abstractQuery.getQuery(); 
+			abstractQuery.buildQueryR();
+			query = abstractQuery.getQuery();
 		}else
 		{
 			builder.buildQuery();

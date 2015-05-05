@@ -29,7 +29,7 @@ package prerna.web.services.util;
 
 import java.util.Hashtable;
 
-import prerna.rdf.engine.api.IRemoteQueryable;
+import prerna.engine.api.IRemoteQueryable;
 import prerna.util.DIHelper;
 
 public class QueryResultHash {

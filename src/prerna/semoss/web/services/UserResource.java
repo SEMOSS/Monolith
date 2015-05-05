@@ -50,14 +50,13 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
-import prerna.auth.User;
-import prerna.auth.UserPermissionsMasterDB;
-import prerna.util.Constants;
+import prerna.auth.SEMOSSPrincipal;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
 
@@ -66,6 +65,8 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeToken
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson.JacksonFactory;
@@ -76,25 +77,30 @@ import com.google.gson.internal.StringMap;
 import com.restfb.DefaultFacebookClient;
 import com.restfb.FacebookClient;
 import com.restfb.Parameter;
+import com.restfb.types.User;
 import com.sun.jna.platform.win32.Secur32;
 import com.sun.jna.platform.win32.Secur32Util;
 
 @Path("/auth")
 public class UserResource
 {
+
 	String output = "";
 	private final HttpTransport TRANSPORT = new NetHttpTransport();
 	private final JacksonFactory JSON_FACTORY = new JacksonFactory();
 	private final Gson GSON = new Gson();
 	
+	public static enum LOGIN_TYPES {google, facebook};
+	
 	private final String GOOGLE_CLIENT_SECRET = "VNIxZUbsMj-wV5CNDwF5gXcV";	
+	private final String GOOGLE_VALID_TOKEN_CHECK = "https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=";
+	private final String GOOGLE_ACCESS_TOKEN_REVOKE = "https://accounts.google.com/o/oauth2/revoke?token=";
 	
 	private final String FACEBOOK_APP_SECRET = "aaab566fd8f0b9c48d3a44c2241fb25b";
+	private final String FACEBOOK_VALID_TOKEN_CHECK = "https://graph.facebook.com/me?fields=id&access_token=";
 	private final String FACEBOOK_ACCESS_TOKEN_NEW = "https://graph.facebook.com/oauth/access_token?code=%s&client_id=%s&redirect_uri=%s&client_secret=%s";
-	
-	/**
-	 * Logs user in through Google+.
-	 */
+	private final String FACEBOOK_ACCESS_TOKEN_REVOKE = "https://graph.facebook.com/v2.1/me/permissions?access_token=";
+
 	@POST
 	@Produces("application/json")
 	@Path("/login/google")
@@ -142,8 +148,7 @@ public class UserResource
 			.setFromTokenResponse(tokenResponse);
 			Oauth2 oauth2 = new Oauth2.Builder(TRANSPORT, JSON_FACTORY, credential).setApplicationName("SEMOSS").build();
 			Userinfoplus userinfo = oauth2.userinfo().get().execute();
-			
-			// Parse out information from payload as needed and add it to User object and session
+
 			GoogleIdToken idToken = tokenResponse.parseIdToken();
 			String gplusId = idToken.getPayload().getSubject();
 			String email = idToken.getPayload().getEmail();
@@ -154,32 +159,13 @@ public class UserResource
 			ret.put("id", gplusId);
 			ret.put("name", name);
 			ret.put("email", email);
-			User newUser;
 			if(picture != null && !picture.isEmpty()) {
 				ret.put("picture", picture);
-				newUser = new User(gplusId, name, User.LOGIN_TYPES.google, email, picture);
-				request.getSession().setAttribute(Constants.SESSION_USER, newUser);
-			} else {
-				newUser = new User(gplusId, name, User.LOGIN_TYPES.google, email);
-				request.getSession().setAttribute(Constants.SESSION_USER, newUser);
 			}
 
-			addUser(newUser);
-			
-			//TODO: REMOVE TEST CODE
-//			UserPermissionsMasterDB p = new UserPermissionsMasterDB();
-//			System.out.println(p.getUserAccessibleEngines(gplusId));
-//			Hashtable<String, Boolean> t = p.getUserPermissionsForEngine("movies1", gplusId);
-//			System.err.println("Engine: movies1");
-//			for(String s : t.keySet()) {
-//				System.out.println(s + ": " + t.get(s));
-//			}
-//			Hashtable<String, Boolean> t2 = p.getUserPermissionsForEngine("movies2", gplusId);
-//			System.err.println("Engine: movies2");
-//			for(String s : t2.keySet()) {
-//				System.out.println(s + ": " + t2.get(s));
-//			}
-			
+			//TODO: Look for the authenticated user and grab permissions, or add if not found
+			SEMOSSPrincipal me = new SEMOSSPrincipal(gplusId, name, SEMOSSPrincipal.LOGIN_TYPES.Google, email, picture);
+
 			// Store the token in the session for later use.
 			request.getSession().setAttribute("token", tokenResponse.toString());
 		} catch (TokenResponseException e) {
@@ -195,10 +181,7 @@ public class UserResource
 		ret.put("success", "true");
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
-	
-	/**
-	 * Logs user out when authenticated through Google+.
-	 */
+
 	@GET
 	@Produces("application/json")
 	@Path("/logout/google")
@@ -213,15 +196,37 @@ public class UserResource
 			return Response.status(400).entity(WebUtility.getSO(ret)).build();
 		}
 
-		request.getSession().invalidate();
+		String clientId = request.getSession().getAttribute("clientId").toString();
+
+		try {
+			// Build credential from stored token data.
+			GoogleCredential credential = new GoogleCredential.Builder()
+			.setJsonFactory(JSON_FACTORY)
+			.setTransport(TRANSPORT)
+			.setClientSecrets(clientId, GOOGLE_CLIENT_SECRET).build()
+			.setFromTokenResponse(JSON_FACTORY.fromString(tokenData, GoogleTokenResponse.class));
+
+			// Execute HTTP GET request to revoke current token.
+			HttpResponse revokeResponse = TRANSPORT.createRequestFactory()
+					.buildGetRequest(new GenericUrl(
+							String.format(this.GOOGLE_ACCESS_TOKEN_REVOKE + "%s", credential.getAccessToken()))).execute();
+			
+			if(revokeResponse.getStatusCode() == 200) {
+				// Reset the user's session.
+				request.getSession().removeAttribute("clientId");
+				request.getSession().removeAttribute("token");
+			}
+		} catch (IOException e) {
+			// For whatever reason, the given token was invalid.
+			ret.put("success", "false");
+			ret.put("error", "Failed to revoke token.");
+			return Response.status(400).entity(WebUtility.getSO(ret)).build();
+		}
 
 		ret.put("success", "true");
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 	
-	/**
-	 * Logs user in through Facebook.
-	 */
 	@POST
 	@Produces("application/json")
 	@Path("/login/facebook")
@@ -248,7 +253,6 @@ public class UserResource
 				String.format(this.FACEBOOK_ACCESS_TOKEN_NEW, code, clientId, redirectUri, this.FACEBOOK_APP_SECRET));
 		CloseableHttpResponse response = httpclient.execute(http);
 		
-		// Retrieve Facebook OAuth access token
 		try {
 		    HttpEntity entity = response.getEntity();
 		    if (entity != null) {
@@ -266,7 +270,7 @@ public class UserResource
 			    		if(k.get("error") != null) {
 			    			ret.put("success", "false");
 			    			ret.put("error", h.get("error").toString());
-			    			return Response.status(400).entity(WebUtility.getSO(ret)).build();
+			    			return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			    		}
 		            }
 		        }
@@ -276,23 +280,15 @@ public class UserResource
 		    httpclient.close();
 		}
 		
-		// Retrieve Facebook account User object using OAuth access token
 		FacebookClient fb = new DefaultFacebookClient(accessToken, this.FACEBOOK_APP_SECRET);
-		com.restfb.types.User me = fb.fetchObject("me", com.restfb.types.User.class, Parameter.with("fields", "id, name, email, picture"));
 		
-		// Parse out information from return data as needed and add it to User object and session
+		User me = fb.fetchObject("me", User.class, Parameter.with("fields", "id, name, email, picture"));
 		String id = me.getId();
 		String email = me.getEmail();
 		String name = me.getName();
-		User newUser;
 		if(me.getPicture() != null) {
 			String picture = me.getPicture().getUrl();
 			ret.put("picture", picture);
-			newUser = new User(id, name, User.LOGIN_TYPES.facebook, email, picture);
-			request.getSession().setAttribute(Constants.SESSION_USER, newUser);
-		} else {
-			newUser = new User(id, name, User.LOGIN_TYPES.facebook, email);
-			request.getSession().setAttribute(Constants.SESSION_USER, newUser);
 		}
 		
 		ret.put("token", accessToken);
@@ -300,18 +296,10 @@ public class UserResource
 		ret.put("name", name);
 		ret.put("email", email);
 		
-		addUser(newUser);
-		
-		// Store the token in the session for later use.
-		request.getSession().setAttribute("token", accessToken);
-		
 		ret.put("success", "true");
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 	
-	/**
-	 * Logs user out when authenticated through Facebook.
-	 */
 	@GET
 	@Produces("application/json")
 	@Path("/logout/facebook")
@@ -325,22 +313,37 @@ public class UserResource
 			ret.put("error", "User is not connected.");
 			return Response.status(400).entity(WebUtility.getSO(ret)).build();
 		}
+
+		String clientId = request.getSession().getAttribute("clientId").toString();
 		
-		request.getSession().invalidate();
+		CloseableHttpClient httpclient = HttpClients.createDefault();
+		HttpDelete delete = new HttpDelete(this.FACEBOOK_ACCESS_TOKEN_REVOKE + tokenData);
+		CloseableHttpResponse response = httpclient.execute(delete);
+		
+		try {
+		    HttpEntity entity = response.getEntity();
+		    if (entity != null) {
+		    	long len = entity.getContentLength();
+		        if (len != -1) {
+		            String resp = EntityUtils.toString(entity);
+		            
+		            Gson gson = new Gson();
+		    		HashMap<String, StringMap<String>> h = gson.fromJson(resp, HashMap.class);
+		    		
+		    		if(h.get("error") != null) {
+		    			ret.put("success", "false");
+		    			ret.put("error", h.get("error").toString());
+		    			return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		    		}
+		        }
+		    }
+		} finally {
+		    response.close();
+		    httpclient.close();
+		}
 		
 		ret.put("success", "true");
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
-	}
-	
-	/**
-	 * Adds user to Local Master DB upon sign-in
-	 * 
-	 * @param userId	User ID of user retrieved from Identity Provider
-	 * @param email		Email address of user retrieved from Identity Provider
-	 */
-	private void addUser(User newUser) {
-		UserPermissionsMasterDB master = new UserPermissionsMasterDB(Constants.LOCAL_MASTER_DB_NAME);
-		master.addUser(newUser);
 	}
 
 	@GET
@@ -367,5 +370,44 @@ public class UserResource
 				ps.println(output);
 			}
 		};
+	}
+
+	public boolean isTokenValid(String provider, String accessToken) {
+		boolean tokenValidity = false;
+		String tokenValidUrl = "";
+		
+		if(provider == null || provider.isEmpty() || accessToken == null || accessToken.isEmpty()) {
+			return tokenValidity;
+		}
+		
+		if(provider.equals(LOGIN_TYPES.google.toString())) {
+			tokenValidUrl = this.GOOGLE_VALID_TOKEN_CHECK;
+		} else if(provider.equals(LOGIN_TYPES.facebook.toString())) {
+			tokenValidUrl = this.FACEBOOK_VALID_TOKEN_CHECK;
+		}
+		
+		// Execute HTTP GET request to revoke current token.
+		try {
+			HttpResponse tokenValidResponse = TRANSPORT.createRequestFactory()
+					.buildGetRequest(
+							new GenericUrl(String.format(tokenValidUrl + "%s", accessToken))).execute();
+
+			HashMap<String, String> h = GSON.fromJson(tokenValidResponse.parseAsString(), HashMap.class);
+			
+			if(provider.equals(LOGIN_TYPES.google.toString())) {
+				if(h.get("error") == null && h.get("issued_to") != null) {
+					tokenValidity = true;
+				}
+			} else if(provider.equals(LOGIN_TYPES.facebook.toString())) {
+				if(h.get("error") == null && h.get("id") != null) {
+					tokenValidity = true;
+				}
+			}
+
+		} catch (IOException e) {
+			tokenValidity = false;
+		}
+		
+		return tokenValidity;
 	}
 }

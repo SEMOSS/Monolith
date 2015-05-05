@@ -41,9 +41,9 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import prerna.algorithm.learning.similarity.ClusterRemoveDuplicates;
-import prerna.rdf.engine.api.IEngine;
-import prerna.rdf.engine.api.ISelectStatement;
-import prerna.rdf.engine.api.ISelectWrapper;
+import prerna.engine.api.IEngine;
+import prerna.engine.api.ISelectStatement;
+import prerna.engine.api.ISelectWrapper;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.ui.components.playsheets.ClusteringVizPlaySheet;
 import prerna.ui.components.playsheets.DatasetSimilarityPlaySheet;
@@ -146,7 +146,6 @@ public class EngineAnalyticsResource {
 		Hashtable<String, String> errorHash = new Hashtable<String, String>();
 		
 		if (algorithm.equals("Clustering")) {
-			LOGGER.info("Running Clustering on " + engine.getEngineName() + "...");
 			// format the data before sending into algorithm
 			ClusterRemoveDuplicates formatter = new ClusterRemoveDuplicates(filteredList, filteredNames);
 			ArrayList<Object[]> formattedList = formatter.getRetMasterTable();
@@ -189,9 +188,10 @@ public class EngineAnalyticsResource {
 			data.put("data", clusterAssignment);
 			data.put("specificData", specificData);
 			
+			LOGGER.info("Running Clustering on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end int[]
+			
 		} else if (algorithm.equals("AssociationLearning")) {
-			LOGGER.info("Running Association Learning on " + engine.getEngineName() + "...");
 			WekaAprioriVizPlaySheet ps = new WekaAprioriVizPlaySheet();
 			if (configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
 				Integer numRules = Integer.parseInt(configParameters.get(0));
@@ -222,10 +222,11 @@ public class EngineAnalyticsResource {
 			}
 			data.remove("id");
 			data.put("title", "Association Learning: Apriori Algorithm");
+			
+			LOGGER.info("Running Association Learning on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
 			
 		} else if (algorithm.equals("Classify")) {
-			LOGGER.info("Running Classify on " + engine.getEngineName() + "...");
 			WekaClassificationPlaySheet ps = new WekaClassificationPlaySheet();
 			// instance id is the prop being classified for
 			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class);
@@ -246,9 +247,10 @@ public class EngineAnalyticsResource {
 			data = (Hashtable) ps.getData();
 			data.remove("id");
 			data.put("title", "Classification Algorithm: For variable " + ps.getNames()[ps.getClassColumn()]);
+			LOGGER.info("Running Classify on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
+			
 		} else if (algorithm.equals("Outliers")) {
-			LOGGER.info("Running Outliers on " + engine.getEngineName() + "...");
 			LocalOutlierPlaySheet ps = new LocalOutlierPlaySheet();
 			if (configParameters.size() == 1) {
 				Integer k = Integer.parseInt(configParameters.get(0));
@@ -283,9 +285,10 @@ public class EngineAnalyticsResource {
 			specificData.put("x-axis", "LOP");
 			specificData.put("z-axis", "COUNT");
 			data.put("specificData", specificData);
+			
+			LOGGER.info("Running Outliers on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end double[]
 		} else if (algorithm.equals("Similarity")) {
-			LOGGER.info("Running Similarity on " + engine.getEngineName() + "...");
 			DatasetSimilarityPlaySheet ps = new DatasetSimilarityPlaySheet();
 			ps.setRDFEngine(engine);
 			ps.setQuery(query);
@@ -318,10 +321,11 @@ public class EngineAnalyticsResource {
 			data.put("headers", headers);
 			data.put("data", simValues);
 			data.put("dataTableAlign", dataTableAlign);
+			
+			LOGGER.info("Running Similarity on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
 		} else if (algorithm.equals("MatrixRegression")) {
 			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
-			LOGGER.info("Running Matrix Regression on " + engine.getEngineName() + "...");
 			// instance id is the prop being approximated for
 			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class);
 			String propName = names[instanceID];
@@ -341,9 +345,10 @@ public class EngineAnalyticsResource {
 			data = (Hashtable) ps.getData();
 			data.remove("id");
 			data.put("title", "Matrix Regression Algorithm: For variable " + ps.getNames()[ps.getbColumnIndex()]);
+
+			LOGGER.info("Running Matrix Regression on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
 		} else if (algorithm.equals("NumericalCorrelation")) {
-			LOGGER.info("Running Numerical Correlation on " + engine.getEngineName() + "...");
 			NumericalCorrelationVizPlaySheet ps = new NumericalCorrelationVizPlaySheet();
 			ps.setIncludesInstance(false);
 			ps.setRDFEngine(engine);
@@ -354,6 +359,7 @@ public class EngineAnalyticsResource {
 			data = (Hashtable) ps.getData();
 			data.remove("id");
 			data.put("title", "Numerical Correlation Algorithm");
+			LOGGER.info("Running Numerical Correlation on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
 		} else if (algorithm.equals("SOM")) {
 			LOGGER.info("Running SOM on " + engine.getEngineName() + "...");

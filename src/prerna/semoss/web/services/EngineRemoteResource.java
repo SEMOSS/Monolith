@@ -39,13 +39,15 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.StreamingOutput;
 
-import prerna.rdf.engine.api.IConstructWrapper;
-import prerna.rdf.engine.api.IEngine;
-import prerna.rdf.engine.api.IRemoteQueryable;
-import prerna.rdf.engine.impl.SesameJenaConstructWrapper;
-import prerna.rdf.engine.impl.SesameJenaSelectCheater;
-import prerna.rdf.engine.impl.SesameJenaSelectWrapper;
+import prerna.engine.api.IConstructWrapper;
+import prerna.engine.api.IEngine;
+import prerna.engine.api.IEngineWrapper;
+import prerna.engine.api.IRemoteQueryable;
+import prerna.engine.impl.rdf.SesameJenaSelectWrapper;
+import prerna.rdf.engine.wrappers.AbstractWrapper;
 import prerna.rdf.engine.wrappers.SesameConstructWrapper;
+import prerna.rdf.engine.wrappers.SesameSelectCheater;
+import prerna.rdf.engine.wrappers.SesameSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -128,11 +130,7 @@ public class EngineRemoteResource {
 	public Object execSelectQuery(@FormParam("query") String query) {
 		// TODO Auto-generated method stub
 		System.out.println("Executing Select Query  " + query);
-		SesameJenaSelectWrapper sjsw = new SesameJenaSelectWrapper();
-		sjsw.setQuery(query);
-		sjsw.setEngine(coreEngine);
-		sjsw.executeQuery();
-		sjsw.getVariables();
+		AbstractWrapper sjsw = (AbstractWrapper) WrapperManager.getInstance().getSWrapper(coreEngine, query);
 		sjsw.setRemote(true);
 		// need someway to get an indirection for now hardcoded
 		((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineName());
@@ -148,11 +146,7 @@ public class EngineRemoteResource {
 	public Object execCheaterQuery(@FormParam("query") String query) {
 		// TODO Auto-generated method stub
 		System.out.println("Executing Select Query  " + query);
-		SesameJenaSelectCheater sjsw = new SesameJenaSelectCheater();
-		sjsw.setQuery(query);
-		sjsw.setEngine(coreEngine);
-		sjsw.execute();
-		sjsw.getVariables();
+		AbstractWrapper sjsw = (AbstractWrapper) WrapperManager.getInstance().getChWrapper(coreEngine, query);
 		sjsw.setRemote(true);
 		// need someway to get an indirection for now hardcoded
 		((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineName());
@@ -174,18 +168,18 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput execAskQuery(@FormParam("query") String query) {
 		// TODO Auto-generated method stub
-		return WebUtility.getSO(coreEngine.execAskQuery(query));
+		return WebUtility.getSO(coreEngine.execQuery(query));
 	}
 
 
-	@POST
-	@Path("getParamValues")
-	@Produces("application/json")
-	public StreamingOutput getParamValues(@FormParam("label") String label, @FormParam("type") String type,
-			@FormParam("insightId") String insightId, @FormParam("query") String query) {
-		// TODO Auto-generated method stub
-		return WebUtility.getSO(coreEngine.getParamValues(label, type, insightId, query));
-	}
+//	@POST
+//	@Path("getParamValues")
+//	@Produces("application/json")
+//	public StreamingOutput getParamValues(@FormParam("label") String label, @FormParam("type") String type,
+//			@FormParam("insightId") String insightId, @FormParam("query") String query) {
+//		// TODO Auto-generated method stub
+//		return WebUtility.getSO(coreEngine.getParamValues(label, type, insightId, query));
+//	}
 	
 	@POST
 	@Path("getInsightDefinition")
@@ -217,13 +211,14 @@ public class EngineRemoteResource {
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
 
 			System.out.println("Got the object as well" + wrapper);
-			if(wrapper instanceof SesameJenaConstructWrapper)
-				retValue = ((SesameJenaConstructWrapper)wrapper).hasNext();
-			else if(wrapper instanceof SesameJenaSelectWrapper)
-				retValue = ((SesameJenaSelectWrapper)wrapper).hasNext();
-			if(wrapper instanceof SesameJenaSelectCheater)
-				retValue = ((SesameJenaSelectCheater)wrapper).hasNext();
-			
+//			if(wrapper instanceof SesameJenaConstructWrapper)
+//				retValue = ((SesameJenaConstructWrapper)wrapper).hasNext();
+//			else if(wrapper instanceof SesameJenaSelectWrapper)
+//				retValue = ((SesameJenaSelectWrapper)wrapper).hasNext();
+//			if(wrapper instanceof SesameJenaSelectCheater)
+//				retValue = ((SesameJenaSelectCheater)wrapper).hasNext();
+
+			retValue = ((IEngineWrapper)wrapper).hasNext();
 			if(!retValue) // cleanup
 				QueryResultHash.getInstance().cleanObject(id);
 		}
@@ -236,27 +231,26 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput next(@FormParam("id") String id)
 	{
-		Object retValue = null;
 		if(id != null)
 		{
 			// I can avoid the wrapper BS below by just putting through an interface
 			// good things come to people who wait
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
 			QueryResultHash.getInstance().cleanObject(id);
-			if(wrapper instanceof SesameJenaSelectCheater)
+			if(wrapper instanceof SesameSelectCheater)
 			{
 				System.out.println(" Cheater.... ");
-				return new TupleStreamingOutput(((SesameJenaSelectCheater)wrapper).tqr);
+				return new TupleStreamingOutput(((SesameSelectCheater)wrapper).tqr);
 			}
-			else if(wrapper instanceof SesameJenaConstructWrapper)
+			else if(wrapper instanceof SesameConstructWrapper)
 			{
 				System.out.println(" Construct.... ");
-				return new GraphStreamingOutput(((SesameJenaConstructWrapper)(wrapper)).gqr);				
+				return new GraphStreamingOutput(((SesameConstructWrapper)(wrapper)).gqr);				
 			}
-			else if(wrapper instanceof SesameJenaSelectWrapper)
+			else if(wrapper instanceof SesameSelectWrapper)
 			{
 				System.out.println(" Select.... ");
-				return new TupleStreamingOutput(((SesameJenaSelectWrapper)(wrapper)).tqr);
+				return new TupleStreamingOutput(((SesameSelectWrapper)(wrapper)).tqr);
 			}
 		}
 		// set the data into the statement

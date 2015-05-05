@@ -5,28 +5,21 @@ import java.util.Hashtable;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
-import prerna.error.EngineException;
-import prerna.rdf.engine.api.IEngine;
-import prerna.semoss.web.services.EngineResource;
 import prerna.semoss.web.services.NameServer;
-import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.specific.tap.SysSimHeatMapSheet;
 import prerna.web.services.util.WebUtility;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 public class SysDupFunctions extends AbstractControlClick {
 
