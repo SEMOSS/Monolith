@@ -56,14 +56,14 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
+import prerna.engine.api.IEngine;
+import prerna.engine.impl.AbstractEngine;
+import prerna.engine.impl.rdf.RDFFileSesameEngine;
+import prerna.engine.impl.rdf.SesameJenaSelectStatement;
+import prerna.engine.impl.rdf.SesameJenaSelectWrapper;
+import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
 import prerna.om.Insight;
 import prerna.om.SEMOSSParam;
-import prerna.rdf.engine.api.IEngine;
-import prerna.rdf.engine.impl.AbstractEngine;
-import prerna.rdf.engine.impl.RDFFileSesameEngine;
-import prerna.rdf.engine.impl.SesameJenaSelectStatement;
-import prerna.rdf.engine.impl.SesameJenaSelectWrapper;
-import prerna.rdf.engine.impl.SesameJenaUpdateWrapper;
 import prerna.rdf.query.builder.IQueryBuilder;
 import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
@@ -90,327 +90,348 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 public class EngineResource {
-	
+
 	// gets everything specific to an engine
 	// essentially this is a wrapper over the engine
 	IEngine coreEngine = null;
-	byte[] output;
+	byte[] output ;
 	Logger logger = Logger.getLogger(EngineResource.class.getName());
 	Hashtable<String, SEMOSSQuery> vizHash = new Hashtable<String, SEMOSSQuery>();
 	// to send class name if error occurs
 	String className = this.getClass().getName();
-	
-	public void setEngine(IEngine coreEngine) {
+
+	public void setEngine(IEngine coreEngine)
+	{
 		System.out.println("Setting core engine to " + coreEngine);
 		this.coreEngine = coreEngine;
 	}
-	
+
 	// All playsheet specific manipulations will go through this
 	@Path("p-{playSheetID}")
 	public Object uploadFile(@PathParam("playSheetID") String playSheetID, @Context HttpServletRequest request) {
 		PlaySheetResource psr = new PlaySheetResource();
 		// get the playsheet from session
-		HttpSession session = ((HttpServletRequest) request).getSession(false);
+		HttpSession session = ((HttpServletRequest)request).getSession(false);
 		IPlaySheet playSheet = (IPlaySheet) session.getAttribute(playSheetID);
 		psr.setPlaySheet(playSheet);
 		psr.setEngine(coreEngine);
 		return psr;
 	}
-	
+
 	/**
-	 * Gets all edges and nodes from owl file to display as metamodel Sets the owl in a GraphPlaySheet and sets subclasscreate to create the metamodel
-	 * 
+	 * Gets all edges and nodes from owl file to display as metamodel
+	 * Sets the owl in a GraphPlaySheet and sets subclasscreate to create the metamodel
 	 * @param request
 	 * @return same payload as GraphPlaySheet. Returns nodes and edges and all playsheet data (id, title, playsheet name)
 	 */
 	@GET
 	@Path("metamodel")
 	@Produces("application/json")
-	public Response getMetamodel(@Context HttpServletRequest request) {
-		if (coreEngine == null) {
+	public Response getMetamodel(@Context HttpServletRequest request)
+	{
+		if(coreEngine == null) {
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "No engine defined.");
 			errorHash.put("Class", className);
 			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
-		
+
 		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
-		// hard code playsheet attributes since no insight exists for this
+		//hard code playsheet attributes since no insight exists for this
 		String sparql = "SELECT ?s ?p ?o WHERE {?s ?p ?o} LIMIT 1";
 		String playSheetName = "prerna.ui.components.playsheets.GraphPlaySheet";
 		String title = "Metamodel";
 		String id = coreEngine.getEngineName() + "-Metamodel";
-		AbstractEngine eng = ((AbstractEngine) coreEngine).getBaseDataEngine();
+		AbstractEngine eng = ((AbstractEngine)coreEngine).getBaseDataEngine();
 		eng.setEngineName(id);
 		eng.setBaseData((RDFFileSesameEngine) eng);
 		Hashtable<String, String> filterHash = new Hashtable<String, String>();
 		filterHash.put("http://semoss.org/ontologies/Relation", "http://semoss.org/ontologies/Relation");
 		eng.setBaseHash(filterHash);
-		
+
 		exQueryProcessor.prepareQueryOutputPlaySheet(eng, sparql, playSheetName, title, id);
 		Object obj = null;
-		try {
-			GraphPlaySheet playSheet = (GraphPlaySheet) exQueryProcessor.getPlaySheet();
-			playSheet.getGraphData().setSubclassCreate(true);// this makes the base queries use subclass instead of type--necessary for the metamodel
-																// query
+		try
+		{
+			GraphPlaySheet playSheet= (GraphPlaySheet) exQueryProcessor.getPlaySheet();
+			playSheet.getGraphData().setSubclassCreate(true);//this makes the base queries use subclass instead of type--necessary for the metamodel query
 			playSheet.createData();
 			playSheet.runAnalytics();
-			
+
 			obj = playSheet.getData();
-			
-		} catch (Exception ex) {
+
+		} catch (Exception ex) { 
 			ex.printStackTrace();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error processing query.");
 			errorHash.put("Class", className);
 			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
-		
+
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}
-	
-	// gets all node types connected to a given node type
+
+
+	//gets all node types connected to a given node type
 	@GET
 	@Path("neighbors")
 	@Produces("application/json")
-	public Response getNeighbors(@QueryParam("nodeType") String type, @Context HttpServletRequest request) {
+	public Response getNeighbors(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
+	{
 		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
-		if (coreEngine instanceof AbstractEngine) {
+		if(coreEngine instanceof AbstractEngine){
 			Vector<String> downNodes = ((AbstractEngine) coreEngine).getToNeighbors(type, 0);
 			finalTypes.put("downstream", downNodes);
 			Vector<String> upNodes = ((AbstractEngine) coreEngine).getFromNeighbors(type, 0);
 			finalTypes.put("upstream", upNodes);
-		}
+		} 
 		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
 	}
-	
-	// gets all node types connected to a given node type along with the verbs connecting the given types
-	@GET
-	@Path("neighbors/verbs")
-	@Produces("application/json")
-	public Response getNeighborsWithVerbs(@QueryParam("nodeType") String type, @Context HttpServletRequest request) {
-		Hashtable<String, Hashtable<String, Vector<String>>> finalTypes = new Hashtable<String, Hashtable<String, Vector<String>>>();
-		if (coreEngine instanceof AbstractEngine) {
-			Hashtable<String, Vector<String>> downNodes = ((AbstractEngine) coreEngine).getToNeighborsWithVerbs(type, 0);
-			finalTypes.put("downstream", downNodes);
-			Hashtable<String, Vector<String>> upNodes = ((AbstractEngine) coreEngine).getFromNeighborsWithVerbs(type, 0);
-			finalTypes.put("upstream", upNodes);
-		}
-		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
-	}
-	
-	// gets all node types connected to a specific node instance
+
+//	//gets all node types connected to a given node type along with the verbs connecting the given types
+//	@GET
+//	@Path("neighbors/verbs")
+//	@Produces("application/json")
+//	public Response getNeighborsWithVerbs(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
+//	{
+//		Hashtable<String, Hashtable<String, Vector<String>>> finalTypes = new Hashtable<String, Hashtable<String, Vector<String>>>();
+//		if(coreEngine instanceof AbstractEngine){
+//			Hashtable<String, Vector<String>> downNodes = ((AbstractEngine) coreEngine).getToNeighborsWithVerbs(type, 0);
+//			finalTypes.put("downstream", downNodes);
+//			Hashtable<String, Vector<String>> upNodes = ((AbstractEngine) coreEngine).getFromNeighborsWithVerbs(type, 0);
+//			finalTypes.put("upstream", upNodes);
+//		}
+//		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
+//	}
+
+	//gets all node types connected to a specific node instance
 	@POST
 	@Path("neighbors/instance")
 	@Produces("application/json")
-	// @Consumes(MediaType.APPLICATION_JSON)
-	public Response getNeighborsInstance(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	//	@Consumes(MediaType.APPLICATION_JSON)
+	public Response getNeighborsInstance(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+	{
 		Gson gson = new Gson();
 		List<String> uriArray = gson.fromJson(form.getFirst("node"), List.class);
-		
+
 		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
-		if (coreEngine instanceof AbstractEngine) {
+		if(coreEngine instanceof AbstractEngine){
 			AbstractEngine engine = (AbstractEngine) coreEngine;
-			
-			// create bindings string
+
+			//create bindings string
 			String bindingsString = "";
-			for (String uri : uriArray) {
+			for(String uri : uriArray){
 				bindingsString = bindingsString + "(<" + uri + ">)";
 			}
 			logger.info("bindings string = " + bindingsString);
-			
-			String uniqueTypesQuery = "SELECT DISTINCT ?entity WHERE { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity}   FILTER NOT EXISTS { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?subtype} {?subtype <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?entity} }} BINDINGS ?subject {"
-					+ bindingsString + "}";
-			
-			// get node types
-			Vector<String> types = coreEngine.getEntityOfType(uniqueTypesQuery);
-			
-			// DOWNSTREAM PROCESSING
-			// get node types connected to this type
+
+			String uniqueTypesQuery = "SELECT DISTINCT ?entity WHERE { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity}   FILTER NOT EXISTS { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?subtype} {?subtype <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?entity} }} BINDINGS ?subject {"+bindingsString+"}";
+
+			//get node types
+			Vector<String> types = Utility.getVectorOfReturn(uniqueTypesQuery, coreEngine);
+
+			//DOWNSTREAM PROCESSING
+			//get node types connected to this type
 			Vector<String> downNodeTypes = new Vector<String>();
-			for (String type : types) {
+			for(String type : types){
 				downNodeTypes.addAll(engine.getToNeighbors(type, 0));
 			}
-			
-			// for each available type, ensure each type has at least one instance connected to original node
-			String downAskQuery = "ASK { " + "{?connectedNode a <@NODE_TYPE@>} " + "{?node ?rel ?connectedNode}" + "} BINDINGS ?node {"
-					+ bindingsString + "}";
+
+			//for each available type, ensure each type has at least one instance connected to original node
+			String downAskQuery = "ASK { "
+					+ "{?connectedNode a <@NODE_TYPE@>} "
+					+ "{?node ?rel ?connectedNode}"
+					+ "} BINDINGS ?node {"+bindingsString+"}" ;
 			Vector<String> validDownTypes = new Vector<String>();
-			for (String connectedType : downNodeTypes) {
+			for (String connectedType : downNodeTypes){
 				String filledDownAskQuery = downAskQuery.replace("@NODE_TYPE@", connectedType);
 				logger.info("Checking type " + connectedType + " with query " + filledDownAskQuery);
-				if (engine.execAskQuery(filledDownAskQuery))
+				if((boolean) engine.execQuery(filledDownAskQuery))	
 					validDownTypes.add(connectedType);
 			}
 			finalTypes.put("downstream", validDownTypes);
-			
-			// UPSTREAM PROCESSING
-			// get node types connected to this type
+
+			//UPSTREAM PROCESSING
+			//get node types connected to this type
 			Vector<String> upNodeTypes = new Vector<String>();
-			for (String type : types) {
+			for(String type : types){
 				upNodeTypes.addAll(engine.getFromNeighbors(type, 0));
 			}
-			
-			// for each available type, ensure each type has at least one instance connected to original node
-			String upAskQuery = "ASK { " + "{?connectedNode a <@NODE_TYPE@>} " + "{?connectedNode ?rel ?node}" + "} BINDINGS ?node {"
-					+ bindingsString + "}";
+
+			//for each available type, ensure each type has at least one instance connected to original node
+			String upAskQuery = "ASK { "
+					+ "{?connectedNode a <@NODE_TYPE@>} "
+					+ "{?connectedNode ?rel ?node}"
+					+ "} BINDINGS ?node {"+bindingsString+"}" ;
 			Vector<String> validUpTypes = new Vector<String>();
-			for (String connectedType : upNodeTypes) {
+			for (String connectedType : upNodeTypes){
 				String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
 				logger.info("Checking type " + connectedType + " with query " + filledUpAskQuery);
-				if (engine.execAskQuery(filledUpAskQuery))
+				if((boolean) engine.execQuery(filledUpAskQuery))
 					validUpTypes.add(connectedType);
 			}
 			finalTypes.put("upstream", validUpTypes);
 		}
 		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
 	}
-	
+
 	/**
 	 * Gets all the insights for a given perspective, instance, type, or tag (in that order) in the given engine
 	 * 
-	 * @param type
-	 *            is the URI of a perspective (e.g. http://semoss.org/ontologies/Concept/Director)
-	 * @param instance
-	 *            is the URI of an instance (e.g. http://semoss.org/ontologies/Concept/Director/Ang_Lee)
-	 * @param tag
-	 *            currently isn't used--will be used to tag insights (TODO)
-	 * @param perspective
-	 *            is just the name of the perspective (e.g. Movie-Perspective)
+	 * @param type is the URI of a perspective (e.g. http://semoss.org/ontologies/Concept/Director)
+	 * @param instance is the URI of an instance (e.g. http://semoss.org/ontologies/Concept/Director/Ang_Lee)
+	 * @param tag currently isn't used--will be used to tag insights (TODO)
+	 * @param perspective is just the name of the perspective (e.g. Movie-Perspective)
 	 * @param request
 	 * @return Vector of Insights where each Insight has a label and a propHash with the propHash containing order, output, engine, sparql, uri and id
 	 */
 	@GET
 	@Path("insights")
 	@Produces("application/json")
-	public Response getInsights(@QueryParam("nodeType") String type, @QueryParam("nodeInstance") String instance, @QueryParam("tag") String tag,
-			@QueryParam("perspective") String perspective, @Context HttpServletRequest request) {
+	public Response getInsights(@QueryParam("nodeType") String type, @QueryParam("nodeInstance") String instance, @QueryParam("tag") String tag,@QueryParam("perspective") String perspective, @Context HttpServletRequest request)
+	{
 		// if the type is null then send all the insights else only that
 		Vector<String> resultInsights = null;
-		if (perspective != null)
+		if(perspective != null)
 			resultInsights = coreEngine.getInsights(perspective);
-		else if (type != null || instance != null) {
-			if (instance != null)
-				type = Utility.getConceptType(coreEngine, instance);
+		else if(type != null || instance != null) 
+		{
+			if(instance != null) type = Utility.getConceptType(coreEngine, instance);
 			resultInsights = coreEngine.getInsight4Type(type);
-		} else if (tag != null)
+		}
+		else if(tag != null)
 			resultInsights = coreEngine.getInsight4Tag(tag);
-		else
+		else 
 			resultInsights = coreEngine.getInsights();
-		
-		// Vector<Hashtable<String,String>> resultInsightObjects = coreEngine.getOutputs4Insights(resultInsights);
+
+		//Vector<Hashtable<String,String>> resultInsightObjects = coreEngine.getOutputs4Insights(resultInsights);
 		Vector<Insight> resultInsightObjects = null;
-		if (resultInsights != null)
-			resultInsightObjects = ((AbstractEngine) coreEngine).getInsight2(resultInsights.toArray(new String[resultInsights.size()]));
-		
+		if(resultInsights!=null)
+			resultInsightObjects = ((AbstractEngine)coreEngine).getInsight2(resultInsights.toArray(new String[resultInsights.size()]));
+
 		return Response.status(200).entity(WebUtility.getSO(resultInsightObjects)).build();
 	}
-	
+
 	// gets all the insights for a given type and tag in all the engines
 	// both tag and type are optional
 	@GET
 	@Path("pinsights")
 	@Produces("application/json")
-	public Response getPInsights(@Context HttpServletRequest request) {
+	public Response getPInsights(@Context HttpServletRequest request)
+	{
 		// if the type is null then send all the insights else only that
 		Vector perspectives = null;
 		Hashtable retP = new Hashtable();
 		perspectives = coreEngine.getPerspectives();
-		for (int pIndex = 0; pIndex < perspectives.size(); pIndex++) {
-			Vector insights = coreEngine.getInsights(perspectives.elementAt(pIndex) + "");
-			if (insights != null)
+		for(int pIndex = 0;pIndex < perspectives.size();pIndex++)
+		{
+			Vector insights = coreEngine.getInsights(perspectives.elementAt(pIndex)+"");
+			if(insights != null)
 				retP.put(perspectives.elementAt(pIndex), insights);
 		}
 		return Response.status(200).entity(WebUtility.getSO(retP)).build();
 	}
-	
+
 	/**
 	 * Gets a list of perspectives for the given engine
-	 * 
 	 * @param request
 	 * @return a hashtable with "perspectives" pointing to to array of perspectives (e.g. ["Generic-Perspective","Movie-Perspective"])
 	 */
 	@GET
 	@Path("perspectives")
 	@Produces("application/json")
-	public Response getPerspectives(@Context HttpServletRequest request) {
+	public Response getPerspectives(@Context HttpServletRequest request)
+	{
 		// if the type is null then send all the insights else only that
-		Hashtable<String, Vector<String>> hashtable = new Hashtable<String, Vector<String>>();
+		Hashtable<String, Vector<String>> hashtable = new Hashtable<String, Vector<String>>(); 
 		Vector<String> perspectivesVector = coreEngine.getPerspectives();
 		hashtable.put("perspectives", perspectivesVector);
 		return Response.status(200).entity(WebUtility.getSO(hashtable)).build();
 	}
-	
+
 	// gets all the tags for a given insight across all the engines
 	@GET
 	@Path("tags")
 	@Produces("application/json")
-	public StreamingOutput getTags(@QueryParam("insight") String insight, @Context HttpServletRequest request) {
+	public StreamingOutput getTags(@QueryParam("insight") String insight, @Context HttpServletRequest request)
+	{
 		// if the tag is empty, this will give back all the tags in the engines
 		return null;
 	}
-	
+
 	/**
-	 * Uses the title of an insight to get the Insight object as well as the options and params Insight object has label (e.g. What is the list of
-	 * Directors?) and propHash which contains order, output, engine, sparql, uri, id
-	 * 
+	 * Uses the title of an insight to get the Insight object as well as the options and params
+	 * Insight object has label (e.g. What is the list of Directors?) and propHash which contains order, output, engine, sparql, uri, id
 	 * @param insight
 	 * @return
 	 */
 	@GET
 	@Path("insight")
 	@Produces("application/json")
-	public Response getInsightDefinition(@QueryParam("insight") String insight) {
+	public Response getInsightDefinition(@QueryParam("insight") String insight)
+	{
 		// returns the insight
 		// typically is a JSON of the insight
 		System.out.println("Insight is " + insight);
-		Insight in = ((AbstractEngine) coreEngine).getInsight2(insight).get(0);
+		Insight in = ((AbstractEngine)coreEngine).getInsight2(insight).get(0);
 		System.out.println("Insight is " + in);
 		System.out.println(in.getOutput());
 		Hashtable outputHash = new Hashtable<String, Hashtable>();
 		outputHash.put("result", in);
-		
-		Vector<SEMOSSParam> paramVector = coreEngine.getParams(insight);
+
+
+		Vector <SEMOSSParam> paramVector = coreEngine.getParams(insight);
 		System.err.println("Params are " + paramVector);
 		Hashtable optionsHash = new Hashtable();
 		Hashtable paramsHash = new Hashtable();
-		
-		for (int paramIndex = 0; paramIndex < paramVector.size(); paramIndex++) {
+
+		for(int paramIndex = 0;paramIndex < paramVector.size();paramIndex++)
+		{
 			SEMOSSParam param = paramVector.elementAt(paramIndex);
-			if (param.isDepends().equalsIgnoreCase("false")) {
-				// do the logic to get the stuff
-				String query = param.getQuery();
-				// do a bifurcation based on the engine
-				if (coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA
-						|| coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE)
-					optionsHash.put(param.getName(), coreEngine.getParamValues(param.getName(), param.getType(), in.getId(), query));
-				else if (coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
-					String type = param.getType();
-					// type = type.substring(type.lastIndexOf(":") + 1);
-					optionsHash.put(param.getName(), coreEngine.getParamValues(param.getName(), type, in.getId(), query));
-				}
-			} else
+			String paramURI = param.getUri();
+			if(param.isDepends().equalsIgnoreCase("false"))
+			{
+				optionsHash.put(param.getName(), this.coreEngine.getParamOptions(paramURI));
+			}
+//				// do the logic to get the stuff
+//				String query = param.getQuery();
+//				// do a bifurcation based on the engine
+//				if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE)
+//					optionsHash.put(param.getName(), coreEngine.getParamValues(param.getName(), param.getType(), in.getId(), query));
+//				else if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
+//				{
+//					String type = param.getType();
+//					type = type.substring(type.lastIndexOf(":") + 1);
+//					optionsHash.put(param.getName(), coreEngine.getParamValues(param.getName(), type, in.getId(), query));
+//				}
+//			}
+			else
 				optionsHash.put(param.getName(), "");
 			paramsHash.put(param.getName(), param);
 		}
-		
+
+
 		// OLD LOGIC
 		// get the sparql parameters now
-		/*
-		 * Hashtable paramHash = Utility.getParamTypeHash(in.getSparql()); Iterator <String> keys = paramHash.keySet().iterator(); Hashtable newHash =
-		 * new Hashtable(); while(keys.hasNext()) { String paramName = keys.next(); String paramType = paramHash.get(paramName) + "";
-		 * newHash.put(paramName, coreEngine.getParamValues(paramName, paramType, in.getId())); }
-		 */
+		/*Hashtable paramHash = Utility.getParamTypeHash(in.getSparql());
+		Iterator <String> keys = paramHash.keySet().iterator();
+		Hashtable newHash = new Hashtable();
+		while(keys.hasNext())
+		{
+			String paramName = keys.next();
+			String paramType = paramHash.get(paramName) + "";
+			newHash.put(paramName, coreEngine.getParamValues(paramName, paramType, in.getId()));
+		}*/
 		outputHash.put("options", optionsHash);
 		outputHash.put("params", paramsHash);
-		
+
 		return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
 	}
-	
+
 	/**
-	 * Executes a particular insight or runs a custom query on the specified playsheet To run custom query: must pass playsheet and sparql To run
-	 * stored insight: must pass insight (the actual question), and a string of params
-	 * 
+	 * Executes a particular insight or runs a custom query on the specified playsheet
+	 * To run custom query: must pass playsheet and sparql
+	 * To run stored insight: must pass insight (the actual question), and a string of params
 	 * @param form
 	 * @param request
 	 * @param response
@@ -419,7 +440,8 @@ public class EngineResource {
 	@POST
 	@Path("output")
 	@Produces("application/json")
-	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response) {
+	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
+	{
 		String insight = form.getFirst("insight");
 		// executes the output and gives the data
 		// executes the create runner
@@ -429,219 +451,234 @@ public class EngineResource {
 		// pairs like this
 		// key$value~key2:value2 etc
 		// need to find a way to handle other types than strings
-		
+
 		// if insight, playsheet and sparql are null throw bad data exception
-		if (insight == null) {
+		if(insight == null) {
 			String playsheet = form.getFirst("playsheet");
 			String sparql = form.getFirst("sparql");
-			// check for sparql and playsheet; if not null then parameters have been passed in for preview functionality
-			if (sparql != null && playsheet != null) {
-				
+			//check for sparql and playsheet; if not null then parameters have been passed in for preview functionality
+			if(sparql != null && playsheet != null){
+
 				ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
 				Object obj = null;
 				try {
 					QuestionPlaySheetStore.getInstance().idCount++;
 					String insightID = QuestionPlaySheetStore.getInstance().getIDCount() + "";
-					
+
 					exQueryProcessor.prepareQueryOutputPlaySheet(coreEngine, sparql, playsheet, coreEngine.getEngineName() + ": " + insightID, "");
 					IPlaySheet playSheet = exQueryProcessor.getPlaySheet();
-					
+
 					playSheet.setQuestionID(insightID);
-					
+//					User userData = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+//					if(userData!=null)
+//						playSheet.setUserData(userData);
+
 					PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
 					playRunner.runWeb();
-					
+
 					obj = playSheet.getData();
 					
+
 					// store the playsheet in session
-					storePSInSession((HttpServletRequest) request, playSheet, (Hashtable) obj);
-				} catch (Exception ex) { // need to specify the different exceptions
+					storePSInSession((HttpServletRequest)request, playSheet, (Hashtable) obj);
+				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
 					errorHash.put("Message", "Error occured processing question.");
 					errorHash.put("Class", className);
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
-				
+
 				return Response.status(200).entity(WebUtility.getSO(obj)).build();
-			} else {
+			}
+			else{
 				Hashtable<String, String> errorHash = new Hashtable<String, String>();
 				errorHash.put("Message", "No question defined.");
 				errorHash.put("Class", className);
-				// return getSO(errorHash);
+				//			return getSO(errorHash);
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
-		
+
 		String params = form.getFirst("params");
 		System.out.println("Params is " + params);
 		Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
-		
+
 		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
 		exQueryProcessor.processQuestionQuery(coreEngine, insight, paramHash);
 		Object obj = null;
 		try {
-			IPlaySheet playSheet = exQueryProcessor.getPlaySheet();
-			
-			// if(playSheet instanceof IStreamable){
-			// ServletOutputStream stream = response.getOutputStream();
-			// ((IStreamable) playSheet).setOutputStream(stream);
-			// }
-			
+			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
+
+//			User userData = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+//			if(userData!=null)
+//				playSheet.setUserData(userData);
+			//			if(playSheet instanceof IStreamable){
+			//				ServletOutputStream stream = response.getOutputStream();
+			//				((IStreamable) playSheet).setOutputStream(stream);
+			//			}
+
 			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
-			// playRunner.setCreateSwingView(false);
+			//playRunner.setCreateSwingView(false);
 			playRunner.runWeb();
-			/*
-			 * Thread playThread = new Thread(playRunner); playThread.start(); while(playThread.isAlive()) { //wait for processing to finish before
-			 * getting the data }
+			/*Thread playThread = new Thread(playRunner);
+			playThread.start();
+			while(playThread.isAlive()) {
+				//wait for processing to finish before getting the data
+			}
 			 */
 			obj = playSheet.getData();
-			
+
 			// store the playsheet in session
-			storePSInSession((HttpServletRequest) request, playSheet, (Hashtable) obj);
-		} catch (Exception ex) { // need to specify the different exceptions
+			storePSInSession((HttpServletRequest)request, playSheet, (Hashtable) obj);
+		} catch (Exception ex) { //need to specify the different exceptions 
 			ex.printStackTrace();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error occured processing question.");
 			errorHash.put("Class", className);
-			// return getSO(errorHash);
+			//			return getSO(errorHash);
 			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
-		
-		// return getSO("");
+
+		//		return getSO("");
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
-		// Hashtable <String, Object> paramHash = new Hashtable<String, Object>();
-		// if(params != null)
-		// {
-		// StringTokenizer tokenz = new StringTokenizer(params,"~");
-		// while(tokenz.hasMoreTokens())
-		// {
-		// String thisToken = tokenz.nextToken();
-		// int index = thisToken.indexOf("$");
-		// String key = thisToken.substring(0, index);
-		// String value = thisToken.substring(index+1);
-		// // attempt to see if
-		// boolean found = false;
-		// try{
-		// double dub = Double.parseDouble(value);
-		// paramHash.put(key, dub);
-		// found = true;
-		// }catch (Exception ignored)
-		// {
-		// }
-		// if(!found){
-		// try{
-		// int dub = Integer.parseInt(value);
-		// paramHash.put(key, dub);
-		// found = true;
-		// }catch (Exception ignored)
-		// {
-		// }
-		// }
-		// //if(!found)
-		// paramHash.put(key, value);
-		// }
-		// }
-		//
-		// System.out.println("Insight is " + insight);
-		// Insight in = coreEngine.getInsight(insight);
-		// String output = in.getOutput();
-		// Object obj = null;
-		//
-		// try
-		// {
-		// IPlaySheet ps = (IPlaySheet)Class.forName(output).newInstance();
-		// String sparql = in.getSparql();
-		// System.out.println("Param Hash is " + paramHash);
-		// // need to replace the whole params with the base params first
-		// sparql = Utility.normalizeParam(sparql);
-		// System.out.println("SPARQL " + sparql);
-		// sparql = Utility.fillParam(sparql, paramHash);
-		// System.err.println("SPARQL is " + sparql);
-		// ps.setRDFEngine(coreEngine);
-		// ps.setQuery(sparql);
-		// ps.setQuestionID(in.getId());
-		// ps.setTitle("Sample ");
-		// ps.createData();
-		// ps.runAnalytics();
-		// if(!(ps instanceof GraphPlaySheet))
-		// obj = ps.getData();
-		// else
-		// {
-		// GraphPlaySheet gps = (GraphPlaySheet)ps;
-		// RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)ps).getData();
-		// InMemorySesameEngine imse = new InMemorySesameEngine();
-		// imse.setRepositoryConnection(rc);
-		// imse.openDB(null);
-		// obj = RDFJSONConverter.getGraphAsJSON(imse, gps.baseFilterHash);
-		// }
-		// }catch(Exception ex)
-		// {
-		// ex.printStackTrace();
-		// }
-		// return getSO(obj);
-	}
-	
+		//		Hashtable <String, Object> paramHash = new Hashtable<String, Object>();
+		//		if(params != null)
+		//		{
+		//			StringTokenizer tokenz = new StringTokenizer(params,"~");
+		//			while(tokenz.hasMoreTokens())
+		//			{
+		//				String thisToken = tokenz.nextToken();
+		//				int index = thisToken.indexOf("$");
+		//				String key = thisToken.substring(0, index);
+		//				String value = thisToken.substring(index+1);
+		//				// attempt to see if 
+		//				boolean found = false;
+		//				try{
+		//					double dub = Double.parseDouble(value);
+		//					paramHash.put(key, dub);
+		//					found = true;
+		//				}catch (Exception ignored)
+		//				{
+		//				}
+		//				if(!found){
+		//					try{
+		//						int dub = Integer.parseInt(value);
+		//						paramHash.put(key, dub);
+		//						found = true;
+		//					}catch (Exception ignored)
+		//					{
+		//					}
+		//				}
+		//				//if(!found)
+		//					paramHash.put(key, value);
+		//			}
+		//		}
+		//		
+		//		System.out.println("Insight is " + insight);
+		//		Insight in = coreEngine.getInsight(insight);
+		//		String output = in.getOutput();
+		//		Object obj = null;
+		//		
+		//		try
+		//		{
+		//			IPlaySheet ps = (IPlaySheet)Class.forName(output).newInstance();
+		//			String sparql = in.getSparql();
+		//			System.out.println("Param Hash is " + paramHash);
+		//			// need to replace the whole params with the base params first
+		//			sparql = Utility.normalizeParam(sparql);
+		//			System.out.println("SPARQL " + sparql);
+		//			sparql = Utility.fillParam(sparql, paramHash);
+		//			System.err.println("SPARQL is " + sparql);
+		//			ps.setRDFEngine(coreEngine);
+		//			ps.setQuery(sparql);
+		//			ps.setQuestionID(in.getId());
+		//			ps.setTitle("Sample ");
+		//			ps.createData();
+		//			ps.runAnalytics();
+		//			if(!(ps instanceof GraphPlaySheet))
+		//				obj = ps.getData();
+		//			else
+		//			{
+		//				GraphPlaySheet gps = (GraphPlaySheet)ps;
+		//				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)ps).getData();
+		//				InMemorySesameEngine imse = new InMemorySesameEngine();
+		//				imse.setRepositoryConnection(rc);
+		//				imse.openDB(null);
+		//				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.baseFilterHash);
+		//			}
+		//		}catch(Exception ex)
+		//		{
+		//			ex.printStackTrace();
+		//		}
+		//		return getSO(obj);
+	}	
+
 	// executes a particular insight
 	@GET
 	@Path("outputs")
 	@Produces("application/json")
-	public StreamingOutput listOutputs() {
+	public StreamingOutput listOutputs()
+	{
 		// pulls the list of outputs and gives it back
 		return null;
-	}
-	
+	}	
+
 	// gets a particular insight
 	// not sure if I should keep it as it is or turn this into a post because of the query
 	@POST
 	@Path("querys")
 	@Produces("application/json")
-	public Response queryDataSelect(MultivaluedMap<String, String> form) {
+	public Response queryDataSelect(MultivaluedMap<String, String> form)
+	{
 		// returns the insight
 		// based on the current ID get the data
 		// typically is a JSON of the insight
 		// this will also cache it
 		System.out.println(form.getFirst("query"));
-		return Response.status(200).entity(WebUtility.getSO(RDFJSONConverter.getSelectAsJSON(form.getFirst("query") + "", coreEngine))).build();
-	}
-	
+		return Response.status(200).entity(WebUtility.getSO(RDFJSONConverter.getSelectAsJSON(form.getFirst("query")+"", coreEngine))).build();
+	}	
+
 	// runs a query against the engine while filtering out everything included in baseHash
 	@POST
 	@Path("querys/filter/noBase")
 	@Produces("application/json")
-	public Response queryDataSelectWithoutBase(MultivaluedMap<String, String> form) {
+	public Response queryDataSelectWithoutBase(MultivaluedMap<String, String> form)
+	{
 		// create and set the filter class
 		// send the query
 		SPARQLExecuteFilterNoBaseFunction filterFunction = new SPARQLExecuteFilterNoBaseFunction();
 		filterFunction.setEngine(coreEngine);
-		if (coreEngine instanceof AbstractEngine)
-			filterFunction.setFilterHash(((AbstractEngine) coreEngine).getBaseHash());
+		if(coreEngine instanceof AbstractEngine)
+			filterFunction.setFilterHash(((AbstractEngine)coreEngine).getBaseHash());
 		System.out.println(form.getFirst("query"));
-		return Response.status(200).entity(WebUtility.getSO(filterFunction.process(form.getFirst("query") + ""))).build();
-	}
-	
+		return Response.status(200).entity(WebUtility.getSO(filterFunction.process(form.getFirst("query")+""))).build();
+	}	
+
 	// runs a query against the engine while filtering out everything included in baseHash
 	@POST
 	@Path("querys/filter/onlyBase")
 	@Produces("application/json")
-	public Response queryDataSelectOnlyBase(MultivaluedMap<String, String> form) {
+	public Response queryDataSelectOnlyBase(MultivaluedMap<String, String> form)
+	{
 		// create and set the filter class
 		// send the query
 		SPARQLExecuteFilterBaseFunction filterFunction = new SPARQLExecuteFilterBaseFunction();
 		filterFunction.setEngine(coreEngine);
-		if (coreEngine instanceof AbstractEngine)
-			filterFunction.setFilterHash(((AbstractEngine) coreEngine).getBaseHash());
+		if(coreEngine instanceof AbstractEngine)
+			filterFunction.setFilterHash(((AbstractEngine)coreEngine).getBaseHash());
 		System.out.println(form.getFirst("query"));
-		
-		return Response.status(200).entity(WebUtility.getSO(filterFunction.process(form.getFirst("query") + ""))).build();
-	}
-	
+
+		return Response.status(200).entity(WebUtility.getSO(filterFunction.process(form.getFirst("query")+""))).build();
+	}	
+
 	// gets a particular insight
 	// not sure if I should keep it as it is or turn this into a post because of the query
 	@GET
 	@Path("queryc")
 	@Produces("application/json")
-	public StreamingOutput queryDataConstruct(@QueryParam("query") String query) {
+	public StreamingOutput queryDataConstruct(@QueryParam("query") String query)
+	{
 		// returns the insight
 		// based on the current ID get the data
 		// typically is a JSON of the insight
@@ -649,21 +686,22 @@ public class EngineResource {
 		// now should I assume the dude is always trying to get a graph
 		// need discussion witht he team
 		return null;
-	}
-	
+	}	
+
 	@POST
 	@Path("update")
 	@Produces("application/json")
-	public Response insertData2DB(MultivaluedMap<String, String> form) {
+	public Response insertData2DB(MultivaluedMap<String, String> form)
+	{
 		// returns the insight
 		// based on the current ID get the data
 		// typically is a JSON of the insight
 		// this will also cache it
 		SesameJenaUpdateWrapper wrapper = new SesameJenaUpdateWrapper();
 		wrapper.setEngine(coreEngine);
-		wrapper.setQuery(form.getFirst("query") + "");
+		wrapper.setQuery(form.getFirst("query")+"");
 		boolean success = wrapper.execute();
-		if (success) {
+		if(success) {
 			return Response.status(200).entity(WebUtility.getSO("success")).build();
 		} else {
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -671,452 +709,461 @@ public class EngineResource {
 			errorHash.put("Class", className);
 			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
-	}
-	
+	}	
+
 	// gets a particular insight
 	// not sure if I should keep it as it is or turn this into a post because of the query
 	// Can give a set of nodeids
 	@GET
 	@Path("properties")
 	@Produces("application/json")
-	public StreamingOutput getProperties(@QueryParam("node") String nodeURI) {
+	public StreamingOutput getProperties(@QueryParam("node") String nodeURI)
+	{
 		// returns the insight
 		// based on the current ID get the data
 		// typically is a JSON of the insight
 		// this will also cache it
 		return null;
-	}
-	
-	// gets a particular insight
-	// not sure if I should keep it as it is or turn this into a post because of the query
-	// Can give a set of nodeids
-	@GET
-	@Path("fill")
-	@Produces("application/json")
-	public Response getFillEntity(@QueryParam("type") String typeToFill, @QueryParam("query") String query) {
-		// returns the insight
-		// based on the current ID get the data
-		// typically is a JSON of the insight
-		// this will also cache it
-		if (typeToFill != null) {
-			return Response.status(200).entity(WebUtility.getSO(coreEngine.getParamValues("", typeToFill, ""))).build();
-		} else if (query != null) {
-			return Response.status(200).entity(WebUtility.getSO(coreEngine.getParamValues("", "", "", query))).build();
-		}
-		return Response.status(200).entity(WebUtility.getSO(null)).build();
-	}
-	
+	}	
+
+//	// gets a particular insight
+//	// not sure if I should keep it as it is or turn this into a post because of the query
+//	// Can give a set of nodeids
+//	@GET
+//	@Path("fill")
+//	@Produces("application/json")
+//	public Response getFillEntity(@QueryParam("type") String typeToFill, @QueryParam("query") String query)
+//	{
+//		// returns the insight
+//		// based on the current ID get the data
+//		// typically is a JSON of the insight
+//		// this will also cache it
+//		if(typeToFill != null) {
+//			return Response.status(200).entity(WebUtility.getSO(coreEngine.getParamValues("", typeToFill, ""))).build();
+//		} else if(query != null) {
+//			return Response.status(200).entity(WebUtility.getSO(coreEngine.getParamValues("", "", "", query))).build();
+//		}
+//		return Response.status(200).entity(WebUtility.getSO(null)).build();
+//	}		
+
 	// gets all numeric properties associated with a specific node type
 	@GET
 	@Path("properties/node/type/numeric")
 	@Produces("application/json")
-	public Response getNumericNodeProperties(@QueryParam("nodeType") String nodeUri) {
+	public Response getNumericNodeProperties(
+			@QueryParam("nodeType")  String nodeUri)
+	{
 		String nodePropQuery = "SELECT DISTINCT ?entity WHERE {{?source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@NODE_TYPE_URI@>} {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Relation/Contains>} {?source ?entity ?prop } FILTER(ISNUMERIC(?prop))}";
-		
-		// fill the query
+
+		//fill the query
 		String query = nodePropQuery.replace("@NODE_TYPE_URI@", nodeUri);
 		logger.info("Running node property query " + query);
-		return Response.status(200).entity(WebUtility.getSO(coreEngine.getEntityOfType(query))).build();
-	}
-	
+		return Response.status(200).entity(WebUtility.getSO(Utility.getVectorOfReturn(query, coreEngine))).build();
+	}	
+
 	// gets all numeric edge properties for a specific edge type
 	@GET
 	@Path("properties/edge/type/numeric")
 	@Produces("application/json")
-	public Response getNumericEdgeProperties(@QueryParam("source") String sourceTypeUri, @QueryParam("target") String targetTypeUri,
-			@QueryParam("verb") String verbTypeUri) {
+	public Response getNumericEdgeProperties(
+			@QueryParam("source")  String sourceTypeUri,
+			@QueryParam("target")  String targetTypeUri,
+			@QueryParam("verb")  String verbTypeUri)
+	{
 		String edgePropQuery = "SELECT DISTINCT ?entity WHERE {{?source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@SOURCE_TYPE@>} {?target <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@TARGET_TYPE@>} {?verb <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <@VERB_TYPE@>}{?source ?verb ?target;} {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Relation/Contains>} {?verb ?entity ?prop } FILTER(ISNUMERIC(?prop))}";
-		
-		// fill the query
-		String query = edgePropQuery.replace("@SOURCE_TYPE@", sourceTypeUri).replace("@TARGET_TYPE@", targetTypeUri).replace("@VERB_TYPE@",
-				verbTypeUri);
+
+		//fill the query
+		String query = edgePropQuery.replace("@SOURCE_TYPE@", sourceTypeUri).replace("@TARGET_TYPE@", targetTypeUri).replace("@VERB_TYPE@", verbTypeUri);
 		logger.info("Running edge property query " + query);
-		return Response.status(200).entity(WebUtility.getSO(coreEngine.getEntityOfType(query))).build();
-	}
-	
+		return Response.status(200).entity(WebUtility.getSO(Utility.getVectorOfReturn(query, coreEngine))).build();
+	}	
+
 	@POST
 	@Path("customVizTable")
 	@Produces("application/json")
-	public Response getVizTable(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response getVizTable(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+	{
 		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {
-		}.getType());
-		
+		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 		builder.setJSONDataHash(dataHash);
 		builder.buildQuery();
 		String query = builder.getQuery();
-		
-		/*
-		 * Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class); Integer items = 100; if
-		 * (form.containsKey("ItemCount")) items = gson.fromJson(form.getFirst("ItemCount"), Integer.class); Integer pageNumber = null; if
-		 * (form.containsKey("PageNumber")) pageNumber = gson.fromJson(form.getFirst("PageNumber"), Integer.class); SPARQLQueryTableBuilder tableViz =
-		 * new SPARQLQueryTableBuilder();
-		 * 
-		 * ArrayList<Hashtable<String,String>> nodePropArray = getHashArrayFromString(form.getFirst("SelectedNodeProps") + "");
-		 * ArrayList<Hashtable<String,String>> edgePropArray = getHashArrayFromString(form.getFirst("SelectedEdgeProps") + "");
-		 * tableViz.setPropV(nodePropArray, edgePropArray);
-		 * 
-		 * tableViz.setJSONDataHash(dataHash); tableViz.setEngine(coreEngine); tableViz.buildQuery(); SEMOSSQuery semossQuery =
-		 * tableViz.getSEMOSSQuery();
-		 * 
-		 * //get header array before adding pagination stuff ArrayList<Hashtable<String, String>> varObjV = tableViz.getHeaderArray();
-		 * Collection<Hashtable<String, String>> varObjVector = varObjV;
-		 * 
-		 * //add pagination information Hashtable limitHash = new Hashtable(); int fullTableRowNum = 100000;//tableViz.runCountQuery();
-		 * 
-		 * // semossQuery.addAllVarToOrderBy();// necessary for pagination limitHash.put("fullSize", fullTableRowNum);
-		 * 
-		 * if(items!= null){ int limitSize = items; semossQuery.setLimit(limitSize); } if(pageNumber != null) { int offset = items * (pageNumber - 1);
-		 * semossQuery.setOffset(offset); }
-		 * 
-		 * semossQuery.createQuery(); String query = semossQuery.getQuery();
-		 */
-		
+
+		/*Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
+		Integer items = 100;
+		if (form.containsKey("ItemCount"))
+			items = gson.fromJson(form.getFirst("ItemCount"), Integer.class);
+		Integer pageNumber = null;
+		if (form.containsKey("PageNumber"))
+			pageNumber = gson.fromJson(form.getFirst("PageNumber"), Integer.class);
+		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
+
+		ArrayList<Hashtable<String,String>> nodePropArray = getHashArrayFromString(form.getFirst("SelectedNodeProps") + "");
+		ArrayList<Hashtable<String,String>> edgePropArray = getHashArrayFromString(form.getFirst("SelectedEdgeProps") + "");
+		tableViz.setPropV(nodePropArray, edgePropArray);
+
+		tableViz.setJSONDataHash(dataHash);
+		tableViz.setEngine(coreEngine);
+		tableViz.buildQuery();
+		SEMOSSQuery semossQuery = tableViz.getSEMOSSQuery();
+
+		//get header array before adding pagination stuff
+		ArrayList<Hashtable<String, String>> varObjV = tableViz.getHeaderArray();
+		Collection<Hashtable<String, String>> varObjVector = varObjV;
+
+		//add pagination information
+		Hashtable limitHash = new Hashtable();
+		int fullTableRowNum = 100000;//tableViz.runCountQuery();
+
+//		semossQuery.addAllVarToOrderBy();// necessary for pagination
+		limitHash.put("fullSize", fullTableRowNum);
+
+		if(items!= null){
+			int limitSize = items;
+			semossQuery.setLimit(limitSize);
+		}
+		if(pageNumber != null) {
+			int offset = items * (pageNumber - 1);
+			semossQuery.setOffset(offset);
+		}
+
+		semossQuery.createQuery();
+		String query = semossQuery.getQuery();*/
+
 		System.out.println(query);
 		Object obj = null;
-		try {
+		try
+		{
 			String playSheetClassName = PlaySheetEnum.getClassFromName(PlaySheetEnum.Grid.getSheetName());
 			IPlaySheet playSheet = (IPlaySheet) Class.forName(playSheetClassName).getConstructor(null).newInstance(null);
 			playSheet.setQuery(query);
 			playSheet.setRDFEngine(coreEngine);
-			// should through what questionID this should be
+			//should through what questionID this should be
 			playSheet.setQuestionID("VizBuilder");
 			playSheet.createData();
 			playSheet.runAnalytics();
 			obj = playSheet.getData();
-			
-		} catch (Exception ex) {
+
+		} catch(Exception ex) {
 			ex.printStackTrace();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
 			errorHash.put("Message", "Error occured processing query.");
 			errorHash.put("Class", className);
 			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
-		
-		// still need filter queries for RDF... not sure what this is going to look like in the future yet
-		if (builder instanceof SPARQLQueryTableBuilder) {
-			ArrayList<Hashtable<String, String>> varObjV = ((SPARQLQueryTableBuilder) builder).getHeaderArray();
+
+		//still need filter queries for RDF... not sure what this is going to look like in the future yet
+		if(builder instanceof SPARQLQueryTableBuilder) {
+			ArrayList<Hashtable<String, String>> varObjV = ((SPARQLQueryTableBuilder)builder).getHeaderArray();
 			Collection<Hashtable<String, String>> varObjVector = varObjV;
-			
-			// add variable info to return data
-			((Hashtable) obj).put("variableHeaders", varObjVector);
+
+			//add variable info to return data
+			((Hashtable)obj).put("variableHeaders", varObjVector);
 		}
-		
-		if (builder instanceof SQLQueryTableBuilder) {
-			ArrayList<Hashtable<String, String>> varObjV = ((SQLQueryTableBuilder) builder).getHeaderArray();
+
+		if(builder instanceof SQLQueryTableBuilder) {
+			ArrayList<Hashtable<String, String>> varObjV = ((SQLQueryTableBuilder)builder).getHeaderArray();
 			Collection<Hashtable<String, String>> varObjVector = varObjV;
-			
-			// add variable info to return data
-			((Hashtable) obj).put("variableHeaders", varObjVector);
+
+			//add variable info to return data
+			((Hashtable)obj).put("variableHeaders", varObjVector);
 		}
-		
+
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
-	}
-	
+	}	
+
 	@GET
 	@Path("customVizPathProperties")
 	@Produces("application/json")
-	public Response getPathProperties(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request) {
+	public Response getPathProperties(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
+	{
 		logger.info("Getting properties for path");
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
 		Object obj = QueryBuilderHelper.getPropsFromPath(this.coreEngine, dataHash);
-		
-		// SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
-		// tableViz.setJSONDataHash(dataHash);
-		// tableViz.setEngine(coreEngine);
-		// Object obj = tableViz.getPropsFromPath();
+
+		//		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
+		//		tableViz.setJSONDataHash(dataHash);
+		//		tableViz.setEngine(coreEngine);
+		//		Object obj = tableViz.getPropsFromPath();
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
-	}
-	
+	}	
+
 	@GET
 	@Path("menu")
-	@Produces("application/json")
-	public Response getMenu(@QueryParam("user") String user, @QueryParam("start") String starter, @Context HttpServletRequest request) {
-		if (user == null)
+	@Produces("application/json")	
+	public Response getMenu(@QueryParam("user") String user, @QueryParam("start") String starter, @Context HttpServletRequest request)
+	{
+		if(user == null)
 			user = "All";
-		if (starter == null)
+		if(starter == null)
 			starter = "ContextMenu";
-		
-		String menuSubMenuQuery = "SELECT ?Menu ?MType ?MURL ?Submenu ?SMenuLabel ?SURL ?SType ?ChildMenu ?ChURL ?ChLabel ?CType ?MenuFiller ?SFiller ?CFiller WHERE "
-				+ "{BIND( <http://semoss.org/ontologies/Concept/Owner/"
-				+ user
-				+ "> AS ?User) "
-				+ "{?Menu <http://semoss.org/ontologies/Relation/Owner> ?User} "
-				+ "{?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} "
-				+ "{?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel} "
-				+ "{?Menu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?MenuFiller} "
-				+ "{?Menu <http://semoss.org/ontologies/Relation/Contains/Type> ?MType} "
-				+ "{?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} "
-				+ "{?Submenu <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} "
-				+ "OPTIONAL "
-				+ "{"
-				+ "{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL> ?SURL}  "
-				+ "{?Submenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?SFiller}  "
-				+ "{?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} "
-				+ "{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}"
-				+ "{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} "
-				+ "}"
-				+ "OPTIONAL "
-				+ "{"
-				+ "{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;} "
-				+ "{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?CFiller;} "
-				+ "} "
-				+ "OPTIONAL "
-				+ "{"
-				+ "{?Menu <http://semoss.org/ontologies/Relation/Contains/URL> ?MURL}"
-				+ "}"
-				+ "FILTER regex(str(?MenuLabel),'"
-				+ starter
-				+ "', 'i')}";
-		
-		// menuSubMenuQuery =
-		// "SELECT ?Menu ?Submenu ?SMenuLabel ?SURL ?SType ?ChildMenu ?ChURL ?ChLabel WHERE {BIND( <http://semoss.org/ontologies/Concept/Owner/All> AS ?User) {?Menu <http://semoss.org/ontologies/Relation/Owner> ?User} }";
-		// {?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} {?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel}
-		// {?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} {?Submenu
-		// <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} OPTIONAL {{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL>
-		// ?SURL} {?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} {?ChildMenu
-		// <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;}
-		// {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}} FILTER regex(str(?MenuLabel), 'Data', 'i')}";
-		
+
+		String menuSubMenuQuery = "SELECT ?Menu ?MType ?MURL ?Submenu ?SMenuLabel ?SURL ?SType ?ChildMenu ?ChURL ?ChLabel ?CType ?MenuFiller ?SFiller ?CFiller WHERE " +
+				"{BIND( <http://semoss.org/ontologies/Concept/Owner/" + user + "> AS ?User) " +
+				"{?Menu <http://semoss.org/ontologies/Relation/Owner> ?User} " +
+				"{?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} " +
+				"{?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel} " +
+				"{?Menu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?MenuFiller} " +
+				"{?Menu <http://semoss.org/ontologies/Relation/Contains/Type> ?MType} " +
+				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} " +
+				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} " +
+				"OPTIONAL " +
+				"{" +
+				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL> ?SURL}  " +
+				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?SFiller}  " +
+				"{?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} " +
+				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}" +
+				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} " +
+				"}" +
+				"OPTIONAL " +
+				"{" +
+				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;} " +
+				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?CFiller;} " +
+				"} " +
+				"OPTIONAL " +
+				"{" +
+				"{?Menu <http://semoss.org/ontologies/Relation/Contains/URL> ?MURL}" +
+				"}" +
+				"FILTER regex(str(?MenuLabel),'" + starter + "', 'i')}";
+
+		// menuSubMenuQuery = "SELECT ?Menu ?Submenu ?SMenuLabel ?SURL ?SType ?ChildMenu ?ChURL ?ChLabel WHERE {BIND( <http://semoss.org/ontologies/Concept/Owner/All> AS ?User) {?Menu <http://semoss.org/ontologies/Relation/Owner> ?User} }";
+		//{?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} {?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel} {?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} {?Submenu <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} OPTIONAL {{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL> ?SURL}  {?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}} FILTER regex(str(?MenuLabel), 'Data', 'i')}";
+
 		SesameJenaSelectWrapper wrapper = new SesameJenaSelectWrapper();
 		wrapper.setEngine(coreEngine);
 		wrapper.setQuery(menuSubMenuQuery);
 		wrapper.setEngineType(IEngine.ENGINE_TYPE.SESAME);
 		wrapper.executeQuery();
-		
+
 		System.out.println("Query.... " + menuSubMenuQuery);
 		System.out.println("Variables " + wrapper.getVariables());
-		
+
 		Hashtable allMenu = new Hashtable();
 		ArrayList<String> subMenus = new ArrayList();
-		
-		while (wrapper.hasNext()) {
+
+		while(wrapper.hasNext())
+		{
 			System.out.println("New record");
 			SesameJenaSelectStatement stmt = wrapper.next();
-			String menu = (String) stmt.getVar("Menu");
-			
-			String menuType = ((String) stmt.getVar("MType")).replace("\"", "");
-			String menuURL = ((String) stmt.getVar("MURL")).replace("\"", "").replace("*", "/");
-			String menuFiller = ((String) stmt.getVar("MenuFiller")).replace("\"", "");
-			
-			String subMenu = ((String) stmt.getVar("Submenu")).replace("\"", "");
-			String subMenuLabel = ((String) stmt.getVar("SMenuLabel")).replace("\"", "");
-			String sType = ((String) stmt.getVar("SType")).replace("\"", "");
-			String surl = ((String) stmt.getVar("SURL")).replace("\"", "").replace("*", "/"); // eventually it will be a * instead of a -
-			String sFiller = ((String) stmt.getVar("SFiller")).replace("\"", "");
-			
+			String menu = (String)stmt.getVar("Menu");
+
+			String menuType = ((String)stmt.getVar("MType")).replace("\"", "");
+			String menuURL = ((String)stmt.getVar("MURL")).replace("\"", "").replace("*","/");
+			String menuFiller = ((String)stmt.getVar("MenuFiller")).replace("\"", "");
+
+			String subMenu = ((String)stmt.getVar("Submenu")).replace("\"", "");
+			String subMenuLabel = ((String)stmt.getVar("SMenuLabel")).replace("\"", "");
+			String sType = ((String)stmt.getVar("SType")).replace("\"", "");
+			String surl = ((String)stmt.getVar("SURL")).replace("\"", "").replace("*","/"); // eventually it will be a * instead of a -
+			String sFiller = ((String)stmt.getVar("SFiller")).replace("\"", "");
+
 			allMenu.put("Menu", starter);
 			allMenu.put("Type", menuType);
 			allMenu.put("URL", menuURL);
 			allMenu.put("Filler", menuFiller);
-			
+
+
 			// submenu
 			Hashtable smenuHash = new Hashtable();
-			if (allMenu.containsKey(subMenuLabel)) {
-				smenuHash = (Hashtable) allMenu.get(subMenuLabel);
-			} else {
+			if(allMenu.containsKey(subMenuLabel)) {
+				smenuHash = (Hashtable)allMenu.get(subMenuLabel);
+			}
+			else {
 				subMenus.add(subMenuLabel);
 			}
-			
+
 			smenuHash.put("Label", subMenuLabel);
 			smenuHash.put("Type", sType);
 			smenuHash.put("URL", surl);
 			smenuHash.put("Filler", sFiller);
-			
+
 			// finally the sub sub menu
-			String childMenu = ((String) stmt.getVar("ChildMenu")).replace("\"", "");
-			String chMenuLabel = ((String) stmt.getVar("ChLabel")).replace("\"", "");
-			String chURL = ((String) stmt.getVar("ChURL")).replace("\"", "").replace("*", "/"); // eventually I will put this as a * so it can be
-																								// replaced
-			String cType = ((String) stmt.getVar("CType")).replace("\"", "");
-			String cFiller = ((String) stmt.getVar("CFiller")).replace("\"", "");
-			
-			ArrayList<String> childMenus = new ArrayList();
-			if (chMenuLabel != null && chMenuLabel.length() != 0) {
+			String childMenu = ((String)stmt.getVar("ChildMenu")).replace("\"", "");
+			String chMenuLabel = ((String)stmt.getVar("ChLabel")).replace("\"","");
+			String chURL = ((String)stmt.getVar("ChURL")).replace("\"", "").replace("*","/"); // eventually I will put this as a * so it can be replaced
+			String cType = ((String)stmt.getVar("CType")).replace("\"", "");
+			String cFiller = ((String)stmt.getVar("CFiller")).replace("\"", "");
+
+			ArrayList <String> childMenus = new ArrayList();
+			if(chMenuLabel != null && chMenuLabel.length() != 0)
+			{
 				System.out.println(" Child Menu for " + subMenuLabel + "  Child is " + childMenu);
 				Hashtable childMenuHash = new Hashtable();
-				if (smenuHash.containsKey(chMenuLabel)) {
+				if(smenuHash.containsKey(chMenuLabel))
+				{
 					System.out.println("Has the child menu label [" + chMenuLabel + "]");
-					childMenuHash = (Hashtable) smenuHash.get(chMenuLabel);
-				} else {
+					childMenuHash = (Hashtable)smenuHash.get(chMenuLabel);
+				}
+				else {
 					childMenus.add(chMenuLabel);
 				}
 				childMenuHash.put("Label", chMenuLabel);
 				childMenuHash.put("URL", chURL);
 				childMenuHash.put("Type", cType);
 				childMenuHash.put("Filler", cFiller);
-				
+
 				System.out.println("Child menus is " + childMenus);
-				
-				if (childMenus.size() > 0) {
+
+				if(childMenus.size() > 0) {
 					smenuHash.put("Submenus", childMenus);
 				}
 				smenuHash.put(chMenuLabel, childMenuHash);
 			}
-			
+
 			System.out.println("Submenu " + smenuHash);
 			allMenu.put("Submenus", subMenus);
 			allMenu.put(subMenuLabel, smenuHash);
 		}
-		
+
 		// master the hashtable for empty
-		for (int subMenuIndex = 0; subMenuIndex < subMenus.size(); subMenuIndex++) {
-			Hashtable thisMenu = (Hashtable) allMenu.get(subMenus.get(subMenuIndex));
-			if (!thisMenu.containsKey("Submenus") || ((ArrayList) thisMenu.get("Submenus")).size() == 0) {
+		for(int subMenuIndex = 0;subMenuIndex < subMenus.size();subMenuIndex++)
+		{
+			Hashtable thisMenu = (Hashtable)allMenu.get(subMenus.get(subMenuIndex));
+			if(!thisMenu.containsKey("Submenus") || ((ArrayList)thisMenu.get("Submenus")).size() == 0)
+			{
 				ArrayList tempList = new ArrayList();
 				tempList.add("EMPTY");
 				thisMenu.put("Submenus", tempList);
 			}
 		}
-		if (subMenus.size() == 0) {
+		if(subMenus.size() == 0)
+		{
 			subMenus.add("EMPTY");
 			allMenu.put("Submenus", subMenus);
-		}
-		
+		}	
+
 		System.out.println(">>>.... " + new GsonBuilder().setPrettyPrinting().create().toJson(allMenu));
-		
+
 		return Response.status(200).entity(WebUtility.getSO(allMenu)).build();
 	}
-	
-	//
-	// private ArrayList<Hashtable<String,String>> getHashArrayFromString(String arrayString){
-	// System.err.println("MY STRING " + arrayString);
-	// ArrayList<Hashtable<String,String>> retArray = new ArrayList<Hashtable<String,String>>();
-	// if(arrayString != null) {
-	// Gson gson = new Gson();
-	// ArrayList<Object> varsObjArray = gson.fromJson(arrayString, ArrayList.class);
-	// for(Object varsObj : varsObjArray){
-	// Hashtable newHash = new Hashtable();
-	// newHash.putAll((StringMap)varsObj);
-	// retArray.add(newHash);
-	// }
-	// }
-	// return retArray;
-	// }
-	
+	//  	
+	//  	private ArrayList<Hashtable<String,String>> getHashArrayFromString(String arrayString){
+	//  		System.err.println("MY STRING " + arrayString);
+	//  		ArrayList<Hashtable<String,String>> retArray = new ArrayList<Hashtable<String,String>>();
+	//		if(arrayString != null) {
+	//			Gson gson = new Gson();
+	//			ArrayList<Object> varsObjArray = gson.fromJson(arrayString, ArrayList.class);
+	//			for(Object varsObj : varsObjArray){
+	//				Hashtable newHash = new Hashtable();
+	//				newHash.putAll((StringMap)varsObj);
+	//				retArray.add(newHash);
+	//			}
+	//		}
+	//		return retArray;
+	//  	}
+
 	@Path("/analytics")
-	public Object runEngineAnalytics() {
+	public Object runEngineAnalytics(){
 		EngineAnalyticsResource analytics = new EngineAnalyticsResource(this.coreEngine);
-		
+
 		return analytics;
 	}
-	
+
 	@Path("/generateInsights")
-	public Object runAutoGeneratedInsights() {
+	public Object runAutoGeneratedInsights(){
 		AutoGeneratedInsights AutoGeneratedInsights = new AutoGeneratedInsights(this.coreEngine);
-		
+
 		return AutoGeneratedInsights;
 	}
 	
 	@Path("/explore")
-	public Object generateQuery(@Context HttpServletRequest request) {
+	public Object generateQuery(@Context HttpServletRequest request)
+	{
 		ExploreQuery exploreQuery = new ExploreQuery(this.coreEngine);
-		
+
 		return exploreQuery;
 	}
-	
+
+
 	// test
 	@GET
 	@Path("comet")
 	@Produces("text/plain")
-	public void cometTry(final @Suspended AsyncResponse response, @Context HttpServletRequest request) {
+	public void cometTry(final @Suspended AsyncResponse response,  @Context HttpServletRequest request) {
 		System.out.println("Dropped in here >>>>>> 2" + "comet");
 		/*
-		 * Thread t = new Thread() {
-		 * 
-		 * @Override public void run() { try { System.out.println("Came into thread "); Response jaxrs = Response.ok("Funny... ",
-		 * "basic").type(MediaType.TEXT_PLAIN).build(); //jaxrs. Thread.sleep(1000); response.resume(jaxrs); } catch (Exception e) {
-		 * e.printStackTrace(); } } }; t.start();
-		 */
+		   Thread t = new Thread()
+		      {
+		         @Override
+		         public void run()
+		         {
+		            try
+		            {
+		            	System.out.println("Came into thread ");
+		               Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
+		               //jaxrs.
+		               Thread.sleep(1000);
+		               response.resume(jaxrs);
+		            }
+		            catch (Exception e)
+		            {
+		               e.printStackTrace();
+		            }
+		         }
+		      };
+		      t.start();*/
 		HttpSession session = request.getSession();
 		InMemoryHash.getInstance().put("respo", response);
 		response.setTimeout(1000, TimeUnit.MINUTES);
-		final AsyncResponse myResponse = (AsyncResponse) InMemoryHash.getInstance().get("respo");
+		final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
 		System.out.println("Is the response done..  ? " + myResponse.isDone());
-		
-		// myResponse.resume("Hello");
+
+		//myResponse.resume("Hello");
 		System.err.println("Put the response here");
-		
-	}
-	
+
+	}   
+
 	@GET
 	@Path("/trigger")
 	@Produces("application/xml")
 	public String trigger(@Context HttpServletRequest request) {
 		System.out.println("Dropped in here >>>>>> 2" + "trigger");
 		HttpSession session = request.getSession();
-		final AsyncResponse myResponse = (AsyncResponse) InMemoryHash.getInstance().get("respo");
-		
-		if (myResponse != null) {
+		final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
+
+		if(myResponse != null) {
 			System.out.println("Is the response done..  ? " + myResponse.isDone());
 			myResponse.resume("Hello2222");
 			myResponse.resume("Hola again");
 			System.out.println("MyResponse is not null");
 			/*
-			 * Thread t = new Thread() {
-			 * 
-			 * @Override public void run() { try { System.out.println("Came into thread "); Response jaxrs = Response.ok("Funny... ",
-			 * "basic").type(MediaType.TEXT_PLAIN).build(); //jaxrs. Thread.sleep(1000); myResponse.resume(jaxrs); } catch (Exception e) {
-			 * e.printStackTrace(); } } }; t.start();
-			 */
+			   Thread t = new Thread()
+			      {
+			         @Override
+			         public void run()
+			         {
+			            try
+			            {
+			            	System.out.println("Came into thread ");
+			               Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
+			               //jaxrs.
+			               Thread.sleep(1000);
+			               myResponse.resume(jaxrs);
+			            }
+			            catch (Exception e)
+			            {
+			               e.printStackTrace();
+			            }
+			         }
+			      };
+			      t.start();*/
 		}
-		// Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
-		// myResponse.resume(jaxrs);
+		//Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
+		//myResponse.resume(jaxrs);
 		return "Returned.. ";
-	}
+	}  
 	
-	private void storePSInSession(HttpServletRequest request, IPlaySheet ps, Hashtable dataHash) {
+	private void storePSInSession(HttpServletRequest request, IPlaySheet ps, Hashtable dataHash){
 		// only need to store in session playsheets that are tap specific (for control panel clicks) and graph playsheets (for traverse)
 		String className = dataHash.get("playsheet") + "";
 		String graphClassName = PlaySheetEnum.getClassFromName("Graph");
 		ArrayList<String> genericPsClasses = PlaySheetEnum.getAllSheetClasses();
-		if (!genericPsClasses.contains(className) || className.equals(graphClassName)) {
+		if(!genericPsClasses.contains(className) || className.equals(graphClassName)) {
 			HttpSession session = request.getSession(false);
 			session.setAttribute(ps.getQuestionID(), ps);
 		}
 	}
-	
-	@POST
-	@Path("/exportSAR")
-	@Produces("application/json")
-	public Response saveSAR(@QueryParam("outputPath")  String outputPath) {
-		String engineName = coreEngine.getEngineName();
-		System.out.println("closing " + engineName);
-		coreEngine.closeDB();
-		
-		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-		String insightLoc = baseFolder + "/" + coreEngine.getProperty(Constants.INSIGHTS);
-		File insightFile = new File(insightLoc);
-		File engineFolder = new File(insightFile.getParent());
-		
-		String smss = coreEngine.getSMSS();
-		outputPath = outputPath + "\\" + engineName + ".zip";
-		//TODO: need to throw exceptions properly from the static method saveEngine
-		ZipDatabase.zipEngine(engineFolder.getAbsolutePath(), smss, outputPath);
-
-		// reload the engine
-		FileInputStream fileIn = null;
-		Properties prop = new Properties();
-		try {
-			fileIn = new FileInputStream(smss);
-			prop.load(fileIn);			
-			Utility.loadEngine(smss, prop);
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				if(fileIn != null) {
-					fileIn.close();
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		String successString = "Zip file with DB contentes found at " + outputPath;
-		return Response.status(200).entity(WebUtility.getSO(successString)).build();
-	}
-	
 }

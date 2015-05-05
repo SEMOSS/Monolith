@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Vector;
 
-import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
@@ -47,11 +46,9 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
-import prerna.auth.User;
-import prerna.auth.UserPermissionsMasterDB;
-import prerna.rdf.engine.api.IEngine;
-import prerna.rdf.engine.impl.AbstractEngine;
-import prerna.rdf.engine.impl.QuestionAdministrator;
+import prerna.engine.api.IEngine;
+import prerna.engine.impl.AbstractEngine;
+import prerna.engine.impl.QuestionAdministrator;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
@@ -63,7 +60,6 @@ public class DBAdminResource {
 
 	final static int MAX_CHAR = 100;
 	Logger logger = Logger.getLogger(DBAdminResource.class.getName());
-	boolean securityEnabled;
 
 	@POST
 	@Path("/delete")
@@ -115,17 +111,9 @@ public class DBAdminResource {
 		}
 		else if(enginesString!=null){
 			Vector<String> engines = gson.fromJson(enginesString, Vector.class);
-			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 			for(String engineString: engines){
 				IEngine engine = getEngine(engineString, request);
 				deleteEngine(engine, request);
-				if(this.securityEnabled) {
-					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
-						permissions.deleteEngine(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), engineString);
-					} else {
-						return Response.status(400).entity("Please log in to delete databases.").build();
-					}
-				}
 			}
 		}
   		return Response.status(200).entity(WebUtility.getSO("success")).build();
@@ -169,56 +157,57 @@ public class DBAdminResource {
 	
 	public boolean deleteEngine(IEngine coreEngine, HttpServletRequest request)
 	{
+		coreEngine.deleteDB();
 		String engineName = coreEngine.getEngineName();
-		System.out.println("closing " + engineName);
-		coreEngine.closeDB();
-		System.out.println("db closed");
-		System.out.println("deleting folder");
-		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-		String insightLoc = baseFolder + "/" + coreEngine.getProperty(Constants.INSIGHTS);
-		System.out.println("insight file is  " + insightLoc);
-		File insightFile = new File(insightLoc);
-		File engineFolder = new File(insightFile.getParent());
-		String folderName = engineFolder.getName();
-		try {
-			System.out.println("checking folder " + folderName + " against db " + engineName);//this check is to ensure we are deleting the right folder
-			if(folderName.equals(engineName))
-			{
-				System.out.println("folder getting deleted is " + engineFolder.getAbsolutePath());
-				FileUtils.deleteDirectory(engineFolder);
-			}
-			else{
-				logger.error("Cannot delete database folder as folder name does not line up with engine name");
-				//try deleting each file individually
-				System.out.println("Deleting insight file " + insightLoc);
-				insightFile.delete();
-
-				String ontoLoc = baseFolder + "/" + coreEngine.getProperty(Constants.ONTOLOGY);
-				if(ontoLoc != null){
-					System.out.println("Deleting onto file " + ontoLoc);
-					File ontoFile = new File(ontoLoc);
-					ontoFile.delete();
-				}
-
-				String owlLoc = baseFolder + "/" + coreEngine.getProperty(Constants.OWL);
-				if(owlLoc != null){
-					System.out.println("Deleting owl file " + owlLoc);
-					File owlFile = new File(owlLoc);
-					owlFile.delete();
-				}
-
-				String jnlLoc = baseFolder + "/" + coreEngine.getProperty("com.bigdata.journal.AbstractJournal.file");
-				if(jnlLoc != null){
-					System.out.println("Deleting jnl file " + jnlLoc);
-					File jnlFile = new File(jnlLoc);
-					jnlFile.delete();
-				}
-			}
-			String smss = coreEngine.getSMSS();
-			System.out.println("Deleting smss " + smss);
-			File smssFile = new File(smss);
-			smssFile.delete();
-			
+//		System.out.println("closing " + engineName);
+//		coreEngine.closeDB();
+//		System.out.println("db closed");
+//		System.out.println("deleting folder");
+//		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
+//		String insightLoc = baseFolder + "/" + coreEngine.getProperty(Constants.INSIGHTS);
+//		System.out.println("insight file is  " + insightLoc);
+//		File insightFile = new File(insightLoc);
+//		File engineFolder = new File(insightFile.getParent());
+//		String folderName = engineFolder.getName();
+//		try {
+//			System.out.println("checking folder " + folderName + " against db " + engineName);//this check is to ensure we are deleting the right folder
+//			if(folderName.equals(engineName))
+//			{
+//				System.out.println("folder getting deleted is " + engineFolder.getAbsolutePath());
+//				FileUtils.deleteDirectory(engineFolder);
+//			}
+//			else{
+//				logger.error("Cannot delete database folder as folder name does not line up with engine name");
+//				//try deleting each file individually
+//				System.out.println("Deleting insight file " + insightLoc);
+//				insightFile.delete();
+//
+//				String ontoLoc = baseFolder + "/" + coreEngine.getProperty(Constants.ONTOLOGY);
+//				if(ontoLoc != null){
+//					System.out.println("Deleting onto file " + ontoLoc);
+//					File ontoFile = new File(ontoLoc);
+//					ontoFile.delete();
+//				}
+//
+//				String owlLoc = baseFolder + "/" + coreEngine.getProperty(Constants.OWL);
+//				if(owlLoc != null){
+//					System.out.println("Deleting owl file " + owlLoc);
+//					File owlFile = new File(owlLoc);
+//					owlFile.delete();
+//				}
+//
+//				String jnlLoc = baseFolder + "/" + coreEngine.getProperty("com.bigdata.journal.AbstractJournal.file");
+//				if(jnlLoc != null){
+//					System.out.println("Deleting jnl file " + jnlLoc);
+//					File jnlFile = new File(jnlLoc);
+//					jnlFile.delete();
+//				}
+//			}
+//			String smss = coreEngine.getSMSS();
+//			System.out.println("Deleting smss " + smss);
+//			File smssFile = new File(smss);
+//			smssFile.delete();
+//			
 			//remove from session
 			HttpSession session = request.getSession();
 			ArrayList<Hashtable<String,String>> engines = (ArrayList<Hashtable<String,String>>)session.getAttribute(Constants.ENGINES);
@@ -239,19 +228,17 @@ public class DBAdminResource {
 			DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engineNames);
 
 			return true;
-		} catch (IOException e) {
-			e.printStackTrace();
-			return false;
-		}
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//			return false;
+//		}
+		
+		
 	}
   	
   	private AbstractEngine getEngine(String engineName, HttpServletRequest request){
 		HttpSession session = request.getSession();
 		AbstractEngine engine = (AbstractEngine)session.getAttribute(engineName);
 		return engine;
-  	}
-  	
-  	public void setSecurityEnabled(boolean securityEnabled) {
-  		this.securityEnabled = securityEnabled;
   	}
 }
