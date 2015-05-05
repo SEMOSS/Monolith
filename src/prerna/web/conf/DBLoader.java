@@ -33,14 +33,14 @@ import javax.servlet.ServletContextListener;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 
-import com.ibm.icu.util.StringTokenizer;
-
-import prerna.rdf.engine.api.IEngine;
-import prerna.rdf.engine.impl.SesameJenaSelectStatement;
-import prerna.rdf.engine.impl.SesameJenaSelectWrapper;
+import prerna.engine.api.IEngine;
+import prerna.engine.impl.rdf.SesameJenaSelectStatement;
+import prerna.engine.impl.rdf.SesameJenaSelectWrapper;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+
+import com.ibm.icu.util.StringTokenizer;
 
 public class DBLoader implements ServletContextListener {
 

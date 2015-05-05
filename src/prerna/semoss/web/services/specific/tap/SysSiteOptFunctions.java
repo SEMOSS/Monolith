@@ -14,8 +14,6 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.log4j.Logger;
 
 import prerna.semoss.web.services.NameServer;
-import prerna.ui.components.specific.tap.DHMSMDeploymentStrategyPlaySheet;
-import prerna.ui.components.specific.tap.SysSiteOptPlaySheet;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
@@ -25,47 +23,36 @@ public class SysSiteOptFunctions extends AbstractControlClick {
 	@Context ServletContext context;
 	Logger logger = Logger.getLogger(NameServer.class.getName());
 
-	@POST
-	@Path("update")
-    @Produces("application/json")
-	public StreamingOutput updateSystemListData(MultivaluedMap<String, String> form, 
-            @Context HttpServletRequest request) {
-
-		Gson gson = new Gson();
-        Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-        Hashtable retHash = ((SysSiteOptPlaySheet) playsheet).getSystems(webDataHash);
-		return WebUtility.getSO(retHash);
-	}
-	
-	@POST
-	@Path("runopt")
-    @Produces("application/json")
-	public StreamingOutput runSysSiteOptimization(MultivaluedMap<String, String> form, 
-            @Context HttpServletRequest request) {
-		Gson gson = new Gson();
-        Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-        Hashtable retHash = ((SysSiteOptPlaySheet) playsheet).runOpt(webDataHash);
-		return WebUtility.getSO(retHash);
-	}
-	
-	@POST
-	@Path("overview")
-    @Produces("application/json")
-	public StreamingOutput getOverviewPageData(MultivaluedMap<String, String> form, 
-            @Context HttpServletRequest request) {
-		Gson gson = new Gson();
-		Hashtable retHash = new Hashtable();
-        Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-        String type = (String) webDataHash.get("type");
-        if (type.equals("info"))
-        	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewInfoData();
-        if (type.equals("cost"))
-        	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewCostData();
-        if (type.equals("map"))
-        	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewSiteMapData();
-        if (type.equals("healthGrid"))
-        	retHash = ((SysSiteOptPlaySheet) playsheet).getHealthGrid("");
-		return WebUtility.getSO(retHash);
-	}
+//	@POST
+//	@Path("update")
+//    @Produces("application/json")
+//	public StreamingOutput updateSystemListData(MultivaluedMap<String, String> form, 
+//            @Context HttpServletRequest request) {
+//
+//		Gson gson = new Gson();
+//        Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+//        Hashtable retHash = ((SysSiteOptPlaySheet) playsheet).getSystems(webDataHash);
+//		return WebUtility.getSO(retHash);
+//	}
+//	
+//	@POST
+//	@Path("overview")
+//    @Produces("application/json")
+//	public StreamingOutput getOverviewPageData(MultivaluedMap<String, String> form, 
+//            @Context HttpServletRequest request) {
+//		Gson gson = new Gson();
+//		Hashtable retHash = new Hashtable();
+//        Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+//        String type = (String) webDataHash.get("type");
+//        if (type.equals("info"))
+//        	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewInfoData();
+//        if (type.equals("cost"))
+//        	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewCostData();
+//        if (type.equals("map"))
+//        	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewSiteMapData();
+//        if (type.equals("healthGrid"))
+//        	retHash = ((SysSiteOptPlaySheet) playsheet).getHealthGrid("");
+//		return WebUtility.getSO(retHash);
+//	}
 
 }

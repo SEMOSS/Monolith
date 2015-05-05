@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -43,14 +42,14 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
+import prerna.engine.api.IEngine;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSVertex;
-import prerna.rdf.engine.api.IEngine;
-import prerna.semoss.web.services.specific.tap.AbstractControlClick;
 import prerna.semoss.web.services.specific.tap.IControlClick;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
@@ -62,7 +61,6 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 public class PlaySheetResource {
 
@@ -499,5 +497,17 @@ public class PlaySheetResource {
     	acc.setEngine(this.coreEngine);
     	acc.setPlaySheet(this.playSheet);  
     	return acc;
+    }  
+    
+    //for handling playsheet specific tool calls
+    @Path("do-{method}")
+    public Response doMethod(@PathParam("method") String method, MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+    {    	
+    	Hashtable<String, List<String>> hash = new Hashtable<String, List<String>>(form);
+
+    	Object ret = this.playSheet.doMethod(method, hash);
+
+        return Response.status(200).entity(WebUtility.getSO(ret)).build();
+
     }  
 }
