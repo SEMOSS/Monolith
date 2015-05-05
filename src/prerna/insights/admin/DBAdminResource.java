@@ -27,8 +27,6 @@
  *******************************************************************************/
 package prerna.insights.admin;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Vector;
@@ -43,9 +41,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
+import prerna.auth.User;
+import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.QuestionAdministrator;
@@ -60,6 +59,7 @@ public class DBAdminResource {
 
 	final static int MAX_CHAR = 100;
 	Logger logger = Logger.getLogger(DBAdminResource.class.getName());
+	boolean securityEnabled;
 
 	@POST
 	@Path("/delete")
@@ -111,9 +111,17 @@ public class DBAdminResource {
 		}
 		else if(enginesString!=null){
 			Vector<String> engines = gson.fromJson(enginesString, Vector.class);
+			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 			for(String engineString: engines){
 				IEngine engine = getEngine(engineString, request);
 				deleteEngine(engine, request);
+				if(this.securityEnabled) {
+					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
+						permissions.deleteEngine(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), engineString);
+					} else {
+						return Response.status(400).entity("Please log in to delete databases.").build();
+					}
+				}
 			}
 		}
   		return Response.status(200).entity(WebUtility.getSO("success")).build();
@@ -231,14 +239,16 @@ public class DBAdminResource {
 //		} catch (IOException e) {
 //			e.printStackTrace();
 //			return false;
-//		}
-		
-		
+//		}	
 	}
   	
   	private AbstractEngine getEngine(String engineName, HttpServletRequest request){
 		HttpSession session = request.getSession();
 		AbstractEngine engine = (AbstractEngine)session.getAttribute(engineName);
 		return engine;
+  	}
+  	
+  	public void setSecurityEnabled(boolean securityEnabled) {
+  		this.securityEnabled = securityEnabled;
   	}
 }

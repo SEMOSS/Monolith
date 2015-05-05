@@ -280,6 +280,7 @@ public class NameServer {
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
+		upload.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
 		return upload;
 	}
 
@@ -509,7 +510,7 @@ public class NameServer {
   	@Path("/dbAdmin")
 	public Object modifyInsight(@Context HttpServletRequest request) {
   		DBAdminResource questionAdmin = new DBAdminResource();
-
+  		questionAdmin.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
 		return questionAdmin;
 	}
   	
