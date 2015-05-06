@@ -71,8 +71,8 @@ public class UserDBFilter implements Filter {
 		if(!dbInitialized) // this is our new friend
 		{
 			ArrayList<String> userEngines = new ArrayList<String>();
+			session = ((HttpServletRequest)arg0).getSession(true);
 			if(securityEnabled) {
-				session = ((HttpServletRequest)arg0).getSession(true);
 				User user = ((User) session.getAttribute(Constants.SESSION_USER));
 				String userId = "";
 				if(user!= null) {
