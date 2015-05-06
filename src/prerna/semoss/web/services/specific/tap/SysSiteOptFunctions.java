@@ -37,6 +37,17 @@ public class SysSiteOptFunctions extends AbstractControlClick {
 	}
 	
 	@POST
+	@Path("runopt")
+    @Produces("application/json")
+	public StreamingOutput runSysSiteOptimization(MultivaluedMap<String, String> form, 
+            @Context HttpServletRequest request) {
+		Gson gson = new Gson();
+        Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+        Hashtable retHash = ((SysSiteOptPlaySheet) playsheet).runOpt(webDataHash);
+		return WebUtility.getSO(retHash);
+	}
+	
+	@POST
 	@Path("overview")
     @Produces("application/json")
 	public StreamingOutput getOverviewPageData(MultivaluedMap<String, String> form, 
@@ -53,6 +64,25 @@ public class SysSiteOptFunctions extends AbstractControlClick {
         	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewSiteMapData("");
         if (type.equals("healthGrid"))
         	retHash = ((SysSiteOptPlaySheet) playsheet).getHealthGrid("");
+		return WebUtility.getSO(retHash);
+	}
+	
+	@POST
+	@Path("capability")
+    @Produces("application/json")
+	public StreamingOutput getCapabilityPageData(MultivaluedMap<String, String> form, 
+            @Context HttpServletRequest request) {
+		Gson gson = new Gson();
+		Hashtable retHash = new Hashtable();
+        Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+        String type = (String) webDataHash.get("type");
+        String capability = (String) webDataHash.get("cap");
+        if (type.equals("info"))
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getCapabilityInfoData(capability);
+        if (type.equals("map"))
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewSiteMapData(capability);
+        if (type.equals("coverage"))
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getCapabilityCoverageData(capability);
 		return WebUtility.getSO(retHash);
 	}
 
