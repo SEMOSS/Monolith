@@ -306,7 +306,7 @@ public class EngineResource {
 
 		//Vector<Hashtable<String,String>> resultInsightObjects = coreEngine.getOutputs4Insights(resultInsights);
 		Vector<Insight> resultInsightObjects = null;
-		if(resultInsights!=null)
+		if(resultInsights!=null && !resultInsights.isEmpty())
 			resultInsightObjects = ((AbstractEngine)coreEngine).getInsight2(resultInsights.toArray(new String[resultInsights.size()]));
 
 		return Response.status(200).entity(WebUtility.getSO(resultInsightObjects)).build();
@@ -519,14 +519,7 @@ public class EngineResource {
 			//			}
 
 			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
-			//playRunner.setCreateSwingView(false);
 			playRunner.runWeb();
-			/*Thread playThread = new Thread(playRunner);
-			playThread.start();
-			while(playThread.isAlive()) {
-				//wait for processing to finish before getting the data
-			}
-			 */
 			obj = playSheet.getData();
 
 			// store the playsheet in session
@@ -540,78 +533,7 @@ public class EngineResource {
 			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
 
-		//		return getSO("");
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
-		//		Hashtable <String, Object> paramHash = new Hashtable<String, Object>();
-		//		if(params != null)
-		//		{
-		//			StringTokenizer tokenz = new StringTokenizer(params,"~");
-		//			while(tokenz.hasMoreTokens())
-		//			{
-		//				String thisToken = tokenz.nextToken();
-		//				int index = thisToken.indexOf("$");
-		//				String key = thisToken.substring(0, index);
-		//				String value = thisToken.substring(index+1);
-		//				// attempt to see if 
-		//				boolean found = false;
-		//				try{
-		//					double dub = Double.parseDouble(value);
-		//					paramHash.put(key, dub);
-		//					found = true;
-		//				}catch (Exception ignored)
-		//				{
-		//				}
-		//				if(!found){
-		//					try{
-		//						int dub = Integer.parseInt(value);
-		//						paramHash.put(key, dub);
-		//						found = true;
-		//					}catch (Exception ignored)
-		//					{
-		//					}
-		//				}
-		//				//if(!found)
-		//					paramHash.put(key, value);
-		//			}
-		//		}
-		//		
-		//		System.out.println("Insight is " + insight);
-		//		Insight in = coreEngine.getInsight(insight);
-		//		String output = in.getOutput();
-		//		Object obj = null;
-		//		
-		//		try
-		//		{
-		//			IPlaySheet ps = (IPlaySheet)Class.forName(output).newInstance();
-		//			String sparql = in.getSparql();
-		//			System.out.println("Param Hash is " + paramHash);
-		//			// need to replace the whole params with the base params first
-		//			sparql = Utility.normalizeParam(sparql);
-		//			System.out.println("SPARQL " + sparql);
-		//			sparql = Utility.fillParam(sparql, paramHash);
-		//			System.err.println("SPARQL is " + sparql);
-		//			ps.setRDFEngine(coreEngine);
-		//			ps.setQuery(sparql);
-		//			ps.setQuestionID(in.getId());
-		//			ps.setTitle("Sample ");
-		//			ps.createData();
-		//			ps.runAnalytics();
-		//			if(!(ps instanceof GraphPlaySheet))
-		//				obj = ps.getData();
-		//			else
-		//			{
-		//				GraphPlaySheet gps = (GraphPlaySheet)ps;
-		//				RepositoryConnection rc = (RepositoryConnection)((GraphPlaySheet)ps).getData();
-		//				InMemorySesameEngine imse = new InMemorySesameEngine();
-		//				imse.setRepositoryConnection(rc);
-		//				imse.openDB(null);
-		//				obj = RDFJSONConverter.getGraphAsJSON(imse, gps.baseFilterHash);
-		//			}
-		//		}catch(Exception ex)
-		//		{
-		//			ex.printStackTrace();
-		//		}
-		//		return getSO(obj);
 	}	
 
 	// executes a particular insight
@@ -725,26 +647,6 @@ public class EngineResource {
 		// this will also cache it
 		return null;
 	}	
-
-//	// gets a particular insight
-//	// not sure if I should keep it as it is or turn this into a post because of the query
-//	// Can give a set of nodeids
-//	@GET
-//	@Path("fill")
-//	@Produces("application/json")
-//	public Response getFillEntity(@QueryParam("type") String typeToFill, @QueryParam("query") String query)
-//	{
-//		// returns the insight
-//		// based on the current ID get the data
-//		// typically is a JSON of the insight
-//		// this will also cache it
-//		if(typeToFill != null) {
-//			return Response.status(200).entity(WebUtility.getSO(coreEngine.getParamValues("", typeToFill, ""))).build();
-//		} else if(query != null) {
-//			return Response.status(200).entity(WebUtility.getSO(coreEngine.getParamValues("", "", "", query))).build();
-//		}
-//		return Response.status(200).entity(WebUtility.getSO(null)).build();
-//	}		
 
 	// gets all numeric properties associated with a specific node type
 	@GET
