@@ -87,7 +87,7 @@ public class SysSiteOptFunctions extends AbstractControlClick {
 	}
 	
 	@POST
-	@Path("sustained")
+	@Path("system")
     @Produces("application/json")
 	public StreamingOutput getSustainedPageData(MultivaluedMap<String, String> form, 
             @Context HttpServletRequest request) {
@@ -96,6 +96,7 @@ public class SysSiteOptFunctions extends AbstractControlClick {
         Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
         String type = (String) webDataHash.get("type");
         String system = (String) webDataHash.get("system");
+        String ind = (String) webDataHash.get("ind");
         if (type.equals("info"))
         	retHash = ((SysSiteOptPlaySheet) playsheet).getSystemInfoData(system, true);
         if (type.equals("map"))
