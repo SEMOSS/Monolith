@@ -70,13 +70,16 @@ public class UserDBFilter implements Filter {
 		boolean dbInitialized = session != null && session.getAttribute(Constants.ENGINES+"unused") != null;
 		if(!dbInitialized) // this is our new friend
 		{
-			session = ((HttpServletRequest)arg0).getSession(true);
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			String userId = "";
-			if(user!= null) {
-				userId = user.getId();
+			ArrayList<String> userEngines = new ArrayList<String>();
+			if(securityEnabled) {
+				session = ((HttpServletRequest)arg0).getSession(true);
+				User user = ((User) session.getAttribute(Constants.SESSION_USER));
+				String userId = "";
+				if(user!= null) {
+					userId = user.getId();
+				}
+				userEngines = permissions.getUserAccessibleEngines(userId);
 			}
-			ArrayList<String> userEngines = permissions.getUserAccessibleEngines(userId);
 			// get all the engines and add the top engines
 			String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
 			StringTokenizer tokens = new StringTokenizer(engineNames, ";");
