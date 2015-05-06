@@ -50,7 +50,7 @@ public class SysSiteOptFunctions extends AbstractControlClick {
         if (type.equals("cost"))
         	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewCostData();
         if (type.equals("map"))
-        	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewSiteMapData();
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewSiteMapData("");
         if (type.equals("healthGrid"))
         	retHash = ((SysSiteOptPlaySheet) playsheet).getHealthGrid("");
 		return WebUtility.getSO(retHash);
