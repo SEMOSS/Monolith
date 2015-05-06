@@ -85,5 +85,25 @@ public class SysSiteOptFunctions extends AbstractControlClick {
         	retHash = ((SysSiteOptPlaySheet) playsheet).getCapabilityCoverageData(capability);
 		return WebUtility.getSO(retHash);
 	}
+	
+	@POST
+	@Path("sustained")
+    @Produces("application/json")
+	public StreamingOutput getSustainedPageData(MultivaluedMap<String, String> form, 
+            @Context HttpServletRequest request) {
+		Gson gson = new Gson();
+		Hashtable retHash = new Hashtable();
+        Hashtable<String, Object> webDataHash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+        String type = (String) webDataHash.get("type");
+        String system = (String) webDataHash.get("system");
+        if (type.equals("info"))
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getSystemInfoData(system, true);
+        if (type.equals("map"))
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getSystemSiteMapData(system, true);
+        if (type.equals("coverage"))
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getSystemCoverageData(system, true);
+		return WebUtility.getSO(retHash);
+	}
+
 
 }
