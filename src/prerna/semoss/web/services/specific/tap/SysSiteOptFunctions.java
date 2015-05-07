@@ -97,12 +97,16 @@ public class SysSiteOptFunctions extends AbstractControlClick {
         String type = (String) webDataHash.get("type");
         String system = (String) webDataHash.get("system");
         String ind = (String) webDataHash.get("ind");
+        Boolean isModernized = false;
+        if (ind.equals("Modernize")) 
+        	isModernized = true;
+        
         if (type.equals("info"))
-        	retHash = ((SysSiteOptPlaySheet) playsheet).getSystemInfoData(system, true);
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getSystemInfoData(system, isModernized);
         if (type.equals("map"))
-        	retHash = ((SysSiteOptPlaySheet) playsheet).getSystemSiteMapData(system, true);
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getSystemSiteMapData(system, isModernized);
         if (type.equals("coverage"))
-        	retHash = ((SysSiteOptPlaySheet) playsheet).getSystemCoverageData(system, true);
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getSystemCoverageData(system, isModernized);
 		return WebUtility.getSO(retHash);
 	}
 
