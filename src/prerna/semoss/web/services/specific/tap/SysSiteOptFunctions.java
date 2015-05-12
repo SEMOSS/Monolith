@@ -83,6 +83,8 @@ public class SysSiteOptFunctions extends AbstractControlClick {
         	retHash = ((SysSiteOptPlaySheet) playsheet).getOverviewSiteMapData(capability);
         if (type.equals("coverage"))
         	retHash = ((SysSiteOptPlaySheet) playsheet).getCapabilityCoverageData(capability);
+        if (type.equals("healthGrid"))
+        	retHash = ((SysSiteOptPlaySheet) playsheet).getHealthGrid(capability);
 		return WebUtility.getSO(retHash);
 	}
 	
