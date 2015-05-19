@@ -102,7 +102,7 @@ public class EngineAnalyticsResource {
 		
 		String instanceIDString = form.getFirst("instanceID");
 		int instanceID = 0;
-		if (instanceIDString != null && (algorithm.equals("Clustering") || algorithm.equals("SOM"))) {
+		if (instanceIDString != null && (algorithm.equals("Clustering") || algorithm.equals("SOM") || algorithm.equals("Outliers"))) {
 			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class) + 1;
 			String select = query;
 			String[] selectSplit = select.split("\\?");
@@ -215,8 +215,8 @@ public class EngineAnalyticsResource {
 			ps.setNames(filteredNames);
 			ps.processQueryData();
 			data = (Hashtable) ps.getData();
-			if (data.get("headers") == null || data.get("data") == null) {
-				errorHash.put("Message", "Error processing query.");
+			if(data.get("headers") == null || data.get("data") == null) {
+				errorHash.put("Message", "No results found from algorithm");
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
