@@ -97,18 +97,21 @@ public class AuthorizationResource
 		ArrayList<Hashtable<String, Object>> requests = new ArrayList<Hashtable<String,Object>>();
 		Hashtable<String, Object> requestdetails;
 		
-		ArrayList<EngineAccessRequest> reqs = permissions.getEngineAccessRequestsForUser(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
-		ArrayList<String> allPermissionsList = new ArrayList<String>();
-		for(EnginePermission ep : EnginePermission.values()) {
-			allPermissionsList.add(ep.getPermissionName());
-		}
-		for(EngineAccessRequest req : reqs) {
-			requestdetails = new Hashtable<String, Object>();
-			requestdetails.put("requestId", req.getRequestId());
-			requestdetails.put("engine", req.getEngineRequested());
-			requestdetails.put("user", req.getUser());
-			requestdetails.put("allpermissions", allPermissionsList);
-			requests.add(requestdetails);
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(user != null && !user.getId().equals(Constants.ANONYMOUS_USER_ID)) {
+			ArrayList<EngineAccessRequest> reqs = permissions.getEngineAccessRequestsForUser(user.getId());
+			ArrayList<String> allPermissionsList = new ArrayList<String>();
+			for(EnginePermission ep : EnginePermission.values()) {
+				allPermissionsList.add(ep.getPermissionName());
+			}
+			for(EngineAccessRequest req : reqs) {
+				requestdetails = new Hashtable<String, Object>();
+				requestdetails.put("requestId", req.getRequestId());
+				requestdetails.put("engine", req.getEngineRequested());
+				requestdetails.put("user", req.getUser());
+				requestdetails.put("allpermissions", allPermissionsList);
+				requests.add(requestdetails);
+			}
 		}
 		
 		ret.put("requests", requests);
