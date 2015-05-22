@@ -61,6 +61,7 @@ import prerna.error.HeaderClassException;
 import prerna.error.NLPException;
 import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
+import prerna.util.sql.SQLQueryUtil;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
@@ -303,8 +304,13 @@ public class Uploader extends HttpServlet {
 		
 		String dataOutputType = inputData.get("dataOutputType");
 		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
-		if(dataOutputType.equalsIgnoreCase("RDBMS"))
+		if(dataOutputType.equalsIgnoreCase("RDBMS")){
 			storeType = ImportDataProcessor.DB_TYPE.RDBMS;
+			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
+			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
+				importer.setRDBMSType(SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase()));
+			}
+		}
 		
 		try {
 			if(methodString.equals("Create new database engine")) {
@@ -379,8 +385,13 @@ public class Uploader extends HttpServlet {
 		
 		String dataOutputType = inputData.get("dataOutputType");
 		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF; // needs to be set later
-		if(dataOutputType.equalsIgnoreCase("RDBMS"))
+		if(dataOutputType.equalsIgnoreCase("RDBMS")){
 			storeType = ImportDataProcessor.DB_TYPE.RDBMS; // needs to be set later
+			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
+			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
+				importer.setRDBMSType(SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase()));
+			}
+		}
 		
 		try {
 			if(methodString.equals("Create new database engine")) {
@@ -463,8 +474,13 @@ public class Uploader extends HttpServlet {
 		
 		String dataOutputType = inputData.get("dataOutputType");
 		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF; // needs to be set later
-		if(dataOutputType.equalsIgnoreCase("RDBMS"))
+		if(dataOutputType.equalsIgnoreCase("RDBMS")){
 			storeType = ImportDataProcessor.DB_TYPE.RDBMS; // needs to be set later
+			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
+			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
+				importer.setRDBMSType(SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase()));
+			}
+		}
 		
 		try {
 			if(methodString.equals("Create new database engine")) {
