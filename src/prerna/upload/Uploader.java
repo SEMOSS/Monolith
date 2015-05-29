@@ -29,6 +29,7 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
@@ -229,6 +230,20 @@ public class Uploader extends HttpServlet {
 	{
 		List<FileItem> fileItems = processRequest(request);
 		Hashtable<String, String> inputData = getInputData(fileItems);
+		
+		//cleanedFiles - stringified CSV file returned from OpenRefine
+		//If OpenRefine-returned CSV string exists, user went through OpenRefine - write returned data to file first
+		Object obj = inputData.get("cleanedFiles");
+		String dbName = inputData.get("dbName");
+		if(obj != null) {
+			String cleanedFileName = processOpenRefine(dbName, (String) obj);
+			if(cleanedFileName.startsWith("Error")) {
+				String errorMessage = "Could not write the cleaned data to file. Please check application file-upload path.";
+				return Response.status(400).entity(errorMessage).build();
+			}
+			inputData.put("file", cleanedFileName);
+		}
+		
 		Gson gson = new Gson();
 		List<String> allFileData = gson.fromJson(inputData.get("fileInfoArray"), List.class);
 		int size = allFileData.size();
@@ -289,8 +304,6 @@ public class Uploader extends HttpServlet {
 			String errorMessage = "Import method \'" + methodString + "\' is not supported";
 			return Response.status(400).entity(errorMessage).build();
 		}
-		//call the right process method with correct parameters
-		String dbName = inputData.get("dbName");
 		
 		//Add engine owner for permissions
 		if(this.securityEnabled) {
@@ -570,6 +583,32 @@ public class Uploader extends HttpServlet {
 
 		String outputText = "R2RQ Loading was a success.";
 		return Response.status(200).entity(outputText).build();
+	}
+	
+	/**
+	 * Writes OpenRefine-cleaned values to CSV file to be processed by ImportDataProcessor.
+	 * 
+	 * @param cleanedValues		Cleaned data returned from OpenRefine
+	 * @return					Name of file on file system the cleaned data was written to
+	 */
+	private String processOpenRefine(String dbName, String cleanedValues) {
+		FileWriter fw = null;
+		String filename = this.filePath + System.getProperty("file.separator") + dbName + "_Cleaned.csv";
+		try {
+			fw = new FileWriter(filename);
+			fw.append(cleanedValues);
+		} catch (IOException e) {
+			return "Error: Could not write cleaned values.";
+		} finally {
+			try {
+				fw.flush();
+				fw.close();
+			} catch (IOException e) {
+				return "Error: Could not flush/close FileWriter";
+			}
+		}
+		
+		return filename;
 	}
 	
 	public void addEngineOwner(String engine, String userId) {
