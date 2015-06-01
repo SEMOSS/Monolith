@@ -48,6 +48,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.log4j.Logger;
 
 import prerna.engine.api.IEngine;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSVertex;
 import prerna.semoss.web.services.specific.tap.IControlClick;
@@ -88,6 +89,9 @@ public class PlaySheetResource {
 		List<String> upNodeList = gson.fromJson(form.getFirst("upNode"), List.class);
 		logger.info("Processing downstream traversal for node instance " + upNodeList.toString() + " to types " + downNodeTypes.toString());
 		
+		boolean isRDF = (coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || 
+				coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE);
+		
 		//get the query
 		String prefix = "";
 		String filterValues = "";
@@ -95,13 +99,33 @@ public class PlaySheetResource {
 		String downNodeType = "";
 		if(downNodeTypes.size() == 1) 
 		{
-			sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
-	
-			//create bindings string using upNode list because there is only one type
-			for(String uri : upNodeList){
-				filterValues = filterValues + "(<" + uri + ">)";
+			if(isRDF)
+			{
+				sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
+		
+				//create bindings string using upNode list because there is only one type
+				for(String uri : upNodeList){
+					filterValues = filterValues + "(<" + uri + ">)";
+				}
+				downNodeType = downNodeTypes.get(0);
 			}
-			downNodeType = downNodeTypes.get(0);
+			else
+			{
+				// get the traversal query
+				// we need this to be moved to the IEngine but for now
+				
+				RDBMSNativeEngine rdbmsEngine = (RDBMSNativeEngine)coreEngine;
+				//rdbmsEngine.traverseOutputQuery(fromType, toType, false, fromInstances)
+				String fromType = upNodeList.get(0);
+				String className = Utility.getQualifiedClassName(fromType); // gets you everything but the instance
+				String modClassName = Utility.getInstanceName(className); // since it gets me the last one , this is really the className
+				String camelClassName = Utility.toCamelCase(modClassName);
+				// replace it
+				className.replace(modClassName, camelClassName); // now I have the classname
+				
+				sparql = rdbmsEngine.traverseOutputQuery(className, downNodeTypes.get(0), false, upNodeList);
+
+			}
 		}
 		else if (upNodeList.size() == 1)//down node types has more than 1 so we need to put the types in the bindings
 		{
@@ -134,9 +158,9 @@ public class PlaySheetResource {
 	@Produces("application/json")
 	public Object createUpstreamInstanceTraversal(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
-		Gson gson = new Gson();
-		List<String> upNodeTypes = gson.fromJson(form.getFirst("upNodeTypes"), List.class);
-		List<String> downNodeList = gson.fromJson(form.getFirst("downNode"), List.class);
+		Gson gson = new Gson(); // the upstream extension comes in here - no surprises there
+		List<String> upNodeTypes = gson.fromJson(form.getFirst("upNodeTypes"), List.class); // this is a type
+		List<String> downNodeList = gson.fromJson(form.getFirst("downNode"), List.class); // this is an instance
 		logger.info("Processing upstream traversal for node instances " + downNodeList.toString());
 		
 		//get the query
@@ -144,25 +168,56 @@ public class PlaySheetResource {
 		String filterValues = "";
 		String sparql = "";
 		String upNodeType = "";
+		
+		boolean isRDF = (coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || 
+				coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE);
+		
+		// once again we get our query from traverse to do this - RDBMS
+		
 		if(upNodeTypes.size() == 1) 
 		{
-			sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
-	
-			//create bindings string using downNode list because there is only one type
-			for(String uri : downNodeList){
-				filterValues = filterValues + "(<" + uri + ">)";
+			if(isRDF)
+			{
+				sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY + prefix);
+		
+				//create bindings string using downNode list because there is only one type
+				for(String uri : downNodeList){
+					filterValues = filterValues + "(<" + uri + ">)";
+				}
+				upNodeType = upNodeTypes.get(0);
 			}
-			upNodeType = upNodeTypes.get(0);
+			else if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
+			{
+				// get the traversal query
+				// we need this to be moved to the IEngine but for now
+				
+				RDBMSNativeEngine rdbmsEngine = (RDBMSNativeEngine)coreEngine;
+				//rdbmsEngine.traverseOutputQuery(fromType, toType, false, fromInstances)
+				String fromType = downNodeList.get(0);
+				String className = Utility.getQualifiedClassName(fromType); // gets you everything but the instance
+				String modClassName = Utility.getInstanceName(className); // since it gets me the last one , this is really the className
+				String camelClassName = Utility.toCamelCase(modClassName);
+				// replace it
+				className.replace(modClassName, camelClassName); // now I have the classname
+				
+				sparql = rdbmsEngine.traverseOutputQuery(className, upNodeTypes.get(0), false, downNodeList);
+			}
 		}
 		else if (downNodeList.size() == 1)//up node types has more than 1 so we need to put the types in the bindings
 		{
-			sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY_MULTI_TYPE + prefix);
-	
-			//create bindings string using upNode list because there is only one type
-			for(String uri : upNodeTypes){
-				upNodeType = upNodeType + "(<" + uri + ">)";
+			if(isRDF)
+			{
+				sparql = DIHelper.getInstance().getProperty(Constants.TRAVERSE_FREELY_QUERY_MULTI_TYPE + prefix);
+		
+				//create bindings string using upNode list because there is only one type
+				for(String uri : upNodeTypes){
+					upNodeType = upNodeType + "(<" + uri + ">)";
+				}
+				filterValues = downNodeList.get(0);
 			}
-			filterValues = downNodeList.get(0);
+			else if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
+			{
+			}
 		}
 		else 
 		{
@@ -385,7 +440,7 @@ public class PlaySheetResource {
 			GraphDataModel gdm = gps.getGraphData();
 			gdm.setUndo(true);
 			gdm.undoData();
-			gdm.fillStoresFromModel();
+			gdm.fillStoresFromModel(coreEngine);
 			gps.setAppend(true);
 			obj = gps.getData();
 		}
@@ -409,7 +464,7 @@ public class PlaySheetResource {
 			gps.setAppend(true);
 			GraphDataModel gdm = gps.getGraphData();
 			gdm.redoData();
-			gdm.fillStoresFromModel();
+			gdm.fillStoresFromModel(coreEngine);
 			obj = gps.getData();
 		}
 
@@ -432,6 +487,7 @@ public class PlaySheetResource {
 	private Object runPlaySheetOverlay(){
 		Object obj = null;
 
+		//playSheet = null;
 		try
 		{
 			// this check probably isn't needed... for the time being, though, if the ps is not in session, create a new graph play sheet
