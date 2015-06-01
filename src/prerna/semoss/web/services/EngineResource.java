@@ -212,66 +212,115 @@ public class EngineResource {
 	public Response getNeighborsInstance(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		List<String> uriArray = gson.fromJson(form.getFirst("node"), List.class);
+		List<String> uriArray = gson.fromJson(form.getFirst("node"), List.class); // comes in with the uri that was first selected i.e. the instance
 
+		boolean isRDF = (coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || 
+				coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE);
+
+	
 		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
-		if(coreEngine instanceof AbstractEngine){
-			AbstractEngine engine = (AbstractEngine) coreEngine;
-
-			//create bindings string
-			String bindingsString = "";
-			for(String uri : uriArray){
-				bindingsString = bindingsString + "(<" + uri + ">)";
+		
+		if(isRDF)
+		{
+			if(coreEngine instanceof AbstractEngine){
+				AbstractEngine engine = (AbstractEngine) coreEngine;
+	
+				//create bindings string
+				String bindingsString = "";
+				for(String uri : uriArray){
+					bindingsString = bindingsString + "(<" + uri + ">)";
+				}
+				logger.info("bindings string = " + bindingsString); 
+				// gets a clean read on the type instead of predicting it based on URI
+				// In the case of RDBMS we can just assume it
+	
+				String uniqueTypesQuery = "SELECT DISTINCT ?entity WHERE { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity}   FILTER NOT EXISTS { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?subtype} {?subtype <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?entity} }} BINDINGS ?subject {"+bindingsString+"}";
+	
+				//get node types
+				Vector<String> types = Utility.getVectorOfReturn(uniqueTypesQuery, coreEngine);
+	
+				//DOWNSTREAM PROCESSING
+				//get node types connected to this type
+				Vector<String> downNodeTypes = new Vector<String>();
+				for(String type : types){
+					downNodeTypes.addAll(engine.getToNeighbors(type, 0));
+				}
+	
+				// this query needs to change for RDBMS based on the traverse query
+				//for each available type, ensure each type has at least one instance connected to original node
+				String downAskQuery = "ASK { "
+						+ "{?connectedNode a <@NODE_TYPE@>} "
+						+ "{?node ?rel ?connectedNode}"
+						+ "} BINDINGS ?node {"+bindingsString+"}" ;
+				Vector<String> validDownTypes = new Vector<String>();
+				for (String connectedType : downNodeTypes){
+					String filledDownAskQuery = downAskQuery.replace("@NODE_TYPE@", connectedType);
+					logger.info("Checking type " + connectedType + " with query " + filledDownAskQuery);
+					if((boolean) engine.execQuery(filledDownAskQuery))	
+						validDownTypes.add(connectedType);
+				}
+				finalTypes.put("downstream", validDownTypes);
+	
+				//UPSTREAM PROCESSING
+				//get node types connected to this type
+				Vector<String> upNodeTypes = new Vector<String>();
+				for(String type : types){
+					upNodeTypes.addAll(engine.getFromNeighbors(type, 0));
+				}
+	
+				//for each available type, ensure each type has at least one instance connected to original node
+				String upAskQuery = "ASK { "
+						+ "{?connectedNode a <@NODE_TYPE@>} "
+						+ "{?connectedNode ?rel ?node}"
+						+ "} BINDINGS ?node {"+bindingsString+"}" ;
+				Vector<String> validUpTypes = new Vector<String>();
+				for (String connectedType : upNodeTypes){
+					String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
+					logger.info("Checking type " + connectedType + " with query " + filledUpAskQuery);
+					if((boolean) engine.execQuery(filledUpAskQuery))
+						validUpTypes.add(connectedType);
+				}
+				finalTypes.put("upstream", validUpTypes);
 			}
-			logger.info("bindings string = " + bindingsString);
-
-			String uniqueTypesQuery = "SELECT DISTINCT ?entity WHERE { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity}   FILTER NOT EXISTS { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?subtype} {?subtype <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?entity} }} BINDINGS ?subject {"+bindingsString+"}";
-
-			//get node types
-			Vector<String> types = Utility.getVectorOfReturn(uniqueTypesQuery, coreEngine);
-
-			//DOWNSTREAM PROCESSING
-			//get node types connected to this type
-			Vector<String> downNodeTypes = new Vector<String>();
-			for(String type : types){
-				downNodeTypes.addAll(engine.getToNeighbors(type, 0));
-			}
-
-			//for each available type, ensure each type has at least one instance connected to original node
-			String downAskQuery = "ASK { "
-					+ "{?connectedNode a <@NODE_TYPE@>} "
-					+ "{?node ?rel ?connectedNode}"
-					+ "} BINDINGS ?node {"+bindingsString+"}" ;
-			Vector<String> validDownTypes = new Vector<String>();
-			for (String connectedType : downNodeTypes){
-				String filledDownAskQuery = downAskQuery.replace("@NODE_TYPE@", connectedType);
-				logger.info("Checking type " + connectedType + " with query " + filledDownAskQuery);
-				if((boolean) engine.execQuery(filledDownAskQuery))	
-					validDownTypes.add(connectedType);
-			}
-			finalTypes.put("downstream", validDownTypes);
-
-			//UPSTREAM PROCESSING
-			//get node types connected to this type
-			Vector<String> upNodeTypes = new Vector<String>();
-			for(String type : types){
-				upNodeTypes.addAll(engine.getFromNeighbors(type, 0));
-			}
-
-			//for each available type, ensure each type has at least one instance connected to original node
-			String upAskQuery = "ASK { "
-					+ "{?connectedNode a <@NODE_TYPE@>} "
-					+ "{?connectedNode ?rel ?node}"
-					+ "} BINDINGS ?node {"+bindingsString+"}" ;
-			Vector<String> validUpTypes = new Vector<String>();
-			for (String connectedType : upNodeTypes){
-				String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
-				logger.info("Checking type " + connectedType + " with query " + filledUpAskQuery);
-				if((boolean) engine.execQuery(filledUpAskQuery))
-					validUpTypes.add(connectedType);
-			}
-			finalTypes.put("upstream", validUpTypes);
 		}
+		else if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
+		{
+			// get the type.. see how easy it is on RDBMS.. let me show this
+			// do the camel casing
+			// almost never will I have more than one
+			// but as a good developer.. I will collect all the classes
+			Vector <String> types = new Vector<String>();
+			
+			for(int inputIndex =0;inputIndex < uriArray.size();inputIndex++)
+			{
+				String uri = uriArray.get(inputIndex);
+				String className = Utility.getQualifiedClassName(uri); // gets you everything but the instance
+				String modClassName = Utility.getInstanceName(className); // since it gets me the last one , this is really the className
+				String camelClassName = Utility.toCamelCase(modClassName);
+				// replace it
+				className.replace(modClassName, camelClassName);
+				if(!types.contains(className))
+					types.add(className);
+			}
+			
+			// ok now get the types
+			Vector <String> validUpTypes = new Vector<String>();
+			Vector <String> validDownTypes = new Vector<String>();
+			for(int typeIndex = 0;typeIndex < types.size();typeIndex++)
+			{
+				// get the to neighbors
+				validDownTypes.addAll((coreEngine.getToNeighbors(types.get(typeIndex), 0)));
+				validUpTypes.addAll((coreEngine.getFromNeighbors(types.get(typeIndex), 0)));			
+			}
+			
+			// no check for data yet.. will get to it later
+			
+			finalTypes.put("upstream", validUpTypes);
+			finalTypes.put("downstream", validDownTypes);
+			
+			// and action..
+			
+		}		
 		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
 	}
 
