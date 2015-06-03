@@ -27,14 +27,10 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Properties;
 import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 
@@ -55,8 +51,15 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import prerna.algorithm.impl.ExactStringMatcher;
+import prerna.ds.BTreeDataFrame;
 import prerna.engine.api.IEngine;
+import prerna.engine.api.ISelectStatement;
+import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.impl.rdf.SesameJenaSelectStatement;
@@ -64,6 +67,7 @@ import prerna.engine.impl.rdf.SesameJenaSelectWrapper;
 import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
 import prerna.om.Insight;
 import prerna.om.SEMOSSParam;
+import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.rdf.query.builder.IQueryBuilder;
 import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
@@ -76,12 +80,9 @@ import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.helpers.PlaysheetCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
-import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
-import prerna.util.ZipDatabase;
 import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.WebUtility;
 
@@ -825,6 +826,87 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
 
+	@POST
+	@Path("customVizTableFilterOptions")
+	@Produces("application/json")
+	public Response getVizTableFilterOptions(MultivaluedMap<String, String> form, @QueryParam("metamodelClick") Boolean metamodelClick, @Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
+		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+
+		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
+		builder.setJSONDataHash(dataHash);
+		builder.buildQuery();
+		String query = builder.getQuery();
+
+		System.out.println(query);
+
+		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
+		String[] newNames = wrap.getVariables();
+
+		BTreeDataFrame mainTree = null;
+		String name2JoinOn = null;
+		String newName = newNames[0];
+		boolean joiningForward = true;
+		// THIS IS UGLY... need to line up the names because of limitations on join right now
+		// TODO: this if should be removed once we can actually specify the name to join on
+		if( newNames.length > 1 ) // length will be either one or two....
+		{ 
+			mainTree = (BTreeDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
+			String[] mainNames = mainTree.getColumnHeaders();
+			if(newNames[0].equals(mainNames[mainNames.length-1]) || newNames[1].equals(mainNames[mainNames.length-1])) { // this means a path forward was selected
+				name2JoinOn = mainNames[mainNames.length-1];
+				if(!newNames[0].equals(name2JoinOn)){ // the order of the new table is wrong.. lets flip it before loading
+					newNames[1] = newNames[0];
+					newNames[0] = name2JoinOn;
+				}
+				newName = newNames[1];
+			}
+			else{
+				joiningForward = false;
+				name2JoinOn = mainNames[0];
+				if(!newNames[1].equals(name2JoinOn)){ // the order of the new table is wrong.. lets flip it before loading
+					newNames[0] = newNames[1];
+					newNames[1] = name2JoinOn;
+				}
+				newName = newNames[0];
+			}
+		}
+		
+
+		BTreeDataFrame newTree = new BTreeDataFrame(newNames);
+		while (wrap.hasNext()){
+			ISelectStatement iss = wrap.next();
+			newTree.addRow(iss);
+		}
+		
+		if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
+		{
+			if(!joiningForward){ // need to reverse the naming of mainTree and newTree
+				BTreeDataFrame forwardTree = mainTree;
+				mainTree = newTree;
+				newTree = forwardTree;
+				forwardTree = null;
+			}
+			mainTree.join(newTree, name2JoinOn, name2JoinOn, 1, new ExactStringMatcher());
+		}
+		else 
+		{
+			mainTree = newTree;
+		}
+		
+		Object values = null;
+		if(metamodelClick){
+			values = mainTree.getColumn(newName);
+		}
+		else {
+			request.getSession().setAttribute("metamodelTree", mainTree);//TODO: need to think about naming
+			values = "success";
+		}
+
+		return Response.status(200).entity(WebUtility.getSO(values)).build();
+	}	
+
 	@GET
 	@Path("customVizPathProperties")
 	@Produces("application/json")
@@ -1117,4 +1199,58 @@ public class EngineResource {
 			session.setAttribute(ps.getQuestionID(), ps);
 		}
 	}
+	
+	@POST
+	@Path("/btreeTester")
+	@Produces("application/xml")
+	public StreamingOutput btreeTester(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String query1 = form.getFirst("query1");
+		String query2 = form.getFirst("query2");
+
+		//run query 1
+		HttpSession session = request.getSession(false);
+		BTreeDataFrame tree1 = null;
+		String[] names1 = null;
+		if(query1 != null){
+			ISelectWrapper wrap1 = WrapperManager.getInstance().getSWrapper(this.coreEngine, query1);
+			names1 = wrap1.getVariables();
+			tree1 = new BTreeDataFrame(names1);
+			while(wrap1.hasNext()){
+				ISelectStatement iss1 = wrap1.next();//
+				tree1.addRow(iss1.getPropHash());
+			}
+		}
+		// or get it from session
+		else{
+			tree1 = (BTreeDataFrame) session.getAttribute("testTree");
+			names1 = tree1.getColumnHeaders();
+		}
+		
+		//run query 2
+		ISelectWrapper wrap2 = WrapperManager.getInstance().getSWrapper(this.coreEngine, query2);
+		String[] names2 = wrap2.getVariables();
+		BTreeDataFrame tree2 = new BTreeDataFrame(names2);
+		int count = 0;
+		while(wrap2.hasNext()){
+			ISelectStatement iss = wrap2.next();
+			tree2.addRow(iss.getPropHash());
+//			System.out.println(" putting into tree " + iss.getPropHash().toString());//
+			System.out.println(count++);
+		}
+		
+//		Object[] col = tree1.getColumn("Title");
+		logger.info("starting join");
+		tree1.join(tree2, names1[names1.length-1], names2[0], 1, new ExactStringMatcher());
+		logger.info("setting into session");
+		session.setAttribute("testTree", tree1);
+		logger.info("begining to flatten");
+		List<Object[]> data = tree1.getData();
+		
+		logger.info("done flattening");
+//		logger.info("size is  " + data.size());
+		return WebUtility.getSO(data.size());
+	}
+	
+	
+	
 }
