@@ -55,6 +55,7 @@ import org.apache.commons.io.FileUtils;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.error.EngineException;
 import prerna.error.FileReaderException;
 import prerna.error.FileWriterException;
@@ -62,10 +63,10 @@ import prerna.error.HeaderClassException;
 import prerna.error.NLPException;
 import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
-import prerna.util.sql.SQLQueryUtil;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
+import prerna.util.sql.SQLQueryUtil;
 
 import com.google.gson.Gson;
 import com.ibm.icu.util.StringTokenizer;
@@ -331,7 +332,13 @@ public class Uploader extends HttpServlet {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
 						inputData.get("designateBaseUri"), dbName,"","","","", storeType);
 				loadEngineIntoSession(request, dbName);
-			} else {
+			} else { // add to existing or modify
+				IEngine dbEngine = (IEngine) DIHelper.getInstance().getLocalProp(dbName);
+				if (dbEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
+					RDBMSNativeEngine rdbmsEngine = (RDBMSNativeEngine) dbEngine;
+					storeType = ImportDataProcessor.DB_TYPE.RDBMS;
+					importer.setRDBMSType(rdbmsEngine.getDbType());
+				}
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
 						inputData.get("designateBaseUri"), "","","","", dbName, storeType);
 			}
