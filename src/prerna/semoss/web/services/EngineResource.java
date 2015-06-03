@@ -898,6 +898,10 @@ public class EngineResource {
 		Object values = null;
 		if(metamodelClick){
 			values = mainTree.getColumn(newName);
+			if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
+			{
+				mainTree.removeColumn(newName);
+			}
 		}
 		else {
 			request.getSession().setAttribute("metamodelTree", mainTree);//TODO: need to think about naming
