@@ -350,8 +350,7 @@ public class EngineAnalyticsResource {
 		} else if (algorithm.equals("MatrixRegression")) {
 			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
 			// instance id is the prop being approximated for
-			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class);
-			String propName = names[instanceID];
+			String propName = names[names.length - 1];
 			int bColumnIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
 			if (bColumnIndex == -1) {
 				errorHash.put("Message", "Must select column " + propName + " in filter param list to run classificaiton on it.");
@@ -367,7 +366,7 @@ public class EngineAnalyticsResource {
 			ps.processQueryData();
 			data = (Hashtable) ps.getData();
 			data.remove("id");
-			data.put("title", "Matrix Regression Algorithm: For variable " + ps.getNames()[ps.getbColumnIndex()]);
+			data.put("title", "Matrix Regression Algorithm: For variable " + propName);
 
 			LOGGER.info("Running Matrix Regression on " + engine.getEngineName() + "...");
 			return Response.status(200).entity(WebUtility.getSO(data)).build();
