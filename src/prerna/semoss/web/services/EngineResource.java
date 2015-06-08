@@ -865,9 +865,11 @@ public class EngineResource {
 					break;
 				}
 			}
+			newNames = new String[]{name2JoinOn, newName};
+		} else {
+			newName = newNames[0];
 		}
 		
-		newNames = new String[]{name2JoinOn, newName};
 		BTreeDataFrame newTree = new BTreeDataFrame(newNames);
 		while (wrap.hasNext()){
 			ISelectStatement iss = wrap.next();
