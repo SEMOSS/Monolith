@@ -846,34 +846,28 @@ public class EngineResource {
 
 		BTreeDataFrame mainTree = null;
 		String name2JoinOn = null;
-		String newName = newNames[0];
-		boolean joiningForward = true;
+		String newName = null;
 		// THIS IS UGLY... need to line up the names because of limitations on join right now
 		// TODO: this if should be removed once we can actually specify the name to join on
 		if( newNames.length > 1 ) // length will be either one or two....
 		{ 
 			mainTree = (BTreeDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
 			String[] mainNames = mainTree.getColumnHeaders();
-			if(newNames[0].equals(mainNames[mainNames.length-1]) || newNames[1].equals(mainNames[mainNames.length-1])) { // this means a path forward was selected
-				name2JoinOn = mainNames[mainNames.length-1];
-				if(!newNames[0].equals(name2JoinOn)){ // the order of the new table is wrong.. lets flip it before loading
-					newNames[1] = newNames[0];
-					newNames[0] = name2JoinOn;
+			for(String mainName : mainNames){// find which new name matches a main name
+				if(mainName.equals(newNames[0])){
+					name2JoinOn = newNames[0];
+					newName = newNames[1];
+					break;
 				}
-				newName = newNames[1];
-			}
-			else{
-				joiningForward = false;
-				name2JoinOn = mainNames[0];
-				if(!newNames[1].equals(name2JoinOn)){ // the order of the new table is wrong.. lets flip it before loading
-					newNames[0] = newNames[1];
-					newNames[1] = name2JoinOn;
+				else if(mainName.equals(newNames[1])){
+					name2JoinOn = newNames[1];
+					newName = newNames[0];
+					break;
 				}
-				newName = newNames[0];
 			}
 		}
 		
-
+		newNames = new String[]{name2JoinOn, newName};
 		BTreeDataFrame newTree = new BTreeDataFrame(newNames);
 		while (wrap.hasNext()){
 			ISelectStatement iss = wrap.next();
@@ -882,12 +876,6 @@ public class EngineResource {
 		
 		if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
 		{
-			if(!joiningForward){ // need to reverse the naming of mainTree and newTree
-				BTreeDataFrame forwardTree = mainTree;
-				mainTree = newTree;
-				newTree = forwardTree;
-				forwardTree = null;
-			}
 			mainTree.join(newTree, name2JoinOn, name2JoinOn, 1, new ExactStringMatcher());
 		}
 		else 
