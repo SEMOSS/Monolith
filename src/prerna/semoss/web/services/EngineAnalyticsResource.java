@@ -123,6 +123,29 @@ public class EngineAnalyticsResource {
 				includeColArr[instanceID - 1] = includeColArr[0];
 				includeColArr[0] = true;
 			}
+		} else if(instanceIDString != null && algorithm.equals("MatrixRegression") ) {
+			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class) + 1;
+			String select = query;
+			String[] selectSplit = select.split("\\?");
+			if (instanceID != includeColArr.length) {
+				// swap location of instanceID to be last output in return
+				String newInstance = selectSplit[instanceID];
+				String temp = selectSplit[includeColArr.length];
+				String[] tempSplit = temp.split("WHERE");
+				String val = tempSplit[0];
+				String lastVar = newInstance + " WHERE " + tempSplit[1];
+				selectSplit[includeColArr.length] = lastVar;
+				selectSplit[instanceID] = val.trim() + " ";
+				query = selectSplit[0] + " ";
+				for (int i = 1; i < selectSplit.length; i++) {
+					query = query + " ?" + selectSplit[i];
+				}
+				// also need to update the boolean array with new format
+				// instance must always be present
+				// only need to check if we include the column being changed with instance
+				includeColArr[instanceID - 1] = includeColArr[includeColArr.length-1];
+				includeColArr[includeColArr.length-1] = true;
+			}
 		}
 		
 		// TODO: shift all of this to IAnalaytics interface
