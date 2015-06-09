@@ -110,7 +110,49 @@ public class CentralNameServer {
 			form.put("localMasterDbName", localDb);
 			return ns.getCentralContextDatabases(form, request);
 		}
-	}	
+	}
+	
+	@POST
+	@Path("context/getConnectedConcepts")
+	public StreamingOutput getConnectedConcepts(
+			MultivaluedMap<String, String> form, 
+			@Context HttpServletRequest request)
+	{
+		String conceptURI = form.getFirst("conceptURI");
+		logger.info("LOCALLY have concept selected as ::: " + conceptURI);
+
+		if(centralApi!=null) {
+			Hashtable params = new Hashtable();
+			params.put("conceptURI", conceptURI);
+			return WebUtility.getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/getConnectedConcepts", params));
+		} else {
+			NameServer ns = new NameServer();
+			form.put("localMasterDbName", localDb);
+			return ns.getConnectedConcepts(form, request);
+		}
+	}
+	
+	@POST
+	@Path("central/context/insights")
+	@Produces("application/json")
+	public StreamingOutput getCentralContextInsights(
+			MultivaluedMap<String, String> form, 
+			@Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
+		ArrayList<String> selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
+		logger.info("LOCALLY have instances selected for search ::: " + selectedUris);
+
+		if(centralApi!=null) {
+			Hashtable params = new Hashtable();
+			params.put("selectedURI", selectedUris);
+			return WebUtility.getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/getConnectedConcepts", params));
+		} else {
+			NameServer ns = new NameServer();
+			form.put("localMasterDbName", localDb);
+			return ns.getConnectedConcepts(form, request);
+		}
+	}
 	
 	// local call to register an engine to the central name server and master db
 	@POST
