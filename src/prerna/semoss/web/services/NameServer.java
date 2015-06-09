@@ -34,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -60,6 +62,8 @@ import prerna.error.EngineException;
 import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.DeleteFromMasterDB;
+import prerna.nameserver.INameServer;
+import prerna.nameserver.NameServerProcessor;
 import prerna.nameserver.SearchEngineMasterDB;
 import prerna.nameserver.SearchMasterDB;
 import prerna.rdf.query.builder.QueryBuilderHelper;
@@ -78,7 +82,7 @@ public class NameServer {
 	Logger logger = Logger.getLogger(NameServer.class.getName());
 	String output = "";
 	Hashtable helpHash = null;
-
+	
 	// gets the engine resource necessary for all engine calls
 	@Path("e-{engine}")
 	public Object getLocalDatabase(@PathParam("engine") String db, @QueryParam("api") String api, @Context HttpServletRequest request) throws EngineException {
@@ -388,6 +392,40 @@ public class NameServer {
 		return WebUtility.getSO(contextList);
 	}
 
+	@POST
+	@Path("central/context/getConnectedConcepts")
+	@Produces("application/json")
+	public StreamingOutput getConnectedConcepts(
+					MultivaluedMap<String, String> form, 
+					@Context HttpServletRequest request)
+	{
+		String conceptURI = form.getFirst("conceptURI");
+		String localMasterDbName = form.getFirst("localMasterDbName");
+		logger.info("CENTRALLY have registered selected URIs as ::: " + conceptURI.toString());
+
+		ServletContext servletContext = request.getServletContext();
+		String contextPath = servletContext.getRealPath(System.getProperty("file.separator"));
+		String wordNet = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "WordNet-3.1";
+		String wordNetDir  = contextPath + wordNet;
+
+		String nlp = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator") + "englishPCFG.ser";
+		String nlpPath = contextPath + nlp;
+
+		Map<String, Map<String, Set<String>>> results = null;
+		// regardless of input master/local databases, uses the same method since it only queries the master db and not the databases used to create it
+		if(localMasterDbName == null) {
+			// this call is not local, need to get the API to run queries
+			INameServer ns = new NameServerProcessor(wordNetDir, nlpPath);
+			results = ns.searchConnectedConcepts(conceptURI);
+		} else {
+			// this call is local, grab the engine from DIHelper
+			IEngine masterDB = (IEngine) DIHelper.getInstance().getLocalProp(localMasterDbName);
+			INameServer ns = new NameServerProcessor(masterDB, wordNetDir, nlpPath);
+			results = ns.searchConnectedConcepts(conceptURI);
+		}
+		return WebUtility.getSO(results);
+	}
+	
 	// get all insights related to a specific uri
 	// preferably we would also pass vert store and edge store... the more context the better. Don't have any of that for now though.
 	@POST
