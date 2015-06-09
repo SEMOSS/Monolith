@@ -51,7 +51,6 @@ import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.om.GraphDataModel;
 import prerna.om.SEMOSSVertex;
-import prerna.semoss.web.services.specific.tap.IControlClick;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.AbstractRDFPlaySheet;
@@ -62,6 +61,7 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 public class PlaySheetResource {
 
@@ -533,37 +533,16 @@ public class PlaySheetResource {
 		}
 		return filterValues;
 	}
-	    
+	        
     //for handling playsheet specific tool calls
-    @Path("f-{functionPackageID}-{functionsID}")
-    public IControlClick register(@PathParam("functionPackageID") String functionPackageID, @PathParam("functionsID") String functionsID, @Context HttpServletRequest request)
-    {    	
-    	IControlClick acc = null;
-		try {
-			Field f = Constants.class.getDeclaredField(functionPackageID);
-			f.setAccessible(true);
-			acc = (IControlClick) Class.forName(f.get(functionPackageID) + functionsID).getConstructor(null).newInstance(null);
-		} catch (InstantiationException | IllegalAccessException
-				| IllegalArgumentException | InvocationTargetException
-				| NoSuchMethodException | SecurityException
-				| ClassNotFoundException | NoSuchFieldException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    	acc.setEngine(this.coreEngine);
-    	acc.setPlaySheet(this.playSheet);  
-    	return acc;
-    }  
-    
-    //for handling playsheet specific tool calls
+    @POST
     @Path("do-{method}")
+	@Produces("application/json")
     public Response doMethod(@PathParam("method") String method, MultivaluedMap<String, String> form, @Context HttpServletRequest request)
     {    	
-    	Hashtable<String, List<String>> hash = new Hashtable<String, List<String>>(form);
-
+    	Gson gson = new Gson();
+		Hashtable<String, Object> hash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
     	Object ret = this.playSheet.doMethod(method, hash);
-
         return Response.status(200).entity(WebUtility.getSO(ret)).build();
-
     }  
 }
