@@ -1211,7 +1211,7 @@ public class EngineResource {
 			tree1 = new BTreeDataFrame(names1);
 			while(wrap1.hasNext()){
 				ISelectStatement iss1 = wrap1.next();//
-				tree1.addRow(iss1.getPropHash());
+				tree1.addRow(iss1.getPropHash(), iss1.getRPropHash());
 			}
 		}
 		// or get it from session
@@ -1227,7 +1227,7 @@ public class EngineResource {
 		int count = 0;
 		while(wrap2.hasNext()){
 			ISelectStatement iss = wrap2.next();
-			tree2.addRow(iss.getPropHash());
+			tree2.addRow(iss.getPropHash(), iss.getRPropHash());
 //			System.out.println(" putting into tree " + iss.getPropHash().toString());//
 			System.out.println(count++);
 		}
