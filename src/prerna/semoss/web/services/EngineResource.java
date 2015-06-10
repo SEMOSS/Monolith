@@ -898,7 +898,11 @@ public class EngineResource {
 		
 		Object values = null;
 		if(metamodelClick){
-			values = mainTree.getRawColumn(newNames[1]); // this will be the new column that got added
+			if(newNames.length > 1) {
+				values = mainTree.getRawColumn(newNames[1]); // this will be the new column that got added
+			} else {
+				values = mainTree.getRawColumn(newNames[0]); // the first column that gets added
+			}
 //			if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
 //			{
 //				mainTree.removeColumn(newNames[1]); // need to remove it because final instance selection has not been made
