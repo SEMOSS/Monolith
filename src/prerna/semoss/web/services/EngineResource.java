@@ -861,6 +861,7 @@ public class EngineResource {
 				}
 			}
 			mainTree = (BTreeDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
+			mainTree.removeColumn(newNames[1]); // need to make sure the column doesn't already exist (metamodel click vs. instances click)
 //			String[] mainNames = mainTree.getColumnHeaders();
 //			for(String mainName : mainNames){// find which new name matches a main name
 //				if(mainName.equals(newNames[0])){
@@ -898,10 +899,10 @@ public class EngineResource {
 		Object values = null;
 		if(metamodelClick){
 			values = mainTree.getRawColumn(newNames[1]); // this will be the new column that got added
-			if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
-			{
-				mainTree.removeColumn(newNames[1]); // need to remove it because final instance selection has not been made
-			}
+//			if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
+//			{
+//				mainTree.removeColumn(newNames[1]); // need to remove it because final instance selection has not been made
+//			}
 		}
 		else {
 			request.getSession().setAttribute("metamodelTree", mainTree);//TODO: need to think about naming
