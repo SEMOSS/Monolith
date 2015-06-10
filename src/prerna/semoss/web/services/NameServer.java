@@ -61,6 +61,7 @@ import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.error.EngineException;
 import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.AddToMasterDB;
+import prerna.nameserver.ConnectedConcepts;
 import prerna.nameserver.DeleteFromMasterDB;
 import prerna.nameserver.INameServer;
 import prerna.nameserver.NameServerProcessor;
@@ -411,7 +412,7 @@ public class NameServer {
 		String nlp = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator") + "englishPCFG.ser";
 		String nlpPath = contextPath + nlp;
 
-		Map<String, Map<String, Set<String>>> results = null;
+		ConnectedConcepts results = null;
 		// regardless of input master/local databases, uses the same method since it only queries the master db and not the databases used to create it
 		if(localMasterDbName == null) {
 			// this call is not local, need to get the API to run queries
@@ -423,7 +424,7 @@ public class NameServer {
 			INameServer ns = new NameServerProcessor(masterDB, wordNetDir, nlpPath);
 			results = ns.searchConnectedConcepts(conceptURI);
 		}
-		return WebUtility.getSO(results);
+		return WebUtility.getSO(results.getData());
 	}
 	
 	// get all insights related to a specific uri
