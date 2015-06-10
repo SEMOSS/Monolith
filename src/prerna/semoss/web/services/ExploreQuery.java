@@ -54,6 +54,8 @@ import prerna.rdf.query.builder.SpecificScatterPlotQueryBuilder;
 import prerna.rdf.query.builder.SpecificTableQueryBuilder;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.query.util.SEMOSSQueryHelper;
+import prerna.util.Constants;
+import prerna.util.sql.SQLQueryUtil;
 import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
@@ -108,7 +110,6 @@ public class ExploreQuery {
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 		builder.setJSONDataHash(dataHash); // I am not sure we have an idea for why we set this
 		
-		
 		Object relTriples = ((StringMap)dataHash.get("QueryData")).get("relTriples");
 		
 		
@@ -157,6 +158,23 @@ public class ExploreQuery {
 			semossQuery.removeReturnVariables();
 		}
 		
+		//RDBMS logic
+		if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS){
+			SQLQueryUtil queryUtil = null;
+			boolean useOuterJoins = false;
+			SQLQueryUtil.DB_TYPE dbType = SQLQueryUtil.DB_TYPE.H2_DB;
+			String dbTypeString = coreEngine.getProperty(Constants.RDBMS_TYPE);
+			if (dbTypeString != null) {
+				dbType = (SQLQueryUtil.DB_TYPE.valueOf(dbTypeString));
+			}
+			queryUtil = SQLQueryUtil.initialize(dbType);
+			String useOuterJoinsStr = this.coreEngine.getProperty(Constants.USE_OUTER_JOINS);
+			if(useOuterJoinsStr!=null && (useOuterJoinsStr.equalsIgnoreCase("TRUE") || useOuterJoinsStr.equalsIgnoreCase("YES")))
+				useOuterJoins = true;//for NIH NIAID usecase TODO add logic to search through prop file to determine if we have the NIAID logic
+			semossQuery.setUseOuterJoins(useOuterJoins);
+			semossQuery.setQueryUtil(queryUtil);
+		}
+
 		LinkedHashMap<String, ArrayList<String>> colLabelHash = new LinkedHashMap<String, ArrayList<String>>();
 		LinkedHashMap<String, ArrayList<String>> colMathHash = new LinkedHashMap<String, ArrayList<String>>();
 		getSelectedValues(selectedVars, colLabelHash, colMathHash);
