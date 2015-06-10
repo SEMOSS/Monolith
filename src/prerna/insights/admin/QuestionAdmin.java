@@ -142,6 +142,7 @@ public class QuestionAdmin {
 					currentQuestionDescription, currentParameterDependList,
 					currentParameterQueryList, currentParameterOptionList,
 					currentNumberofQuestions);
+			questionAdmin.createQuestionXMLFile();
 		}catch(RuntimeException e){
 			System.out.println("caught exception while modifying question.................");
 			e.printStackTrace();
