@@ -829,7 +829,11 @@ public class EngineResource {
 	@POST
 	@Path("customVizTableFilterOptions")
 	@Produces("application/json")
-	public Response getVizTableFilterOptions(MultivaluedMap<String, String> form, @QueryParam("metamodelClick") Boolean metamodelClick, @Context HttpServletRequest request)
+	public Response getVizTableFilterOptions(MultivaluedMap<String, String> form, 
+			@QueryParam("metamodelClick") Boolean metamodelClick, 
+			@QueryParam("existingConcept") String currConcept, 
+			@QueryParam("joinConcept") String equivConcept, 
+			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
@@ -845,29 +849,34 @@ public class EngineResource {
 		String[] newNames = wrap.getVariables();
 
 		BTreeDataFrame mainTree = null;
-		String name2JoinOn = null;
-		String newName = null;
 		// THIS IS UGLY... need to line up the names because of limitations on join right now
 		// TODO: this if should be removed once we can actually specify the name to join on
 		if( newNames.length > 1 ) // length will be either one or two....
 		{ 
-			mainTree = (BTreeDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
-			String[] mainNames = mainTree.getColumnHeaders();
-			for(String mainName : mainNames){// find which new name matches a main name
-				if(mainName.equals(newNames[0])){
-					name2JoinOn = newNames[0];
-					newName = newNames[1];
-					break;
-				}
-				else if(mainName.equals(newNames[1])){
-					name2JoinOn = newNames[1];
-					newName = newNames[0];
+			newNames[0] = equivConcept; //need to make sure the new tree gets built in the right order for joining. newNames should always only have two items
+			for(String name : newNames){
+				if(!name.equals(equivConcept)){
+					newNames[1] = name;
 					break;
 				}
 			}
-			newNames = new String[]{name2JoinOn, newName};
-		} else {
-			newName = newNames[0];
+			mainTree = (BTreeDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
+//			String[] mainNames = mainTree.getColumnHeaders();
+//			for(String mainName : mainNames){// find which new name matches a main name
+//				if(mainName.equals(newNames[0])){
+//					name2JoinOn = newNames[0];
+//					newName = newNames[1];
+//					break;
+//				}
+//				else if(mainName.equals(newNames[1])){
+//					name2JoinOn = newNames[1];
+//					newName = newNames[0];
+//					break;
+//				}
+//			}
+//			newNames = new String[]{name2JoinOn, newName};
+//		} else {
+//			newName = newNames[0];
 		}
 		
 		BTreeDataFrame newTree = new BTreeDataFrame(newNames);
@@ -878,7 +887,8 @@ public class EngineResource {
 		
 		if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
 		{
-			mainTree.join(newTree, name2JoinOn, name2JoinOn, 1, new ExactStringMatcher());
+			mainTree.join(newTree, currConcept, equivConcept, 1, new ExactStringMatcher());
+//			mainTree.join(newTree, name2JoinOn, name2JoinOn, 1, new ExactStringMatcher());
 		}
 		else 
 		{
@@ -887,10 +897,10 @@ public class EngineResource {
 		
 		Object values = null;
 		if(metamodelClick){
-			values = mainTree.getColumn(newName);
+			values = mainTree.getRawColumn(newNames[1]); // this will be the new column that got added
 			if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
 			{
-				mainTree.removeColumn(newName);
+				mainTree.removeColumn(newNames[1]); // need to remove it because final instance selection has not been made
 			}
 		}
 		else {
