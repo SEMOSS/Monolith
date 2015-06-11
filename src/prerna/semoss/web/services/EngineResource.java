@@ -29,8 +29,10 @@ package prerna.semoss.web.services;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 
@@ -51,9 +53,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
-import org.apache.poi.xssf.usermodel.XSSFRow;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import prerna.algorithm.impl.ExactStringMatcher;
 import prerna.ds.BTreeDataFrame;
@@ -833,6 +832,7 @@ public class EngineResource {
 			@QueryParam("metamodelClick") Boolean metamodelClick, 
 			@QueryParam("existingConcept") String currConcept, 
 			@QueryParam("joinConcept") String equivConcept, 
+			@QueryParam("newConcept") String newConcept, 
 			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
@@ -847,48 +847,52 @@ public class EngineResource {
 
 		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
 		String[] newNames = wrap.getVariables();
-
+		String[] finalNewNames = new String[newNames.length];
+		finalNewNames[0] = currConcept;
+		
 		BTreeDataFrame mainTree = null;
 		// THIS IS UGLY... need to line up the names because of limitations on join right now
 		// TODO: this if should be removed once we can actually specify the name to join on
-		if( newNames.length > 1 ) // length will be either one or two....
+		if( finalNewNames.length > 1 ) // length will be either one or two....
 		{ 
-			newNames[0] = equivConcept; //need to make sure the new tree gets built in the right order for joining. newNames should always only have two items
-			for(String name : newNames){
-				if(!name.equals(equivConcept)){
-					newNames[1] = name;
-					break;
-				}
+			finalNewNames[0] = equivConcept;
+			finalNewNames[1] = newConcept;
+			if(!newNames[1].equalsIgnoreCase(newConcept)){
+				String temp = newNames[0];
+				newNames[0] = newNames[1];
+				newNames[1] = temp;
 			}
-			mainTree = (BTreeDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
-			mainTree.removeColumn(newNames[1]); // need to make sure the column doesn't already exist (metamodel click vs. instances click)
-//			String[] mainNames = mainTree.getColumnHeaders();
-//			for(String mainName : mainNames){// find which new name matches a main name
-//				if(mainName.equals(newNames[0])){
-//					name2JoinOn = newNames[0];
-//					newName = newNames[1];
-//					break;
-//				}
-//				else if(mainName.equals(newNames[1])){
-//					name2JoinOn = newNames[1];
-//					newName = newNames[0];
+//			finalNewNames[0] = equivConcept; //need to make sure the new tree gets built in the right order for joining. newNames should always only have two items
+//			for(String name : newNames){
+//				if(!name.equals(equivConcept)){
+//					finalNewNames[1] = name;
 //					break;
 //				}
 //			}
-//			newNames = new String[]{name2JoinOn, newName};
-//		} else {
-//			newName = newNames[0];
+			mainTree = (BTreeDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
+			mainTree.removeColumn(finalNewNames[1]); // need to make sure the column doesn't already exist (metamodel click vs. instances click)
 		}
 		
-		BTreeDataFrame newTree = new BTreeDataFrame(newNames);
+		BTreeDataFrame newTree = new BTreeDataFrame(finalNewNames);
 		while (wrap.hasNext()){
 			ISelectStatement iss = wrap.next();
-			newTree.addRow(iss);
+			Map<String, Object> cleanHash = new HashMap<String, Object>();
+			Map<String, Object> rawHash = new HashMap<String, Object>();
+			for(int idx = 0; idx < newNames.length; idx++) {
+				cleanHash.put(finalNewNames[idx], iss.getVar(newNames[idx]));
+				rawHash.put(finalNewNames[idx], iss.getRawVar(newNames[idx]));
+			}
+			newTree.addRow(cleanHash, rawHash);
 		}
 		
 		if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
 		{
-			mainTree.join(newTree, currConcept, equivConcept, 1, new ExactStringMatcher());
+			try {
+				mainTree.join(newTree, currConcept, equivConcept, 1, new ExactStringMatcher());
+			} catch (Exception e) {
+				e.printStackTrace();
+				return Response.status(400).entity(WebUtility.getSO(e.getMessage())).build();
+			}
 //			mainTree.join(newTree, name2JoinOn, name2JoinOn, 1, new ExactStringMatcher());
 		}
 		else 
@@ -899,9 +903,9 @@ public class EngineResource {
 		Object values = null;
 		if(metamodelClick){
 			if(newNames.length > 1) {
-				values = mainTree.getRawColumn(newNames[1]); // this will be the new column that got added
+				values = mainTree.getRawColumn(finalNewNames[1]); // this will be the new column that got added
 			} else {
-				values = mainTree.getRawColumn(newNames[0]); // the first column that gets added
+				values = mainTree.getRawColumn(finalNewNames[0]); // the first column that gets added
 			}
 //			if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
 //			{
@@ -1249,8 +1253,12 @@ public class EngineResource {
 		
 //		Object[] col = tree1.getColumn("Title");
 		logger.info("starting join");
-		tree1.join(tree2, names1[names1.length-1], names2[0], 1, new ExactStringMatcher());
-
+		try {
+			tree1.join(tree2, names1[names1.length-1], names2[0], 1, new ExactStringMatcher());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		logger.info("setting into session");
 		session.setAttribute("testTree", tree1);
 		logger.info("begining to flatten");
