@@ -888,7 +888,12 @@ public class EngineResource {
 		
 		if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
 		{
-			mainTree.join(newTree, currConcept, equivConcept, 1, new ExactStringMatcher());
+			try {
+				mainTree.join(newTree, currConcept, equivConcept, 1, new ExactStringMatcher());
+			} catch (Exception e) {
+				e.printStackTrace();
+				return Response.status(400).entity(WebUtility.getSO(e.getMessage())).build();
+			}
 //			mainTree.join(newTree, name2JoinOn, name2JoinOn, 1, new ExactStringMatcher());
 		}
 		else 
@@ -1249,7 +1254,12 @@ public class EngineResource {
 		
 //		Object[] col = tree1.getColumn("Title");
 		logger.info("starting join");
-		tree1.join(tree2, names1[names1.length-1], names2[0], 1, new ExactStringMatcher());
+		try {
+			tree1.join(tree2, names1[names1.length-1], names2[0], 1, new ExactStringMatcher());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		logger.info("setting into session");
 		session.setAttribute("testTree", tree1);
 		logger.info("begining to flatten");
