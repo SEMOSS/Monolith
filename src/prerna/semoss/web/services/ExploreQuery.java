@@ -170,7 +170,7 @@ public class ExploreQuery {
 			queryUtil = SQLQueryUtil.initialize(dbType);
 			String useOuterJoinsStr = this.coreEngine.getProperty(Constants.USE_OUTER_JOINS);
 			if(useOuterJoinsStr!=null && (useOuterJoinsStr.equalsIgnoreCase("TRUE") || useOuterJoinsStr.equalsIgnoreCase("YES")))
-				useOuterJoins = true;//for NIH NIAID usecase TODO add logic to search through prop file to determine if we have the NIAID logic
+				useOuterJoins = true;
 			semossQuery.setUseOuterJoins(useOuterJoins);
 			semossQuery.setQueryUtil(queryUtil);
 		}
