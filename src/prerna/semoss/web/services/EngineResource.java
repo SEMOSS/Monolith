@@ -54,6 +54,7 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
+import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
 import prerna.ds.BTreeDataFrame;
 import prerna.engine.api.IEngine;
@@ -918,7 +919,16 @@ public class EngineResource {
 		}
 
 		return Response.status(200).entity(WebUtility.getSO(values)).build();
-	}	
+	}
+	
+	@POST
+    @Path("getVizTable")
+    @Produces("application/json")
+    public Response getExploreTable( @Context HttpServletRequest request)
+    {
+           ITableDataFrame mainTree = (BTreeDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
+           return Response.status(200).entity(WebUtility.getSO(mainTree.getRawData())).build();
+    }
 
 	@GET
 	@Path("customVizPathProperties")
