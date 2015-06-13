@@ -851,7 +851,7 @@ public class EngineResource {
 		String[] finalNewNames = new String[newNames.length];
 		finalNewNames[0] = currConcept;
 		
-		BTreeDataFrame mainTree = null;
+		ITableDataFrame mainTree = null;
 		// THIS IS UGLY... need to line up the names because of limitations on join right now
 		// TODO: this if should be removed once we can actually specify the name to join on
 		if( finalNewNames.length > 1 ) // length will be either one or two....
@@ -870,11 +870,11 @@ public class EngineResource {
 //					break;
 //				}
 //			}
-			mainTree = (BTreeDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
+			mainTree = (ITableDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
 			mainTree.removeColumn(finalNewNames[1]); // need to make sure the column doesn't already exist (metamodel click vs. instances click)
 		}
 		
-		BTreeDataFrame newTree = new BTreeDataFrame(finalNewNames);
+		ITableDataFrame newTree = new BTreeDataFrame(finalNewNames);
 		while (wrap.hasNext()){
 			ISelectStatement iss = wrap.next();
 			Map<String, Object> cleanHash = new HashMap<String, Object>();
@@ -926,8 +926,13 @@ public class EngineResource {
     @Produces("application/json")
     public Response getExploreTable( @Context HttpServletRequest request)
     {
-           ITableDataFrame mainTree = (BTreeDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
-           return Response.status(200).entity(WebUtility.getSO(mainTree.getRawData())).build();
+       ITableDataFrame mainTree = (ITableDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
+
+		List<Object[]> table = mainTree.getRawData();
+   		Map<String, Object> returnData = new HashMap<String, Object>();
+   		returnData.put("data", table);
+   		returnData.put("headers", mainTree.getColumnHeaders());
+       return Response.status(200).entity(WebUtility.getSO(returnData)).build();
     }
 
 	@GET
