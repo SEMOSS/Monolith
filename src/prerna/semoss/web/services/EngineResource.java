@@ -912,6 +912,7 @@ public class EngineResource {
 //			{
 //				mainTree.removeColumn(newNames[1]); // need to remove it because final instance selection has not been made
 //			}
+			request.getSession().setAttribute("metamodelTree", mainTree);//TODO: need to think about naming
 		}
 		else {
 			request.getSession().setAttribute("metamodelTree", mainTree);//TODO: need to think about naming
