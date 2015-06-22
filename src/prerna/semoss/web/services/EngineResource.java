@@ -28,6 +28,7 @@
 package prerna.semoss.web.services;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -830,10 +831,11 @@ public class EngineResource {
 	@Path("customVizTableFilterOptions")
 	@Produces("application/json")
 	public Response getVizTableFilterOptions(MultivaluedMap<String, String> form, 
-			@QueryParam("metamodelClick") Boolean metamodelClick, 
+			@QueryParam("returnColumn") Boolean retrunColumn, 
 			@QueryParam("existingConcept") String currConcept, 
 			@QueryParam("joinConcept") String equivConcept, 
 			@QueryParam("newConcept") String newConcept, 
+			@QueryParam("blankSelected") String blankSelected, 
 			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
@@ -851,29 +853,25 @@ public class EngineResource {
 		String[] finalNewNames = new String[newNames.length];
 		finalNewNames[0] = currConcept;
 		
+		// get preexisting table and order the new table names to correctly join
 		ITableDataFrame mainTree = null;
-		// THIS IS UGLY... need to line up the names because of limitations on join right now
-		// TODO: this if should be removed once we can actually specify the name to join on
 		if( finalNewNames.length > 1 ) // length will be either one or two....
 		{ 
 			finalNewNames[0] = equivConcept;
 			finalNewNames[1] = newConcept;
-			if(!newNames[1].equalsIgnoreCase(newConcept)){
+			if(!newNames[1].equalsIgnoreCase(newConcept)){ // make sure the new names are in the right order for join
 				String temp = newNames[0];
 				newNames[0] = newNames[1];
 				newNames[1] = temp;
 			}
-//			finalNewNames[0] = equivConcept; //need to make sure the new tree gets built in the right order for joining. newNames should always only have two items
-//			for(String name : newNames){
-//				if(!name.equals(equivConcept)){
-//					finalNewNames[1] = name;
-//					break;
-//				}
-//			}
 			mainTree = (ITableDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
+			System.err.println("Current levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
+			System.err.println("Removing col " + finalNewNames[1]);
 			mainTree.removeColumn(finalNewNames[1]); // need to make sure the column doesn't already exist (metamodel click vs. instances click)
+			System.err.println("Levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
 		}
 		
+		// fill the new tree
 		ITableDataFrame newTree = new BTreeDataFrame(finalNewNames);
 		while (wrap.hasNext()){
 			ISelectStatement iss = wrap.next();
@@ -886,38 +884,29 @@ public class EngineResource {
 			newTree.addRow(cleanHash, rawHash);
 		}
 		
+		// perform the join
 		if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
 		{
-			try {
+				System.err.println("Main tree has levels : " + Arrays.toString(mainTree.getColumnHeaders()) + " and I am joining with " + Arrays.toString(newTree.getColumnHeaders()));
 				mainTree.join(newTree, currConcept, equivConcept, 1, new ExactStringMatcher());
-			} catch (Exception e) {
-				e.printStackTrace();
-				return Response.status(400).entity(WebUtility.getSO(e.getMessage())).build();
-			}
-//			mainTree.join(newTree, name2JoinOn, name2JoinOn, 1, new ExactStringMatcher());
+				System.err.println("New levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
 		}
 		else 
 		{
 			mainTree = newTree;
 		}
 		
-		Object values = null;
-		if(metamodelClick){
+		// get the new column
+		Object values = "success";
+		if(retrunColumn){
 			if(newNames.length > 1) {
 				values = mainTree.getRawColumn(finalNewNames[1]); // this will be the new column that got added
 			} else {
 				values = mainTree.getRawColumn(finalNewNames[0]); // the first column that gets added
 			}
-//			if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
-//			{
-//				mainTree.removeColumn(newNames[1]); // need to remove it because final instance selection has not been made
-//			}
 			request.getSession().setAttribute("metamodelTree", mainTree);//TODO: need to think about naming
 		}
-		else {
-			request.getSession().setAttribute("metamodelTree", mainTree);//TODO: need to think about naming
-			values = "success";
-		}
+		request.getSession().setAttribute("metamodelTree", mainTree);//TODO: need to think about naming
 
 		return Response.status(200).entity(WebUtility.getSO(values)).build();
 	}
