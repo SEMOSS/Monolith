@@ -911,7 +911,7 @@ public class EngineResource {
 			retMap.put("values", values);
 		}
 		
-		if(tableID.equals("")) {
+		if(tableID.isEmpty()) {
 			tableID = ITableDataFrameStore.getInstance().put(mainTree); //TODO: using store
 		} else {
 			ITableDataFrameStore.getInstance().put(tableID, mainTree); //TODO: using store
