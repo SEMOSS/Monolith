@@ -831,7 +831,7 @@ public class EngineResource {
 	@Path("customVizTableFilterOptions")
 	@Produces("application/json")
 	public Response getVizTableFilterOptions(MultivaluedMap<String, String> form, 
-			@QueryParam("returnColumn") Boolean retrunColumn, 
+			@QueryParam("returnColumn") Boolean returnColumn, 
 			@QueryParam("existingConcept") String currConcept, 
 			@QueryParam("joinConcept") String equivConcept, 
 			@QueryParam("newConcept") String newConcept, 
@@ -898,7 +898,7 @@ public class EngineResource {
 		
 		// get the new column
 		Object values = "success";
-		if(retrunColumn){
+		if(returnColumn){
 			if(newNames.length > 1) {
 				values = mainTree.getRawColumn(finalNewNames[1]); // this will be the new column that got added
 			} else {
