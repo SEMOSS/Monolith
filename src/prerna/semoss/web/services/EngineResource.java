@@ -58,6 +58,7 @@ import org.apache.log4j.Logger;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
 import prerna.ds.BTreeDataFrame;
+import prerna.ds.BTreeStore;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
@@ -835,7 +836,8 @@ public class EngineResource {
 			@QueryParam("existingConcept") String currConcept, 
 			@QueryParam("joinConcept") String equivConcept, 
 			@QueryParam("newConcept") String newConcept, 
-			@QueryParam("blankSelected") String blankSelected, 
+			@QueryParam("blankSelected") String blankSelected,
+			@QueryParam("btreeID") String btreeID,
 			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
@@ -864,7 +866,7 @@ public class EngineResource {
 				newNames[0] = newNames[1];
 				newNames[1] = temp;
 			}
-			mainTree = (ITableDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
+			mainTree = BTreeStore.getInstance().get(btreeID); //TODO: using store
 			System.err.println("Current levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
 			System.err.println("Removing col " + finalNewNames[1]);
 			mainTree.removeColumn(finalNewNames[1]); // need to make sure the column doesn't already exist (metamodel click vs. instances click)
@@ -897,26 +899,37 @@ public class EngineResource {
 		}
 		
 		// get the new column
-		Object values = "success";
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		retMap.put("result", "success");
+		Object values;
 		if(returnColumn){
 			if(newNames.length > 1) {
 				values = mainTree.getRawColumn(finalNewNames[1]); // this will be the new column that got added
 			} else {
 				values = mainTree.getRawColumn(finalNewNames[0]); // the first column that gets added
 			}
-			request.getSession().setAttribute("metamodelTree", mainTree);//TODO: need to think about naming
+			retMap.put("values", values);
 		}
-		request.getSession().setAttribute("metamodelTree", mainTree);//TODO: need to think about naming
+		
+		if(btreeID == null) {
+			btreeID = BTreeStore.getInstance().put(mainTree); //TODO: using store
+		} else {
+			BTreeStore.getInstance().put(btreeID, mainTree); //TODO: using store
+		}
 
-		return Response.status(200).entity(WebUtility.getSO(values)).build();
+		retMap.put("btreeID", btreeID);
+		
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
 	@POST
     @Path("getVizTable")
     @Produces("application/json")
-    public Response getExploreTable( @Context HttpServletRequest request)
+    public Response getExploreTable(
+    		@QueryParam("btreeID") String btreeID,
+    		@Context HttpServletRequest request)
     {
-       ITableDataFrame mainTree = (ITableDataFrame) request.getSession().getAttribute("metamodelTree");//TODO: need to think about naming
+       ITableDataFrame mainTree = BTreeStore.getInstance().get(btreeID); //TODO: using store
 
 		List<Object[]> table = mainTree.getRawData();
    		Map<String, Object> returnData = new HashMap<String, Object>();
