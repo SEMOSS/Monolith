@@ -58,7 +58,7 @@ import org.apache.log4j.Logger;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
 import prerna.ds.BTreeDataFrame;
-import prerna.ds.BTreeStore;
+import prerna.ds.ITableDataFrameStore;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
@@ -837,7 +837,7 @@ public class EngineResource {
 			@QueryParam("joinConcept") String equivConcept, 
 			@QueryParam("newConcept") String newConcept, 
 			@QueryParam("blankSelected") String blankSelected,
-			@QueryParam("btreeID") String btreeID,
+			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
@@ -866,7 +866,7 @@ public class EngineResource {
 				newNames[0] = newNames[1];
 				newNames[1] = temp;
 			}
-			mainTree = BTreeStore.getInstance().get(btreeID); //TODO: using store
+			mainTree = ITableDataFrameStore.getInstance().get(tableID); //TODO: using store
 			System.err.println("Current levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
 			System.err.println("Removing col " + finalNewNames[1]);
 			mainTree.removeColumn(finalNewNames[1]); // need to make sure the column doesn't already exist (metamodel click vs. instances click)
@@ -911,13 +911,13 @@ public class EngineResource {
 			retMap.put("values", values);
 		}
 		
-		if(btreeID == null) {
-			btreeID = BTreeStore.getInstance().put(mainTree); //TODO: using store
+		if(tableID == null) {
+			tableID = ITableDataFrameStore.getInstance().put(mainTree); //TODO: using store
 		} else {
-			BTreeStore.getInstance().put(btreeID, mainTree); //TODO: using store
+			ITableDataFrameStore.getInstance().put(tableID, mainTree); //TODO: using store
 		}
 
-		retMap.put("btreeID", btreeID);
+		retMap.put("tableID", tableID);
 		
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
@@ -926,15 +926,16 @@ public class EngineResource {
     @Path("getVizTable")
     @Produces("application/json")
     public Response getExploreTable(
-    		@QueryParam("btreeID") String btreeID,
+    		@QueryParam("tableID") String tableID,
     		@Context HttpServletRequest request)
     {
-       ITableDataFrame mainTree = BTreeStore.getInstance().get(btreeID); //TODO: using store
+       ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID); //TODO: using store
 
 		List<Object[]> table = mainTree.getRawData();
    		Map<String, Object> returnData = new HashMap<String, Object>();
    		returnData.put("data", table);
    		returnData.put("headers", mainTree.getColumnHeaders());
+   		returnData.put("tableID", tableID);
        return Response.status(200).entity(WebUtility.getSO(returnData)).build();
     }
 
