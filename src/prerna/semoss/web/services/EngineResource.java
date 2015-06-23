@@ -55,8 +55,10 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
+import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
+import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
 import prerna.engine.api.IEngine;
@@ -836,7 +838,7 @@ public class EngineResource {
 			@QueryParam("existingConcept") String currConcept, 
 			@QueryParam("joinConcept") String equivConcept, 
 			@QueryParam("newConcept") String newConcept, 
-			@QueryParam("blankSelected") String blankSelected,
+			@QueryParam("blankSelected") Boolean blankSelected,
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
@@ -890,11 +892,16 @@ public class EngineResource {
 		if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
 		{
 				System.err.println("Main tree has levels : " + Arrays.toString(mainTree.getColumnHeaders()) + " and I am joining with " + Arrays.toString(newTree.getColumnHeaders()));
-				mainTree.join(newTree, currConcept, equivConcept, 1, new ExactStringMatcher());
+				IAnalyticRoutine alg = null;
+				if(blankSelected) {
+					alg = new ExactStringPartialOuterJoinMatcher();
+				} else {
+					alg = new ExactStringMatcher();
+				}
+				mainTree.join(newTree, currConcept, equivConcept, 1, alg);
 				System.err.println("New levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
 		}
-		else 
-		{
+		else {
 			mainTree = newTree;
 		}
 		
