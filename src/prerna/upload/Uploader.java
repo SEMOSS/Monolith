@@ -32,11 +32,13 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -45,6 +47,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
@@ -52,6 +55,7 @@ import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.io.FileUtils;
 
+import prerna.algorithm.learning.unsupervised.recommender.DataStructureFromCSV;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
@@ -61,12 +65,16 @@ import prerna.error.FileReaderException;
 import prerna.error.FileWriterException;
 import prerna.error.HeaderClassException;
 import prerna.error.NLPException;
+import prerna.nameserver.ConnectedConcepts;
+import prerna.nameserver.INameServer;
+import prerna.nameserver.NameServerProcessor;
 import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.util.sql.SQLQueryUtil;
+import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
 import com.ibm.icu.util.StringTokenizer;
@@ -223,6 +231,52 @@ public class Uploader extends HttpServlet {
 		return inputData;
 	}
 
+	@POST
+	@Path("/csv/autoGenMetamodel")
+	@Produces("text/html")
+	public Response createCSVMetamodel(@Context HttpServletRequest request) 
+	{
+		
+		List<FileItem> fileItems = processRequest(request);
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = getInputData(fileItems);
+
+		//cleanedFiles - stringified CSV file returned from OpenRefine
+		//If OpenRefine-returned CSV string exists, user went through OpenRefine - write returned data to file first
+		Object obj = inputData.get("cleanedFiles");
+		String dbName = inputData.get("dbName");
+		if(obj != null) {
+			String cleanedFileName = processOpenRefine(dbName, (String) obj);
+			if(cleanedFileName.startsWith("Error")) {
+				String errorMessage = "Could not write the cleaned data to file. Please check application file-upload path.";
+				return Response.status(400).entity(errorMessage).build();
+			}
+			inputData.put("file", cleanedFileName);
+		}
+
+		String localMasterDbName = inputData.get("localMasterDbName");
+		HashMap<String, Object> results = new HashMap<String,Object>();
+		// regardless of input master/local databases, uses the same method since it only queries the master db and not the databases used to create it
+		if(localMasterDbName == null) {
+			// this call is not local, need to get the API to run queries
+			DataStructureFromCSV alg = new DataStructureFromCSV();
+			ArrayList<HashMap<String,Object>> relList = alg.createMetamodel(inputData.get("file"));
+			results.put("relations",relList);
+			results.put("headers", alg.getHeaders());
+			results.put("colTypes", alg.getAllPossibleTypesHash());
+		} else {
+			// this call is local, grab the engine from DIHelper
+			DataStructureFromCSV alg = new DataStructureFromCSV(localMasterDbName);
+			ArrayList<HashMap<String,Object>> relList = alg.createMetamodel(inputData.get("file"));
+			results.put("relations",relList);
+			results.put("headers", alg.getHeaders());
+			results.put("colTypes", alg.getAllPossibleTypesHash());
+		}	
+			
+		String outputText = "Auto Metamodel Generation was a success.";
+		return Response.status(200).entity(outputText).build();
+	}
+	
 	@SuppressWarnings("unchecked")
 	@POST
 	@Path("/csv/upload")
