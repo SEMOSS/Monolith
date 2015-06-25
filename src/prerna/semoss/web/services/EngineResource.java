@@ -58,6 +58,7 @@ import org.apache.log4j.Logger;
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
+import prerna.algorithm.impl.ExactStringOuterJoinMatcher;
 import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
@@ -896,7 +897,7 @@ public class EngineResource {
 				if(blankSelected) {
 					alg = new ExactStringPartialOuterJoinMatcher();
 				} else {
-					alg = new ExactStringMatcher();
+					alg = new ExactStringPartialOuterJoinMatcher();
 				}
 				mainTree.join(newTree, currConcept, equivConcept, 1, alg);
 				System.err.println("New levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
