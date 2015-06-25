@@ -931,22 +931,34 @@ public class EngineResource {
 	}
 	
 	@POST
-    @Path("getVizTable")
-    @Produces("application/json")
-    public Response getExploreTable(
-    		@QueryParam("tableID") String tableID,
-    		@Context HttpServletRequest request)
-    {
-       ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID); //TODO: using store
+	@Path("getVizTable")
+	@Produces("application/json")
+	public Response getExploreTable(
+			@QueryParam("tableID") String tableID,
+			@Context HttpServletRequest request)
+	{
+		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID); //TODO: using store
 
 		List<Object[]> table = mainTree.getRawData();
-   		Map<String, Object> returnData = new HashMap<String, Object>();
-   		returnData.put("data", table);
-   		returnData.put("headers", mainTree.getColumnHeaders());
-   		returnData.put("tableID", tableID);
-       return Response.status(200).entity(WebUtility.getSO(returnData)).build();
-    }
+		Map<String, Object> returnData = new HashMap<String, Object>();
+		returnData.put("data", table);
+		returnData.put("headers", mainTree.getColumnHeaders());
+		returnData.put("tableID", tableID);
+		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+	}
 
+	@GET
+	@Path("burnTree")
+	@Produces("application/json")
+	public Response removeTable(@QueryParam("tableID") String tableID) {
+		boolean success = ITableDataFrameStore.getInstance().remove(tableID);
+		if(success) {
+			return Response.status(200).entity(WebUtility.getSO("success in removing " + tableID + " in data store")).build();
+		} else {
+			return Response.status(400).entity(WebUtility.getSO("failure in removing " + tableID + " from data store")).build();
+		}
+	}
+	
 	@GET
 	@Path("customVizPathProperties")
 	@Produces("application/json")
