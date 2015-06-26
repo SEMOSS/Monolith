@@ -43,6 +43,7 @@ import javax.servlet.http.HttpSession;
 
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
+import prerna.auth.User.LOGIN_TYPES;
 import prerna.engine.api.IEngine;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -67,18 +68,22 @@ public class UserDBFilter implements Filter {
 		ServletContext context = getFilterConfig().getServletContext();
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
+		User user = null;
+		if(session != null) {
+			if(session.getAttribute(Constants.SESSION_USER) == null) {
+				user = new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.anonymous, "Anonymous");
+				session.setAttribute(Constants.SESSION_USER, user);
+			} else {
+				user = (User) session.getAttribute(Constants.SESSION_USER);
+			}
+		}
 		boolean dbInitialized = session != null && session.getAttribute(Constants.ENGINES+"unused") != null;
 		if(!dbInitialized) // this is our new friend
 		{
 			ArrayList<String> userEngines = new ArrayList<String>();
 			session = ((HttpServletRequest)arg0).getSession(true);
 			if(securityEnabled) {
-				User user = ((User) session.getAttribute(Constants.SESSION_USER));
-				String userId = "";
-				if(user!= null) {
-					userId = user.getId();
-				}
-				userEngines = permissions.getUserAccessibleEngines(userId);
+				userEngines = permissions.getUserAccessibleEngines(user.getId());
 			}
 			// get all the engines and add the top engines
 			String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
