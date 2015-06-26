@@ -56,6 +56,9 @@ import org.apache.log4j.Logger;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
+import prerna.auth.User;
+import prerna.auth.UserPermissionsMasterDB;
+import prerna.auth.User.LOGIN_TYPES;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.error.EngineException;
