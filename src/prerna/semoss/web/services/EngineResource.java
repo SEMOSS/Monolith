@@ -60,6 +60,7 @@ import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
 import prerna.algorithm.impl.ExactStringOuterJoinMatcher;
 import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
+import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
 import prerna.engine.api.IEngine;
@@ -70,6 +71,8 @@ import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.impl.rdf.SesameJenaSelectStatement;
 import prerna.engine.impl.rdf.SesameJenaSelectWrapper;
 import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
+import prerna.nameserver.AddToMasterDB;
+import prerna.nameserver.NameServerProcessor;
 import prerna.om.Insight;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -85,6 +88,7 @@ import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.helpers.PlaysheetCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
+import prerna.util.Constants;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
@@ -498,6 +502,12 @@ public class EngineResource {
 	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
 	{
 		String insight = form.getFirst("insight");
+		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		AddToMasterDB masterDB = new AddToMasterDB(Constants.LOCAL_MASTER_DB_NAME);
+		
+		//Get the Insight, grab its ID
+		Insight insightObj = ((AbstractEngine)coreEngine).getInsight2(insight).get(0);
+		
 		// executes the output and gives the data
 		// executes the create runner
 		// once complete, it would plug the output into the session
@@ -543,6 +553,9 @@ public class EngineResource {
 					errorHash.put("Class", className);
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
+				
+				//Increment the insight's execution count for the logged in user
+				masterDB.processInsightExecutionForUser(userId, insightObj);
 
 				return Response.status(200).entity(WebUtility.getSO(obj)).build();
 			}
@@ -587,7 +600,10 @@ public class EngineResource {
 			//			return getSO(errorHash);
 			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
-
+		
+		//Increment the insight's execution count for the logged in user
+		masterDB.processInsightExecutionForUser(userId, insightObj);
+		
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
 
@@ -1307,7 +1323,4 @@ public class EngineResource {
 //		logger.info("size is  " + data.size());
 		return WebUtility.getSO(data.size());
 	}
-	
-	
-	
 }

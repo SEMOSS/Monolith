@@ -32,10 +32,9 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -50,6 +49,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
@@ -553,4 +553,17 @@ public class NameServer {
 		return questionAdmin;
 	}
   	
+  	@GET
+	@Path("/topinsights")
+	@Produces("application/xml")
+	public Response getTopInsights(@QueryParam("engine") String engine, @Context HttpServletRequest request) {
+		if(engine == null) {
+			engine = "";
+		}
+		
+		NameServerProcessor ns = new NameServerProcessor();
+		HashMap<String, Object> insights = ns.getTopInsights(engine);
+		
+		return Response.status(200).entity(WebUtility.getSO(insights)).build();
+	}
 }
