@@ -559,13 +559,17 @@ public class NameServer {
   	@GET
 	@Path("/topinsights")
 	@Produces("application/xml")
-	public Response getTopInsights(@QueryParam("engine") String engine, @Context HttpServletRequest request) {
+	public Response getTopInsights(@QueryParam("engine") String engine, @QueryParam("limit") String limit, @Context HttpServletRequest request) {
 		if(engine == null) {
 			engine = "";
 		}
+		if(limit == null) {
+			//Default limit for # of top insights to return
+			limit = "6";
+		}
 		
 		NameServerProcessor ns = new NameServerProcessor();
-		HashMap<String, Object> insights = ns.getTopInsights(engine);
+		HashMap<String, Object> insights = ns.getTopInsights(engine, limit);
 		
 		return Response.status(200).entity(WebUtility.getSO(insights)).build();
 	}
