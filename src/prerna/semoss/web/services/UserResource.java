@@ -33,10 +33,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.security.Principal;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -44,7 +42,6 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
@@ -52,18 +49,14 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.http.HttpEntity;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
-import prerna.engine.api.IEngine;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
@@ -98,11 +91,6 @@ public class UserResource
 	
 	private final String FACEBOOK_APP_SECRET = "***REMOVED***";
 	private final String FACEBOOK_ACCESS_TOKEN_NEW = "https://graph.facebook.com/oauth/access_token?code=%s&client_id=%s&redirect_uri=%s&client_secret=%s";
-	
-	private final String SALESFORCE_APP_SECRET = "1608257112718332859";
-	private final String SALESFORCE_CLIENT_ID = "***REMOVED***";
-	private final String SALESFORCE_GRANT_TYPE = "authorization_code";
-	private final String SALESFORCE_ACCESS_TOKEN_NEW = "https://login.salesforce.com/services/oauth2/token";
 	
 	/**
 	 * Logs user in through Google+.
@@ -314,105 +302,6 @@ public class UserResource
 	@Produces("application/json")
 	@Path("/logout/facebook")
 	public Response logoutFacebook(@Context HttpServletRequest request) throws IOException {
-		Hashtable<String, String> ret = new Hashtable<String, String>();
-		
-		// Only disconnect a connected user.
-		String tokenData = (String) request.getSession().getAttribute("token");
-		if (tokenData == null) {
-			ret.put("success", "false");
-			ret.put("error", "User is not connected.");
-			return Response.status(400).entity(WebUtility.getSO(ret)).build();
-		}
-		
-		request.getSession().invalidate();
-		
-		ret.put("success", "true");
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
-	}
-	
-	/**
-	 * Logs user in through Salesforce.
-	 */
-	@POST
-	@Produces("application/json")
-	@Path("/login/salesforce")
-	public Response loginSalesforce(@PathParam("code") String code, @Context HttpServletRequest request) throws IOException {
-		Hashtable<String, String> ret = new Hashtable<String, String>();
-		
-		String redirectUri = request.getRequestURL().substring(0, request.getRequestURL().indexOf("?"));
-		
-		String accessToken = "";
-		
-		CloseableHttpClient httpclient = HttpClients.createDefault();
-		HttpPost http = new HttpPost(this.SALESFORCE_ACCESS_TOKEN_NEW);
-		
-		List<BasicNameValuePair> params = new ArrayList<BasicNameValuePair>();
-		params.add(new BasicNameValuePair("grant_type", this.SALESFORCE_GRANT_TYPE));
-		params.add(new BasicNameValuePair("client_id", this.SALESFORCE_CLIENT_ID));
-		params.add(new BasicNameValuePair("client_secret", this.SALESFORCE_APP_SECRET));
-		params.add(new BasicNameValuePair("redirect_uri", redirectUri));
-		params.add(new BasicNameValuePair("code", code));
-		http.setEntity(new UrlEncodedFormEntity(params));
-		
-		CloseableHttpResponse response = httpclient.execute(http);
-		
-		// Retrieve Salesforce OAuth access token
-		try {
-		    HttpEntity entity = response.getEntity();
-		    if (entity != null) {
-		    	long len = entity.getContentLength();
-		        if (len != -1) {
-		            String resp = EntityUtils.toString(entity);
-		            
-		            if(resp.contains("access_token")) {
-		            	accessToken = resp.substring(resp.indexOf("=")+1, resp.indexOf("&expires"));
-		            	request.getSession().setAttribute("token", accessToken);
-		            } else {
-			            Gson gson = new Gson();
-			    		HashMap<String, StringMap<String>> k = gson.fromJson(resp, HashMap.class);
-			    		
-			    		if(k.get("error") != null) {
-			    			ret.put("success", "false");
-			    			ret.put("error", k.get("error").toString());
-			    			return Response.status(400).entity(WebUtility.getSO(ret)).build();
-			    		}
-		            }
-		        }
-		    }
-		} finally {
-		    response.close();
-		    httpclient.close();
-		}
-		
-		// Store the token in the session for later use.
-		HashMap<String, String> connectorTokens = null;
-		if(request.getSession().getAttribute("connectorTokens") != null) {
-			connectorTokens = (HashMap<String, String>) request.getSession().getAttribute("connectorTokens");
-		} else {
-			connectorTokens = new HashMap<String, String>();
-		}
-		connectorTokens.put(IEngine.ENGINE_TYPE.SALESFORCE.toString(), accessToken);
-		
-		request.getSession().setAttribute("connectorTokens", connectorTokens);
-		
-		ret.put("success", "true");
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
-	}
-	
-	@POST
-	@Produces("application/json")
-	@Path("/test")
-	public void testSalesforce(@Context HttpServletRequest request) throws IOException {
-		
-	}
-	
-	/**
-	 * Logs user out when authenticated through Salesforce.
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/logout/salesforce")
-	public Response logoutSalesforce(@Context HttpServletRequest request) throws IOException {
 		Hashtable<String, String> ret = new Hashtable<String, String>();
 		
 		// Only disconnect a connected user.
