@@ -68,10 +68,9 @@ public class UserDBFilter implements Filter {
 		ServletContext context = getFilterConfig().getServletContext();
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
-		User user = null;
+		User user = new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.anonymous, "Anonymous");;
 		if(session != null) {
 			if(session.getAttribute(Constants.SESSION_USER) == null) {
-				user = new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.anonymous, "Anonymous");
 				session.setAttribute(Constants.SESSION_USER, user);
 			} else {
 				user = (User) session.getAttribute(Constants.SESSION_USER);
