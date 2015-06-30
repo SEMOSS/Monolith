@@ -1335,6 +1335,6 @@ public class EngineResource {
 		NameServerProcessor ns = new NameServerProcessor();
 		success = ns.publishInsightToFeed(userId, insightObj, visibility);
 		
-		return success ? Response.status(200).entity(success).build() : Response.status(400).entity(success).build();
+		return success ? Response.status(200).entity(WebUtility.getSO(success)).build() : Response.status(400).entity(WebUtility.getSO(success)).build();
 	}
 }
