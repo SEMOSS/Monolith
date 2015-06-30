@@ -1323,4 +1323,18 @@ public class EngineResource {
 //		logger.info("size is  " + data.size());
 		return WebUtility.getSO(data.size());
 	}
+	
+	@POST
+	@Path("/publishToFeed")
+	@Produces("application/xml")
+	public Response publishInsight(@QueryParam("visibility") String visibility, @QueryParam("insight") String insight, @Context HttpServletRequest request) {
+		boolean success = false;
+		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		Insight insightObj = ((AbstractEngine)coreEngine).getInsight2(insight).get(0);
+		
+		NameServerProcessor ns = new NameServerProcessor();
+		success = ns.publishInsightToFeed(userId, insightObj, visibility);
+		
+		return success ? Response.status(200).entity(success).build() : Response.status(400).entity(success).build();
+	}
 }

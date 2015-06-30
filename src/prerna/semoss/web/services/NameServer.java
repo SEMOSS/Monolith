@@ -56,9 +56,6 @@ import org.apache.log4j.Logger;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
-import prerna.auth.User;
-import prerna.auth.UserPermissionsMasterDB;
-import prerna.auth.User.LOGIN_TYPES;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.error.EngineException;
@@ -548,29 +545,11 @@ public class NameServer {
 		}
 		return WebUtility.getSO(hashTable);
 	}	
-  	
-  	@Path("/dbAdmin")
+
+	@Path("/dbAdmin")
 	public Object modifyInsight(@Context HttpServletRequest request) {
-  		DBAdminResource questionAdmin = new DBAdminResource();
-  		questionAdmin.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
+		DBAdminResource questionAdmin = new DBAdminResource();
+		questionAdmin.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
 		return questionAdmin;
-	}
-  	
-  	@GET
-	@Path("/topinsights")
-	@Produces("application/xml")
-	public Response getTopInsights(@QueryParam("engine") String engine, @QueryParam("limit") String limit, @Context HttpServletRequest request) {
-		if(engine == null) {
-			engine = "";
-		}
-		if(limit == null) {
-			//Default limit for # of top insights to return
-			limit = "6";
-		}
-		
-		NameServerProcessor ns = new NameServerProcessor();
-		HashMap<String, Object> insights = ns.getTopInsights(engine, limit);
-		
-		return Response.status(200).entity(WebUtility.getSO(insights)).build();
 	}
 }
