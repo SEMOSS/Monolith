@@ -60,6 +60,7 @@ import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
 import prerna.algorithm.impl.ExactStringOuterJoinMatcher;
 import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
+import prerna.algorithm.learning.unsupervised.clustering.ClusteringRoutine;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
@@ -1272,8 +1273,10 @@ public class EngineResource {
 	@Path("/btreeTester")
 	@Produces("application/xml")
 	public StreamingOutput btreeTester(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String query1 = form.getFirst("query1");
-		String query2 = form.getFirst("query2");
+		//String query1 = form.getFirst("query1");
+		//String query2 = form.getFirst("query2");
+
+		String query1 = "SELECT DISTINCT ?Title ?Genre ?Director ?Nominated ?Studio ?DomesticRevenue ?InternationalRevenue ?Budget ?RottenTomatoesCritics ?RottenTomatoesAudience WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
 
 		//run query 1
 		HttpSession session = request.getSession(false);
@@ -1288,40 +1291,52 @@ public class EngineResource {
 				tree1.addRow(iss1.getPropHash(), iss1.getRPropHash());
 			}
 		}
-		// or get it from session
-		else{
-			tree1 = (BTreeDataFrame) session.getAttribute("testTree");
-			names1 = tree1.getColumnHeaders();
+		
+		tree1.performAction(new ClusteringRoutine());
+		List<Object[]> flatData = tree1.getData();
+		
+		for(Object[] row: flatData) {
+			for(Object instance: row) {
+				System.out.print(instance.toString()+" ");
+			}
+			System.out.println();
 		}
 		
-		//run query 2
-		ISelectWrapper wrap2 = WrapperManager.getInstance().getSWrapper(this.coreEngine, query2);
-		String[] names2 = wrap2.getVariables();
-		BTreeDataFrame tree2 = new BTreeDataFrame(names2);
-		int count = 0;
-		while(wrap2.hasNext()){
-			ISelectStatement iss = wrap2.next();
-			tree2.addRow(iss.getPropHash(), iss.getRPropHash());
-//			System.out.println(" putting into tree " + iss.getPropHash().toString());//
-			System.out.println(count++);
-		}
+		// or get it from session
+//		else{
+//			tree1 = (BTreeDataFrame) session.getAttribute("testTree");
+//			names1 = tree1.getColumnHeaders();
+//		}
+//		
+//		//run query 2
+//		ISelectWrapper wrap2 = WrapperManager.getInstance().getSWrapper(this.coreEngine, query2);
+//		String[] names2 = wrap2.getVariables();
+//		BTreeDataFrame tree2 = new BTreeDataFrame(names2);
+//		int count = 0;
+//		while(wrap2.hasNext()){
+//			ISelectStatement iss = wrap2.next();
+//			tree2.addRow(iss.getPropHash(), iss.getRPropHash());
+////			System.out.println(" putting into tree " + iss.getPropHash().toString());//
+//			System.out.println(count++);
+//		}
 		
 //		Object[] col = tree1.getColumn("Title");
-		logger.info("starting join");
-		try {
-			tree1.join(tree2, names1[names1.length-1], names2[0], 1, new ExactStringMatcher());
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		logger.info("setting into session");
-		session.setAttribute("testTree", tree1);
-		logger.info("begining to flatten");
-		List<Object[]> data = tree1.getData();
-		
-		logger.info("done flattening");
+//		logger.info("starting join");
+//		try {
+//			tree1.join(tree2, names1[names1.length-1], names2[0], 1, new ExactStringMatcher());
+//		} catch (Exception e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+//		logger.info("setting into session");
+//		session.setAttribute("testTree", tree1);
+//		logger.info("begining to flatten");
+//		List<Object[]> data = tree1.getData();
+//		
+//		logger.info("done flattening");
 //		logger.info("size is  " + data.size());
-		return WebUtility.getSO(data.size());
+		//return WebUtility.getSO(data.size());
+		return null;
 	}
 	
 	@POST
