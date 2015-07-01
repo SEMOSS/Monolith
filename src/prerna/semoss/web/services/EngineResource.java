@@ -74,6 +74,7 @@ import prerna.engine.impl.rdf.SesameJenaSelectWrapper;
 import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
 import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.NameServerProcessor;
+import prerna.nameserver.SearchMasterDB;
 import prerna.om.Insight;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -504,7 +505,8 @@ public class EngineResource {
 	{
 		String insight = form.getFirst("insight");
 		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
-		AddToMasterDB masterDB = new AddToMasterDB(Constants.LOCAL_MASTER_DB_NAME);
+		AddToMasterDB addMasterDB = new AddToMasterDB(Constants.LOCAL_MASTER_DB_NAME);
+		SearchMasterDB searchMasterDB = new SearchMasterDB(Constants.LOCAL_MASTER_DB_NAME);
 		
 		//Get the Insight, grab its ID
 		Insight insightObj = ((AbstractEngine)coreEngine).getInsight2(insight).get(0);
@@ -544,7 +546,6 @@ public class EngineResource {
 
 					obj = playSheet.getData();
 					
-
 					// store the playsheet in session
 					storePSInSession((HttpServletRequest)request, playSheet, (Hashtable) obj);
 				} catch (Exception ex) { //need to specify the different exceptions 
@@ -556,9 +557,15 @@ public class EngineResource {
 				}
 				
 				//Increment the insight's execution count for the logged in user
-				masterDB.processInsightExecutionForUser(userId, insightObj);
-
-				return Response.status(200).entity(WebUtility.getSO(obj)).build();
+				addMasterDB.processInsightExecutionForUser(userId, insightObj);
+				String visibility = searchMasterDB.getVisibilityForInsight(userId, insightObj.getId());
+				Hashtable ret = (Hashtable) obj;
+				if(ret != null) {
+					ret.put("query", insightObj.getSparql());
+					ret.put("insightId", insightObj.getId());
+					ret.put("visibility", visibility);
+				}
+				return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			}
 			else{
 				Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -603,10 +610,16 @@ public class EngineResource {
 		}
 		
 		//Increment the insight's execution count for the logged in user
-		masterDB.processInsightExecutionForUser(userId, insightObj);
-		
-		return Response.status(200).entity(WebUtility.getSO(obj)).build();
-	}	
+		addMasterDB.processInsightExecutionForUser(userId, insightObj);
+		String visibility = searchMasterDB.getVisibilityForInsight(userId, insightObj.getId());
+		Hashtable ret = (Hashtable) obj;
+		if(ret !=  null) {
+			ret.put("query", insightObj.getSparql());
+			ret.put("insightId", insightObj.getId());
+			ret.put("visibility", visibility);
+		}
+		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+	}
 
 	// executes a particular insight
 	@GET
