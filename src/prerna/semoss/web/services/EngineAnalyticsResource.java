@@ -28,8 +28,10 @@
 package prerna.semoss.web.services;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -40,9 +42,10 @@ import javax.ws.rs.core.Response;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
-import prerna.algorithm.learning.similarity.ClusterRemoveDuplicates;
+import prerna.algorithm.api.ITableDataFrame;
+import prerna.ds.BTreeDataFrame;
+import prerna.ds.ITableDataFrameStore;
 import prerna.engine.api.IEngine;
-import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.ui.components.playsheets.ClusteringVizPlaySheet;
@@ -53,11 +56,11 @@ import prerna.ui.components.playsheets.NumericalCorrelationVizPlaySheet;
 import prerna.ui.components.playsheets.SelfOrganizingMap3DBarChartPlaySheet;
 import prerna.ui.components.playsheets.WekaAprioriVizPlaySheet;
 import prerna.ui.components.playsheets.WekaClassificationPlaySheet;
-import prerna.util.ArrayListUtilityMethods;
 import prerna.util.ArrayUtilityMethods;
 import prerna.util.MachineLearningEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
+import cern.colt.Arrays;
 
 import com.google.gson.Gson;
 
@@ -86,133 +89,71 @@ public class EngineAnalyticsResource {
 	}
 	
 	@POST
+	@Path("/undoAlgorithm") 
+	public Response undoAlgorithm(MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
+		String tableID = form.getFirst("tableID");
+		ITableDataFrame dataFrame = ITableDataFrameStore.getInstance().get(tableID);
+		if(dataFrame == null) {
+			Response.status(400).entity(WebUtility.getSO("Data is not found or is longer accessible")).build();
+		}
+		String[] removeColumns = gson.fromJson(form.getFirst("removeColumns"), String[].class);
+		
+		for(String s : removeColumns) {
+			dataFrame.removeColumn(s);
+		}
+		return Response.status(200).entity(WebUtility.getSO("Succesfully removed the following columns: " + Arrays.toString(removeColumns))).build();
+	}
+	
+	//TODO: need to add in the includeColArr
+	@POST
 	@Path("/runAlgorithm")
 	public Response runAlgorithm(MultivaluedMap<String, String> form) {
-		String algorithm = form.getFirst("algorithm");
-		
 		Gson gson = new Gson();
-		// TODO: move to keeping state on back-end
-		String query = form.getFirst("query");
-		if (query.contains("+++")) {
-			query = query.substring(0, query.indexOf("+++"));
-		}
-		
-		// TODO: add to interface to work for any column instance is located
+
+		String algorithm = form.getFirst("algorithm");
+		String tableID = form.getFirst("tableID");
+		int instanceIndex = gson.fromJson(form.getFirst("instanceID"), Integer.class);
+		ITableDataFrame dataFrame = ITableDataFrameStore.getInstance().get(tableID);
 		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
-		
-		String instanceIDString = form.getFirst("instanceID");
-		int instanceID = 0;
-		if (instanceIDString != null && (algorithm.equals("Clustering") || algorithm.equals("SOM") || algorithm.equals("Outliers"))) {
-			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class) + 1;
-			String select = query;
-			String[] selectSplit = select.split("\\?");
-			if (instanceID != 0) {
-				// swap location of instanceID to be first output in return
-				String newInstance = selectSplit[instanceID];
-				String temp = selectSplit[1];
-				selectSplit[1] = newInstance;
-				selectSplit[instanceID] = temp;
-				query = selectSplit[0] + " ";
-				for (int i = 1; i < selectSplit.length; i++) {
-					query = query + " ?" + selectSplit[i];
-				}
-				
-				// also need to update the boolean array with new format
-				// instance must always be present
-				// only need to check if we include the column being changed with instance
-				includeColArr[instanceID - 1] = includeColArr[0];
-				includeColArr[0] = true;
-			}
-		} else if(instanceIDString != null && algorithm.equals("MatrixRegression") ) {
-			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class) + 1;
-			String select = query;
-			String[] selectSplit = select.split("\\?");
-			if (instanceID != includeColArr.length) {
-				// swap location of instanceID to be last output in return
-				String newInstance = selectSplit[instanceID];
-				String temp = selectSplit[includeColArr.length];
-				String[] tempSplit = temp.split("WHERE");
-				String val = tempSplit[0];
-				String lastVar = newInstance + " WHERE " + tempSplit[1];
-				selectSplit[includeColArr.length] = lastVar;
-				selectSplit[instanceID] = val.trim() + " ";
-				query = selectSplit[0] + " ";
-				for (int i = 1; i < selectSplit.length; i++) {
-					query = query + " ?" + selectSplit[i];
-				}
-				// also need to update the boolean array with new format
-				// instance must always be present
-				// only need to check if we include the column being changed with instance
-				includeColArr[instanceID - 1] = includeColArr[includeColArr.length-1];
-				includeColArr[includeColArr.length-1] = true;
+		List<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
+
+		// TODO: this will be deleted once queries no longer sent
+		if(dataFrame == null) {
+			String query = form.getFirst("query");
+			ISelectWrapper sjsw = Utility.processQuery(engine, query);
+			String[] names = sjsw.getVariables();
+			
+			dataFrame = new BTreeDataFrame(names);
+			while(sjsw.hasNext()) {
+				dataFrame.addRow(sjsw.next());
 			}
 		}
 		
-		// TODO: shift all of this to IAnalaytics interface
-		ISelectWrapper sjsw = Utility.processQuery(engine, query);
-		String[] names = sjsw.getVariables();
-		int numCol = names.length;
-		ArrayList<Object[]> list = new ArrayList<Object[]>();
-		while (sjsw.hasNext()) {
-			ISelectStatement sjss = sjsw.next();
-			Object[] vals = new Object[numCol];
-			for (int i = 0; i < numCol; i++) {
-				vals[i] = sjss.getVar(names[i]);
-			}
-			list.add(vals);
-		}
-		String[] filteredNames = ArrayUtilityMethods.filterArray(names, includeColArr);
-		ArrayList<Object[]> filteredList = ArrayListUtilityMethods.filterList(list, includeColArr);
+		String[] columnHeaders = dataFrame.getColumnHeaders();
 		
-		ArrayList<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
-		Hashtable<String, Object> data = new Hashtable<String, Object>();
-		Hashtable<String, String> errorHash = new Hashtable<String, String>();
-		
+		Map<String, Object> errorHash = new HashMap<String, Object>();
 		if (algorithm.equals("Clustering")) {
-			// format the data before sending into algorithm
-			ClusterRemoveDuplicates formatter = new ClusterRemoveDuplicates(filteredList, filteredNames);
-			ArrayList<Object[]> formattedList = formatter.getRetMasterTable();
-			String[] formattedNames = formatter.getRetVarNames();
-			
 			ClusteringVizPlaySheet ps = new ClusteringVizPlaySheet();
-			
-			errorHash.put("Message", "Cannot cluster using specified categories.");
-			errorHash.put("Class", ps.getClass().getName());
-			ps.setRDFEngine(engine);
-			ps.setQuery(query);
-			if (configParameters.size() == 1) {
+			if (configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
 				Integer numClusters = Integer.parseInt(configParameters.get(0));
 				ps.setNumClusters(numClusters);
 			}
 			
-			try {
-				ps.setMasterList(formattedList);
-				ps.setMasterNames(formattedNames);
-				ps.setList(formattedList);
-				ps.setNames(formattedNames);
-				ps.runAlgorithm();
-				ps.processQueryData();
-			} catch (NullPointerException e) {
-				e.printStackTrace();
+			ps.setInstanceIndex(instanceIndex);
+			ps.setDataFrame(dataFrame);
+			ps.runAnalytics();
+			ps.processQueryData();
+			Hashtable psData = ps.getData();
+			if(psData.get("headers") == null || psData.get("data") == null) {
+				errorHash.put("Message", "No results found from algorithm");
+				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-			String title = "Cluster by " + ps.getNames()[0];
-			String[] headers = { "ClusterID" };
-			int[] tempClusterAssignment = ps.getClusterAssignment();
-			int[][] clusterAssignment = new int[tempClusterAssignment.length][1];
-			for (int i = 0; i < tempClusterAssignment.length; i++) {
-				clusterAssignment[i][0] = tempClusterAssignment[i];
-			}
-			Hashtable<String, Hashtable<String, Hashtable<String, Object>>[]> specificData = new Hashtable<String, Hashtable<String, Hashtable<String, Object>>[]>();
-			specificData.put("barData", ps.getBarData());
+			psData.remove("id");
+			psData.put("title", "Cluster by " + columnHeaders[instanceIndex]);
 			
-			data.put("title", title);
-			data.put("headers", headers);
-			data.put("data", clusterAssignment);
-			data.put("specificData", specificData);
-			
-			LOGGER.info("Running Clustering on " + engine.getEngineName() + "...");
-			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end int[]
+			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else if (algorithm.equals("AssociationLearning")) {
 			WekaAprioriVizPlaySheet ps = new WekaAprioriVizPlaySheet();
@@ -232,179 +173,128 @@ public class EngineAnalyticsResource {
 				Double maxSupport = Double.parseDouble(configParameters.get(3));
 				ps.setMaxSupport(maxSupport);
 			}
-			ps.setRDFEngine(engine);
-			ps.setQuery(query);
-			ps.setList(filteredList);
-			ps.setNames(filteredNames);
+			ps.setDataFrame(dataFrame);
+			ps.runAnalytics();
 			ps.processQueryData();
-			data = (Hashtable) ps.getData();
-			if(data.get("headers") == null || data.get("data") == null) {
+			
+			Hashtable psData = ps.getData();
+			if(psData.get("headers") == null || psData.get("data") == null) {
 				errorHash.put("Message", "No results found from algorithm");
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-			data.remove("id");
-			data.put("title", "Association Learning: Apriori Algorithm");
+			psData.remove("id");
+			psData.put("title", "Association Learning: Apriori Algorithm");
 			
-			LOGGER.info("Running Association Learning on " + engine.getEngineName() + "...");
-			return Response.status(200).entity(WebUtility.getSO(data)).build();
+			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else if (algorithm.equals("Classify")) {
 			WekaClassificationPlaySheet ps = new WekaClassificationPlaySheet();
 			// instance id is the prop being classified for
-			instanceID = gson.fromJson(form.getFirst("instanceID"), Integer.class);
-			String propName = names[instanceID];
-			int classColumn = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
+			String propName = columnHeaders[instanceIndex];
+			int classColumn = ArrayUtilityMethods.arrayContainsValueAtIndex(columnHeaders, propName);
 			if (classColumn == -1) {
 				errorHash.put("Message", "Must select column " + propName + " in filter param list to run classificaiton on it.");
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			ps.setClassColumn(classColumn);
-			ps.setRDFEngine(engine);
-			ps.setQuery(query);
-			ps.setList(filteredList);
-			ps.setNames(filteredNames);
-			ps.runAlgorithm();
+			ps.setDataFrame(dataFrame);
+			ps.runAnalytics();
 			ps.processQueryData();
-			data = (Hashtable) ps.getData();
-			data.remove("id");
-			data.put("title", "Classification Algorithm: For variable " + ps.getNames()[ps.getClassColumn()]);
-			LOGGER.info("Running Classify on " + engine.getEngineName() + "...");
-			return Response.status(200).entity(WebUtility.getSO(data)).build();
+			
+			Hashtable psData = ps.getData();
+			if(psData.get("headers") == null || psData.get("data") == null) {
+				errorHash.put("Message", "No results found from algorithm");
+				errorHash.put("Class", ps.getClass().getName());
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+			psData.remove("id");
+			psData.put("title", "Classification Algorithm: For variable " + ps.getNames()[ps.getClassColumn()]);
+			
+			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else if (algorithm.equals("Outliers")) {
 			LocalOutlierPlaySheet ps = new LocalOutlierPlaySheet();
 			if (configParameters.size() == 1) {
 				Integer k = Integer.parseInt(configParameters.get(0));
-				ps.setKNeighbors(k);
+				ps.setK(k);
 			}
-			errorHash.put("Message", "Cannot run outlier algorithm on specified categories.");
-			errorHash.put("Class", ps.getClass().getName());
-			ps.setRDFEngine(engine);
-			ps.setQuery(query);
-			try {
-				ps.setList(filteredList);
-				ps.setNames(filteredNames);
-				ps.runAnalytics();
-			} catch (NullPointerException e) {
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			} catch (ArrayIndexOutOfBoundsException e) {
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
+			ps.setInstanceIndex(instanceIndex);
+			ps.setDataFrame(dataFrame);
+			ps.runAnalytics();
+			ps.processQueryData();
 			
-			String title = "Outliers on " + ps.getNames()[0];
-			String[] headers = { "LOP" };
-			double[] tempLop = ps.getLop();
-			double[][] lop = new double[tempLop.length][1];
-			for (int i = 0; i < tempLop.length; i++) {
-				lop[i][0] = tempLop[i];
-			}
-			
-			data.put("title", title);
-			data.put("headers", headers);
-			data.put("data", lop);
+			Hashtable psData = ps.getData();
+			psData.remove("id");
+			psData.put("title", "Outliers on " + columnHeaders[instanceIndex]);
 			Hashtable<String, String> specificData = new Hashtable<String, String>();
 			specificData.put("x-axis", "LOP");
 			specificData.put("z-axis", "COUNT");
-			data.put("specificData", specificData);
+			psData.put("specificData", specificData);
 			
-			LOGGER.info("Running Outliers on " + engine.getEngineName() + "...");
-			return Response.status(200).entity(WebUtility.getSO(data)).build(); // send front end double[]
+			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
+
 		} else if (algorithm.equals("Similarity")) {
 			DatasetSimilarityPlaySheet ps = new DatasetSimilarityPlaySheet();
-			ps.setRDFEngine(engine);
-			ps.setQuery(query);
-			
-			errorHash.put("Message", "Cannot run similarity algorithm on specified categories.");
-			errorHash.put("Class", ps.getClass().getName());
-			
-			try {
-				ps.setList(filteredList);
-				ps.setNames(filteredNames);
-				ps.runAnalytics();
-			} catch (NullPointerException e) {
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-			
-			String label = ps.getNames()[0];
-			String title = "Similarity on " + label;
-			String[] headers = { "SimValues" };
-			double[] tempSimValues = ps.getSimValues();
-			double[][] simValues = new double[tempSimValues.length][1];
-			for (int i = 0; i < tempSimValues.length; i++) {
-				simValues[i][0] = (double) Math.round(tempSimValues[i] * 100000) / 100000;
-			}
-			
-			Hashtable<String, String> dataTableAlign = new Hashtable<String, String>();
-			dataTableAlign.put("label", label);
-			dataTableAlign.put("value 1", "SimValues");
-			
-			data.put("title", title);
-			data.put("headers", headers);
-			data.put("data", simValues);
-			data.put("dataTableAlign", dataTableAlign);
-			
-			LOGGER.info("Running Similarity on " + engine.getEngineName() + "...");
-			return Response.status(200).entity(WebUtility.getSO(data)).build();
-		} else if (algorithm.equals("MatrixRegression")) {
-			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
-			// instance id is the prop being approximated for
-			String propName = names[names.length - 1];
-			int bColumnIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(filteredNames, propName);
-			if (bColumnIndex == -1) {
-				errorHash.put("Message", "Must select column " + propName + " in filter param list to run classificaiton on it.");
-				errorHash.put("Class", ps.getClass().getName());
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-			ps.setbColumnIndex(bColumnIndex);
-			ps.setIncludesInstance(false);
-			ps.setRDFEngine(engine);
-			ps.setQuery(query);
-			ps.setList(filteredList);
-			ps.setNames(filteredNames);
+			ps.setInstanceIndex(instanceIndex);
+			ps.setDataFrame(dataFrame);
+			ps.runAnalytics();
 			ps.processQueryData();
-			data = (Hashtable) ps.getData();
-			data.remove("id");
-			data.put("title", "Matrix Regression Algorithm: For variable " + propName);
+			
+			Hashtable psData = ps.getData();
+			psData.remove("id");
+			psData.put("title", "Similarity on " + columnHeaders[instanceIndex]);
+			
+			return Response.status(200).entity(WebUtility.getSO(psData)).build();
+			
+		} else if (algorithm.equals("MatrixRegression on " + columnHeaders[instanceIndex])) {
+			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
+			
+			// instance id is the prop being approximated for
+			ps.setbColumnIndex(instanceIndex);
+			ps.setIncludesInstance(false);
+			ps.setDataFrame(dataFrame);
+			ps.runAnalytics();
+			ps.processQueryData();
+			Hashtable psData = (Hashtable) ps.getData();
+			psData.remove("id");
+			psData.put("title", "Matrix Regression Algorithm: For variable " + columnHeaders[instanceIndex]);
 
-			LOGGER.info("Running Matrix Regression on " + engine.getEngineName() + "...");
-			return Response.status(200).entity(WebUtility.getSO(data)).build();
+			return Response.status(200).entity(WebUtility.getSO(psData)).build();
+			
 		} else if (algorithm.equals("NumericalCorrelation")) {
 			NumericalCorrelationVizPlaySheet ps = new NumericalCorrelationVizPlaySheet();
+			
 			ps.setIncludesInstance(false);
-			ps.setRDFEngine(engine);
-			ps.setQuery(query);
-			ps.setList(filteredList);
-			ps.setNames(filteredNames);
+			ps.setDataFrame(dataFrame);
+			ps.runAnalytics();
 			ps.processQueryData();
-			data = (Hashtable) ps.getData();
-			data.remove("id");
-			data.put("title", "Numerical Correlation Algorithm");
-			LOGGER.info("Running Numerical Correlation on " + engine.getEngineName() + "...");
-			return Response.status(200).entity(WebUtility.getSO(data)).build();
+			Hashtable psData = (Hashtable) ps.getData();
+			psData.remove("id");
+			psData.put("title", "Numerical Correlation Algorithm");
+
+			return Response.status(200).entity(WebUtility.getSO(psData)).build();
+
 		} else if (algorithm.equals("SOM")) {
-			LOGGER.info("Running SOM on " + engine.getEngineName() + "...");
 			SelfOrganizingMap3DBarChartPlaySheet ps = new SelfOrganizingMap3DBarChartPlaySheet();
-			ps.setRDFEngine(engine);
-			ps.setQuery(query);
-			ps.setList(filteredList);
-			ps.setNames(filteredNames);
-			ps.runAlgorithm();
+
+			ps.setInstanceIndex(instanceIndex);
+			ps.setDataFrame(dataFrame);
+			ps.runAnalytics();
 			ps.processQueryData();
-			data = (Hashtable) ps.getData();
-			data.remove("id");
-			data.put("title", "SOM Algorithm");
-			return Response.status(200).entity(WebUtility.getSO(data)).build();
+			Hashtable psData = ps.getData();
+			psData.remove("id");
+			psData.put("title", "SOM Algorithm on " + columnHeaders[instanceIndex]);
+			
+			return Response.status(200).entity(WebUtility.getSO(psData)).build();
+			
 		} else {
 			String errorMessage = "Selected algorithm does not exist";
 			LOGGER.info("Selected algorithm does not exist...");
 			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 		}
-		// TODO decide on format of data to be returned
 	}
-	
-	// MachineLearningEnd
 	
 	@POST
 	@Path("/scatter")
