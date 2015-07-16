@@ -370,31 +370,34 @@ public class Uploader extends HttpServlet {
 			}
 		}
 		
+		SQLQueryUtil.DB_TYPE rdbmsType = SQLQueryUtil.DB_TYPE.H2_DB;
+		boolean allowDuplicates = false;
 		String dataOutputType = inputData.get("dataOutputType");
 		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
 		if(dataOutputType.equalsIgnoreCase("RDBMS")){
 			storeType = ImportDataProcessor.DB_TYPE.RDBMS;
 			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
 			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
-				importer.setRDBMSType(SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase()));
+				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase());
 			}
+			allowDuplicates = false;//ToDo: need UI portion of this
 		}
 		
 		try {
 			if(methodString.equals("Create new database engine")) {
 				// force fitting the RDBMS here
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), dbName,"","","","", storeType);
+						inputData.get("designateBaseUri"), dbName,"","","","", storeType, rdbmsType, allowDuplicates);
 				loadEngineIntoSession(request, dbName);
 			} else { // add to existing or modify
 				IEngine dbEngine = (IEngine) DIHelper.getInstance().getLocalProp(dbName);
 				if (dbEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
 					RDBMSNativeEngine rdbmsEngine = (RDBMSNativeEngine) dbEngine;
 					storeType = ImportDataProcessor.DB_TYPE.RDBMS;
-					importer.setRDBMSType(rdbmsEngine.getDbType());
+					rdbmsType = rdbmsEngine.getDbType();
 				}
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), "","","","", dbName, storeType);
+						inputData.get("designateBaseUri"), "","","","", dbName, storeType, rdbmsType, allowDuplicates);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
@@ -456,15 +459,17 @@ public class Uploader extends HttpServlet {
 		}
 		
 		String dbName = "";
-		
+		SQLQueryUtil.DB_TYPE rdbmsType = SQLQueryUtil.DB_TYPE.H2_DB;
 		String dataOutputType = inputData.get("dataOutputType");
 		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF; // needs to be set later
+		boolean allowDuplicates = false;
 		if(dataOutputType.equalsIgnoreCase("RDBMS")){
 			storeType = ImportDataProcessor.DB_TYPE.RDBMS; // needs to be set later
 			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
 			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
-				importer.setRDBMSType(SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase()));
+				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase());
 			}
+			allowDuplicates = false;//todo set from UI
 		}
 		
 		try {
@@ -482,7 +487,7 @@ public class Uploader extends HttpServlet {
 				}
 				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("customBaseURI"), dbName,"","","","", storeType);
+						inputData.get("customBaseURI"), dbName,"","","","", storeType, rdbmsType, allowDuplicates);
 				loadEngineIntoSession(request, dbName);
 			} else {
 				dbName = inputData.get("addDBname");
@@ -498,7 +503,7 @@ public class Uploader extends HttpServlet {
 				}
 				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("customBaseURI"), "","","","", dbName, storeType);
+						inputData.get("customBaseURI"), "","","","", dbName, storeType, rdbmsType, allowDuplicates);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
@@ -545,15 +550,17 @@ public class Uploader extends HttpServlet {
 
 		//call the right process method with correct parameters
 		String dbName = "";
-		
+		SQLQueryUtil.DB_TYPE rdbmsType = SQLQueryUtil.DB_TYPE.H2_DB;
 		String dataOutputType = inputData.get("dataOutputType");
 		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF; // needs to be set later
+		boolean allowDuplicates = false;
 		if(dataOutputType.equalsIgnoreCase("RDBMS")){
 			storeType = ImportDataProcessor.DB_TYPE.RDBMS; // needs to be set later
 			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
 			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
-				importer.setRDBMSType(SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase()));
+				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase());
 			}
+			allowDuplicates = false;//todo need to set from the UI
 		}
 		
 		try {
@@ -570,7 +577,7 @@ public class Uploader extends HttpServlet {
 				}
 				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
-						inputData.get("customBaseURI")+"", dbName,"","","","", storeType);
+						inputData.get("customBaseURI")+"", dbName,"","","","", storeType, rdbmsType, allowDuplicates);
 				loadEngineIntoSession(request, dbName);
 			} else {
 				dbName = inputData.get("addDBname");
@@ -585,7 +592,7 @@ public class Uploader extends HttpServlet {
 				}
 				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
-						inputData.get("customBaseURI")+"", "","","","", dbName, storeType);
+						inputData.get("customBaseURI")+"", "","","","", dbName, storeType, rdbmsType, allowDuplicates);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
