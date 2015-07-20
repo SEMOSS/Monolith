@@ -47,7 +47,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
@@ -65,16 +64,13 @@ import prerna.error.FileReaderException;
 import prerna.error.FileWriterException;
 import prerna.error.HeaderClassException;
 import prerna.error.NLPException;
-import prerna.nameserver.ConnectedConcepts;
-import prerna.nameserver.INameServer;
-import prerna.nameserver.NameServerProcessor;
+import prerna.nameserver.AddToMasterDB;
 import prerna.ui.components.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.util.sql.SQLQueryUtil;
-import prerna.web.services.util.WebUtility;
 
 import com.google.gson.Gson;
 import com.ibm.icu.util.StringTokenizer;
@@ -183,6 +179,19 @@ public class Uploader extends HttpServlet {
 		session.setAttribute(Constants.ENGINES, engines);
 	}
 
+	public void loadEngineIntoLocalMasterDB(HttpServletRequest request, String engineName, String baseURL) {
+		String localMasterDbName = Constants.LOCAL_MASTER_DB_NAME;
+
+		ServletContext servletContext = request.getServletContext();
+		String contextPath = servletContext.getRealPath(System.getProperty("file.separator"));
+		String wordNet = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "WordNet-3.1";
+		String wordNetDir  = contextPath + wordNet;
+
+		AddToMasterDB creater = new AddToMasterDB(localMasterDbName);
+		creater.setWordnetPath(wordNetDir);
+		creater.registerEngineLocal(engineName);
+	}
+	
 	public Hashtable<String, String> getInputData(List<FileItem> fileItems) 
 	{
 		// Process the uploaded file items
@@ -389,6 +398,7 @@ public class Uploader extends HttpServlet {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
 						inputData.get("designateBaseUri"), dbName,"","","","", storeType, rdbmsType, allowDuplicates);
 				loadEngineIntoSession(request, dbName);
+				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("designateBaseUri"));
 			} else { // add to existing or modify
 				IEngine dbEngine = (IEngine) DIHelper.getInstance().getLocalProp(dbName);
 				if (dbEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
@@ -489,6 +499,7 @@ public class Uploader extends HttpServlet {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
 						inputData.get("customBaseURI"), dbName,"","","","", storeType, rdbmsType, allowDuplicates);
 				loadEngineIntoSession(request, dbName);
+				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("customBaseURI"));
 			} else {
 				dbName = inputData.get("addDBname");
 				
@@ -579,6 +590,7 @@ public class Uploader extends HttpServlet {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
 						inputData.get("customBaseURI")+"", dbName,"","","","", storeType, rdbmsType, allowDuplicates);
 				loadEngineIntoSession(request, dbName);
+				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("customBaseURI"));
 			} else {
 				dbName = inputData.get("addDBname");
 				//Add engine owner for permissions
