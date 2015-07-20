@@ -38,6 +38,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
@@ -112,7 +113,7 @@ public class EngineAnalyticsResource {
 	//TODO: need to add in the includeColArr
 	@POST
 	@Path("/runAlgorithm")
-	public Response runAlgorithm(HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response runAlgorithm(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 
 		String algorithm = form.getFirst("algorithm");
