@@ -210,7 +210,7 @@ public class EngineAnalyticsResource {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			psData.remove("id");
-			psData.put("title", "Classification Algorithm: For variable " + ps.getNames()[ps.getClassColumn()]);
+			psData.put("title", "Classification Algorithm: For variable " + columnHeaders[classColumn]);
 			
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
