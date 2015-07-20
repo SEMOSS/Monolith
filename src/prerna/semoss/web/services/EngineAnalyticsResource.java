@@ -50,7 +50,7 @@ import prerna.engine.api.ISelectWrapper;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.ui.components.playsheets.ClusteringVizPlaySheet;
 import prerna.ui.components.playsheets.DatasetSimilarityPlaySheet;
-import prerna.ui.components.playsheets.LocalOutlierPlaySheet;
+import prerna.ui.components.playsheets.LocalOutlierVizPlaySheet;
 import prerna.ui.components.playsheets.MatrixRegressionVizPlaySheet;
 import prerna.ui.components.playsheets.NumericalCorrelationVizPlaySheet;
 import prerna.ui.components.playsheets.SelfOrganizingMap3DBarChartPlaySheet;
@@ -132,6 +132,13 @@ public class EngineAnalyticsResource {
 		
 		String[] columnHeaders = dataFrame.getColumnHeaders();
 		
+		List<String> skipAttributes = new ArrayList<String>();
+		for(int i = 0; i < includeColArr.length; i++) {
+			if(!includeColArr[i]) {
+				skipAttributes.add(columnHeaders[i]);
+			}
+		}
+		
 		Map<String, Object> errorHash = new HashMap<String, Object>();
 		if (algorithm.equals("Clustering")) {
 			ClusteringVizPlaySheet ps = new ClusteringVizPlaySheet();
@@ -142,6 +149,7 @@ public class EngineAnalyticsResource {
 			
 			ps.setInstanceIndex(instanceIndex);
 			ps.setDataFrame(dataFrame);
+			ps.setSkipAttributes(skipAttributes);
 			ps.runAnalytics();
 			ps.processQueryData();
 			Hashtable psData = ps.getData();
@@ -152,6 +160,7 @@ public class EngineAnalyticsResource {
 			}
 			psData.remove("id");
 			psData.put("title", "Cluster by " + columnHeaders[instanceIndex]);
+			psData.put("tableID", tableID);
 			
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
@@ -174,6 +183,7 @@ public class EngineAnalyticsResource {
 				ps.setMaxSupport(maxSupport);
 			}
 			ps.setDataFrame(dataFrame);
+			ps.setSkipAttributes(skipAttributes);
 			ps.runAnalytics();
 			ps.processQueryData();
 			
@@ -185,7 +195,7 @@ public class EngineAnalyticsResource {
 			}
 			psData.remove("id");
 			psData.put("title", "Association Learning: Apriori Algorithm");
-			
+
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else if (algorithm.equals("Classify")) {
@@ -200,6 +210,7 @@ public class EngineAnalyticsResource {
 			}
 			ps.setClassColumn(classColumn);
 			ps.setDataFrame(dataFrame);
+			ps.setSkipAttributes(skipAttributes);
 			ps.runAnalytics();
 			ps.processQueryData();
 			
@@ -211,17 +222,18 @@ public class EngineAnalyticsResource {
 			}
 			psData.remove("id");
 			psData.put("title", "Classification Algorithm: For variable " + columnHeaders[classColumn]);
-			
+
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else if (algorithm.equals("Outliers")) {
-			LocalOutlierPlaySheet ps = new LocalOutlierPlaySheet();
+			LocalOutlierVizPlaySheet ps = new LocalOutlierVizPlaySheet();
 			if (configParameters.size() == 1) {
 				Integer k = Integer.parseInt(configParameters.get(0));
 				ps.setK(k);
 			}
 			ps.setInstanceIndex(instanceIndex);
 			ps.setDataFrame(dataFrame);
+			ps.setSkipAttributes(skipAttributes);
 			ps.runAnalytics();
 			ps.processQueryData();
 			
@@ -232,20 +244,23 @@ public class EngineAnalyticsResource {
 			specificData.put("x-axis", "LOP");
 			specificData.put("z-axis", "COUNT");
 			psData.put("specificData", specificData);
-			
+			psData.put("tableID", tableID);
+
 			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
 
 		} else if (algorithm.equals("Similarity")) {
 			DatasetSimilarityPlaySheet ps = new DatasetSimilarityPlaySheet();
 			ps.setInstanceIndex(instanceIndex);
 			ps.setDataFrame(dataFrame);
+			ps.setSkipAttributes(skipAttributes);
 			ps.runAnalytics();
 			ps.processQueryData();
 			
 			Hashtable psData = ps.getData();
 			psData.remove("id");
 			psData.put("title", "Similarity on " + columnHeaders[instanceIndex]);
-			
+			psData.put("tableID", tableID);
+
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else if (algorithm.equals("MatrixRegression on " + columnHeaders[instanceIndex])) {
@@ -255,6 +270,7 @@ public class EngineAnalyticsResource {
 			ps.setbColumnIndex(instanceIndex);
 			ps.setIncludesInstance(false);
 			ps.setDataFrame(dataFrame);
+			ps.setSkipAttributes(skipAttributes);
 			ps.runAnalytics();
 			ps.processQueryData();
 			Hashtable psData = (Hashtable) ps.getData();
@@ -268,6 +284,7 @@ public class EngineAnalyticsResource {
 			
 			ps.setIncludesInstance(false);
 			ps.setDataFrame(dataFrame);
+			ps.setSkipAttributes(skipAttributes);
 			ps.runAnalytics();
 			ps.processQueryData();
 			Hashtable psData = (Hashtable) ps.getData();
@@ -281,12 +298,14 @@ public class EngineAnalyticsResource {
 
 			ps.setInstanceIndex(instanceIndex);
 			ps.setDataFrame(dataFrame);
+			ps.setSkipAttributes(skipAttributes);
 			ps.runAnalytics();
 			ps.processQueryData();
 			Hashtable psData = ps.getData();
 			psData.remove("id");
 			psData.put("title", "SOM Algorithm on " + columnHeaders[instanceIndex]);
-			
+			psData.put("tableID", tableID);
+
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else {
