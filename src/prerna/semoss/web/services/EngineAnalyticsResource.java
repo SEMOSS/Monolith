@@ -33,6 +33,8 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
@@ -47,7 +49,9 @@ import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectWrapper;
+import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
+import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
 import prerna.ui.components.playsheets.ClusteringVizPlaySheet;
 import prerna.ui.components.playsheets.DatasetSimilarityPlaySheet;
 import prerna.ui.components.playsheets.LocalOutlierVizPlaySheet;
@@ -108,13 +112,27 @@ public class EngineAnalyticsResource {
 	//TODO: need to add in the includeColArr
 	@POST
 	@Path("/runAlgorithm")
-	public Response runAlgorithm(MultivaluedMap<String, String> form) {
+	public Response runAlgorithm(HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 
 		String algorithm = form.getFirst("algorithm");
 		String tableID = form.getFirst("tableID");
+		String questionID = form.getFirst("quesitonID");
+		
+		ITableDataFrame dataFrame;
+		if(tableID != null) {
+			dataFrame = ITableDataFrameStore.getInstance().get(tableID);
+		} else if(questionID != null) {
+			HttpSession session = request.getSession(false);
+			BasicProcessingPlaySheet origPS = (BasicProcessingPlaySheet) session.getAttribute(questionID);
+			dataFrame = origPS.getDataFrame();
+		} else {
+			String errorMessage = "Data not found";
+			LOGGER.info("No dataframe found...");
+			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
+		}
+		
 		int instanceIndex = gson.fromJson(form.getFirst("instanceID"), Integer.class);
-		ITableDataFrame dataFrame = ITableDataFrameStore.getInstance().get(tableID);
 		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
 		List<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
 
