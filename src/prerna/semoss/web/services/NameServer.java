@@ -150,7 +150,7 @@ public class NameServer {
 	// gets all the insights for a given type and tag in all the engines
 	// both tag and type are optional
 	@GET
-	@Path("insights")
+	@Path("insightsByType")
 	@Produces("application/json")
 	public StreamingOutput getInsights(@QueryParam("node") String type, @QueryParam("tag") String tag, @Context HttpServletRequest request)
 	{
@@ -551,5 +551,15 @@ public class NameServer {
 		DBAdminResource questionAdmin = new DBAdminResource();
 		questionAdmin.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
 		return questionAdmin;
+	}
+	
+	@GET
+	@Path("insights")
+	@Produces("application/json")
+	public StreamingOutput getAllInsights(@QueryParam("groupBy") String groupBy, @QueryParam("orderBy") String orderBy, @Context HttpServletRequest request) {
+		NameServerProcessor ns = new NameServerProcessor();
+		HashMap<String, Object> ret = ns.getAllInsights(groupBy, orderBy);
+		
+		return WebUtility.getSO(ret);
 	}
 }

@@ -53,6 +53,7 @@ import com.ibm.icu.util.StringTokenizer;
 public class UserDBFilter implements Filter {
 	FilterConfig config;
 	UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+	User user = new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.anonymous, "Anonymous");
 	
 	@Override
 	public void destroy() {
@@ -68,7 +69,6 @@ public class UserDBFilter implements Filter {
 		ServletContext context = getFilterConfig().getServletContext();
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
-		User user = new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.anonymous, "Anonymous");;
 		if(session != null) {
 			if(session.getAttribute(Constants.SESSION_USER) == null) {
 				session.setAttribute(Constants.SESSION_USER, user);
