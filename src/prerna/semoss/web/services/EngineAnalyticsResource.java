@@ -118,7 +118,7 @@ public class EngineAnalyticsResource {
 
 		String algorithm = form.getFirst("algorithm");
 		String tableID = form.getFirst("tableID");
-		String questionID = form.getFirst("quesitonID");
+		String questionID = form.getFirst("questionID");
 		
 		ITableDataFrame dataFrame;
 		if(tableID != null) {
