@@ -53,7 +53,7 @@ import prerna.engine.api.ISelectWrapper;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
 import prerna.ui.components.playsheets.ClusteringVizPlaySheet;
-import prerna.ui.components.playsheets.DatasetSimilarityPlaySheet;
+import prerna.ui.components.playsheets.DatasetSimilairtyColumnChartPlaySheet;
 import prerna.ui.components.playsheets.LocalOutlierVizPlaySheet;
 import prerna.ui.components.playsheets.MatrixRegressionVizPlaySheet;
 import prerna.ui.components.playsheets.NumericalCorrelationVizPlaySheet;
@@ -63,7 +63,6 @@ import prerna.ui.components.playsheets.WekaClassificationPlaySheet;
 import prerna.util.MachineLearningEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
-import cern.colt.Arrays;
 
 import com.google.gson.Gson;
 
@@ -252,7 +251,7 @@ public class EngineAnalyticsResource {
 			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
 
 		} else if (algorithm.equals("Similarity")) {
-			DatasetSimilarityPlaySheet ps = new DatasetSimilarityPlaySheet();
+			DatasetSimilairtyColumnChartPlaySheet ps = new DatasetSimilairtyColumnChartPlaySheet();
 			ps.setInstanceIndex(instanceIndex);
 			ps.setDataFrame(dataFrame);
 			ps.setSkipAttributes(skipAttributes);
