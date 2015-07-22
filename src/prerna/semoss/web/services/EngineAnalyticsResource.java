@@ -50,7 +50,6 @@ import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectWrapper;
-import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
 import prerna.ui.components.playsheets.ClusteringVizPlaySheet;
@@ -61,7 +60,6 @@ import prerna.ui.components.playsheets.NumericalCorrelationVizPlaySheet;
 import prerna.ui.components.playsheets.SelfOrganizingMap3DBarChartPlaySheet;
 import prerna.ui.components.playsheets.WekaAprioriVizPlaySheet;
 import prerna.ui.components.playsheets.WekaClassificationPlaySheet;
-import prerna.util.ArrayUtilityMethods;
 import prerna.util.MachineLearningEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -221,13 +219,7 @@ public class EngineAnalyticsResource {
 			WekaClassificationPlaySheet ps = new WekaClassificationPlaySheet();
 			// instance id is the prop being classified for
 			String propName = columnHeaders[instanceIndex];
-			int classColumn = ArrayUtilityMethods.arrayContainsValueAtIndex(columnHeaders, propName);
-			if (classColumn == -1) {
-				errorHash.put("Message", "Must select column " + propName + " in filter param list to run classificaiton on it.");
-				errorHash.put("Class", ps.getClass().getName());
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-			ps.setClassColumn(classColumn);
+			ps.setClassColumn(propName);
 			ps.setDataFrame(dataFrame);
 			ps.setSkipAttributes(skipAttributes);
 			ps.runAnalytics();
@@ -240,7 +232,7 @@ public class EngineAnalyticsResource {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			psData.remove("id");
-			psData.put("title", "Classification Algorithm: For variable " + columnHeaders[classColumn]);
+			psData.put("title", "Classification Algorithm: For variable " + propName);
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
