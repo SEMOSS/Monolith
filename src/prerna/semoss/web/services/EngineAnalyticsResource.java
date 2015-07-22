@@ -91,23 +91,6 @@ public class EngineAnalyticsResource {
 		return Response.status(200).entity(WebUtility.getSO(algorithmList)).build();
 	}
 	
-	@POST
-	@Path("/undoAlgorithm") 
-	public Response undoAlgorithm(MultivaluedMap<String, String> form) {
-		Gson gson = new Gson();
-		String tableID = form.getFirst("tableID");
-		ITableDataFrame dataFrame = ITableDataFrameStore.getInstance().get(tableID);
-		if(dataFrame == null) {
-			Response.status(400).entity(WebUtility.getSO("Data is not found or is longer accessible")).build();
-		}
-		String[] removeColumns = gson.fromJson(form.getFirst("removeColumns"), String[].class);
-		
-		for(String s : removeColumns) {
-			dataFrame.removeColumn(s);
-		}
-		return Response.status(200).entity(WebUtility.getSO("Succesfully removed the following columns: " + Arrays.toString(removeColumns))).build();
-	}
-	
 	//TODO: need to add in the includeColArr
 	@POST
 	@Path("/runAlgorithm")
@@ -326,6 +309,8 @@ public class EngineAnalyticsResource {
 			psData.remove("id");
 			psData.put("title", "SOM Algorithm on " + columnHeaders[instanceIndex]);
 			psData.put(retIDKey, retID);
+			psData.put("deleteKey", ps.getChangedCol());
+
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
