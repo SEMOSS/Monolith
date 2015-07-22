@@ -57,10 +57,8 @@ import org.apache.log4j.Logger;
 
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
-import prerna.algorithm.impl.ExactStringMatcher;
-import prerna.algorithm.impl.ExactStringOuterJoinMatcher;
 import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
-import prerna.algorithm.learning.unsupervised.clustering.ClusteringRoutine;
+import prerna.algorithm.learning.unsupervised.clustering.MultiClusteringRoutine;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
@@ -86,6 +84,7 @@ import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.RDFJSONConverter;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
+import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
 import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.helpers.PlaysheetCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
@@ -1173,7 +1172,6 @@ public class EngineResource {
 	@Path("/analytics")
 	public Object runEngineAnalytics(){
 		EngineAnalyticsResource analytics = new EngineAnalyticsResource(this.coreEngine);
-
 		return analytics;
 	}
 
@@ -1273,12 +1271,61 @@ public class EngineResource {
 	
 	private void storePSInSession(HttpServletRequest request, IPlaySheet ps, Hashtable dataHash){
 		// only need to store in session playsheets that are tap specific (for control panel clicks) and graph playsheets (for traverse)
-		String className = dataHash.get("playsheet") + "";
-		String graphClassName = PlaySheetEnum.getClassFromName("Graph");
-		ArrayList<String> genericPsClasses = PlaySheetEnum.getAllSheetClasses();
-		if(!genericPsClasses.contains(className) || className.equals(graphClassName)) {
+//		String className = dataHash.get("playsheet") + "";
+//		String graphClassName = PlaySheetEnum.getClassFromName("Graph");
+//		ArrayList<String> genericPsClasses = PlaySheetEnum.getAllSheetClasses();
+//		if(!genericPsClasses.contains(className) || className.equals(graphClassName)) {
 			HttpSession session = request.getSession(false);
 			session.setAttribute(ps.getQuestionID(), ps);
+//		}
+	}
+	
+	@POST
+	@Path("/modifyDataFrame")
+	@Produces("application/xml")
+	public Response undoAlgorithm(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String tableID = form.getFirst("tableID");
+		String questionID = form.getFirst("id");
+		
+		boolean isInDataFrameStore = false;
+		ITableDataFrame dataFrame = null;
+		if(tableID != null) {
+			dataFrame = ITableDataFrameStore.getInstance().get(tableID);
+			isInDataFrameStore = true;
+		} else if(questionID != null) {
+			HttpSession session = request.getSession(false);
+			BasicProcessingPlaySheet origPS = (BasicProcessingPlaySheet) session.getAttribute(questionID);
+			dataFrame = origPS.getDataFrame();
+		}
+		
+		if(dataFrame == null) {
+			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
+		}
+		
+		Gson gson = new Gson();
+		String[] removeColumns = gson.fromJson(form.getFirst("removeColumns"), String[].class);
+		if(removeColumns == null || removeColumns.length == 0) {
+			boolean success = false;
+			if(isInDataFrameStore) {
+				success = ITableDataFrameStore.getInstance().remove(tableID);
+			} else {
+				HttpSession session = request.getSession(false);
+				session.removeAttribute(questionID);
+				// make sure data was removed
+				if(session.getAttribute(questionID) == null) {
+					success = true;
+				}
+			}
+			if(success) {
+				return Response.status(200).entity(WebUtility.getSO("Succesfully removed data frame.")).build();
+			} else {
+				return Response.status(400).entity(WebUtility.getSO("Could not remove data frame")).build();
+			}
+		} else {
+			for(String s : removeColumns) {
+				dataFrame.removeColumn(s);
+			}
+			return Response.status(200).entity(WebUtility.getSO("Succesfully removed the following columns: " + Arrays.toString(removeColumns))).build();
 		}
 	}
 	
@@ -1288,8 +1335,12 @@ public class EngineResource {
 	public StreamingOutput btreeTester(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		//String query1 = form.getFirst("query1");
 		//String query2 = form.getFirst("query2");
+		
+		long start = System.currentTimeMillis();
+//		String query1 = "SELECT DISTINCT ?Title ?DomesticRevenue ?InternationalRevenue ?Budget ?RottenTomatoesCritics ?RottenTomatoesAudience WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
+//		String query1 = "SELECT DISTINCT ?ICD ?Source ?Target ?DataObject ?Format ?Frequency ?Protocol WHERE { {?ICD <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/InterfaceControlDocument>} {?Source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?Source <http://semoss.org/ontologies/Relation/Provide> ?ICD} {?Target <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?ICD <http://semoss.org/ontologies/Relation/Consume> ?Target} {?DataObject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/DataObject>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?ICD ?carries ?DataObject} {?carries <http://semoss.org/ontologies/Relation/Contains/Protocol> ?Protocol} {?carries <http://semoss.org/ontologies/Relation/Contains/Format> ?Format} {?carries <http://semoss.org/ontologies/Relation/Contains/Frequency> ?Frequency} } ORDER BY ?ICD";
 
-		String query1 = "SELECT DISTINCT ?Title ?Genre ?Director ?Nominated ?Studio ?DomesticRevenue ?InternationalRevenue ?Budget ?RottenTomatoesCritics ?RottenTomatoesAudience WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
+		String query1 = "SELECT DISTINCT ?Title ?DomesticRevenue WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
 
 		//run query 1
 		HttpSession session = request.getSession(false);
@@ -1304,8 +1355,14 @@ public class EngineResource {
 				tree1.addRow(iss1.getPropHash(), iss1.getRPropHash());
 			}
 		}
+		long end = System.currentTimeMillis();
+		System.out.println("Construction time = " + ((end-start)/1000) );
 		
-		tree1.performAction(new ClusteringRoutine());
+		start = System.currentTimeMillis();
+		tree1.performAction(new MultiClusteringRoutine());
+		end = System.currentTimeMillis();
+		System.out.println("Algorithm time = " + ((end-start)/1000) );
+
 		List<Object[]> flatData = tree1.getData();
 		
 		for(Object[] row: flatData) {
