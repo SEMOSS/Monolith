@@ -265,7 +265,7 @@ public class EngineAnalyticsResource {
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
-		} else if (algorithm.equals("MatrixRegression on " + columnHeaders[instanceIndex])) {
+		} else if (algorithm.equals("MatrixRegression")) {
 			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
 			
 			// instance id is the prop being approximated for
