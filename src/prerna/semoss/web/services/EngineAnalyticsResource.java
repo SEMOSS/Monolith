@@ -116,15 +116,21 @@ public class EngineAnalyticsResource {
 
 		String algorithm = form.getFirst("algorithm");
 		String tableID = form.getFirst("tableID");
-		String questionID = form.getFirst("questionID");
+		String questionID = form.getFirst("id");
 		
+		String retIDKey = "";
+		String retID = "";
 		ITableDataFrame dataFrame;
 		if(tableID != null) {
 			dataFrame = ITableDataFrameStore.getInstance().get(tableID);
+			retID = tableID;
+			retIDKey = "tableID";
 		} else if(questionID != null) {
 			HttpSession session = request.getSession(false);
 			BasicProcessingPlaySheet origPS = (BasicProcessingPlaySheet) session.getAttribute(questionID);
 			dataFrame = origPS.getDataFrame();
+			retID = questionID;
+			retIDKey = "id";
 		} else {
 			String errorMessage = "Data not found";
 			LOGGER.info("No dataframe found...");
@@ -177,7 +183,7 @@ public class EngineAnalyticsResource {
 			}
 			psData.remove("id");
 			psData.put("title", "Cluster by " + columnHeaders[instanceIndex]);
-			psData.put("tableID", tableID);
+			psData.put(retIDKey, retID);
 			
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
@@ -255,7 +261,7 @@ public class EngineAnalyticsResource {
 			specificData.put("x-axis", "LOP");
 			specificData.put("z-axis", "COUNT");
 			psData.put("specificData", specificData);
-			psData.put("tableID", tableID);
+			psData.put(retIDKey, retID);
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
 
@@ -270,7 +276,7 @@ public class EngineAnalyticsResource {
 			Hashtable psData = ps.getData();
 			psData.remove("id");
 			psData.put("title", "Similarity on " + columnHeaders[instanceIndex]);
-			psData.put("tableID", tableID);
+			psData.put(retIDKey, retID);
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
@@ -315,7 +321,7 @@ public class EngineAnalyticsResource {
 			Hashtable psData = ps.getData();
 			psData.remove("id");
 			psData.put("title", "SOM Algorithm on " + columnHeaders[instanceIndex]);
-			psData.put("tableID", tableID);
+			psData.put(retIDKey, retID);
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
