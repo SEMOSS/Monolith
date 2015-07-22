@@ -977,18 +977,6 @@ public class EngineResource {
 	}
 
 	@GET
-	@Path("burnTree")
-	@Produces("application/json")
-	public Response removeTable(@QueryParam("tableID") String tableID) {
-		boolean success = ITableDataFrameStore.getInstance().remove(tableID);
-		if(success) {
-			return Response.status(200).entity(WebUtility.getSO("success in removing " + tableID + " in data store")).build();
-		} else {
-			return Response.status(400).entity(WebUtility.getSO("failure in removing " + tableID + " from data store")).build();
-		}
-	}
-	
-	@GET
 	@Path("customVizPathProperties")
 	@Produces("application/json")
 	public Response getPathProperties(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
@@ -1284,6 +1272,7 @@ public class EngineResource {
 	@Path("/modifyDataFrame")
 	@Produces("application/xml")
 	public Response undoAlgorithm(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
 		String tableID = form.getFirst("tableID");
 		String questionID = form.getFirst("id");
 		
@@ -1302,7 +1291,6 @@ public class EngineResource {
 			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
 		}
 		
-		Gson gson = new Gson();
 		String[] removeColumns = gson.fromJson(form.getFirst("removeColumns"), String[].class);
 		if(removeColumns == null || removeColumns.length == 0) {
 			boolean success = false;

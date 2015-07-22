@@ -90,7 +90,6 @@ public class EngineAnalyticsResource {
 		return Response.status(200).entity(WebUtility.getSO(algorithmList)).build();
 	}
 	
-	//TODO: need to add in the includeColArr
 	@POST
 	@Path("/runAlgorithm")
 	public Response runAlgorithm(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
