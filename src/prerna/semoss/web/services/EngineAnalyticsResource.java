@@ -184,6 +184,7 @@ public class EngineAnalyticsResource {
 			psData.remove("id");
 			psData.put("title", "Cluster by " + columnHeaders[instanceIndex]);
 			psData.put(retIDKey, retID);
+			psData.put("deleteKey", ps.getChangedCol());
 			
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
@@ -258,7 +259,9 @@ public class EngineAnalyticsResource {
 			psData.remove("id");
 			psData.put("title", "Outliers on " + columnHeaders[instanceIndex]);
 			Hashtable<String, String> specificData = new Hashtable<String, String>();
-			specificData.put("x-axis", "LOP");
+			List<String> changedCol = ps.getChangedCol();
+			psData.put("deleteKey", changedCol);
+			specificData.put("x-axis", changedCol.get(0));
 			specificData.put("z-axis", "COUNT");
 			psData.put("specificData", specificData);
 			psData.put(retIDKey, retID);
@@ -277,6 +280,7 @@ public class EngineAnalyticsResource {
 			psData.remove("id");
 			psData.put("title", "Similarity on " + columnHeaders[instanceIndex]);
 			psData.put(retIDKey, retID);
+			psData.put("deleteKey", ps.getChangedCol());
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
