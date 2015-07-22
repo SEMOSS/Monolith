@@ -118,7 +118,10 @@ public class EngineAnalyticsResource {
 			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 		}
 		
-		int instanceIndex = gson.fromJson(form.getFirst("instanceID"), Integer.class);
+		int instanceIndex = 0;
+		if(form.getFirst("instanceID") != null) {
+			instanceIndex = gson.fromJson(form.getFirst("instanceID"), Integer.class);
+		}
 		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
 		List<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
 
@@ -146,7 +149,7 @@ public class EngineAnalyticsResource {
 		Map<String, Object> errorHash = new HashMap<String, Object>();
 		if (algorithm.equals("Clustering")) {
 			ClusteringVizPlaySheet ps = new ClusteringVizPlaySheet();
-			if (configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
+			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
 				Integer numClusters = Integer.parseInt(configParameters.get(0));
 				ps.setNumClusters(numClusters);
 			}
@@ -171,19 +174,19 @@ public class EngineAnalyticsResource {
 			
 		} else if (algorithm.equals("AssociationLearning")) {
 			WekaAprioriVizPlaySheet ps = new WekaAprioriVizPlaySheet();
-			if (configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
+			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
 				Integer numRules = Integer.parseInt(configParameters.get(0));
 				ps.setNumRules(numRules);
 			}
-			if (configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
+			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
 				Double confPer = Double.parseDouble(configParameters.get(1));
 				ps.setConfPer(confPer);
 			}
-			if (configParameters.get(2) != null && !configParameters.get(2).isEmpty()) {
+			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(2) != null && !configParameters.get(2).isEmpty()) {
 				Double minSupport = Double.parseDouble(configParameters.get(2));
 				ps.setMinSupport(minSupport);
 			}
-			if (configParameters.get(3) != null && !configParameters.get(3).isEmpty()) {
+			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(3) != null && !configParameters.get(3).isEmpty()) {
 				Double maxSupport = Double.parseDouble(configParameters.get(3));
 				ps.setMaxSupport(maxSupport);
 			}
@@ -226,7 +229,7 @@ public class EngineAnalyticsResource {
 			
 		} else if (algorithm.equals("Outliers")) {
 			LocalOutlierVizPlaySheet ps = new LocalOutlierVizPlaySheet();
-			if (configParameters.size() == 1) {
+			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
 				Integer k = Integer.parseInt(configParameters.get(0));
 				ps.setK(k);
 			}
@@ -308,7 +311,6 @@ public class EngineAnalyticsResource {
 			psData.put("title", "SOM Algorithm on " + columnHeaders[instanceIndex]);
 			psData.put(retIDKey, retID);
 			psData.put("deleteKey", ps.getChangedCol());
-
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
