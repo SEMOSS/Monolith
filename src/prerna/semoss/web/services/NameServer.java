@@ -56,6 +56,7 @@ import org.apache.log4j.Logger;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
+import prerna.auth.User;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.error.EngineException;
@@ -560,6 +561,17 @@ public class NameServer {
 		NameServerProcessor ns = new NameServerProcessor();
 		HashMap<String, Object> ret = ns.getAllInsights(groupBy, orderBy);
 		
+		return WebUtility.getSO(ret);
+	}
+	
+	@GET
+	@Path("/insightDetails")
+	@Produces("application/json")
+	public StreamingOutput getInsightDetails(@QueryParam("insight") String insight, @Context HttpServletRequest request) {
+		NameServerProcessor ns = new NameServerProcessor();
+		String user = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		
+		HashMap<String, Object> ret = ns.getInsightDetails(insight, user);
 		return WebUtility.getSO(ret);
 	}
 }
