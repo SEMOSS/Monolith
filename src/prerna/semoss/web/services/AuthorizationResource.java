@@ -57,7 +57,7 @@ public class AuthorizationResource
 {
 	@Context ServletContext context;
 	String output = "";
-	private final UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+	private final UserPermissionsMasterDB permissions = new UserPermissionsMasterDB(Constants.LOCAL_MASTER_DB_NAME);
 	
 	/**
 	 * Returns a list of engines the currently logged in user can access on the DB Admin page.
