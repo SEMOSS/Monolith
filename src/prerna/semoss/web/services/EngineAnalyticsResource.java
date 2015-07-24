@@ -61,6 +61,7 @@ import prerna.ui.components.playsheets.SelfOrganizingMap3DBarChartPlaySheet;
 import prerna.ui.components.playsheets.WekaAprioriVizPlaySheet;
 import prerna.ui.components.playsheets.WekaClassificationPlaySheet;
 import prerna.util.MachineLearningEnum;
+import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -92,7 +93,7 @@ public class EngineAnalyticsResource {
 	
 	@POST
 	@Path("/runAlgorithm")
-	public Response runAlgorithm(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response runAlgorithm(MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 
 		String algorithm = form.getFirst("algorithm");
@@ -106,9 +107,8 @@ public class EngineAnalyticsResource {
 			dataFrame = ITableDataFrameStore.getInstance().get(tableID);
 			retID = tableID;
 			retIDKey = "tableID";
-		} else if(questionID != null) {
-			HttpSession session = request.getSession(false);
-			BasicProcessingPlaySheet origPS = (BasicProcessingPlaySheet) session.getAttribute(questionID);
+		} else if(questionID != null) { //TODO: require all playsheets to be BasicProcessing for current algorithms
+			BasicProcessingPlaySheet origPS = (BasicProcessingPlaySheet) QuestionPlaySheetStore.getInstance().get(questionID);
 			dataFrame = origPS.getDataFrame();
 			retID = questionID;
 			retIDKey = "id";

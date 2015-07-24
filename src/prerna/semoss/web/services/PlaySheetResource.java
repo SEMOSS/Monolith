@@ -27,8 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Vector;
@@ -57,6 +55,7 @@ import prerna.ui.components.playsheets.AbstractRDFPlaySheet;
 import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -147,7 +146,7 @@ public class PlaySheetResource {
 		Object obj = runPlaySheetTraversal(sparql, "", downNodeType, filterValues);
 
 		// put the playsheet back in session
-		storePlaySheet(request);
+		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to readd? its passed by reference?
 		
 		return WebUtility.getSO(obj);
 	}	
@@ -229,7 +228,7 @@ public class PlaySheetResource {
 		Object obj = runPlaySheetTraversal(sparql, upNodeType, "", filterValues);
 
 		// put the playsheet back in session
-		storePlaySheet(request);
+		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to readd? its passed by reference?
 		
 		return WebUtility.getSO(obj);
 	}	
@@ -431,8 +430,7 @@ public class PlaySheetResource {
 	@GET
 	@Path("undo")
 	@Produces("application/json")
-	public StreamingOutput undo(
-			@Context HttpServletRequest request)
+	public StreamingOutput undo()
 	{
 		Object obj = null;
 		if ( playSheet instanceof GraphPlaySheet){
@@ -446,7 +444,7 @@ public class PlaySheetResource {
 		}
 
 		// put the playsheet back in session
-		storePlaySheet(request);
+		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to readd? its passed by reference?
 		return WebUtility.getSO(obj);
 	}
 
@@ -455,8 +453,7 @@ public class PlaySheetResource {
 	@GET
 	@Path("redo")
 	@Produces("application/json")
-	public StreamingOutput redo(
-			@Context HttpServletRequest request)
+	public StreamingOutput redo()
 	{
 		Object obj = null;
 		if ( playSheet instanceof GraphPlaySheet){
@@ -469,7 +466,7 @@ public class PlaySheetResource {
 		}
 
 		// put the playsheet back in session
-		storePlaySheet(request);
+		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to readd? its passed by reference?
 		return WebUtility.getSO(obj);
 	}
 	
@@ -508,12 +505,6 @@ public class PlaySheetResource {
 			ex.printStackTrace();
 		}
 		return obj;
-	}
-
-	
-	private void storePlaySheet(HttpServletRequest request){
-		// put the playsheet back in session
-		request.getSession(false).setAttribute(playSheet.getQuestionID(), playSheet);
 	}
 	
 	//returns a string ready for the BINDINGS of a query that has all nodes of the type targetType
