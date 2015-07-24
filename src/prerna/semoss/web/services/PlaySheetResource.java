@@ -146,7 +146,8 @@ public class PlaySheetResource {
 		Object obj = runPlaySheetTraversal(sparql, "", downNodeType, filterValues);
 
 		// put the playsheet back in session
-		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to readd? its passed by reference?
+		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
+		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
 		
 		return WebUtility.getSO(obj);
 	}	
@@ -228,8 +229,9 @@ public class PlaySheetResource {
 		Object obj = runPlaySheetTraversal(sparql, upNodeType, "", filterValues);
 
 		// put the playsheet back in session
-		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to readd? its passed by reference?
-		
+		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
+		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
+
 		return WebUtility.getSO(obj);
 	}	
 
@@ -400,9 +402,7 @@ public class PlaySheetResource {
 	@GET
 	@Path("chartData")
 	@Produces("application/json")
-	public StreamingOutput getPlaySheetChartData(
-			@Context HttpServletRequest request)
-	{
+	public StreamingOutput getPlaySheetChartData(@Context HttpServletRequest request) {
 		Hashtable<String, Vector<SEMOSSVertex>> typeHash = new Hashtable<String, Vector<SEMOSSVertex>>();
 		if(playSheet instanceof GraphPlaySheet){
 			Hashtable<String, SEMOSSVertex> nodeHash = ((GraphPlaySheet)playSheet).getGraphData().getVertStore();
@@ -430,8 +430,7 @@ public class PlaySheetResource {
 	@GET
 	@Path("undo")
 	@Produces("application/json")
-	public StreamingOutput undo()
-	{
+	public StreamingOutput undo(@Context HttpServletRequest request) {
 		Object obj = null;
 		if ( playSheet instanceof GraphPlaySheet){
 			GraphPlaySheet gps = (GraphPlaySheet)playSheet;
@@ -444,7 +443,9 @@ public class PlaySheetResource {
 		}
 
 		// put the playsheet back in session
-		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to readd? its passed by reference?
+		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
+		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
+
 		return WebUtility.getSO(obj);
 	}
 
@@ -453,8 +454,7 @@ public class PlaySheetResource {
 	@GET
 	@Path("redo")
 	@Produces("application/json")
-	public StreamingOutput redo()
-	{
+	public StreamingOutput redo(@Context HttpServletRequest request) {
 		Object obj = null;
 		if ( playSheet instanceof GraphPlaySheet){
 			GraphPlaySheet gps = (GraphPlaySheet)playSheet;
@@ -466,7 +466,9 @@ public class PlaySheetResource {
 		}
 
 		// put the playsheet back in session
-		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to readd? its passed by reference?
+		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
+		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
+
 		return WebUtility.getSO(obj);
 	}
 	
