@@ -530,12 +530,12 @@ public class EngineResource {
 				try {
 					QuestionPlaySheetStore.getInstance().idCount++;
 					String insightID = QuestionPlaySheetStore.getInstance().getIDCount() + "";
-
 					// This will store the playsheet in QuesitonPlaySheetStore
 					exQueryProcessor.prepareQueryOutputPlaySheet(coreEngine, sparql, playsheet, coreEngine.getEngineName() + ": " + insightID, "");
 					IPlaySheet playSheet = exQueryProcessor.getPlaySheet();
-
 					playSheet.setQuestionID(insightID);
+					QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), insightID);
+					
 //					User userData = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 //					if(userData!=null)
 //						playSheet.setUserData(userData);
@@ -582,6 +582,7 @@ public class EngineResource {
 		Object obj = null;
 		try {
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
+			QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
 
 //			User userData = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 //			if(userData!=null)
@@ -893,7 +894,7 @@ public class EngineResource {
 				newNames[0] = newNames[1];
 				newNames[1] = temp;
 			}
-			mainTree = ITableDataFrameStore.getInstance().get(tableID); //TODO: using store
+			mainTree = ITableDataFrameStore.getInstance().get(tableID);
 			System.err.println("Current levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
 			System.err.println("Removing col " + finalNewNames[1]);
 			mainTree.removeColumn(finalNewNames[1]); // need to make sure the column doesn't already exist (metamodel click vs. instances click)
@@ -944,9 +945,11 @@ public class EngineResource {
 		}
 		
 		if(tableID.isEmpty()) {
-			tableID = ITableDataFrameStore.getInstance().put(mainTree); //TODO: using store
+			tableID = ITableDataFrameStore.getInstance().put(mainTree);
+			ITableDataFrameStore.getInstance().addToSessionHash(request.getSession().getId(), tableID);
 		} else {
-			ITableDataFrameStore.getInstance().put(tableID, mainTree); //TODO: using store
+			ITableDataFrameStore.getInstance().put(tableID, mainTree);
+			ITableDataFrameStore.getInstance().addToSessionHash(request.getSession().getId(), tableID);
 		}
 
 		retMap.put("tableID", tableID);
@@ -1255,7 +1258,7 @@ public class EngineResource {
 	@POST
 	@Path("/modifyDataFrame")
 	@Produces("application/xml")
-	public Response undoAlgorithm(MultivaluedMap<String, String> form) {
+	public Response modifyData(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		String tableID = form.getFirst("tableID");
 		String questionID = form.getFirst("id");
@@ -1276,6 +1279,7 @@ public class EngineResource {
 				}
 				
 				qStore.remove(questionID);
+				qStore.removeFromSessionHash(request.getSession().getId(), questionID);
 				if(qStore.containsKey(questionID)) {
 					return Response.status(400).entity(WebUtility.getSO("Could not remove playsheet.")).build();
 				} else {
@@ -1293,6 +1297,7 @@ public class EngineResource {
 			boolean success = false;
 			if(isInDataFrameStore) {
 				success = ITableDataFrameStore.getInstance().remove(tableID);
+				ITableDataFrameStore.getInstance().removeFromSessionHash(request.getSession().getId(), tableID);
 			} else {
 				QuestionPlaySheetStore qStore = QuestionPlaySheetStore.getInstance();
 				if(!qStore.containsKey(questionID)) {
@@ -1300,6 +1305,7 @@ public class EngineResource {
 				}
 				
 				qStore.remove(questionID);
+				qStore.removeFromSessionHash(request.getSession().getId(), questionID);
 				if(qStore.containsKey(questionID)) {
 					success = false;
 				} else {
@@ -1341,8 +1347,8 @@ public class EngineResource {
 			ISelectWrapper wrap1 = WrapperManager.getInstance().getSWrapper(this.coreEngine, query1);
 			names1 = wrap1.getVariables();
 			tree1 = new BTreeDataFrame(names1);
-			while(wrap1.hasNext()){
-				ISelectStatement iss1 = wrap1.next();//
+			while(wrap1.hasNext()) {
+				ISelectStatement iss1 = wrap1.next();
 				tree1.addRow(iss1.getPropHash(), iss1.getRPropHash());
 			}
 		}
