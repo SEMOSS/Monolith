@@ -33,12 +33,9 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
@@ -54,9 +51,9 @@ import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
 import prerna.ui.components.playsheets.ClusteringVizPlaySheet;
 import prerna.ui.components.playsheets.DatasetSimilairtyColumnChartPlaySheet;
-import prerna.ui.components.playsheets.LocalOutlierVizPlaySheet;
 import prerna.ui.components.playsheets.MatrixRegressionVizPlaySheet;
 import prerna.ui.components.playsheets.NumericalCorrelationVizPlaySheet;
+import prerna.ui.components.playsheets.OutlierVizPlaySheet;
 import prerna.ui.components.playsheets.SelfOrganizingMap3DBarChartPlaySheet;
 import prerna.ui.components.playsheets.WekaAprioriVizPlaySheet;
 import prerna.ui.components.playsheets.WekaClassificationPlaySheet;
@@ -228,7 +225,7 @@ public class EngineAnalyticsResource {
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else if (algorithm.equals("Outliers")) {
-			LocalOutlierVizPlaySheet ps = new LocalOutlierVizPlaySheet();
+			OutlierVizPlaySheet ps = new OutlierVizPlaySheet();
 			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
 				Integer k = Integer.parseInt(configParameters.get(0));
 				ps.setK(k);
