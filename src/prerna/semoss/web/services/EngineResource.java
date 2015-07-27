@@ -533,7 +533,7 @@ public class EngineResource {
 					QuestionPlaySheetStore.getInstance().idCount++;
 					insightID = QuestionPlaySheetStore.getInstance().getIDCount() + "";
 					// This will store the playsheet in QuesitonPlaySheetStore
-					exQueryProcessor.prepareQueryOutputPlaySheet(coreEngine, sparql, playsheet, coreEngine.getEngineName() + ": " + insightID, "");
+					exQueryProcessor.prepareQueryOutputPlaySheet(coreEngine, sparql, playsheet, coreEngine.getEngineName() + ": " + insightID, insightID);
 					IPlaySheet playSheet = exQueryProcessor.getPlaySheet();
 					playSheet.setQuestionID(insightID);
 					QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), insightID);
