@@ -860,6 +860,148 @@ public class EngineResource {
 	}	
 
 	@POST
+	@Path("/removeData")
+	@Produces("application/xml")
+	public Response removeData(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
+		String tableID = form.getFirst("tableID");
+		String questionID = form.getFirst("id");
+		
+		boolean isInDataFrameStore = false;
+		ITableDataFrame dataFrame = null;
+		if(tableID != null) {
+			dataFrame = ITableDataFrameStore.getInstance().get(tableID);
+			isInDataFrameStore = true;
+		} else if(questionID != null) {
+			IPlaySheet origPS = (IPlaySheet) QuestionPlaySheetStore.getInstance().get(questionID);
+			if(origPS instanceof BasicProcessingPlaySheet) {
+				dataFrame = ((BasicProcessingPlaySheet) origPS).getDataFrame();
+			} else { // not necessarily backed by BTree, most likely GraphPlaySheet, but could also be highly customized report
+				QuestionPlaySheetStore qStore = QuestionPlaySheetStore.getInstance();
+				if(!qStore.containsKey(questionID)) {
+					return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
+				}
+				
+				qStore.remove(questionID);
+				qStore.removeFromSessionHash(request.getSession().getId(), questionID);
+				if(qStore.containsKey(questionID)) {
+					return Response.status(400).entity(WebUtility.getSO("Could not remove playsheet.")).build();
+				} else {
+					return Response.status(200).entity(WebUtility.getSO("Succesfully removed playsheet.")).build();
+				}
+			}
+		}
+		
+		if(dataFrame == null) {
+			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
+		}
+		
+		String[] removeColumns = gson.fromJson(form.getFirst("removeColumns"), String[].class);
+		if(removeColumns == null || removeColumns.length == 0) {
+			boolean success = false;
+			if(isInDataFrameStore) {
+				success = ITableDataFrameStore.getInstance().remove(tableID);
+				ITableDataFrameStore.getInstance().removeFromSessionHash(request.getSession().getId(), tableID);
+			} else {
+				QuestionPlaySheetStore qStore = QuestionPlaySheetStore.getInstance();
+				if(!qStore.containsKey(questionID)) {
+					return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
+				}
+				
+				qStore.remove(questionID);
+				qStore.removeFromSessionHash(request.getSession().getId(), questionID);
+				if(qStore.containsKey(questionID)) {
+					success = false;
+				} else {
+					success = true;
+				}
+			}
+			
+			if(success) {
+				return Response.status(200).entity(WebUtility.getSO("Succesfully removed data.")).build();
+			} else {
+				return Response.status(400).entity(WebUtility.getSO("Could not remove data")).build();
+			}
+		} else {
+			for(String s : removeColumns) {
+				dataFrame.removeColumn(s); //TODO: need booleans to return values in map
+			}
+			return Response.status(200).entity(WebUtility.getSO("Succesfully removed the following columns: " + Arrays.toString(removeColumns))).build();
+		}
+	}
+	
+	@POST
+	@Path("addData")
+	@Produces("application/json")
+	public Response addData(MultivaluedMap<String, String> form, 
+			@QueryParam("existingConcept") String currConcept, 
+			@QueryParam("joinConcept") String equivConcept, 
+			@QueryParam("newConcept") String newConcept, 
+			@QueryParam("blankSelected") Boolean blankSelected,
+			@QueryParam("tableID") String tableID,
+			@Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
+		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+
+		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
+		builder.setJSONDataHash(dataHash);
+		builder.buildQuery();
+		String query = builder.getQuery();
+
+		System.out.println(query);
+		
+		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
+		String[] newNames = wrap.getVariables();
+		
+		// creating new dataframe from query
+		ITableDataFrame newTree = new BTreeDataFrame(newNames);
+		while (wrap.hasNext()){
+			ISelectStatement iss = wrap.next();
+			Map<String, Object> cleanHash = new HashMap<String, Object>();
+			Map<String, Object> rawHash = new HashMap<String, Object>();
+			for(int idx = 0; idx < newNames.length; idx++) {
+				cleanHash.put(newNames[idx], iss.getVar(newNames[idx]));
+				rawHash.put(newNames[idx], iss.getRawVar(newNames[idx]));
+			}
+			newTree.addRow(cleanHash, rawHash);
+		}
+		
+		if(tableID == null || tableID.isEmpty()) {
+			// new table, store and return success
+			System.err.println("Levels in main tree are " + Arrays.toString(newTree.getColumnHeaders()));
+			
+			tableID = ITableDataFrameStore.getInstance().put(newTree);
+			ITableDataFrameStore.getInstance().addToSessionHash(request.getSession().getId(), tableID);
+			
+			Map<String, Object> retMap = new HashMap<String, Object>();
+			retMap.put("tableID", tableID);
+			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+			
+		} else {
+			// grab existing dataframe
+			ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
+			if(existingData == null) {
+				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
+			}
+			
+			IAnalyticRoutine alg = null;
+			if(blankSelected) {
+				alg = new ExactStringPartialOuterJoinMatcher();
+			} else {
+				alg = new ExactStringMatcher();
+			}
+			
+			existingData.join(newTree, currConcept, equivConcept, 1, alg);
+			System.err.println("New levels in main tree are " + Arrays.toString(existingData.getColumnHeaders()));
+			
+			Map<String, Object> retMap = new HashMap<String, Object>();
+			retMap.put("tableID", tableID);
+			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		}
+	}
+	
+	@POST
 	@Path("customVizTableFilterOptions")
 	@Produces("application/json")
 	public Response getVizTableFilterOptions(MultivaluedMap<String, String> form, 
@@ -1257,77 +1399,6 @@ public class EngineResource {
 		//myResponse.resume(jaxrs);
 		return "Returned.. ";
 	}  
-	
-	@POST
-	@Path("/modifyDataFrame")
-	@Produces("application/xml")
-	public Response modifyData(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		Gson gson = new Gson();
-		String tableID = form.getFirst("tableID");
-		String questionID = form.getFirst("id");
-		
-		boolean isInDataFrameStore = false;
-		ITableDataFrame dataFrame = null;
-		if(tableID != null) {
-			dataFrame = ITableDataFrameStore.getInstance().get(tableID);
-			isInDataFrameStore = true;
-		} else if(questionID != null) {
-			IPlaySheet origPS = (IPlaySheet) QuestionPlaySheetStore.getInstance().get(questionID);
-			if(origPS instanceof BasicProcessingPlaySheet) {
-				dataFrame = ((BasicProcessingPlaySheet) origPS).getDataFrame();
-			} else { // not necessarily backed by BTree, most likely GraphPlaySheet, but could also be highly customized report
-				QuestionPlaySheetStore qStore = QuestionPlaySheetStore.getInstance();
-				if(!qStore.containsKey(questionID)) {
-					return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
-				}
-				
-				qStore.remove(questionID);
-				qStore.removeFromSessionHash(request.getSession().getId(), questionID);
-				if(qStore.containsKey(questionID)) {
-					return Response.status(400).entity(WebUtility.getSO("Could not remove playsheet.")).build();
-				} else {
-					return Response.status(200).entity(WebUtility.getSO("Succesfully removed playsheet.")).build();
-				}
-			}
-		}
-		
-		if(dataFrame == null) {
-			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
-		}
-		
-		String[] removeColumns = gson.fromJson(form.getFirst("removeColumns"), String[].class);
-		if(removeColumns == null || removeColumns.length == 0) {
-			boolean success = false;
-			if(isInDataFrameStore) {
-				success = ITableDataFrameStore.getInstance().remove(tableID);
-				ITableDataFrameStore.getInstance().removeFromSessionHash(request.getSession().getId(), tableID);
-			} else {
-				QuestionPlaySheetStore qStore = QuestionPlaySheetStore.getInstance();
-				if(!qStore.containsKey(questionID)) {
-					return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
-				}
-				
-				qStore.remove(questionID);
-				qStore.removeFromSessionHash(request.getSession().getId(), questionID);
-				if(qStore.containsKey(questionID)) {
-					success = false;
-				} else {
-					success = true;
-				}
-			}
-			
-			if(success) {
-				return Response.status(200).entity(WebUtility.getSO("Succesfully removed data.")).build();
-			} else {
-				return Response.status(400).entity(WebUtility.getSO("Could not remove data")).build();
-			}
-		} else {
-			for(String s : removeColumns) {
-				dataFrame.removeColumn(s); //TODO: need booleans to return values in map
-			}
-			return Response.status(200).entity(WebUtility.getSO("Succesfully removed the following columns: " + Arrays.toString(removeColumns))).build();
-		}
-	}
 	
 	@POST
 	@Path("/btreeTester")
