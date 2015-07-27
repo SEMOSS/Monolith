@@ -931,7 +931,7 @@ public class EngineResource {
 	}
 	
 	@POST
-	@Path("addData")
+	@Path("/addData")
 	@Produces("application/json")
 	public Response addData(MultivaluedMap<String, String> form, 
 			@QueryParam("existingConcept") String currConcept, 
@@ -956,7 +956,7 @@ public class EngineResource {
 		
 		// creating new dataframe from query
 		ITableDataFrame newTree = new BTreeDataFrame(newNames);
-		while (wrap.hasNext()){
+		while (wrap.hasNext()) {
 			ISelectStatement iss = wrap.next();
 			Map<String, Object> cleanHash = new HashMap<String, Object>();
 			Map<String, Object> rawHash = new HashMap<String, Object>();
