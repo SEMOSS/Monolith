@@ -249,6 +249,38 @@ public class EngineAnalyticsResource {
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
 
+		} else if (algorithm.equals("FastOutliers")) {
+			OutlierVizPlaySheet ps = new OutlierVizPlaySheet();
+			ps.setAlgorithmSelected(OutlierVizPlaySheet.FOD);
+			if (configParameters != null && !configParameters.isEmpty()) {
+				if(configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
+					Integer numSubsetSize = Integer.parseInt(configParameters.get(0));
+					ps.setNumSubsetSize(numSubsetSize);
+				}
+//				if(configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
+//					Integer numIterations = Integer.parseInt(configParameters.get(1));
+//					ps.setNumIterations(numIterations);
+//				}
+			}
+			ps.setInstanceIndex(instanceIndex);
+			ps.setDataFrame(dataFrame);
+			ps.setSkipAttributes(skipAttributes);
+			ps.runAnalytics();
+			ps.processQueryData();
+			
+			Hashtable psData = ps.getData();
+			psData.remove("id");
+			psData.put("title", "Outliers on " + columnHeaders[instanceIndex]);
+			Hashtable<String, String> specificData = new Hashtable<String, String>();
+			List<String> changedCol = ps.getChangedCol();
+			psData.put("deleteKey", changedCol);
+			specificData.put("x-axis", changedCol.get(0));
+			specificData.put("z-axis", "COUNT");
+			psData.put("specificData", specificData);
+			psData.put(retIDKey, retID);
+
+			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
+
 		} else if (algorithm.equals("Similarity")) {
 			DatasetSimilairtyColumnChartPlaySheet ps = new DatasetSimilairtyColumnChartPlaySheet();
 			ps.setInstanceIndex(instanceIndex);
