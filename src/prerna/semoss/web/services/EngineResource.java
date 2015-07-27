@@ -57,8 +57,9 @@ import org.apache.log4j.Logger;
 
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
+import prerna.algorithm.impl.ExactStringMatcher;
 import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
-import prerna.algorithm.learning.unsupervised.outliers.EntropyDensityStatistic;
+import prerna.algorithm.learning.unsupervised.outliers.FastOutlierDetection;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
@@ -508,7 +509,8 @@ public class EngineResource {
 		
 		//Get the Insight, grab its ID
 		Insight insightObj = ((AbstractEngine)coreEngine).getInsight2(insight).get(0);
-		
+		String insightID = null;
+
 		// executes the output and gives the data
 		// executes the create runner
 		// once complete, it would plug the output into the session
@@ -529,7 +531,7 @@ public class EngineResource {
 				Object obj = null;
 				try {
 					QuestionPlaySheetStore.getInstance().idCount++;
-					String insightID = QuestionPlaySheetStore.getInstance().getIDCount() + "";
+					insightID = QuestionPlaySheetStore.getInstance().getIDCount() + "";
 					// This will store the playsheet in QuesitonPlaySheetStore
 					exQueryProcessor.prepareQueryOutputPlaySheet(coreEngine, sparql, playsheet, coreEngine.getEngineName() + ": " + insightID, "");
 					IPlaySheet playSheet = exQueryProcessor.getPlaySheet();
@@ -558,7 +560,7 @@ public class EngineResource {
 				Hashtable ret = (Hashtable) obj;
 				if(ret != null) {
 					ret.put("query", insightObj.getSparql());
-					ret.put("insightId", insightObj.getId());
+					ret.put("insightId", insightID);
 					ret.put("visibility", visibility);
 				}
 				return Response.status(200).entity(WebUtility.getSO(ret)).build();
@@ -582,7 +584,8 @@ public class EngineResource {
 		Object obj = null;
 		try {
 			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
-			QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
+			insightID = playSheet.getQuestionID();
+			QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), insightID);
 
 //			User userData = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 //			if(userData!=null)
@@ -610,7 +613,7 @@ public class EngineResource {
 		Hashtable ret = (Hashtable) obj;
 		if(ret !=  null) {
 			ret.put("query", insightObj.getSparql());
-			ret.put("insightId", insightObj.getId());
+			ret.put("insightId", insightID);
 			ret.put("visibility", visibility);
 		}
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
@@ -922,7 +925,7 @@ public class EngineResource {
 				if(blankSelected) {
 					alg = new ExactStringPartialOuterJoinMatcher();
 				} else {
-					alg = new ExactStringPartialOuterJoinMatcher();
+					alg = new ExactStringMatcher();
 				}
 				mainTree.join(newTree, currConcept, equivConcept, 1, alg);
 				System.err.println("New levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
@@ -1356,7 +1359,7 @@ public class EngineResource {
 		System.out.println("Construction time = " + ((end-start)/1000) );
 		
 		start = System.currentTimeMillis();
-		tree1.performAction(new EntropyDensityStatistic());
+		tree1.performAction(new FastOutlierDetection());
 		end = System.currentTimeMillis();
 		System.out.println("Algorithm time = " + ((end-start)/1000) );
 
