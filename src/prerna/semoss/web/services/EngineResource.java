@@ -931,6 +931,29 @@ public class EngineResource {
 	}
 	
 	@POST
+	@Path("/filterData")
+	@Produces("application/json")
+	public Response filterData(MultivaluedMap<String, String> form, 
+			@QueryParam("concept") String concept, 
+			@QueryParam("filterValues") String filterValues, 
+			@QueryParam("tableID") String tableID,
+			@Context HttpServletRequest request)
+	{
+		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+		if(mainTree == null) {
+			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+		}	
+		
+		Gson gson = new Gson();
+		List<Object> filterValuesArr = gson.fromJson(filterValues, List.class);
+		mainTree.filter(concept, filterValuesArr);
+		
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		retMap.put("tableID", tableID);
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+	
+	@POST
 	@Path("/addData")
 	@Produces("application/json")
 	public Response addData(MultivaluedMap<String, String> form, 
@@ -1109,8 +1132,11 @@ public class EngineResource {
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
-		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID); //TODO: using store
-
+		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+		if(mainTree == null) {
+			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+		}
+		
 		List<Object[]> table = mainTree.getRawData();
 		Map<String, Object> returnData = new HashMap<String, Object>();
 		returnData.put("data", table);
