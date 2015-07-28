@@ -31,9 +31,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 
@@ -77,6 +79,7 @@ import prerna.nameserver.SearchMasterDB;
 import prerna.om.Insight;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.rdf.query.builder.AbstractQueryBuilder;
 import prerna.rdf.query.builder.IQueryBuilder;
 import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
@@ -100,6 +103,7 @@ import prerna.web.services.util.WebUtility;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import com.hp.hpl.jena.rdf.model.Literal;
 
 public class EngineResource {
 
@@ -1022,6 +1026,58 @@ public class EngineResource {
 			retMap.put("tableID", tableID);
 			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 		}
+	}
+	
+	@POST
+	@Path("customFilterOptions")
+	@Produces("application/json")
+	public Response getCustomFilterOptions(MultivaluedMap<String, String> form, 
+			@QueryParam("existingConcept") String currConcept, 
+			@QueryParam("outerJoin") Boolean outerJoin,
+			@QueryParam("tableID") String tableID,
+			@Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
+		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+
+		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
+		if(tableID != null && !outerJoin) {
+			// need to add bindings for query if not outer join
+			ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
+			if(existingData == null) {
+				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
+			}
+			
+			List<Object> filteringValues = Arrays.asList(existingData.getUniqueValues(currConcept));
+			dataHash.put(AbstractQueryBuilder.filterKey, filteringValues);
+		}
+		builder.setJSONDataHash(dataHash);
+		builder.buildQuery();
+		String query = builder.getQuery();
+
+		System.out.println(query);
+		
+		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
+		String[] newNames = wrap.getVariables();
+		int index = 0;
+		if(newNames.length > 1) {
+			// this means there is no bindings performed
+			index = 1;
+		} 
+		
+		// creating new list of values from query
+		Set<Object> retList = new HashSet<Object>();
+		while (wrap.hasNext()) {
+			ISelectStatement iss = wrap.next();
+			Object value = iss.getRawVar(newNames[index]);
+			if(value instanceof Literal) {
+				retList.add(iss.getVar(newNames[index]));
+			} else {
+				retList.add(value);
+			}
+		}
+		
+		return Response.status(400).entity(WebUtility.getSO(retList)).build();
 	}
 	
 	@POST
