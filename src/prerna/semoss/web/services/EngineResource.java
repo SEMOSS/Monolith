@@ -1064,9 +1064,9 @@ public class EngineResource {
 			
 			if(currConcept != null && !currConcept.isEmpty()) {
 				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
-				HashMap<String, List<Object>> innerHash = new HashMap<String, List<Object>>();
-				innerHash.put(currConcept, filteringValues);
-				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, innerHash);
+				StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
+				stringMap.put(currConcept, filteringValues);
+				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
 			} else {
 				return Response.status(400).entity(WebUtility.getSO("Cannot perform filtering when current concept to filter on is not defined")).build();
 			}
