@@ -60,6 +60,7 @@ import org.apache.log4j.Logger;
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
+import prerna.algorithm.impl.ExactStringOuterJoinMatcher;
 import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
 import prerna.algorithm.learning.unsupervised.outliers.FastOutlierDetection;
 import prerna.auth.User;
@@ -964,7 +965,7 @@ public class EngineResource {
 			@QueryParam("existingConcept") String currConcept, 
 			@QueryParam("joinConcept") String equivConcept, 
 			@QueryParam("newConcept") String newConcept, 
-			@QueryParam("blankSelected") Boolean blankSelected,
+			@QueryParam("joinType") String joinType,
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
@@ -1013,10 +1014,14 @@ public class EngineResource {
 			}
 			
 			IAnalyticRoutine alg = null;
-			if(blankSelected) {
-				alg = new ExactStringPartialOuterJoinMatcher();
-			} else {
-				alg = new ExactStringMatcher();
+			switch(joinType) {
+				case "inner" : alg = new ExactStringMatcher(); 
+					break;
+				case "partial" : alg = new ExactStringPartialOuterJoinMatcher(); 
+					break;
+				case "full" : alg = new ExactStringOuterJoinMatcher();
+					break;
+				default : alg = new ExactStringMatcher(); 
 			}
 			
 			existingData.join(newTree, currConcept, equivConcept, 1, alg);
@@ -1033,22 +1038,30 @@ public class EngineResource {
 	@Produces("application/json")
 	public Response getCustomFilterOptions(MultivaluedMap<String, String> form, 
 			@QueryParam("existingConcept") String currConcept, 
-			@QueryParam("outerJoin") Boolean outerJoin,
+			@QueryParam("joinType") String joinType,
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 
+		boolean outer = false;
+		boolean inner = false;
+		if(joinType.equals("full")) {
+			outer = true;
+		} else if(joinType.equals("inner")) {
+			inner = true;
+		}
+		
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		if(tableID != null && !outerJoin) {
+		if(tableID != null && !outer) {
 			// need to add bindings for query if not outer join
 			ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
 			if(existingData == null) {
 				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
 			}
 			
-			List<Object> filteringValues = Arrays.asList(existingData.getUniqueValues(currConcept));
+			List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
 			dataHash.put(AbstractQueryBuilder.filterKey, filteringValues);
 		}
 		builder.setJSONDataHash(dataHash);
@@ -1070,6 +1083,9 @@ public class EngineResource {
 		while (wrap.hasNext()) {
 			ISelectStatement iss = wrap.next();
 			Object value = iss.getRawVar(newNames[index]);
+			if(inner && value.toString().isEmpty()) {
+				continue; // don't add empty values as a possibility
+			}
 			if(value instanceof Literal) {
 				retList.add(iss.getVar(newNames[index]));
 			} else {
