@@ -104,6 +104,7 @@ import prerna.web.services.util.WebUtility;
 import com.bigdata.rdf.model.BigdataURI;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
 public class EngineResource {
@@ -1065,7 +1066,7 @@ public class EngineResource {
 				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
 				HashMap<String, List<Object>> innerHash = new HashMap<String, List<Object>>();
 				innerHash.put(currConcept, filteringValues);
-				((Map) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, innerHash);
+				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, innerHash);
 			} else {
 				return Response.status(400).entity(WebUtility.getSO("Cannot perform filtering when current concept to filter on is not defined")).build();
 			}
