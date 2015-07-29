@@ -233,7 +233,11 @@ public class EngineAnalyticsResource {
 			ps.setInstanceIndex(instanceIndex);
 			ps.setDataFrame(dataFrame);
 			ps.setSkipAttributes(skipAttributes);
-			ps.runAnalytics();
+			try {
+				ps.runAnalytics();
+			} catch(IllegalArgumentException ex) {
+				Response.status(400).entity(WebUtility.getSO(ex.getMessage())).build();
+			}
 			ps.processQueryData();
 			
 			Hashtable psData = ps.getData();
@@ -257,10 +261,11 @@ public class EngineAnalyticsResource {
 					Integer numSubsetSize = Integer.parseInt(configParameters.get(0));
 					ps.setNumSubsetSize(numSubsetSize);
 				}
-//				if(configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
-//					Integer numIterations = Integer.parseInt(configParameters.get(1));
-//					ps.setNumIterations(numIterations);
-//				}
+				if(configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
+					Integer numIterations = Integer.parseInt(configParameters.get(1));
+					ps.setNumRuns(numIterations);
+				}
+				
 			}
 			ps.setInstanceIndex(instanceIndex);
 			ps.setDataFrame(dataFrame);
