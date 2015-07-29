@@ -56,6 +56,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
+import org.openrdf.model.URI;
 
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
@@ -1087,9 +1088,9 @@ public class EngineResource {
 				continue; // don't add empty values as a possibility
 			}
 			if(value instanceof Literal) {
-				retList.add(iss.getVar(newNames[index]));
+				retList.add( ((Literal)iss.getVar(newNames[index])).getValue());
 			} else {
-				retList.add(value);
+				retList.add( ((URI)value).stringValue());
 			}
 		}
 		
