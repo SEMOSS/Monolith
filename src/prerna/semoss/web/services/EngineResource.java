@@ -102,6 +102,7 @@ import prerna.util.Utility;
 import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.WebUtility;
 
+import com.bigdata.rdf.model.BigdataValue;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -1087,8 +1088,8 @@ public class EngineResource {
 			if(inner && value.toString().isEmpty()) {
 				continue; // don't add empty values as a possibility
 			}
-			if(value instanceof Literal) {
-				retList.add( ((Literal)iss.getVar(newNames[index])).getValue());
+			if(value instanceof BigdataValue) {
+				retList.add(iss.getVar(newNames[index]));
 			} else {
 				retList.add( ((URI)value).stringValue());
 			}
