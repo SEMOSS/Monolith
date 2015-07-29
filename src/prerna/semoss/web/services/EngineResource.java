@@ -1093,7 +1093,7 @@ public class EngineResource {
 			}
 		}
 		
-		return Response.status(400).entity(WebUtility.getSO(retList)).build();
+		return Response.status(200).entity(WebUtility.getSO(retList)).build();
 	}
 	
 	@POST
