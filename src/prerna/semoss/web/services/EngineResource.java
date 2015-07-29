@@ -106,7 +106,6 @@ import com.bigdata.rdf.model.BigdataValue;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import com.hp.hpl.jena.rdf.model.Literal;
 
 public class EngineResource {
 
@@ -1090,8 +1089,10 @@ public class EngineResource {
 			}
 			if(value instanceof BigdataValue) {
 				retList.add(iss.getVar(newNames[index]));
-			} else {
+			} else if(value instanceof URI) {
 				retList.add( ((URI)value).stringValue());
+			} else {
+				retList.add(value);
 			}
 		}
 		
