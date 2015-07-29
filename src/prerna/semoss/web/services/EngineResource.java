@@ -56,7 +56,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
-import org.openrdf.model.URI;
 
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
@@ -102,7 +101,7 @@ import prerna.util.Utility;
 import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.WebUtility;
 
-import com.bigdata.rdf.model.BigdataValue;
+import com.bigdata.rdf.model.BigdataURI;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -1055,16 +1054,23 @@ public class EngineResource {
 		}
 		
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		if( tableID != null && !tableID.isEmpty() && !outer) {
+		if(tableID != null && !tableID.isEmpty() && !outer) {
 			// need to add bindings for query if not outer join
 			ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
 			if(existingData == null) {
 				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
 			}
 			
-			List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
-			dataHash.put(AbstractQueryBuilder.filterKey, filteringValues);
+			if(currConcept != null && !currConcept.isEmpty()) {
+				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
+				HashMap<String, List<Object>> innerHash = new HashMap<String, List<Object>>();
+				innerHash.put(currConcept, filteringValues);
+				dataHash.put(AbstractQueryBuilder.filterKey, innerHash);
+			} else {
+				return Response.status(400).entity(WebUtility.getSO("Cannot perform filtering when current concept to filter on is not defined")).build();
+			}
 		}
+		
 		builder.setJSONDataHash(dataHash);
 		builder.buildQuery();
 		String query = builder.getQuery();
@@ -1087,12 +1093,10 @@ public class EngineResource {
 			if(inner && value.toString().isEmpty()) {
 				continue; // don't add empty values as a possibility
 			}
-			if(value instanceof BigdataValue) {
-				retList.add(iss.getVar(newNames[index]));
-			} else if(value instanceof URI) {
-				retList.add( ((URI)value).stringValue());
+			if(value instanceof BigdataURI) {
+				retList.add( ((BigdataURI)value).stringValue());
 			} else {
-				retList.add(value);
+				retList.add(iss.getVar(newNames[index]));
 			}
 		}
 		
