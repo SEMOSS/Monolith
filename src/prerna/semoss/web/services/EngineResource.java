@@ -1055,7 +1055,7 @@ public class EngineResource {
 		}
 		
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		if( (tableID != null && !tableID.isEmpty()) || outer) {
+		if( (tableID != null && !tableID.isEmpty()) || !outer) {
 			// need to add bindings for query if not outer join
 			ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
 			if(existingData == null) {
