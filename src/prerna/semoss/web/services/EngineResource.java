@@ -951,7 +951,7 @@ public class EngineResource {
 		}
 		
 		Gson gson = new Gson();
-		List<Object> filterValuesArr = gson.fromJson(form.getFirst("fitlerValues"), new TypeToken<List<Object>>() {}.getType());
+		List<Object> filterValuesArr = gson.fromJson(form.getFirst("filterValues"), new TypeToken<List<Object>>() {}.getType());
 		List<Object> setDiff = new LinkedList<Object>(Arrays.asList(mainTree.getUniqueRawValues(concept)));
 		setDiff.removeAll(filterValuesArr);
 		
