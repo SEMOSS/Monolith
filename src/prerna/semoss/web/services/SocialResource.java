@@ -32,7 +32,7 @@ public class SocialResource {
 	 */
 	@GET
 	@Path("/topinsights")
-	@Produces("application/xml")
+	@Produces("application/json")
 	public Response getTopInsights(@QueryParam("engine") String engine, @QueryParam("limit") String limit, @Context HttpServletRequest request) {
 		if(engine == null) {
 			engine = "";
@@ -59,7 +59,7 @@ public class SocialResource {
 	 */
 	@GET
 	@Path("/feedInsights")
-	@Produces("application/xml")
+	@Produces("application/json")
 	public Response getInsightsForFeed(@QueryParam("visibility") String visibility, @QueryParam("limit") String limit, @Context HttpServletRequest request) {
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if(visibility == null) {
