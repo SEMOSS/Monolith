@@ -75,4 +75,7 @@
         prerna.web.conf.UserDBLoader
     </listener-class>
   </listener>
+  <session-config>
+    <session-timeout>1</session-timeout>
+  </session-config>
 </web-app>
