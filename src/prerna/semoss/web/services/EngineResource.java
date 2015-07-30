@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -950,8 +951,8 @@ public class EngineResource {
 		}
 		
 		Gson gson = new Gson();
-		List<Object> filterValuesArr = gson.fromJson(form.getFirst("fitlerValues"), List.class);
-		List<Object> setDiff = Arrays.asList(mainTree.getUniqueRawValues(concept));
+		List<Object> filterValuesArr = gson.fromJson(form.getFirst("fitlerValues"), new TypeToken<List<Object>>() {}.getType());
+		List<Object> setDiff = new LinkedList<Object>(Arrays.asList(mainTree.getUniqueRawValues(concept)));
 		setDiff.removeAll(filterValuesArr);
 		
 		mainTree.unfilter(concept); // this method does not perform compound filtering, require the exact list of filter values each time
