@@ -941,7 +941,6 @@ public class EngineResource {
 	@Produces("application/json")
 	public Response filterData(MultivaluedMap<String, String> form, 
 			@QueryParam("concept") String concept, 
-			@QueryParam("filterValues") String filterValues, 
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
@@ -951,7 +950,7 @@ public class EngineResource {
 		}
 		
 		Gson gson = new Gson();
-		List<Object> filterValuesArr = gson.fromJson(filterValues, List.class);
+		List<Object> filterValuesArr = gson.fromJson(form.getFirst("fitlerValues"), List.class);
 		List<Object> setDiff = Arrays.asList(mainTree.getUniqueRawValues(concept));
 		setDiff.removeAll(filterValuesArr);
 		
