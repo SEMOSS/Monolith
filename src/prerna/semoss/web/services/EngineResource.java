@@ -952,8 +952,11 @@ public class EngineResource {
 		
 		Gson gson = new Gson();
 		List<Object> filterValuesArr = gson.fromJson(filterValues, List.class);
+		List<Object> setDiff = Arrays.asList(mainTree.getUniqueRawValues(concept));
+		setDiff.removeAll(filterValuesArr);
+		
 		mainTree.unfilter(concept); // this method does not perform compound filtering, require the exact list of filter values each time
-		mainTree.filter(concept, filterValuesArr);
+		mainTree.filter(concept, setDiff);
 		
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
