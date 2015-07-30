@@ -948,10 +948,11 @@ public class EngineResource {
 		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
-		}	
+		}
 		
 		Gson gson = new Gson();
 		List<Object> filterValuesArr = gson.fromJson(filterValues, List.class);
+		mainTree.unfilter(concept); // this method does not perform compound filtering, require the exact list of filter values each time
 		mainTree.filter(concept, filterValuesArr);
 		
 		Map<String, Object> retMap = new HashMap<String, Object>();
