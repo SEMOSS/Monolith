@@ -63,7 +63,6 @@ import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
 import prerna.algorithm.impl.ExactStringOuterJoinMatcher;
 import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
-import prerna.algorithm.learning.unsupervised.outliers.FastOutlierDetection;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
@@ -95,6 +94,7 @@ import prerna.ui.components.playsheets.GraphPlaySheet;
 import prerna.ui.helpers.PlaysheetCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
+import prerna.util.ArrayUtilityMethods;
 import prerna.util.Constants;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
@@ -783,47 +783,6 @@ public class EngineResource {
 		builder.buildQuery();
 		String query = builder.getQuery();
 
-		/*Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
-		Integer items = 100;
-		if (form.containsKey("ItemCount"))
-			items = gson.fromJson(form.getFirst("ItemCount"), Integer.class);
-		Integer pageNumber = null;
-		if (form.containsKey("PageNumber"))
-			pageNumber = gson.fromJson(form.getFirst("PageNumber"), Integer.class);
-		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
-
-		ArrayList<Hashtable<String,String>> nodePropArray = getHashArrayFromString(form.getFirst("SelectedNodeProps") + "");
-		ArrayList<Hashtable<String,String>> edgePropArray = getHashArrayFromString(form.getFirst("SelectedEdgeProps") + "");
-		tableViz.setPropV(nodePropArray, edgePropArray);
-
-		tableViz.setJSONDataHash(dataHash);
-		tableViz.setEngine(coreEngine);
-		tableViz.buildQuery();
-		SEMOSSQuery semossQuery = tableViz.getSEMOSSQuery();
-
-		//get header array before adding pagination stuff
-		ArrayList<Hashtable<String, String>> varObjV = tableViz.getHeaderArray();
-		Collection<Hashtable<String, String>> varObjVector = varObjV;
-
-		//add pagination information
-		Hashtable limitHash = new Hashtable();
-		int fullTableRowNum = 100000;//tableViz.runCountQuery();
-
-//		semossQuery.addAllVarToOrderBy();// necessary for pagination
-		limitHash.put("fullSize", fullTableRowNum);
-
-		if(items!= null){
-			int limitSize = items;
-			semossQuery.setLimit(limitSize);
-		}
-		if(pageNumber != null) {
-			int offset = items * (pageNumber - 1);
-			semossQuery.setOffset(offset);
-		}
-
-		semossQuery.createQuery();
-		String query = semossQuery.getQuery();*/
-
 		System.out.println(query);
 		Object obj = null;
 		try
@@ -951,13 +910,18 @@ public class EngineResource {
 		}
 		
 		Gson gson = new Gson();
+		mainTree.unfilter(concept); 
 		List<Object> filterValuesArr = gson.fromJson(form.getFirst("filterValues"), new TypeToken<List<Object>>() {}.getType());
+		if(filterValuesArr == null || filterValuesArr.isEmpty()) {
+			Map<String, Object> retMap = new HashMap<String, Object>();
+			retMap.put("tableID", tableID);
+			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		}
+		// this method does not perform compound filtering, require the exact list of filter values each time
 		List<Object> setDiff = new LinkedList<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
 		setDiff.removeAll(filterValuesArr);
-		
-		mainTree.unfilter(concept); // this method does not perform compound filtering, require the exact list of filter values each time
 		mainTree.filter(concept, setDiff);
-		
+
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
@@ -1086,8 +1050,10 @@ public class EngineResource {
 		String[] newNames = wrap.getVariables();
 		int index = 0;
 		if(newNames.length > 1) {
-			// this means there is no bindings performed
-			index = 1;
+			int currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
+			if(currIndexexistingConcept == 0) {
+				index = 1;
+			}
 		} 
 		
 		// creating new list of values from query
@@ -1106,107 +1072,6 @@ public class EngineResource {
 		}
 		
 		return Response.status(200).entity(WebUtility.getSO(retList)).build();
-	}
-	
-	@POST
-	@Path("customVizTableFilterOptions")
-	@Produces("application/json")
-	public Response getVizTableFilterOptions(MultivaluedMap<String, String> form, 
-			@QueryParam("returnColumn") Boolean returnColumn, 
-			@QueryParam("existingConcept") String currConcept, 
-			@QueryParam("joinConcept") String equivConcept, 
-			@QueryParam("newConcept") String newConcept, 
-			@QueryParam("blankSelected") Boolean blankSelected,
-			@QueryParam("tableID") String tableID,
-			@Context HttpServletRequest request)
-	{
-		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-
-		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		builder.setJSONDataHash(dataHash);
-		builder.buildQuery();
-		String query = builder.getQuery();
-
-		System.out.println(query);
-
-		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
-		String[] newNames = wrap.getVariables();
-		String[] finalNewNames = new String[newNames.length];
-		finalNewNames[0] = currConcept;
-		
-		// get preexisting table and order the new table names to correctly join
-		ITableDataFrame mainTree = null;
-		if( finalNewNames.length > 1 ) // length will be either one or two....
-		{ 
-			finalNewNames[0] = equivConcept;
-			finalNewNames[1] = newConcept;
-			if(!newNames[1].equalsIgnoreCase(newConcept)){ // make sure the new names are in the right order for join
-				String temp = newNames[0];
-				newNames[0] = newNames[1];
-				newNames[1] = temp;
-			}
-			mainTree = ITableDataFrameStore.getInstance().get(tableID);
-			System.err.println("Current levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
-			System.err.println("Removing col " + finalNewNames[1]);
-			mainTree.removeColumn(finalNewNames[1]); // need to make sure the column doesn't already exist (metamodel click vs. instances click)
-			System.err.println("Levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
-		}
-		
-		// fill the new tree
-		ITableDataFrame newTree = new BTreeDataFrame(finalNewNames);
-		while (wrap.hasNext()){
-			ISelectStatement iss = wrap.next();
-			Map<String, Object> cleanHash = new HashMap<String, Object>();
-			Map<String, Object> rawHash = new HashMap<String, Object>();
-			for(int idx = 0; idx < newNames.length; idx++) {
-				cleanHash.put(finalNewNames[idx], iss.getVar(newNames[idx]));
-				rawHash.put(finalNewNames[idx], iss.getRawVar(newNames[idx]));
-			}
-			newTree.addRow(cleanHash, rawHash);
-		}
-		
-		// perform the join
-		if( newNames.length > 1 ) // not the first click on the metamodel page so we need to join with previous tree
-		{
-				System.err.println("Main tree has levels : " + Arrays.toString(mainTree.getColumnHeaders()) + " and I am joining with " + Arrays.toString(newTree.getColumnHeaders()));
-				IAnalyticRoutine alg = null;
-				if(blankSelected) {
-					alg = new ExactStringPartialOuterJoinMatcher();
-				} else {
-					alg = new ExactStringMatcher();
-				}
-				mainTree.join(newTree, currConcept, equivConcept, 1, alg);
-				System.err.println("New levels in main tree are " + Arrays.toString(mainTree.getColumnHeaders()));
-		}
-		else {
-			mainTree = newTree;
-		}
-		
-		// get the new column
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		retMap.put("result", "success");
-		Object values;
-		if(returnColumn){
-			if(newNames.length > 1) {
-				values = mainTree.getRawColumn(finalNewNames[1]); // this will be the new column that got added
-			} else {
-				values = mainTree.getRawColumn(finalNewNames[0]); // the first column that gets added
-			}
-			retMap.put("values", values);
-		}
-		
-		if(tableID.isEmpty()) {
-			tableID = ITableDataFrameStore.getInstance().put(mainTree);
-			ITableDataFrameStore.getInstance().addToSessionHash(request.getSession().getId(), tableID);
-		} else {
-			ITableDataFrameStore.getInstance().put(tableID, mainTree);
-			ITableDataFrameStore.getInstance().addToSessionHash(request.getSession().getId(), tableID);
-		}
-
-		retMap.put("tableID", tableID);
-		
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
 	@POST
@@ -1519,9 +1384,7 @@ public class EngineResource {
 		
 		long start = System.currentTimeMillis();
 //		String query1 = "SELECT DISTINCT ?Title ?DomesticRevenue ?InternationalRevenue ?Budget ?RottenTomatoesCritics ?RottenTomatoesAudience WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
-//		String query1 = "SELECT DISTINCT ?ICD ?Source ?Target ?DataObject ?Format ?Frequency ?Protocol WHERE { {?ICD <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/InterfaceControlDocument>} {?Source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?Source <http://semoss.org/ontologies/Relation/Provide> ?ICD} {?Target <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?ICD <http://semoss.org/ontologies/Relation/Consume> ?Target} {?DataObject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/DataObject>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?ICD ?carries ?DataObject} {?carries <http://semoss.org/ontologies/Relation/Contains/Protocol> ?Protocol} {?carries <http://semoss.org/ontologies/Relation/Contains/Format> ?Format} {?carries <http://semoss.org/ontologies/Relation/Contains/Frequency> ?Frequency} } ORDER BY ?ICD";
-
-		String query1 = "SELECT DISTINCT ?Title ?Studio ?DomesticRevenue ?InternationalRevenue ?Budget ?RottenTomatoesCritics ?RottenTomatoesAudience WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
+		String query1 = "SELECT DISTINCT ?ICD ?Source ?Target ?DataObject ?Format ?Frequency ?Protocol WHERE { {?ICD <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/InterfaceControlDocument>} {?Source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?Source <http://semoss.org/ontologies/Relation/Provide> ?ICD} {?Target <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?ICD <http://semoss.org/ontologies/Relation/Consume> ?Target} {?DataObject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/DataObject>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?ICD ?carries ?DataObject} {?carries <http://semoss.org/ontologies/Relation/Contains/Protocol> ?Protocol} {?carries <http://semoss.org/ontologies/Relation/Contains/Format> ?Format} {?carries <http://semoss.org/ontologies/Relation/Contains/Frequency> ?Frequency} } ORDER BY ?ICD";
 
 		//run query 1
 		HttpSession session = request.getSession(false);
@@ -1539,20 +1402,19 @@ public class EngineResource {
 		long end = System.currentTimeMillis();
 		System.out.println("Construction time = " + ((end-start)/1000) );
 		
-		start = System.currentTimeMillis();
-		tree1.performAction(new FastOutlierDetection());
-		end = System.currentTimeMillis();
-		System.out.println("Algorithm time = " + ((end-start)/1000) );
-
-		tree1.setColumnsToSkip(new ArrayList<String>());
-		List<Object[]> flatData = tree1.getData();
+		System.out.println("Done");
 		
-		for(Object[] row: flatData) {
-			for(Object instance: row) {
-				System.out.print(instance.toString()+" ");
-			}
-			System.out.println();
-		}
+		//MOAPerceptronRunner perceptron = new MOAPerceptronRunner();
+		//perceptron.run("TestData", tree1, null, 6);
+//		tree1.performAction(new ClusteringRoutine());
+//		List<Object[]> flatData = tree1.getData();
+//		
+//		for(Object[] row: flatData) {
+//			for(Object instance: row) {
+//				System.out.print(instance.toString()+" ");
+//			}
+//			System.out.println();
+//		}
 		
 		// or get it from session
 //		else{
@@ -1604,4 +1466,32 @@ public class EngineResource {
 		
 		return success ? Response.status(200).entity(WebUtility.getSO(success)).build() : Response.status(400).entity(WebUtility.getSO(success)).build();
 	}
+	
+//	public static void main(String[] args) {
+//		String query1 = "SELECT DISTINCT ?Title  ?DomesticRevenue  WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
+//
+//		//run query 1
+//		//HttpSession session = request.getSession(false);
+//		BTreeDataFrame tree1 = null;
+//		String[] names1 = null;
+//		if(query1 != null){
+//			ISelectWrapper wrap1 = WrapperManager.getInstance().getSWrapper(this.coreEngine, query1);
+//			names1 = wrap1.getVariables();
+//			tree1 = new BTreeDataFrame(names1);
+//			while(wrap1.hasNext()){
+//				ISelectStatement iss1 = wrap1.next();//
+//				tree1.addRow(iss1.getPropHash(), iss1.getRPropHash());
+//			}
+//		}
+//		
+//		tree1.performAction(new ClusteringRoutine());
+//		List<Object[]> flatData = tree1.getData();
+//		
+//		for(Object[] row: flatData) {
+//			for(Object instance: row) {
+//				System.out.print(instance.toString()+" ");
+//			}
+//			System.out.println();
+//		}
+//	}
 }
