@@ -950,9 +950,38 @@ public class EngineResource {
 		
 		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
 		String[] newNames = wrap.getVariables();
+		String[] newUriNames = new String[newNames.length];
+		
+		List<Hashtable<String, String>> nodeV = null;
+		List<Hashtable<String, String>> nodePropV = null;
+		if(builder instanceof SPARQLQueryTableBuilder) {
+			nodeV = ((SPARQLQueryTableBuilder)builder).getNodeV();
+			nodePropV = ((SPARQLQueryTableBuilder)builder).getNodePropV();
+		} else if(builder instanceof SQLQueryTableBuilder) {
+			nodeV = ((SQLQueryTableBuilder)builder).getNodeV();
+			nodePropV = ((SQLQueryTableBuilder)builder).getNodePropV();
+		} else {
+			newUriNames = newNames;
+		}
+		if(nodeV != null) {
+			for(int i = 0; i < nodeV.size(); i++) {
+				String varKey = Utility.cleanVariableString(nodeV.get(i).get("varKey"));
+				String uri = nodeV.get(i).get("uriKey");
+				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey);
+				newUriNames[uriIndex] = uri;
+			}
+		}
+		if(nodePropV != null) {
+			for(int i = 0; i < nodePropV.size(); i++) {
+				String varKey = Utility.cleanVariableString(nodePropV.get(i).get("varKey"));
+				String uri = nodePropV.get(i).get("uriKey");
+				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey);
+				newUriNames[uriIndex] = uri;
+			}
+		}
 		
 		// creating new dataframe from query
-		ITableDataFrame newTree = new BTreeDataFrame(newNames);
+		ITableDataFrame newTree = new BTreeDataFrame(newNames, newUriNames);
 		while (wrap.hasNext()) {
 			ISelectStatement iss = wrap.next();
 			Map<String, Object> cleanHash = new HashMap<String, Object>();
@@ -1089,7 +1118,17 @@ public class EngineResource {
 		List<Object[]> table = mainTree.getRawData();
 		Map<String, Object> returnData = new HashMap<String, Object>();
 		returnData.put("data", table);
-		returnData.put("headers", mainTree.getColumnHeaders());
+		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
+		String[] varKeys = mainTree.getColumnHeaders();
+		String[] uriKeys = mainTree.getURIColumnHeaders();
+		for(int i = 0; i < varKeys.length; i++) {
+			Map<String, String> innerMap = new HashMap<String, String>();
+			innerMap.put("uri", uriKeys[i]);
+			innerMap.put("varKey", varKeys[i]);
+			headerInfo.add(innerMap);
+		}
+		returnData.put("variableHeaders", mainTree.getColumnHeaders());
+		returnData.put("headers", mainTree.getColumnHeaders()); //TODO: redundant information, need to fix front-end
 		returnData.put("tableID", tableID);
 		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 	}
