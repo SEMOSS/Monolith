@@ -1140,8 +1140,7 @@ public class EngineResource {
 			innerMap.put("varKey", varKeys[i]);
 			headerInfo.add(innerMap);
 		}
-		returnData.put("variableHeaders", headerInfo);
-		returnData.put("headers", mainTree.getColumnHeaders()); //TODO: redundant information, need to fix front-end
+		returnData.put("headers", headerInfo);
 		returnData.put("tableID", tableID);
 		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 	}
