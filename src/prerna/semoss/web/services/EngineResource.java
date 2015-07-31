@@ -931,7 +931,7 @@ public class EngineResource {
 			}
 		} else {
 			for(String s : removeColumns) {
-				dataFrame.removeColumn(s); //TODO: need booleans to return values in map
+				dataFrame.removeColumn(Utility.cleanVariableString(s)); //TODO: need booleans to return values in map
 			}
 			return Response.status(200).entity(WebUtility.getSO("Succesfully removed the following columns: " + Arrays.toString(removeColumns))).build();
 		}
