@@ -952,7 +952,7 @@ public class EngineResource {
 		
 		Gson gson = new Gson();
 		List<Object> filterValuesArr = gson.fromJson(form.getFirst("filterValues"), new TypeToken<List<Object>>() {}.getType());
-		List<Object> setDiff = new LinkedList<Object>(Arrays.asList(mainTree.getUniqueRawValues(concept)));
+		List<Object> setDiff = new LinkedList<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
 		setDiff.removeAll(filterValuesArr);
 		
 		mainTree.unfilter(concept); // this method does not perform compound filtering, require the exact list of filter values each time
