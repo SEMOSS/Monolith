@@ -1,5 +1,6 @@
 package prerna.web.conf;
 
+import java.util.HashSet;
 import java.util.Set;
 
 import javax.servlet.annotation.WebListener;
@@ -29,21 +30,24 @@ public class UserSessionLoader implements HttpSessionListener {
 		QuestionPlaySheetStore qStore = QuestionPlaySheetStore.getInstance();
 		Set<String> quesitonIDsToDelete = qStore.getPlaySheetIDsForSession(sessionID);
 		if(quesitonIDsToDelete != null) {
-			for(String questionID : quesitonIDsToDelete) {
+			Set<String> copy = new HashSet<String>(quesitonIDsToDelete);
+			for(String questionID : copy) {
 				qStore.remove(questionID);
 				qStore.removeFromSessionHash(sessionID, questionID);
 			}
+			System.out.println("successfully removed qStore information for session");
 		}
 		
 		// clear up ITable store
 		ITableDataFrameStore tableStore = ITableDataFrameStore.getInstance();
 		Set<String> tableIDsToDelete = tableStore.getTableIDsForSession(sessionID);
 		if(tableIDsToDelete != null) {
-			for(String tableID : tableIDsToDelete) {
+			Set<String> copy = new HashSet<String>(tableIDsToDelete);
+			for(String tableID : copy) {
 				tableStore.remove(tableID);
 				tableStore.removeFromSessionHash(sessionID, tableID);
 			}
+			System.out.println("successfully removed tableStore information for session");
 		}
-		
 	}
 }
