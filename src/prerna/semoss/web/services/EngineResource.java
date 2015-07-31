@@ -933,7 +933,6 @@ public class EngineResource {
 	public Response addData(MultivaluedMap<String, String> form, 
 			@QueryParam("existingConcept") String currConcept, 
 			@QueryParam("joinConcept") String equivConcept, 
-			@QueryParam("newConcept") String newConcept, 
 			@QueryParam("joinType") String joinType,
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
@@ -977,6 +976,20 @@ public class EngineResource {
 				String uri = nodePropV.get(i).get("uriKey");
 				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey);
 				newUriNames[uriIndex] = uri;
+			}
+		}
+		
+		// if performing a join, currently need to have it s.t. the joining column is the root
+		// this will be taken care of when shifting the headers order since btree adds based on that order
+		if(tableID != null && !tableID.isEmpty()) {
+			int joiningConceptIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, equivConcept);
+			if(joiningConceptIndex != 0) {
+				String varPlaceHolder = newNames[0];
+				String uriPlaceHolder = newUriNames[0];
+				newNames[0] = newNames[joiningConceptIndex];
+				newUriNames[0] = newUriNames[joiningConceptIndex];
+				newNames[joiningConceptIndex] = varPlaceHolder;
+				newUriNames[joiningConceptIndex] = uriPlaceHolder;
 			}
 		}
 		
