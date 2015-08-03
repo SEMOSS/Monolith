@@ -43,10 +43,8 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import prerna.algorithm.api.ITableDataFrame;
-import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
 import prerna.engine.api.IEngine;
-import prerna.engine.api.ISelectWrapper;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
 import prerna.ui.components.playsheets.ClusteringVizPlaySheet;
@@ -99,7 +97,7 @@ public class EngineAnalyticsResource {
 		
 		String retIDKey = "";
 		String retID = "";
-		ITableDataFrame dataFrame;
+		ITableDataFrame dataFrame = null;
 		if(tableID != null) {
 			dataFrame = ITableDataFrameStore.getInstance().get(tableID);
 			retID = tableID;
@@ -109,8 +107,10 @@ public class EngineAnalyticsResource {
 			dataFrame = origPS.getDataFrame();
 			retID = questionID;
 			retIDKey = "id";
-		} else {
-			String errorMessage = "Data not found";
+		}
+		
+		if(dataFrame == null) {
+			String errorMessage = "Data not found - invalid key.";
 			LOGGER.info("No dataframe found...");
 			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 		}
@@ -121,19 +121,6 @@ public class EngineAnalyticsResource {
 		}
 		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
 		List<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
-
-		// TODO: this will be deleted once queries no longer sent
-		if(dataFrame == null) {
-			String query = form.getFirst("query");
-			ISelectWrapper sjsw = Utility.processQuery(engine, query);
-			String[] names = sjsw.getVariables();
-			
-			dataFrame = new BTreeDataFrame(names);
-			while(sjsw.hasNext()) {
-				dataFrame.addRow(sjsw.next());
-			}
-		}
-		
 		String[] columnHeaders = dataFrame.getColumnHeaders();
 		
 		List<String> skipAttributes = new ArrayList<String>();
@@ -154,7 +141,12 @@ public class EngineAnalyticsResource {
 			ps.setInstanceIndex(instanceIndex);
 			ps.setDataFrame(dataFrame);
 			ps.setSkipAttributes(skipAttributes);
-			ps.runAnalytics();
+			try {
+				ps.runAnalytics();
+			} catch(IllegalArgumentException ex) {
+				return Response.status(400).entity(WebUtility.getSO(ex.getMessage())).build();
+			}
+			
 			ps.processQueryData();
 			Hashtable psData = ps.getData();
 			if(psData.get("headers") == null || psData.get("data") == null) {
@@ -236,7 +228,7 @@ public class EngineAnalyticsResource {
 			try {
 				ps.runAnalytics();
 			} catch(IllegalArgumentException ex) {
-				Response.status(400).entity(WebUtility.getSO(ex.getMessage())).build();
+				return Response.status(400).entity(WebUtility.getSO(ex.getMessage())).build();
 			}
 			ps.processQueryData();
 			
