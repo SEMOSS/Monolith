@@ -974,7 +974,7 @@ public class EngineResource {
 			for(int i = 0; i < nodePropV.size(); i++) {
 				String varKey = Utility.cleanVariableString(nodePropV.get(i).get("varKey"));
 				String uri = nodePropV.get(i).get("uriKey");
-				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey);
+				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey.toUpperCase()); //toUpperCase since newNames is always all caps
 				newUriNames[uriIndex] = uri;
 			}
 		}
