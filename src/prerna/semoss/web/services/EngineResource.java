@@ -953,6 +953,7 @@ public class EngineResource {
 		
 		List<Hashtable<String, String>> nodeV = null;
 		List<Hashtable<String, String>> nodePropV = null;
+		//TODO: standardize the query 
 		if(builder instanceof SPARQLQueryTableBuilder) {
 			nodeV = ((SPARQLQueryTableBuilder)builder).getNodeV();
 			nodePropV = ((SPARQLQueryTableBuilder)builder).getNodePropV();
@@ -974,7 +975,7 @@ public class EngineResource {
 			for(int i = 0; i < nodePropV.size(); i++) {
 				String varKey = Utility.cleanVariableString(nodePropV.get(i).get("varKey"));
 				String uri = nodePropV.get(i).get("uriKey");
-				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey.toUpperCase()); //toUpperCase since newNames is always all caps
+				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey);
 				newUriNames[uriIndex] = uri;
 			}
 		}
