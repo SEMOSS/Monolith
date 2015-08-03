@@ -144,7 +144,9 @@ public class EngineAnalyticsResource {
 			try {
 				ps.runAnalytics();
 			} catch(IllegalArgumentException ex) {
-				return Response.status(400).entity(WebUtility.getSO(ex.getMessage())).build();
+				errorHash.put("Message", ex.getMessage());
+				errorHash.put("Class", ps.getClass().getName());
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			
 			ps.processQueryData();
@@ -228,7 +230,9 @@ public class EngineAnalyticsResource {
 			try {
 				ps.runAnalytics();
 			} catch(IllegalArgumentException ex) {
-				return Response.status(400).entity(WebUtility.getSO(ex.getMessage())).build();
+				errorHash.put("Message", ex.getMessage());
+				errorHash.put("Class", ps.getClass().getName());
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			ps.processQueryData();
 			
