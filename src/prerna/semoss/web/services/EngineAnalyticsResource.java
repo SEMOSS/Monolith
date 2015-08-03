@@ -252,22 +252,26 @@ public class EngineAnalyticsResource {
 		} else if (algorithm.equals("FastOutliers")) {
 			OutlierVizPlaySheet ps = new OutlierVizPlaySheet();
 			ps.setAlgorithmSelected(OutlierVizPlaySheet.FOD);
-			//TODO: uncomment this out when front end adds parameters
-//			if (configParameters != null && !configParameters.isEmpty()) {
-//				if(configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
-//					Integer numSubsetSize = Integer.parseInt(configParameters.get(0));
-//					ps.setNumSubsetSize(numSubsetSize);
-//				}
-//				if(configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
-//					Integer numIterations = Integer.parseInt(configParameters.get(1));
-//					ps.setNumRuns(numIterations);
-//				}
-//				
-//			}
+			if (configParameters != null && !configParameters.isEmpty()) {
+				if(configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
+					Integer numSubsetSize = Integer.parseInt(configParameters.get(0));
+					ps.setNumSubsetSize(numSubsetSize);
+				}
+				if(configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
+					Integer numIterations = Integer.parseInt(configParameters.get(1));
+					ps.setNumRuns(numIterations);
+				}
+			}
 			ps.setInstanceIndex(instanceIndex);
 			ps.setDataFrame(dataFrame);
 			ps.setSkipAttributes(skipAttributes);
-			ps.runAnalytics();
+			try {
+				ps.runAnalytics();
+			} catch(IllegalArgumentException ex) {
+				errorHash.put("Message", ex.getMessage());
+				errorHash.put("Class", ps.getClass().getName());
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
 			ps.processQueryData();
 			
 			Hashtable psData = ps.getData();
