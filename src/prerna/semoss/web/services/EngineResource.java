@@ -30,6 +30,8 @@ package prerna.semoss.web.services;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -899,8 +901,7 @@ public class EngineResource {
 	@POST
 	@Path("/filterData")
 	@Produces("application/json")
-	public Response filterData(MultivaluedMap<String, String> form, 
-			@QueryParam("concept") String concept, 
+	public Response filterData(MultivaluedMap<String, String> form,  
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
@@ -908,24 +909,80 @@ public class EngineResource {
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
-		
 		Gson gson = new Gson();
-		mainTree.unfilter(concept); 
-		List<Object> filterValuesArr = gson.fromJson(form.getFirst("filterValues"), new TypeToken<List<Object>>() {}.getType());
-		if(filterValuesArr == null || filterValuesArr.isEmpty()) {
-			Map<String, Object> retMap = new HashMap<String, Object>();
-			retMap.put("tableID", tableID);
-			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+		
+		
+		for(String concept: filterValuesArrMap.keySet()) {
+		 
+			List<Object> filterValuesArr = filterValuesArrMap.get(concept);
+			if(filterValuesArr == null || filterValuesArr.isEmpty()) {
+				Map<String, Object> retMap = new HashMap<String, Object>();
+				retMap.put("tableID", tableID);
+				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+			}
+			
+			//if filterValuesArr !subset of superSet, then unfilter
+			Object[] superSet = mainTree.getUniqueValues(concept);
+			if(filterValuesArr.size() > superSet.length) {
+				mainTree.unfilter();
+			} else {
+				Comparator<Object> comparator = new Comparator<Object>() {
+					public int compare(Object o1, Object o2) {
+						return o1.toString().compareTo(o2.toString());
+					}
+				};
+				
+				//check if filterValuesArr is a subset of superSet
+				Arrays.sort(superSet, comparator);
+				Collections.sort(filterValuesArr, comparator);
+				
+				int x = 0;
+				for(int i = 0; i < superSet.length; i++) {
+					
+					if(!superSet[i].toString().equalsIgnoreCase(filterValuesArr.get(x).toString())) {
+						mainTree.unfilter();
+						break;
+					}
+					
+					x++;
+					
+					if(x == filterValuesArr.size()) {
+						break;
+					}
+				}
+			}
+				
+			List<Object> setDiff = new ArrayList<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
+			setDiff.removeAll(filterValuesArr);
+			mainTree.filter(concept, setDiff);
 		}
-		// this method does not perform compound filtering, require the exact list of filter values each time
-		List<Object> setDiff = new LinkedList<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
-		setDiff.removeAll(filterValuesArr);
-		mainTree.filter(concept, setDiff);
-
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
+	
+	@GET
+	@Path("/unfilterColumns")
+	@Produces("application/json")
+	public Response getVisibleValues(MultivaluedMap<String, String> form,
+			@QueryParam("tableID") String tableID,
+			@QueryParam("concept") String[] concepts)
+	{
+		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+		if(mainTree == null) {
+			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+		}
+		
+		for(String concept: concepts) {
+			mainTree.unfilter(concept);
+		}
+		
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		retMap.put("tableID", tableID);
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+	
 	
 	@POST
 	@Path("/addData")
