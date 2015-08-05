@@ -1017,8 +1017,11 @@ public class EngineResource {
 		
 		List<Hashtable<String, String>> nodeV = null;
 		List<Hashtable<String, String>> nodePropV = null;
-		//TODO: standardize the query 
+		//TODO: standardize the query
+		//TODO: why is rdbms uppper case for names?
+		boolean isSparql = false;
 		if(builder instanceof SPARQLQueryTableBuilder) {
+			isSparql = true;
 			nodeV = ((SPARQLQueryTableBuilder)builder).getNodeV();
 			nodePropV = ((SPARQLQueryTableBuilder)builder).getNodePropV();
 		} else if(builder instanceof SQLQueryTableBuilder) {
@@ -1031,7 +1034,12 @@ public class EngineResource {
 			for(int i = 0; i < nodeV.size(); i++) {
 				String varKey = Utility.cleanVariableString(nodeV.get(i).get("varKey"));
 				String uri = nodeV.get(i).get("uriKey");
-				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey);
+				int uriIndex = 0;
+				if(isSparql) {
+					uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey);
+				} else {
+					uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey.toUpperCase());
+				}
 				newUriNames[uriIndex] = uri;
 			}
 		}
@@ -1039,7 +1047,12 @@ public class EngineResource {
 			for(int i = 0; i < nodePropV.size(); i++) {
 				String varKey = Utility.cleanVariableString(nodePropV.get(i).get("varKey"));
 				String uri = nodePropV.get(i).get("uriKey");
-				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey);
+				int uriIndex = 0;
+				if(isSparql) {
+					uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey);
+				} else {
+					uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey.toUpperCase());
+				}
 				newUriNames[uriIndex] = uri;
 			}
 		}
@@ -1152,12 +1165,22 @@ public class EngineResource {
 		String query = builder.getQuery();
 
 		System.out.println(query);
-		
+
+		//TODO: why is rdbms uppper case for names? causes discrepancies
+		boolean isSparql = false;
+		if(builder instanceof SPARQLQueryTableBuilder) {
+			isSparql = true;
+		}
 		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
 		String[] newNames = wrap.getVariables();
 		int index = 0;
 		if(newNames.length > 1) {
-			int currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
+			int currIndexexistingConcept = 0;
+			if(isSparql) {
+				currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
+			} else {
+				currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept.toUpperCase());
+			}
 			if(currIndexexistingConcept == 0) {
 				index = 1;
 			}
