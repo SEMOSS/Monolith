@@ -912,7 +912,6 @@ public class EngineResource {
 		Gson gson = new Gson();
 		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		
-		
 		for(String concept: filterValuesArrMap.keySet()) {
 		 
 			List<Object> filterValuesArr = filterValuesArrMap.get(concept);
@@ -958,7 +957,15 @@ public class EngineResource {
 			mainTree.filter(concept, setDiff);
 		}
 		Map<String, Object> retMap = new HashMap<String, Object>();
+		
+		Map<String, Object[]> filterValues = new HashMap<String, Object[]>();
+		String[] columnHeaders = mainTree.getColumnHeaders();
+		for(String column: columnHeaders) {
+			filterValues.put(column, mainTree.getUniqueValues(column));
+		}
+		
 		retMap.put("tableID", tableID);
+		retMap.put("filterValues", filterValues);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
