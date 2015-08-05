@@ -961,7 +961,7 @@ public class EngineResource {
 		Map<String, Object[]> filterValues = new HashMap<String, Object[]>();
 		String[] columnHeaders = mainTree.getColumnHeaders();
 		for(String column: columnHeaders) {
-			filterValues.put(column, mainTree.getUniqueValues(column));
+			filterValues.put(column, mainTree.getUniqueRawValues(column));
 		}
 		
 		retMap.put("tableID", tableID);
