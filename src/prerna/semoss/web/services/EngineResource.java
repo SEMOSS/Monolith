@@ -1075,7 +1075,12 @@ public class EngineResource {
 		// if performing a join, currently need to have it s.t. the joining column is the root
 		// this will be taken care of when shifting the headers order since btree adds based on that order
 		if(tableID != null && !tableID.isEmpty()) {
-			int joiningConceptIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, equivConcept);
+			int joiningConceptIndex = 0;
+			if(isSparql) {
+				joiningConceptIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, equivConcept);
+			} else {
+				joiningConceptIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, equivConcept.toUpperCase());
+			}
 			if(joiningConceptIndex != 0) {
 				String varPlaceHolder = newNames[0];
 				String uriPlaceHolder = newUriNames[0];
