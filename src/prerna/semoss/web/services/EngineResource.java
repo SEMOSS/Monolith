@@ -911,7 +911,7 @@ public class EngineResource {
 		}
 		Gson gson = new Gson();
 		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
-		
+		boolean unfiltered = false;
 		
 		for(String concept: filterValuesArrMap.keySet()) {
 		 
@@ -941,6 +941,7 @@ public class EngineResource {
 			
 			if(m < n) {
 				mainTree.unfilter();
+				unfiltered = true;
 			} else {
 				Comparator<Object> comparator = new Comparator<Object>() {
 					public int compare(Object o1, Object o2) {
@@ -962,6 +963,7 @@ public class EngineResource {
 						j++; i++;
 					} else if(compareTo > 0) {
 						mainTree.unfilter();
+						unfiltered = true;
 						break;
 					}
 				}
@@ -981,6 +983,8 @@ public class EngineResource {
 		
 		retMap.put("tableID", tableID);
 		retMap.put("filterValues", filterValues);
+		retMap.put("unfiltered", unfiltered);
+		
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
