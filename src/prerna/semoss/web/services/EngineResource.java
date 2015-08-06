@@ -912,9 +912,21 @@ public class EngineResource {
 		Gson gson = new Gson();
 		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		
+		
 		for(String concept: filterValuesArrMap.keySet()) {
 		 
 			List<Object> filterValuesArr = filterValuesArrMap.get(concept);
+			if(mainTree.isNumeric(concept)) {
+				List<Object> values = new ArrayList<Object>(filterValuesArr.size());
+				for(Object o: filterValuesArr) {
+					try {
+						values.add(Double.parseDouble(o.toString()));
+					} catch(Exception e) {
+						values.add(o);
+					}
+				}
+				filterValuesArr = values;
+			}
 			if(filterValuesArr == null || filterValuesArr.isEmpty()) {
 				Map<String, Object> retMap = new HashMap<String, Object>();
 				retMap.put("tableID", tableID);
@@ -923,7 +935,11 @@ public class EngineResource {
 			
 			//if filterValuesArr !subset of superSet, then unfilter
 			Object[] superSet = mainTree.getUniqueValues(concept);
-			if(filterValuesArr.size() > superSet.length) {
+			
+			int n = filterValuesArr.size();
+			int m = superSet.length;
+			
+			if(m < n) {
 				mainTree.unfilter();
 			} else {
 				Comparator<Object> comparator = new Comparator<Object>() {
@@ -936,17 +952,16 @@ public class EngineResource {
 				Arrays.sort(superSet, comparator);
 				Collections.sort(filterValuesArr, comparator);
 				
-				int x = 0;
-				for(int i = 0; i < superSet.length; i++) {
-					
-					if(!superSet[i].toString().equalsIgnoreCase(filterValuesArr.get(x).toString())) {
+				int i = 0;
+				int j = 0;
+				while(i < n && j < m) {
+					int compareTo = superSet[i].toString().compareToIgnoreCase(filterValuesArr.get(i).toString());
+					if(compareTo < 0) {
+						j++;
+					} else if(compareTo == 0) {
+						j++; i++;
+					} else if(compareTo > 0) {
 						mainTree.unfilter();
-						break;
-					}
-					
-					x++;
-					
-					if(x == filterValuesArr.size()) {
 						break;
 					}
 				}
