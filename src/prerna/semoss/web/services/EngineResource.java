@@ -1137,7 +1137,13 @@ public class EngineResource {
 				default : alg = new ExactStringMatcher(); 
 			}
 			
-			existingData.join(newTree, currConcept, equivConcept, 1, alg);
+			if(isSparql) {
+				existingData.join(newTree, currConcept, equivConcept, 1, alg);
+
+			} else {
+				existingData.join(newTree, currConcept.toUpperCase(), equivConcept.toUpperCase(), 1, alg);
+			}
+			
 			System.err.println("New levels in main tree are " + Arrays.toString(existingData.getColumnHeaders()));
 			
 			Map<String, Object> retMap = new HashMap<String, Object>();
