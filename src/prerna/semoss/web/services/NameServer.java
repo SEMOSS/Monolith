@@ -49,7 +49,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
@@ -305,10 +304,7 @@ public class NameServer {
 
 		Hashtable<String, Boolean> resultHash = new Hashtable<String, Boolean>();
 
-		ServletContext servletContext = request.getServletContext();
-		String contextPath = servletContext.getRealPath(System.getProperty("file.separator"));
-		String wordNet = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "WordNet-3.1";
-		String wordNetDir  = contextPath + wordNet;
+		String wordNetDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + System.getProperty("file.separator") + "WordNet-3.1";
 
 		if(localMasterDbName==null) {
 			try {
@@ -374,14 +370,9 @@ public class NameServer {
 		logger.info("Searching based on input: " + searchString);
 //		String localMasterDbName = form.getFirst("localMasterDbName");
 
-		ServletContext servletContext = request.getServletContext();
-		String contextPath = servletContext.getRealPath(System.getProperty("file.separator"));
-		String wordNet = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "WordNet-3.1";
-		String wordNetDir  = contextPath + wordNet;
+		String wordNetDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + System.getProperty("file.separator") + "WordNet-3.1";
+		String nlpPath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator") + "englishPCFG.ser";
 
-		String nlp = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator") + "englishPCFG.ser";
-		String nlpPath = contextPath + nlp;
-		
 		List<Hashtable<String, Object>> contextList = null;
 		if(localMasterDbName == null){
 			SearchEngineMasterDB search = new SearchEngineMasterDB(wordNetDir, nlpPath);
@@ -405,13 +396,8 @@ public class NameServer {
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		logger.info("CENTRALLY have registered selected URIs as ::: " + conceptURI.toString());
 
-		ServletContext servletContext = request.getServletContext();
-		String contextPath = servletContext.getRealPath(System.getProperty("file.separator"));
-		String wordNet = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "WordNet-3.1";
-		String wordNetDir  = contextPath + wordNet;
-
-		String nlp = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator") + "englishPCFG.ser";
-		String nlpPath = contextPath + nlp;
+		String wordNetDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + System.getProperty("file.separator") + "WordNet-3.1";
+		String nlpPath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator") + "englishPCFG.ser";
 
 		ConnectedConcepts results = null;
 		// regardless of input master/local databases, uses the same method since it only queries the master db and not the databases used to create it
@@ -442,13 +428,8 @@ public class NameServer {
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		logger.info("CENTRALLY have registered selected URIs as ::: " + selectedUris.toString());
 
-		ServletContext servletContext = request.getServletContext();
-		String contextPath = servletContext.getRealPath(System.getProperty("file.separator"));
-		String wordNet = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "WordNet-3.1";
-		String wordNetDir  = contextPath + wordNet;
-
-		String nlp = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator") + "englishPCFG.ser";
-		String nlpPath = contextPath + nlp;
+		String wordNetDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + System.getProperty("file.separator") + "WordNet-3.1";
+		String nlpPath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator") + "englishPCFG.ser";
 
 		List<Hashtable<String, Object>> contextList = null;
 		if(localMasterDbName != null) {
