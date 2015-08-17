@@ -911,6 +911,7 @@ public class EngineResource {
 		}
 		Gson gson = new Gson();
 		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+		
 		boolean unfiltered = false;
 		
 		for(String concept: filterValuesArrMap.keySet()) {
@@ -1132,7 +1133,7 @@ public class EngineResource {
 					break;
 				case "partial" : alg = new ExactStringPartialOuterJoinMatcher(); 
 					break;
-				case "full" : alg = new ExactStringOuterJoinMatcher();
+				case "outer" : alg = new ExactStringOuterJoinMatcher();
 					break;
 				default : alg = new ExactStringMatcher(); 
 			}
