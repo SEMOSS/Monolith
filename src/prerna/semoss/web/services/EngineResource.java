@@ -27,6 +27,10 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -35,7 +39,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -98,6 +101,7 @@ import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.ArrayUtilityMethods;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
@@ -1281,6 +1285,40 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
 
+	
+	@POST
+	@Path("/saveForm")
+	@Produces("application/json")	
+	public Response saveForm(MultivaluedMap<String, String> form) {
+		String basePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+		String jsonLoc = basePath + System.getProperty("file.separator") + "Forms" + form.getFirst("formName") + ".json";
+		
+		if(Files.exists(Paths.get(jsonLoc))) {
+			return Response.status(400).entity(WebUtility.getSO("Form name " + form.getFirst("formName") + " already exists")).build();
+		}
+		
+		FileWriter file = null;
+		try {
+			file = new FileWriter(jsonLoc);
+			file.write(form.getFirst("formData"));
+		} catch (IOException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(WebUtility.getSO("Error Writing JSON Data")).build();
+		} finally {
+			try {
+				if(file != null) {
+					file.flush();
+					file.close();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+				return Response.status(200).entity(WebUtility.getSO("Error Writing JSON Data")).build();
+			}
+		}
+		
+		return Response.status(200).entity(WebUtility.getSO("saved successfully")).build();
+	}
+	
 	@GET
 	@Path("menu")
 	@Produces("application/json")	
