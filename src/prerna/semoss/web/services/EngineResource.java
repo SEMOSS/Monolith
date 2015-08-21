@@ -27,6 +27,9 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -1317,6 +1320,53 @@ public class EngineResource {
 		}
 		
 		return Response.status(200).entity(WebUtility.getSO("saved successfully")).build();
+	}
+	
+	@POST
+	@Path("/getForm")
+	@Produces("application/json")	
+	public Response getForm(MultivaluedMap<String, String> form) {
+		String basePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+		String jsonLoc = basePath + System.getProperty("file.separator") + "Forms" + form.getFirst("formName") + ".json";
+		
+		if(!Files.exists(Paths.get(jsonLoc))) {
+			return Response.status(400).entity(WebUtility.getSO("Form name " + form.getFirst("formName") + " does not exists")).build();
+		}
+		
+		StringBuilder stringBuilder = new StringBuilder();
+		FileReader fReader = null;
+		BufferedReader reader = null;
+		try {
+			fReader = new FileReader(jsonLoc);
+			reader = new BufferedReader(fReader);
+		    String line = null;
+		    String ls = System.getProperty("line.separator");
+		    while( ( line = reader.readLine() ) != null ) {
+		        stringBuilder.append( line );
+		        stringBuilder.append( ls );
+		    }
+		} catch (IOException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(WebUtility.getSO("Error trying to read form " + form.getFirst("formName"))).build();
+		} finally {
+			if(fReader != null) {
+				try {
+					fReader.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			if(reader != null) {
+				try {
+					reader.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	    
+	    Gson gson = new Gson();
+		return Response.status(200).entity(WebUtility.getSO(gson.toJson(stringBuilder.toString()))).build();
 	}
 	
 	@GET
