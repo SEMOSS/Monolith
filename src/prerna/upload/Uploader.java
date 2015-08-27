@@ -217,7 +217,7 @@ public class Uploader extends HttpServlet {
 				else {
 					if(fieldName.equals("file"))
 					{
-						value = filePath + fileName.substring(fileName.lastIndexOf("\\") + 1);
+						value = filePath + System.getProperty("file.separator") + fileName.substring(fileName.lastIndexOf("\\") + 1);
 						file = new File(value);
 						writeFile(fi, file);
 						allLoadingFiles.add(file);
