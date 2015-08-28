@@ -1174,7 +1174,7 @@ public class EngineResource {
 
 		boolean outer = false;
 		boolean inner = false;
-		if(joinType.equals("full")) {
+		if(joinType.equals("outer")) {
 			outer = true;
 		} else if(joinType.equals("inner")) {
 			inner = true;
