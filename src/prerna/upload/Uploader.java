@@ -65,7 +65,7 @@ import prerna.error.FileWriterException;
 import prerna.error.HeaderClassException;
 import prerna.error.NLPException;
 import prerna.nameserver.AddToMasterDB;
-import prerna.ui.components.CSVPropFileBuilder;
+import prerna.poi.main.CSVPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
