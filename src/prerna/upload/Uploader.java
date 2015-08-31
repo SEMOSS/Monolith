@@ -439,7 +439,171 @@ public class Uploader extends HttpServlet {
 		String outputText = "CSV Loading was a success.";
 		return Response.status(200).entity(outputText).build();
 	}
+	
+	
+	
+	
+//Excel Reader Upload
+	@SuppressWarnings("unchecked")
+	@POST
+	@Path("/excelTable/upload")
+	@Produces("text/html")
+	public Response uploadExcelReaederFile(@Context HttpServletRequest request)
+	{
+		List<FileItem> fileItems = processRequest(request);
+		Hashtable<String, String> inputData = getInputData(fileItems);
+		
+		//cleanedFiles - stringfield ExcelReader file returned from OpenRefine
+		//If OpenRefine-returned ExcelReader string exists, user went through OpenRefine - write returned data to file first
+		Object obj = inputData.get("cleanedFiles");
+		String dbName = inputData.get("dbName");
+		if(obj != null) {
+			String cleanedFileName = processOpenRefine(dbName, (String) obj);
+			if(cleanedFileName.startsWith("Error")) {
+				String errorMessage = "Could not write the cleaned data to file. Please check application file-upload path.";
+				return Response.status(400).entity(errorMessage).build();
+			}
+			inputData.put("file", cleanedFileName);
+		}
+		
+		Gson gson = new Gson();
+		List<String> allFileData = gson.fromJson(inputData.get("fileInfoArray"), List.class);
+		int size = allFileData.size();
+		
+		Hashtable<String, String>[] propHashArr = new Hashtable[size];
+		String[] propFileArr = new String[size];
+		String[] fileNames = inputData.get("filename").split(";");
+		int i = 0;
+		for(i = 0; i < size; i++) {
+			Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
+			
+			CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
 
+			List<String> rel = gson.fromJson(itemForFile.get("rowsRelationship"), List.class);
+			if(rel != null) {
+				for(String str : rel) {
+					// subject and object keys link to array list for concatenations, while the predicate is always a string
+					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+					if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
+					{
+						propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+					}
+				}
+			}
+
+			List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
+			if(prop != null) {
+				for(String str : prop) {
+					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+					if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
+					{
+						propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+					}
+				}
+			}
+
+			String headersList = itemForFile.get("allHeaders"); 
+			Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
+			ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
+
+			propWriter.columnTypes(headers);
+			propHashArr[i] = propWriter.getPropHash(itemForFile.get("ExcelReaderStartLineCount"), itemForFile.get("ExcelReaderEndLineCount")); 
+			propFileArr[i] = propWriter.getPropFile();
+		}
+						
+		ImportDataProcessor importer = new ImportDataProcessor();
+		importer.setPropHashArr(propHashArr);
+		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
+
+		// figure out what type of import we need to do based on parameters
+		String methodString = inputData.get("dbImportOption");
+		ImportDataProcessor.IMPORT_METHOD importMethod = 
+				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
+						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+										: null;
+		if(importMethod == null) {
+			String errorMessage = "Import method \'" + methodString + "\' is not supported";
+			return Response.status(400).entity(errorMessage).build();
+		}
+		
+		//Add engine owner for permissions
+		if(this.securityEnabled) {
+			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+				addEngineOwner(dbName, ((User) user).getId());
+			} else {
+				return Response.status(400).entity("Please log in to upload data.").build();
+			}
+		}
+		
+		SQLQueryUtil.DB_TYPE rdbmsType = SQLQueryUtil.DB_TYPE.H2_DB;
+		boolean allowDuplicates = false;
+		String dataOutputType = inputData.get("dataOutputType");
+		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
+		if(dataOutputType.equalsIgnoreCase("RDBMS")){
+			storeType = ImportDataProcessor.DB_TYPE.RDBMS;
+			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
+			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
+				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase());
+			}
+			allowDuplicates = false;//ToDo: need UI portion of this
+		}
+		
+		try {
+			if(methodString.equals("Create new database engine")) {
+				// force fitting the RDBMS here
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+						inputData.get("designateBaseUri"), dbName,"","","","", storeType, rdbmsType, allowDuplicates);
+				loadEngineIntoSession(request, dbName);
+				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("designateBaseUri"));
+			} else { // add to existing or modify
+				IEngine dbEngine = (IEngine) DIHelper.getInstance().getLocalProp(dbName);
+				if (dbEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
+					RDBMSNativeEngine rdbmsEngine = (RDBMSNativeEngine) dbEngine;
+					storeType = ImportDataProcessor.DB_TYPE.RDBMS;
+					rdbmsType = rdbmsEngine.getDbType();
+				}
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+						inputData.get("designateBaseUri"), "","","","", dbName, storeType, rdbmsType, allowDuplicates);
+			}
+		} catch (EngineException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (FileReaderException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (HeaderClassException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (FileWriterException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		} catch (NLPException e) {
+			e.printStackTrace();
+			return Response.status(400).entity(e.getMessage()).build();
+		}
+
+		try {
+			for(i = 0; i < size; i++) {
+				FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder").concat(File.separator).concat("db").concat(File.separator).concat(Utility.cleanString(dbName, true).toString()).concat(File.separator).concat(dbName.toString()).concat("_").concat(fileNames[i].replace(".excel", "")).concat("_PROP.prop")), propFileArr[i]);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			String outputText = "Failure to write Excel Prop File based on user-defined metamodel.";
+			return Response.status(400).entity(outputText).build();
+		}
+
+		String outputText = "CSV Loading was a success.";
+		return Response.status(200).entity(outputText).build();
+	}
+	
+	
+	
+//End of Excel Reader Upload
+
+//Start of Excel POI  Upload
+	
 
 	@POST
 	@Path("/excel/upload")
@@ -496,7 +660,7 @@ public class Uploader extends HttpServlet {
 					}
 				}
 				
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
 						inputData.get("customBaseURI"), dbName,"","","","", storeType, rdbmsType, allowDuplicates);
 				loadEngineIntoSession(request, dbName);
 				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("customBaseURI"));
@@ -513,7 +677,7 @@ public class Uploader extends HttpServlet {
 					}
 				}
 				
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
 						inputData.get("customBaseURI"), "","","","", dbName, storeType, rdbmsType, allowDuplicates);
 			}
 		} catch (EngineException e) {
