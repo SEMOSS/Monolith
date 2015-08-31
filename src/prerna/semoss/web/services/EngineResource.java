@@ -42,6 +42,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -65,6 +67,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
+import org.openrdf.model.vocabulary.RDF;
+import org.openrdf.model.vocabulary.RDFS;
 
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
@@ -74,6 +78,8 @@ import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
+import prerna.ds.InfiniteScroller;
+import prerna.ds.InfiniteScrollerFactory;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
@@ -901,7 +907,13 @@ public class EngineResource {
 			for(String s : removeColumns) {
 				dataFrame.removeColumn(Utility.cleanVariableString(s)); //TODO: need booleans to return values in map
 			}
-			return Response.status(200).entity(WebUtility.getSO("Succesfully removed the following columns: " + Arrays.toString(removeColumns))).build();
+			dataFrame.removeDuplicateRows();
+			Map<String, Object> retMap = new HashMap<String, Object>();
+			
+			retMap.put("tableID", tableID);
+			retMap.put("message", "Succesfully removed the following columns: " + Arrays.toString(removeColumns));
+			
+			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 		}
 	}
 	
@@ -911,11 +923,12 @@ public class EngineResource {
 	public Response filterData(MultivaluedMap<String, String> form,  
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
-	{
+	{	
 		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
+		
 		Gson gson = new Gson();
 		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		
@@ -941,7 +954,7 @@ public class EngineResource {
 				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 			}
 			
-			//if filterValuesArr !subset of superSet, then unfilter
+			//if filterValuesArr not a subset of superSet, then unfilter
 			Object[] superSet = mainTree.getUniqueValues(concept);
 			
 			int n = filterValuesArr.size();
@@ -981,10 +994,20 @@ public class EngineResource {
 			setDiff.removeAll(filterValuesArr);
 			mainTree.filter(concept, setDiff);
 		}
+		
+		String[] columnHeaders = mainTree.getColumnHeaders();
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		
-		Map<String, Object[]> filterValues = new HashMap<String, Object[]>();
-		String[] columnHeaders = mainTree.getColumnHeaders();
+//		HttpSession session = request.getSession();
+//		if(session.getAttribute(tableID) == null) {
+//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+//		} else {
+//			InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
+//			scroller.reset();
+//		}
+		
+		Map<String, Object> filterValues = new HashMap<String, Object>();
+
 		for(String column: columnHeaders) {
 			filterValues.put(column, mainTree.getUniqueRawValues(column));
 		}
@@ -1017,6 +1040,27 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
+	@GET
+	@Path("/getNextFilterValues")
+	@Produces("application/json")
+	public Response getNextUniqueValues(MultivaluedMap<String, String> form,
+			@QueryParam("tableID") String tableID,
+			@QueryParam("concept") String concept,
+			@Context HttpServletRequest request)
+	{
+
+		HttpSession session = request.getSession();
+		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
+		
+		Map<String, Object> valuesMap = new HashMap<String, Object>();
+		valuesMap.put(concept, scroller.getNextUniqueValues(concept));
+		
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		retMap.put("tableID", tableID);
+		retMap.put("filteredValues", valuesMap);
+		
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
 	
 	@POST
 	@Path("/addData")
@@ -1167,8 +1211,13 @@ public class EngineResource {
 			@QueryParam("existingConcept") String currConcept, 
 			@QueryParam("joinType") String joinType,
 			@QueryParam("tableID") String tableID,
+			//@QueryParam("reset") boolean reset,
 			@Context HttpServletRequest request)
 	{
+		
+		// first check if existingConcept exists in infiniteScroller
+		// if reset 
+		
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 
@@ -1190,6 +1239,14 @@ public class EngineResource {
 			
 			if(currConcept != null && !currConcept.isEmpty()) {
 				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
+//				HttpSession session = request.getSession();
+//				if(session.getAttribute(tableID) == null) {
+//					session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(existingData));
+//				}
+//				
+//				InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
+//				List<HashMap<String, String>> filteringValues = scroller.getNextUniqueValues(currConcept);
+//								
 				StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
 				stringMap.put(currConcept, filteringValues);
 				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
@@ -1256,7 +1313,9 @@ public class EngineResource {
 		
 		List<Object[]> table = mainTree.getRawData();
 		Map<String, Object> returnData = new HashMap<String, Object>();
+		returnData.put("totalRows", mainTree.getNumRows());
 		returnData.put("data", table);
+		
 		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
 		String[] varKeys = mainTree.getColumnHeaders();
 		String[] uriKeys = mainTree.getURIColumnHeaders();
@@ -1287,7 +1346,6 @@ public class EngineResource {
 		//		Object obj = tableViz.getPropsFromPath();
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
-
 	
 	@POST
 	@Path("/saveForm")
@@ -1369,6 +1427,60 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(gson.toJson(stringBuilder.toString()))).build();
 	}
 	
+	
+	 @POST
+	 @Path("/saveFormData")
+	 @Produces("application/json")
+	 public Response saveFormData(MultivaluedMap<String, String> form) {
+		 Gson gson = new Gson();
+		 MultivaluedMap<String, String>[] Engines = gson.fromJson(form.getFirst("Engines"), new TypeToken<MultivaluedMap<String, String>[]>() {}.getType());
+		 
+		 String concept;
+		 String conceptValue;
+		 
+		 String propertyV;
+		 String propertyName;
+		 
+		 String startNode;
+		 String endNode;
+		 String relName;
+		 
+		 String relationBaseURI = "http://semoss.org/ontologies/Relation/Contains/";
+		 String conceptBaseURI = "http://semoss.org/ontologies/Concept/";
+		 
+		 for(MultivaluedMap<String, String> engine : Engines) {
+			 
+			 String e = engine.getFirst("Engine");
+			 IEngine eng = (IEngine)DIHelper.getInstance().getLocalProp(e);
+			 
+			 MultivaluedMap<String, String>[] nodes = gson.fromJson(engine.getFirst("Nodes"), new TypeToken<MultivaluedMap<String, String>[]>() {}.getType()); 
+			 
+			 for(MultivaluedMap<String, String> node : nodes) {
+				concept = node.getFirst("Concept_Name");
+				conceptValue = node.getFirst("Value");
+				eng.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{conceptValue, RDF.TYPE, conceptBaseURI+concept, true});
+				
+				MultivaluedMap<String, String>[] properties = gson.fromJson(node.getFirst("properties"), new TypeToken<MultivaluedMap<String, String>[]>() {}.getType());
+				for(MultivaluedMap<String, String> property : properties) {
+					propertyV = property.getFirst("property");
+					propertyName = property.getFirst("prop_name");
+					eng.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{concept, propertyName, propertyV, false});
+					eng.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{propertyName, RDF.TYPE, propertyV, false});
+				}
+				
+				List<HashMap<String, String>> relationships = gson.fromJson(node.getFirst("relationships"), new TypeToken<List<MultivaluedMap<String, String>>>() {}.getType());
+				for(HashMap<String, String> relationship : relationships) {
+					startNode = conceptBaseURI + relationship.get("startNode");
+					endNode = conceptBaseURI + relationship.get("endNode");
+					relName = relationBaseURI + relationship.get("relName");					
+					eng.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{startNode, relName, endNode, true});
+				}					
+			 }
+		 }
+		 return null;
+	 }
+	
+	 
 	@GET
 	@Path("menu")
 	@Produces("application/json")	
@@ -1641,8 +1753,8 @@ public class EngineResource {
 		//String query2 = form.getFirst("query2");
 		
 		long start = System.currentTimeMillis();
-//		String query1 = "SELECT DISTINCT ?Title ?DomesticRevenue ?InternationalRevenue ?Budget ?RottenTomatoesCritics ?RottenTomatoesAudience WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
-		String query1 = "SELECT DISTINCT ?ICD ?Source ?Target ?DataObject ?Format ?Frequency ?Protocol WHERE { {?ICD <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/InterfaceControlDocument>} {?Source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?Source <http://semoss.org/ontologies/Relation/Provide> ?ICD} {?Target <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?ICD <http://semoss.org/ontologies/Relation/Consume> ?Target} {?DataObject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/DataObject>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?ICD ?carries ?DataObject} {?carries <http://semoss.org/ontologies/Relation/Contains/Protocol> ?Protocol} {?carries <http://semoss.org/ontologies/Relation/Contains/Format> ?Format} {?carries <http://semoss.org/ontologies/Relation/Contains/Frequency> ?Frequency} } ORDER BY ?ICD";
+		String query1 = "SELECT DISTINCT ?Title ?DomesticRevenue ?InternationalRevenue ?Budget ?RottenTomatoesCritics ?RottenTomatoesAudience WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
+//		String query1 = "SELECT DISTINCT ?ICD ?Source ?Target ?DataObject ?Format ?Frequency ?Protocol WHERE { {?ICD <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/InterfaceControlDocument>} {?Source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?Source <http://semoss.org/ontologies/Relation/Provide> ?ICD} {?Target <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?ICD <http://semoss.org/ontologies/Relation/Consume> ?Target} {?DataObject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/DataObject>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?ICD ?carries ?DataObject} {?carries <http://semoss.org/ontologies/Relation/Contains/Protocol> ?Protocol} {?carries <http://semoss.org/ontologies/Relation/Contains/Format> ?Format} {?carries <http://semoss.org/ontologies/Relation/Contains/Frequency> ?Frequency} } ORDER BY ?ICD";
 
 		//run query 1
 		HttpSession session = request.getSession(false);
@@ -1660,6 +1772,10 @@ public class EngineResource {
 		long end = System.currentTimeMillis();
 		System.out.println("Construction time = " + ((end-start)/1000) );
 		
+		Iterator<Object> iterator = tree1.uniqueValueIterator("Title", false, true);
+		while(iterator.hasNext()) {
+			System.out.println(iterator.next().toString());
+		}
 		System.out.println("Done");
 		
 		//MOAPerceptronRunner perceptron = new MOAPerceptronRunner();
