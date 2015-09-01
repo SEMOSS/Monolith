@@ -66,6 +66,7 @@ import prerna.error.HeaderClassException;
 import prerna.error.NLPException;
 import prerna.nameserver.AddToMasterDB;
 import prerna.poi.main.CSVPropFileBuilder;
+import prerna.poi.main.ExcelPropFileBuilder;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -440,10 +441,6 @@ public class Uploader extends HttpServlet {
 		return Response.status(200).entity(outputText).build();
 	}
 	
-	
-	
-	
-//Excel Reader Upload
 	@SuppressWarnings("unchecked")
 	@POST
 	@Path("/excelTable/upload")
@@ -477,37 +474,38 @@ public class Uploader extends HttpServlet {
 		for(i = 0; i < size; i++) {
 			Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
 			
-			CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
+			ExcelPropFileBuilder propWriter = new ExcelPropFileBuilder();
 
-			List<String> rel = gson.fromJson(itemForFile.get("rowsRelationship"), List.class);
-			if(rel != null) {
-				for(String str : rel) {
-					// subject and object keys link to array list for concatenations, while the predicate is always a string
-					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-					if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
-					{
-						propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+			Hashtable<String, String> allSheetInfo = gson.fromJson(itemForFile.get("sheetInfo"), Hashtable.class);
+			for(String sheet : allSheetInfo.keySet()) {
+				Hashtable<String, String> sheetInfo = gson.fromJson(allSheetInfo.get(sheet), Hashtable.class);
+				List<String> rel = gson.fromJson(sheetInfo.get("rowsRelationship"), List.class);
+				if(rel != null) {
+					for(String str : rel) {
+						// subject and object keys link to array list for concatenations, while the predicate is always a string
+						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+						if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
+						{
+							propWriter.addRelationship(sheet, (ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+						}
 					}
 				}
-			}
-
-			List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
-			if(prop != null) {
-				for(String str : prop) {
-					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-					if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
-					{
-						propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+	
+				List<String> prop = gson.fromJson(sheetInfo.get("rowsProperty"), List.class);
+				if(prop != null) {
+					for(String str : prop) {
+						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+						if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
+						{
+							propWriter.addProperty(sheet, (ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+						}
 					}
 				}
+				
+				propWriter.addStartRow(sheet, sheetInfo.get("startLine"));
+				propWriter.addStartRow(sheet, sheetInfo.get("endLine"));
 			}
-
-			String headersList = itemForFile.get("allHeaders"); 
-			Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
-			ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
-
-			propWriter.columnTypes(headers);
-			propHashArr[i] = propWriter.getPropHash(itemForFile.get("ExcelReaderStartLineCount"), itemForFile.get("ExcelReaderEndLineCount")); 
+			propHashArr[i] = propWriter.getPropHash(); 
 			propFileArr[i] = propWriter.getPropFile();
 		}
 						
@@ -598,13 +596,6 @@ public class Uploader extends HttpServlet {
 		return Response.status(200).entity(outputText).build();
 	}
 	
-	
-	
-//End of Excel Reader Upload
-
-//Start of Excel POI  Upload
-	
-
 	@POST
 	@Path("/excel/upload")
 	@Produces("text/html")
