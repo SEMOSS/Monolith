@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import javax.servlet.ServletContext;
@@ -290,7 +291,7 @@ public class Uploader extends HttpServlet {
 	@SuppressWarnings("unchecked")
 	@POST
 	@Path("/csv/upload")
-	@Produces("text/html")
+	@Produces("application/json")
 	public Response uploadCSVFile(@Context HttpServletRequest request)
 	{
 		List<FileItem> fileItems = processRequest(request);
@@ -412,19 +413,29 @@ public class Uploader extends HttpServlet {
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (FileReaderException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (HeaderClassException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (FileWriterException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (NLPException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
 
 		try {
@@ -433,8 +444,9 @@ public class Uploader extends HttpServlet {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-			String outputText = "Failure to write CSV Prop File based on user-defined metamodel.";
-			return Response.status(400).entity(outputText).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Failure to write CSV Prop File based on user-defined metamodel.");
+			return Response.status(400).entity(errorHash).build();
 		}
 
 		String outputText = "CSV Loading was a success.";
@@ -444,7 +456,7 @@ public class Uploader extends HttpServlet {
 	@SuppressWarnings("unchecked")
 	@POST
 	@Path("/excelTable/upload")
-	@Produces("text/html")
+	@Produces("application/json")
 	public Response uploadExcelReaederFile(@Context HttpServletRequest request)
 	{
 		List<FileItem> fileItems = processRequest(request);
@@ -567,19 +579,29 @@ public class Uploader extends HttpServlet {
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (FileReaderException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (HeaderClassException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (FileWriterException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (NLPException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
 
 		try {
@@ -588,8 +610,9 @@ public class Uploader extends HttpServlet {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-			String outputText = "Failure to write Excel Prop File based on user-defined metamodel.";
-			return Response.status(400).entity(outputText).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Failure to write Excel Prop File based on user-defined metamodel.");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
 
 		String outputText = "CSV Loading was a success.";
@@ -598,12 +621,14 @@ public class Uploader extends HttpServlet {
 	
 	@POST
 	@Path("/excel/upload")
-	@Produces("text/html")
+	@Produces("application/json")
 	public Response uploadExcelFile(@Context HttpServletRequest request) 
 	{
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
+
+		Gson gson = new Gson();
 
 		System.out.println(inputData);
 		// time to run the import
@@ -673,19 +698,29 @@ public class Uploader extends HttpServlet {
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (FileReaderException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (HeaderClassException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (FileWriterException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (NLPException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
 
 		String outputText = "Excel Loading was a success.";
@@ -694,11 +729,13 @@ public class Uploader extends HttpServlet {
 
 	@POST
 	@Path("/nlp/upload")
-	@Produces("text/html")
+	@Produces("application/json")
 	public Response uploadNLPFile(@Context HttpServletRequest request) {
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
+
+		Gson gson = new Gson();
 
 		System.out.println(inputData);
 		// time to run the import
@@ -763,19 +800,29 @@ public class Uploader extends HttpServlet {
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (FileReaderException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (HeaderClassException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (FileWriterException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (NLPException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
 
 		String outputText = "NLP Loading was a success.";
@@ -784,12 +831,14 @@ public class Uploader extends HttpServlet {
 
 	@POST
 	@Path("/d2rq/upload")
-	@Produces("text/html")
+	@Produces("application/json")
 	public Response uploadD2RQFile(@Context HttpServletRequest request) {
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
 
+		Gson gson = new Gson();
+		
 		System.out.println(inputData);
 		// time to run the import
 		ImportDataProcessor importer = new ImportDataProcessor();
@@ -810,10 +859,14 @@ public class Uploader extends HttpServlet {
 					(String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
 		} catch (FileReaderException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (EngineException e) {
 			e.printStackTrace();
-			return Response.status(400).entity(e.getMessage()).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
 
 		String outputText = "R2RQ Loading was a success.";
