@@ -78,6 +78,7 @@ import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
 import prerna.ds.InfiniteScroller;
 import prerna.engine.api.IEngine;
+import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.AbstractEngine;
@@ -117,6 +118,8 @@ import prerna.web.services.util.WebUtility;
 import com.bigdata.rdf.model.BigdataURI;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
 import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
@@ -988,6 +991,10 @@ public class EngineResource {
 			}
 
 			List<Object> setDiff = new ArrayList<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
+//			Set<Object> totalSet = new HashSet<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
+//			for(Object o : filterValuesArr) {
+//				totalSet.remove(o);
+//			}
 			setDiff.removeAll(filterValuesArr);
 			mainTree.filter(concept, setDiff);
 		}
@@ -1420,8 +1427,10 @@ public class EngineResource {
 			}
 		}
 
-		Gson gson = new Gson();
-		return Response.status(200).entity(WebUtility.getSO(gson.toJson(stringBuilder.toString()))).build();
+		JsonParser parser = new JsonParser();
+		JsonArray ja = parser.parse(stringBuilder.toString()).getAsJsonArray();
+		
+		return Response.status(200).entity(WebUtility.getSO((ja))).build();
 	}
 
 
