@@ -297,6 +297,8 @@ public class Uploader extends HttpServlet {
 		List<FileItem> fileItems = processRequest(request);
 		Hashtable<String, String> inputData = getInputData(fileItems);
 		
+		Gson gson = new Gson();
+
 		//cleanedFiles - stringified CSV file returned from OpenRefine
 		//If OpenRefine-returned CSV string exists, user went through OpenRefine - write returned data to file first
 		Object obj = inputData.get("cleanedFiles");
@@ -305,12 +307,11 @@ public class Uploader extends HttpServlet {
 			String cleanedFileName = processOpenRefine(dbName, (String) obj);
 			if(cleanedFileName.startsWith("Error")) {
 				String errorMessage = "Could not write the cleaned data to file. Please check application file-upload path.";
-				return Response.status(400).entity(errorMessage).build();
+				return Response.status(400).entity(gson.toJson(errorMessage)).build();
 			}
 			inputData.put("file", cleanedFileName);
 		}
 		
-		Gson gson = new Gson();
 		List<String> allFileData = gson.fromJson(inputData.get("fileInfoArray"), List.class);
 		int size = allFileData.size();
 		
@@ -368,7 +369,7 @@ public class Uploader extends HttpServlet {
 										: null;
 		if(importMethod == null) {
 			String errorMessage = "Import method \'" + methodString + "\' is not supported";
-			return Response.status(400).entity(errorMessage).build();
+			return Response.status(400).entity(gson.toJson(errorMessage)).build();
 		}
 		
 		//Add engine owner for permissions
@@ -377,7 +378,7 @@ public class Uploader extends HttpServlet {
 			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 				addEngineOwner(dbName, ((User) user).getId());
 			} else {
-				return Response.status(400).entity("Please log in to upload data.").build();
+				return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
 			}
 		}
 		
@@ -446,11 +447,11 @@ public class Uploader extends HttpServlet {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Failure to write CSV Prop File based on user-defined metamodel.");
-			return Response.status(400).entity(errorHash).build();
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
 
 		String outputText = "CSV Loading was a success.";
-		return Response.status(200).entity(outputText).build();
+		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -462,6 +463,8 @@ public class Uploader extends HttpServlet {
 		List<FileItem> fileItems = processRequest(request);
 		Hashtable<String, String> inputData = getInputData(fileItems);
 		
+		Gson gson = new Gson();
+
 		//cleanedFiles - stringfield ExcelReader file returned from OpenRefine
 		//If OpenRefine-returned ExcelReader string exists, user went through OpenRefine - write returned data to file first
 		Object obj = inputData.get("cleanedFiles");
@@ -470,12 +473,11 @@ public class Uploader extends HttpServlet {
 			String cleanedFileName = processOpenRefine(dbName, (String) obj);
 			if(cleanedFileName.startsWith("Error")) {
 				String errorMessage = "Could not write the cleaned data to file. Please check application file-upload path.";
-				return Response.status(400).entity(errorMessage).build();
+				return Response.status(400).entity(gson.toJson(errorMessage)).build();
 			}
 			inputData.put("file", cleanedFileName);
 		}
 		
-		Gson gson = new Gson();
 		List<String> allFileData = gson.fromJson(inputData.get("fileInfoArray"), List.class);
 		int size = allFileData.size();
 		
@@ -534,7 +536,7 @@ public class Uploader extends HttpServlet {
 										: null;
 		if(importMethod == null) {
 			String errorMessage = "Import method \'" + methodString + "\' is not supported";
-			return Response.status(400).entity(errorMessage).build();
+			return Response.status(400).entity(gson.toJson(errorMessage)).build();
 		}
 		
 		//Add engine owner for permissions
@@ -543,7 +545,7 @@ public class Uploader extends HttpServlet {
 			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 				addEngineOwner(dbName, ((User) user).getId());
 			} else {
-				return Response.status(400).entity("Please log in to upload data.").build();
+				return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
 			}
 		}
 		
@@ -616,7 +618,7 @@ public class Uploader extends HttpServlet {
 		}
 
 		String outputText = "CSV Loading was a success.";
-		return Response.status(200).entity(outputText).build();
+		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
 	
 	@POST
@@ -645,7 +647,7 @@ public class Uploader extends HttpServlet {
 										: null;
 		if(importMethod == null) {
 			String errorMessage = "Import method \'" + methodString + "\' is not supported";
-			return Response.status(400).entity(errorMessage).build();
+			return Response.status(400).entity(gson.toJson(errorMessage)).build();
 		}
 		
 		String dbName = "";
@@ -672,7 +674,7 @@ public class Uploader extends HttpServlet {
 					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 						addEngineOwner(dbName, ((User) user).getId());
 					} else {
-						return Response.status(400).entity("Please log in to upload data.").build();
+						return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
 					}
 				}
 				
@@ -689,7 +691,7 @@ public class Uploader extends HttpServlet {
 					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 						addEngineOwner(dbName, ((User) user).getId());
 					} else {
-						return Response.status(400).entity("Please log in to upload data.").build();
+						return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
 					}
 				}
 				
@@ -724,7 +726,7 @@ public class Uploader extends HttpServlet {
 		}
 
 		String outputText = "Excel Loading was a success.";
-		return Response.status(200).entity(outputText).build();
+		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
 
 	@POST
@@ -775,7 +777,7 @@ public class Uploader extends HttpServlet {
 					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 						addEngineOwner(dbName, ((User) user).getId());
 					} else {
-						return Response.status(400).entity("Please log in to upload data.").build();
+						return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
 					}
 				}
 				
@@ -791,7 +793,7 @@ public class Uploader extends HttpServlet {
 					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 						addEngineOwner(dbName, ((User) user).getId());
 					} else {
-						return Response.status(400).entity("Please log in to upload data.").build();
+						return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
 					}
 				}
 				
@@ -826,7 +828,7 @@ public class Uploader extends HttpServlet {
 		}
 
 		String outputText = "NLP Loading was a success.";
-		return Response.status(200).entity(outputText).build();
+		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
 
 	@POST
@@ -870,7 +872,7 @@ public class Uploader extends HttpServlet {
 		}
 
 		String outputText = "R2RQ Loading was a success.";
-		return Response.status(200).entity(outputText).build();
+		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
 	
 	/**
