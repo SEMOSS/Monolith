@@ -160,7 +160,6 @@ public class EngineAnalyticsResource {
 			psData.put("title", "Cluster by " + columnHeaders[instanceIndex]);
 			psData.put(retIDKey, retID);
 			psData.put("deleteKey", ps.getChangedCol());
-			psData.put("headers", ps.getDataFrame().getURIColumnHeaders());
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
@@ -195,7 +194,6 @@ public class EngineAnalyticsResource {
 			}
 			psData.put("id", "");
 			psData.put("title", "Association Learning: Apriori Algorithm");
-			psData.put("headers", ps.getDataFrame().getURIColumnHeaders());
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
@@ -217,7 +215,6 @@ public class EngineAnalyticsResource {
 			}
 			psData.put("id", "");
 			psData.put("title", "Classification Algorithm: For variable " + propName);
-			psData.put("headers", ps.getDataFrame().getURIColumnHeaders());
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
@@ -249,7 +246,6 @@ public class EngineAnalyticsResource {
 			specificData.put("z-axis", "COUNT");
 			psData.put("specificData", specificData);
 			psData.put(retIDKey, retID);
-			psData.put("headers", ps.getDataFrame().getURIColumnHeaders());
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
 
@@ -288,7 +284,6 @@ public class EngineAnalyticsResource {
 			specificData.put("z-axis", "COUNT");
 			psData.put("specificData", specificData);
 			psData.put(retIDKey, retID);
-			psData.put("headers", ps.getDataFrame().getURIColumnHeaders());
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
 
@@ -305,7 +300,6 @@ public class EngineAnalyticsResource {
 			psData.put("title", "Similarity on " + columnHeaders[instanceIndex]);
 			psData.put(retIDKey, retID);
 			psData.put("deleteKey", ps.getChangedCol());
-			psData.put("headers", ps.getDataFrame().getURIColumnHeaders());
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
@@ -322,7 +316,6 @@ public class EngineAnalyticsResource {
 			Hashtable psData = (Hashtable) ps.getData();
 			psData.put("id", "");
 			psData.put("title", "Matrix Regression Algorithm: For variable " + columnHeaders[instanceIndex]);
-			psData.put("headers", ps.getDataFrame().getURIColumnHeaders());
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
@@ -337,7 +330,6 @@ public class EngineAnalyticsResource {
 			Hashtable psData = (Hashtable) ps.getData();
 			psData.put("id", "");
 			psData.put("title", "Numerical Correlation Algorithm");
-			psData.put("headers", ps.getDataFrame().getURIColumnHeaders());
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 
@@ -354,7 +346,6 @@ public class EngineAnalyticsResource {
 			psData.put("title", "SOM Algorithm on " + columnHeaders[instanceIndex]);
 			psData.put(retIDKey, retID);
 			psData.put("deleteKey", ps.getChangedCol());
-			psData.put("headers", ps.getDataFrame().getURIColumnHeaders());
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
