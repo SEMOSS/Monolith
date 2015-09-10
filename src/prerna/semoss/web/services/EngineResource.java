@@ -28,6 +28,7 @@
 package prerna.semoss.web.services;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -65,20 +66,18 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
-import org.openrdf.model.vocabulary.RDF;
-import org.openrdf.model.vocabulary.RDFS;
 
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
 import prerna.algorithm.impl.ExactStringOuterJoinMatcher;
 import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
+import prerna.algorithm.learning.util.DuplicationReconciliation;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
 import prerna.ds.InfiniteScroller;
 import prerna.engine.api.IEngine;
-import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.AbstractEngine;
@@ -99,6 +98,7 @@ import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
 import prerna.rdf.query.builder.SQLQueryTableBuilder;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.RDFJSONConverter;
+import prerna.semoss.web.form.FormBuilder;
 import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
@@ -1354,31 +1354,18 @@ public class EngineResource {
 	@POST
 	@Path("/saveForm")
 	@Produces("application/json")	
-	public Response saveForm(MultivaluedMap<String, String> form) {
+	public Response saveForm(MultivaluedMap<String, String> form) 
+	{
+		
 		String basePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String jsonLoc = basePath + System.getProperty("file.separator") + "Forms" + form.getFirst("formName") + ".json";
+		String formName = form.getFirst("formName");
+		String jsonLoc = basePath + System.getProperty("file.separator") + "Forms" + formName + ".json";
+		String formData = form.getFirst("formData");
 		
-		if(Files.exists(Paths.get(jsonLoc))) {
-			return Response.status(400).entity(WebUtility.getSO("Form name " + form.getFirst("formName") + " already exists")).build();
-		}
-		
-		FileWriter file = null;
 		try {
-			file = new FileWriter(jsonLoc);
-			file.write(form.getFirst("formData"));
+			FormBuilder.saveForm(formData, jsonLoc);
 		} catch (IOException e) {
-			e.printStackTrace();
-			return Response.status(400).entity(WebUtility.getSO("Error Writing JSON Data")).build();
-		} finally {
-			try {
-				if(file != null) {
-					file.flush();
-					file.close();
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-				return Response.status(200).entity(WebUtility.getSO("Error Writing JSON Data")).build();
-			}
+			return Response.status(400).entity(WebUtility.getSO(e.getMessage())).build();
 		}
 
 		return Response.status(200).entity(WebUtility.getSO("saved successfully")).build();
@@ -1387,312 +1374,39 @@ public class EngineResource {
 	@POST
 	@Path("/getForm")
 	@Produces("application/json")	
-	public Response getForm(MultivaluedMap<String, String> form) {
+	public Response getForm(MultivaluedMap<String, String> form) 
+	{
 		String basePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String jsonLoc = basePath + System.getProperty("file.separator") + "Forms" + form.getFirst("formName") + ".json";
+		String formName = form.getFirst("formName");
+		String jsonLoc = basePath + System.getProperty("file.separator") + formName + ".json";
 
-		if(!Files.exists(Paths.get(jsonLoc))) {
-			return Response.status(400).entity(WebUtility.getSO("Form name " + form.getFirst("formName") + " does not exists")).build();
-		}
-
-		StringBuilder stringBuilder = new StringBuilder();
-		FileReader fReader = null;
-		BufferedReader reader = null;
+		String formJson;
 		try {
-			fReader = new FileReader(jsonLoc);
-			reader = new BufferedReader(fReader);
-			String line = null;
-			String ls = System.getProperty("line.separator");
-			while( ( line = reader.readLine() ) != null ) {
-				stringBuilder.append( line );
-				stringBuilder.append( ls );
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-			return Response.status(400).entity(WebUtility.getSO("Error trying to read form " + form.getFirst("formName"))).build();
-		} finally {
-			if(fReader != null) {
-				try {
-					fReader.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-			if(reader != null) {
-				try {
-					reader.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		}
+			formJson = FormBuilder.getForm(jsonLoc);
+		} catch (FileNotFoundException f) {
+			return Response.status(400).entity(WebUtility.getSO("File "+formName+" Not Found")).build();
+		}catch (IOException e) {
+			return Response.status(400).entity(WebUtility.getSO("Error getting file")).build();
+		} 
 
+		//TODO: pass string and let fron end do parsing
 		JsonParser parser = new JsonParser();
-		JsonArray ja = parser.parse(stringBuilder.toString()).getAsJsonArray();
+		JsonArray ja = parser.parse(formJson).getAsJsonArray();
 		
 		return Response.status(200).entity(WebUtility.getSO((ja))).build();
 	}
 
-
 	@POST
 	@Path("/saveFormData")
 	@Produces("application/json")
-	public Response saveFormData(MultivaluedMap<String, String> form) {
+	public Response saveFormData(MultivaluedMap<String, String> form) 
+	{
+		//IEngine e = null;
 		Gson gson = new Gson();
-		MultivaluedMap<String, String>[] Engines = gson.fromJson(form.getFirst("Engines"), new TypeToken<MultivaluedMap<String, String>[]>() {}.getType());
-
-		String semossBaseURI = (String) DIHelper.getInstance().getLocalProp("Concept");
-		String relationBaseURI = semossBaseURI + "/" + Constants.DEFAULT_RELATION_CLASS;
-		String conceptBaseURI = semossBaseURI + "/" + Constants.DEFAULT_NODE_CLASS;
-		String propertyBaseURI = semossBaseURI + "/" + Constants.DEFAULT_PROPERTY_CLASS;
-
-		for(MultivaluedMap<String, String> engineHash : Engines) {
-			String engineName = engineHash.getFirst("engine");
-			IEngine engine = (IEngine)DIHelper.getInstance().getLocalProp(engineName);
-			String baseURI = "semossBaseURI";
-			if(engineHash.getFirst("baseURI") != null) {
-				baseURI = engineHash.getFirst("baseURI");
-			}
-
-			MultivaluedMap<String, String>[] nodes = gson.fromJson(engineHash.getFirst("nodes"), new TypeToken<MultivaluedMap<String, String>[]>() {}.getType()); 
-			List<HashMap<String, String>> relationships = gson.fromJson(engineHash.getFirst("relationships"), new TypeToken<List<MultivaluedMap<String, String>>>() {}.getType());
-			
-			if(engine.getEngineType() == IEngine.ENGINE_TYPE.JENA || engine.getEngineType() == IEngine.ENGINE_TYPE.SESAME) {
-				String nodeType;
-				String nodeValue;
-				String instanceConceptURI;
-				String propertyValue;
-				String propertyType;
-				String propertyURI;
-				
-				Map<String, String> nodeMapping = new HashMap<String, String>();
-				for(MultivaluedMap<String, String> node : nodes) {
-					nodeType = node.getFirst("conceptName");
-					nodeValue = node.getFirst("value");
-					nodeMapping.put(nodeType, nodeValue);
-
-					instanceConceptURI = baseURI + "/" + nodeValue;
-					engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDF.TYPE, conceptBaseURI + "/" + nodeType, true});
-					engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDFS.LABEL, nodeValue, false});
-					
-					MultivaluedMap<String, String>[] properties = gson.fromJson(node.getFirst("properties"), new TypeToken<MultivaluedMap<String, String>[]>() {}.getType());
-					for(MultivaluedMap<String, String> property : properties) {
-						propertyValue = property.getFirst("property");
-						propertyType = property.getFirst("prop_name");
-						propertyURI = propertyBaseURI + "/" + propertyType;
-						engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
-						engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{propertyURI, RDF.TYPE, propertyBaseURI, true});
-					}
-				}
-	
-				String startNode;
-				String endNode;
-				String relType;
-				String subject;
-				String instanceSubjectURI;
-				String object;
-				String instanceObjectURI;
-				String baseRelationshipURI;
-				String instanceRel;
-				String instanceRelationshipURI;
-				
-				for(HashMap<String, String> relationship : relationships) {
-					startNode = relationship.get("startNode");
-					endNode = relationship.get("endNode");
-					subject = nodeMapping.get(startNode);
-					object = nodeMapping.get(endNode);
-					instanceSubjectURI = baseURI + "/" + subject;
-					instanceObjectURI = baseURI + "/" + object;
-					
-					relType = relationship.get("relType");
-					baseRelationshipURI = relationBaseURI + "/" + relType;
-					instanceRel = subject + ":" + object;
-					instanceRelationshipURI = baseRelationshipURI + "/" + instanceRel;
-					
-					engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, baseRelationshipURI, instanceObjectURI, true});
-					engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, instanceRelationshipURI, instanceObjectURI, true});
-					engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.SUBPROPERTYOF, baseRelationshipURI, true});
-					engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.LABEL, instanceRel, false});
-				}
-				
-			} else if(engine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
-				String tableName;
-				String tableColumn;
-				String tableValue;
-				Map<String, Map<String, String>> nodeMapping = new HashMap<String, Map<String, String>>();
-
-				for(MultivaluedMap<String, String> node : nodes) {
-					tableName = node.getFirst("conceptName");
-					tableColumn = node.getFirst("conceptColumn");
-					tableValue = node.getFirst("value");
-					HashMap<String, String> innerMap = new HashMap<String, String>();
-					innerMap.put(tableColumn, tableValue);
-					nodeMapping.put(tableName, innerMap);
-					
-					MultivaluedMap<String, String>[] properties = gson.fromJson(node.getFirst("properties"), new TypeToken<MultivaluedMap<String, String>[]>() {}.getType());
-					List<String> propTypes = new ArrayList<String>();
-					List<Object> propValues = new ArrayList<Object>();
-					for(MultivaluedMap<String, String> property : properties) {
-						propTypes.add(property.getFirst("property"));
-						propValues.add(property.getFirst("prop_name"));
-					}
-					
-					StringBuilder insertQuery = new StringBuilder();
-					insertQuery.append("INSERT INTO ");
-					insertQuery.append(tableName.toUpperCase());
-					insertQuery.append(" (");
-					insertQuery.append(tableColumn);
-					for(int i = 0; i < propTypes.size(); i++) {
-						insertQuery.append(propTypes.get(i).toUpperCase());
-						if(i != propTypes.size() - 1) {
-							insertQuery.append(",");
-						}
-					}
-					insertQuery.append(") VALUES (");
-					insertQuery.append(tableValue);
-					for(int i = 0; i < propValues.size(); i++) {
-						Object propertyValue = propValues.get(i);
-						if(propertyValue instanceof String) {
-							insertQuery.append("'");
-							insertQuery.append(propertyValue.toString().toUpperCase());
-							insertQuery.append("'");
-						} else {
-							insertQuery.append(propertyValue);
-						}
-						if(i != propTypes.size() - 1) {
-							insertQuery.append(", ");
-						}
-					}
-					insertQuery.append(");");
-					
-					engine.insertData(insertQuery.toString());
-				}
-				
-				String startTable;
-				String startCol;
-				String endTable;
-				String endCol;
-				String _FK = "_FK";
-
-				if(engine instanceof AbstractEngine) {
-					// determine existing FKs in schema
-					Map<String, Set<String>> tableFKs = new HashMap<String, Set<String>>();
-					if(relationships != null && !relationships.isEmpty()) {
-						String relQuery = "SELECT DISTINCT ?x WHERE {?x <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>}";
-						RDFFileSesameEngine baseEngine = ((AbstractEngine) engine).getBaseDataEngine();
-						ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(baseEngine, relQuery);
-						String[] names = wrapper.getVariables();
-						while(wrapper.hasNext()) {
-							String relURI = wrapper.next().getRawVar(names[0]).toString();
-							String rel = Utility.getClassName(relURI);
-							String[] relVals = rel.split(".");
-							for(int i = 0; i < relVals.length; i++) {
-								if(relVals[1].endsWith(_FK)) {
-									Set<String> fks;
-									if(tableFKs.containsKey(relVals[0])) {
-										fks = tableFKs.get(relVals[0]);
-										fks.add(relVals[1]);
-									} else {
-										fks = new HashSet<String>();
-										fks.add(relVals[1]);
-										tableFKs.put(relVals[0], fks);
-									}
-								}
-								if(relVals[3].endsWith(_FK)) {
-									Set<String> fks;
-									if(tableFKs.containsKey(relVals[2])) {
-										fks = tableFKs.get(relVals[2]);
-										fks.add(relVals[3]);
-									} else {
-										fks = new HashSet<String>();
-										fks.add(relVals[3]);
-										tableFKs.put(relVals[2], fks);
-									}
-								}
-							}
-						}
-					}
-					
-					for(HashMap<String, String> relationship : relationships) {
-						startTable = relationship.get("startNode");
-						startCol = relationship.get("startCol");
-						endTable = relationship.get("endNode");
-						endCol = relationship.get("endCol");
-
-						for(String table : tableFKs.keySet()) {
-							Set<String> fks = tableFKs.get(table);
-							if(fks.contains(startCol + _FK) && fks.contains(endCol + _FK)) {
-								// add to external relationship table
-								StringBuilder insertQuery = new StringBuilder();
-								insertQuery.append("INSERT INTO ");
-								insertQuery.append(table.toUpperCase());
-								insertQuery.append(" (" );
-								insertQuery.append(startCol);
-								insertQuery.append(_FK);
-								insertQuery.append(",");
-								insertQuery.append(endCol);
-								insertQuery.append(_FK);
-								insertQuery.append(") VALUES '");
-								insertQuery.append(nodeMapping.get(startTable).get(startCol));
-								insertQuery.append("', '");
-								insertQuery.append(nodeMapping.get(endTable).get(endCol));
-								insertQuery.append("');");
-								
-								engine.insertData(insertQuery.toString());
-							}
-						}
-						
-						Set<String> fks = tableFKs.get(startTable);
-						if(fks.contains(endTable + _FK)) {
-							// update record in startTable with FK relationship to endTable
-							StringBuilder updateQuery = new StringBuilder();
-							updateQuery.append("UPDATE ");
-							updateQuery.append(startTable.toUpperCase());
-							updateQuery.append(" SET" );
-							updateQuery.append(endCol + _FK);
-							updateQuery.append("=");
-							updateQuery.append(nodeMapping.get(endTable).get(endCol));
-							updateQuery.append(" WHERE");
-							updateQuery.append(startCol);
-							updateQuery.append("='");
-							updateQuery.append(nodeMapping.get(startTable).get(startCol));
-							updateQuery.append("';");
-							
-							engine.insertData(updateQuery.toString());
-						}
-						
-						fks = tableFKs.get(endTable);
-						if(fks.contains(startTable + _FK)) {
-							// update record in endTable with FK relationship to startTable
-							StringBuilder updateQuery = new StringBuilder();
-							updateQuery.append("UPDATE ");
-							updateQuery.append(endTable.toUpperCase());
-							updateQuery.append(" SET" );
-							updateQuery.append(startCol + _FK);
-							updateQuery.append("=");
-							updateQuery.append(nodeMapping.get(startTable).get(startCol));
-							updateQuery.append(" WHERE");
-							updateQuery.append(endCol);
-							updateQuery.append("='");
-							updateQuery.append(nodeMapping.get(endTable).get(endCol));
-							updateQuery.append("';");
-							
-							engine.insertData(updateQuery.toString());
-						}
-					}
-				} else {
-					Map<String, String> errorHash = new HashMap<String, String>();
-					errorHash.put("errorMessage", "Base ontologogy (OWL File) not found for engine!");
-					return Response.status(400).entity(WebUtility.getSO(gson.toJson(errorHash))).build();				
-				}
-			} else {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Engine type not found!");
-				return Response.status(400).entity(WebUtility.getSO(gson.toJson(errorHash))).build();
-			}
-			
-			//commit information to db
-			engine.commit();
+		try {
+			FormBuilder.saveFormData(form);
+		} catch(Exception e) {
+			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
 		}
 		
 		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
@@ -1996,52 +1710,15 @@ public class EngineResource {
 		}
 		System.out.println("Done");
 
-		//MOAPerceptronRunner perceptron = new MOAPerceptronRunner();
-		//perceptron.run("TestData", tree1, null, 6);
-		//		tree1.performAction(new ClusteringRoutine());
-		//		List<Object[]> flatData = tree1.getData();
-		//		
-		//		for(Object[] row: flatData) {
-		//			for(Object instance: row) {
-		//				System.out.print(instance.toString()+" ");
-		//			}
-		//			System.out.println();
-		//		}
 
-		// or get it from session
-		//		else{
-		//			tree1 = (BTreeDataFrame) session.getAttribute("testTree");
-		//			names1 = tree1.getColumnHeaders();
-		//		}
-		//		
-		//		//run query 2
-		//		ISelectWrapper wrap2 = WrapperManager.getInstance().getSWrapper(this.coreEngine, query2);
-		//		String[] names2 = wrap2.getVariables();
-		//		BTreeDataFrame tree2 = new BTreeDataFrame(names2);
-		//		int count = 0;
-		//		while(wrap2.hasNext()){
-		//			ISelectStatement iss = wrap2.next();
-		//			tree2.addRow(iss.getPropHash(), iss.getRPropHash());
-		////			System.out.println(" putting into tree " + iss.getPropHash().toString());//
-		//			System.out.println(count++);
-		//		}
-
-		//		Object[] col = tree1.getColumn("Title");
-		//		logger.info("starting join");
-		//		try {
-		//			tree1.join(tree2, names1[names1.length-1], names2[0], 1, new ExactStringMatcher());
-		//		} catch (Exception e) {
-		//			// TODO Auto-generated catch block
-		//			e.printStackTrace();
-		//		}
-		//		logger.info("setting into session");
-		//		session.setAttribute("testTree", tree1);
-		//		logger.info("begining to flatten");
-		//		List<Object[]> data = tree1.getData();
-		//		
-		//		logger.info("done flattening");
-		//		logger.info("size is  " + data.size());
-		//return WebUtility.getSO(data.size());
+		String[] columnHeaders = tree1.getColumnHeaders();
+		boolean[] isNumeric = tree1.isNumeric();
+		DuplicationReconciliation duprec = new DuplicationReconciliation(DuplicationReconciliation.ReconciliationMode.MEAN);
+		DuplicationReconciliation duprecMed = new DuplicationReconciliation(DuplicationReconciliation.ReconciliationMode.MEDIAN);
+		for(String s : columnHeaders) {
+			
+		}
+		
 		return null;
 	}
 
@@ -2057,6 +1734,25 @@ public class EngineResource {
 		success = ns.publishInsightToFeed(userId, insightObj, visibility);
 
 		return success ? Response.status(200).entity(WebUtility.getSO(success)).build() : Response.status(400).entity(WebUtility.getSO(success)).build();
+	}
+	
+	@POST
+	@Path("/applyColumnStats")
+	@Produces("application/json")
+	public Response applyColumnStats(MultivaluedMap<String, String> form,  
+			@QueryParam("tableID") String tableID,
+			@Context HttpServletRequest request)
+	{
+		Gson gson = new Gson();
+		String groupByCol = form.getFirst("groupBy");
+		HashMap<String, String> functionMap = gson.fromJson(form.getFirst("MathMap"), new TypeToken<HashMap<String, String>>() {}.getType());
+		
+		//
+		
+		//create a new btree with compressed data and join?
+		
+		//return success
+		return null;
 	}
 
 	//	public static void main(String[] args) {
