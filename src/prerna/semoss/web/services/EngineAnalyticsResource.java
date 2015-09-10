@@ -115,6 +115,7 @@ public class EngineAnalyticsResource {
 			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 		}
 		
+		dataFrame.setColumnsToSkip(new ArrayList<String>());
 		int instanceIndex = 0;
 		if(form.getFirst("instanceID") != null) {
 			instanceIndex = gson.fromJson(form.getFirst("instanceID"), Integer.class);
