@@ -950,11 +950,11 @@ public class EngineResource {
 				}
 				filterValuesArr = values;
 			}
-			if(filterValuesArr == null || filterValuesArr.isEmpty()) {
-				Map<String, Object> retMap = new HashMap<String, Object>();
-				retMap.put("tableID", tableID);
-				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-			}
+//			if(filterValuesArr == null || filterValuesArr.isEmpty()) {
+//				Map<String, Object> retMap = new HashMap<String, Object>();
+//				retMap.put("tableID", tableID);
+//				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+//			}
 
 			//if filterValuesArr not a subset of superSet, then unfilter
 //			Object[] superSet = mainTree.getUniqueValues(concept);
