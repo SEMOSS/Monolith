@@ -1010,14 +1010,19 @@ public class EngineResource {
 		//			scroller.reset();
 		//		}
 
-		Map<String, Object> filterValues = new HashMap<String, Object>();
-
+		Map<String, Object> Values = new HashMap<String, Object>();
 		for(String column: columnHeaders) {
-			filterValues.put(column, mainTree.getUniqueRawValues(column));
+			Values.put(column, mainTree.getUniqueRawValues(column));
+		}
+		
+		Map<String, Object> filteredValues = new HashMap<String, Object>();
+		for(String column: columnHeaders) {
+			filteredValues.put(column, mainTree.getFilteredUniqueRawValues(column));
 		}
 
 		retMap.put("tableID", tableID);
-		retMap.put("filterValues", filterValues);
+		retMap.put("unfilteredValues", Values);
+		retMap.put("filteredValues", filteredValues);
 		retMap.put("unfiltered", unfiltered);
 
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
@@ -1062,6 +1067,27 @@ public class EngineResource {
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
 		retMap.put("filteredValues", valuesMap);
+
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+	
+	@GET
+	@Path("/getNextData")
+	@Produces("application/json")
+	public Response getNextTable(MultivaluedMap<String, String> form,
+			@QueryParam("tableID") String tableID,
+			@Context HttpServletRequest request)
+	{
+
+		HttpSession session = request.getSession();
+		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
+
+		Map<String, Object> valuesMap = new HashMap<String, Object>();
+		valuesMap.put(tableID, scroller.getNextData());
+
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		retMap.put("tableID", tableID);
+		retMap.put("tableData", valuesMap);
 
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
@@ -1308,6 +1334,8 @@ public class EngineResource {
 	@Produces("application/json")
 	public Response getExploreTable(
 			@QueryParam("tableID") String tableID,
+			//@QueryParam("start") int start,
+			//@QueryParam("end") int end,
 			@Context HttpServletRequest request)
 	{
 		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
@@ -1317,7 +1345,18 @@ public class EngineResource {
 
 		List<Object[]> table = mainTree.getRawData();
 		Map<String, Object> returnData = new HashMap<String, Object>();
-		returnData.put("totalRows", mainTree.getNumRows());
+		
+//        List<Object[]> returnTable = new ArrayList<Object[]>();
+        
+//        if (end > table.size()) {
+//      	  end = table.size();
+//        } 
+//        
+//        if (table.size() > 0) {
+//      	  returnTable = table.subList(start,  end);
+//        }
+        
+		returnData.put("totalRows", table.size());
 		returnData.put("data", table);
 
 		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
