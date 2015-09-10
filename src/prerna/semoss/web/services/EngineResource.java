@@ -934,6 +934,8 @@ public class EngineResource {
 
 		boolean unfiltered = false;
 
+
+		mainTree.unfilter();
 		for(String concept: filterValuesArrMap.keySet()) {
 
 			List<Object> filterValuesArr = filterValuesArrMap.get(concept);
@@ -999,7 +1001,7 @@ public class EngineResource {
 			mainTree.filter(concept, setDiff);
 		}
 
-		String[] columnHeaders = mainTree.getColumnHeaders();
+//		String[] columnHeaders = mainTree.getColumnHeaders();
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
 		//		HttpSession session = request.getSession();
@@ -1010,20 +1012,20 @@ public class EngineResource {
 		//			scroller.reset();
 		//		}
 
-		Map<String, Object> Values = new HashMap<String, Object>();
-		for(String column: columnHeaders) {
-			Values.put(column, mainTree.getUniqueRawValues(column));
-		}
-		
-		Map<String, Object> filteredValues = new HashMap<String, Object>();
-		for(String column: columnHeaders) {
-			filteredValues.put(column, mainTree.getFilteredUniqueRawValues(column));
-		}
+//		Map<String, Object> Values = new HashMap<String, Object>();
+//		for(String column: columnHeaders) {
+//			Values.put(column, mainTree.getUniqueRawValues(column));
+//		}
+//		
+//		Map<String, Object> filteredValues = new HashMap<String, Object>();
+//		for(String column: columnHeaders) {
+//			filteredValues.put(column, mainTree.getFilteredUniqueRawValues(column));
+//		}
 
 		retMap.put("tableID", tableID);
-		retMap.put("unfilteredValues", Values);
-		retMap.put("filteredValues", filteredValues);
-		retMap.put("unfiltered", unfiltered);
+//		retMap.put("unfilteredValues", Values);
+//		retMap.put("filteredValues", filteredValues);
+//		retMap.put("unfiltered", unfiltered);
 
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
