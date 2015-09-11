@@ -76,6 +76,7 @@ import prerna.algorithm.learning.util.DuplicationReconciliation;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
+import prerna.ds.ITableStatCounter;
 import prerna.ds.InfiniteScroller;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
@@ -1788,14 +1789,12 @@ public class EngineResource {
 		String groupByCol = form.getFirst("groupBy");
 		HashMap<String, String> functionMap = gson.fromJson(form.getFirst("MathMap"), new TypeToken<HashMap<String, String>>() {}.getType());
 		
-		//
-		
-		//create a new btree with compressed data and join?
+		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);
+		ITableStatCounter.addStatsToDataFrame(table, groupByCol, functionMap);
 		
 		//return success
-		return null;
+		return Response.status(200).entity(WebUtility.getSO("success")).build();
 	}
-
 	//	public static void main(String[] args) {
 	//		String query1 = "SELECT DISTINCT ?Title  ?DomesticRevenue  WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
 	//
