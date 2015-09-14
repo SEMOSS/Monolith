@@ -1801,7 +1801,7 @@ public class EngineResource {
 			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		String groupByCol = form.getFirst("groupBy");
+		String groupByCol = form.getFirst("GroupBy");
 		HashMap<String, String> functionMap = gson.fromJson(form.getFirst("MathMap"), new TypeToken<HashMap<String, String>>() {}.getType());
 		
 		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);
