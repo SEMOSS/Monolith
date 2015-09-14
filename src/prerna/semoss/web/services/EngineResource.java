@@ -78,6 +78,7 @@ import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
 import prerna.ds.ITableStatCounter;
 import prerna.ds.InfiniteScroller;
+import prerna.ds.InfiniteScrollerFactory;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
@@ -933,7 +934,7 @@ public class EngineResource {
 		Gson gson = new Gson();
 		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 
-		boolean unfiltered = false;
+//		boolean unfiltered = false;
 
 
 		mainTree.unfilter();
@@ -1055,13 +1056,20 @@ public class EngineResource {
 	@GET
 	@Path("/getNextFilterValues")
 	@Produces("application/json")
-	public Response getNextUniqueValues(MultivaluedMap<String, String> form,
-			@QueryParam("tableID") String tableID,
+	public Response getNextUniqueValues(@QueryParam("tableID") String tableID,
 			@QueryParam("concept") String concept,
 			@Context HttpServletRequest request)
 	{
-
+		
 		HttpSession session = request.getSession();
+		if(session.getAttribute(tableID) == null) {
+			ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+			if(mainTree == null) {
+				return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+			}
+			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+		}
+		
 		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
 
 		Map<String, Object> valuesMap = new HashMap<String, Object>();
@@ -1075,14 +1083,21 @@ public class EngineResource {
 	}
 	
 	@GET
-	@Path("/getNextData")
+	@Path("/getNextTableData")
 	@Produces("application/json")
-	public Response getNextTable(MultivaluedMap<String, String> form,
-			@QueryParam("tableID") String tableID,
+	public Response getNextTable(@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
 
 		HttpSession session = request.getSession();
+		if(session.getAttribute(tableID) == null) {
+			ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+			if(mainTree == null) {
+				return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+			}
+			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+		}
+		
 		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
 
 		Map<String, Object> valuesMap = new HashMap<String, Object>();
