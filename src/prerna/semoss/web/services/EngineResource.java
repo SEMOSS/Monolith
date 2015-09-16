@@ -61,6 +61,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -114,6 +115,7 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
+//import prerna.web.services.util.ITableUtilities;
 import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.WebUtility;
 
@@ -1085,23 +1087,34 @@ public class EngineResource {
 	@GET
 	@Path("/getNextTableData")
 	@Produces("application/json")
-	public Response getNextTable(@QueryParam("tableID") String tableID,
+	public Response getNextTable(MultivaluedMap<String, String> form,
+			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
-
+		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);	
+		if(mainTree == null) {
+			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+		}
+		
+		Gson gson = new Gson();
+		Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
+		String concept = sortModel.get("concept");
+		String sort = sortModel.get("sort");
+		
+		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterModel"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+		if(filterModel != null && filterModel.keySet().size() > 0) {
+		//	ITableUtilities.filterData(mainTree, filterModel);
+		}
+		
 		HttpSession session = request.getSession();
 		if(session.getAttribute(tableID) == null) {
-			ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
-			if(mainTree == null) {
-				return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
-			}
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		}
 		
 		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
 
 		Map<String, Object> valuesMap = new HashMap<String, Object>();
-		valuesMap.put(tableID, scroller.getNextData());
+		valuesMap.put(tableID, scroller.getNextData(concept));
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
@@ -1363,16 +1376,6 @@ public class EngineResource {
 
 		List<Object[]> table = mainTree.getRawData();
 		Map<String, Object> returnData = new HashMap<String, Object>();
-		
-//        List<Object[]> returnTable = new ArrayList<Object[]>();
-        
-//        if (end > table.size()) {
-//      	  end = table.size();
-//        } 
-//        
-//        if (table.size() > 0) {
-//      	  returnTable = table.subList(start,  end);
-//        }
         
 		returnData.put("totalRows", table.size());
 		returnData.put("data", table);
@@ -1450,7 +1453,7 @@ public class EngineResource {
 		JsonParser parser = new JsonParser();
 		JsonArray ja = parser.parse(formJson).getAsJsonArray();
 		
-		return Response.status(200).entity(WebUtility.getSO((ja))).build();
+		return Response.status(200).entity(WebUtility.getSO((formJson))).build();
 	}
 
 	@POST
@@ -1809,6 +1812,19 @@ public class EngineResource {
 		
 		//return success
 		return Response.status(200).entity(WebUtility.getSO("success")).build();
+	}
+	
+	@GET
+	@Path("/hasDuplicates")
+	@Produces("application/json")
+	public Response hasDuplicates(@QueryParam("tableID") String tableID,
+			@QueryParam("concept") String columnName) 
+	{
+		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);
+		int uniqueInstanceCount = table.getUniqueInstanceCount(columnName);
+		int numRows = table.getNumRows();
+		boolean hasDuplicates = uniqueInstanceCount == numRows;
+		return Response.status(200).entity(WebUtility.getSO(hasDuplicates)).build();
 	}
 	//	public static void main(String[] args) {
 	//		String query1 = "SELECT DISTINCT ?Title  ?DomesticRevenue  WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
