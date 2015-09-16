@@ -1084,10 +1084,12 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
-	@GET
+	@POST
 	@Path("/getNextTableData")
 	@Produces("application/json")
 	public Response getNextTable(MultivaluedMap<String, String> form,
+			@QueryParam("startRow") Integer startRow,
+			@QueryParam("endRow") Integer endRow,
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
@@ -1097,9 +1099,10 @@ public class EngineResource {
 		}
 		
 		Gson gson = new Gson();
-		Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
-		String concept = sortModel.get("concept");
-		String sort = sortModel.get("sort");
+		/*Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
+		String concept = sortModel.get("field");
+		String sort = sortModel.get("sort");*/
+		String concept = null;
 		
 		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterModel"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		if(filterModel != null && filterModel.keySet().size() > 0) {
@@ -1118,6 +1121,7 @@ public class EngineResource {
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
+		retMap.put("numRows", mainTree.getNumRows());
 		retMap.put("tableData", valuesMap);
 
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
