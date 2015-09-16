@@ -115,7 +115,7 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
-//import prerna.web.services.util.ITableUtilities;
+import prerna.web.services.util.ITableUtilities;
 import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.WebUtility;
 
@@ -1103,7 +1103,7 @@ public class EngineResource {
 		
 		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterModel"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		if(filterModel != null && filterModel.keySet().size() > 0) {
-		//	ITableUtilities.filterData(mainTree, filterModel);
+			ITableUtilities.filterData(mainTree, filterModel);
 		}
 		
 		HttpSession session = request.getSession();
