@@ -1822,14 +1822,21 @@ public class EngineResource {
 	@Path("/applyColumnStats")
 	@Produces("application/json")
 	public Response applyColumnStats(MultivaluedMap<String, String> form,  
-			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
+		String tableID = form.getFirst("tableID");
+		String questionID = form.getFirst("questionID");
+
+		ITableDataFrame table = ITableUtilities.getTable(tableID, questionID);
+		if(table == null) {
+			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
+		}
+		
 		Gson gson = new Gson();
 		String[] groupByCols = gson.fromJson(form.getFirst("groupBy"), String[].class);
 		HashMap<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
 		
-		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);
+
 		//ITableStatCounter.addStatsToDataFrame(table, groupByCols, functionMap);
 		
 		//return success
@@ -1840,12 +1847,15 @@ public class EngineResource {
 	@Path("/hasDuplicates")
 	@Produces("application/json")
 	public Response hasDuplicates(MultivaluedMap<String, String> form,
-			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request) 
 	{
-		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);		
+		String tableID = form.getFirst("tableID");
+		String questionID = form.getFirst("questionID");
+
+		ITableDataFrame table = ITableUtilities.getTable(tableID, questionID);
+
 		if(table == null) {
-			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
 		}
 		
 		Gson gson = new Gson();
