@@ -1837,7 +1837,8 @@ public class EngineResource {
 	@Path("/hasDuplicates")
 	@Produces("application/json")
 	public Response hasDuplicates(MultivaluedMap<String, String> form,
-			@QueryParam("tableID") String tableID) 
+			@QueryParam("tableID") String tableID,
+			@Context HttpServletRequest request) 
 	{
 		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);		
 		if(table == null) {
