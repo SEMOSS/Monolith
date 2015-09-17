@@ -29,8 +29,14 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -55,6 +61,9 @@ import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.io.FileUtils;
 
+import com.google.gson.Gson;
+import com.ibm.icu.util.StringTokenizer;
+
 import prerna.algorithm.learning.unsupervised.recommender.DataStructureFromCSV;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
@@ -73,9 +82,6 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.util.sql.SQLQueryUtil;
-
-import com.google.gson.Gson;
-import com.ibm.icu.util.StringTokenizer;
 
 /**
  * Servlet implementation class Uploader
@@ -109,6 +115,22 @@ public class Uploader extends HttpServlet {
 			fi.write(file);
 		} catch (Exception e) {
 			e.printStackTrace();
+		}
+	}
+	
+	public void deleteFilesFromServer(String[] files) {
+		for(String file : files) {
+			java.nio.file.Path deleteFilePath = Paths.get(file);
+			try {
+			    Files.delete(deleteFilePath);
+			} catch (NoSuchFileException x) {
+			    System.err.format("%s: no such" + " file or directory%n", filePath);
+			} catch (DirectoryNotEmptyException x) {
+			    System.err.format("%s not empty%n", filePath);
+			} catch (IOException x) {
+			    // File permission problems are caught here.
+			    System.err.println(x);
+			}
 		}
 	}
 
@@ -448,6 +470,8 @@ public class Uploader extends HttpServlet {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Failure to write CSV Prop File based on user-defined metamodel.");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} finally {
+			deleteFilesFromServer(inputData.get("file").toString().split(";"));
 		}
 
 		String outputText = "CSV Loading was a success.";
@@ -615,6 +639,8 @@ public class Uploader extends HttpServlet {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Failure to write Excel Prop File based on user-defined metamodel.");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} finally {
+			deleteFilesFromServer(inputData.get("file").toString().split(";"));
 		}
 
 		String outputText = "CSV Loading was a success.";
@@ -723,6 +749,8 @@ public class Uploader extends HttpServlet {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} finally {
+			deleteFilesFromServer(inputData.get("file").toString().split(";"));
 		}
 
 		String outputText = "Excel Loading was a success.";
@@ -768,6 +796,26 @@ public class Uploader extends HttpServlet {
 			allowDuplicates = false;//todo need to set from the UI
 		}
 		
+		String files = inputData.get("file").toString();
+		if(inputData.get("nlptext") != null && !inputData.get("nlptext").toString().isEmpty()) {
+			String inputText = filePath + System.getProperty("file.separator") + "Text_Input.txt";
+			PrintWriter writer = null;
+			try {
+				writer = new PrintWriter(inputText);
+				writer.write(inputData.get("nlptext").toString());
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			} finally {
+				if(writer != null) {
+					writer.close();
+				}
+			}
+			files = files.concat(";").concat(inputText);
+		}
+		if(inputData.get("nlphttpurl") != null && !inputData.get("nlphttpurl").toString().isEmpty()) {
+			files = files.concat(";").concat(inputData.get("nlphttpurl").toString());
+		}
+		
 		try {
 			if(methodString.equals("Create new database engine")) {
 				dbName = inputData.get("newDBname");
@@ -781,7 +829,7 @@ public class Uploader extends HttpServlet {
 					}
 				}
 				
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, files, 
 						inputData.get("customBaseURI")+"", dbName,"","","","", storeType, rdbmsType, allowDuplicates);
 				loadEngineIntoSession(request, dbName);
 				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("customBaseURI"));
@@ -797,7 +845,7 @@ public class Uploader extends HttpServlet {
 					}
 				}
 				
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, inputData.get("file")+"", 
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, files, 
 						inputData.get("customBaseURI")+"", "","","","", dbName, storeType, rdbmsType, allowDuplicates);
 			}
 		} catch (EngineException e) {
@@ -825,6 +873,8 @@ public class Uploader extends HttpServlet {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} finally {
+			deleteFilesFromServer(files.split(";"));
 		}
 
 		String outputText = "NLP Loading was a success.";
