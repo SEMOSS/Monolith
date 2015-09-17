@@ -1119,14 +1119,19 @@ public class EngineResource {
 		String sort = sortModel.get("sort");*/
 		String concept = null;
 		
+		HttpSession session = request.getSession();
+		boolean first = false;
+		if(session.getAttribute(tableID) == null) {
+			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+			first = true;
+		}
+		
 		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterModel"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		if(filterModel != null && filterModel.keySet().size() > 0) {
 			ITableUtilities.filterData(mainTree, filterModel);
-		}
-		
-		HttpSession session = request.getSession();
-		if(session.getAttribute(tableID) == null) {
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+		} else if(filterModel.keySet().size() == 0 && !first) {
+			mainTree.unfilter();
 		}
 		
 		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
@@ -1821,11 +1826,11 @@ public class EngineResource {
 			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		String groupByCol = form.getFirst("groupBy");
-		HashMap<String, String> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, String>>() {}.getType());
+		String[] groupByCols = gson.fromJson(form.getFirst("groupBy"), String[].class);
+		HashMap<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
 		
 		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);
-		ITableStatCounter.addStatsToDataFrame(table, groupByCol, functionMap);
+		//ITableStatCounter.addStatsToDataFrame(table, groupByCols, functionMap);
 		
 		//return success
 		return Response.status(200).entity(WebUtility.getSO("success")).build();
