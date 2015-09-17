@@ -139,6 +139,7 @@ public final class FormBuilder {
 		List<HashMap<String, Object>> Engines = gson.fromJson(formData, new TypeToken<List<HashMap<String, Object>>>() {}.getType());
 		
 		Properties p = DIHelper.getInstance().getRdfMap();
+		//TODO : need to grab this from the OWL or somewhere else
 		String semossBaseURI = "http://semoss.org/ontologies";
 
 		for(HashMap<String, Object> engineHash : Engines) {
