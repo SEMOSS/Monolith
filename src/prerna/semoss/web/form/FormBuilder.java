@@ -7,6 +7,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,6 +28,7 @@ import com.google.gson.reflect.TypeToken;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.AbstractEngine;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
@@ -278,15 +281,21 @@ public final class FormBuilder {
 			Map<String, Object> node = nodes.get(j);
 			
 			tableName = node.get("conceptName").toString();
-			tableColumn = node.get("conceptColumn").toString();
+//			tableColumn = node.get("columnName").toString();
 			tableValue = node.get("conceptValue").toString();
+			
+//			HashMap<String, String> innerMap = new HashMap<String, String>();
+//			innerMap.put(tableColumn, tableValue);
+//			nodeMapping.put(tableName, innerMap);
+			
+			Map<String, Object> templateOptions = (Map<String, Object>)node.get("templateOptions");
+			tableColumn = templateOptions.get("columnName").toString();
+			tableName = tableColumn;
+			List<HashMap<String, Object>> properties = (List<HashMap<String, Object>>)templateOptions.get("properties");
 			
 			HashMap<String, String> innerMap = new HashMap<String, String>();
 			innerMap.put(tableColumn, tableValue);
 			nodeMapping.put(tableName, innerMap);
-			
-			Map<String, Object> templateOptions = (Map<String, Object>)node.get("templateOptions");
-			List<HashMap<String, Object>> properties = (List<HashMap<String, Object>>)templateOptions.get("properties");
 			
 			List<String> propTypes = new ArrayList<String>();
 			List<Object> propValues = new ArrayList<Object>();
@@ -307,8 +316,18 @@ public final class FormBuilder {
 					insertQuery.append(",");
 				}
 			}
-			insertQuery.append(") VALUES (");
-			insertQuery.append(tableValue);
+			
+			String dataType = checkColumnDataType(engine, tableColumn);
+			boolean useQuotes = useQuotes(dataType);
+			if(useQuotes) {
+				insertQuery.append(") VALUES ('");
+				insertQuery.append(tableValue);
+				insertQuery.append("'");
+			} else {
+				insertQuery.append(") VALUES (");
+				insertQuery.append(tableValue);
+			}
+			
 			for(int i = 0; i < propValues.size(); i++) {
 				Object propertyValue = propValues.get(i);
 				if(propertyValue instanceof String) {
@@ -447,156 +466,25 @@ public final class FormBuilder {
 		}
 	}
 	
-	private String buildSQLQuery(String table, String fk, String String3, String String4, String String5) {
-		StringBuilder updateQuery = new StringBuilder();
-		updateQuery.append("UPDATE ");
-		updateQuery.append(table.toUpperCase());
-		updateQuery.append(" SET" );
-		updateQuery.append(fk);
-		updateQuery.append("=");
-		updateQuery.append(String3);
-		updateQuery.append(" WHERE");
-		updateQuery.append(String4);
-		updateQuery.append("='");
-		updateQuery.append(String5);
-		updateQuery.append("';");
-		return updateQuery.toString();
+	
+	private static String checkColumnDataType(IEngine engine, String tableName) {
+		String type = "";
+		try {
+		
+			String getColumnTypeQuery = "SELECT * FROM" + tableName + "LIMIT 1";
+			Map<String, Object> map = (Map<String, Object>) engine.execQuery(getColumnTypeQuery);
+			ResultSet rs = (ResultSet) map.get(RDBMSNativeEngine.RESULTSET_OBJECT);
+			ResultSetMetaData rsmd = rs.getMetaData();
+			type = rsmd.getColumnTypeName(1);
+			
+		} catch(Exception e) {
+			
+		}
+		return type;
 	}
 	
-	//OLD CODE using org.json, will delete when new code using gson is fully tested
-//	public static Response saveFormDataJSON(MultivaluedMap<String, String> form) {
-//	Gson gson = new Gson();
-//	System.out.println(form);
-//	System.out.println(form.getFirst("formData"));
-//	String[] o = gson.fromJson(form.getFirst("formData"), String[].class);
-//	String formData = form.getFirst("formData");
-//	JSONArray Engines = new JSONArray(formData);
-////	List<HashMap<String, String> Engines = gson.fromJson(o[0].toString(), new TypeToken<List<HashMap<String, String>>>() {}.getType());
-//
-////	String semossBaseURI = (String) DIHelper.getInstance().getLocalProp("Concept");
-//	Properties p = DIHelper.getInstance().getRdfMap();
-//	String semossBaseURI = "http://semoss.org/ontologies";
-//	//String semossBaseURI = Constants.SEMOSS_URI;
-////	String relationBaseURI = semossBaseURI + "/" + Constants.DEFAULT_RELATION_CLASS;
-////	String conceptBaseURI = semossBaseURI + "/" + Constants.DEFAULT_NODE_CLASS;
-////	String propertyBaseURI = semossBaseURI + "/" + Constants.DEFAULT_PROPERTY_CLASS;
-//
-//	for(int e = 0; e < Engines.length(); e++) {
-//		JSONObject engineHash = Engines.getJSONObject(e);
-////	for(MultivaluedMap<String, Object> engineHash : Engines) {
-////		String engineName = engineHash.getFirst("engine").toString();
-//		String engineName = engineHash.getString("engine");
-//		IEngine engine = (IEngine)DIHelper.getInstance().getLocalProp(engineName);
-//		
-//		
-//		String baseURI = semossBaseURI;
-////		if(engineHash.getFirst("baseURI") != null) {
-////			baseURI = engineHash.getFirst("baseURI").toString();
-////		}
-//		if(engineHash.has("baseURI")) {
-//			baseURI = engineHash.getString("baseURI");
-//		}
-//		
-//		String relationBaseURI = semossBaseURI + "/" + Constants.DEFAULT_RELATION_CLASS;
-//		String conceptBaseURI = semossBaseURI + "/" + Constants.DEFAULT_NODE_CLASS;
-//		String propertyBaseURI = semossBaseURI + "/" + Constants.DEFAULT_PROPERTY_CLASS;
-//
-////		List<HashMap<String, String>> nodes = gson.fromJson(engineHash.getFirst("nodes"), new TypeToken<List<HashMap<String, String>>>() {}.getType()); 
-////		List<HashMap<String, String>> relationships = gson.fromJson(engineHash.getFirst("relationships"), new TypeToken<List<HashMap<String, String>>>() {}.getType());
-//		
-//		JSONArray nodes = engineHash.getJSONArray("nodes");
-//		JSONArray relationships = new JSONArray();
-//		if(engineHash.has("relationships")) {
-//			relationships = engineHash.getJSONArray("relationships");
-//		}
-//		if(engine.getEngineType() == IEngine.ENGINE_TYPE.JENA || engine.getEngineType() == IEngine.ENGINE_TYPE.SESAME) {
-//			saveRDFFormData(engine, baseURI, relationBaseURI, conceptBaseURI, propertyBaseURI, nodes, relationships);
-//		} else if(engine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
-//			saveRDBMSFormData(engine, baseURI, relationBaseURI, conceptBaseURI, propertyBaseURI, nodes, relationships);
-//		} else {
-//			Map<String, String> errorHash = new HashMap<String, String>();
-//			errorHash.put("errorMessage", "Engine type not found!");
-//			return Response.status(400).entity(WebUtility.getSO(gson.toJson(errorHash))).build();
-//		}
-//		
-//		//commit information to db
-//		engine.commit();
-//	}
-//	
-//	return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
-//}
-
-//private static void saveRDFFormData(IEngine engine, String baseURI, String relationBaseURI, String conceptBaseURI, String propertyBaseURI, JSONArray nodes, JSONArray relationships) {
-//	String nodeType;
-//	String nodeValue;
-//	String instanceConceptURI;
-//	String propertyValue;
-//	String propertyType;
-//	String propertyURI;
-//	
-//	Map<String, String> nodeMapping = new HashMap<String, String>();
-////	for(HashMap<String, String> node : nodes) {
-//	for(int j = 0; j < nodes.length(); j++) {
-//		JSONObject node = nodes.getJSONObject(j);
-////		nodeType = node.get("conceptName");
-////		nodeValue = node.get("conceptValue");
-//		nodeType = node.getString("conceptName");
-//		nodeValue = node.get("conceptValue").toString();
-//		nodeMapping.put(nodeType, nodeValue);
-//
-//		instanceConceptURI = baseURI + "/" + nodeValue;
-//		engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDF.TYPE, conceptBaseURI + "/" + nodeType, true});
-//		engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDFS.LABEL, nodeValue, false});
-//		
-////		List<HashMap<String, String>> properties = gson.fromJson(node.get("properties"), new TypeToken<List<HashMap<String, String>>>() {}.getType());
-//		JSONArray properties = node.getJSONObject("templateOptions").getJSONArray("properties");
-////		for(HashMap<String, String> property : properties) {
-//		for(int z = 0; z < properties.length(); z++) {
-//			JSONObject property = properties.getJSONObject(z);
-//			propertyValue = property.getString("propertyValue");
-//			propertyType = property.getString("propertyName");
-//			
-////			propertyValue = property.get("propertyValue");
-////			propertyType = property.get("propertyName");
-//			propertyURI = propertyBaseURI + "/" + propertyType;
-//			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
-//			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{propertyURI, RDF.TYPE, propertyBaseURI, true});
-//		}
-//	}
-//
-//	String startNode;
-//	String endNode;
-//	String relType;
-//	String subject;
-//	String instanceSubjectURI;
-//	String object;
-//	String instanceObjectURI;
-//	String baseRelationshipURI;
-//	String instanceRel;
-//	String instanceRelationshipURI;
-//	
-//	for(int a = 0; a < relationships.length(); a++) {
-////	for(HashMap<String, String> relationship : relationships) {
-//		JSONObject relationship = relationships.getJSONObject(a);
-////		startNode = relationship.get("startNode");
-////		endNode = relationship.get("endNode");
-//		startNode = relationship.getString("startNode");
-//		endNode = relationship.getString("endNode");
-//		subject = nodeMapping.get(startNode);
-//		object = nodeMapping.get(endNode);
-//		instanceSubjectURI = baseURI + "/" + subject;
-//		instanceObjectURI = baseURI + "/" + object;
-//		
-////		relType = relationship.get("relType");
-//		relType = relationship.getString("relType");
-//		baseRelationshipURI = relationBaseURI + "/" + relType;
-//		instanceRel = subject + ":" + object;
-//		instanceRelationshipURI = baseRelationshipURI + "/" + instanceRel;
-//		
-//		engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, baseRelationshipURI, instanceObjectURI, true});
-//		engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, instanceRelationshipURI, instanceObjectURI, true});
-//		engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.SUBPROPERTYOF, baseRelationshipURI, true});
-//		engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.LABEL, instanceRel, false});
-//	}
-//}
+	private static boolean useQuotes(String columnType) {
+		if(columnType.equals("FLOAT")) return false;
+		else return true;
+	}
 }
