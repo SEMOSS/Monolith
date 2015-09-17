@@ -1310,6 +1310,12 @@ public class EngineResource {
 		}
 
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
+		
+		//TODO: why is rdbms uppper case for names? causes discrepancies
+		if(!(builder instanceof SPARQLQueryTableBuilder)) { //if not sparql then uppercase the concept
+			currConcept = currConcept.toUpperCase();
+		}
+		
 		if(tableID != null && !tableID.isEmpty() && !outer) {
 			// need to add bindings for query if not outer join
 			ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
@@ -1341,21 +1347,13 @@ public class EngineResource {
 
 		System.out.println(query);
 
-		//TODO: why is rdbms uppper case for names? causes discrepancies
-		boolean isSparql = false;
-		if(builder instanceof SPARQLQueryTableBuilder) {
-			isSparql = true;
-		}
 		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
 		String[] newNames = wrap.getVariables();
 		int index = 0;
 		if(newNames.length > 1) {
 			int currIndexexistingConcept = 0;
-			if(isSparql) {
-				currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
-			} else {
-				currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept.toUpperCase());
-			}
+			
+			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
 			if(currIndexexistingConcept == 0) {
 				index = 1;
 			}
