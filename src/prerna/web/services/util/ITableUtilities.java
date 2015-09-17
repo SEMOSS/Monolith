@@ -5,7 +5,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import javax.ws.rs.core.Response;
+
 import prerna.algorithm.api.ITableDataFrame;
+import prerna.ds.ITableDataFrameStore;
+import prerna.ui.components.api.IPlaySheet;
+import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
+import prerna.util.QuestionPlaySheetStore;
 
 public class ITableUtilities {
 
@@ -83,5 +89,24 @@ public class ITableUtilities {
 	
 	public static void unfilterData() {
 		
+	}
+	
+	public static ITableDataFrame getTable(String tableID, String questionID) {
+		ITableDataFrame table = null;
+		
+		try {
+			if(tableID != null) {
+				table = ITableDataFrameStore.getInstance().get(tableID);
+			} else if(questionID != null) {
+				IPlaySheet origPS = (IPlaySheet) QuestionPlaySheetStore.getInstance().get(questionID);
+				if(origPS instanceof BasicProcessingPlaySheet) {
+					table = ((BasicProcessingPlaySheet) origPS).getDataFrame();
+				}
+			}
+		} catch (Exception e) {
+			return null;
+		}
+
+		return table;
 	}
 }
