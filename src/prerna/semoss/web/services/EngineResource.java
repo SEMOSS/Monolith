@@ -1855,6 +1855,7 @@ public class EngineResource {
 		Iterator<Object[]> iterator = table.iterator(false);
 		int numRows = table.getNumRows();
 		Set<String> comboSet = new HashSet<String>(numRows);
+		int rowCount = 1;
 		while(iterator.hasNext()) {
 			Object[] nextRow = iterator.next();
 			String comboValue = "";
@@ -1863,6 +1864,12 @@ public class EngineResource {
 				comboValue = comboValue + nextRow[i];
 			}
 			comboSet.add(comboValue);
+			
+			if(comboSet.size() < rowCount) {
+				return Response.status(200).entity(WebUtility.getSO(false)).build();
+			}
+			
+			rowCount++;
 		}
 		boolean hasDuplicates = comboSet.size() == numRows;
 		return Response.status(200).entity(WebUtility.getSO(hasDuplicates)).build();
