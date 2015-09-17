@@ -1056,30 +1056,45 @@ public class EngineResource {
 	}
 
 	@GET
-	@Path("/getNextFilterValues")
+	@Path("/getFilterValues")
 	@Produces("application/json")
 	public Response getNextUniqueValues(@QueryParam("tableID") String tableID,
 			@QueryParam("concept") String concept,
 			@Context HttpServletRequest request)
 	{
 		
-		HttpSession session = request.getSession();
-		if(session.getAttribute(tableID) == null) {
-			ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
-			if(mainTree == null) {
-				return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
-			}
-			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+		if(mainTree == null) {
+			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
 		
-		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-
-		Map<String, Object> valuesMap = new HashMap<String, Object>();
-		valuesMap.put(concept, scroller.getNextUniqueValues(concept));
-
+//		HttpSession session = request.getSession();
+//		if(session.getAttribute(tableID) == null) {
+//			ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+//			if(mainTree == null) {
+//				return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+//			}
+//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+//		}
+		
+//		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
+//
+		Iterator<Object> uniqueValueIterator = mainTree.uniqueValueIterator(concept, true, false);
+		List<Object> selectedFilterValues = new ArrayList<Object>();
+		while(uniqueValueIterator.hasNext()) {
+			selectedFilterValues.add(uniqueValueIterator.next());
+		}
+		
+		uniqueValueIterator = mainTree.uniqueValueIterator(concept, true, true);
+		List<Object> availableFilterValues = new ArrayList<Object>();
+		while(uniqueValueIterator.hasNext()) {
+			availableFilterValues.add(uniqueValueIterator.next());
+		}
+				
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
-		retMap.put("filteredValues", valuesMap);
+		retMap.put("selectedFilterValues", selectedFilterValues);
+		retMap.put("availableFilterValues", availableFilterValues);
 
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
@@ -1818,16 +1833,38 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO("success")).build();
 	}
 	
-	@GET
+	@POST
 	@Path("/hasDuplicates")
 	@Produces("application/json")
-	public Response hasDuplicates(@QueryParam("tableID") String tableID,
-			@QueryParam("concept") String columnName) 
+	public Response hasDuplicates(MultivaluedMap<String, String> form,
+			@QueryParam("tableID") String tableID) 
 	{
-		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);
-		int uniqueInstanceCount = table.getUniqueInstanceCount(columnName);
+		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);		
+		if(table == null) {
+			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+		}
+		
+		Gson gson = new Gson();
+		String[] columns = gson.fromJson(form.getFirst("concepts"), String[].class);
+		String[] columnHeaders = table.getColumnHeaders();
+		Map<String, Integer> columnMap = new HashMap<>();
+		for(int i = 0; i < columnHeaders.length; i++) {
+			columnMap.put(columnHeaders[i], i);
+		}
+		
+		Iterator<Object[]> iterator = table.iterator(false);
 		int numRows = table.getNumRows();
-		boolean hasDuplicates = uniqueInstanceCount == numRows;
+		Set<String> comboSet = new HashSet<String>(numRows);
+		while(iterator.hasNext()) {
+			Object[] nextRow = iterator.next();
+			String comboValue = "";
+			for(String c : columns) {
+				int i = columnMap.get(c);
+				comboValue = comboValue + nextRow[i];
+			}
+			comboSet.add(comboValue);
+		}
+		boolean hasDuplicates = comboSet.size() == numRows;
 		return Response.status(200).entity(WebUtility.getSO(hasDuplicates)).build();
 	}
 	//	public static void main(String[] args) {
