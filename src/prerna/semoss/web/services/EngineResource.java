@@ -1867,7 +1867,7 @@ public class EngineResource {
 			comboSet.add(comboValue);
 			
 			if(comboSet.size() < rowCount) {
-				return Response.status(200).entity(WebUtility.getSO(false)).build();
+				return Response.status(200).entity(WebUtility.getSO(true)).build();
 			}
 			
 			rowCount++;
