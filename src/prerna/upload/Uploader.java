@@ -205,12 +205,7 @@ public class Uploader extends HttpServlet {
 
 	public void loadEngineIntoLocalMasterDB(HttpServletRequest request, String engineName, String baseURL) {
 		String localMasterDbName = Constants.LOCAL_MASTER_DB_NAME;
-
-		ServletContext servletContext = request.getServletContext();
-		String contextPath = servletContext.getRealPath(System.getProperty("file.separator"));
-		String wordNet = "WEB-INF" + System.getProperty("file.separator") + "lib" + System.getProperty("file.separator") + "WordNet-3.1";
-		String wordNetDir  = contextPath + wordNet;
-
+		String wordNetDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + System.getProperty("file.separator") + "WordNet-3.1";
 		AddToMasterDB creater = new AddToMasterDB(localMasterDbName);
 		creater.setWordnetPath(wordNetDir);
 		creater.registerEngineLocal(engineName);
@@ -459,6 +454,8 @@ public class Uploader extends HttpServlet {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} finally {
+			deleteFilesFromServer(inputData.get("file").toString().split(";"));
 		}
 
 		try {
@@ -470,9 +467,7 @@ public class Uploader extends HttpServlet {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Failure to write CSV Prop File based on user-defined metamodel.");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} finally {
-			deleteFilesFromServer(inputData.get("file").toString().split(";"));
-		}
+		} 
 
 		String outputText = "CSV Loading was a success.";
 		return Response.status(200).entity(gson.toJson(outputText)).build();
