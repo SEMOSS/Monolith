@@ -1137,7 +1137,7 @@ public class EngineResource {
 		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
 
 		Map<String, Object> valuesMap = new HashMap<String, Object>();
-		valuesMap.put(tableID, scroller.getNextData(concept));
+		valuesMap.put(tableID, scroller.getNextData(concept, startRow, endRow));
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
