@@ -1833,11 +1833,12 @@ public class EngineResource {
 		}
 		
 		Gson gson = new Gson();
-		String[] groupByCols = gson.fromJson(form.getFirst("groupBy"), String[].class);
+		String groupBy = form.getFirst("groupBy");
+//		String[] groupByCols = gson.fromJson(form.getFirst("groupBy"), String[].class);
 		HashMap<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
 		
 
-		//ITableStatCounter.addStatsToDataFrame(table, groupByCols, functionMap);
+		ITableStatCounter.addStatsToDataFrame(table, groupByCol, functionMap);
 		
 		//return success
 		return Response.status(200).entity(WebUtility.getSO("success")).build();
