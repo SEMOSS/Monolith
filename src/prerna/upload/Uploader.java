@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -73,6 +72,7 @@ import prerna.error.EngineException;
 import prerna.error.FileReaderException;
 import prerna.error.FileWriterException;
 import prerna.error.HeaderClassException;
+import prerna.error.InvalidUploadFormatException;
 import prerna.error.NLPException;
 import prerna.nameserver.AddToMasterDB;
 import prerna.poi.main.CSVPropFileBuilder;
@@ -454,6 +454,16 @@ public class Uploader extends HttpServlet {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(InvalidUploadFormatException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(Exception e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
 			deleteFilesFromServer(inputData.get("file").toString().split(";"));
 		}
@@ -623,6 +633,18 @@ public class Uploader extends HttpServlet {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(InvalidUploadFormatException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(Exception e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} finally {
+			deleteFilesFromServer(inputData.get("file").toString().split(";"));
 		}
 
 		try {
@@ -634,8 +656,6 @@ public class Uploader extends HttpServlet {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Failure to write Excel Prop File based on user-defined metamodel.");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} finally {
-			deleteFilesFromServer(inputData.get("file").toString().split(";"));
 		}
 
 		String outputText = "CSV Loading was a success.";
@@ -740,6 +760,16 @@ public class Uploader extends HttpServlet {
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch (NLPException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(InvalidUploadFormatException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(Exception e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
@@ -868,8 +898,18 @@ public class Uploader extends HttpServlet {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(InvalidUploadFormatException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(Exception e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
-			deleteFilesFromServer(files.split(";"));
+			deleteFilesFromServer(inputData.get("file").toString().split(";"));
 		}
 
 		String outputText = "NLP Loading was a success.";
