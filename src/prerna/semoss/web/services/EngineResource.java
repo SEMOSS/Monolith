@@ -1838,10 +1838,10 @@ public class EngineResource {
 		HashMap<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
 		
 
-		ITableStatCounter.addStatsToDataFrame(table, groupByCol, functionMap);
+		Map<String, Object> map = ITableStatCounter.addStatsToDataFrame(table, groupBy, functionMap);
 		
 		//return success
-		return Response.status(200).entity(WebUtility.getSO("success")).build();
+		return Response.status(200).entity(WebUtility.getSO(map)).build();
 	}
 	
 	@POST
