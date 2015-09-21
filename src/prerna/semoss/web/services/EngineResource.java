@@ -1849,7 +1849,7 @@ public class EngineResource {
 //		WebBtreeIterator iterator = new WebBtreeIterator()
 		
 		retMap.put("mathMap", map);
-		retMap.put("tableData", null);
+		retMap.put("tableData", ITableUtilities.getTableData(table));
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	

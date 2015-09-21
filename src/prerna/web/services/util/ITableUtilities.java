@@ -2,6 +2,7 @@ package prerna.web.services.util;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -9,6 +10,7 @@ import javax.ws.rs.core.Response;
 
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.ITableDataFrameStore;
+import prerna.ds.ITableWebAdapter;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
 import prerna.util.QuestionPlaySheetStore;
@@ -108,5 +110,9 @@ public class ITableUtilities {
 		}
 
 		return table;
+	}
+	
+	public static List<HashMap<String, Object>> getTableData(ITableDataFrame table) {
+		return ITableWebAdapter.getData(table);
 	}
 }
