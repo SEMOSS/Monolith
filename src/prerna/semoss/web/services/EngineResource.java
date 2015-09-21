@@ -1114,10 +1114,16 @@ public class EngineResource {
 		}
 		
 		Gson gson = new Gson();
-		/*Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
-		String concept = sortModel.get("field");
-		String sort = sortModel.get("sort");*/
 		String concept = null;
+		String sort = null;
+
+		try {
+			Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
+			concept = sortModel.get("field");
+			sort = sortModel.get("sort");
+		} catch (Exception e) {
+			sort = "asc";
+		}
 		
 		HttpSession session = request.getSession();
 		boolean first = false;
@@ -1137,7 +1143,7 @@ public class EngineResource {
 		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
 
 		Map<String, Object> valuesMap = new HashMap<String, Object>();
-		valuesMap.put(tableID, scroller.getNextData(concept, startRow, endRow));
+		valuesMap.put(tableID, scroller.getNextData(concept, sort, startRow, endRow));
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
@@ -1838,10 +1844,13 @@ public class EngineResource {
 		HashMap<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
 		
 
+		Map<String, Object> retMap = new HashMap<String, Object>();
 		Map<String, Object> map = ITableStatCounter.addStatsToDataFrame(table, groupBy, functionMap);
+//		WebBtreeIterator iterator = new WebBtreeIterator()
 		
-		//return success
-		return Response.status(200).entity(WebUtility.getSO(map)).build();
+		retMap.put("mathMap", map);
+		retMap.put("tableData", null);
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
 	@POST
