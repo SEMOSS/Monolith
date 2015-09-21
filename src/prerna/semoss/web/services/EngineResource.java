@@ -1845,7 +1845,8 @@ public class EngineResource {
 		
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
-		Map<String, Object> map = ITableStatCounter.addStatsToDataFrame(table, groupBy, functionMap);
+		ITableStatCounter counter = new ITableStatCounter();
+		Map<String, Object> map = counter.addStatsToDataFrame(table, groupBy, functionMap);
 //		WebBtreeIterator iterator = new WebBtreeIterator()
 		
 		retMap.put("mathMap", map);
