@@ -1840,14 +1840,14 @@ public class EngineResource {
 		}
 		
 		Gson gson = new Gson();
-		String groupBy = form.getFirst("groupBy");
-//		String[] groupByCols = gson.fromJson(form.getFirst("groupBy"), String[].class);
+//		String groupBy = form.getFirst("groupBy");
+		String[] groupByCols = gson.fromJson(form.getFirst("groupBy"), String[].class);
 		HashMap<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
 		
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		ITableStatCounter counter = new ITableStatCounter();
-		Map<String, Object> map = counter.addStatsToDataFrame(table, groupBy, functionMap);
+		Map<String, Object> map = counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
 //		WebBtreeIterator iterator = new WebBtreeIterator()
 		
 		retMap.put("mathMap", map);
