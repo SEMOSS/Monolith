@@ -1138,6 +1138,7 @@ public class EngineResource {
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		} else if(filterModel.keySet().size() == 0 && !first) {
 			mainTree.unfilter();
+			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		}
 		
 		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
