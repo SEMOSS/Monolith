@@ -1167,6 +1167,17 @@ public class EngineResource {
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 
+		ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
+		if(existingData == null) {
+			return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
+		}
+		if(currConcept != null && !currConcept.isEmpty()) {
+			List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));							
+			StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
+			stringMap.put(currConcept, filteringValues);
+			((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
+		}
+		
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 		builder.setJSONDataHash(dataHash);
 		builder.buildQuery();
@@ -1265,7 +1276,7 @@ public class EngineResource {
 
 		} else {
 			// grab existing dataframe
-			ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
+			existingData = ITableDataFrameStore.getInstance().get(tableID);
 			if(existingData == null) {
 				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
 			}
