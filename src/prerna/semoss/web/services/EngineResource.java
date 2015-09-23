@@ -938,10 +938,8 @@ public class EngineResource {
 
 //		boolean unfiltered = false;
 
-
 		mainTree.unfilter();
 		for(String concept: filterValuesArrMap.keySet()) {
-
 			List<Object> filterValuesArr = filterValuesArrMap.get(concept);
 			if(mainTree.isNumeric(concept)) {
 				List<Object> values = new ArrayList<Object>(filterValuesArr.size());
@@ -1170,7 +1168,7 @@ public class EngineResource {
 		ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
 		if(existingData != null) {
 			if(currConcept != null && !currConcept.isEmpty()) {
-				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));							
+				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
 				StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
 				stringMap.put(currConcept, filteringValues);
 				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
@@ -1178,6 +1176,7 @@ public class EngineResource {
 		}
 		
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
+		boolean isSparql = builder instanceof SPARQLQueryTableBuilder;
 		builder.setJSONDataHash(dataHash);
 		builder.buildQuery();
 		String query = builder.getQuery();
@@ -1192,9 +1191,8 @@ public class EngineResource {
 		List<Hashtable<String, String>> nodePropV = null;
 		//TODO: standardize the query
 		//TODO: why is rdbms uppper case for names?
-		boolean isSparql = false;
-		if(builder instanceof SPARQLQueryTableBuilder) {
-			isSparql = true;
+//		boolean isSparql = false;
+		if(isSparql) {
 			nodeV = ((SPARQLQueryTableBuilder)builder).getNodeV();
 			nodePropV = ((SPARQLQueryTableBuilder)builder).getNodePropV();
 		} else if(builder instanceof SQLQueryTableBuilder) {
@@ -1291,15 +1289,8 @@ public class EngineResource {
 			default : alg = new ExactStringMatcher(); 
 			}
 
-			if(isSparql) {
-				existingData.join(newTree, currConcept, equivConcept, 1, alg);
-
-			} else {
-				existingData.join(newTree, currConcept.toUpperCase(), equivConcept.toUpperCase(), 1, alg);
-			}
-
+			existingData.join(newTree, currConcept, equivConcept, 1, alg);
 			System.err.println("New levels in main tree are " + Arrays.toString(existingData.getColumnHeaders()));
-
 			Map<String, Object> retMap = new HashMap<String, Object>();
 			retMap.put("tableID", tableID);
 			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
