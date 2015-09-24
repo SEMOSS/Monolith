@@ -430,15 +430,17 @@ public class PlaySheetResource {
 	@GET
 	@Path("undo")
 	@Produces("application/json")
-	public StreamingOutput undo(@Context HttpServletRequest request) {
+	public StreamingOutput undo(@Context HttpServletRequest request, @QueryParam("count") Integer count) {
 		Object obj = null;
 		if ( playSheet instanceof GraphPlaySheet){
 			GraphPlaySheet gps = (GraphPlaySheet)playSheet;
 			GraphDataModel gdm = gps.getGraphData();
-			gdm.setUndo(true);
-			gdm.undoData();
-			gdm.fillStoresFromModel(coreEngine);
-			gps.setAppend(true);
+			for(int i = 0; i < count; i ++ ){
+				gdm.setUndo(true);
+				gdm.undoData();
+				gdm.fillStoresFromModel(coreEngine);
+				gps.setAppend(true);
+			}
 			obj = gps.getData();
 		}
 
