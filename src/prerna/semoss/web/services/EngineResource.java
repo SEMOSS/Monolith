@@ -1143,10 +1143,21 @@ public class EngineResource {
 
 		Map<String, Object> valuesMap = new HashMap<String, Object>();
 		valuesMap.put(tableID, scroller.getNextData(concept, sort, startRow, endRow));
+		
+		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
+		String[] varKeys = mainTree.getColumnHeaders();
+		String[] uriKeys = mainTree.getURIColumnHeaders();
+		for(int i = 0; i < varKeys.length; i++) {
+			Map<String, String> innerMap = new HashMap<String, String>();
+			innerMap.put("uri", uriKeys[i]);
+			innerMap.put("varKey", varKeys[i]);
+			headerInfo.add(innerMap);
+		}
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
 		retMap.put("numRows", mainTree.getNumRows());
+		retMap.put("headers", headerInfo);
 		retMap.put("tableData", valuesMap);
 
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
