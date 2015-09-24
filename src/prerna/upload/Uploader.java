@@ -37,8 +37,10 @@ import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -61,9 +63,6 @@ import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.io.FileUtils;
 
-import com.google.gson.Gson;
-import com.ibm.icu.util.StringTokenizer;
-
 import prerna.algorithm.learning.unsupervised.recommender.DataStructureFromCSV;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
@@ -83,6 +82,9 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.util.sql.SQLQueryUtil;
+
+import com.google.gson.Gson;
+import com.ibm.icu.util.StringTokenizer;
 
 /**
  * Servlet implementation class Uploader
@@ -470,14 +472,16 @@ public class Uploader extends HttpServlet {
 		}
 
 		try {
-			String currDate = Calendar.getInstance().getTime().toString().replaceAll(" ", "_");
+			Date currDate = Calendar.getInstance().getTime();
+			SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmssZ");
+			String dateName = sdf.format(currDate);
 			for(i = 0; i < size; i++) {
 				FileUtils.writeStringToFile(new File(
 						DIHelper.getInstance().getProperty("BaseFolder")
 						.concat(File.separator).concat("db").concat(File.separator)
 						.concat(Utility.cleanString(dbName, true).toString()).concat(File.separator)
 						.concat(dbName.toString()).concat("_").concat(fileNames[i].replace(".csv", ""))
-						.concat("_").concat(currDate).concat("_PROP.prop")), propFileArr[i]);
+						.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -655,14 +659,16 @@ public class Uploader extends HttpServlet {
 		}
 
 		try {
-			String currDate = Calendar.getInstance().getTime().toString().replaceAll(" ", "_");
+			Date currDate = Calendar.getInstance().getTime();
+			SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmssZ");
+			String dateName = sdf.format(currDate);
 			for(i = 0; i < size; i++) {
 				FileUtils.writeStringToFile(new File(
 						DIHelper.getInstance().getProperty("BaseFolder")
 						.concat(File.separator).concat("db").concat(File.separator)
 						.concat(Utility.cleanString(dbName, true).toString()).concat(File.separator)
 						.concat(dbName.toString()).concat("_").concat(fileNames[i].replace(".xls*", ""))
-						.concat("_").concat(currDate).concat("_PROP.prop")), propFileArr[i]);
+						.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
