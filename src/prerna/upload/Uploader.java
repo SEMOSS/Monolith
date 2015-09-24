@@ -38,6 +38,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -469,8 +470,14 @@ public class Uploader extends HttpServlet {
 		}
 
 		try {
+			String currDate = Calendar.getInstance().getTime().toString().replaceAll(" ", "_");
 			for(i = 0; i < size; i++) {
-				FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder").concat(File.separator).concat("db").concat(File.separator).concat(Utility.cleanString(dbName, true).toString()).concat(File.separator).concat(dbName.toString()).concat("_").concat(fileNames[i].replace(".csv", "")).concat("_PROP.prop")), propFileArr[i]);
+				FileUtils.writeStringToFile(new File(
+						DIHelper.getInstance().getProperty("BaseFolder")
+						.concat(File.separator).concat("db").concat(File.separator)
+						.concat(Utility.cleanString(dbName, true).toString()).concat(File.separator)
+						.concat(dbName.toString()).concat("_").concat(fileNames[i].replace(".csv", ""))
+						.concat("_").concat(currDate).concat("_PROP.prop")), propFileArr[i]);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -648,8 +655,14 @@ public class Uploader extends HttpServlet {
 		}
 
 		try {
+			String currDate = Calendar.getInstance().getTime().toString().replaceAll(" ", "_");
 			for(i = 0; i < size; i++) {
-				FileUtils.writeStringToFile(new File(DIHelper.getInstance().getProperty("BaseFolder").concat(File.separator).concat("db").concat(File.separator).concat(Utility.cleanString(dbName, true).toString()).concat(File.separator).concat(dbName.toString()).concat("_").concat(fileNames[i].replace(".excel", "")).concat("_PROP.prop")), propFileArr[i]);
+				FileUtils.writeStringToFile(new File(
+						DIHelper.getInstance().getProperty("BaseFolder")
+						.concat(File.separator).concat("db").concat(File.separator)
+						.concat(Utility.cleanString(dbName, true).toString()).concat(File.separator)
+						.concat(dbName.toString()).concat("_").concat(fileNames[i].replace(".xls*", ""))
+						.concat("_").concat(currDate).concat("_PROP.prop")), propFileArr[i]);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
