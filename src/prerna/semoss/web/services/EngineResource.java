@@ -1177,14 +1177,19 @@ public class EngineResource {
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 
 		ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
-		if(existingData != null) {
-			if(currConcept != null && !currConcept.isEmpty()) {
-				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
-				StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
-				stringMap.put(currConcept, filteringValues);
-				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
-			}
-		}
+        if(existingData != null) {
+               if(currConcept != null && !currConcept.isEmpty()) {
+                     List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
+                     StringMap<List<Object>> stringMap;
+                     if(((StringMap) dataHash.get("QueryData")).containsKey(AbstractQueryBuilder.filterKey)) {
+                            stringMap = (StringMap<List<Object>>) ((StringMap) dataHash.get("QueryData")).get(AbstractQueryBuilder.filterKey);
+                     } else {
+                            stringMap = new StringMap<List<Object>>();
+                     }
+                     stringMap.put(currConcept, filteringValues);
+                     ((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
+               }
+        }
 		
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 		boolean isSparql = builder instanceof SPARQLQueryTableBuilder;
@@ -1859,10 +1864,11 @@ public class EngineResource {
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		ITableStatCounter counter = new ITableStatCounter();
-		counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
+//		Map<String, Object> mathMap = counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
 //		WebBtreeIterator iterator = new WebBtreeIterator()
 		
 		retMap.put("tableData", ITableUtilities.getTableData(table));
+//		retMap.put("mathMap", mathMap);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
