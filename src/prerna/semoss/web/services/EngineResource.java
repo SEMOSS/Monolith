@@ -1413,7 +1413,7 @@ public class EngineResource {
     @Path("searchColumn")
     @Produces("application/json")
     public Response searchColumn(MultivaluedMap<String, String> form,
-                  @QueryParam("currConcept") String currConcept,
+                  @QueryParam("existingConcept") String currConcept,
                   @QueryParam("joinType") String joinType,
                   @QueryParam("tableID") String tableID,
                   @QueryParam("columnHeader") String columnHeader,
