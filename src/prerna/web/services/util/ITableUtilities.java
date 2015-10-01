@@ -115,4 +115,26 @@ public class ITableUtilities {
 	public static List<HashMap<String, Object>> getTableData(ITableDataFrame table) {
 		return ITableWebAdapter.getData(table);
 	}
+	
+	public static Map<String, Boolean> checkRelationships() {
+		//use this to import hasDuplicates code
+		
+		return null;
+	}
+	
+	public static Map<String, Object> createColumnNamesForColumnGrouping(String columnHeader, Map<String, Object> functionMap) {
+		
+		for(String key : functionMap.keySet()) {
+			
+			Map<String, String> map = (Map<String, String>)functionMap.get(key);
+			String name = map.get("name");
+			String function = map.get("math");
+			if(!name.equals(columnHeader)) {
+				String newName = name+"_"+function+" on "+columnHeader;
+				map.put("calcName", newName);
+			}
+		}
+		
+		return functionMap;
+	}
 }

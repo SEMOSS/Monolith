@@ -1305,7 +1305,10 @@ public class EngineResource {
 			default : alg = new ExactStringMatcher(); 
 			}
 
+			System.err.println("Starting Join...");
+			long startJoinTime = System.currentTimeMillis();
 			existingData.join(newTree, currConcept, equivConcept, 1, alg);
+			System.err.println("Finished Join: " + (System.currentTimeMillis() - startJoinTime) + " ms");
 			System.err.println("New levels in main tree are " + Arrays.toString(existingData.getColumnHeaders()));
 			Map<String, Object> retMap = new HashMap<String, Object>();
 			retMap.put("tableID", tableID);
@@ -1859,16 +1862,28 @@ public class EngineResource {
 		Gson gson = new Gson();
 //		String groupBy = form.getFirst("groupBy");
 		String[] groupByCols = gson.fromJson(form.getFirst("groupBy"), String[].class);
-		HashMap<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
+		Map<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
 		
 
+		functionMap = ITableUtilities.createColumnNamesForColumnGrouping(groupByCols[0], functionMap);
+		
+		String[] columnHeaders = table.getColumnHeaders();
+		for(String key : functionMap.keySet()) {
+			Map<String, String> map = (Map)functionMap.get(key);
+			
+			String name = map.get("calcName");
+			if(ArrayUtilityMethods.arrayContainsValue(columnHeaders, name)) {
+				table.removeColumn(name);
+			}
+		}
+		
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		ITableStatCounter counter = new ITableStatCounter();
-//		Map<String, Object> mathMap = counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
+		Map<String, Object> mathMap = counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
 //		WebBtreeIterator iterator = new WebBtreeIterator()
 		
 		retMap.put("tableData", ITableUtilities.getTableData(table));
-//		retMap.put("mathMap", mathMap);
+		retMap.put("mathMap", mathMap);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
