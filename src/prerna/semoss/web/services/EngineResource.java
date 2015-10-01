@@ -1418,6 +1418,8 @@ public class EngineResource {
                   @QueryParam("tableID") String tableID,
                   @QueryParam("columnHeader") String columnHeader,
                   @QueryParam("searchTerm") String searchTerm,
+                  @QueryParam("limit") String limit,
+                  @QueryParam("offset") String offset,
                   @Context HttpServletRequest request)
     {
            Gson gson = new Gson();
@@ -1471,6 +1473,13 @@ public class EngineResource {
            builder.buildQuery();
            String query = builder.getQuery();
 
+           if (limit.matches("^-?\\d+$")) {
+        	   query += " LIMIT " + limit.toString();
+           }
+           
+           if (offset.matches("^-?\\d+$")) {
+        	   query += " OFFSET " + offset.toString();
+           }
            System.out.println(query);
 
            ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
