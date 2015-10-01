@@ -1973,11 +1973,11 @@ public class EngineResource {
 		
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		ITableStatCounter counter = new ITableStatCounter();
-		Map<String, Object> mathMap = counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
+		counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
 //		WebBtreeIterator iterator = new WebBtreeIterator()
 		
 		retMap.put("tableData", ITableUtilities.getTableData(table));
-		retMap.put("mathMap", mathMap);
+		retMap.put("mathMap", functionMap);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	

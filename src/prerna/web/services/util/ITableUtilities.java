@@ -130,7 +130,7 @@ public class ITableUtilities {
 			String name = map.get("name");
 			String function = map.get("math");
 			if(!name.equals(columnHeader)) {
-				String newName = name+"_"+function+" on "+columnHeader;
+				String newName = name+"_"+function+"_on_"+columnHeader;
 				map.put("calcName", newName);
 			}
 		}
