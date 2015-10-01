@@ -1163,6 +1163,19 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
+	@GET
+	@Path("/getTableHeaders")
+	@Produces("application/json")
+	public Response getTableHeaders(@QueryParam("tableID") String tableID) {
+		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);
+		String[] columnHeaders = table.getColumnHeaders();
+		
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		retMap.put("tableID", tableID);
+		retMap.put("tableHeaders", columnHeaders);
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+	
 	@POST
 	@Path("/addData")
 	@Produces("application/json")
