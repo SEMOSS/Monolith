@@ -63,6 +63,9 @@ import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.io.FileUtils;
 
+import com.google.gson.Gson;
+import com.ibm.icu.util.StringTokenizer;
+
 import prerna.algorithm.learning.unsupervised.recommender.DataStructureFromCSV;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
@@ -82,9 +85,6 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.util.sql.SQLQueryUtil;
-
-import com.google.gson.Gson;
-import com.ibm.icu.util.StringTokenizer;
 
 /**
  * Servlet implementation class Uploader
@@ -498,8 +498,9 @@ public class Uploader extends HttpServlet {
 	@POST
 	@Path("/excelTable/upload")
 	@Produces("application/json")
-	public Response uploadExcelReaederFile(@Context HttpServletRequest request)
+	public Response uploadExcelReaderFile(@Context HttpServletRequest request)
 	{
+		//TODO: need to add rdbms version of this code
 		List<FileItem> fileItems = processRequest(request);
 		Hashtable<String, String> inputData = getInputData(fileItems);
 		
@@ -804,6 +805,7 @@ public class Uploader extends HttpServlet {
 	@POST
 	@Path("/nlp/upload")
 	@Produces("application/json")
+	//TODO: WHY WAS RDBMS ADDED TO THIS?
 	public Response uploadNLPFile(@Context HttpServletRequest request) {
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
@@ -840,7 +842,12 @@ public class Uploader extends HttpServlet {
 			allowDuplicates = false;//todo need to set from the UI
 		}
 		
-		String files = inputData.get("file").toString();
+		String uploadFiles = "";
+		String file = "";
+		if(inputData.get("file") != null && !inputData.get("file").toString().isEmpty()) {
+			file = inputData.get("file").toString();
+			uploadFiles = uploadFiles.concat(file);
+		}
 		if(inputData.get("nlptext") != null && !inputData.get("nlptext").toString().isEmpty()) {
 			String inputText = filePath + System.getProperty("file.separator") + "Text_Input.txt";
 			PrintWriter writer = null;
@@ -854,10 +861,18 @@ public class Uploader extends HttpServlet {
 					writer.close();
 				}
 			}
-			files = files.concat(";").concat(inputText);
+			if(uploadFiles.isEmpty()) {
+				uploadFiles = uploadFiles.concat(inputText);
+			} else {
+				uploadFiles = uploadFiles.concat(";").concat(inputText);
+			}
 		}
 		if(inputData.get("nlphttpurl") != null && !inputData.get("nlphttpurl").toString().isEmpty()) {
-			files = files.concat(";").concat(inputData.get("nlphttpurl").toString());
+			if(uploadFiles.isEmpty()) {
+				uploadFiles = uploadFiles.concat(inputData.get("nlphttpurl").toString());
+			} else {
+				uploadFiles = uploadFiles.concat(";").concat(inputData.get("nlphttpurl").toString());
+			}
 		}
 		
 		try {
@@ -873,7 +888,7 @@ public class Uploader extends HttpServlet {
 					}
 				}
 				
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, files, 
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
 						inputData.get("customBaseURI")+"", dbName,"","","","", storeType, rdbmsType, allowDuplicates);
 				loadEngineIntoSession(request, dbName);
 				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("customBaseURI"));
@@ -889,7 +904,7 @@ public class Uploader extends HttpServlet {
 					}
 				}
 				
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, files, 
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
 						inputData.get("customBaseURI")+"", "","","","", dbName, storeType, rdbmsType, allowDuplicates);
 			}
 		} catch (EngineException e) {
@@ -928,7 +943,9 @@ public class Uploader extends HttpServlet {
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
-			deleteFilesFromServer(inputData.get("file").toString().split(";"));
+			if(!file.isEmpty()) {
+				deleteFilesFromServer(file.split(";"));
+			}
 		}
 
 		String outputText = "NLP Loading was a success.";
