@@ -1111,6 +1111,11 @@ public class EngineResource {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
 		
+		int numRows = mainTree.getNumRows();
+		if(endRow > numRows) {
+			endRow = numRows;
+		}
+		
 		Gson gson = new Gson();
 		String concept = null;
 		String sort = null;
