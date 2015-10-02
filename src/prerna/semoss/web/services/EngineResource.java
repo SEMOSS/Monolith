@@ -1117,7 +1117,7 @@ public class EngineResource {
 
 		try {
 			Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
-			concept = sortModel.get("field");
+			concept = sortModel.get("colId");
 			sort = sortModel.get("sort");
 		} catch (Exception e) {
 			sort = "asc";
@@ -2045,7 +2045,7 @@ public class EngineResource {
 			
 			rowCount++;
 		}
-		boolean hasDuplicates = comboSet.size() == numRows;
+		boolean hasDuplicates = comboSet.size() != numRows;
 		return Response.status(200).entity(WebUtility.getSO(hasDuplicates)).build();
 	}
 	//	public static void main(String[] args) {
