@@ -27,18 +27,11 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -61,7 +54,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -101,6 +93,7 @@ import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
 import prerna.rdf.query.builder.SQLQueryTableBuilder;
 import prerna.rdf.query.util.SEMOSSQuery;
+import prerna.rdf.util.AbstractQueryParser;
 import prerna.rdf.util.RDFJSONConverter;
 import prerna.semoss.web.form.FormBuilder;
 import prerna.ui.components.ExecuteQueryProcessor;
@@ -925,11 +918,22 @@ public class EngineResource {
 	@POST
 	@Path("/filterData")
 	@Produces("application/json")
-	public Response filterData(MultivaluedMap<String, String> form,  
-			@QueryParam("tableID") String tableID,
-			@Context HttpServletRequest request)
+	public Response filterData(MultivaluedMap<String, String> form/*,  
+	@QueryParam("tableID") String tableID,
+			@Context HttpServletRequest request*/
+			//*** Uncomment above before committing
+			)
 	{	
-		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+		// ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);
+		// *** Uncomment above before committing
+		
+		// *** Comment out below before committing
+		String tableID = form.getFirst("tableID");
+		String insightID = form.getFirst("insightID");
+		
+		ITableDataFrame mainTree = ITableUtilities.getTable(tableID, insightID);
+		// *** Comment out above before committing
+
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
@@ -1107,10 +1111,10 @@ public class EngineResource {
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
-		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);	
-		if(mainTree == null) {
-			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
-		}
+			ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+			if(mainTree == null) {
+				return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+			}
 		
 		int numRows = mainTree.getNumRows();
 		if(endRow > numRows) {
@@ -1324,13 +1328,13 @@ public class EngineResource {
 
 			IAnalyticRoutine alg = null;
 			switch(joinType) {
-			case "inner" : alg = new ExactStringMatcher(); 
-			break;
-			case "partial" : alg = new ExactStringPartialOuterJoinMatcher(); 
-			break;
-			case "outer" : alg = new ExactStringOuterJoinMatcher();
-			break;
-			default : alg = new ExactStringMatcher(); 
+				case "inner" : alg = new ExactStringMatcher(); 
+					break;
+				case "partial" : alg = new ExactStringPartialOuterJoinMatcher(); 
+					break;
+				case "outer" : alg = new ExactStringOuterJoinMatcher();
+					break;
+				default : alg = new ExactStringMatcher(); 
 			}
 
 			System.err.println("Starting Join...");
@@ -1556,7 +1560,7 @@ public class EngineResource {
 
 		List<Object[]> table = mainTree.getRawData();
 		Map<String, Object> returnData = new HashMap<String, Object>();
-        
+		
 		returnData.put("totalRows", table.size());
 		returnData.put("data", table);
 
@@ -1606,7 +1610,7 @@ public class EngineResource {
 			FormBuilder.saveForm(formData, jsonLoc);
 		} catch (IOException e) {
 			return Response.status(400).entity(WebUtility.getSO(e.getMessage())).build();
-		}
+				}
 
 		return Response.status(200).entity(WebUtility.getSO("saved successfully")).build();
 	}
@@ -1647,8 +1651,8 @@ public class EngineResource {
 			FormBuilder.saveFormData(form);
 		} catch(Exception e) {
 			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
-		}
-		
+			}
+			
 		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
 	}
 
@@ -1924,12 +1928,19 @@ public class EngineResource {
 		//String query1 = form.getFirst("query1");
 		//String query2 = form.getFirst("query2");
 
-		long start = System.currentTimeMillis();
-		String query1 = "SELECT DISTINCT ?Title ?DomesticRevenue ?InternationalRevenue ?Budget ?RottenTomatoesCritics ?RottenTomatoesAudience WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
+		String query1 = "SELECT DISTINCT CAPITAL.CAPITAL, LOWERCASE.LOWERCASE, NUMBER.NUMBER FROM CAPITAL, LOWERCASE, NUMBER WHERE CAPITAL.LOWERCASE_FK=LOWERCASE.LOWERCASE AND LOWERCASE.NUMBER_FK=NUMBER.NUMBER;";
+		
+		// Movie_DB Query
+		// String query1 =
+		// "SELECT DISTINCT ?Title ?DomesticRevenue ?InternationalRevenue ?Budget ?RottenTomatoesCritics ?RottenTomatoesAudience WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
+		
+		// TAP_Core_Data Query
 		//		String query1 = "SELECT DISTINCT ?ICD ?Source ?Target ?DataObject ?Format ?Frequency ?Protocol WHERE { {?ICD <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/InterfaceControlDocument>} {?Source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?Source <http://semoss.org/ontologies/Relation/Provide> ?ICD} {?Target <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?ICD <http://semoss.org/ontologies/Relation/Consume> ?Target} {?DataObject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/DataObject>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?ICD ?carries ?DataObject} {?carries <http://semoss.org/ontologies/Relation/Contains/Protocol> ?Protocol} {?carries <http://semoss.org/ontologies/Relation/Contains/Format> ?Format} {?carries <http://semoss.org/ontologies/Relation/Contains/Frequency> ?Frequency} } ORDER BY ?ICD";
 
 		//run query 1
 		HttpSession session = request.getSession(false);
+		float start = System.currentTimeMillis();
+
 		BTreeDataFrame tree1 = null;
 		String[] names1 = null;
 		if(query1 != null){
@@ -1941,12 +1952,22 @@ public class EngineResource {
 				tree1.addRow(iss1.getPropHash(), iss1.getRPropHash());
 			}
 		}
-		long end = System.currentTimeMillis();
+
+		float end = System.currentTimeMillis();
+		tree1.removeValue("1", "http://semoss.org/ontologies/Concept/Number/1", "NUMBER");
 		System.out.println("Construction time = " + ((end-start)/1000) );
 
-		Iterator<Object> iterator = tree1.uniqueValueIterator("Title", false, true);
-		while(iterator.hasNext()) {
-			System.out.println(iterator.next().toString());
+		Iterator<Object> capIterator = tree1.uniqueValueIterator("CAPITAL", false, true); // Change for each query
+		while (capIterator.hasNext()) {
+			System.out.println(capIterator.next().toString());
+		}
+		Iterator<Object> lowerIterator = tree1.uniqueValueIterator("LOWERCASE", false, true); // Change for each query
+		while (lowerIterator.hasNext()) {
+			System.out.println(lowerIterator.next().toString());
+		}
+		Iterator<Object> numIterator = tree1.uniqueValueIterator("NUMBER", false, true); // Change for each query
+		while (numIterator.hasNext()) {
+			System.out.println(numIterator.next().toString());
 		}
 		System.out.println("Done");
 
@@ -2093,4 +2114,77 @@ public class EngineResource {
 	//			System.out.println();
 	//		}
 	//	}
+
+	/**
+	 * Finds BTree corresponding to either tableID or questionID (insightID) and calls refresh method
+	 * 
+	 * @param tableID
+	 * @param questionID
+	 * @param request
+	 * @return
+	 */
+	@POST
+	@Path("/sendToExplore")
+	@Produces("application/json")
+	// if xml, don't need to use data.data; can just use data *** ask neel
+	public Response sendToExplore(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Hashtable<String, Object> returnHash = new Hashtable<String, Object>();
+		String tableID = form.getFirst("tableID");
+		String insightID = form.getFirst("insightID");
+		String query = form.getFirst("query");
+
+		ITableDataFrame dataFrame = ITableUtilities.getTable(tableID, insightID);
+
+		if (dataFrame == null) {
+			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
+		}
+
+		dataFrame.refresh();
+		
+		if (insightID != null && !query.isEmpty()) {
+			Hashtable<String, Object> returnDataHash = new Hashtable<String, Object>();
+			Hashtable<String, String> nodeTriples;
+			Hashtable<String, Object> nodeDetails;
+
+			AbstractQueryParser queryParser = ((AbstractEngine) coreEngine).getQueryParser();
+			queryParser.setQuery(query);
+			queryParser.parseQuery();
+			Hashtable<String, String> nodes = queryParser.getNodesFromQuery();
+			for (String key : nodes.keySet()) {
+				nodeDetails = new Hashtable<String, Object>();
+				
+				Hashtable<String, Set<String>> selectedPropsHash = queryParser.getPropertiesFromQuery();
+				HashSet<String> selectedProperties = (HashSet<String>) selectedPropsHash.get(key);
+				ArrayList<String> nodeProps = new ArrayList<String>();
+				if (selectedProperties != null) {
+					for (String singleProperty : selectedProperties) {
+						nodeProps.add(singleProperty);
+					}
+				}
+				nodeDetails.put("selectedProperties", nodeProps);
+				nodeDetails.put("uri", nodes.get(key));
+				returnDataHash.put(key, nodeDetails);
+			}
+			returnHash.put("nodes", returnDataHash);
+			
+			ArrayList<String[]> triplesArr = (ArrayList<String[]>) queryParser.getTriplesData();
+			int i = 0;
+			for (String[] triples : triplesArr) {
+				returnDataHash = new Hashtable<String, Object>();
+				nodeTriples = new Hashtable<String, String>();
+				
+				nodeTriples.put("fromNode", triples[0]);
+				nodeTriples.put("relationshipTriple", triples[1]);
+				nodeTriples.put("toNode", triples[2]);
+				returnDataHash.put(Integer.toString(i++), nodeTriples);
+				returnHash.put("triples", returnDataHash);
+			}
+
+			tableID = ITableDataFrameStore.getInstance().put(dataFrame);
+		}
+		
+		returnHash.put("tableID", tableID);
+
+		return Response.status(200).entity(WebUtility.getSO(returnHash)).build();
+	}
 }
