@@ -1172,12 +1172,21 @@ public class EngineResource {
 	@Path("/getTableHeaders")
 	@Produces("application/json")
 	public Response getTableHeaders(@QueryParam("tableID") String tableID) {
-		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);
+		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);		
+		
+		List<Map<String, String>> tableHeaders = new ArrayList<Map<String, String>>();
 		String[] columnHeaders = table.getColumnHeaders();
+		String[] uriKeys = table.getURIColumnHeaders();
+		for(int i = 0; i < columnHeaders.length; i++) {
+			Map<String, String> innerMap = new HashMap<String, String>();
+			innerMap.put("uri", uriKeys[i]);
+			innerMap.put("varKey", columnHeaders[i]);
+			tableHeaders.add(innerMap);
+		}
 		
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
-		retMap.put("tableHeaders", columnHeaders);
+		retMap.put("tableHeaders", tableHeaders);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
