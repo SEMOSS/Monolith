@@ -267,6 +267,7 @@ public class Uploader extends HttpServlet {
 	@Produces("text/html")
 	public Response createCSVMetamodel(@Context HttpServletRequest request) 
 	{
+		Gson gson = new Gson();
 		
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
@@ -279,8 +280,9 @@ public class Uploader extends HttpServlet {
 		if(obj != null) {
 			String cleanedFileName = processOpenRefine(dbName, (String) obj);
 			if(cleanedFileName.startsWith("Error")) {
-				String errorMessage = "Could not write the cleaned data to file. Please check application file-upload path.";
-				return Response.status(400).entity(errorMessage).build();
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
 			inputData.put("file", cleanedFileName);
 		}
@@ -326,8 +328,9 @@ public class Uploader extends HttpServlet {
 		if(obj != null) {
 			String cleanedFileName = processOpenRefine(dbName, (String) obj);
 			if(cleanedFileName.startsWith("Error")) {
-				String errorMessage = "Could not write the cleaned data to file. Please check application file-upload path.";
-				return Response.status(400).entity(gson.toJson(errorMessage)).build();
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
 			inputData.put("file", cleanedFileName);
 		}
@@ -338,13 +341,18 @@ public class Uploader extends HttpServlet {
 		Hashtable<String, String>[] propHashArr = new Hashtable[size];
 		String[] propFileArr = new String[size];
 		String[] fileNames = inputData.get("filename").split(";");
-		int i = 0;
-		for(i = 0; i < size; i++) {
+		boolean allEmpty = true;
+		for(int i = 0; i < size; i++) {
 			Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
 			
 			CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
 
 			List<String> rel = gson.fromJson(itemForFile.get("rowsRelationship"), List.class);
+			List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
+			if((rel != null &&!rel.isEmpty()) || (prop != null && !prop.isEmpty()) ) {
+				allEmpty = false;
+			}
+			
 			if(rel != null) {
 				for(String str : rel) {
 					// subject and object keys link to array list for concatenations, while the predicate is always a string
@@ -356,7 +364,6 @@ public class Uploader extends HttpServlet {
 				}
 			}
 
-			List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
 			if(prop != null) {
 				for(String str : prop) {
 					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
@@ -375,6 +382,11 @@ public class Uploader extends HttpServlet {
 			propHashArr[i] = propWriter.getPropHash(itemForFile.get("csvStartLineCount"), itemForFile.get("csvEndLineCount")); 
 			propFileArr[i] = propWriter.getPropFile();
 		}
+		if(allEmpty) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "No metamodel has been specified.\n Please specify a metamodel in order to determine how to load this data.");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		}
 						
 		ImportDataProcessor importer = new ImportDataProcessor();
 		importer.setPropHashArr(propHashArr);
@@ -388,8 +400,9 @@ public class Uploader extends HttpServlet {
 								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 										: null;
 		if(importMethod == null) {
-			String errorMessage = "Import method \'" + methodString + "\' is not supported";
-			return Response.status(400).entity(gson.toJson(errorMessage)).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Import method \'" + methodString + "\' is not supported");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
 		
 		//Add engine owner for permissions
@@ -398,7 +411,9 @@ public class Uploader extends HttpServlet {
 			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 				addEngineOwner(dbName, ((User) user).getId());
 			} else {
-				return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Please log in to upload data.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
 		}
 		
@@ -475,7 +490,7 @@ public class Uploader extends HttpServlet {
 			Date currDate = Calendar.getInstance().getTime();
 			SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmssZ");
 			String dateName = sdf.format(currDate);
-			for(i = 0; i < size; i++) {
+			for(int i = 0; i < size; i++) {
 				FileUtils.writeStringToFile(new File(
 						DIHelper.getInstance().getProperty("BaseFolder")
 						.concat(File.separator).concat("db").concat(File.separator)
@@ -513,8 +528,9 @@ public class Uploader extends HttpServlet {
 		if(obj != null) {
 			String cleanedFileName = processOpenRefine(dbName, (String) obj);
 			if(cleanedFileName.startsWith("Error")) {
-				String errorMessage = "Could not write the cleaned data to file. Please check application file-upload path.";
-				return Response.status(400).entity(gson.toJson(errorMessage)).build();
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
 			inputData.put("file", cleanedFileName);
 		}
@@ -525,16 +541,21 @@ public class Uploader extends HttpServlet {
 		Hashtable<String, String>[] propHashArr = new Hashtable[size];
 		String[] propFileArr = new String[size];
 		String[] fileNames = inputData.get("filename").split(";");
-		int i = 0;
-		for(i = 0; i < size; i++) {
+		boolean allEmpty = true;
+		for(int i = 0; i < size; i++) {
 			Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
-			
 			ExcelPropFileBuilder propWriter = new ExcelPropFileBuilder();
 
 			Hashtable<String, String> allSheetInfo = gson.fromJson(itemForFile.get("sheetInfo"), Hashtable.class);
 			for(String sheet : allSheetInfo.keySet()) {
 				Hashtable<String, String> sheetInfo = gson.fromJson(allSheetInfo.get(sheet), Hashtable.class);
+				
 				List<String> rel = gson.fromJson(sheetInfo.get("rowsRelationship"), List.class);
+				List<String> prop = gson.fromJson(sheetInfo.get("rowsProperty"), List.class);
+				if((rel != null &&!rel.isEmpty()) || (prop != null && !prop.isEmpty()) ) {
+					allEmpty = false;
+				}
+				
 				if(rel != null) {
 					for(String str : rel) {
 						// subject and object keys link to array list for concatenations, while the predicate is always a string
@@ -546,7 +567,6 @@ public class Uploader extends HttpServlet {
 					}
 				}
 	
-				List<String> prop = gson.fromJson(sheetInfo.get("rowsProperty"), List.class);
 				if(prop != null) {
 					for(String str : prop) {
 						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
@@ -563,7 +583,12 @@ public class Uploader extends HttpServlet {
 			propHashArr[i] = propWriter.getPropHash(); 
 			propFileArr[i] = propWriter.getPropFile();
 		}
-						
+		if(allEmpty) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "No metamodel has been specified. \nPlease specify a metamodel in order to determine how to load this data.");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		}
+		
 		ImportDataProcessor importer = new ImportDataProcessor();
 		importer.setPropHashArr(propHashArr);
 		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
@@ -576,8 +601,9 @@ public class Uploader extends HttpServlet {
 								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 										: null;
 		if(importMethod == null) {
-			String errorMessage = "Import method \'" + methodString + "\' is not supported";
-			return Response.status(400).entity(gson.toJson(errorMessage)).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Import method \'" + methodString + "\' is not supported");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
 		
 		//Add engine owner for permissions
@@ -586,7 +612,9 @@ public class Uploader extends HttpServlet {
 			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 				addEngineOwner(dbName, ((User) user).getId());
 			} else {
-				return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Please log in to upload data.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
 		}
 		
@@ -663,7 +691,7 @@ public class Uploader extends HttpServlet {
 			Date currDate = Calendar.getInstance().getTime();
 			SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmssZ");
 			String dateName = sdf.format(currDate);
-			for(i = 0; i < size; i++) {
+			for(int i = 0; i < size; i++) {
 				FileUtils.writeStringToFile(new File(
 						DIHelper.getInstance().getProperty("BaseFolder")
 						.concat(File.separator).concat("db").concat(File.separator)
@@ -677,7 +705,7 @@ public class Uploader extends HttpServlet {
 			errorHash.put("errorMessage", "Failure to write Excel Prop File based on user-defined metamodel.");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
-
+		
 		String outputText = "CSV Loading was a success.";
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
@@ -707,8 +735,9 @@ public class Uploader extends HttpServlet {
 								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 										: null;
 		if(importMethod == null) {
-			String errorMessage = "Import method \'" + methodString + "\' is not supported";
-			return Response.status(400).entity(gson.toJson(errorMessage)).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Import method \'" + methodString + "\' is not supported");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
 		
 		String dbName = "";
@@ -735,7 +764,9 @@ public class Uploader extends HttpServlet {
 					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 						addEngineOwner(dbName, ((User) user).getId());
 					} else {
-						return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
+						Map<String, String> errorHash = new HashMap<String, String>();
+						errorHash.put("errorMessage", "Please log in to upload data.");
+						return Response.status(400).entity(gson.toJson(errorHash)).build();
 					}
 				}
 				
@@ -752,7 +783,9 @@ public class Uploader extends HttpServlet {
 					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 						addEngineOwner(dbName, ((User) user).getId());
 					} else {
-						return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
+						Map<String, String> errorHash = new HashMap<String, String>();
+						errorHash.put("errorMessage", "Please log in to upload data.");
+						return Response.status(400).entity(gson.toJson(errorHash)).build();
 					}
 				}
 				
@@ -884,7 +917,9 @@ public class Uploader extends HttpServlet {
 					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 						addEngineOwner(dbName, ((User) user).getId());
 					} else {
-						return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
+						Map<String, String> errorHash = new HashMap<String, String>();
+						errorHash.put("errorMessage", "Please log in to upload data.");
+						return Response.status(400).entity(gson.toJson(errorHash)).build();
 					}
 				}
 				
@@ -900,7 +935,9 @@ public class Uploader extends HttpServlet {
 					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 						addEngineOwner(dbName, ((User) user).getId());
 					} else {
-						return Response.status(400).entity(gson.toJson("Please log in to upload data.")).build();
+						Map<String, String> errorHash = new HashMap<String, String>();
+						errorHash.put("errorMessage", "Please log in to upload data.");
+						return Response.status(400).entity(gson.toJson(errorHash)).build();
 					}
 				}
 				
