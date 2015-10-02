@@ -69,7 +69,6 @@ import prerna.algorithm.learning.util.DuplicationReconciliation;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
-import prerna.ds.ITableStatCounter;
 import prerna.ds.ITableStatCounter2;
 import prerna.ds.InfiniteScroller;
 import prerna.ds.InfiniteScrollerFactory;
@@ -918,21 +917,12 @@ public class EngineResource {
 	@POST
 	@Path("/filterData")
 	@Produces("application/json")
-	public Response filterData(MultivaluedMap<String, String> form/*,  
-	@QueryParam("tableID") String tableID,
-			@Context HttpServletRequest request*/
-			//*** Uncomment above before committing
-			)
+	public Response filterData(MultivaluedMap<String, String> form)
 	{	
-		// ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);
-		// *** Uncomment above before committing
-		
-		// *** Comment out below before committing
 		String tableID = form.getFirst("tableID");
 		String insightID = form.getFirst("insightID");
 		
 		ITableDataFrame mainTree = ITableUtilities.getTable(tableID, insightID);
-		// *** Comment out above before committing
 
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
@@ -1111,10 +1101,10 @@ public class EngineResource {
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
-			ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
-			if(mainTree == null) {
-				return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
-			}
+		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);
+		if (mainTree == null) {
+			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+		}
 		
 		int numRows = mainTree.getNumRows();
 		if(endRow > numRows) {
@@ -2126,7 +2116,6 @@ public class EngineResource {
 	@POST
 	@Path("/sendToExplore")
 	@Produces("application/json")
-	// if xml, don't need to use data.data; can just use data *** ask neel
 	public Response sendToExplore(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, Object> returnHash = new Hashtable<String, Object>();
 		String tableID = form.getFirst("tableID");
@@ -2141,7 +2130,7 @@ public class EngineResource {
 
 		dataFrame.refresh();
 		
-		if (insightID != null && !query.isEmpty()) {
+		if (insightID != null && !query.isEmpty()) { // Logic when coming from a preexisting insight ("Browse")
 			Hashtable<String, Object> returnDataHash = new Hashtable<String, Object>();
 			Hashtable<String, String> nodeTriples;
 			Hashtable<String, Object> nodeDetails;
@@ -2165,7 +2154,7 @@ public class EngineResource {
 				nodeDetails.put("uri", nodes.get(key));
 				returnDataHash.put(key, nodeDetails);
 			}
-			returnHash.put("nodes", returnDataHash);
+			returnHash.put("nodes", returnDataHash); // Nodes that will be used to build the metamodel in Single-View
 			
 			ArrayList<String[]> triplesArr = (ArrayList<String[]>) queryParser.getTriplesData();
 			int i = 0;
@@ -2180,7 +2169,7 @@ public class EngineResource {
 				returnHash.put("triples", returnDataHash);
 			}
 
-			tableID = ITableDataFrameStore.getInstance().put(dataFrame);
+			tableID = ITableDataFrameStore.getInstance().put(dataFrame); // place btree into ITableDataFrameStore and generate a tableID so that user no longer uses insightID
 		}
 		
 		returnHash.put("tableID", tableID);
