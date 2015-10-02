@@ -879,6 +879,12 @@ public class Uploader extends HttpServlet {
 								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
 										: null;
 
+		if(importMethod == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Import method \'" + methodString + "\' is not supported");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		}
+
 		//call the right process method with correct parameters
 		String dbName = "";
 		if(inputData.get("dbName") != null && !inputData.get("dbName").isEmpty()) {
