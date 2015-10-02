@@ -221,7 +221,6 @@ public class Uploader extends HttpServlet {
 
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = new Hashtable<String, String>();
-		ArrayList<File> allLoadingFiles = new ArrayList<File>();
 		File file;
 
 		while(iteratorFileItems.hasNext()) 
@@ -231,24 +230,19 @@ public class Uploader extends HttpServlet {
 			String fieldName = fi.getFieldName();
 			String fileName = fi.getName();
 			String value = fi.getString();
-			if (!fi.isFormField()) 
-			{
+			if (!fi.isFormField()) {
 				if(fileName.equals("")) {
 					continue;
 				}
 				else {
-					if(fieldName.equals("file"))
-					{
-						value = filePath + System.getProperty("file.separator") + fileName.substring(fileName.lastIndexOf("\\") + 1);
+					if(fieldName.equals("file") || fieldName.equals("mapFile") || fieldName.equals("questionFile")) {
+						value = filePath + "\\" + fileName.substring(fileName.lastIndexOf("\\") + 1);
 						file = new File(value);
 						writeFile(fi, file);
-						allLoadingFiles.add(file);
 						System.out.println( "Saved Filename: " + fileName + "  to "+ file);
-					} 
+					}
 				}
-			}
-			else 
-			{
+			} else {
 				System.err.println("Type is " + fi.getFieldName() + fi.getString());
 			}
 			//need to handle multiple files getting selected for upload
@@ -324,7 +318,18 @@ public class Uploader extends HttpServlet {
 		//cleanedFiles - stringified CSV file returned from OpenRefine
 		//If OpenRefine-returned CSV string exists, user went through OpenRefine - write returned data to file first
 		Object obj = inputData.get("cleanedFiles");
-		String dbName = inputData.get("dbName");
+
+		String dbName = "";
+		if(inputData.get("dbName") != null && !inputData.get("dbName").isEmpty()) {
+			dbName = inputData.get("dbName");
+		} else if(inputData.get("addDBname") != null && !inputData.get("addDBname").isEmpty()) {
+			dbName = inputData.get("addDBname");
+		} else {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "No database name was entered");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		}
+
 		if(obj != null) {
 			String cleanedFileName = processOpenRefine(dbName, (String) obj);
 			if(cleanedFileName.startsWith("Error")) {
@@ -387,7 +392,7 @@ public class Uploader extends HttpServlet {
 			errorHash.put("errorMessage", "No metamodel has been specified.\n Please specify a metamodel in order to determine how to load this data.");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
-						
+	
 		ImportDataProcessor importer = new ImportDataProcessor();
 		importer.setPropHashArr(propHashArr);
 		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
@@ -431,10 +436,18 @@ public class Uploader extends HttpServlet {
 		}
 		
 		try {
-			if(methodString.equals("Create new database engine")) {
+			String mapFile = "";
+			if(inputData.get("mapFile") != null) {
+				mapFile = inputData.get("mapFile");
+			}
+			String questionFile = "";
+			if(inputData.get("questionFile") != null) {
+				questionFile = inputData.get("questionFile");
+			}
+			if(importMethod == ImportDataProcessor.IMPORT_METHOD.CREATE_NEW) {
 				// force fitting the RDBMS here
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), dbName,"","","","", storeType, rdbmsType, allowDuplicates);
+						inputData.get("designateBaseUri"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates);
 				loadEngineIntoSession(request, dbName);
 				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("designateBaseUri"));
 			} else { // add to existing or modify
@@ -524,7 +537,18 @@ public class Uploader extends HttpServlet {
 		//cleanedFiles - stringfield ExcelReader file returned from OpenRefine
 		//If OpenRefine-returned ExcelReader string exists, user went through OpenRefine - write returned data to file first
 		Object obj = inputData.get("cleanedFiles");
-		String dbName = inputData.get("dbName");
+
+		String dbName = "";
+		if(inputData.get("dbName") != null && !inputData.get("dbName").isEmpty()) {
+			dbName = inputData.get("dbName");
+		} else if(inputData.get("addDBname") != null && !inputData.get("addDBname").isEmpty()) {
+			dbName = inputData.get("addDBname");
+		} else {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "No database name was entered");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		}
+
 		if(obj != null) {
 			String cleanedFileName = processOpenRefine(dbName, (String) obj);
 			if(cleanedFileName.startsWith("Error")) {
@@ -632,10 +656,18 @@ public class Uploader extends HttpServlet {
 		}
 		
 		try {
+			String mapFile = "";
+			if(inputData.get("mapFile") != null) {
+				mapFile = inputData.get("mapFile");
+			}
+			String questionFile = "";
+			if(inputData.get("questionFile") != null) {
+				questionFile = inputData.get("questionFile");
+			}
 			if(methodString.equals("Create new database engine")) {
 				// force fitting the RDBMS here
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), dbName,"","","","", storeType, rdbmsType, allowDuplicates);
+						inputData.get("designateBaseUri"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates);
 				loadEngineIntoSession(request, dbName);
 				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("designateBaseUri"));
 			} else { // add to existing or modify
@@ -646,7 +678,7 @@ public class Uploader extends HttpServlet {
 					rdbmsType = rdbmsEngine.getDbType();
 				}
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), "","","","", dbName, storeType, rdbmsType, allowDuplicates);
+						inputData.get("designateBaseUri"), mapFile,"", questionFile,"", dbName, storeType, rdbmsType, allowDuplicates);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
@@ -741,56 +773,45 @@ public class Uploader extends HttpServlet {
 		}
 		
 		String dbName = "";
-		SQLQueryUtil.DB_TYPE rdbmsType = SQLQueryUtil.DB_TYPE.H2_DB;
-		String dataOutputType = inputData.get("dataOutputType");
-		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF; // needs to be set later
-		boolean allowDuplicates = false;
-		if(dataOutputType.equalsIgnoreCase("RDBMS")){
-			storeType = ImportDataProcessor.DB_TYPE.RDBMS; // needs to be set later
-			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
-			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
-				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase());
+		if(inputData.get("dbName") != null && !inputData.get("dbName").isEmpty()) {
+			dbName = inputData.get("dbName");
+		} else if(inputData.get("addDBname") != null && !inputData.get("addDBname").isEmpty()) {
+			dbName = inputData.get("addDBname");
+		} else {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "No database name was entered");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		}
+		
+		//Add engine owner for permissions
+		if(this.securityEnabled) {
+			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+				addEngineOwner(dbName, ((User) user).getId());
+			} else {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Please log in to upload data.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
-			allowDuplicates = false;//todo set from UI
 		}
 		
 		try {
+			String mapFile = "";
+			if(inputData.get("mapFile") != null) {
+				mapFile = inputData.get("mapFile");
+			}
+			String questionFile = "";
+			if(inputData.get("questionFile") != null) {
+				questionFile = inputData.get("questionFile");
+			}
 			if(methodString.equals("Create new database engine")) {
-				dbName = inputData.get("newDBname");
-				
-				//Add engine owner for permissions
-				if(this.securityEnabled) {
-					Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-						addEngineOwner(dbName, ((User) user).getId());
-					} else {
-						Map<String, String> errorHash = new HashMap<String, String>();
-						errorHash.put("errorMessage", "Please log in to upload data.");
-						return Response.status(400).entity(gson.toJson(errorHash)).build();
-					}
-				}
-				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
-						inputData.get("customBaseURI"), dbName,"","","","", storeType, rdbmsType, allowDuplicates);
+						inputData.get("customBaseURI"), dbName, mapFile,"", questionFile,"", null, null, false);
 				loadEngineIntoSession(request, dbName);
 				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("customBaseURI"));
 			} else {
-				dbName = inputData.get("addDBname");
-				
-				//Add engine owner for permissions
-				if(this.securityEnabled) {
-					Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-						addEngineOwner(dbName, ((User) user).getId());
-					} else {
-						Map<String, String> errorHash = new HashMap<String, String>();
-						errorHash.put("errorMessage", "Please log in to upload data.");
-						return Response.status(400).entity(gson.toJson(errorHash)).build();
-					}
-				}
-				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
-						inputData.get("customBaseURI"), "","","","", dbName, storeType, rdbmsType, allowDuplicates);
+						inputData.get("customBaseURI"), "", mapFile,"", questionFile, dbName, null, null, false);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
@@ -838,14 +859,12 @@ public class Uploader extends HttpServlet {
 	@POST
 	@Path("/nlp/upload")
 	@Produces("application/json")
-	//TODO: WHY WAS RDBMS ADDED TO THIS?
 	public Response uploadNLPFile(@Context HttpServletRequest request) {
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
 
 		Gson gson = new Gson();
-
 		System.out.println(inputData);
 		// time to run the import
 		ImportDataProcessor importer = new ImportDataProcessor();
@@ -862,17 +881,26 @@ public class Uploader extends HttpServlet {
 
 		//call the right process method with correct parameters
 		String dbName = "";
-		SQLQueryUtil.DB_TYPE rdbmsType = SQLQueryUtil.DB_TYPE.H2_DB;
-		String dataOutputType = inputData.get("dataOutputType");
-		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF; // needs to be set later
-		boolean allowDuplicates = false;
-		if(dataOutputType.equalsIgnoreCase("RDBMS")){
-			storeType = ImportDataProcessor.DB_TYPE.RDBMS; // needs to be set later
-			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
-			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
-				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase());
+		if(inputData.get("dbName") != null && !inputData.get("dbName").isEmpty()) {
+			dbName = inputData.get("dbName");
+		} else if(inputData.get("addDBname") != null && !inputData.get("addDBname").isEmpty()) {
+			dbName = inputData.get("addDBname");
+		} else {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "No database name was entered");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		}
+		
+		//Add engine owner for permissions
+		if(this.securityEnabled) {
+			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+				addEngineOwner(dbName, ((User) user).getId());
+			} else {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Please log in to upload data.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
-			allowDuplicates = false;//todo need to set from the UI
 		}
 		
 		String uploadFiles = "";
@@ -909,40 +937,18 @@ public class Uploader extends HttpServlet {
 		}
 		
 		try {
+			String questionFile = "";
+			if(inputData.get("questionFile") != null) {
+				questionFile = inputData.get("questionFile");
+			}
 			if(methodString.equals("Create new database engine")) {
-				dbName = inputData.get("newDBname");
-				//Add engine owner for permissions
-				if(this.securityEnabled) {
-					Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-						addEngineOwner(dbName, ((User) user).getId());
-					} else {
-						Map<String, String> errorHash = new HashMap<String, String>();
-						errorHash.put("errorMessage", "Please log in to upload data.");
-						return Response.status(400).entity(gson.toJson(errorHash)).build();
-					}
-				}
-				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
-						inputData.get("customBaseURI")+"", dbName,"","","","", storeType, rdbmsType, allowDuplicates);
+						inputData.get("customBaseURI")+"", dbName,"","", questionFile,"", null, null, false);
 				loadEngineIntoSession(request, dbName);
 				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("customBaseURI"));
 			} else {
-				dbName = inputData.get("addDBname");
-				//Add engine owner for permissions
-				if(this.securityEnabled) {
-					Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-					if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-						addEngineOwner(dbName, ((User) user).getId());
-					} else {
-						Map<String, String> errorHash = new HashMap<String, String>();
-						errorHash.put("errorMessage", "Please log in to upload data.");
-						return Response.status(400).entity(gson.toJson(errorHash)).build();
-					}
-				}
-				
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
-						inputData.get("customBaseURI")+"", "","","","", dbName, storeType, rdbmsType, allowDuplicates);
+						inputData.get("customBaseURI")+"", "","", questionFile,"", dbName, null, null, false);
 			}
 		} catch (EngineException e) {
 			e.printStackTrace();
