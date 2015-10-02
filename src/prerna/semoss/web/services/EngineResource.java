@@ -78,6 +78,7 @@ import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.ITableDataFrameStore;
 import prerna.ds.ITableStatCounter;
+import prerna.ds.ITableStatCounter2;
 import prerna.ds.InfiniteScroller;
 import prerna.ds.InfiniteScrollerFactory;
 import prerna.engine.api.IEngine;
@@ -2008,8 +2009,11 @@ public class EngineResource {
 		}
 		
 		Map<String, Object> retMap = new HashMap<String, Object>();
-		ITableStatCounter counter = new ITableStatCounter();
-		counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
+//		ITableStatCounter counter = new ITableStatCounter();
+//		counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
+		
+		ITableStatCounter2 counter2 = new ITableStatCounter2();
+		counter2.addStatsToDataFrame(table, groupByCols, functionMap);
 //		WebBtreeIterator iterator = new WebBtreeIterator()
 		
 		retMap.put("tableData", ITableUtilities.getTableData(table));
