@@ -2,26 +2,22 @@ package prerna.web.services.util;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.ws.rs.core.Response;
-
 import prerna.algorithm.api.ITableDataFrame;
-import prerna.ds.ITableDataFrameStore;
 import prerna.ds.ITableWebAdapter;
+import prerna.ds.TableDataFrameStore;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
 import prerna.util.QuestionPlaySheetStore;
 
-public class ITableUtilities {
+public final class TableDataFrameUtilities {
 
-	private ITableUtilities() {
+	private TableDataFrameUtilities() {
 		
 	}
 	
@@ -102,7 +98,7 @@ public class ITableUtilities {
 		
 		try {
 			if(tableID != null) {
-				table = ITableDataFrameStore.getInstance().get(tableID);
+				table = TableDataFrameStore.getInstance().get(tableID);
 			} else if(questionID != null) {
 				IPlaySheet origPS = (IPlaySheet) QuestionPlaySheetStore.getInstance().get(questionID);
 				if(origPS instanceof BasicProcessingPlaySheet) {
