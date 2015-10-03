@@ -9,7 +9,7 @@ import javax.servlet.http.HttpSessionListener;
 
 import prerna.auth.User;
 import prerna.auth.User.LOGIN_TYPES;
-import prerna.ds.ITableDataFrameStore;
+import prerna.ds.TableDataFrameStore;
 import prerna.util.Constants;
 import prerna.util.QuestionPlaySheetStore;
 
@@ -39,7 +39,7 @@ public class UserSessionLoader implements HttpSessionListener {
 		}
 		
 		// clear up ITable store
-		ITableDataFrameStore tableStore = ITableDataFrameStore.getInstance();
+		TableDataFrameStore tableStore = TableDataFrameStore.getInstance();
 		Set<String> tableIDsToDelete = tableStore.getTableIDsForSession(sessionID);
 		if(tableIDsToDelete != null) {
 			Set<String> copy = new HashSet<String>(tableIDsToDelete);

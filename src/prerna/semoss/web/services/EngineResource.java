@@ -60,6 +60,14 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
+import com.bigdata.rdf.model.BigdataURI;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
+
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
@@ -68,10 +76,10 @@ import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
 import prerna.algorithm.learning.util.DuplicationReconciliation;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
-import prerna.ds.ITableDataFrameStore;
 import prerna.ds.ITableStatCounter2;
 import prerna.ds.InfiniteScroller;
 import prerna.ds.InfiniteScrollerFactory;
+import prerna.ds.TableDataFrameStore;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
@@ -108,17 +116,9 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
-import prerna.web.services.util.ITableUtilities;
 import prerna.web.services.util.InMemoryHash;
+import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
-
-import com.bigdata.rdf.model.BigdataURI;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
 
 public class EngineResource {
 
@@ -848,7 +848,7 @@ public class EngineResource {
 		boolean isInDataFrameStore = false;
 		ITableDataFrame dataFrame = null;
 		if(tableID != null) {
-			dataFrame = ITableDataFrameStore.getInstance().get(tableID);
+			dataFrame = TableDataFrameStore.getInstance().get(tableID);
 			isInDataFrameStore = true;
 		} else if(questionID != null) {
 			IPlaySheet origPS = (IPlaySheet) QuestionPlaySheetStore.getInstance().get(questionID);
@@ -878,8 +878,8 @@ public class EngineResource {
 		if(removeColumns == null || removeColumns.length == 0) {
 			boolean success = false;
 			if(isInDataFrameStore) {
-				success = ITableDataFrameStore.getInstance().remove(tableID);
-				ITableDataFrameStore.getInstance().removeFromSessionHash(request.getSession().getId(), tableID);
+				success = TableDataFrameStore.getInstance().remove(tableID);
+				TableDataFrameStore.getInstance().removeFromSessionHash(request.getSession().getId(), tableID);
 			} else {
 				QuestionPlaySheetStore qStore = QuestionPlaySheetStore.getInstance();
 				if(!qStore.containsKey(questionID)) {
@@ -922,7 +922,7 @@ public class EngineResource {
 		String tableID = form.getFirst("tableID");
 		String insightID = form.getFirst("insightID");
 		
-		ITableDataFrame mainTree = ITableUtilities.getTable(tableID, insightID);
+		ITableDataFrame mainTree = TableDataFrameUtilities.getTable(tableID, insightID);
 
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
@@ -1034,7 +1034,7 @@ public class EngineResource {
 			@QueryParam("tableID") String tableID,
 			@QueryParam("concept") String[] concepts)
 	{
-		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+		ITableDataFrame mainTree = TableDataFrameStore.getInstance().get(tableID);		
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
@@ -1056,7 +1056,7 @@ public class EngineResource {
 			@Context HttpServletRequest request)
 	{
 		
-		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+		ITableDataFrame mainTree = TableDataFrameStore.getInstance().get(tableID);		
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
@@ -1101,7 +1101,7 @@ public class EngineResource {
 			@QueryParam("tableID") String tableID,
 			@Context HttpServletRequest request)
 	{
-		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);
+		ITableDataFrame mainTree = TableDataFrameStore.getInstance().get(tableID);
 		if (mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
@@ -1132,7 +1132,7 @@ public class EngineResource {
 		
 		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterModel"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		if(filterModel != null && filterModel.keySet().size() > 0) {
-			ITableUtilities.filterData(mainTree, filterModel);
+			TableDataFrameUtilities.filterData(mainTree, filterModel);
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		} else if(filterModel.keySet().size() == 0 && !first) {
 			mainTree.unfilter();
@@ -1167,7 +1167,7 @@ public class EngineResource {
 	@Path("/getTableHeaders")
 	@Produces("application/json")
 	public Response getTableHeaders(@QueryParam("tableID") String tableID) {
-		ITableDataFrame table = ITableDataFrameStore.getInstance().get(tableID);		
+		ITableDataFrame table = TableDataFrameStore.getInstance().get(tableID);		
 		
 		List<Map<String, String>> tableHeaders = new ArrayList<Map<String, String>>();
 		String[] columnHeaders = table.getColumnHeaders();
@@ -1198,7 +1198,7 @@ public class EngineResource {
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 
-		ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
+		ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
         if(existingData != null) {
                if(currConcept != null && !currConcept.isEmpty()) {
                      List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
@@ -1302,8 +1302,8 @@ public class EngineResource {
 			// new table, store and return success
 			System.err.println("Levels in main tree are " + Arrays.toString(newTree.getColumnHeaders()));
 
-			tableID = ITableDataFrameStore.getInstance().put(newTree);
-			ITableDataFrameStore.getInstance().addToSessionHash(request.getSession().getId(), tableID);
+			tableID = TableDataFrameStore.getInstance().put(newTree);
+			TableDataFrameStore.getInstance().addToSessionHash(request.getSession().getId(), tableID);
 
 			Map<String, Object> retMap = new HashMap<String, Object>();
 			retMap.put("tableID", tableID);
@@ -1311,7 +1311,7 @@ public class EngineResource {
 
 		} else {
 			// grab existing dataframe
-			existingData = ITableDataFrameStore.getInstance().get(tableID);
+			existingData = TableDataFrameStore.getInstance().get(tableID);
 			if(existingData == null) {
 				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
 			}
@@ -1372,7 +1372,7 @@ public class EngineResource {
 		
 		if(tableID != null && !tableID.isEmpty() && !outer) {
 			// need to add bindings for query if not outer join
-			ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
+			ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
 			if(existingData == null) {
 				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
 			}
@@ -1464,7 +1464,7 @@ public class EngineResource {
            
            if(tableID != null && !tableID.isEmpty() && !outer) {
                   // need to add bindings for query if not outer join
-                  ITableDataFrame existingData = ITableDataFrameStore.getInstance().get(tableID);
+                  ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
                   if(existingData == null) {
                         return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
                   }
@@ -1543,7 +1543,7 @@ public class EngineResource {
 			//@QueryParam("end") int end,
 			@Context HttpServletRequest request)
 	{
-		ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
+		ITableDataFrame mainTree = TableDataFrameStore.getInstance().get(tableID);		
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
@@ -1996,7 +1996,7 @@ public class EngineResource {
 		String tableID = form.getFirst("tableID");
 		String questionID = form.getFirst("questionID");
 
-		ITableDataFrame table = ITableUtilities.getTable(tableID, questionID);
+		ITableDataFrame table = TableDataFrameUtilities.getTable(tableID, questionID);
 		if(table == null) {
 			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
 		}
@@ -2007,7 +2007,7 @@ public class EngineResource {
 		Map<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
 		
 
-		functionMap = ITableUtilities.createColumnNamesForColumnGrouping(groupByCols[0], functionMap);
+		functionMap = TableDataFrameUtilities.createColumnNamesForColumnGrouping(groupByCols[0], functionMap);
 		
 		String[] columnHeaders = table.getColumnHeaders();
 		for(String key : functionMap.keySet()) {
@@ -2027,7 +2027,7 @@ public class EngineResource {
 		counter2.addStatsToDataFrame(table, groupByCols, functionMap);
 //		WebBtreeIterator iterator = new WebBtreeIterator()
 		
-		retMap.put("tableData", ITableUtilities.getTableData(table));
+		retMap.put("tableData", TableDataFrameUtilities.getTableData(table));
 		retMap.put("mathMap", functionMap);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
@@ -2041,7 +2041,7 @@ public class EngineResource {
 		String tableID = form.getFirst("tableID");
 		String questionID = form.getFirst("questionID");
 
-		ITableDataFrame table = ITableUtilities.getTable(tableID, questionID);
+		ITableDataFrame table = TableDataFrameUtilities.getTable(tableID, questionID);
 
 		if(table == null) {
 			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
@@ -2122,7 +2122,7 @@ public class EngineResource {
 		String insightID = form.getFirst("insightID");
 		String query = form.getFirst("query");
 
-		ITableDataFrame dataFrame = ITableUtilities.getTable(tableID, insightID);
+		ITableDataFrame dataFrame = TableDataFrameUtilities.getTable(tableID, insightID);
 
 		if (dataFrame == null) {
 			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
@@ -2169,7 +2169,7 @@ public class EngineResource {
 				returnHash.put("triples", returnDataHash);
 			}
 
-			tableID = ITableDataFrameStore.getInstance().put(dataFrame); // place btree into ITableDataFrameStore and generate a tableID so that user no longer uses insightID
+			tableID = TableDataFrameStore.getInstance().put(dataFrame); // place btree into ITableDataFrameStore and generate a tableID so that user no longer uses insightID
 		}
 		
 		returnHash.put("tableID", tableID);
