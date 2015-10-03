@@ -42,8 +42,10 @@ import javax.ws.rs.core.Response;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
+import com.google.gson.Gson;
+
 import prerna.algorithm.api.ITableDataFrame;
-import prerna.ds.ITableDataFrameStore;
+import prerna.ds.TableDataFrameStore;
 import prerna.engine.api.IEngine;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
@@ -59,8 +61,6 @@ import prerna.util.MachineLearningEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
-
-import com.google.gson.Gson;
 
 public class EngineAnalyticsResource {
 	
@@ -99,7 +99,7 @@ public class EngineAnalyticsResource {
 		String retID = "";
 		ITableDataFrame dataFrame = null;
 		if(tableID != null) {
-			dataFrame = ITableDataFrameStore.getInstance().get(tableID);
+			dataFrame = TableDataFrameStore.getInstance().get(tableID);
 			retID = tableID;
 			retIDKey = "tableID";
 		} else if(questionID != null) { //TODO: require all playsheets to be BasicProcessing for current algorithms
@@ -110,9 +110,17 @@ public class EngineAnalyticsResource {
 		}
 		
 		if(dataFrame == null) {
-			String errorMessage = "Data not found - invalid key.";
-			LOGGER.info("No dataframe found...");
-			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash .put("errorMessage", "Data not found - invalid key.");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+		String[] columnHeaders = dataFrame.getColumnHeaders();
+		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
+		if(columnHeaders.length != includeColArr.length) {
+			//front end issue, needs to send appropriate headers such that filtering is occuring properly
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash .put("errorMessage", "Number of headers sent does not match the numbers of headers in the dataframe.");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
 		
 		dataFrame.setColumnsToSkip(new ArrayList<String>());
@@ -120,9 +128,7 @@ public class EngineAnalyticsResource {
 		if(form.getFirst("instanceID") != null) {
 			instanceIndex = gson.fromJson(form.getFirst("instanceID"), Integer.class);
 		}
-		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
 		List<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
-		String[] columnHeaders = dataFrame.getColumnHeaders();
 		
 		List<String> skipAttributes = new ArrayList<String>();
 		for(int i = 0; i < includeColArr.length; i++) {
