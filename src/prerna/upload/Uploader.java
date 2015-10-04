@@ -62,6 +62,8 @@ import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.io.FileUtils;
+import org.openrdf.repository.RepositoryException;
+import org.openrdf.sail.SailException;
 
 import com.google.gson.Gson;
 import com.ibm.icu.util.StringTokenizer;
@@ -71,12 +73,6 @@ import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
-import prerna.error.EngineException;
-import prerna.error.FileReaderException;
-import prerna.error.FileWriterException;
-import prerna.error.HeaderClassException;
-import prerna.error.InvalidUploadFormatException;
-import prerna.error.NLPException;
 import prerna.nameserver.AddToMasterDB;
 import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
@@ -435,15 +431,15 @@ public class Uploader extends HttpServlet {
 			allowDuplicates = false;//ToDo: need UI portion of this
 		}
 		
+		String mapFile = "";
+		if(inputData.get("mapFile") != null) {
+			mapFile = inputData.get("mapFile");
+		}
+		String questionFile = "";
+		if(inputData.get("questionFile") != null) {
+			questionFile = inputData.get("questionFile");
+		}
 		try {
-			String mapFile = "";
-			if(inputData.get("mapFile") != null) {
-				mapFile = inputData.get("mapFile");
-			}
-			String questionFile = "";
-			if(inputData.get("questionFile") != null) {
-				questionFile = inputData.get("questionFile");
-			}
 			if(importMethod == ImportDataProcessor.IMPORT_METHOD.CREATE_NEW) {
 				// force fitting the RDBMS here
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
@@ -460,32 +456,17 @@ public class Uploader extends HttpServlet {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
 						inputData.get("designateBaseUri"), "","","","", dbName, storeType, rdbmsType, allowDuplicates);
 			}
-		} catch (EngineException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (FileReaderException e) {
+		} catch (RepositoryException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (HeaderClassException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (FileWriterException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (NLPException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch(InvalidUploadFormatException e) {
+		} catch (SailException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
@@ -497,6 +478,12 @@ public class Uploader extends HttpServlet {
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
 			deleteFilesFromServer(inputData.get("file").toString().split(";"));
+			if(!mapFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{mapFile});
+			}
+			if(!questionFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{questionFile});
+			}
 		}
 
 		try {
@@ -655,15 +642,15 @@ public class Uploader extends HttpServlet {
 			allowDuplicates = false;//ToDo: need UI portion of this
 		}
 		
+		String mapFile = "";
+		if(inputData.get("mapFile") != null) {
+			mapFile = inputData.get("mapFile");
+		}
+		String questionFile = "";
+		if(inputData.get("questionFile") != null) {
+			questionFile = inputData.get("questionFile");
+		}
 		try {
-			String mapFile = "";
-			if(inputData.get("mapFile") != null) {
-				mapFile = inputData.get("mapFile");
-			}
-			String questionFile = "";
-			if(inputData.get("questionFile") != null) {
-				questionFile = inputData.get("questionFile");
-			}
 			if(methodString.equals("Create new database engine")) {
 				// force fitting the RDBMS here
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
@@ -680,32 +667,17 @@ public class Uploader extends HttpServlet {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
 						inputData.get("designateBaseUri"), mapFile,"", questionFile,"", dbName, storeType, rdbmsType, allowDuplicates);
 			}
-		} catch (EngineException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (FileReaderException e) {
+		} catch (RepositoryException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (HeaderClassException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (FileWriterException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (NLPException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch(InvalidUploadFormatException e) {
+		} catch (SailException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
@@ -717,6 +689,12 @@ public class Uploader extends HttpServlet {
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
 			deleteFilesFromServer(inputData.get("file").toString().split(";"));
+			if(!mapFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{mapFile});
+			}
+			if(!questionFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{questionFile});
+			}
 		}
 
 		try {
@@ -795,15 +773,15 @@ public class Uploader extends HttpServlet {
 			}
 		}
 		
+		String mapFile = "";
+		if(inputData.get("mapFile") != null) {
+			mapFile = inputData.get("mapFile");
+		}
+		String questionFile = "";
+		if(inputData.get("questionFile") != null) {
+			questionFile = inputData.get("questionFile");
+		}
 		try {
-			String mapFile = "";
-			if(inputData.get("mapFile") != null) {
-				mapFile = inputData.get("mapFile");
-			}
-			String questionFile = "";
-			if(inputData.get("questionFile") != null) {
-				questionFile = inputData.get("questionFile");
-			}
 			if(methodString.equals("Create new database engine")) {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
 						inputData.get("customBaseURI"), dbName, mapFile,"", questionFile,"", null, null, false);
@@ -813,32 +791,17 @@ public class Uploader extends HttpServlet {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
 						inputData.get("customBaseURI"), "", mapFile,"", questionFile, dbName, null, null, false);
 			}
-		} catch (EngineException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (FileReaderException e) {
+		} catch (RepositoryException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (HeaderClassException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (FileWriterException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (NLPException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch(InvalidUploadFormatException e) {
+		} catch (SailException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
@@ -850,6 +813,12 @@ public class Uploader extends HttpServlet {
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
 			deleteFilesFromServer(inputData.get("file").toString().split(";"));
+			if(!mapFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{mapFile});
+			}
+			if(!questionFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{questionFile});
+			}
 		}
 
 		String outputText = "Excel Loading was a success.";
@@ -942,11 +911,11 @@ public class Uploader extends HttpServlet {
 			}
 		}
 		
+		String questionFile = "";
+		if(inputData.get("questionFile") != null) {
+			questionFile = inputData.get("questionFile");
+		}
 		try {
-			String questionFile = "";
-			if(inputData.get("questionFile") != null) {
-				questionFile = inputData.get("questionFile");
-			}
 			if(methodString.equals("Create new database engine")) {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
 						inputData.get("customBaseURI")+"", dbName,"","", questionFile,"", null, null, false);
@@ -956,32 +925,17 @@ public class Uploader extends HttpServlet {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
 						inputData.get("customBaseURI")+"", "","", questionFile,"", dbName, null, null, false);
 			}
-		} catch (EngineException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (FileReaderException e) {
+		} catch (RepositoryException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (HeaderClassException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (FileWriterException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (NLPException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch(InvalidUploadFormatException e) {
+		} catch (SailException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
@@ -994,6 +948,9 @@ public class Uploader extends HttpServlet {
 		} finally {
 			if(!file.isEmpty()) {
 				deleteFilesFromServer(file.split(";"));
+			}
+			if(!questionFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{questionFile});
 			}
 		}
 
@@ -1029,12 +986,7 @@ public class Uploader extends HttpServlet {
 			importer.processNewRDBMS((String) inputData.get("customBaseURI"), (String) inputData.get("file"), 
 					(String) inputData.get("newDBname"), (String) inputData.get("dbType"), (String) inputData.get("dbUrl"), 
 					(String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
-		} catch (FileReaderException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (EngineException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());

@@ -55,10 +55,11 @@ import org.apache.log4j.Logger;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
+import com.google.gson.Gson;
+
 import prerna.auth.User;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
-import prerna.error.EngineException;
 import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.ConnectedConcepts;
@@ -74,8 +75,6 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.web.services.util.WebUtility;
 
-import com.google.gson.Gson;
-
 @Path("/engine")
 public class NameServer {
 
@@ -86,7 +85,7 @@ public class NameServer {
 	
 	// gets the engine resource necessary for all engine calls
 	@Path("e-{engine}")
-	public Object getLocalDatabase(@PathParam("engine") String db, @QueryParam("api") String api, @Context HttpServletRequest request) throws EngineException {
+	public Object getLocalDatabase(@PathParam("engine") String db, @QueryParam("api") String api, @Context HttpServletRequest request) throws IOException {
 		// check if api has been passed
 		// if yes:
 		// 			check if remote engine has already been started and stored in context -- if so, use that engine
@@ -110,7 +109,7 @@ public class NameServer {
 			engine = (IEngine)session.getAttribute(db);
 		}
 		if(engine == null)
-			throw new EngineException("The engine " + db + " at " + api + " cannot be found");
+			throw new IOException("The engine " + db + " at " + api + " cannot be found");
 		EngineResource res = new EngineResource();
 		res.setEngine(engine);
 		return res;
