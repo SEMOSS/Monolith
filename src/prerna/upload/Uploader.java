@@ -781,15 +781,19 @@ public class Uploader extends HttpServlet {
 		if(inputData.get("questionFile") != null) {
 			questionFile = inputData.get("questionFile");
 		}
+		
+		// can only store as RDF
+		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
+
 		try {
 			if(methodString.equals("Create new database engine")) {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
-						inputData.get("customBaseURI"), dbName, mapFile,"", questionFile,"", null, null, false);
+						inputData.get("customBaseURI"), dbName, mapFile,"", questionFile,"", storeType, null, false);
 				loadEngineIntoSession(request, dbName);
 				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("customBaseURI"));
 			} else {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
-						inputData.get("customBaseURI"), "", mapFile,"", questionFile, dbName, null, null, false);
+						inputData.get("customBaseURI"), "", mapFile,"", questionFile, dbName, storeType, null, false);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -878,6 +882,10 @@ public class Uploader extends HttpServlet {
 			}
 		}
 		
+		// can only store as RDF
+		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
+
+		
 		String uploadFiles = "";
 		String file = "";
 		if(inputData.get("file") != null && !inputData.get("file").toString().isEmpty()) {
@@ -918,12 +926,12 @@ public class Uploader extends HttpServlet {
 		try {
 			if(methodString.equals("Create new database engine")) {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
-						inputData.get("customBaseURI")+"", dbName,"","", questionFile,"", null, null, false);
+						inputData.get("customBaseURI")+"", dbName,"","", questionFile,"", storeType, null, false);
 				loadEngineIntoSession(request, dbName);
 				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("customBaseURI"));
 			} else {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
-						inputData.get("customBaseURI")+"", "","", questionFile,"", dbName, null, null, false);
+						inputData.get("customBaseURI")+"", "","", questionFile,"", dbName, storeType, null, false);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
