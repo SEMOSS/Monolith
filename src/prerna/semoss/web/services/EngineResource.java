@@ -2157,17 +2157,16 @@ public class EngineResource {
 			returnHash.put("nodes", returnDataHash); // Nodes that will be used to build the metamodel in Single-View
 			
 			ArrayList<String[]> triplesArr = (ArrayList<String[]>) queryParser.getTriplesData();
+			returnDataHash = new Hashtable<String, Object>();
 			int i = 0;
 			for (String[] triples : triplesArr) {
-				returnDataHash = new Hashtable<String, Object>();
 				nodeTriples = new Hashtable<String, String>();
-				
 				nodeTriples.put("fromNode", triples[0]);
 				nodeTriples.put("relationshipTriple", triples[1]);
 				nodeTriples.put("toNode", triples[2]);
 				returnDataHash.put(Integer.toString(i++), nodeTriples);
-				returnHash.put("triples", returnDataHash);
 			}
+			returnHash.put("triples", returnDataHash);
 
 			tableID = TableDataFrameStore.getInstance().put(dataFrame); // place btree into ITableDataFrameStore and generate a tableID so that user no longer uses insightID
 		}
