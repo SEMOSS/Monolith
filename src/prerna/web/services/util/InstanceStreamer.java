@@ -13,6 +13,7 @@ import java.util.Collections;
 import org.apache.commons.lang3.RandomStringUtils;
 
 import prerna.test.StopWatch;
+import prerna.util.Utility;
 
 public class InstanceStreamer {
 	
@@ -33,6 +34,8 @@ public class InstanceStreamer {
 		Collections.sort(list);
 	}
 	
+	
+	
 	/**
 	 * Get rows start (inclusive) through end (exclusive).
 	 * 
@@ -40,10 +43,10 @@ public class InstanceStreamer {
 	 * @param end                   index of end row (exclusive)
 	 * @return						rows start (inclusive) through end (exclusive)
 	 */
-	public ArrayList<String> get(int start, int end) {
+	public ArrayList<Object> get(int start, int end) {
 		if (start < 0)  { start = 0; };
 		if (end > size) { end = size; };
-		return new ArrayList<String>(list.subList(start, end));
+		return new ArrayList<Object>(list.subList(start, end));
 	}
 		
 	/**
@@ -57,12 +60,14 @@ public class InstanceStreamer {
 	public int findFirstTerm(String searchTerm, int lo, int hi) {
 
 		if (hi < lo) {  return -1; } // not found
-	    int mid = lo + ((hi - lo) / 2); 
+	    int mid = lo + ((hi - lo) / 2);
 	    
-	    if (list.get(mid).indexOf(searchTerm) == 0) {
+	    String middleTerm = Utility.getInstanceName(list.get(mid)).toLowerCase();
+	    
+	    if (middleTerm.indexOf(searchTerm.toLowerCase()) == 0) {
 	    	return mid;	
 	    }
-	    else if (list.get(mid).compareTo(searchTerm) > 0) {
+	    else if (middleTerm.compareTo(searchTerm.toLowerCase()) > 0) {
 	        return findFirstTerm(searchTerm, lo, mid-1);
 	    }
 	    else {
@@ -76,8 +81,9 @@ public class InstanceStreamer {
 	 * @param searchTerm			key to search for
 	 * @return						list of values
 	 */
-	public ArrayList<String> search(Object searchTerm) {
+	public ArrayList<Object> search(Object searchTerm) {
 	    String searchTermString = searchTerm.toString();
+	    String searchTermStringLower = searchTerm.toString();
 	    
 	    ArrayList<String> results = new ArrayList<String>();
 	    
@@ -88,13 +94,15 @@ public class InstanceStreamer {
 	    if (firstIndex != -1) {
 		    results.add(list.get(firstIndex));
 		    for (int i = firstIndex-1; i >= 0; i--) { // move left
-		    	if (list.get(i).indexOf(searchTermString) == 0) {
+		    	String value = Utility.getInstanceName(list.get(i)).toLowerCase();
+		    	if (value.indexOf(searchTermStringLower) == 0) {
 		    		results.add(list.get(i));
 		    	}
 		    	else break;
 		    }
 		    for (int i = firstIndex+1; i < size; i++) { // move right
-		    	if (list.get(i).indexOf(searchTermString) == 0) {
+		    	String value = Utility.getInstanceName(list.get(i)).toLowerCase();
+		    	if (value.indexOf(searchTermStringLower) == 0) {
 		    		results.add(list.get(i));
 		    	}
 		    	else break;
@@ -102,7 +110,8 @@ public class InstanceStreamer {
 	    }
 	    
 	    Collections.sort(results);
-	    return results;
+	    
+	    return new ArrayList<Object>(results);
 	}
 	
 	/**
@@ -119,7 +128,7 @@ public class InstanceStreamer {
 		// try with strings
 		ArrayList<Object> arrayList = new ArrayList<Object>(Arrays.asList(strArray));
 		InstanceStreamer stringTest = new InstanceStreamer(arrayList);
-		Iterable<String> searchResults = stringTest.search("qu");
+		Iterable<Object> searchResults = stringTest.search("qu");
 		for (Object o: searchResults) {
 			System.out.println(o.toString());
 		}
@@ -133,7 +142,7 @@ public class InstanceStreamer {
 		}
 		
 		
-		// create 1M Strings of length 10
+	// create 1M Strings of length 10
 //		StopWatch s = new StopWatch();
 //		s.start();
 		ArrayList<Object> bigList = new ArrayList<Object>();
@@ -195,4 +204,3 @@ public class InstanceStreamer {
 		
 	}
 }
-
