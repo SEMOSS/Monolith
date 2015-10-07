@@ -151,6 +151,7 @@ public class EngineAnalyticsResource {
 			try {
 				ps.runAnalytics();
 			} catch(IllegalArgumentException ex) {
+				dataFrame.setColumnsToSkip(null);
 				errorHash.put("Message", ex.getMessage());
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
@@ -167,26 +168,60 @@ public class EngineAnalyticsResource {
 			psData.put("title", "Cluster by " + columnHeaders[instanceIndex]);
 			psData.put(retIDKey, retID);
 			psData.put("deleteKey", ps.getChangedCol());
-
+			dataFrame.setColumnsToSkip(null);
+			
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else if (algorithm.equals("AssociationLearning")) {
 			WekaAprioriVizPlaySheet ps = new WekaAprioriVizPlaySheet();
-			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
-				Integer numRules = Integer.parseInt(configParameters.get(0));
-				ps.setNumRules(numRules);
+			Integer numRules = null;
+			Double confPer = null;
+			Double minSupport = null;
+			Double maxSupport = null;
+			try {
+				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
+					numRules = Integer.parseInt(configParameters.get(0));
+					ps.setNumRules(numRules);
+				}
+			} catch(NumberFormatException e) {
+				errorHash.put("Message", "Invalid input for 'Number of Rules'");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
-				Double confPer = Double.parseDouble(configParameters.get(1));
-				ps.setConfPer(confPer);
+			try {
+				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
+					confPer = Double.parseDouble(configParameters.get(1));
+					ps.setConfPer(confPer);
+				}
+			} catch(NumberFormatException e) {
+				errorHash.put("Message", "Invalid input for 'Confidence Value (%)'");
+				errorHash.put("Class", ps.getClass().getName());
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(2) != null && !configParameters.get(2).isEmpty()) {
-				Double minSupport = Double.parseDouble(configParameters.get(2));
-				ps.setMinSupport(minSupport);
+			try {
+				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(2) != null && !configParameters.get(2).isEmpty()) {
+					minSupport = Double.parseDouble(configParameters.get(2));
+					ps.setMinSupport(minSupport);
+				}
+			} catch(NumberFormatException e) {
+				errorHash.put("Message", "Invalid input for 'Minimum Support (%)'");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(3) != null && !configParameters.get(3).isEmpty()) {
-				Double maxSupport = Double.parseDouble(configParameters.get(3));
-				ps.setMaxSupport(maxSupport);
+			try {
+				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(3) != null && !configParameters.get(3).isEmpty()) {
+					maxSupport = Double.parseDouble(configParameters.get(3));
+					ps.setMaxSupport(maxSupport);
+				}
+			} catch(NumberFormatException e) {
+				errorHash.put("Message", "Invalid input for 'Maximum Support (%)'");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+			if(numRules == null || confPer == null || minSupport == null || maxSupport == null) {
+				errorHash.put("Message", "Parameters not set for Association Learning Algorithm");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+			if(minSupport > maxSupport) {
+				errorHash.put("Message", "Minimum Support value must be lower than Maximum Support Value");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			ps.setDataFrame(dataFrame);
 			ps.setSkipAttributes(skipAttributes);
@@ -197,11 +232,13 @@ public class EngineAnalyticsResource {
 			if(psData.get("headers") == null || psData.get("data") == null) {
 				errorHash.put("Message", "No results found from algorithm");
 				errorHash.put("Class", ps.getClass().getName());
+				dataFrame.setColumnsToSkip(null);
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			psData.put("id", "");
 			psData.put("title", "Association Learning: Apriori Algorithm");
-
+			dataFrame.setColumnsToSkip(null);
+			
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else if (algorithm.equals("Classify")) {
@@ -216,13 +253,15 @@ public class EngineAnalyticsResource {
 			
 			Hashtable psData = ps.getData();
 			if(psData.get("headers") == null || psData.get("data") == null) {
+				dataFrame.setColumnsToSkip(null);
 				errorHash.put("Message", "No results found from algorithm");
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			psData.put("id", "");
 			psData.put("title", "Classification Algorithm: For variable " + propName);
-
+			dataFrame.setColumnsToSkip(null);
+			
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else if (algorithm.equals("Outliers")) {
@@ -237,6 +276,7 @@ public class EngineAnalyticsResource {
 			try {
 				ps.runAnalytics();
 			} catch(IllegalArgumentException ex) {
+				dataFrame.setColumnsToSkip(null);
 				errorHash.put("Message", ex.getMessage());
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
@@ -253,7 +293,8 @@ public class EngineAnalyticsResource {
 			specificData.put("z-axis", "COUNT");
 			psData.put("specificData", specificData);
 			psData.put(retIDKey, retID);
-
+			dataFrame.setColumnsToSkip(null);
+			
 			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
 
 		} else if (algorithm.equals("FastOutliers")) {
@@ -275,6 +316,7 @@ public class EngineAnalyticsResource {
 			try {
 				ps.runAnalytics();
 			} catch(IllegalArgumentException ex) {
+				dataFrame.setColumnsToSkip(null);
 				errorHash.put("Message", ex.getMessage());
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
@@ -291,7 +333,8 @@ public class EngineAnalyticsResource {
 			specificData.put("z-axis", "COUNT");
 			psData.put("specificData", specificData);
 			psData.put(retIDKey, retID);
-
+			dataFrame.setColumnsToSkip(null);
+			
 			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
 
 		} else if (algorithm.equals("Similarity")) {
@@ -307,6 +350,7 @@ public class EngineAnalyticsResource {
 			psData.put("title", "Similarity on " + columnHeaders[instanceIndex]);
 			psData.put(retIDKey, retID);
 			psData.put("deleteKey", ps.getChangedCol());
+			dataFrame.setColumnsToSkip(null);
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
@@ -323,6 +367,7 @@ public class EngineAnalyticsResource {
 			Hashtable psData = (Hashtable) ps.getData();
 			psData.put("id", "");
 			psData.put("title", "Matrix Regression Algorithm: For variable " + columnHeaders[instanceIndex]);
+			dataFrame.setColumnsToSkip(null);
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
@@ -337,6 +382,7 @@ public class EngineAnalyticsResource {
 			Hashtable psData = (Hashtable) ps.getData();
 			psData.put("id", "");
 			psData.put("title", "Numerical Correlation Algorithm");
+			dataFrame.setColumnsToSkip(null);
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 
@@ -353,6 +399,7 @@ public class EngineAnalyticsResource {
 			psData.put("title", "SOM Algorithm on " + columnHeaders[instanceIndex]);
 			psData.put(retIDKey, retID);
 			psData.put("deleteKey", ps.getChangedCol());
+			dataFrame.setColumnsToSkip(null);
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
