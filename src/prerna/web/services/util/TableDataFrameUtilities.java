@@ -2,6 +2,8 @@ package prerna.web.services.util;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -22,7 +24,7 @@ public final class TableDataFrameUtilities {
 	}
 	
 	public static void filterData(ITableDataFrame mainTree, Map<String, List<Object>> filterValuesArrMap) {
-//		mainTree.unfilter();
+		mainTree.unfilter();
 		//boolean unfiltered = false;
 		for(String concept: filterValuesArrMap.keySet()) {
 
@@ -43,16 +45,16 @@ public final class TableDataFrameUtilities {
 				return;
 			}
 
-			//if filterValuesArr not a subset of superSet, then unfilter
-			Object[] superSet = mainTree.getUniqueValues(concept);
-
-			int n = filterValuesArr.size();
-			int m = superSet.length;
-
-			if(m < n) {
-				mainTree.unfilter();
-				//unfiltered = true;
-			} else {
+//			//if filterValuesArr not a subset of superSet, then unfilter
+//			Object[] superSet = mainTree.getUniqueValues(concept);
+//
+//			int n = filterValuesArr.size();
+//			int m = superSet.length;
+//
+//			if(m < n) {
+//				mainTree.unfilter();
+//				//unfiltered = true;
+//			} else {
 //				Comparator<Object> comparator = new Comparator<Object>() {
 //					public int compare(Object o1, Object o2) {
 //						return o1.toString().compareTo(o2.toString());
@@ -62,22 +64,22 @@ public final class TableDataFrameUtilities {
 //				//check if filterValuesArr is a subset of superSet
 //				Arrays.sort(superSet, comparator);
 //				Collections.sort(filterValuesArr, comparator);
-
-				int i = 0;
-				int j = 0;
-				while(i < n && j < m) {
-					int compareTo = superSet[i].toString().compareToIgnoreCase(filterValuesArr.get(i).toString());
-					if(compareTo < 0) {
-						j++;
-					} else if(compareTo == 0) {
-						j++; i++;
-					} else if(compareTo > 0) {
-						mainTree.unfilter();
-						//unfiltered = true;
-						break;
-					}
-				}
-			}
+//
+//				int i = 0;
+//				int j = 0;
+//				while(i < n && j < m) {
+//					int compareTo = superSet[i].toString().compareToIgnoreCase(filterValuesArr.get(i).toString());
+//					if(compareTo < 0) {
+//						j++;
+//					} else if(compareTo == 0) {
+//						j++; i++;
+//					} else if(compareTo > 0) {
+//						mainTree.unfilter();
+//						//unfiltered = true;
+//						break;
+//					}
+//				}
+//			}
 
 //			List<Object> setDiff = new ArrayList<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
 			Set<Object> totalSet = new HashSet<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
@@ -133,6 +135,28 @@ public final class TableDataFrameUtilities {
 				String newName = name+"_"+function+"_on_"+columnHeader;
 				map.put("calcName", newName);
 			}
+		}
+		
+		return functionMap;
+	}
+	
+	public static Map<String, Object>  createColumnNamesForColumnGrouping(String[] columnHeaders, Map<String, Object> functionMap) {
+		String columnHeader = "";
+		for(String c : columnHeaders) {
+			columnHeader = columnHeader + c +"_and_";
+		}
+		
+		columnHeader.substring(0, columnHeader.length() - 5);
+		
+		for(String key : functionMap.keySet()) {
+			
+			Map<String, String> map = (Map<String, String>)functionMap.get(key);
+			String name = map.get("name");
+			String function = map.get("math");
+			
+			String newName = name+"_"+function+"_on_"+columnHeader;
+			map.put("calcName", newName);
+			
 		}
 		
 		return functionMap;
