@@ -1,6 +1,13 @@
 /**
- *  This object provides an interface to quickly search for an instance in 
- *  a column of data.
+ *  This class provides an interface to interact with a column 
+ *  of data, for:
+ *  	(1) quickly returning all instances that begin with a
+ *          given letter or phrase
+ *      (2) quickly returning all instances that contain a
+ *          given letter or phrase
+ *      (3) returning unique items I through J 
+ *  
+ *  This class is type-safe.
  *  
  *  @author Jason Adleberg
  */
@@ -9,33 +16,26 @@ package prerna.web.services.util;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-
+import java.util.Comparator;
+import java.util.TreeSet;
 import org.apache.commons.lang3.RandomStringUtils;
-
-import prerna.test.StopWatch;
 import prerna.util.Utility;
 
 public class InstanceStreamer {
 	
-	private ArrayList<String> list;
+	private ArrayList<Object> list;
+	private TreeSet<Object> tree;	// a set that preserves order (unlike HashSet)
 	private int size;
 	
 	public InstanceStreamer(ArrayList<Object> tempList) {
-		list = new ArrayList<String>();
-		
-		// doublecheck that each is a string
-		for (Object o: tempList) {
-			list.add(o.toString());
-		}
+		list = tempList;
+		tree = null;
 		
 		size = list.size();
 		
-		// sort into order (N log N)
-		Collections.sort(list);
+		sortList(list); // sort into order: O(N log N)
 	}
-	
-	
-	
+		
 	/**
 	 * Get rows start (inclusive) through end (exclusive).
 	 * 
@@ -46,28 +46,49 @@ public class InstanceStreamer {
 	public ArrayList<Object> get(int start, int end) {
 		if (start < 0)  { start = 0; };
 		if (end > size) { end = size; };
-		return new ArrayList<Object>(list.subList(start, end));
+		return (ArrayList<Object>) list.subList(start, end);
+	}
+	
+	/**
+	 * Get unique items start (inclusive) through end (exclusive).
+	 * This is accomplished by creating a TreeSet item from the ArrayList.
+	 * 
+	 * @param start                 index of start unique row (inclusive)
+	 * @param end                   index of end unique row (exclusive)
+	 * @return						Object[] of unique rows start (inclusive) through end (exclusive)
+	 */
+	public Object[] getUnique(int start, int end) {
+		// create tree set if null
+		if (tree == null) {
+			tree = new TreeSet<Object>(list);
+		}
+		
+		if (start < 0)  { start = 0; };
+		if (end > tree.size()) { end = tree.size(); };
+		return Arrays.copyOfRange(tree.toArray(), start, end);
 	}
 		
 	/**
-	 * Returns the first index that starts with the search term.
+	 * Implementation of binary search. Returns the first index that 
+	 * starts with the search term: O(lg N)
 	 * 
 	 * @param searchTerm			key to search for
 	 * @param lo					low bound of index
 	 * @param hi					high bound of index
 	 * @return						first index that starts with the search term
 	 */
-	public int findFirstTerm(String searchTerm, int lo, int hi) {
+	private int findFirstTerm(String searchTerm, int lo, int hi) {
 
-		if (hi < lo) {  return -1; } // not found
+		if (hi < lo) {  return -1; } 		// not found
 	    int mid = lo + ((hi - lo) / 2);
 	    
-	    String middleTerm = Utility.getInstanceName(list.get(mid)).toLowerCase();
+	    // use .getInstanceName() to strip URI
+	    String middleTerm = Utility.getInstanceName(list.get(mid).toString()).toLowerCase();
 	    
-	    if (middleTerm.indexOf(searchTerm.toLowerCase()) == 0) {
+	    if (middleTerm.indexOf(searchTerm) == 0) {
 	    	return mid;	
 	    }
-	    else if (middleTerm.compareTo(searchTerm.toLowerCase()) > 0) {
+	    else if (middleTerm.compareTo(searchTerm) > 0) {
 	        return findFirstTerm(searchTerm, lo, mid-1);
 	    }
 	    else {
@@ -76,49 +97,87 @@ public class InstanceStreamer {
 	}
 	
 	/**
-	 * Returns an arraylist of all values that start with term searchTerm.
+	 * Returns ArrayList of all values that start with term searchTerm.
+	 * Searching is case-insensitive; this is accomplished by using String.toLowerCase().
 	 * 
-	 * @param searchTerm			key to search for
+	 * O(lg N) time.
+	 * 
+	 * @param searchTermObj			key to search for
 	 * @return						list of values
 	 */
-	public ArrayList<Object> search(Object searchTerm) {
-	    String searchTermString = searchTerm.toString();
-	    String searchTermStringLower = searchTerm.toString();
+	public ArrayList<Object> search(Object searchTermObj) {
+	    String searchTerm = searchTermObj.toString().toLowerCase();
 	    
-	    ArrayList<String> results = new ArrayList<String>();
+	    ArrayList<Object> results = new ArrayList<Object>();
 	    
 		// get first index of term
-	    int firstIndex = findFirstTerm(searchTermString, 0, size-1);  
+	    int firstIndex = findFirstTerm(searchTerm, 0, size-1);  
 	    
-	    // if result found: move left and right to find more 
+	    // if result found: move left and right from firstIndex to find more 
 	    if (firstIndex != -1) {
-		    results.add(list.get(firstIndex));
-		    for (int i = firstIndex-1; i >= 0; i--) { // move left
-		    	String value = Utility.getInstanceName(list.get(i)).toLowerCase();
-		    	if (value.indexOf(searchTermStringLower) == 0) {
-		    		results.add(list.get(i));
+		    results.add(list.get(firstIndex).toString()); // add first value
+		    for (int i = firstIndex-1; i >= 0; i--) {     // add all relevant values to the left
+		    	String value = Utility.getInstanceName(list.get(i).toString()).toLowerCase();
+		    	if (value.indexOf(searchTerm) == 0) {
+		    		results.add(list.get(i).toString());
 		    	}
 		    	else break;
 		    }
-		    for (int i = firstIndex+1; i < size; i++) { // move right
-		    	String value = Utility.getInstanceName(list.get(i)).toLowerCase();
-		    	if (value.indexOf(searchTermStringLower) == 0) {
-		    		results.add(list.get(i));
+		    for (int i = firstIndex+1; i < size; i++) {   // add all relevant values to the right
+		    	String value = Utility.getInstanceName(list.get(i).toString()).toLowerCase();
+		    	if (value.indexOf(searchTerm) == 0) {
+		    		results.add(list.get(i).toString());
 		    	}
 		    	else break;
 		    }
 	    }
 	    
-	    Collections.sort(results);
+	    sortList(results);
+	    return results;
+	}
+	
+	/**
+	 * Returns ArrayList of all values that contain term searchTerm.
+	 * Searching is case-insensitive; this is accomplished by using String.toLowerCase().
+	 * 
+	 * O(N) time.
+	 * 
+	 * @param searchTermObj			key to search for
+	 * @return						list of values
+	 */
+	public ArrayList<Object> regexSearch(Object searchTermObj) {
+	    String searchTerm = searchTermObj.toString().toLowerCase();
 	    
-	    return new ArrayList<Object>(results);
+	    ArrayList<Object> results = new ArrayList<Object>();
+	    
+	    for (int i = 0; i < list.size(); i++) {
+	    	String value = Utility.getInstanceName(list.get(i).toString()).toLowerCase();
+	    	if (value.indexOf(searchTerm) != -1) {
+	    		results.add(list.get(i).toString());
+	    	}
+	    }
+	    
+	    return results; // results are already sorted.
+	}
+	
+	/**
+	 * Custom comparator for list (since ArrayList of Objects and not Strings)
+	 * 
+	 * @param list					arrayList of Objects
+	 */
+	private void sortList(ArrayList<Object> list) {
+		Collections.sort(list, new Comparator<Object>() {
+			public int compare(Object o1, Object o2) {
+				return o1.toString().compareTo(o2.toString());
+			}
+		});
 	}
 	
 	/**
 	 * Testing section. 
 	 * 
-	 * 1) Search for words starting with "ba" in a list of 1000 random words
-	 * 2) Identify all numbers that start with 5 in this list
+	 * 1) Search for words starting with and containing 'b-a' in a list of 1000 random words
+	 * 2) Identify all numbers starting with and containing '5' in this list
 	 * 3) Create 1M random strings with length 10, time how long it takes to create tree, and search if any of them start with "tomato".
 	 */
 	public static void main(String[] args) {
@@ -128,7 +187,13 @@ public class InstanceStreamer {
 		// try with strings
 		ArrayList<Object> arrayList = new ArrayList<Object>(Arrays.asList(strArray));
 		InstanceStreamer stringTest = new InstanceStreamer(arrayList);
-		Iterable<Object> searchResults = stringTest.search("qu");
+		System.out.println("Searching for all strings that start with 'ba':");
+		Iterable<Object> searchResults = stringTest.search("ba");
+		for (Object o: searchResults) {
+			System.out.println(o.toString());
+		}
+		System.out.println("Searching for all strings that contain 'ba':");
+		searchResults = stringTest.regexSearch("ba");
 		for (Object o: searchResults) {
 			System.out.println(o.toString());
 		}
@@ -136,15 +201,18 @@ public class InstanceStreamer {
 		// try with ints
 		ArrayList<Object> intList = new ArrayList<Object>(Arrays.asList(intArray));
 		stringTest = new InstanceStreamer(intList);
+		System.out.println("Searching for all numbers that start with 5:");
 		searchResults = stringTest.search("5");
 		for (Object o: searchResults) {
 			System.out.println(o.toString());
 		}
+		System.out.println("Searching for all numbers that contain 5:");
+		searchResults = stringTest.regexSearch("5");
+		for (Object o: searchResults) {
+			System.out.println(o.toString());
+		}
 		
-		
-	// create 1M Strings of length 10
-//		StopWatch s = new StopWatch();
-//		s.start();
+		// 	create 1M Strings of length 10
 		ArrayList<Object> bigList = new ArrayList<Object>();
 		System.out.println("Generating random strings:");
 		int sampleSize = 1000000;
@@ -201,6 +269,8 @@ public class InstanceStreamer {
 		for (Object o: searchResults) {
 			System.out.println(o.toString());
 		}
+		
+		System.out.println("Testing complete.");
 		
 	}
 }
