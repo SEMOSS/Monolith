@@ -1435,108 +1435,106 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(retList)).build();
 	}
 	
-	@POST
+    @POST
     @Path("searchColumn")
     @Produces("application/json")
     public Response searchColumn(MultivaluedMap<String, String> form,
-            @QueryParam("existingConcept") String currConcept,
+			@QueryParam("existingConcept") String currConcept,
 			@QueryParam("joinType") String joinType,
 			@QueryParam("tableID") String tableID,
 			@QueryParam("columnHeader") String columnHeader,
 			@QueryParam("searchTerm") String searchTerm,
-            @QueryParam("limit") String limit,
-            @QueryParam("offset") String offset,
-			@Context HttpServletRequest request)
-	{
+			@QueryParam("limit") String limit,
+			@QueryParam("offset") String offset,
+			@Context HttpServletRequest request){
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 
 		boolean outer = false;
 		boolean inner = false;
 		if(joinType.equals("outer")) {
-			outer = true;
+			 outer = true;
 		} else if(joinType.equals("inner")) {
-			inner = true;
+			 inner = true;
 		}
 
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		
+
 		//TODO: why is rdbms uppper case for names? causes discrepancies
 		if(!(builder instanceof SPARQLQueryTableBuilder)) { //if not sparql then uppercase the concept
-			currConcept = currConcept.toUpperCase();
+			 currConcept = currConcept.toUpperCase();
 		}
-		
-		if(tableID != null && !tableID.isEmpty() && !outer) {
-			// need to add bindings for query if not outer join
-                  ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
-			if(existingData == null) {
-				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
-			}
 
-			if(currConcept != null && !currConcept.isEmpty()) {
-				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
-				//				HttpSession session = request.getSession();
-				//				if(session.getAttribute(tableID) == null) {
-				//					session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(existingData));
-				//				}
-				//				
-				//				InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-				//				List<HashMap<String, String>> filteringValues = scroller.getNextUniqueValues(currConcept);
-				//								
-				StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
-				stringMap.put(currConcept, filteringValues);
-				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
-			} else {
-				return Response.status(400).entity(WebUtility.getSO("Cannot perform filtering when current concept to filter on is not defined")).build();
-			}
+		if(tableID != null && !tableID.isEmpty() && !outer) {
+			 // need to add bindings for query if not outer join
+		  ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
+			 if(existingData == null) {
+				   return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
+			 }
+
+			 if(currConcept != null && !currConcept.isEmpty()) {
+				   List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
+				   //                         HttpSession session = request.getSession();
+				   //                         if(session.getAttribute(tableID) == null) {
+				   //                                session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(existingData));
+				   //                         }
+				   //                         
+				   //                         InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
+				   //                         List<HashMap<String, String>> filteringValues = scroller.getNextUniqueValues(currConcept);
+				   //                                                     
+				   StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
+				   stringMap.put(currConcept, filteringValues);
+				   ((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
+			 } else {
+				   return Response.status(400).entity(WebUtility.getSO("Cannot perform filtering when current concept to filter on is not defined")).build();
+			 }
 		}
-		
+
 		builder.setJSONDataHash(dataHash);
 		builder.buildQuery();
 		String query = builder.getQuery();
-		
+
 		System.out.println(query);
 
 		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
 		String[] newNames = wrap.getVariables();
 		int index = 0;
 		if(newNames.length > 1) {
-			int currIndexexistingConcept = 0;
-			
-			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
-			if(currIndexexistingConcept == 0) {
-				index = 1;
-			}
+			 int currIndexexistingConcept = 0;
+			 
+			 currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
+			 if(currIndexexistingConcept == 0) {
+				   index = 1;
+			 }
 		} 
 
 		// creating new list of values from query
 		ArrayList<Object> retList = new ArrayList<Object>();
 		while (wrap.hasNext()) {
-			ISelectStatement iss = wrap.next();
-			Object value = iss.getRawVar(newNames[index]);
-			if(inner && value.toString().isEmpty()) {
-				continue; // don't add empty values as a possibility
-			}
-			if(value instanceof BigdataURI) {
-				retList.add( ((BigdataURI)value).stringValue());
-			} else {
-				retList.add(iss.getVar(newNames[index]));
-			}
+			 ISelectStatement iss = wrap.next();
+			 Object value = iss.getRawVar(newNames[index]);
+			 if(inner && value.toString().isEmpty()) {
+				   continue; // don't add empty values as a possibility
+			 }
+			 if(value instanceof BigdataURI) {
+					retList.add( ((BigdataURI)value).stringValue());
+			 } else {
+				   retList.add(iss.getVar(newNames[index]));
+			 }
 		}
-		
-		// put everything into instancestreamer object
+
+		// put everything into InstanceStreamer object
 		InstanceStreamer stream = new InstanceStreamer(retList);
-		
-		ArrayList<Object> results = null;
+
 		if (!searchTerm.equals("") && searchTerm != null) {
-			results = stream.search(searchTerm);
-			stream = new InstanceStreamer(results);
+			 ArrayList<Object> results = stream.search(searchTerm);
+			 stream = new InstanceStreamer(results);
 		}
-		
-		results = stream.get(Integer.parseInt(offset), Integer.parseInt(offset+limit));
-		Set tree = new TreeSet(results); 
-		return Response.status(200).entity(WebUtility.getSO(tree)).build();
+
+		Object[] uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset)+Integer.parseInt(limit)));
+		return Response.status(200).entity(WebUtility.getSO(uniqueResults)).build();
 	}
+
 
 	@POST
 	@Path("getVizTable")
