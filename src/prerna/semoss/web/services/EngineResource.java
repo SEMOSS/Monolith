@@ -77,9 +77,10 @@ import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
 import prerna.algorithm.learning.util.DuplicationReconciliation;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
-import prerna.ds.ITableStatCounter2;
+import prerna.ds.ITableStatCounter;
 import prerna.ds.InfiniteScroller;
 import prerna.ds.InfiniteScrollerFactory;
+import prerna.ds.MultiColumnTableStatCounter;
 import prerna.ds.TableDataFrameStore;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
@@ -117,6 +118,7 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetEnum;
 import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
+//import prerna.web.services.util.ITableUtilities;
 import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.InstanceStreamer;
 import prerna.web.services.util.TableDataFrameUtilities;
@@ -575,7 +577,7 @@ public class EngineResource {
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
 
-				//Increment the insight's execution count for the logged in user
+				//Increment the insight's execution count for the logged in user\
 				addMasterDB.processInsightExecutionForUser(userId, insightObj);
 				String visibility = searchMasterDB.getVisibilityForInsight(userId, insightObj.getId());
 				Hashtable ret = (Hashtable) obj;
@@ -1532,7 +1534,7 @@ public class EngineResource {
 		}
 		
 		results = stream.get(Integer.parseInt(offset), Integer.parseInt(offset+limit));
-		Set tree = new TreeSet(results);
+		Set tree = new TreeSet(results); 
 		return Response.status(200).entity(WebUtility.getSO(tree)).build();
 	}
 
@@ -2008,13 +2010,17 @@ public class EngineResource {
 		String[] groupByCols = gson.fromJson(form.getFirst("groupBy"), String[].class);
 		Map<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
 		
+		boolean singleColumn = groupByCols.length == 1 || (groupByCols.length == 2 && groupByCols[0].equals(groupByCols[1]));
 
-		functionMap = TableDataFrameUtilities.createColumnNamesForColumnGrouping(groupByCols[0], functionMap);
+		if(singleColumn) {
+			functionMap = TableDataFrameUtilities.createColumnNamesForColumnGrouping(groupByCols[0], functionMap);
+		} else {
+			functionMap = TableDataFrameUtilities.createColumnNamesForColumnGrouping(groupByCols, functionMap);
+		}
 		
 		String[] columnHeaders = table.getColumnHeaders();
 		for(String key : functionMap.keySet()) {
 			Map<String, String> map = (Map)functionMap.get(key);
-			
 			String name = map.get("calcName");
 			if(ArrayUtilityMethods.arrayContainsValue(columnHeaders, name)) {
 				table.removeColumn(name);
@@ -2022,12 +2028,14 @@ public class EngineResource {
 		}
 		
 		Map<String, Object> retMap = new HashMap<String, Object>();
-//		ITableStatCounter counter = new ITableStatCounter();
-//		counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
-		
-		ITableStatCounter2 counter2 = new ITableStatCounter2();
-		counter2.addStatsToDataFrame(table, groupByCols, functionMap);
-//		WebBtreeIterator iterator = new WebBtreeIterator()
+		//only one group by or two of the same
+		if(singleColumn) {
+			ITableStatCounter counter = new ITableStatCounter();
+			counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
+		} else {
+			MultiColumnTableStatCounter multiCounter = new MultiColumnTableStatCounter();
+			multiCounter.addStatsToDataFrame(table, groupByCols, functionMap);
+		}
 		
 		retMap.put("tableData", TableDataFrameUtilities.getTableData(table));
 		retMap.put("mathMap", functionMap);
