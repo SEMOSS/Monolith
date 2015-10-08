@@ -2039,9 +2039,14 @@ public class EngineResource {
 		}
 		
 		String[] columnHeaders = table.getColumnHeaders();
+		Set<String> columnSet = new HashSet<String>();
 		for(String key : functionMap.keySet()) {
 			Map<String, String> map = (Map)functionMap.get(key);
 			String name = map.get("calcName");
+			columnSet.add(name);
+		}
+		
+		for(String name : columnSet) {
 			if(ArrayUtilityMethods.arrayContainsValue(columnHeaders, name)) {
 				table.removeColumn(name);
 			}
