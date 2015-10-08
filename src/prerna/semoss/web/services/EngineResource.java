@@ -1447,6 +1447,23 @@ public class EngineResource {
 			@QueryParam("limit") String limit,
 			@QueryParam("offset") String offset,
 			@Context HttpServletRequest request){
+    	
+    	HttpSession session = request.getSession();
+		if (session.getAttribute("columnHeader") != null) {
+			if (session.getAttribute("columnHeader").equals(Utility.getInstanceName(columnHeader)) && !columnHeader.equals("")) {
+			// put everything into InstanceStreamer object
+			InstanceStreamer stream = (InstanceStreamer) session.getAttribute("InstanceStreamer");
+
+			if (!searchTerm.equals("") && searchTerm != null) {
+				 ArrayList<Object> results = stream.search(searchTerm);
+				 stream = new InstanceStreamer(results);
+			}
+
+			ArrayList<Object> uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset)+Integer.parseInt(limit)));
+			return Response.status(200).entity(WebUtility.getSO(uniqueResults)).build();
+			}
+		}		
+		
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 
@@ -1526,14 +1543,19 @@ public class EngineResource {
 		// put everything into InstanceStreamer object
 		InstanceStreamer stream = new InstanceStreamer(retList);
 
+		// set InstanceStreamer object
+		session.setAttribute("columnHeader", columnHeader);
+		session.setAttribute("InstanceStreamer", stream);
 		if (!searchTerm.equals("") && searchTerm != null) {
 			 ArrayList<Object> results = stream.search(searchTerm);
 			 stream = new InstanceStreamer(results);
 		}
 
-		Object[] uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset)+Integer.parseInt(limit)));
+		ArrayList<Object> uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset)+Integer.parseInt(limit)));
 		return Response.status(200).entity(WebUtility.getSO(uniqueResults)).build();
 	}
+
+
 
 
 	@POST

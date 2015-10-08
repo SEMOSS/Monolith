@@ -17,36 +17,24 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.TreeSet;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 import org.apache.commons.lang3.RandomStringUtils;
+
 import prerna.util.Utility;
 
 public class InstanceStreamer {
 	
 	private ArrayList<Object> list;
-	private TreeSet<Object> tree;	// a set that preserves order (unlike HashSet)
+//	private TreeSet<Object> tree;	// a set that preserves order (unlike HashSet)
 	private int size;
 	
 	public InstanceStreamer(ArrayList<Object> tempList) {
-		list = tempList;
-		tree = null;
-		
+		sortList(tempList); // sort into order: O(N log N)
+		Set<Object> set = new LinkedHashSet<Object>(tempList);
+		list = new ArrayList<Object>(set);
 		size = list.size();
-		
-		sortList(list); // sort into order: O(N log N)
-	}
-		
-	/**
-	 * Get rows start (inclusive) through end (exclusive).
-	 * 
-	 * @param start                 index of start row (inclusive)
-	 * @param end                   index of end row (exclusive)
-	 * @return						rows start (inclusive) through end (exclusive)
-	 */
-	public ArrayList<Object> get(int start, int end) {
-		if (start < 0)  { start = 0; };
-		if (end > size) { end = size; };
-		return (ArrayList<Object>) list.subList(start, end);
 	}
 	
 	/**
@@ -57,15 +45,11 @@ public class InstanceStreamer {
 	 * @param end                   index of end unique row (exclusive)
 	 * @return						Object[] of unique rows start (inclusive) through end (exclusive)
 	 */
-	public Object[] getUnique(int start, int end) {
-		// create tree set if null
-		if (tree == null) {
-			tree = new TreeSet<Object>(list);
-		}
-		
+	public ArrayList<Object> getUnique(int start, int end) {
+		if (start > size) { return new ArrayList<Object>(); }
 		if (start < 0)  { start = 0; };
-		if (end > tree.size()) { end = tree.size(); };
-		return Arrays.copyOfRange(tree.toArray(), start, end);
+		if (end > size) { end = size; };
+		return new ArrayList<Object>(list.subList(start, end));
 	}
 		
 	/**
@@ -132,7 +116,7 @@ public class InstanceStreamer {
 		    }
 	    }
 	    
-	    sortList(results);
+	    sortList(results); // sort results into order
 	    return results;
 	}
 	
