@@ -325,7 +325,8 @@ public class Uploader extends HttpServlet {
 			errorHash.put("errorMessage", "No database name was entered");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
-
+		dbName = cleanSpaces(dbName);
+		
 		if(obj != null) {
 			String cleanedFileName = processOpenRefine(dbName, (String) obj);
 			if(cleanedFileName.startsWith("Error")) {
@@ -535,6 +536,7 @@ public class Uploader extends HttpServlet {
 			errorHash.put("errorMessage", "No database name was entered");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
+		dbName = cleanSpaces(dbName);
 
 		if(obj != null) {
 			String cleanedFileName = processOpenRefine(dbName, (String) obj);
@@ -760,7 +762,8 @@ public class Uploader extends HttpServlet {
 			errorHash.put("errorMessage", "No database name was entered");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
-		
+		dbName = cleanSpaces(dbName);
+
 		//Add engine owner for permissions
 		if(this.securityEnabled) {
 			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
@@ -869,7 +872,8 @@ public class Uploader extends HttpServlet {
 			errorHash.put("errorMessage", "No database name was entered");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
-		
+		dbName = cleanSpaces(dbName);
+
 		//Add engine owner for permissions
 		if(this.securityEnabled) {
 			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
@@ -1034,5 +1038,13 @@ public class Uploader extends HttpServlet {
 	public void addEngineOwner(String engine, String userId) {
 		UserPermissionsMasterDB masterDB = new UserPermissionsMasterDB();
 		masterDB.addEngineOwner(engine, userId);
+	}
+	
+	//TODO: this cleaning will not be necessary once insights are shifted to RDBMS
+	private String cleanSpaces(String s) {
+		while (s.contains("  ")){
+			s = s.replace("  ", " ");
+		}
+		return s.replaceAll(" ", "_");
 	}
 }
