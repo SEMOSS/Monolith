@@ -146,7 +146,7 @@ public final class TableDataFrameUtilities {
 			columnHeader = columnHeader + c +"_and_";
 		}
 		
-		columnHeader.substring(0, columnHeader.length() - 5);
+		columnHeader = columnHeader.substring(0, columnHeader.length() - 5);
 		
 		for(String key : functionMap.keySet()) {
 			
