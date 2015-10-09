@@ -40,7 +40,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 
@@ -62,14 +61,6 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
-import com.bigdata.rdf.model.BigdataURI;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
-
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
@@ -84,9 +75,9 @@ import prerna.ds.InfiniteScrollerFactory;
 import prerna.ds.MultiColumnTableStatCounter;
 import prerna.ds.TableDataFrameStore;
 import prerna.engine.api.IEngine;
+import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
-import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.impl.rdf.SesameJenaSelectStatement;
@@ -125,6 +116,14 @@ import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.InstanceStreamer;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
+
+import com.bigdata.rdf.model.BigdataURI;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
 
 public class EngineResource {
 
@@ -1376,72 +1375,70 @@ public class EngineResource {
     @Path("searchColumn")
     @Produces("application/json")
     public Response searchColumn(MultivaluedMap<String, String> form,
-			@QueryParam("existingConcept") String currConcept,
-			@QueryParam("joinType") String joinType,
-			@QueryParam("tableID") String tableID,
-			@QueryParam("columnHeader") String columnHeader,
-			@QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") String limit,
-			@QueryParam("offset") String offset,
-			@Context HttpServletRequest request){
-    	
-    	HttpSession session = request.getSession();
+ @QueryParam("existingConcept") String currConcept,
+			@QueryParam("joinType") String joinType, @QueryParam("tableID") String tableID, @QueryParam("columnHeader") String columnHeader,
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") String limit, @QueryParam("offset") String offset,
+			@Context HttpServletRequest request) {
+		
+		HttpSession session = request.getSession();
 		if (session.getAttribute("columnHeader") != null) {
 			if (session.getAttribute("columnHeader").equals(Utility.getInstanceName(columnHeader)) && !columnHeader.equals("")) {
-			// put everything into InstanceStreamer object
-			InstanceStreamer stream = (InstanceStreamer) session.getAttribute("InstanceStreamer");
+				// put everything into InstanceStreamer object
+				InstanceStreamer stream = (InstanceStreamer) session.getAttribute("InstanceStreamer");
+				
+				if (!searchTerm.equals("") && searchTerm != null) {
+					ArrayList<Object> results = stream.search(searchTerm);
+					stream = new InstanceStreamer(results);
+				}
 
-			if (!searchTerm.equals("") && searchTerm != null) {
-				 ArrayList<Object> results = stream.search(searchTerm);
-				 stream = new InstanceStreamer(results);
+				ArrayList<Object> uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
+				return Response.status(200).entity(WebUtility.getSO(uniqueResults)).build();
 			}
-
-			Object[] uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset)+Integer.parseInt(limit)));
-			return Response.status(200).entity(WebUtility.getSO(uniqueResults)).build();
-			}
-		}		
+		}
 		
 		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {
+		}.getType());
 
 		boolean outer = false;
 		boolean inner = false;
-		if(joinType.equals("outer")) {
-			 outer = true;
-		} else if(joinType.equals("inner")) {
-			 inner = true;
+		if (joinType.equals("outer")) {
+			outer = true;
+		} else if (joinType.equals("inner")) {
+			inner = true;
 		}
 
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 
-		//TODO: why is rdbms uppper case for names? causes discrepancies
-		if(!(builder instanceof SPARQLQueryTableBuilder)) { //if not sparql then uppercase the concept
-			 currConcept = currConcept.toUpperCase();
+		// TODO: why is rdbms uppper case for names? causes discrepancies
+		if (!(builder instanceof SPARQLQueryTableBuilder)) { // if not sparql then uppercase the concept
+			currConcept = currConcept.toUpperCase();
 		}
 
-		if(tableID != null && !tableID.isEmpty() && !outer) {
-			 // need to add bindings for query if not outer join
-		  ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
-			 if(existingData == null) {
-				   return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
-			 }
+		if (tableID != null && !tableID.isEmpty() && !outer) {
+			// need to add bindings for query if not outer join
+			ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
+			if (existingData == null) {
+				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
+			}
 
-			 if(currConcept != null && !currConcept.isEmpty()) {
-				   List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
-				   //                         HttpSession session = request.getSession();
-				   //                         if(session.getAttribute(tableID) == null) {
-				   //                                session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(existingData));
-				   //                         }
-				   //                         
-				   //                         InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-				   //                         List<HashMap<String, String>> filteringValues = scroller.getNextUniqueValues(currConcept);
-				   //                                                     
-				   StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
-				   stringMap.put(currConcept, filteringValues);
-				   ((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
-			 } else {
-				   return Response.status(400).entity(WebUtility.getSO("Cannot perform filtering when current concept to filter on is not defined")).build();
-			 }
+			if (currConcept != null && !currConcept.isEmpty()) {
+				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
+				// HttpSession session = request.getSession();
+				// if(session.getAttribute(tableID) == null) {
+				// session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(existingData));
+				// }
+				//
+				// InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
+				// List<HashMap<String, String>> filteringValues = scroller.getNextUniqueValues(currConcept);
+				//
+				StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
+				stringMap.put(currConcept, filteringValues);
+				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
+			} else {
+				return Response.status(400).entity(WebUtility.getSO("Cannot perform filtering when current concept to filter on is not defined"))
+						.build();
+			}
 		}
 
 		builder.setJSONDataHash(dataHash);
@@ -1453,28 +1450,28 @@ public class EngineResource {
 		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
 		String[] newNames = wrap.getVariables();
 		int index = 0;
-		if(newNames.length > 1) {
-			 int currIndexexistingConcept = 0;
-			 
-			 currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
-			 if(currIndexexistingConcept == 0) {
-				   index = 1;
-			 }
-		} 
+		if (newNames.length > 1) {
+			int currIndexexistingConcept = 0;
+			
+			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
+			if (currIndexexistingConcept == 0) {
+				index = 1;
+			}
+		}
 
-		// creating new list of values from query
+                                // creating new list of values from query
 		ArrayList<Object> retList = new ArrayList<Object>();
 		while (wrap.hasNext()) {
-			 ISelectStatement iss = wrap.next();
-			 Object value = iss.getRawVar(newNames[index]);
-			 if(inner && value.toString().isEmpty()) {
-				   continue; // don't add empty values as a possibility
-			 }
-			 if(value instanceof BigdataURI) {
-					retList.add( ((BigdataURI)value).stringValue());
-			 } else {
-				   retList.add(iss.getVar(newNames[index]));
-			 }
+			ISelectStatement iss = wrap.next();
+			Object value = iss.getRawVar(newNames[index]);
+			if (inner && value.toString().isEmpty()) {
+				continue; // don't add empty values as a possibility
+			}
+			if (value instanceof BigdataURI) {
+				retList.add(((BigdataURI) value).stringValue());
+			} else {
+				retList.add(iss.getVar(newNames[index]));
+			}
 		}
 
 		// put everything into InstanceStreamer object
@@ -1484,13 +1481,14 @@ public class EngineResource {
 		session.setAttribute("columnHeader", columnHeader);
 		session.setAttribute("InstanceStreamer", stream);
 		if (!searchTerm.equals("") && searchTerm != null) {
-			 ArrayList<Object> results = stream.search(searchTerm);
-			 stream = new InstanceStreamer(results);
+			ArrayList<Object> results = stream.search(searchTerm);
+			stream = new InstanceStreamer(results);
 		}
 
-		Object[] uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset)+Integer.parseInt(limit)));
+		ArrayList<Object> uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
 		return Response.status(200).entity(WebUtility.getSO(uniqueResults)).build();
 	}
+
 
 
 
