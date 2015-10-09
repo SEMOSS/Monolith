@@ -2118,7 +2118,9 @@ public class EngineResource {
 			queryParser.parseQuery();
 			//aggregate functions not eligible for nagivation back through explore
 			if(queryParser.hasAggregateFunction()){
-				return Response.status(400).entity(WebUtility.getSO("This Insight is not eligible to navigate through Explore")).build();
+				Hashtable<String, String> errorHash = new Hashtable<String, String>();
+				errorHash.put("Message", "This Insight is not eligible to navigate through Explore.");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			Hashtable<String, String> nodes = queryParser.getNodesFromQuery();
 			for (String key : nodes.keySet()) {
@@ -2144,7 +2146,9 @@ public class EngineResource {
 					//if the node doesnt exist in the btree, thats fine we just wont add it to the ui, so take no action
 					//BUT if the node properties were included in the btree then we should error out
 					if(nodeProps.size()>0){
-						return Response.status(400).entity(WebUtility.getSO("This Insight is not eligible to navigate through Explore")).build();
+						Hashtable<String, String> errorHash = new Hashtable<String, String>();
+						errorHash.put("Message", "This Insight is not eligible to navigate through Explore.");
+						return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 					}
 				} else {
 					returnDataHash.put(key, nodeDetails);
