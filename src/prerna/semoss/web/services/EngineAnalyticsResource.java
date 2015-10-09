@@ -237,6 +237,8 @@ public class EngineAnalyticsResource {
 			}
 			psData.put("id", "");
 			psData.put("title", "Association Learning: Apriori Algorithm");
+			psData.put("deleteKey", "none");
+
 			dataFrame.setColumnsToSkip(null);
 			
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
@@ -260,6 +262,8 @@ public class EngineAnalyticsResource {
 			}
 			psData.put("id", "");
 			psData.put("title", "Classification Algorithm: For variable " + propName);
+			psData.put("deleteKey", "none");
+
 			dataFrame.setColumnsToSkip(null);
 			
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
@@ -367,6 +371,8 @@ public class EngineAnalyticsResource {
 			Hashtable psData = (Hashtable) ps.getData();
 			psData.put("id", "");
 			psData.put("title", "Matrix Regression Algorithm: For variable " + columnHeaders[instanceIndex]);
+			psData.put("deleteKey", "none");
+
 			dataFrame.setColumnsToSkip(null);
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
@@ -382,6 +388,8 @@ public class EngineAnalyticsResource {
 			Hashtable psData = (Hashtable) ps.getData();
 			psData.put("id", "");
 			psData.put("title", "Numerical Correlation Algorithm");
+			psData.put("deleteKey", "none");
+
 			dataFrame.setColumnsToSkip(null);
 
 			return Response.status(200).entity(WebUtility.getSO(psData)).build();
