@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -85,6 +86,7 @@ import prerna.ds.TableDataFrameStore;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
+import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.impl.rdf.SesameJenaSelectStatement;
@@ -2170,24 +2172,50 @@ public class EngineResource {
 			Hashtable<String, String> nodeTriples;
 			Hashtable<String, Object> nodeDetails;
 
+			//get the btree headers for comparison against what you want to display back to the user
+			List<String> columnHeaders = new ArrayList<String>();
+			Collections.addAll(columnHeaders, dataFrame.getColumnHeaders()); 
+			//for RDBMS everything is uppercase in the btree
+			boolean useUpperCase = false;
+			if(ENGINE_TYPE.RDBMS == coreEngine.getEngineType()){
+				useUpperCase = true;
+			}
 			AbstractQueryParser queryParser = ((AbstractEngine) coreEngine).getQueryParser();
 			queryParser.setQuery(query);
 			queryParser.parseQuery();
+			//aggregate functions not eligible for nagivation back through explore
+			if(queryParser.hasAggregateFunction()){
+				return Response.status(400).entity(WebUtility.getSO("This Insight is not eligible to navigate through Explore")).build();
+			}
 			Hashtable<String, String> nodes = queryParser.getNodesFromQuery();
 			for (String key : nodes.keySet()) {
+				String keyNode = key;
+				if(useUpperCase){
+					keyNode = key.toUpperCase();
+				}
 				nodeDetails = new Hashtable<String, Object>();
 				
-				Hashtable<String, Set<String>> selectedPropsHash = queryParser.getPropertiesFromQuery();
-				HashSet<String> selectedProperties = (HashSet<String>) selectedPropsHash.get(key);
+				Hashtable<String, Hashtable<String, String>> selectedPropsHash = queryParser.getReturnVariables();
+				Hashtable<String, String> selectedProperties = (Hashtable<String,String>) selectedPropsHash.get(key);
 				ArrayList<String> nodeProps = new ArrayList<String>();
 				if (selectedProperties != null) {
-					for (String singleProperty : selectedProperties) {
-						nodeProps.add(singleProperty);
+					//selectedProperties is a map of the column alias and its column name the keyset has the alias.  
+					for (String singleProperty : selectedProperties.keySet()) {
+						nodeProps.add(selectedProperties.get(singleProperty));
 					}
 				}
 				nodeDetails.put("selectedProperties", nodeProps);
 				nodeDetails.put("uri", nodes.get(key));
-				returnDataHash.put(key, nodeDetails);
+
+				if(!columnHeaders.contains(keyNode)){
+					//if the node doesnt exist in the btree, thats fine we just wont add it to the ui, so take no action
+					//BUT if the node properties were included in the btree then we should error out
+					if(nodeProps.size()>0){
+						return Response.status(400).entity(WebUtility.getSO("This Insight is not eligible to navigate through Explore")).build();
+					}
+				} else {
+					returnDataHash.put(key, nodeDetails);
+				}
 			}
 			returnHash.put("nodes", returnDataHash); // Nodes that will be used to build the metamodel in Single-View
 			
@@ -2199,7 +2227,17 @@ public class EngineResource {
 				nodeTriples.put("fromNode", triples[0]);
 				nodeTriples.put("relationshipTriple", triples[1]);
 				nodeTriples.put("toNode", triples[2]);
-				returnDataHash.put(Integer.toString(i++), nodeTriples);
+				
+				//get instance from triple and capitalize it for rdbms since btree stores uppercase for rdbms
+				String fromNodeInstance = Utility.getInstanceName(triples[0]);
+				String toNodeInstance = Utility.getInstanceName(triples[2]);
+				if(useUpperCase){
+					fromNodeInstance = fromNodeInstance.toUpperCase();
+					toNodeInstance = toNodeInstance.toUpperCase();
+				}
+				if(columnHeaders.contains(fromNodeInstance) && columnHeaders.contains(toNodeInstance)){
+					returnDataHash.put(Integer.toString(i++), nodeTriples);
+				}
 			}
 			returnHash.put("triples", returnDataHash);
 
