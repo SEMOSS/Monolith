@@ -152,7 +152,7 @@ public class EngineAnalyticsResource {
 				ps.runAnalytics();
 			} catch(IllegalArgumentException ex) {
 				dataFrame.setColumnsToSkip(null);
-				errorHash.put("Message", ex.getMessage());
+				errorHash.put("errorMessage", ex.getMessage());
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
@@ -160,7 +160,7 @@ public class EngineAnalyticsResource {
 			ps.processQueryData();
 			Hashtable psData = ps.getData();
 			if(psData.get("headers") == null || psData.get("data") == null) {
-				errorHash.put("Message", "No results found from algorithm");
+				errorHash.put("errorMessage", "No results found from algorithm");
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
@@ -184,7 +184,7 @@ public class EngineAnalyticsResource {
 					ps.setNumRules(numRules);
 				}
 			} catch(NumberFormatException e) {
-				errorHash.put("Message", "Invalid input for 'Number of Rules'");
+				errorHash.put("errorMessage", "Invalid input for 'Number of Rules'");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			try {
@@ -193,7 +193,7 @@ public class EngineAnalyticsResource {
 					ps.setConfPer(confPer);
 				}
 			} catch(NumberFormatException e) {
-				errorHash.put("Message", "Invalid input for 'Confidence Value (%)'");
+				errorHash.put("errorMessage", "Invalid input for 'Confidence Value (%)'");
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
@@ -203,7 +203,7 @@ public class EngineAnalyticsResource {
 					ps.setMinSupport(minSupport);
 				}
 			} catch(NumberFormatException e) {
-				errorHash.put("Message", "Invalid input for 'Minimum Support (%)'");
+				errorHash.put("errorMessage", "Invalid input for 'Minimum Support (%)'");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			try {
@@ -212,15 +212,15 @@ public class EngineAnalyticsResource {
 					ps.setMaxSupport(maxSupport);
 				}
 			} catch(NumberFormatException e) {
-				errorHash.put("Message", "Invalid input for 'Maximum Support (%)'");
+				errorHash.put("errorMessage", "Invalid input for 'Maximum Support (%)'");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			if(numRules == null || confPer == null || minSupport == null || maxSupport == null) {
-				errorHash.put("Message", "Parameters not set for Association Learning Algorithm");
+				errorHash.put("errorMessage", "Parameters not set for Association Learning Algorithm");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			if(minSupport > maxSupport) {
-				errorHash.put("Message", "Minimum Support value must be lower than Maximum Support Value");
+				errorHash.put("errorMessage", "Minimum Support value must be lower than Maximum Support Value");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			ps.setDataFrame(dataFrame);
@@ -230,7 +230,7 @@ public class EngineAnalyticsResource {
 			
 			Hashtable psData = ps.getData();
 			if(psData.get("headers") == null || psData.get("data") == null) {
-				errorHash.put("Message", "No results found from algorithm");
+				errorHash.put("errorMessage", "No results found from algorithm");
 				errorHash.put("Class", ps.getClass().getName());
 				dataFrame.setColumnsToSkip(null);
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
@@ -254,7 +254,7 @@ public class EngineAnalyticsResource {
 			Hashtable psData = ps.getData();
 			if(psData.get("headers") == null || psData.get("data") == null) {
 				dataFrame.setColumnsToSkip(null);
-				errorHash.put("Message", "No results found from algorithm");
+				errorHash.put("errorMessage", "No results found from algorithm");
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
@@ -277,7 +277,7 @@ public class EngineAnalyticsResource {
 				ps.runAnalytics();
 			} catch(IllegalArgumentException ex) {
 				dataFrame.setColumnsToSkip(null);
-				errorHash.put("Message", ex.getMessage());
+				errorHash.put("errorMessage", ex.getMessage());
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
@@ -317,7 +317,7 @@ public class EngineAnalyticsResource {
 				ps.runAnalytics();
 			} catch(IllegalArgumentException ex) {
 				dataFrame.setColumnsToSkip(null);
-				errorHash.put("Message", ex.getMessage());
+				errorHash.put("errorMessage", ex.getMessage());
 				errorHash.put("Class", ps.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
