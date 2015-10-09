@@ -923,7 +923,8 @@ public class EngineResource {
 	@POST
 	@Path("/filterData")
 	@Produces("application/json")
-	public Response filterData(MultivaluedMap<String, String> form)
+	public Response filterData(MultivaluedMap<String, String> form,
+			@Context HttpServletRequest request)
 	{	
 		String tableID = form.getFirst("tableID");
 		String insightID = form.getFirst("insightID");
@@ -935,85 +936,20 @@ public class EngineResource {
 		}
 
 		Gson gson = new Gson();
-		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+//		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 
-//		boolean unfiltered = false;
-
-		mainTree.unfilter();
-		for(String concept: filterValuesArrMap.keySet()) {
-			List<Object> filterValuesArr = filterValuesArrMap.get(concept);
-			if(mainTree.isNumeric(concept)) {
-				List<Object> values = new ArrayList<Object>(filterValuesArr.size());
-				for(Object o: filterValuesArr) {
-					try {
-						values.add(Double.parseDouble(o.toString()));
-					} catch(Exception e) {
-						values.add(o);
-					}
-				}
-				filterValuesArr = values;
-			}
-//			if(filterValuesArr == null || filterValuesArr.isEmpty()) {
-//				Map<String, Object> retMap = new HashMap<String, Object>();
-//				retMap.put("tableID", tableID);
-//				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-//			}
-
-			//if filterValuesArr not a subset of superSet, then unfilter
-//			Object[] superSet = mainTree.getUniqueValues(concept);
-//
-//			int n = filterValuesArr.size();
-//			int m = superSet.length;
-//
-//			if(m < n) {
-//				mainTree.unfilter();
-//				unfiltered = true;
-//			} else {
-//				Comparator<Object> comparator = new Comparator<Object>() {
-//					public int compare(Object o1, Object o2) {
-//						return o1.toString().compareTo(o2.toString());
-//					}
-//				};
-//
-//				//check if filterValuesArr is a subset of superSet
-//				Arrays.sort(superSet, comparator);
-//				Collections.sort(filterValuesArr, comparator);
-//
-//				int i = 0;
-//				int j = 0;
-//				while(i < n && j < m) {
-//					int compareTo = superSet[i].toString().compareToIgnoreCase(filterValuesArr.get(i).toString());
-//					if(compareTo < 0) {
-//						j++;
-//					} else if(compareTo == 0) {
-//						j++; i++;
-//					} else if(compareTo > 0) {
-//						mainTree.unfilter();
-//						unfiltered = true;
-//						break;
-//					}
-//				}
-//			}
-
-			List<Object> setDiff = new ArrayList<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
-//			Set<Object> totalSet = new HashSet<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
-//			for(Object o : filterValuesArr) {
-//				totalSet.remove(o);
-//			}
-			setDiff.removeAll(filterValuesArr);
-			mainTree.filter(concept, setDiff);
+		HttpSession session = request.getSession();
+		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterModel"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+		if(filterModel != null && filterModel.keySet().size() > 0) {
+			TableDataFrameUtilities.filterData(mainTree, filterModel);
+			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+		} else if(filterModel.keySet().size() == 0) {
+			mainTree.unfilter();
+			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		}
 
 		String[] columnHeaders = mainTree.getColumnHeaders();
 		Map<String, Object> retMap = new HashMap<String, Object>();
-
-		//		HttpSession session = request.getSession();
-		//		if(session.getAttribute(tableID) == null) {
-		//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-		//		} else {
-		//			InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-		//			scroller.reset();
-		//		}
 
 		Map<String, Object> Values = new HashMap<String, Object>();
 		for(String column: columnHeaders) {
@@ -1028,7 +964,6 @@ public class EngineResource {
 		retMap.put("tableID", tableID);
 		retMap.put("unfilteredValues", Values);
 		retMap.put("filteredValues", filteredValues);
-//		retMap.put("unfiltered", unfiltered);
 
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
@@ -1136,14 +1071,14 @@ public class EngineResource {
 			first = true;
 		}
 		
-		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterModel"), new TypeToken<Map<String, List<Object>>>() {}.getType());
-		if(filterModel != null && filterModel.keySet().size() > 0) {
-			TableDataFrameUtilities.filterData(mainTree, filterModel);
-			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-		} else if(filterModel.keySet().size() == 0 && !first) {
-			mainTree.unfilter();
-			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-		}
+//		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterModel"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+//		if(filterModel != null && filterModel.keySet().size() > 0) {
+//			TableDataFrameUtilities.filterData(mainTree, filterModel);
+//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+//		} else if(filterModel.keySet().size() == 0 && !first) {
+//			mainTree.unfilter();
+//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+//		}
 		
 		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
 
@@ -1461,7 +1396,7 @@ public class EngineResource {
 				 stream = new InstanceStreamer(results);
 			}
 
-			ArrayList<Object> uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset)+Integer.parseInt(limit)));
+			Object[] uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset)+Integer.parseInt(limit)));
 			return Response.status(200).entity(WebUtility.getSO(uniqueResults)).build();
 			}
 		}		
@@ -1553,7 +1488,7 @@ public class EngineResource {
 			 stream = new InstanceStreamer(results);
 		}
 
-		ArrayList<Object> uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset)+Integer.parseInt(limit)));
+		Object[] uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset)+Integer.parseInt(limit)));
 		return Response.status(200).entity(WebUtility.getSO(uniqueResults)).build();
 	}
 
