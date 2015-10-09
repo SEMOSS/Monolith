@@ -938,14 +938,14 @@ public class EngineResource {
 //		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 
 		HttpSession session = request.getSession();
-		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterModel"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		if(filterModel != null && filterModel.keySet().size() > 0) {
 			TableDataFrameUtilities.filterData(mainTree, filterModel);
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-		} else if(filterModel.keySet().size() == 0) {
+		} else if(filterModel != null && filterModel.keySet().size() == 0) {
 			mainTree.unfilter();
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-		}
+		} 
 
 		String[] columnHeaders = mainTree.getColumnHeaders();
 		Map<String, Object> retMap = new HashMap<String, Object>();
