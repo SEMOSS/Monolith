@@ -933,37 +933,61 @@ public class EngineResource {
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
+		
+		String[] columnHeaders = mainTree.getColumnHeaders();
 
 		Gson gson = new Gson();
 //		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 
 		HttpSession session = request.getSession();
+//		Map<String, Object[]> storedValues = new HashMap<String, Object[]>(0);
+//		if(tableID!=null) {
+//			storedValues = (Map<String, Object[]>)request.getAttribute(tableID+"filterData");
+//		} else if(insightID != null) {
+//			storedValues = (Map<String, Object[]>)request.getAttribute(insightID+"filterData");
+//		}
+		
 		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		if(filterModel != null && filterModel.keySet().size() > 0) {
-			TableDataFrameUtilities.filterData(mainTree, filterModel);
+			
+			Map<String, Object[]> storedValues = new HashMap<String, Object[]>();
+			for(String column: columnHeaders) {
+				storedValues.put(column, mainTree.getUniqueValues(column));
+			}
+			
+			TableDataFrameUtilities.filterData(mainTree, filterModel, storedValues);
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-		} else if(filterModel != null && filterModel.keySet().size() == 0) {
+		} 
+		else if(filterModel != null && filterModel.keySet().size() == 0) {
 			mainTree.unfilter();
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		} 
 
-		String[] columnHeaders = mainTree.getColumnHeaders();
+//		String[] columnHeaders = mainTree.getColumnHeaders();
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
-		Map<String, Object> Values = new HashMap<String, Object>();
+		Map<String, Object[]> Values = new HashMap<String, Object[]>();
+//		Map<String, Object[]> storeValues = new HashMap<String, Object[]>();
 		for(String column: columnHeaders) {
 			Values.put(column, mainTree.getUniqueRawValues(column));
+			//storeValues.put(column, mainTree.getUniqueValues(column));
 		}
 		
-		Map<String, Object> filteredValues = new HashMap<String, Object>();
+		Map<String, Object[]> filteredValues = new HashMap<String, Object[]>();
 		for(String column: columnHeaders) {
 			filteredValues.put(column, mainTree.getFilteredUniqueRawValues(column));
 		}
 
+//		if(tableID != null) {
+//			session.setAttribute(tableID+"filterData", storeValues);
+//		} else if(insightID != null) {
+//			session.setAttribute(insightID+"filterData", storeValues);
+//		}
+		
 		retMap.put("tableID", tableID);
 		retMap.put("unfilteredValues", Values);
 		retMap.put("filteredValues", filteredValues);
-
+		
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
@@ -1485,7 +1509,7 @@ public class EngineResource {
 			stream = new InstanceStreamer(results);
 		}
 
-		ArrayList<Object> uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
+		ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
 		return Response.status(200).entity(WebUtility.getSO(uniqueResults)).build();
 	}
 
