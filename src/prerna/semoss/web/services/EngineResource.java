@@ -952,7 +952,7 @@ public class EngineResource {
 			
 			Map<String, Object[]> storedValues = new HashMap<String, Object[]>();
 			for(String column: columnHeaders) {
-				storedValues.put(column, mainTree.getUniqueValues(column));
+				storedValues.put(column.toUpperCase(), mainTree.getUniqueValues(column));
 			}
 			
 			TableDataFrameUtilities.filterData(mainTree, filterModel, storedValues);

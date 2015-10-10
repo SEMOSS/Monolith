@@ -102,19 +102,24 @@ public final class TableDataFrameUtilities {
 	}
 	
 	public static void filterData(ITableDataFrame mainTree, Map<String, List<Object>> filterValuesArrMap, Map<String, Object[]> storedValues) {
-		if(storedValues== null) {
-			for(String concept : filterValuesArrMap.keySet()) {
-				mainTree.filter(concept, filterValuesArrMap.get(concept));
-			}
-			return;
+//		if(storedValues== null) {
+//			for(String concept : filterValuesArrMap.keySet()) {
+//				mainTree.filter(concept, filterValuesArrMap.get(concept));
+//			}
+//			return;
+//		}
+		Map<String, List<Object>> map = new HashMap<String, List<Object>>();
+		for(String concept : filterValuesArrMap.keySet()) {
+			map.put(concept.toUpperCase(), filterValuesArrMap.get(concept));
 		}
 		//need to find the which column is different from previous, then filter only that column
 		//when first different column is found, call filterColumn on that column
 		String[] columnHeaders = mainTree.getColumnHeaders();
 		for(String columnHeader : columnHeaders) {
+			columnHeader = columnHeader.toUpperCase();
 			Object[] storedValuesArr = storedValues.get(columnHeader);
-			if(filterValuesArrMap.containsKey(columnHeader)) {
-				List<Object> filterValuesArr = filterValuesArrMap.get(columnHeader);
+			if(map.containsKey(columnHeader)) {
+				List<Object> filterValuesArr = map.get(columnHeader);
 				if(!equals(filterValuesArr, storedValuesArr)) {
 					filterColumn(mainTree, columnHeader, filterValuesArr);
 					return;
