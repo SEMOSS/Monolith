@@ -60,14 +60,6 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
-import com.bigdata.rdf.model.BigdataURI;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
-
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.impl.ExactStringMatcher;
@@ -122,6 +114,14 @@ import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.InstanceStreamer;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
+
+import com.bigdata.rdf.model.BigdataURI;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
 
 public class EngineResource {
 
@@ -1470,7 +1470,7 @@ public class EngineResource {
 		InstanceStreamer stream = new InstanceStreamer(retList);
 
 		// set InstanceStreamer object
-		session.setAttribute("columnHeader", columnHeader);
+		session.setAttribute("columnHeader", Utility.getInstanceName(columnHeader));
 		session.setAttribute("InstanceStreamer", stream);
 		if (!searchTerm.equals("") && searchTerm != null) {
 			ArrayList<Object> results = stream.search(searchTerm);
