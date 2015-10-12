@@ -31,7 +31,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -60,6 +59,14 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
+
+import com.bigdata.rdf.model.BigdataURI;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.IAnalyticRoutine;
 import prerna.algorithm.api.ITableDataFrame;
@@ -93,7 +100,6 @@ import prerna.rdf.query.builder.AbstractQueryBuilder;
 import prerna.rdf.query.builder.IQueryBuilder;
 import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
-import prerna.rdf.query.builder.SQLQueryTableBuilder;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.AbstractQueryParser;
 import prerna.rdf.util.RDFJSONConverter;
@@ -116,14 +122,6 @@ import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.InstanceStreamer;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
-
-import com.bigdata.rdf.model.BigdataURI;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
 
 public class EngineResource {
 
@@ -822,22 +820,24 @@ public class EngineResource {
 			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
 
-		//still need filter queries for RDF... not sure what this is going to look like in the future yet
-		if(builder instanceof SPARQLQueryTableBuilder) {
-			ArrayList<Hashtable<String, String>> varObjV = ((SPARQLQueryTableBuilder)builder).getHeaderArray();
-			Collection<Hashtable<String, String>> varObjVector = varObjV;
-
-			//add variable info to return data
-			((Hashtable)obj).put("variableHeaders", varObjVector);
-		}
-
-		if(builder instanceof SQLQueryTableBuilder) {
-			ArrayList<Hashtable<String, String>> varObjV = ((SQLQueryTableBuilder)builder).getHeaderArray();
-			Collection<Hashtable<String, String>> varObjVector = varObjV;
-
-			//add variable info to return data
-			((Hashtable)obj).put("variableHeaders", varObjVector);
-		}
+		List<Hashtable<String, String>> varObjVector = builder.getHeaderArray();
+		((Hashtable)obj).put("variableHeaders", varObjVector);
+		
+//		//still need filter queries for RDF... not sure what this is going to look like in the future yet
+//		if(builder instanceof SPARQLQueryTableBuilder) {
+//			ArrayList<Hashtable<String, String>> varObjV = ((SPARQLQueryTableBuilder)builder).getHeaderArray();
+//			Collection<Hashtable<String, String>> varObjVector = varObjV;
+//
+//			//add variable info to return data
+//			
+//		}
+//		if(builder instanceof SQLQueryTableBuilder) {
+//			ArrayList<Hashtable<String, String>> varObjV = ((SQLQueryTableBuilder)builder).getHeaderArray();
+//			Collection<Hashtable<String, String>> varObjVector = varObjV;
+//
+//			//add variable info to return data
+//			((Hashtable)obj).put("variableHeaders", varObjVector);
+//		}
 
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
@@ -1178,7 +1178,7 @@ public class EngineResource {
         }
 		
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		boolean isSparql = builder instanceof SPARQLQueryTableBuilder;
+//		boolean isSparql = builder instanceof SPARQLQueryTableBuilder;
 		builder.setJSONDataHash(dataHash);
 		builder.buildQuery();
 		String query = builder.getQuery();
@@ -1195,12 +1195,7 @@ public class EngineResource {
 			for(int i = 0; i < nodeV.size(); i++) {
 				String varKey = Utility.cleanVariableString(nodeV.get(i).get("varKey"));
 				String uri = nodeV.get(i).get("uriKey");
-				int uriIndex = 0;
-				if(isSparql) {
-					uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey);
-				} else {
-					uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey.toUpperCase());
-				}
+				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(newNames, varKey);
 				newUriNames[uriIndex] = uri;
 			}
 		}
@@ -1208,27 +1203,15 @@ public class EngineResource {
 			for(int i = 0; i < nodePropV.size(); i++) {
 				String varKey = Utility.cleanVariableString(nodePropV.get(i).get("varKey"));
 				String uri = nodePropV.get(i).get("uriKey");
-				int uriIndex = 0;
-				if(isSparql) {
-					uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey);
-				} else {
-					uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, varKey.toUpperCase());
-				}
+				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(newNames, varKey);
 				newUriNames[uriIndex] = uri;
 			}
 		}
 
-		//TODO: standardize the query
-		//TODO: why is rdbms uppper case for names?
 		// if performing a join, currently need to have it s.t. the joining column is the root
 		// this will be taken care of when shifting the headers order since btree adds based on that order
 		if(tableID != null && !tableID.isEmpty()) {
-			int joiningConceptIndex = 0;
-			if(isSparql) {
-				joiningConceptIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, equivConcept);
-			} else {
-				joiningConceptIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, equivConcept.toUpperCase());
-			}
+			int joiningConceptIndex = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(newNames, equivConcept);
 			if(joiningConceptIndex != 0) {
 				String varPlaceHolder = newNames[0];
 				String uriPlaceHolder = newUriNames[0];
@@ -1319,11 +1302,6 @@ public class EngineResource {
 
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 		
-		//TODO: why is rdbms uppper case for names? causes discrepancies
-		if(!(builder instanceof SPARQLQueryTableBuilder)) { //if not sparql then uppercase the concept
-			currConcept = currConcept.toUpperCase();
-		}
-		
 		if(tableID != null && !tableID.isEmpty() && !outer) {
 			// need to add bindings for query if not outer join
 			ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
@@ -1361,7 +1339,7 @@ public class EngineResource {
 		if(newNames.length > 1) {
 			int currIndexexistingConcept = 0;
 			
-			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
+			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(newNames, currConcept);
 			if(currIndexexistingConcept == 0) {
 				index = 1;
 			}
