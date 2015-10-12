@@ -1189,20 +1189,8 @@ public class EngineResource {
 		String[] newNames = wrap.getVariables();
 		String[] newUriNames = new String[newNames.length];
 
-		List<Hashtable<String, String>> nodeV = null;
-		List<Hashtable<String, String>> nodePropV = null;
-		//TODO: standardize the query
-		//TODO: why is rdbms uppper case for names?
-//		boolean isSparql = false;
-		if(isSparql) {
-			nodeV = ((SPARQLQueryTableBuilder)builder).getNodeV();
-			nodePropV = ((SPARQLQueryTableBuilder)builder).getNodePropV();
-		} else if(builder instanceof SQLQueryTableBuilder) {
-			nodeV = ((SQLQueryTableBuilder)builder).getNodeV();
-			nodePropV = ((SQLQueryTableBuilder)builder).getNodePropV();
-		} else {
-			newUriNames = newNames;
-		}
+		List<Hashtable<String, String>> nodeV = builder.getNodeV();
+		List<Hashtable<String, String>> nodePropV = builder.getNodePropV();
 		if(nodeV != null) {
 			for(int i = 0; i < nodeV.size(); i++) {
 				String varKey = Utility.cleanVariableString(nodeV.get(i).get("varKey"));
@@ -1230,6 +1218,8 @@ public class EngineResource {
 			}
 		}
 
+		//TODO: standardize the query
+		//TODO: why is rdbms uppper case for names?
 		// if performing a join, currently need to have it s.t. the joining column is the root
 		// this will be taken care of when shifting the headers order since btree adds based on that order
 		if(tableID != null && !tableID.isEmpty()) {
