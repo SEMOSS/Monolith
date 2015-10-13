@@ -902,7 +902,10 @@ public class EngineResource {
 			}
 
 			if(success) {
-				return Response.status(200).entity(WebUtility.getSO("Succesfully removed data.")).build();
+				Map<String, Object> retMap = new HashMap<String, Object>();
+				retMap.put("tableID", tableID);
+				retMap.put("message", "Succesfully removed data");
+				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 			} else {
 				return Response.status(400).entity(WebUtility.getSO("Could not remove data")).build();
 			}
