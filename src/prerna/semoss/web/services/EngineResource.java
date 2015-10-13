@@ -1387,8 +1387,11 @@ public class EngineResource {
 					stream = new InstanceStreamer(results);
 				}
 
-				ArrayList<Object> uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
-				return Response.status(200).entity(WebUtility.getSO(uniqueResults)).build();
+				ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
+				Map<String, Object> returnData = new HashMap<String, Object>();
+				returnData.put("data", uniqueResults);
+				returnData.put("size", stream.getSize());
+				return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 			}
 		}
 		
@@ -1440,7 +1443,6 @@ public class EngineResource {
 		builder.setJSONDataHash(dataHash);
 		builder.buildQuery();
 		String query = builder.getQuery();
-
 		System.out.println(query);
 
 		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
@@ -1455,7 +1457,7 @@ public class EngineResource {
 			}
 		}
 
-                                // creating new list of values from query
+        // creating new list of values from query
 		ArrayList<Object> retList = new ArrayList<Object>();
 		while (wrap.hasNext()) {
 			ISelectStatement iss = wrap.next();
@@ -1482,10 +1484,29 @@ public class EngineResource {
 		}
 
 		ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
-		return Response.status(200).entity(WebUtility.getSO(uniqueResults)).build();
+		Map<String, Object> returnData = new HashMap<String, Object>();
+		returnData.put("data", uniqueResults);
+		returnData.put("size", stream.getSize());
+		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 	}
 
 
+    @POST
+    @Path("clearCache")
+    @Produces("application/json")
+    public Response clearCache(@Context HttpServletRequest request) {
+		
+		HttpSession session = request.getSession();
+		
+		if (session.getAttribute("columnHeader") != null) {
+			session.setAttribute("columnHeader", "");
+		}
+		
+		Map<String, Object> returnData = new HashMap<String, Object>();
+		returnData.put("success", "yes");
+		
+		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+    }
 
 
 
