@@ -880,11 +880,12 @@ public class EngineResource {
 		}
 
 		String[] removeColumns = gson.fromJson(form.getFirst("removeColumns"), String[].class);
-		if(removeColumns == null || removeColumns.length == 0) {
+		if(removeColumns == null || removeColumns.length == 0 || removeColumns.length == dataFrame.getNumCols()) {
 			boolean success = false;
 			if(isInDataFrameStore) {
 				success = TableDataFrameStore.getInstance().remove(tableID);
 				TableDataFrameStore.getInstance().removeFromSessionHash(request.getSession().getId(), tableID);
+				tableID = "";
 			} else {
 				QuestionPlaySheetStore qStore = QuestionPlaySheetStore.getInstance();
 				if(!qStore.containsKey(questionID)) {
