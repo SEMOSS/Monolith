@@ -51,6 +51,15 @@ public class InstanceStreamer {
 		if (end > size) { end = size; };
 		return new ArrayList<Object>(list.subList(start, end));
 	}
+	
+	/**
+	 * Return number of unique items in list.
+	 * 
+	 * @return						int of items in list
+	 */
+	public int getSize() {
+		return list.size();
+	}
 		
 	/**
 	 * Implementation of binary search. Returns the first index that 
