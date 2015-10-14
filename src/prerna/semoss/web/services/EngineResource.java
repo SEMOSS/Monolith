@@ -60,14 +60,14 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
-import prerna.algorithm.api.IAnalyticRoutine;
+import prerna.algorithm.api.IMatcher;
 import prerna.algorithm.api.ITableDataFrame;
-import prerna.algorithm.impl.ExactStringMatcher;
-import prerna.algorithm.impl.ExactStringOuterJoinMatcher;
-import prerna.algorithm.impl.ExactStringPartialOuterJoinMatcher;
 import prerna.algorithm.learning.util.DuplicationReconciliation;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
+import prerna.ds.ExactStringMatcher;
+import prerna.ds.ExactStringOuterJoinMatcher;
+import prerna.ds.ExactStringPartialOuterJoinMatcher;
 import prerna.ds.ITableStatCounter;
 import prerna.ds.InfiniteScroller;
 import prerna.ds.InfiniteScrollerFactory;
@@ -1168,7 +1168,7 @@ public class EngineResource {
 
 		ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
         if(existingData != null) {
-               if(currConcept != null && !currConcept.isEmpty()) {
+               if(currConcept != null && !currConcept.isEmpty() && !joinType.equals("outer")) {
                      List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
                      StringMap<List<Object>> stringMap;
                      if(((StringMap) dataHash.get("QueryData")).containsKey(AbstractQueryBuilder.filterKey)) {
@@ -1257,7 +1257,7 @@ public class EngineResource {
 				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
 			}
 
-			IAnalyticRoutine alg = null;
+			IMatcher alg = null;
 			switch(joinType) {
 				case "inner" : alg = new ExactStringMatcher(); 
 					break;
@@ -1371,33 +1371,32 @@ public class EngineResource {
     @Path("searchColumn")
     @Produces("application/json")
     public Response searchColumn(MultivaluedMap<String, String> form,
- @QueryParam("existingConcept") String currConcept,
+    		@QueryParam("existingConcept") String currConcept,
 			@QueryParam("joinType") String joinType, @QueryParam("tableID") String tableID, @QueryParam("columnHeader") String columnHeader,
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") String limit, @QueryParam("offset") String offset,
 			@Context HttpServletRequest request) {
 		
-		HttpSession session = request.getSession();
-		if (session.getAttribute("columnHeader") != null) {
-			if (session.getAttribute("columnHeader").equals(Utility.getInstanceName(columnHeader)) && !columnHeader.equals("")) {
-				// put everything into InstanceStreamer object
-				InstanceStreamer stream = (InstanceStreamer) session.getAttribute("InstanceStreamer");
-				
-				if (!searchTerm.equals("") && searchTerm != null) {
-					ArrayList<Object> results = stream.search(searchTerm);
-					stream = new InstanceStreamer(results);
-				}
-
-				ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
-				Map<String, Object> returnData = new HashMap<String, Object>();
-				returnData.put("data", uniqueResults);
-				returnData.put("size", stream.getSize());
-				return Response.status(200).entity(WebUtility.getSO(returnData)).build();
-			}
-		}
+//		HttpSession session = request.getSession();
+//		if (session.getAttribute("columnHeader") != null) {
+//			if (session.getAttribute("columnHeader").equals(Utility.getInstanceName(columnHeader)) && !columnHeader.equals("")) {
+//				// put everything into InstanceStreamer object
+//				InstanceStreamer stream = (InstanceStreamer) session.getAttribute("InstanceStreamer");
+//				
+//				if (!searchTerm.equals("") && searchTerm != null) {
+//					ArrayList<Object> results = stream.search(searchTerm);
+//					stream = new InstanceStreamer(results);
+//				}
+//
+//				ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
+//				Map<String, Object> returnData = new HashMap<String, Object>();
+//				returnData.put("data", uniqueResults);
+//				returnData.put("size", stream.getSize());
+//				return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+//			}
+//		}
 		
 		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {
-		}.getType());
+		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 
 		boolean outer = false;
 		boolean inner = false;
@@ -1476,8 +1475,8 @@ public class EngineResource {
 		InstanceStreamer stream = new InstanceStreamer(retList);
 
 		// set InstanceStreamer object
-		session.setAttribute("columnHeader", Utility.getInstanceName(columnHeader));
-		session.setAttribute("InstanceStreamer", stream);
+//		session.setAttribute("columnHeader", Utility.getInstanceName(columnHeader));
+//		session.setAttribute("InstanceStreamer", stream);
 		if (!searchTerm.equals("") && searchTerm != null) {
 			ArrayList<Object> results = stream.search(searchTerm);
 			stream = new InstanceStreamer(results);
