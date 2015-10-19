@@ -1383,24 +1383,29 @@ public class EngineResource {
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") String limit, @QueryParam("offset") String offset,
 			@Context HttpServletRequest request) {
 		
-//		HttpSession session = request.getSession();
-//		if (session.getAttribute("columnHeader") != null) {
-//			if (session.getAttribute("columnHeader").equals(Utility.getInstanceName(columnHeader)) && !columnHeader.equals("")) {
-//				// put everything into InstanceStreamer object
-//				InstanceStreamer stream = (InstanceStreamer) session.getAttribute("InstanceStreamer");
-//				
-//				if (!searchTerm.equals("") && searchTerm != null) {
-//					ArrayList<Object> results = stream.search(searchTerm);
-//					stream = new InstanceStreamer(results);
-//				}
-//
-//				ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
-//				Map<String, Object> returnData = new HashMap<String, Object>();
-//				returnData.put("data", uniqueResults);
-//				returnData.put("size", stream.getSize());
-//				return Response.status(200).entity(WebUtility.getSO(returnData)).build();
-//			}
-//		}
+		HttpSession session = request.getSession();
+		// check if a result set has been cached
+		if (session.getAttribute(InstanceStreamer.KEY) != null) {
+			InstanceStreamer stream = (InstanceStreamer) session.getAttribute(InstanceStreamer.KEY);
+			// check if appropriate set has been cached
+			if (stream.getID().equals(Utility.getInstanceName(columnHeader)) && !columnHeader.equals("")) {
+				logger.info("Fetching cached results for ID: "+stream.getID());
+				if (!searchTerm.equals("") && searchTerm != null) {
+					
+					logger.info("Searching cached results for searchTerm: "+searchTerm);
+					ArrayList<Object> results = stream.search(searchTerm);
+					stream = new InstanceStreamer(results);
+					logger.info(Integer.toString(stream.getSize())+" results found.");
+				}
+
+				logger.info("Returning items "+offset+" through "+Integer.toString(Integer.parseInt(offset) + Integer.parseInt(limit))+".");
+				ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
+				Map<String, Object> returnData = new HashMap<String, Object>();
+				returnData.put("data", uniqueResults);
+				returnData.put("size", stream.getSize());
+				return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+			}
+		}
 		
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
@@ -1479,17 +1484,22 @@ public class EngineResource {
 		}
 
 		// put everything into InstanceStreamer object
+		logger.info("Creating InstanceStreamer object with ID: "+columnHeader);
 		InstanceStreamer stream = new InstanceStreamer(retList);
+		stream.setID(Utility.getInstanceName(columnHeader));
 
 		// set InstanceStreamer object
-//		session.setAttribute("columnHeader", Utility.getInstanceName(columnHeader));
-//		session.setAttribute("InstanceStreamer", stream);
+		session.setAttribute(InstanceStreamer.KEY, stream);
+		logger.info("Searching column for searchTerm: "+searchTerm);
 		if (!searchTerm.equals("") && searchTerm != null) {
 			ArrayList<Object> results = stream.search(searchTerm);
 			stream = new InstanceStreamer(results);
+			logger.info(Integer.toString(stream.getSize())+" results found.");
 		}
-
+		
+		logger.info("Returning items "+offset+" through "+Integer.toString(Integer.parseInt(offset) + Integer.parseInt(limit))+".");
 		ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
+		
 		Map<String, Object> returnData = new HashMap<String, Object>();
 		returnData.put("data", uniqueResults);
 		returnData.put("size", stream.getSize());
