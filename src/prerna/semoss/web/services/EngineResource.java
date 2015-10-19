@@ -889,7 +889,7 @@ public class EngineResource {
 		//if columns to remove are all the columns in the table then just remove table
 		String[] columnHeaders = dataFrame.getColumnHeaders();
 		boolean removeAll = true;
-		if(removeColumns.length == columnHeaders.length) {
+		if(removeColumns != null && removeColumns.length == columnHeaders.length) {
 			for(String removeColumn : removeColumns) {
 				if(!ArrayUtilityMethods.arrayContainsValueIgnoreCase(columnHeaders, Utility.cleanVariableString(removeColumn))) {
 					removeAll = false;
