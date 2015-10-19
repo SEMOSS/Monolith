@@ -852,10 +852,14 @@ public class EngineResource {
 
 		boolean isInDataFrameStore = false;
 		ITableDataFrame dataFrame = null;
+		
+		//try to get the table using tableID
 		if(tableID != null) {
 			dataFrame = TableDataFrameStore.getInstance().get(tableID);
 			isInDataFrameStore = true;
-		} else if(questionID != null) {
+		} 
+		//if no table ID get table using question playsheet
+		else if(questionID != null) {
 			IPlaySheet origPS = (IPlaySheet) QuestionPlaySheetStore.getInstance().get(questionID);
 			if(origPS instanceof BasicProcessingPlaySheet) {
 				dataFrame = ((BasicProcessingPlaySheet) origPS).getDataFrame();
@@ -879,8 +883,26 @@ public class EngineResource {
 			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
 		}
 
+		//columns to be removed
 		String[] removeColumns = gson.fromJson(form.getFirst("removeColumns"), String[].class);
-		if(removeColumns == null || removeColumns.length == 0 || removeColumns.length == dataFrame.getNumCols()) {
+		
+		//if columns to remove are all the columns in the table then just remove table
+		String[] columnHeaders = dataFrame.getColumnHeaders();
+		boolean removeAll = true;
+		if(removeColumns.length == columnHeaders.length) {
+			for(String removeColumn : removeColumns) {
+				if(!ArrayUtilityMethods.arrayContainsValueIgnoreCase(columnHeaders, Utility.cleanVariableString(removeColumn))) {
+					removeAll = false;
+					break;
+				}
+			}
+		} else {
+			removeAll = false;
+		}
+		
+		//remove columns being empty/null is a trigger to delete table
+		//or if remove columns represent all columns in the table
+		if(removeColumns == null || removeColumns.length == 0 || removeAll) {
 			boolean success = false;
 			if(isInDataFrameStore) {
 				success = TableDataFrameStore.getInstance().remove(tableID);
@@ -909,10 +931,14 @@ public class EngineResource {
 			} else {
 				return Response.status(400).entity(WebUtility.getSO("Could not remove data")).build();
 			}
-		} else {
+		} 
+		
+		//Else just remove each column one by one
+		else {
 			for(String s : removeColumns) {
 				dataFrame.removeColumn(Utility.cleanVariableString(s)); //TODO: need booleans to return values in map
 			}
+			//remove duplicate rows after removing column to maintain data consistency
 			dataFrame.removeDuplicateRows();
 			Map<String, Object> retMap = new HashMap<String, Object>();
 
@@ -933,61 +959,49 @@ public class EngineResource {
 		String insightID = form.getFirst("insightID");
 		
 		ITableDataFrame mainTree = TableDataFrameUtilities.getTable(tableID, insightID);
-
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
 		
-		String[] columnHeaders = mainTree.getColumnHeaders();
-
 		Gson gson = new Gson();
-//		Map<String, List<Object>> filterValuesArrMap = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 
 		HttpSession session = request.getSession();
-//		Map<String, Object[]> storedValues = new HashMap<String, Object[]>(0);
-//		if(tableID!=null) {
-//			storedValues = (Map<String, Object[]>)request.getAttribute(tableID+"filterData");
-//		} else if(insightID != null) {
-//			storedValues = (Map<String, Object[]>)request.getAttribute(insightID+"filterData");
-//		}
 		
+		String[] columnHeaders = mainTree.getColumnHeaders();
+		
+		//Grab the filter model from the form data
 		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+		
+		//If the filter model has information, filter the tree
+		//then set the infinite scroller with the new main tree view
 		if(filterModel != null && filterModel.keySet().size() > 0) {
-			
-			Map<String, Object[]> storedValues = new HashMap<String, Object[]>();
-			for(String column: columnHeaders) {
-				storedValues.put(column.toUpperCase(), mainTree.getUniqueValues(column));
-			}
-			
-			TableDataFrameUtilities.filterData(mainTree, filterModel, storedValues);
+			TableDataFrameUtilities.filterData(mainTree, filterModel);
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-		} 
+		}
+		
+		//if the filtermodel is not null and contains no data then unfilter the whole tree
+		//this trigger to unfilter the whole tree was decided between FE and BE for simplicity
 		else if(filterModel != null && filterModel.keySet().size() == 0) {
 			mainTree.unfilter();
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		} 
 
-//		String[] columnHeaders = mainTree.getColumnHeaders();
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
+		//Grab all the 'visible' or 'unfiltered' values from each column
 		Map<String, Object[]> Values = new HashMap<String, Object[]>();
-//		Map<String, Object[]> storeValues = new HashMap<String, Object[]>();
 		for(String column: columnHeaders) {
 			Values.put(column, mainTree.getUniqueRawValues(column));
-			//storeValues.put(column, mainTree.getUniqueValues(column));
 		}
 		
+		//Grab all the filtered values from each column
 		Map<String, Object[]> filteredValues = new HashMap<String, Object[]>();
 		for(String column: columnHeaders) {
 			filteredValues.put(column, mainTree.getFilteredUniqueRawValues(column));
 		}
-
-//		if(tableID != null) {
-//			session.setAttribute(tableID+"filterData", storeValues);
-//		} else if(insightID != null) {
-//			session.setAttribute(insightID+"filterData", storeValues);
-//		}
 		
+		//return tableID for consistency
+		//return filtered and unfiltered values, these values will be used to populate the values and checks in the drop down menu for each column in the table view
 		retMap.put("tableID", tableID);
 		retMap.put("unfilteredValues", Values);
 		retMap.put("filteredValues", filteredValues);
@@ -1019,6 +1033,13 @@ public class EngineResource {
 	@GET
 	@Path("/getFilterValues")
 	@Produces("application/json")
+	/**
+	 * 
+	 * @param tableID
+	 * @param concept
+	 * @param request
+	 * @return
+	 */
 	public Response getNextUniqueValues(@QueryParam("tableID") String tableID,
 			@QueryParam("concept") String concept,
 			@Context HttpServletRequest request)
@@ -1029,17 +1050,6 @@ public class EngineResource {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
 		
-//		HttpSession session = request.getSession();
-//		if(session.getAttribute(tableID) == null) {
-//			ITableDataFrame mainTree = ITableDataFrameStore.getInstance().get(tableID);		
-//			if(mainTree == null) {
-//				return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
-//			}
-//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-//		}
-		
-//		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-//
 		Iterator<Object> uniqueValueIterator = mainTree.uniqueValueIterator(concept, true, false);
 		List<Object> selectedFilterValues = new ArrayList<Object>();
 		while(uniqueValueIterator.hasNext()) {
@@ -1074,11 +1084,6 @@ public class EngineResource {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
 		
-//		int numRows = mainTree.getNumRows();
-//		if(endRow > numRows) {
-//			endRow = numRows;
-//		}
-		
 		Gson gson = new Gson();
 		String concept = null;
 		String sort = null;
@@ -1097,15 +1102,6 @@ public class EngineResource {
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 			first = true;
 		}
-		
-//		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterModel"), new TypeToken<Map<String, List<Object>>>() {}.getType());
-//		if(filterModel != null && filterModel.keySet().size() > 0) {
-//			TableDataFrameUtilities.filterData(mainTree, filterModel);
-//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-//		} else if(filterModel.keySet().size() == 0 && !first) {
-//			mainTree.unfilter();
-//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-//		}
 		
 		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
 
