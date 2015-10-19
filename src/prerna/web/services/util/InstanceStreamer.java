@@ -13,13 +13,21 @@
  */
 package prerna.web.services.util;
 
+import static org.junit.Assert.assertTrue;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import org.apache.commons.lang3.RandomStringUtils;
 
 import prerna.util.Utility;
@@ -27,14 +35,23 @@ import prerna.util.Utility;
 public class InstanceStreamer {
 	
 	private ArrayList<Object> list;
-//	private TreeSet<Object> tree;	// a set that preserves order (unlike HashSet)
 	private int size;
+	public static final String KEY = "blah";
+	private String ID;
 	
-	public InstanceStreamer(ArrayList<Object> tempList) {
-		sortList(tempList); // sort into order: O(N log N)
+	public InstanceStreamer(List<Object> tempList) {
 		Set<Object> set = new LinkedHashSet<Object>(tempList);
 		list = new ArrayList<Object>(set);
+		sortList(list); // sort into order: O(N log N)
 		size = list.size();
+	}
+	
+	public void setID(String tempID) {
+		ID = tempID;
+	}
+	
+	public String getID() {
+		return ID;
 	}
 	
 	/**
@@ -72,7 +89,9 @@ public class InstanceStreamer {
 	 */
 	private int findFirstTerm(String searchTerm, int lo, int hi) {
 
-		if (hi < lo) {  return -1; } 		// not found
+		if (hi < lo) {   
+			return -1; // not found
+		} 		
 	    int mid = lo + ((hi - lo) / 2);
 	    
 	    // use .getInstanceName() to strip URI
@@ -111,14 +130,14 @@ public class InstanceStreamer {
 		    results.add(list.get(firstIndex).toString()); // add first value
 		    for (int i = firstIndex-1; i >= 0; i--) {     // add all relevant values to the left
 		    	String value = Utility.getInstanceName(list.get(i).toString()).toLowerCase();
-		    	if (value.indexOf(searchTerm) == 0) {
+		    	if (value.startsWith(searchTerm)) {
 		    		results.add(list.get(i).toString());
 		    	}
 		    	else break;
 		    }
 		    for (int i = firstIndex+1; i < size; i++) {   // add all relevant values to the right
 		    	String value = Utility.getInstanceName(list.get(i).toString()).toLowerCase();
-		    	if (value.indexOf(searchTerm) == 0) {
+		    	if (value.startsWith(searchTerm)) {
 		    		results.add(list.get(i).toString());
 		    	}
 		    	else break;
@@ -145,7 +164,7 @@ public class InstanceStreamer {
 	    
 	    for (int i = 0; i < list.size(); i++) {
 	    	String value = Utility.getInstanceName(list.get(i).toString()).toLowerCase();
-	    	if (value.indexOf(searchTerm) != -1) {
+	    	if (value.contains(searchTerm)) {
 	    		results.add(list.get(i).toString());
 	    	}
 	    }
@@ -228,21 +247,25 @@ public class InstanceStreamer {
 		searchResults = stringTest.search("t");
 		t = System.currentTimeMillis() - start;
 		System.out.println("1 char: " + t + "ms.");
+		assertTrue("Timing, char", t < 150);
 		
 		start = System.currentTimeMillis();
 		searchResults = stringTest.search("to");
 		t = System.currentTimeMillis() - start;
+		assertTrue("Timing, 2char", t < 10);
 		System.out.println("2 char: " + t + "ms.");
 		
 		start = System.currentTimeMillis();
 		searchResults = stringTest.search("tom");
 		t = System.currentTimeMillis() - start;
+		assertTrue("Timing, 3char", t < 10);
 		System.out.println("3 char: " + t + "ms.");
 		
 		start = System.currentTimeMillis();
 		searchResults = stringTest.search("toma");
 		t = System.currentTimeMillis() - start;
 		System.out.println("4 char: " + t + "ms.");
+		assertTrue("Timing, 4char", t < 10);
 		for (Object o: searchResults) {
 			System.out.println(o.toString());
 		}
@@ -251,6 +274,7 @@ public class InstanceStreamer {
 		searchResults = stringTest.search("tomat");
 		t = System.currentTimeMillis() - start;
 		System.out.println("5 char: " + t + "ms.");
+		assertTrue("Timing, 5char", t < 10);
 		for (Object o: searchResults) {
 			System.out.println(o.toString());
 		}
@@ -259,6 +283,7 @@ public class InstanceStreamer {
 		searchResults = stringTest.search("tomato");
 		t = System.currentTimeMillis() - start;
 		System.out.println("6 char: " + t + "ms.");
+		assertTrue("Timing, 6char", t < 10);
 		for (Object o: searchResults) {
 			System.out.println(o.toString());
 		}
