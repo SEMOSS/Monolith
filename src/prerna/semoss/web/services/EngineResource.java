@@ -908,6 +908,12 @@ public class EngineResource {
 				success = TableDataFrameStore.getInstance().remove(tableID);
 				TableDataFrameStore.getInstance().removeFromSessionHash(request.getSession().getId(), tableID);
 				tableID = "";
+				
+				HttpSession session = request.getSession();
+				if(session.getAttribute(tableID) != null) {
+					session.removeAttribute(tableID);
+				}
+				
 			} else {
 				QuestionPlaySheetStore qStore = QuestionPlaySheetStore.getInstance();
 				if(!qStore.containsKey(questionID)) {
@@ -940,6 +946,11 @@ public class EngineResource {
 			}
 			//remove duplicate rows after removing column to maintain data consistency
 			dataFrame.removeDuplicateRows();
+			HttpSession session = request.getSession();
+			if(session.getAttribute(tableID) != null) {
+				session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(dataFrame));
+			}
+			
 			Map<String, Object> retMap = new HashMap<String, Object>();
 
 			retMap.put("tableID", tableID);
