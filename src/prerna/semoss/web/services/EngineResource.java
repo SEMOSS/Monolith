@@ -982,11 +982,11 @@ public class EngineResource {
 		
 		//Grab the filter model from the form data
 		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
-		
+		String selectedColumn = "";
 		//If the filter model has information, filter the tree
 		//then set the infinite scroller with the new main tree view
 		if(filterModel != null && filterModel.keySet().size() > 0) {
-			TableDataFrameUtilities.filterData(mainTree, filterModel);
+			selectedColumn = TableDataFrameUtilities.filterTableData(mainTree, filterModel);
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		}
 		
@@ -1013,6 +1013,7 @@ public class EngineResource {
 		
 		//return tableID for consistency
 		//return filtered and unfiltered values, these values will be used to populate the values and checks in the drop down menu for each column in the table view
+		retMap.put("selectedColumn", selectedColumn);
 		retMap.put("tableID", tableID);
 		retMap.put("unfilteredValues", Values);
 		retMap.put("filteredValues", filteredValues);
