@@ -168,10 +168,10 @@ public final class TableDataFrameUtilities {
 		//when first different column is found, call filterColumn on that column
 
 		for(String columnHeader : columnHeaders) {
-			columnHeader = columnHeader.toUpperCase();
-			Object[] storedValuesArr = storedValues.get(columnHeader);
-			if(map.containsKey(columnHeader)) {
-				List<Object> filterValuesArr = map.get(columnHeader);
+			String columnHeaderU = columnHeader.toUpperCase();
+			Object[] storedValuesArr = storedValues.get(columnHeaderU);
+			if(map.containsKey(columnHeaderU)) {
+				List<Object> filterValuesArr = map.get(columnHeaderU);
 				if(!equals(filterValuesArr, storedValuesArr)) {
 					filterColumn(mainTree, columnHeader, filterValuesArr);
 					returnColumn = columnHeader;
