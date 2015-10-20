@@ -25,6 +25,8 @@ public final class TableDataFrameUtilities {
 
 	private static final Logger LOGGER = LogManager.getLogger(TableDataFrameUtilities.class.getName());
 	
+	private HashMap<String, HashSet<String>> touchedColumns = new HashMap<>();
+	
 	private TableDataFrameUtilities() {
 		
 	}
@@ -145,6 +147,49 @@ public final class TableDataFrameUtilities {
 		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
 	}
 	
+	public static String filterTableData(ITableDataFrame mainTree, Map<String, List<Object>> filterValuesArrMap) {
+	
+		LOGGER.info("Filtering on table");
+		long startTime = System.currentTimeMillis();
+		
+		String returnColumn = "";
+		String[] columnHeaders = mainTree.getColumnHeaders();
+		
+		Map<String, Object[]> storedValues = new HashMap<String, Object[]>();
+		for(String column: columnHeaders) {
+			storedValues.put(column.toUpperCase(), mainTree.getUniqueValues(column));
+		}
+		
+		Map<String, List<Object>> map = new HashMap<String, List<Object>>();
+		for(String concept : filterValuesArrMap.keySet()) {
+			map.put(concept.toUpperCase(), filterValuesArrMap.get(concept));
+		}
+		//need to find the which column is different from previous, then filter only that column
+		//when first different column is found, call filterColumn on that column
+
+		for(String columnHeader : columnHeaders) {
+			columnHeader = columnHeader.toUpperCase();
+			Object[] storedValuesArr = storedValues.get(columnHeader);
+			if(map.containsKey(columnHeader)) {
+				List<Object> filterValuesArr = map.get(columnHeader);
+				if(!equals(filterValuesArr, storedValuesArr)) {
+					filterColumn(mainTree, columnHeader, filterValuesArr);
+					returnColumn = columnHeader;
+				}
+			} 
+			else {
+				int totalSize = mainTree.getUniqueRawValues(columnHeader).length + mainTree.getFilteredUniqueRawValues(columnHeader).length;
+				if(totalSize != storedValuesArr.length) {
+					mainTree.unfilter(columnHeader);
+					returnColumn = columnHeader;
+				}
+			}
+		}
+		
+		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
+		return returnColumn;
+	}
+	
 	private static void filterColumn(ITableDataFrame mainTree, String concept, List<Object> filterValuesArr) {
 		
 		if(mainTree.isNumeric(concept)) {
@@ -163,50 +208,22 @@ public final class TableDataFrameUtilities {
 			return;
 		}
 
-//		//if filterValuesArr not a subset of superSet, then unfilter
-		Object[] superSet = mainTree.getUniqueValues(concept);
-
-		int n = filterValuesArr.size();
-		int m = superSet.length;
-
-		if(m < n) {
-			mainTree.unfilter();
-			//unfiltered = true;
-		} else {
-			Comparator<Object> comparator = new Comparator<Object>() {
-				public int compare(Object o1, Object o2) {
-					return o1.toString().compareTo(o2.toString());
-				}
-			};
-
-			//check if filterValuesArr is a subset of superSet
-			Arrays.sort(superSet, comparator);
-			Collections.sort(filterValuesArr, comparator);
-
-			int i = 0;
-			int j = 0;
-			while(i < n && j < m) {
-				int compareTo = superSet[i].toString().compareToIgnoreCase(filterValuesArr.get(i).toString());
-				if(compareTo < 0) {
-					j++;
-				} else if(compareTo == 0) {
-					j++; i++;
-				} else if(compareTo > 0) {
-					mainTree.unfilter();
-					//unfiltered = true;
-					break;
-				}
-			}
+		Object[] visibleValues = mainTree.getUniqueValues(concept);
+		Set<Object> valuesToUnfilter = new HashSet<Object>(filterValuesArr);
+		Set<Object> valuesToFilter = new HashSet<Object>(Arrays.asList(visibleValues));
+		
+		for(Object o : visibleValues) {
+			valuesToUnfilter.remove(o);
 		}
-
-//		List<Object> setDiff = new ArrayList<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
-		Set<Object> totalSet = new HashSet<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
+		
 		for(Object o : filterValuesArr) {
-			totalSet.remove(o);
+			valuesToFilter.remove(o);
 		}
-//		setDiff.removeAll(filterValuesArr);
-		mainTree.filter(concept, new ArrayList<Object>(totalSet));
-		if(totalSet.size() > 0) {
+
+		mainTree.filter(concept, new ArrayList<Object>(valuesToFilter));
+		mainTree.unfilter(concept, new ArrayList<Object>(valuesToUnfilter));
+		
+		if(valuesToFilter.size() + valuesToUnfilter.size() > 0) {
 			LOGGER.info("Filtered column: "+concept);
 		}
 	}
