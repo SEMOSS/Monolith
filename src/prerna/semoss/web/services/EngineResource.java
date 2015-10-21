@@ -1375,11 +1375,11 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(retList)).build();
 	}
 	
-    @POST
-    @Path("searchColumn")
-    @Produces("application/json")
-    public Response searchColumn(MultivaluedMap<String, String> form,
-    		@QueryParam("existingConcept") String currConcept,
+	@POST
+	@Path("searchColumn")
+	@Produces("application/json")
+	public Response searchColumn(MultivaluedMap<String, String> form,
+			@QueryParam("existingConcept") String currConcept,
 			@QueryParam("joinType") String joinType, @QueryParam("tableID") String tableID, @QueryParam("columnHeader") String columnHeader,
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") String limit, @QueryParam("offset") String offset,
 			@Context HttpServletRequest request) {
@@ -1388,8 +1388,9 @@ public class EngineResource {
 		// check if a result set has been cached
 		if (session.getAttribute(InstanceStreamer.KEY) != null) {
 			InstanceStreamer stream = (InstanceStreamer) session.getAttribute(InstanceStreamer.KEY);
+			String ID = stream.getID();
 			// check if appropriate set has been cached
-			if (stream.getID().equals(Utility.getInstanceName(columnHeader)) && !columnHeader.equals("")) {
+			if (ID != null && ID.equals(Utility.getInstanceName(columnHeader)) && !columnHeader.equals("")) {
 				logger.info("Fetching cached results for ID: "+stream.getID());
 				if (!searchTerm.equals("") && searchTerm != null) {
 					
@@ -1469,7 +1470,7 @@ public class EngineResource {
 			}
 		}
 
-        // creating new list of values from query
+		// creating new list of values from query
 		ArrayList<Object> retList = new ArrayList<Object>();
 		while (wrap.hasNext()) {
 			ISelectStatement iss = wrap.next();
@@ -1485,8 +1486,9 @@ public class EngineResource {
 		}
 
 		// put everything into InstanceStreamer object
-		logger.info("Creating InstanceStreamer object with ID: "+columnHeader);
 		InstanceStreamer stream = new InstanceStreamer(retList);
+		logger.info("Creating InstanceStreamer object with ID: "+columnHeader);
+		//String ID = Utility.getInstanceName(columnHeader) + Integer.toString(stream.getSize());
 		stream.setID(Utility.getInstanceName(columnHeader));
 
 		// set InstanceStreamer object
@@ -1512,17 +1514,18 @@ public class EngineResource {
     @Path("clearCache")
     @Produces("application/json")
     public Response clearCache(@Context HttpServletRequest request) {
-		
-		HttpSession session = request.getSession();
-		
-		if (session.getAttribute("columnHeader") != null) {
-			session.setAttribute("columnHeader", "");
-		}
-		
-		Map<String, Object> returnData = new HashMap<String, Object>();
-		returnData.put("success", "yes");
-		
-		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+    	
+    	HttpSession session = request.getSession();
+    	
+    	if (session.getAttribute(InstanceStreamer.KEY) != null) {
+    		InstanceStreamer stream = (InstanceStreamer) session.getAttribute(InstanceStreamer.KEY);
+    		stream.setID(null);
+    	}
+    		
+    	Map<String, Object> returnData = new HashMap<String, Object>();
+    	returnData.put("success", "yes");
+    	
+    	return Response.status(200).entity(WebUtility.getSO(returnData)).build();
     }
 
 
