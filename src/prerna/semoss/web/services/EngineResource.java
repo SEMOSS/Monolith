@@ -999,24 +999,33 @@ public class EngineResource {
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
-		//Grab all the 'visible' or 'unfiltered' values from each column
-		Map<String, Object[]> Values = new HashMap<String, Object[]>();
-		for(String column: columnHeaders) {
-			Values.put(column, mainTree.getUniqueRawValues(column));
-		}
-		
-		//Grab all the filtered values from each column
-		Map<String, Object[]> filteredValues = new HashMap<String, Object[]>();
-		for(String column: columnHeaders) {
-			filteredValues.put(column, mainTree.getFilteredUniqueRawValues(column));
-		}
+		Object[] valueArray = TableDataFrameUtilities.getExploreTableFilterModel(mainTree);
+//		//Grab all the 'visible' or 'unfiltered' values from each column
+//		Map<String, Object[]> Values = new HashMap<String, Object[]>();
+//		for(String column: columnHeaders) {
+//			Values.put(column, mainTree.getUniqueRawValues(column));
+//		}
+//		
+//		//Grab all the filtered values from each column
+//		Map<String, Object[]> filteredValues = new HashMap<String, Object[]>();
+////		for(String column: columnHeaders) {
+////			filteredValues.put(column, mainTree.getFilteredUniqueRawValues(column));
+////		}
+//		
+//		for(int i = 0; i < columnHeaders.length; i++) {
+//			if(i == 0) {
+//				filteredValues.put(columnHeaders[i], mainTree.getFilteredUniqueRawValues(columnHeaders[i]));
+//			} else {
+//				filteredValues.put(columnHeaders[i], new Object[0]);
+//			}
+//		}
 		
 		//return tableID for consistency
 		//return filtered and unfiltered values, these values will be used to populate the values and checks in the drop down menu for each column in the table view
 		retMap.put("selectedColumn", selectedColumn);
 		retMap.put("tableID", tableID);
-		retMap.put("unfilteredValues", Values);
-		retMap.put("filteredValues", filteredValues);
+		retMap.put("unfilteredValues", valueArray[0]);
+		retMap.put("filteredValues", valueArray[1]);
 		
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
@@ -1499,7 +1508,7 @@ public class EngineResource {
 			stream = new InstanceStreamer(results);
 			logger.info(Integer.toString(stream.getSize())+" results found.");
 		}
-		
+
 		logger.info("Returning items "+offset+" through "+Integer.toString(Integer.parseInt(offset) + Integer.parseInt(limit))+".");
 		ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
 		
