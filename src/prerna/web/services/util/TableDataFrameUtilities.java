@@ -178,6 +178,7 @@ public final class TableDataFrameUtilities {
 				}
 			} 
 			else {
+				
 				int totalSize = mainTree.getUniqueRawValues(columnHeader).length + mainTree.getFilteredUniqueRawValues(columnHeader).length;
 				if(totalSize != storedValuesArr.length) {
 					mainTree.unfilter(columnHeader);
@@ -339,5 +340,9 @@ public final class TableDataFrameUtilities {
 		}
 		
 		return functionMap;
+	}
+
+	public static Object[] getExploreTableFilterModel(ITableDataFrame table) {
+		return TableDataFrameWebAdapter.getRawFilterModel(table);
 	}
 }
