@@ -1070,10 +1070,10 @@ public class EngineResource {
 	 */
 	public Response getNextUniqueValues(@QueryParam("tableID") String tableID,
 			@QueryParam("concept") String concept,
-			@QueryParam("filterEnabled") Boolean filterEnabled,
+			@QueryParam("filterEnabled") String FilterEnabled,
 			@Context HttpServletRequest request)
 	{
-		//boolean filterEnabled = false;
+		boolean filterEnabled = Boolean.getBoolean(FilterEnabled);
 		ITableDataFrame mainTree = TableDataFrameStore.getInstance().get(tableID);		
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
