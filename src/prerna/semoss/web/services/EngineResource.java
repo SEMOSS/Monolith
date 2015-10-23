@@ -942,9 +942,9 @@ public class EngineResource {
 		//Else just remove each column one by one
 		else {
 			boolean removeDuplicates = true;
-			if(removeColumns.length == 1) {
-				removeDuplicates = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(columnHeaders, Utility.cleanVariableString(removeColumns[0])) != columnHeaders.length-1;
-			}
+			//if(removeColumns.length == 1) {
+			//	removeDuplicates = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(columnHeaders, Utility.cleanVariableString(removeColumns[0])) != columnHeaders.length-1;
+			//}
 			for(String s : removeColumns) {
 				dataFrame.removeColumn(Utility.cleanVariableString(s)); //TODO: need booleans to return values in map
 			}
@@ -1006,7 +1006,7 @@ public class EngineResource {
 		Map<String, Object[]> Values = new HashMap<String, Object[]>();
 		Map<String, Object[]> filteredValues = new HashMap<String, Object[]>();
 		
-		boolean filterEnabled = Boolean.getBoolean(form.getFirst("filterEnabled"));
+		boolean filterEnabled = form.getFirst("filterEnabled").equalsIgnoreCase("true");
 		if(filterEnabled) {
 			Object[] valueArray = TableDataFrameUtilities.getExploreTableFilterModel(mainTree);
 			
@@ -1073,7 +1073,7 @@ public class EngineResource {
 			@QueryParam("filterEnabled") String FilterEnabled,
 			@Context HttpServletRequest request)
 	{
-		boolean filterEnabled = Boolean.getBoolean(FilterEnabled);
+		boolean filterEnabled = FilterEnabled.equalsIgnoreCase("true");
 		ITableDataFrame mainTree = TableDataFrameStore.getInstance().get(tableID);		
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
