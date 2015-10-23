@@ -230,7 +230,21 @@ public final class TableDataFrameUtilities {
 	}
 	
 	private static boolean equals(List<Object> newColumn, Object[] oldColumn) {
-		return newColumn.size() == oldColumn.length;
+		if(newColumn.size() != oldColumn.length) {
+			return false;
+		} else {
+			//loop through and check values
+			HashSet<String> set = new HashSet<>();
+			for(Object o : newColumn) {
+				set.add(o.toString());
+			}
+			
+			for(Object o : oldColumn) {
+				set.remove(o);
+			}
+			
+			return set.size() == 0;
+		}
 	}
 	
 	/**
