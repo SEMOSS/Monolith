@@ -941,11 +941,17 @@ public class EngineResource {
 		
 		//Else just remove each column one by one
 		else {
+			boolean removeDuplicates = true;
+			if(removeColumns.length == 1) {
+				removeDuplicates = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(columnHeaders, Utility.cleanVariableString(removeColumns[0])) != columnHeaders.length-1;
+			}
 			for(String s : removeColumns) {
 				dataFrame.removeColumn(Utility.cleanVariableString(s)); //TODO: need booleans to return values in map
 			}
 			//remove duplicate rows after removing column to maintain data consistency
-			dataFrame.removeDuplicateRows();
+			if(removeDuplicates) {
+				dataFrame.removeDuplicateRows();
+			}
 			HttpSession session = request.getSession();
 			if(session.getAttribute(tableID) != null) {
 				session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(dataFrame));
@@ -975,14 +981,13 @@ public class EngineResource {
 		}
 		
 		Gson gson = new Gson();
-
 		HttpSession session = request.getSession();
-		
 		String[] columnHeaders = mainTree.getColumnHeaders();
 		
 		//Grab the filter model from the form data
 		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		String selectedColumn = "";
+		
 		//If the filter model has information, filter the tree
 		//then set the infinite scroller with the new main tree view
 		if(filterModel != null && filterModel.keySet().size() > 0) {
@@ -998,34 +1003,36 @@ public class EngineResource {
 		} 
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
+		Map<String, Object[]> Values = new HashMap<String, Object[]>();
+		Map<String, Object[]> filteredValues = new HashMap<String, Object[]>();
+		
+		boolean filterEnabled = Boolean.getBoolean(form.getFirst("filterEnabled"));
+		if(filterEnabled) {
+			Object[] valueArray = TableDataFrameUtilities.getExploreTableFilterModel(mainTree);
+			
+			retMap.put("unfilteredValues", valueArray[0]);
+			retMap.put("filteredValues", valueArray[1]);
+		} else {
+			//Grab all the 'visible' or 'unfiltered' values last column
+			String lastColumn = columnHeaders[columnHeaders.length - 1];
+			Values.put(lastColumn, mainTree.getUniqueRawValues(lastColumn));
+			filteredValues.put(lastColumn, mainTree.getFilteredUniqueRawValues(lastColumn));
+			
+			for(int i = 0; i < columnHeaders.length - 1; i++) {
+				Values.put(columnHeaders[i], new Object[0]);
+				filteredValues.put(columnHeaders[i], new Object[0]);
+			}
+			
+			retMap.put("unfilteredValues", Values);
+			retMap.put("filteredValues", filteredValues);
+		}
+		
 
-		Object[] valueArray = TableDataFrameUtilities.getExploreTableFilterModel(mainTree);
-//		//Grab all the 'visible' or 'unfiltered' values from each column
-//		Map<String, Object[]> Values = new HashMap<String, Object[]>();
-//		for(String column: columnHeaders) {
-//			Values.put(column, mainTree.getUniqueRawValues(column));
-//		}
-//		
-//		//Grab all the filtered values from each column
-//		Map<String, Object[]> filteredValues = new HashMap<String, Object[]>();
-////		for(String column: columnHeaders) {
-////			filteredValues.put(column, mainTree.getFilteredUniqueRawValues(column));
-////		}
-//		
-//		for(int i = 0; i < columnHeaders.length; i++) {
-//			if(i == 0) {
-//				filteredValues.put(columnHeaders[i], mainTree.getFilteredUniqueRawValues(columnHeaders[i]));
-//			} else {
-//				filteredValues.put(columnHeaders[i], new Object[0]);
-//			}
-//		}
 		
 		//return tableID for consistency
 		//return filtered and unfiltered values, these values will be used to populate the values and checks in the drop down menu for each column in the table view
 		retMap.put("selectedColumn", selectedColumn);
 		retMap.put("tableID", tableID);
-		retMap.put("unfilteredValues", valueArray[0]);
-		retMap.put("filteredValues", valueArray[1]);
 		
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
@@ -1063,9 +1070,10 @@ public class EngineResource {
 	 */
 	public Response getNextUniqueValues(@QueryParam("tableID") String tableID,
 			@QueryParam("concept") String concept,
+			@QueryParam("filterEnabled") Boolean filterEnabled,
 			@Context HttpServletRequest request)
 	{
-		
+		//boolean filterEnabled = false;
 		ITableDataFrame mainTree = TableDataFrameStore.getInstance().get(tableID);		
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
@@ -1077,12 +1085,18 @@ public class EngineResource {
 			selectedFilterValues.add(uniqueValueIterator.next());
 		}
 		
-		uniqueValueIterator = mainTree.uniqueValueIterator(concept, true, true);
+		String[] columnHeaders = mainTree.getColumnHeaders();
 		List<Object> availableFilterValues = new ArrayList<Object>();
-		while(uniqueValueIterator.hasNext()) {
-			availableFilterValues.add(uniqueValueIterator.next());
+		if(!filterEnabled || (filterEnabled && concept.equalsIgnoreCase(columnHeaders[0]))) {
+			uniqueValueIterator = mainTree.uniqueValueIterator(concept, true, true);
+			while(uniqueValueIterator.hasNext()) {
+				availableFilterValues.add(uniqueValueIterator.next());
+			}
+		} else {
+			availableFilterValues = selectedFilterValues;
 		}
 				
+		
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("tableID", tableID);
 		retMap.put("selectedFilterValues", selectedFilterValues);
