@@ -1018,9 +1018,9 @@ public class EngineResource {
 			Values.put(lastColumn, mainTree.getUniqueRawValues(lastColumn));
 			filteredValues.put(lastColumn, mainTree.getFilteredUniqueRawValues(lastColumn));
 			
-			for(int i = 0; i < columnHeaders.length - 1; i++) {
-				Values.put(columnHeaders[i], new Object[0]);
-				filteredValues.put(columnHeaders[i], new Object[0]);
+			for(int i = 0; i < columnHeaders.length; i++) {
+				Values.put(columnHeaders[i], mainTree.getUniqueRawValues(columnHeaders[i]));
+				filteredValues.put(columnHeaders[i], mainTree.getFilteredUniqueRawValues(columnHeaders[i]));
 			}
 			
 			retMap.put("unfilteredValues", Values);
