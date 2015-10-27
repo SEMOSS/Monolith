@@ -36,7 +36,7 @@ public class InstanceStreamer {
 	
 	private ArrayList<Object> list;
 	private int size;
-	public static final String KEY = "blah";
+	public static final String KEY = "InstanceStreamerKey";
 	private String ID;
 	
 	public InstanceStreamer(List<Object> tempList) {
@@ -54,6 +54,14 @@ public class InstanceStreamer {
 		return ID;
 	}
 	
+	public ArrayList<Object> getList() {
+		return list;
+	}
+
+	public int getSize() {
+		return size;
+	}
+	
 	/**
 	 * Get unique items start (inclusive) through end (exclusive).
 	 * This is accomplished by creating a TreeSet item from the ArrayList.
@@ -68,16 +76,7 @@ public class InstanceStreamer {
 		if (end > size) { end = size; };
 		return new ArrayList<Object>(list.subList(start, end));
 	}
-	
-	/**
-	 * Return number of unique items in list.
-	 * 
-	 * @return						int of items in list
-	 */
-	public int getSize() {
-		return list.size();
-	}
-		
+
 	/**
 	 * Implementation of binary search. Returns the first index that 
 	 * starts with the search term: O(lg N)
