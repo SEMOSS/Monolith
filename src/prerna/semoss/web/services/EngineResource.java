@@ -1398,11 +1398,12 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(retList)).build();
 	}
 	
-	@POST
-	@Path("searchColumn")
-	@Produces("application/json")
-	public Response searchColumn(MultivaluedMap<String, String> form,
-			@QueryParam("existingConcept") String currConcept,
+	// author: jason
+    @POST
+    @Path("searchColumn")
+    @Produces("application/json")
+    public Response searchColumn(MultivaluedMap<String, String> form,
+    		@QueryParam("existingConcept") String currConcept,
 			@QueryParam("joinType") String joinType, @QueryParam("tableID") String tableID, @QueryParam("columnHeader") String columnHeader,
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") String limit, @QueryParam("offset") String offset,
 			@Context HttpServletRequest request) {
@@ -1418,7 +1419,7 @@ public class EngineResource {
 				if (!searchTerm.equals("") && searchTerm != null) {
 					
 					logger.info("Searching cached results for searchTerm: "+searchTerm);
-					ArrayList<Object> results = stream.search(searchTerm);
+					ArrayList<Object> results = stream.regexSearch(searchTerm);
 					stream = new InstanceStreamer(results);
 					logger.info(Integer.toString(stream.getSize())+" results found.");
 				}
@@ -1459,14 +1460,6 @@ public class EngineResource {
 
 			if (currConcept != null && !currConcept.isEmpty()) {
 				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
-				// HttpSession session = request.getSession();
-				// if(session.getAttribute(tableID) == null) {
-				// session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(existingData));
-				// }
-				//
-				// InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-				// List<HashMap<String, String>> filteringValues = scroller.getNextUniqueValues(currConcept);
-				//
 				StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
 				stringMap.put(currConcept, filteringValues);
 				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
@@ -1493,7 +1486,7 @@ public class EngineResource {
 			}
 		}
 
-		// creating new list of values from query
+        // creating new list of values from query
 		ArrayList<Object> retList = new ArrayList<Object>();
 		while (wrap.hasNext()) {
 			ISelectStatement iss = wrap.next();
@@ -1511,14 +1504,13 @@ public class EngineResource {
 		// put everything into InstanceStreamer object
 		InstanceStreamer stream = new InstanceStreamer(retList);
 		logger.info("Creating InstanceStreamer object with ID: "+columnHeader);
-		//String ID = Utility.getInstanceName(columnHeader) + Integer.toString(stream.getSize());
 		stream.setID(Utility.getInstanceName(columnHeader));
 
 		// set InstanceStreamer object
 		session.setAttribute(InstanceStreamer.KEY, stream);
 		logger.info("Searching column for searchTerm: "+searchTerm);
 		if (!searchTerm.equals("") && searchTerm != null) {
-			ArrayList<Object> results = stream.search(searchTerm);
+			ArrayList<Object> results = stream.regexSearch(searchTerm);
 			stream = new InstanceStreamer(results);
 			logger.info(Integer.toString(stream.getSize())+" results found.");
 		}
@@ -1533,22 +1525,54 @@ public class EngineResource {
 	}
 
 
+    // author: jason
     @POST
     @Path("clearCache")
     @Produces("application/json")
     public Response clearCache(@Context HttpServletRequest request) {
-    	
-    	HttpSession session = request.getSession();
-    	
-    	if (session.getAttribute(InstanceStreamer.KEY) != null) {
-    		InstanceStreamer stream = (InstanceStreamer) session.getAttribute(InstanceStreamer.KEY);
-    		stream.setID(null);
-    	}
-    		
-    	Map<String, Object> returnData = new HashMap<String, Object>();
-    	returnData.put("success", "yes");
-    	
-    	return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+		
+		HttpSession session = request.getSession();
+		
+		if (session.getAttribute(InstanceStreamer.KEY) != null) {
+			InstanceStreamer stream = (InstanceStreamer) session.getAttribute(InstanceStreamer.KEY);
+			stream.setID(null);
+		}
+			
+		Map<String, Object> returnData = new HashMap<String, Object>();
+		returnData.put("success", "yes");
+		
+		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+    }
+
+    // author: jason
+    @POST
+    @Path("loadAllFromCache")
+    @Produces("application/json")
+    public Response loadAllFromCache(
+    		@QueryParam("searchTerm") String searchTerm, 
+			@Context HttpServletRequest request) {
+		
+		HttpSession session = request.getSession();
+		
+		if (session.getAttribute(InstanceStreamer.KEY) != null) {
+			InstanceStreamer stream = (InstanceStreamer) session.getAttribute(InstanceStreamer.KEY);
+			
+			if (!searchTerm.equals("") && searchTerm != null) {
+				logger.info("Searching column for searchTerm: "+searchTerm);
+				ArrayList<Object> results = stream.regexSearch(searchTerm);
+				stream = new InstanceStreamer(results);
+				logger.info(Integer.toString(stream.getSize())+" results found.");
+			}
+			
+			ArrayList<Object> cachedList = stream.getList();
+			
+			Map<String, Object> returnData = new HashMap<String, Object>();
+			returnData.put("data", cachedList);
+			return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+		}
+		else {
+			return Response.status(400).entity(WebUtility.getSO("Could not find cache")).build();
+		}
     }
 
 
