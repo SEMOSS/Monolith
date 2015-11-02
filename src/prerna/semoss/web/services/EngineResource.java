@@ -73,6 +73,7 @@ import prerna.ds.InfiniteScroller;
 import prerna.ds.InfiniteScrollerFactory;
 import prerna.ds.MultiColumnTableStatCounter;
 import prerna.ds.TableDataFrameStore;
+import prerna.ds.TableDataFrameWebAdapter;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.ISelectStatement;
@@ -942,9 +943,10 @@ public class EngineResource {
 		//Else just remove each column one by one
 		else {
 			boolean removeDuplicates = true;
-			//if(removeColumns.length == 1) {
-			//	removeDuplicates = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(columnHeaders, Utility.cleanVariableString(removeColumns[0])) != columnHeaders.length-1;
-			//}
+			if(removeColumns.length == 1) {
+				removeDuplicates = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(columnHeaders, Utility.cleanVariableString(removeColumns[0])) != columnHeaders.length-1;
+			}
+			dataFrame.unfilter();
 			for(String s : removeColumns) {
 				dataFrame.removeColumn(Utility.cleanVariableString(s)); //TODO: need booleans to return values in map
 			}
@@ -1132,16 +1134,18 @@ public class EngineResource {
 		}
 		
 		HttpSession session = request.getSession();
-		boolean first = false;
 		if(session.getAttribute(tableID) == null) {
 			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-			first = true;
 		}
 		
 		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
 
 		Map<String, Object> valuesMap = new HashMap<String, Object>();
 		valuesMap.put(tableID, scroller.getNextData(concept, sort, startRow, endRow));
+		
+		//TODO: use this instead and take out all session storage, getting data seems to be cheap (1 ms) for most operations
+		//plus the way the user would use this (only caring about first few pages but making frequent changes, this would be better and simpler)
+//		valuesMap.put(tableID, TableDataFrameWebAdapter.getData(mainTree, concept, sort, startRow, endRow));
 		
 		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
 		String[] varKeys = mainTree.getColumnHeaders();
