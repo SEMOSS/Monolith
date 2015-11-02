@@ -1590,12 +1590,20 @@ public class EngineResource {
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
-
-		List<Object[]> table = mainTree.getRawData();
+		
+		HttpSession session = request.getSession();
+		boolean first = false;
+		if(session.getAttribute(tableID) == null) {
+			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+			first = true;
+		}
+		
+		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
+		
+		List<HashMap<String, Object>> allTableData = scroller.getNextData(null, "desc", 0, mainTree.getNumRows());
 		Map<String, Object> returnData = new HashMap<String, Object>();
 		
-		returnData.put("totalRows", table.size());
-		returnData.put("data", table);
+		returnData.put("data", allTableData);
 
 		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
 		String[] varKeys = mainTree.getColumnHeaders();
