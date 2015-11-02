@@ -156,8 +156,10 @@ public final class TableDataFrameUtilities {
 		String[] columnHeaders = mainTree.getColumnHeaders();
 		
 		Map<String, Object[]> storedValues = new HashMap<String, Object[]>();
+		Map<String, Integer> sizes = new HashMap<String, Integer>();
 		for(String column: columnHeaders) {
 			storedValues.put(column.toUpperCase(), mainTree.getUniqueValues(column));
+			sizes.put(column.toUpperCase(), mainTree.getUniqueRawValues(column).length + mainTree.getFilteredUniqueRawValues(column).length);
 		}
 		
 		Map<String, List<Object>> map = new HashMap<String, List<Object>>();
@@ -179,7 +181,7 @@ public final class TableDataFrameUtilities {
 			} 
 			else {
 				
-				int totalSize = mainTree.getUniqueRawValues(columnHeader).length + mainTree.getFilteredUniqueRawValues(columnHeader).length;
+				int totalSize = sizes.get(columnHeaderU);
 				if(totalSize != storedValuesArr.length) {
 					mainTree.unfilter(columnHeader);
 					returnColumn = columnHeader;
