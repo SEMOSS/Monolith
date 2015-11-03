@@ -289,6 +289,21 @@ public final class TableDataFrameUtilities {
 		return returnData;
 	}
 	
+	/**
+	 * 
+	 * @param table - to table from which to get flat data from
+	 * @return - a list of maps, the preferred way of returning table data to the front end
+	 */
+	public static List<HashMap<String, Object>> getTableData(ITableDataFrame table, String concept, String sort, int startRow, int endRow) {
+		LOGGER.info("Formatting Data from" +  table + ", " + concept + ", " + sort + ", " + startRow + ", and " + endRow + " for the Front End");
+		long startTime = System.currentTimeMillis();
+		
+		List<HashMap<String, Object>> returnData = TableDataFrameWebAdapter.getData(table, concept, sort, startRow, endRow);
+		
+		LOGGER.info("Formatted Data, returning to the Front End: "+(System.currentTimeMillis() - startTime)+" ms");
+		return returnData;
+	}
+	
 	public static boolean hasDuplicates(ITableDataFrame table, String[] columns) {
 		String[] columnHeaders = table.getColumnHeaders();
 		Map<String, Integer> columnMap = new HashMap<>();

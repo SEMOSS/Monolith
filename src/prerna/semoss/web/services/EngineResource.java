@@ -954,10 +954,10 @@ public class EngineResource {
 			if(removeDuplicates) {
 				dataFrame.removeDuplicateRows();
 			}
-			HttpSession session = request.getSession();
-			if(session.getAttribute(tableID) != null) {
-				session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(dataFrame));
-			}
+//			HttpSession session = request.getSession();
+//			if(session.getAttribute(tableID) != null) {
+//				session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(dataFrame));
+//			}
 			
 			Map<String, Object> retMap = new HashMap<String, Object>();
 
@@ -994,14 +994,14 @@ public class EngineResource {
 		//then set the infinite scroller with the new main tree view
 		if(filterModel != null && filterModel.keySet().size() > 0) {
 			selectedColumn = TableDataFrameUtilities.filterTableData(mainTree, filterModel);
-			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		}
 		
 		//if the filtermodel is not null and contains no data then unfilter the whole tree
 		//this trigger to unfilter the whole tree was decided between FE and BE for simplicity
 		else if(filterModel != null && filterModel.keySet().size() == 0) {
 			mainTree.unfilter();
-			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		} 
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
@@ -1133,16 +1133,21 @@ public class EngineResource {
 			sort = "asc";
 		}
 		
-		HttpSession session = request.getSession();
-		if(session.getAttribute(tableID) == null) {
-			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-		}
-		
-		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-
+//		HttpSession session = request.getSession();
+//		if(session.getAttribute(tableID) == null) {
+//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+//		}
+//		
+//		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
+//
 		Map<String, Object> valuesMap = new HashMap<String, Object>();
-		valuesMap.put(tableID, scroller.getNextData(concept, sort, startRow, endRow));
+//		valuesMap.put(tableID, scroller.getNextData(concept, sort, startRow, endRow));
 		
+		if(tableID == null) {
+			valuesMap.put("", TableDataFrameUtilities.getTableData(mainTree, concept, sort, startRow, endRow));
+		} else {
+			valuesMap.put(tableID, TableDataFrameUtilities.getTableData(mainTree, concept, sort, startRow, endRow));
+		}
 		//TODO: use this instead and take out all session storage, getting data seems to be cheap (1 ms) for most operations
 		//plus the way the user would use this (only caring about first few pages but making frequent changes, this would be better and simpler)
 //		valuesMap.put(tableID, TableDataFrameWebAdapter.getData(mainTree, concept, sort, startRow, endRow));
@@ -1595,16 +1600,16 @@ public class EngineResource {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
 		
-		HttpSession session = request.getSession();
-		boolean first = false;
-		if(session.getAttribute(tableID) == null) {
-			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-			first = true;
-		}
+//		HttpSession session = request.getSession();
+//		boolean first = false;
+//		if(session.getAttribute(tableID) == null) {
+//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
+//			first = true;
+//		}
+//		
+//		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
 		
-		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-		
-		List<HashMap<String, Object>> allTableData = scroller.getNextData(null, "desc", 0, mainTree.getNumRows());
+		List<HashMap<String, Object>> allTableData = TableDataFrameUtilities.getTableData(mainTree);//scroller.getNextData(null, "desc", 0, mainTree.getNumRows());
 		Map<String, Object> returnData = new HashMap<String, Object>();
 		
 		returnData.put("data", allTableData);
