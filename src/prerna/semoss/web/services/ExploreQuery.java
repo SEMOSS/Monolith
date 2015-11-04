@@ -30,7 +30,6 @@ package prerna.semoss.web.services;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
-import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
@@ -42,25 +41,10 @@ import javax.ws.rs.core.Response;
 
 import org.apache.log4j.Logger;
 
-import prerna.engine.api.IEngine;
-import prerna.rdf.query.builder.AbstractQueryBuilder;
-import prerna.rdf.query.builder.AbstractSpecificQueryBuilder;
-import prerna.rdf.query.builder.IQueryBuilder;
-import prerna.rdf.query.builder.SPARQLQueryGraphBuilder;
-import prerna.rdf.query.builder.SpecificGenericChartQueryBuilder;
-import prerna.rdf.query.builder.SpecificHeatMapQueryBuilder;
-import prerna.rdf.query.builder.SpecificPieChartQueryBuilder;
-import prerna.rdf.query.builder.SpecificScatterPlotQueryBuilder;
-import prerna.rdf.query.builder.SpecificTableQueryBuilder;
-import prerna.rdf.query.util.SEMOSSQuery;
-import prerna.rdf.query.util.SEMOSSQueryHelper;
-import prerna.util.Constants;
-import prerna.util.sql.SQLQueryUtil;
-import prerna.web.services.util.WebUtility;
-
 import com.google.gson.Gson;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
+
+import prerna.engine.api.IEngine;
+import prerna.web.services.util.WebUtility;
 
 public class ExploreQuery {
 	Logger logger = Logger.getLogger(ExploreQuery.class.getName());
@@ -106,166 +90,166 @@ public class ExploreQuery {
 	{
 		Gson gson = new Gson();
 		
-		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		builder.setJSONDataHash(dataHash); // I am not sure we have an idea for why we set this
-		
-		Object relTriples = ((StringMap)dataHash.get("QueryData")).get("relTriples");
-		
-		
-		
-//		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
-
-//		ArrayList<Hashtable<String,String>> nodePropArray = gson.fromJson(form.getFirst("SelectedNodeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
-//		ArrayList<Hashtable<String,String>> edgePropArray = gson.fromJson(form.getFirst("SelectedEdgeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
-		ArrayList<Hashtable<String, String>> selectedVars = gson.fromJson(form.getFirst("Groupings") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
-		ArrayList<Hashtable<String, String>> parameters = gson.fromJson(form.getFirst("Parameters") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
-		
-//		logger.info("Node Properties: " + nodePropArray);
-		logger.info("Selected Vars: " + selectedVars);
-		logger.info("Parameters: " + parameters);
-		
-		String layout = form.getFirst("SelectedLayout").replace("\"", "");
-		
-		AbstractQueryBuilder customViz = null;
-		if(layout.equals("ForceGraph"))
-			customViz = new SPARQLQueryGraphBuilder();
-		else {
-			customViz = (AbstractQueryBuilder) coreEngine.getQueryBuilder();
-		}
-		
-//		customViz.setPropV(nodePropArray);
-		
-		customViz.setJSONDataHash(dataHash);
-		customViz.buildQuery();
-
-		logger.info("CustomViz query is: " + customViz.getQuery());
-		SEMOSSQuery semossQuery = customViz.getSEMOSSQuery();
-
-		if(layout.equals("ForceGraph")) {
-			if(!parameters.isEmpty()) {
-				logger.info("Adding parameters: " + parameters);
-				SEMOSSQueryHelper.addParametersToQuery(parameters, semossQuery, "Main");
-			}
-			semossQuery.createQuery();
-
-			query = semossQuery.getQuery();
-			return Response.status(200).entity(WebUtility.getSO(query)).build();
-		}
-		
-		//The existing retVars contains all the variables (from the selected metamodel path).  We want to clear these to build visualization-specific queries.
-		if(!layout.equals("GridTable")) {
-			semossQuery.removeReturnVariables();
-		}
-		
-		//RDBMS logic
-		if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS){
-			SQLQueryUtil queryUtil = null;
-			boolean useOuterJoins = false;
-			SQLQueryUtil.DB_TYPE dbType = SQLQueryUtil.DB_TYPE.H2_DB;
-			String dbTypeString = coreEngine.getProperty(Constants.RDBMS_TYPE);
-			if (dbTypeString != null) {
-				dbType = (SQLQueryUtil.DB_TYPE.valueOf(dbTypeString));
-			}
-			queryUtil = SQLQueryUtil.initialize(dbType);
-			String useOuterJoinsStr = this.coreEngine.getProperty(Constants.USE_OUTER_JOINS);
-			if(useOuterJoinsStr!=null && (useOuterJoinsStr.equalsIgnoreCase("TRUE") || useOuterJoinsStr.equalsIgnoreCase("YES")))
-				useOuterJoins = true;
-			semossQuery.setUseOuterJoins(useOuterJoins);
-			semossQuery.setQueryUtil(queryUtil);
-		}
-
-		LinkedHashMap<String, ArrayList<String>> colLabelHash = new LinkedHashMap<String, ArrayList<String>>();
-		LinkedHashMap<String, ArrayList<String>> colMathHash = new LinkedHashMap<String, ArrayList<String>>();
-		getSelectedValues(selectedVars, colLabelHash, colMathHash);
-		
-		AbstractSpecificQueryBuilder abstractQuery = null;
-		
-		ArrayList<String> labelList = new ArrayList<String>();
-		Set<String> keySet = colLabelHash.keySet();
-		
-		for(String key : keySet) {
-			labelList.add(colLabelHash.get(key).get(0));
-		}
-		
-		if(layout.equals("HeatMap")){	
-			String xAxisColName = colLabelHash.get("X-Axis").get(0);
-			String yAxisColName = colLabelHash.get("Y-Axis").get(0);
-			String heatName = colLabelHash.get("Heat").get(0);
-			String heatMathFunc = colMathHash.get("Heat").get(0);
-			
-			abstractQuery = new SpecificHeatMapQueryBuilder(xAxisColName, yAxisColName, heatName, heatMathFunc, parameters, semossQuery);
-		}
-		else if(layout.equals("ScatterChart")){
-			String frontEndxAxisName = "X-Axis";
-			String frontEndyAxisName = "Y-Axis";
-			String frontEndzAxisName = "Z-Axis (Optional)";
-			String frontEndSeriesName = "Series (Optional)";
-			String frontEndLabelName = "Label";
-			
-			String labelColName = colLabelHash.get(frontEndLabelName).get(0);
-			String xAxisColName = colLabelHash.get(frontEndxAxisName).get(0);
-			String yAxisColName = colLabelHash.get(frontEndyAxisName).get(0);
-			
-			String zAxisColName = null;
-			if(colLabelHash.get(frontEndzAxisName) != null ){
-				zAxisColName = colLabelHash.get(frontEndzAxisName).get(0);
-			}
-			String xAxisMathFunc = colMathHash.get(frontEndxAxisName).get(0);
-			String yAxisMathFunc = colMathHash.get(frontEndyAxisName).get(0);
-			
-			String zAxisMathFunc = null;
-			if(colLabelHash.get(frontEndzAxisName) != null){
-				zAxisMathFunc = colMathHash.get(frontEndzAxisName).get(0);
-			}
-			String seriesColName = null;
-			if(colLabelHash.get(frontEndSeriesName) != null){
-				seriesColName = colLabelHash.get(frontEndSeriesName).get(0); 
-			}
-			abstractQuery = new SpecificScatterPlotQueryBuilder(labelColName, xAxisColName, yAxisColName, zAxisColName, xAxisMathFunc, yAxisMathFunc, zAxisMathFunc, seriesColName, parameters, semossQuery);
-		}
-		else if(layout.equals("PieChart")){
-			String label = colLabelHash.get("Label").get(0);
-			String valueName = colLabelHash.get("Value").get(0);
-			String valueMathFunc = colMathHash.get("Value").get(0);
-			
-			abstractQuery = new SpecificPieChartQueryBuilder (label, valueName, valueMathFunc, parameters, semossQuery);
-		}
-		else if(layout.equals("ColumnChart") || layout.equals("LineChart")){
-			String labelColName = colLabelHash.get("Label").get(0);
-			ArrayList<String> valueColNames = colLabelHash.get("Value");
-			ArrayList<String> valueMathFunctions = colMathHash.get("Value");
-			if(colLabelHash.get("Extra Value") != null) {
-				valueColNames.addAll(colLabelHash.get("Extra Value"));
-				valueMathFunctions.addAll(colMathHash.get("Extra Value"));
-			}
-			
-			abstractQuery = new SpecificGenericChartQueryBuilder (labelColName, valueColNames, valueMathFunctions, parameters, semossQuery);
-		}
-		//takes care of regular select queries without math functions or changes to select vars
-		else {
-			//This takes in parallel coordinates, world map, grid, and parallel sets
-			if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
-				abstractQuery = new SpecificTableQueryBuilder(labelList, parameters, semossQuery);
-			else
-				abstractQuery = null;
-		}
-		if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE)
-		{
-			abstractQuery.buildQuery();
-			query = abstractQuery.getQuery();
-		}
-		else if(abstractQuery != null && coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
-		{
-			abstractQuery.addJoins((ArrayList<ArrayList<String>>)relTriples);
-			abstractQuery.addParameters();
-			abstractQuery.buildQueryR();
-			query = abstractQuery.getQuery();
-		}else
-		{
-			builder.buildQuery();
-			query = builder.getQuery();
-		}
+//		Map<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Map<String, Object>>() {}.getType());
+//		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
+//		builder.setJSONDataHash(dataHash); // I am not sure we have an idea for why we set this
+//		
+//		Object relTriples = ((StringMap)dataHash.get("QueryData")).get("relTriples");
+//		
+//		
+//		
+////		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), Hashtable.class);
+//
+////		ArrayList<Hashtable<String,String>> nodePropArray = gson.fromJson(form.getFirst("SelectedNodeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
+////		ArrayList<Hashtable<String,String>> edgePropArray = gson.fromJson(form.getFirst("SelectedEdgeProps") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
+//		ArrayList<Hashtable<String, String>> selectedVars = gson.fromJson(form.getFirst("Groupings") + "", new TypeToken<ArrayList<Hashtable<String, String>>>() {}.getType());
+//		List<Map<String, String>> parameters = gson.fromJson(form.getFirst("Parameters") + "", new TypeToken<List<Map<String, String>>>() {}.getType());
+//		
+////		logger.info("Node Properties: " + nodePropArray);
+//		logger.info("Selected Vars: " + selectedVars);
+//		logger.info("Parameters: " + parameters);
+//		
+//		String layout = form.getFirst("SelectedLayout").replace("\"", "");
+//		
+//		AbstractQueryBuilder customViz = null;
+//		if(layout.equals("ForceGraph"))
+//			customViz = new SPARQLQueryGraphBuilder();
+//		else {
+//			customViz = (AbstractQueryBuilder) coreEngine.getQueryBuilder();
+//		}
+//		
+////		customViz.setPropV(nodePropArray);
+//		
+//		customViz.setJSONDataHash(dataHash);
+//		customViz.buildQuery();
+//
+//		logger.info("CustomViz query is: " + customViz.getQuery());
+//		SEMOSSQuery semossQuery = customViz.getSEMOSSQuery();
+//
+//		if(layout.equals("ForceGraph")) {
+//			if(!parameters.isEmpty()) {
+//				logger.info("Adding parameters: " + parameters);
+//				SEMOSSQueryHelper.addParametersToQuery(parameters, semossQuery, "Main");
+//			}
+//			semossQuery.createQuery();
+//
+//			query = semossQuery.getQuery();
+//			return Response.status(200).entity(WebUtility.getSO(query)).build();
+//		}
+//		
+//		//The existing retVars contains all the variables (from the selected metamodel path).  We want to clear these to build visualization-specific queries.
+//		if(!layout.equals("GridTable")) {
+//			semossQuery.removeReturnVariables();
+//		}
+//		
+//		//RDBMS logic
+//		if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS){
+//			SQLQueryUtil queryUtil = null;
+//			boolean useOuterJoins = false;
+//			SQLQueryUtil.DB_TYPE dbType = SQLQueryUtil.DB_TYPE.H2_DB;
+//			String dbTypeString = coreEngine.getProperty(Constants.RDBMS_TYPE);
+//			if (dbTypeString != null) {
+//				dbType = (SQLQueryUtil.DB_TYPE.valueOf(dbTypeString));
+//			}
+//			queryUtil = SQLQueryUtil.initialize(dbType);
+//			String useOuterJoinsStr = this.coreEngine.getProperty(Constants.USE_OUTER_JOINS);
+//			if(useOuterJoinsStr!=null && (useOuterJoinsStr.equalsIgnoreCase("TRUE") || useOuterJoinsStr.equalsIgnoreCase("YES")))
+//				useOuterJoins = true;
+//			semossQuery.setUseOuterJoins(useOuterJoins);
+//			semossQuery.setQueryUtil(queryUtil);
+//		}
+//
+//		LinkedHashMap<String, ArrayList<String>> colLabelHash = new LinkedHashMap<String, ArrayList<String>>();
+//		LinkedHashMap<String, ArrayList<String>> colMathHash = new LinkedHashMap<String, ArrayList<String>>();
+//		getSelectedValues(selectedVars, colLabelHash, colMathHash);
+//		
+//		AbstractSpecificQueryBuilder abstractQuery = null;
+//		
+//		ArrayList<String> labelList = new ArrayList<String>();
+//		Set<String> keySet = colLabelHash.keySet();
+//		
+//		for(String key : keySet) {
+//			labelList.add(colLabelHash.get(key).get(0));
+//		}
+//		
+//		if(layout.equals("HeatMap")){	
+//			String xAxisColName = colLabelHash.get("X-Axis").get(0);
+//			String yAxisColName = colLabelHash.get("Y-Axis").get(0);
+//			String heatName = colLabelHash.get("Heat").get(0);
+//			String heatMathFunc = colMathHash.get("Heat").get(0);
+//			
+//			abstractQuery = new SpecificHeatMapQueryBuilder(xAxisColName, yAxisColName, heatName, heatMathFunc, parameters, semossQuery);
+//		}
+//		else if(layout.equals("ScatterChart")){
+//			String frontEndxAxisName = "X-Axis";
+//			String frontEndyAxisName = "Y-Axis";
+//			String frontEndzAxisName = "Z-Axis (Optional)";
+//			String frontEndSeriesName = "Series (Optional)";
+//			String frontEndLabelName = "Label";
+//			
+//			String labelColName = colLabelHash.get(frontEndLabelName).get(0);
+//			String xAxisColName = colLabelHash.get(frontEndxAxisName).get(0);
+//			String yAxisColName = colLabelHash.get(frontEndyAxisName).get(0);
+//			
+//			String zAxisColName = null;
+//			if(colLabelHash.get(frontEndzAxisName) != null ){
+//				zAxisColName = colLabelHash.get(frontEndzAxisName).get(0);
+//			}
+//			String xAxisMathFunc = colMathHash.get(frontEndxAxisName).get(0);
+//			String yAxisMathFunc = colMathHash.get(frontEndyAxisName).get(0);
+//			
+//			String zAxisMathFunc = null;
+//			if(colLabelHash.get(frontEndzAxisName) != null){
+//				zAxisMathFunc = colMathHash.get(frontEndzAxisName).get(0);
+//			}
+//			String seriesColName = null;
+//			if(colLabelHash.get(frontEndSeriesName) != null){
+//				seriesColName = colLabelHash.get(frontEndSeriesName).get(0); 
+//			}
+//			abstractQuery = new SpecificScatterPlotQueryBuilder(labelColName, xAxisColName, yAxisColName, zAxisColName, xAxisMathFunc, yAxisMathFunc, zAxisMathFunc, seriesColName, parameters, semossQuery);
+//		}
+//		else if(layout.equals("PieChart")){
+//			String label = colLabelHash.get("Label").get(0);
+//			String valueName = colLabelHash.get("Value").get(0);
+//			String valueMathFunc = colMathHash.get("Value").get(0);
+//			
+//			abstractQuery = new SpecificPieChartQueryBuilder (label, valueName, valueMathFunc, parameters, semossQuery);
+//		}
+//		else if(layout.equals("ColumnChart") || layout.equals("LineChart")){
+//			String labelColName = colLabelHash.get("Label").get(0);
+//			ArrayList<String> valueColNames = colLabelHash.get("Value");
+//			ArrayList<String> valueMathFunctions = colMathHash.get("Value");
+//			if(colLabelHash.get("Extra Value") != null) {
+//				valueColNames.addAll(colLabelHash.get("Extra Value"));
+//				valueMathFunctions.addAll(colMathHash.get("Extra Value"));
+//			}
+//			
+//			abstractQuery = new SpecificGenericChartQueryBuilder (labelColName, valueColNames, valueMathFunctions, parameters, semossQuery);
+//		}
+//		//takes care of regular select queries without math functions or changes to select vars
+//		else {
+//			//This takes in parallel coordinates, world map, grid, and parallel sets
+//			if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
+//				abstractQuery = new SpecificTableQueryBuilder(labelList, parameters, semossQuery);
+//			else
+//				abstractQuery = null;
+//		}
+//		if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE)
+//		{
+//			abstractQuery.buildQuery();
+//			query = abstractQuery.getQuery();
+//		}
+//		else if(abstractQuery != null && coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
+//		{
+//			abstractQuery.addJoins((ArrayList<ArrayList<String>>)relTriples);
+//			abstractQuery.addParameters();
+//			abstractQuery.buildQueryR();
+//			query = abstractQuery.getQuery();
+//		}else
+//		{
+//			builder.buildQuery();
+//			query = builder.getQuery();
+//		}
 		return Response.status(200).entity(WebUtility.getSO(query)).build();
 	}
 }
