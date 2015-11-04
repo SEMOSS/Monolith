@@ -55,7 +55,7 @@ public class WebUtility {
         {
                Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
                try {
-                     final byte[] output2 = gson.toJson(vec).getBytes("UTF8");///Need to encode for special characters
+                     final byte[] output2 = gson.toJson(vec).getBytes("UTF8");///Need to encode for special characters//
                      return new StreamingOutput() {
                         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
                            PrintStream ps = new PrintStream(outputStream);

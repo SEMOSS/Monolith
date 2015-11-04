@@ -35,6 +35,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -59,6 +60,7 @@ import com.google.gson.Gson;
 
 import prerna.auth.User;
 import prerna.engine.api.IEngine;
+import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.AddToMasterDB;
@@ -72,7 +74,7 @@ import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
-import prerna.util.PlaySheetEnum;
+import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.web.services.util.WebUtility;
 
 @Path("/engine")
@@ -520,9 +522,9 @@ public class NameServer {
 	public StreamingOutput getPlaySheets(@Context HttpServletRequest request){
 		Hashtable<String, String> hashTable = new Hashtable<String, String>();
 
-		ArrayList<String> sheetNames = PlaySheetEnum.getAllSheetNames();
+		ArrayList<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
 		for(int i=0; i<sheetNames.size(); i++){
-			hashTable.put(sheetNames.get(i), PlaySheetEnum.getClassFromName(sheetNames.get(i)));
+			hashTable.put(sheetNames.get(i), PlaySheetRDFMapBasedEnum.getClassFromName(sheetNames.get(i)));
 		}
 		return WebUtility.getSO(hashTable);
 	}	
@@ -538,8 +540,30 @@ public class NameServer {
 	@Path("insights")
 	@Produces("application/json")
 	public StreamingOutput getAllInsights(@QueryParam("groupBy") String groupBy, @QueryParam("orderBy") String orderBy, @Context HttpServletRequest request) {
-		NameServerProcessor ns = new NameServerProcessor();
-		HashMap<String, Object> ret = ns.getAllInsights(groupBy, orderBy);
+		//TODO: this will need to be switched to go through solr
+		
+		List<Hashtable<String,String>> engineList = (List<Hashtable<String,String>>) request.getSession().getAttribute(Constants.ENGINES);
+		Map<String, Object> ret = new Hashtable<String, Object>();
+		Map<String, Object> dataMap = new Hashtable<String, Object>();
+		
+		for(Hashtable<String, String> engineMap : engineList) {
+			String engineName = engineMap.get("name");
+			System.out.println("Engine insights for : " + engineName);
+			AbstractEngine engine = (AbstractEngine) DIHelper.getInstance().getLocalProp(engineName);
+			List<Map<String, Object>> insightsList = engine.getAllInsightsMetaData();
+			Map<String, Object> dbMap = new Hashtable<String, Object>();
+			//TODO: not tracking count for insight views in rdbms
+			dbMap.put("insights", insightsList);
+			dbMap.put("totalCount", 0);
+			dbMap.put("maxCount", 0);
+			dataMap.put(engineName, dbMap);
+		}
+		
+		Map<String, Object> settingsMap = new Hashtable<String, Object>();
+		settingsMap.put("orderBy", "popularity");
+		settingsMap.put("groupBy", "database");
+		ret.put("settings", settingsMap);
+		ret.put("data", dataMap);
 		
 		return WebUtility.getSO(ret);
 	}

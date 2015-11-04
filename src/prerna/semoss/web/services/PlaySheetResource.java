@@ -45,29 +45,31 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
-import prerna.engine.api.IEngine;
-import prerna.engine.impl.rdbms.RDBMSNativeEngine;
-import prerna.om.GraphDataModel;
-import prerna.om.SEMOSSVertex;
-import prerna.ui.components.ExecuteQueryProcessor;
-import prerna.ui.components.api.IPlaySheet;
-import prerna.ui.components.playsheets.AbstractRDFPlaySheet;
-import prerna.ui.components.playsheets.GraphPlaySheet;
-import prerna.util.Constants;
-import prerna.util.DIHelper;
-import prerna.util.QuestionPlaySheetStore;
-import prerna.util.Utility;
-import prerna.web.services.util.WebUtility;
-
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.engine.api.IEngine;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
+import prerna.om.GraphDataModel;
+import prerna.om.Insight;
+import prerna.om.SEMOSSVertex;
+import prerna.ui.components.api.IPlaySheet;
+import prerna.ui.components.playsheets.AbstractPlaySheet;
+import prerna.ui.components.playsheets.GraphPlaySheet;
+import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
+import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
+
+//TODO: need to change this to be insight resource
 public class PlaySheetResource {
 
 	IPlaySheet playSheet;
 	IEngine coreEngine;
 	String output = "";
 	Logger logger = Logger.getLogger(PlaySheetResource.class.getName());
+	Insight insight;
 	
 	public void setPlaySheet(IPlaySheet playSheet){
 		this.playSheet = playSheet;
@@ -146,8 +148,8 @@ public class PlaySheetResource {
 		Object obj = runPlaySheetTraversal(sparql, "", downNodeType, filterValues);
 
 		// put the playsheet back in session
-		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
-		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
+//		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
+//		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
 		
 		return WebUtility.getSO(obj);
 	}	
@@ -229,8 +231,8 @@ public class PlaySheetResource {
 		Object obj = runPlaySheetTraversal(sparql, upNodeType, "", filterValues);
 
 		// put the playsheet back in session
-		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
-		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
+//		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
+//		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
 
 		return WebUtility.getSO(obj);
 	}	
@@ -323,15 +325,16 @@ public class PlaySheetResource {
 		System.out.println("Params is " + params);
 		Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
 		
-		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
-		exQueryProcessor.setAppendBoolean(true);
-		exQueryProcessor.setPlaySheet(playSheet);
-		exQueryProcessor.processQuestionQuery(coreEngine.getEngineName(), insight, paramHash);
+//		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
+//		exQueryProcessor.setAppendBoolean(true);
+//		exQueryProcessor.setPlaySheet(playSheet);
+//		exQueryProcessor.processQuestionQuery(coreEngine.getEngineName(), insight, paramHash);
+//		playSheet = exQueryProcessor.getPlaySheet();
 		
-		playSheet = exQueryProcessor.getPlaySheet();
+		playSheet = Utility.preparePlaySheet(coreEngine, insight, "GraphPlaySheet", "", "");
 		
-		Object obj = runPlaySheetOverlay();
-		return WebUtility.getSO(obj);
+//		Object obj = runPlaySheetOverlay(); //TODO: this needs to be rethought with data makers.. this wont work
+		return WebUtility.getSO("");//obj);
 	}
 //
 //	//gets all node types connected to a specific node instance
@@ -405,7 +408,7 @@ public class PlaySheetResource {
 	public StreamingOutput getPlaySheetChartData(@Context HttpServletRequest request) {
 		Hashtable<String, Vector<SEMOSSVertex>> typeHash = new Hashtable<String, Vector<SEMOSSVertex>>();
 		if(playSheet instanceof GraphPlaySheet){
-			Hashtable<String, SEMOSSVertex> nodeHash = ((GraphPlaySheet)playSheet).getGraphData().getVertStore();
+			Hashtable<String, SEMOSSVertex> nodeHash = ((GraphDataModel)playSheet.getDataMaker()).getVertStore();
 			// need to create type hash... its the way chartit wants the data..
 			logger.info("creating type hash...");
 			for( SEMOSSVertex vert : nodeHash.values()){
@@ -434,19 +437,19 @@ public class PlaySheetResource {
 		Object obj = null;
 		if ( playSheet instanceof GraphPlaySheet){
 			GraphPlaySheet gps = (GraphPlaySheet)playSheet;
-			GraphDataModel gdm = gps.getGraphData();
+			GraphDataModel gdm = (GraphDataModel) gps.getDataMaker();
 			for(int i = 0; i < count; i ++ ){
 				gdm.setUndo(true);
 				gdm.undoData();
 				gdm.fillStoresFromModel(coreEngine);
 				gps.setAppend(true);
 			}
-			obj = gps.getData();
+			obj = gdm.getDataMakerOutput();
 		}
 
 		// put the playsheet back in session
-		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
-		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
+//		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
+//		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
 
 		return WebUtility.getSO(obj);
 	}
@@ -461,31 +464,31 @@ public class PlaySheetResource {
 		if ( playSheet instanceof GraphPlaySheet){
 			GraphPlaySheet gps = (GraphPlaySheet)playSheet;
 			gps.setAppend(true);
-			GraphDataModel gdm = gps.getGraphData();
+			GraphDataModel gdm = (GraphDataModel) gps.getDataMaker();
 			gdm.redoData();
 			gdm.fillStoresFromModel(coreEngine);
-			obj = gps.getData();
+			obj = gdm.getDataMakerOutput();
 		}
 
 		// put the playsheet back in session
-		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
-		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
+//		QuestionPlaySheetStore.getInstance().put(playSheet.getQuestionID(), playSheet); //TODO: do I need to re-add? its passed by reference?
+//		QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), playSheet.getQuestionID());
 
 		return WebUtility.getSO(obj);
 	}
 	
 	// fills the traversal query and calls overlay
-	private Object runPlaySheetTraversal(String sparql, String upNodeType, String downNodeType, String filterValues){
+	private Object runPlaySheetTraversal(String query, String upNodeType, String downNodeType, String filterValues){
 		//fill the sparql
-		sparql = sparql.replace("@FILTER_VALUES@", filterValues).replace("@SUBJECT_TYPE@", upNodeType).replace("@OBJECT_TYPE@", downNodeType);
-		playSheet.setQuery(sparql);
-		Object obj = runPlaySheetOverlay();
+		String filledQuery = query.replace("@FILTER_VALUES@", filterValues).replace("@SUBJECT_TYPE@", upNodeType).replace("@OBJECT_TYPE@", downNodeType);
+//		playSheet.setQuery(sparql);
+		Object obj = runPlaySheetOverlay(this.coreEngine, filledQuery);
 		return obj;
 	}
 
 	//basic overlay processing
 	//sparql query must already be set on the playsheet
-	private Object runPlaySheetOverlay(){
+	private Object runPlaySheetOverlay(IEngine eng, String query){
 		Object obj = null;
 
 		//playSheet = null;
@@ -495,14 +498,12 @@ public class PlaySheetResource {
 			if(playSheet == null)
 				playSheet = (IPlaySheet)Class.forName("prerna.ui.components.playsheets.GraphPlaySheet").newInstance();
 			
-			if(playSheet instanceof AbstractRDFPlaySheet)
-				((AbstractRDFPlaySheet)playSheet).setAppend(true);
+			if(playSheet instanceof AbstractPlaySheet)
+				((AbstractPlaySheet)playSheet).setAppend(true);
 			
-			playSheet.setRDFEngine(coreEngine);
-			playSheet.createData();
-			playSheet.runAnalytics();
+			insight.processDataMakerComponent(new DataMakerComponent(eng, query));
 			
-			obj = playSheet.getData();
+			obj = playSheet.getDataMaker().getDataMakerOutput();
 				
 		}catch(Exception ex)
 		{
@@ -517,7 +518,7 @@ public class PlaySheetResource {
 		String filterValues = "";
 		//get necessary info about params passed in
 		if(playSheet instanceof GraphPlaySheet){
-			Hashtable<String, SEMOSSVertex> nodeHash = ((GraphPlaySheet)playSheet).getGraphData().getVertStore();
+			Hashtable<String, SEMOSSVertex> nodeHash = ((GraphDataModel) (playSheet).getDataMaker()).getVertStore();
 			// need to create type hash... its the way chartit wants the data..
 			logger.info("Creating filter values with nodes of type " +targetType);
 			for( SEMOSSVertex vert : nodeHash.values()){
@@ -539,5 +540,9 @@ public class PlaySheetResource {
 		Hashtable<String, Object> hash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
     	Object ret = this.playSheet.doMethod(method, hash);
         return Response.status(200).entity(WebUtility.getSO(ret)).build();
-    }  
+    }
+
+	public void setInsight(Insight insight) {
+		this.insight = insight;
+	}  
 }
