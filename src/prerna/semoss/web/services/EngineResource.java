@@ -1199,6 +1199,12 @@ public class EngineResource {
 
 		// get the insight if an id has been passed
 		Insight insight = null;
+		
+		// put join concept into dataHash so we know which varible needs to be first in the return
+		// this stems from the fact that btree can only join left to right.
+		List<String> retOrder = new ArrayList<String>();
+		retOrder.add(equivConcept);
+		dataHash.put("returnOrder", retOrder);
 
 		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, dataHash);
 
