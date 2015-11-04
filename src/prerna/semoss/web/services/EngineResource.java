@@ -60,33 +60,29 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
-import prerna.algorithm.api.IMatcher;
+import com.bigdata.rdf.model.BigdataURI;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
+
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.learning.util.DuplicationReconciliation;
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
-import prerna.ds.ExactStringMatcher;
-import prerna.ds.ExactStringOuterJoinMatcher;
-import prerna.ds.ExactStringPartialOuterJoinMatcher;
-import prerna.ds.ITableStatCounter;
-import prerna.ds.InfiniteScroller;
-import prerna.ds.InfiniteScrollerFactory;
-import prerna.ds.MultiColumnTableStatCounter;
-import prerna.ds.TableDataFrameStore;
-import prerna.ds.TableDataFrameWebAdapter;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.rdf.RDFFileSesameEngine;
-import prerna.engine.impl.rdf.SesameJenaSelectStatement;
-import prerna.engine.impl.rdf.SesameJenaSelectWrapper;
 import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
 import prerna.nameserver.AddToMasterDB;
-import prerna.nameserver.NameServerProcessor;
 import prerna.nameserver.SearchMasterDB;
+import prerna.om.GraphDataModel;
 import prerna.om.Insight;
+import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.rdf.query.builder.AbstractQueryBuilder;
@@ -97,32 +93,26 @@ import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.AbstractQueryParser;
 import prerna.rdf.util.RDFJSONConverter;
 import prerna.semoss.web.form.FormBuilder;
-import prerna.ui.components.ExecuteQueryProcessor;
 import prerna.ui.components.api.IPlaySheet;
-import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
-import prerna.ui.components.playsheets.GraphPlaySheet;
-import prerna.ui.helpers.PlaysheetCreateRunner;
+import prerna.ui.components.playsheets.TablePlaySheet;
+import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
+import prerna.ui.components.playsheets.datamakers.FilterTransformation;
+import prerna.ui.components.playsheets.datamakers.IDataMaker;
+import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
+import prerna.ui.components.playsheets.datamakers.JoinTransformation;
+import prerna.ui.components.playsheets.datamakers.MathTransformation;
+import prerna.ui.helpers.InsightCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.ArrayUtilityMethods;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
-import prerna.util.PlaySheetEnum;
-import prerna.util.QuestionPlaySheetStore;
+import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
-//import prerna.web.services.util.ITableUtilities;
 import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.InstanceStreamer;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
-
-import com.bigdata.rdf.model.BigdataURI;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
 
 public class EngineResource {
 
@@ -143,10 +133,15 @@ public class EngineResource {
 
 	// All playsheet specific manipulations will go through this
 	@Path("p-{playSheetID}")
-	public Object uploadFile(@PathParam("playSheetID") String playSheetID) {
+	public Object uploadFile(@PathParam("playSheetID") String insightID) {
+		//	public Object uploadFile(@PathParam("playSheetID") String playSheetID) {
+
 		PlaySheetResource psr = new PlaySheetResource();
 		// get the playsheet from session
-		IPlaySheet playSheet = QuestionPlaySheetStore.getInstance().get(playSheetID);
+		//		IPlaySheet playSheet = QuestionPlaySheetStore.getInstance().get(playSheetID);
+		Insight in = InsightStore.getInstance().get(insightID);
+		IPlaySheet playSheet = InsightStore.getInstance().get(insightID).getPlaySheet();
+		psr.setInsight(in);
 		psr.setPlaySheet(playSheet);
 		psr.setEngine(coreEngine);
 		return psr;
@@ -170,10 +165,10 @@ public class EngineResource {
 			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
 
-		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
 		//hard code playsheet attributes since no insight exists for this
 		String sparql = "SELECT ?s ?p ?o WHERE {?s ?p ?o} LIMIT 1";
-		String playSheetName = "prerna.ui.components.playsheets.GraphPlaySheet";
+		String playSheetName = "Graph";
+		String dataMakerName = "GraphDataModel";
 		String title = "Metamodel";
 		String id = coreEngine.getEngineName() + "-Metamodel";
 		AbstractEngine eng = ((AbstractEngine)coreEngine).getBaseDataEngine();
@@ -183,16 +178,17 @@ public class EngineResource {
 		filterHash.put("http://semoss.org/ontologies/Relation", "http://semoss.org/ontologies/Relation");
 		eng.setBaseHash(filterHash);
 
-		exQueryProcessor.prepareQueryOutputPlaySheet(eng, sparql, playSheetName, title, id);
 		Object obj = null;
 		try
 		{
-			GraphPlaySheet playSheet= (GraphPlaySheet) exQueryProcessor.getPlaySheet();
-			playSheet.getGraphData().setSubclassCreate(true);//this makes the base queries use subclass instead of type--necessary for the metamodel query
-			playSheet.createData();
-			playSheet.runAnalytics();
-
-			obj = playSheet.getData();
+			DataMakerComponent dmc = new DataMakerComponent(eng, sparql);
+			GraphDataModel gdm = (GraphDataModel) Utility.getDataMaker(this.coreEngine, dataMakerName);
+			//			GraphPlaySheet playSheet= (GraphPlaySheet) Utility.preparePlaySheet(eng, sparql, playSheetName, title, id);
+			gdm.setSubclassCreate(true);
+			gdm.setOverlay(false);
+			gdm.processDataMakerComponent(dmc);
+			//			playSheet.setDataMaker(gdm);
+			obj = gdm.getDataMakerOutput();
 
 		} catch (Exception ex) { 
 			ex.printStackTrace();
@@ -271,7 +267,7 @@ public class EngineResource {
 				String uniqueTypesQuery = "SELECT DISTINCT ?entity WHERE { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity}   FILTER NOT EXISTS { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?subtype} {?subtype <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?entity} }} BINDINGS ?subject {"+bindingsString+"}";
 
 				//get node types
-				Vector<String> types = Utility.getVectorOfReturn(uniqueTypesQuery, coreEngine);
+				Vector<String> types = Utility.getVectorOfReturn(uniqueTypesQuery, coreEngine, true);
 
 				//DOWNSTREAM PROCESSING
 				//get node types connected to this type
@@ -390,7 +386,7 @@ public class EngineResource {
 		//Vector<Hashtable<String,String>> resultInsightObjects = coreEngine.getOutputs4Insights(resultInsights);
 		Vector<Insight> resultInsightObjects = null;
 		if(resultInsights!=null && !resultInsights.isEmpty())
-			resultInsightObjects = ((AbstractEngine)coreEngine).getInsight2(resultInsights.toArray(new String[resultInsights.size()]));
+			resultInsightObjects = ((AbstractEngine)coreEngine).getInsight(resultInsights.toArray(new String[resultInsights.size()]));
 
 		return Response.status(200).entity(WebUtility.getSO(resultInsightObjects)).build();
 	}
@@ -456,14 +452,15 @@ public class EngineResource {
 		// returns the insight
 		// typically is a JSON of the insight
 		System.out.println("Insight is " + insight);
-		Insight in = ((AbstractEngine)coreEngine).getInsight2(insight).get(0);
+		Insight in = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
 		System.out.println("Insight is " + in);
 		System.out.println(in.getOutput());
 		Hashtable outputHash = new Hashtable<String, Hashtable>();
-		outputHash.put("result", in);
+		outputHash.put("result", in.getInsightID());
 
 
-		Vector <SEMOSSParam> paramVector = coreEngine.getParams(insight);
+		//		Vector <SEMOSSParam> paramVector = coreEngine.getParams(insight);
+		Vector <SEMOSSParam> paramVector = in.getInsightParameters();
 		System.err.println("Params are " + paramVector);
 		Hashtable optionsHash = new Hashtable();
 		Hashtable paramsHash = new Hashtable();
@@ -471,10 +468,8 @@ public class EngineResource {
 		for(int paramIndex = 0;paramIndex < paramVector.size();paramIndex++)
 		{
 			SEMOSSParam param = paramVector.elementAt(paramIndex);
-			String paramURI = param.getUri();
-			if(param.isDepends().equalsIgnoreCase("false"))
-			{
-				optionsHash.put(param.getName(), this.coreEngine.getParamOptions(paramURI));
+			if(param.isDepends().equalsIgnoreCase("false")) {
+				optionsHash.put(param.getName(), this.coreEngine.getParamOptions(param.getParamID()));
 			}
 			//				// do the logic to get the stuff
 			//				String query = param.getQuery();
@@ -488,8 +483,9 @@ public class EngineResource {
 			//					optionsHash.put(param.getName(), coreEngine.getParamValues(param.getName(), type, in.getId(), query));
 			//				}
 			//			}
-			else
+			else {
 				optionsHash.put(param.getName(), "");
+			}
 			paramsHash.put(param.getName(), param);
 		}
 
@@ -525,14 +521,15 @@ public class EngineResource {
 	@Produces("application/json")
 	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
 	{
+		Gson gson = new Gson();
+
 		String insight = form.getFirst("insight");
 		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		AddToMasterDB addMasterDB = new AddToMasterDB(Constants.LOCAL_MASTER_DB_NAME);
 		SearchMasterDB searchMasterDB = new SearchMasterDB(Constants.LOCAL_MASTER_DB_NAME);
 
 		//Get the Insight, grab its ID
-		Insight insightObj = ((AbstractEngine)coreEngine).getInsight2(insight).get(0);
-		String insightID = null;
+		Insight insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
 
 		// executes the output and gives the data
 		// executes the create runner
@@ -545,30 +542,37 @@ public class EngineResource {
 
 		// if insight, playsheet and sparql are null throw bad data exception
 		if(insight == null) {
-			String playsheet = form.getFirst("playsheet");
+			String playsheet = form.getFirst("layout");
 			String sparql = form.getFirst("sparql");
 			//check for sparql and playsheet; if not null then parameters have been passed in for preview functionality
 			if(sparql != null && playsheet != null){
 
-				ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
 				Object obj = null;
 				try {
-					QuestionPlaySheetStore.getInstance().idCount++;
-					insightID = QuestionPlaySheetStore.getInstance().getIDCount() + "";
-					// This will store the playsheet in QuesitonPlaySheetStore
-					exQueryProcessor.prepareQueryOutputPlaySheet(coreEngine, sparql, playsheet, coreEngine.getEngineName() + ": " + insightID, insightID);
-					IPlaySheet playSheet = exQueryProcessor.getPlaySheet();
-					playSheet.setQuestionID(insightID);
-					QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), insightID);
-
+					//					QuestionPlaySheetStore.getInstance().idCount++;
+					//					insightID = QuestionPlaySheetStore.getInstance().getIDCount() + "";
+					//					// This will store the playsheet in QuesitonPlaySheetStore
+					//					IPlaySheet playSheet = Utility.preparePlaySheet(coreEngine, sparql, playsheet, coreEngine.getEngineName() + ": " + insightID, insightID);
+					//					playSheet.setQuestionID(insightID);
+					//					QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), insightID);
+					//					IPlaySheet playSheet = Utility.getPlaySheet(coreEngine, playsheet);
+					Insight in = new Insight(coreEngine, "BTreeDataFrame", playsheet);
+					//					in.setPlaySheet(playSheet);
+					Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
+					DataMakerComponent dmc = new DataMakerComponent(coreEngine, sparql);
+					dmcList.add(dmc);
+					in.setDataMakerComponents(dmcList);
+					//					in.setDataMakerName("BTreeDataFrame");
+					InsightCreateRunner insightRunner = new InsightCreateRunner(in);
+					insightRunner.runWeb();
+					InsightStore.getInstance().put(in);
 					//					User userData = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 					//					if(userData!=null)
 					//						playSheet.setUserData(userData);
-
-					PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
-					playRunner.runWeb();
-
-					obj = playSheet.getData();
+					//					PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
+					//					playRunner.runWeb();
+					//					obj = playSheet.getData();
+					obj = in.getWebData();
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -578,15 +582,16 @@ public class EngineResource {
 				}
 
 				//Increment the insight's execution count for the logged in user\
-				addMasterDB.processInsightExecutionForUser(userId, insightObj);
-				String visibility = searchMasterDB.getVisibilityForInsight(userId, insightObj.getId());
-				Hashtable ret = (Hashtable) obj;
-				if(ret != null) {
-					ret.put("query", insightObj.getSparql());
-					ret.put("insightId", insightID);
-					ret.put("visibility", visibility);
-				}
-				return Response.status(200).entity(WebUtility.getSO(ret)).build();
+				// TODO: how to do this part
+				//				addMasterDB.processInsightExecutionForUser(userId, insightObj);
+				//				String visibility = searchMasterDB.getVisibilityForInsight(userId, insightObj.getInsightID());
+				//				Hashtable ret = (Hashtable) obj;
+				//				if(ret !=  null) {
+				//					ret.put("query", insightObj.getSparql());
+				//					ret.put("insightId", insightID);
+				//					ret.put("visibility", visibility);
+				//				}
+				return Response.status(200).entity(WebUtility.getSO(obj)).build();
 			}
 			else{
 				Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -596,50 +601,58 @@ public class EngineResource {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
+		else {
+			Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+			System.out.println("Params is " + params);
+			//			Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
 
-		String params = form.getFirst("params");
-		System.out.println("Params is " + params);
-		Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
+			//		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
+			//		// This will store the playsheet in QuesitonPlaySheetStore
+			//		exQueryProcessor.processQuestionQuery(coreEngine, insight, paramHash);
+			Object obj = null;
+			try {
+				InsightStore.getInstance().put(insightObj);
+				insightObj.setParamHash(params);
+				InsightCreateRunner run = new InsightCreateRunner(insightObj);
+				run.runWeb();
+				//			obj = insightObj.getPlaySheet().getData();
+				obj = insightObj.getWebData();
 
-		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
-		// This will store the playsheet in QuesitonPlaySheetStore
-		exQueryProcessor.processQuestionQuery(coreEngine, insight, paramHash);
-		Object obj = null;
-		try {
-			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
-			insightID = playSheet.getQuestionID();
-			QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), insightID);
+				//			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
+				//			insightID = playSheet.getQuestionID();
+				//			QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), insightID);
+				//
+				//			//			User userData = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+				//			//			if(userData!=null)
+				//			//				playSheet.setUserData(userData);
+				//			//			if(playSheet instanceof IStreamable){
+				//			//				ServletOutputStream stream = response.getOutputStream();
+				//			//				((IStreamable) playSheet).setOutputStream(stream);
+				//			//			}
+				//			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
+				//			playRunner.runWeb();
+				//			obj = playSheet.getData();
+			} catch (Exception ex) { //need to specify the different exceptions 
+				ex.printStackTrace();
+				Hashtable<String, String> errorHash = new Hashtable<String, String>();
+				errorHash.put("Message", "Error occured processing question.");
+				errorHash.put("Class", className);
+				//			return getSO(errorHash);
+				return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
+			}
 
-			//			User userData = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			//			if(userData!=null)
-			//				playSheet.setUserData(userData);
-			//			if(playSheet instanceof IStreamable){
-			//				ServletOutputStream stream = response.getOutputStream();
-			//				((IStreamable) playSheet).setOutputStream(stream);
-			//			}
-
-			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
-			playRunner.runWeb();
-			obj = playSheet.getData();
-		} catch (Exception ex) { //need to specify the different exceptions 
-			ex.printStackTrace();
-			Hashtable<String, String> errorHash = new Hashtable<String, String>();
-			errorHash.put("Message", "Error occured processing question.");
-			errorHash.put("Class", className);
-			//			return getSO(errorHash);
-			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
+			//Increment the insight's execution count for the logged in user
+			// TODO: how to do this part
+			//		addMasterDB.processInsightExecutionForUser(userId, insightObj);
+			//		String visibility = searchMasterDB.getVisibilityForInsight(userId, insightObj.getInsightID());
+			//		Hashtable ret = (Hashtable) obj;
+			//		if(ret !=  null) {
+			//			ret.put("query", insightObj.getSparql());
+			//			ret.put("insightId", insightID);
+			//			ret.put("visibility", visibility);
+			//		}
+			return Response.status(200).entity(WebUtility.getSO(obj)).build();
 		}
-
-		//Increment the insight's execution count for the logged in user
-		addMasterDB.processInsightExecutionForUser(userId, insightObj);
-		String visibility = searchMasterDB.getVisibilityForInsight(userId, insightObj.getId());
-		Hashtable ret = (Hashtable) obj;
-		if(ret !=  null) {
-			ret.put("query", insightObj.getSparql());
-			ret.put("insightId", insightID);
-			ret.put("visibility", visibility);
-		}
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 
 	// executes a particular insight
@@ -766,7 +779,7 @@ public class EngineResource {
 		//fill the query
 		String query = nodePropQuery.replace("@NODE_TYPE_URI@", nodeUri);
 		logger.info("Running node property query " + query);
-		return Response.status(200).entity(WebUtility.getSO(Utility.getVectorOfReturn(query, coreEngine))).build();
+		return Response.status(200).entity(WebUtility.getSO(Utility.getVectorOfReturn(query, coreEngine, true))).build();
 	}	
 
 	// gets all numeric edge properties for a specific edge type
@@ -783,7 +796,7 @@ public class EngineResource {
 		//fill the query
 		String query = edgePropQuery.replace("@SOURCE_TYPE@", sourceTypeUri).replace("@TARGET_TYPE@", targetTypeUri).replace("@VERB_TYPE@", verbTypeUri);
 		logger.info("Running edge property query " + query);
-		return Response.status(200).entity(WebUtility.getSO(Utility.getVectorOfReturn(query, coreEngine))).build();
+		return Response.status(200).entity(WebUtility.getSO(Utility.getVectorOfReturn(query, coreEngine, true))).build();
 	}	
 
 	@POST
@@ -792,7 +805,7 @@ public class EngineResource {
 	public Response getVizTable(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+		Map<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Map<String, Object>>() {}.getType());
 
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 		builder.setJSONDataHash(dataHash);
@@ -803,15 +816,15 @@ public class EngineResource {
 		Object obj = null;
 		try
 		{
-			String playSheetClassName = PlaySheetEnum.getClassFromName(PlaySheetEnum.Grid.getSheetName());
-			IPlaySheet playSheet = (IPlaySheet) Class.forName(playSheetClassName).getConstructor(null).newInstance(null);
+			String playSheetClassName = PlaySheetRDFMapBasedEnum.getClassFromName("Grid");
+			TablePlaySheet playSheet = (TablePlaySheet) Class.forName(playSheetClassName).getConstructor(null).newInstance(null);
 			playSheet.setQuery(query);
 			playSheet.setRDFEngine(coreEngine);
 			//should through what questionID this should be
 			playSheet.setQuestionID("VizBuilder");
 			playSheet.createData();
 			playSheet.runAnalytics();
-			obj = playSheet.getData();
+			obj = playSheet.getDataMakerOutput();
 
 		} catch(Exception ex) {
 			ex.printStackTrace();
@@ -823,22 +836,22 @@ public class EngineResource {
 
 		List<Hashtable<String, String>> varObjVector = builder.getHeaderArray();
 		((Hashtable)obj).put("variableHeaders", varObjVector);
-		
-//		//still need filter queries for RDF... not sure what this is going to look like in the future yet
-//		if(builder instanceof SPARQLQueryTableBuilder) {
-//			ArrayList<Hashtable<String, String>> varObjV = ((SPARQLQueryTableBuilder)builder).getHeaderArray();
-//			Collection<Hashtable<String, String>> varObjVector = varObjV;
-//
-//			//add variable info to return data
-//			
-//		}
-//		if(builder instanceof SQLQueryTableBuilder) {
-//			ArrayList<Hashtable<String, String>> varObjV = ((SQLQueryTableBuilder)builder).getHeaderArray();
-//			Collection<Hashtable<String, String>> varObjVector = varObjV;
-//
-//			//add variable info to return data
-//			((Hashtable)obj).put("variableHeaders", varObjVector);
-//		}
+
+		//		//still need filter queries for RDF... not sure what this is going to look like in the future yet
+		//		if(builder instanceof SPARQLQueryTableBuilder) {
+		//			ArrayList<Hashtable<String, String>> varObjV = ((SPARQLQueryTableBuilder)builder).getHeaderArray();
+		//			Collection<Hashtable<String, String>> varObjVector = varObjV;
+		//
+		//			//add variable info to return data
+		//			
+		//		}
+		//		if(builder instanceof SQLQueryTableBuilder) {
+		//			ArrayList<Hashtable<String, String>> varObjV = ((SQLQueryTableBuilder)builder).getHeaderArray();
+		//			Collection<Hashtable<String, String>> varObjVector = varObjV;
+		//
+		//			//add variable info to return data
+		//			((Hashtable)obj).put("variableHeaders", varObjVector);
+		//		}
 
 		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}	
@@ -846,47 +859,21 @@ public class EngineResource {
 	@POST
 	@Path("/removeData")
 	@Produces("application/xml")
+	@Deprecated // replaced by /undo
 	public Response removeData(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
-		String tableID = form.getFirst("tableID");
-		String questionID = form.getFirst("id");
+		String insightID = form.getFirst("insightID");
 
-		boolean isInDataFrameStore = false;
-		ITableDataFrame dataFrame = null;
-		
-		//try to get the table using tableID
-		if(tableID != null) {
-			dataFrame = TableDataFrameStore.getInstance().get(tableID);
-			isInDataFrameStore = true;
-		} 
-		//if no table ID get table using question playsheet
-		else if(questionID != null) {
-			IPlaySheet origPS = (IPlaySheet) QuestionPlaySheetStore.getInstance().get(questionID);
-			if(origPS instanceof BasicProcessingPlaySheet) {
-				dataFrame = ((BasicProcessingPlaySheet) origPS).getDataFrame();
-			} else { // not necessarily backed by BTree, most likely GraphPlaySheet, but could also be highly customized report
-				QuestionPlaySheetStore qStore = QuestionPlaySheetStore.getInstance();
-				if(!qStore.containsKey(questionID)) {
-					return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
-				}
-
-				qStore.remove(questionID);
-				qStore.removeFromSessionHash(request.getSession().getId(), questionID);
-				if(qStore.containsKey(questionID)) {
-					return Response.status(400).entity(WebUtility.getSO("Could not remove playsheet.")).build();
-				} else {
-					return Response.status(200).entity(WebUtility.getSO("Succesfully removed playsheet.")).build();
-				}
-			}
+		if(insightID == null || insightID.isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Could not find data.");
+			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 		}
 
-		if(dataFrame == null) {
-			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
-		}
+		Insight in = InsightStore.getInstance().get(insightID);
+		ITableDataFrame dataFrame = (ITableDataFrame) in.getDataMaker();
 
-		//columns to be removed
 		String[] removeColumns = gson.fromJson(form.getFirst("removeColumns"), String[].class);
-		
 		//if columns to remove are all the columns in the table then just remove table
 		String[] columnHeaders = dataFrame.getColumnHeaders();
 		boolean removeAll = true;
@@ -900,72 +887,90 @@ public class EngineResource {
 		} else {
 			removeAll = false;
 		}
-		
-		//remove columns being empty/null is a trigger to delete table
-		//or if remove columns represent all columns in the table
 		if(removeColumns == null || removeColumns.length == 0 || removeAll) {
-			boolean success = false;
-			if(isInDataFrameStore) {
-				success = TableDataFrameStore.getInstance().remove(tableID);
-				TableDataFrameStore.getInstance().removeFromSessionHash(request.getSession().getId(), tableID);
-				tableID = "";
-				
-				HttpSession session = request.getSession();
-				if(session.getAttribute(tableID) != null) {
-					session.removeAttribute(tableID);
-				}
-				
-			} else {
-				QuestionPlaySheetStore qStore = QuestionPlaySheetStore.getInstance();
-				if(!qStore.containsKey(questionID)) {
-					return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
-				}
 
-				qStore.remove(questionID);
-				qStore.removeFromSessionHash(request.getSession().getId(), questionID);
-				if(qStore.containsKey(questionID)) {
-					success = false;
-				} else {
-					success = true;
-				}
-			}
+
+			boolean success = InsightStore.getInstance().remove(insightID);
+			InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
 
 			if(success) {
-				Map<String, Object> retMap = new HashMap<String, Object>();
-				retMap.put("tableID", tableID);
-				retMap.put("message", "Succesfully removed data");
-				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+				return Response.status(200).entity(WebUtility.getSO("Succesfully removed data.")).build();
 			} else {
-				return Response.status(400).entity(WebUtility.getSO("Could not remove data")).build();
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Could not remove data.");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-		} 
-		
-		//Else just remove each column one by one
-		else {
+		} else {
+			IDataMaker datamaker = in.getDataMaker();
+			Map<String, Object> retMap = new HashMap<String, Object>();
+			if(!(datamaker instanceof ITableDataFrame)) {
+				retMap.put("errorMessage", "Data maker for insight is not a table data frame.  Cannot remove rows from other data makers at this time.");
+				return Response.status(400).entity(WebUtility.getSO(retMap)).build();
+			}
+
 			boolean removeDuplicates = true;
 			if(removeColumns.length == 1) {
 				removeDuplicates = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(columnHeaders, Utility.cleanVariableString(removeColumns[0])) != columnHeaders.length-1;
 			}
-			dataFrame.unfilter();
+
 			for(String s : removeColumns) {
-				dataFrame.removeColumn(Utility.cleanVariableString(s)); //TODO: need booleans to return values in map
+				((ITableDataFrame) datamaker).removeColumn(Utility.cleanVariableString(s)); //TODO: need booleans to return values in map
 			}
-			//remove duplicate rows after removing column to maintain data consistency
+
 			if(removeDuplicates) {
-				dataFrame.removeDuplicateRows();
+				((ITableDataFrame) datamaker).removeDuplicateRows();
 			}
-//			HttpSession session = request.getSession();
-//			if(session.getAttribute(tableID) != null) {
-//				session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(dataFrame));
-//			}
-			
-			Map<String, Object> retMap = new HashMap<String, Object>();
 
-			retMap.put("tableID", tableID);
+			retMap.put("insightID", insightID);
 			retMap.put("message", "Succesfully removed the following columns: " + Arrays.toString(removeColumns));
-
 			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 		}
+	}
+
+	@POST
+	@Path("/removeInsight")
+	@Produces("application/xml")
+	public Response removeInsight(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String insightID = form.getFirst("insightID");
+
+		if(insightID == null || insightID.isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Could not find data.");
+			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+		}
+
+		boolean success = InsightStore.getInstance().remove(insightID);
+		InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
+
+		if(success) {
+			return Response.status(200).entity(WebUtility.getSO("Succesfully removed data.")).build();
+		} else {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Could not remove data.");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+	}
+
+	@POST
+	@Path("/undoInsightProcess")
+	@Produces("application/xml")
+	public Response undoInsightProcess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
+		String insightID = form.getFirst("insightID");
+		List<String> processes = gson.fromJson(form.getFirst("processes"), List.class);
+
+		if(insightID == null || insightID.isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Could not find data.");
+			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+		}
+
+		Insight in = InsightStore.getInstance().get(insightID);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		in.undoProcesses(processes);
+		retMap.put("insightID", insightID);
+		retMap.put("message", "Succesfully undone processes : " + processes);
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
 	@POST
@@ -974,68 +979,59 @@ public class EngineResource {
 	public Response filterData(MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request)
 	{	
-		String tableID = form.getFirst("tableID");
 		String insightID = form.getFirst("insightID");
-		
-		ITableDataFrame mainTree = TableDataFrameUtilities.getTable(tableID, insightID);
+
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+		}
+
+		ITableDataFrame mainTree = (ITableDataFrame) existingInsight.getDataMaker();
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
 		}
-		
+
 		Gson gson = new Gson();
-		HttpSession session = request.getSession();
 		String[] columnHeaders = mainTree.getColumnHeaders();
-		
+
 		//Grab the filter model from the form data
 		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		String selectedColumn = "";
-		
+
 		//If the filter model has information, filter the tree
-		//then set the infinite scroller with the new main tree view
 		if(filterModel != null && filterModel.keySet().size() > 0) {
 			selectedColumn = TableDataFrameUtilities.filterTableData(mainTree, filterModel);
-//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		}
-		
+
 		//if the filtermodel is not null and contains no data then unfilter the whole tree
 		//this trigger to unfilter the whole tree was decided between FE and BE for simplicity
 		else if(filterModel != null && filterModel.keySet().size() == 0) {
 			mainTree.unfilter();
-//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
 		} 
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		Map<String, Object[]> Values = new HashMap<String, Object[]>();
 		Map<String, Object[]> filteredValues = new HashMap<String, Object[]>();
-		
-		boolean filterEnabled = form.getFirst("filterEnabled").equalsIgnoreCase("true");
-		if(filterEnabled) {
-			Object[] valueArray = TableDataFrameUtilities.getExploreTableFilterModel(mainTree);
-			
-			retMap.put("unfilteredValues", valueArray[0]);
-			retMap.put("filteredValues", valueArray[1]);
-		} else {
-			//Grab all the 'visible' or 'unfiltered' values last column
-			String lastColumn = columnHeaders[columnHeaders.length - 1];
-			Values.put(lastColumn, mainTree.getUniqueRawValues(lastColumn));
-			filteredValues.put(lastColumn, mainTree.getFilteredUniqueRawValues(lastColumn));
-			
-			for(int i = 0; i < columnHeaders.length; i++) {
-				Values.put(columnHeaders[i], mainTree.getUniqueRawValues(columnHeaders[i]));
-				filteredValues.put(columnHeaders[i], mainTree.getFilteredUniqueRawValues(columnHeaders[i]));
-			}
-			
-			retMap.put("unfilteredValues", Values);
-			retMap.put("filteredValues", filteredValues);
-		}
-		
 
-		
-		//return tableID for consistency
-		//return filtered and unfiltered values, these values will be used to populate the values and checks in the drop down menu for each column in the table view
-		retMap.put("selectedColumn", selectedColumn);
-		retMap.put("tableID", tableID);
-		
+		//Grab all the 'visible' or 'unfiltered' values last column
+		String lastColumn = columnHeaders[columnHeaders.length - 1];
+		Values.put(lastColumn, mainTree.getUniqueRawValues(lastColumn));
+		filteredValues.put(lastColumn, mainTree.getFilteredUniqueRawValues(lastColumn));
+
+		for(int i = 0; i < columnHeaders.length; i++) {
+			Values.put(columnHeaders[i], mainTree.getUniqueRawValues(columnHeaders[i]));
+			filteredValues.put(columnHeaders[i], mainTree.getFilteredUniqueRawValues(columnHeaders[i]));
+		}
+
+		retMap.put("unfilteredValues", Values);
+		retMap.put("filteredValues", filteredValues);
+
+
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
@@ -1043,52 +1039,51 @@ public class EngineResource {
 	@Path("/unfilterColumns")
 	@Produces("application/json")
 	public Response getVisibleValues(MultivaluedMap<String, String> form,
-			@QueryParam("tableID") String tableID,
+			@QueryParam("insightID") String insightID,
 			@QueryParam("concept") String[] concepts)
 	{
-		ITableDataFrame mainTree = TableDataFrameStore.getInstance().get(tableID);		
-		if(mainTree == null) {
-			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+		Insight insight = InsightStore.getInstance().get(insightID);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		if(insight == null) {
+			retMap.put("errorMessage", "Invalid insight ID. Data not found");
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
 		}
+		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
 
 		for(String concept: concepts) {
 			mainTree.unfilter(concept);
 		}
 
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		retMap.put("tableID", tableID);
+		retMap.put("insightID", insightID);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
 	@GET
 	@Path("/getFilterValues")
 	@Produces("application/json")
-	/**
-	 * 
-	 * @param tableID
-	 * @param concept
-	 * @param request
-	 * @return
-	 */
-	public Response getNextUniqueValues(@QueryParam("tableID") String tableID,
+	public Response getNextUniqueValues(@QueryParam("insightID") String insightID,
 			@QueryParam("concept") String concept,
 			@QueryParam("filterEnabled") String FilterEnabled,
 			@Context HttpServletRequest request)
 	{
-		boolean filterEnabled = FilterEnabled.equalsIgnoreCase("true");
-		ITableDataFrame mainTree = TableDataFrameStore.getInstance().get(tableID);		
-		if(mainTree == null) {
-			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+		Insight insight = InsightStore.getInstance().get(insightID);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		if(insight == null) {
+			retMap.put("errorMessage", "Invalid insight ID. Data not found");
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
 		}
-		
+		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
 		Iterator<Object> uniqueValueIterator = mainTree.uniqueValueIterator(concept, true, false);
 		List<Object> selectedFilterValues = new ArrayList<Object>();
 		while(uniqueValueIterator.hasNext()) {
 			selectedFilterValues.add(uniqueValueIterator.next());
 		}
-		
+
 		String[] columnHeaders = mainTree.getColumnHeaders();
 		List<Object> availableFilterValues = new ArrayList<Object>();
+
+		//TODO: why is this always false?
+		boolean filterEnabled = false;
 		if(!filterEnabled || (filterEnabled && concept.equalsIgnoreCase(columnHeaders[0]))) {
 			uniqueValueIterator = mainTree.uniqueValueIterator(concept, true, true);
 			while(uniqueValueIterator.hasNext()) {
@@ -1097,30 +1092,31 @@ public class EngineResource {
 		} else {
 			availableFilterValues = selectedFilterValues;
 		}
-				
-		
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		retMap.put("tableID", tableID);
+
+		retMap.put("insightID", insightID);
 		retMap.put("selectedFilterValues", selectedFilterValues);
 		retMap.put("availableFilterValues", availableFilterValues);
 
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
-	
+
 	@POST
 	@Path("/getNextTableData")
 	@Produces("application/json")
 	public Response getNextTable(MultivaluedMap<String, String> form,
 			@QueryParam("startRow") Integer startRow,
 			@QueryParam("endRow") Integer endRow,
-			@QueryParam("tableID") String tableID,
+			@QueryParam("insightID") String insightID,
 			@Context HttpServletRequest request)
 	{
-		ITableDataFrame mainTree = TableDataFrameStore.getInstance().get(tableID);
-		if (mainTree == null) {
-			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+		Insight insight = InsightStore.getInstance().get(insightID);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		if(insight == null) {
+			retMap.put("errorMessage", "Invalid insight ID. Data not found");
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
 		}
-		
+		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
+
 		Gson gson = new Gson();
 		String concept = null;
 		String sort = null;
@@ -1132,26 +1128,10 @@ public class EngineResource {
 		} catch (Exception e) {
 			sort = "asc";
 		}
-		
-//		HttpSession session = request.getSession();
-//		if(session.getAttribute(tableID) == null) {
-//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-//		}
-//		
-//		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-//
+
 		Map<String, Object> valuesMap = new HashMap<String, Object>();
-//		valuesMap.put(tableID, scroller.getNextData(concept, sort, startRow, endRow));
-		
-		if(tableID == null) {
-			valuesMap.put("", TableDataFrameUtilities.getTableData(mainTree, concept, sort, startRow, endRow));
-		} else {
-			valuesMap.put(tableID, TableDataFrameUtilities.getTableData(mainTree, concept, sort, startRow, endRow));
-		}
-		//TODO: use this instead and take out all session storage, getting data seems to be cheap (1 ms) for most operations
-		//plus the way the user would use this (only caring about first few pages but making frequent changes, this would be better and simpler)
-//		valuesMap.put(tableID, TableDataFrameWebAdapter.getData(mainTree, concept, sort, startRow, endRow));
-		
+		valuesMap.put(insightID, TableDataFrameUtilities.getTableData(mainTree, concept, sort, startRow, endRow));
+
 		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
 		String[] varKeys = mainTree.getColumnHeaders();
 		String[] uriKeys = mainTree.getURIColumnHeaders();
@@ -1162,8 +1142,7 @@ public class EngineResource {
 			headerInfo.add(innerMap);
 		}
 
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		retMap.put("tableID", tableID);
+		retMap.put("insightID", insightID);
 		retMap.put("numRows", mainTree.getNumRows());
 		retMap.put("headers", headerInfo);
 		retMap.put("tableData", valuesMap);
@@ -1174,9 +1153,15 @@ public class EngineResource {
 	@GET
 	@Path("/getTableHeaders")
 	@Produces("application/json")
-	public Response getTableHeaders(@QueryParam("tableID") String tableID) {
-		ITableDataFrame table = TableDataFrameStore.getInstance().get(tableID);		
-		
+	public Response getTableHeaders(@QueryParam("insightID") String insightID) {
+		Insight insight = InsightStore.getInstance().get(insightID);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		if(insight == null) {
+			retMap.put("errorMessage", "Invalid insight ID. Data not found");
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
+		}
+		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();	
+
 		List<Map<String, String>> tableHeaders = new ArrayList<Map<String, String>>();
 		String[] columnHeaders = table.getColumnHeaders();
 		String[] uriKeys = table.getURIColumnHeaders();
@@ -1186,13 +1171,12 @@ public class EngineResource {
 			innerMap.put("varKey", columnHeaders[i]);
 			tableHeaders.add(innerMap);
 		}
-		
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		retMap.put("tableID", tableID);
+
+		retMap.put("insightID", insightID);
 		retMap.put("tableHeaders", tableHeaders);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
-	
+
 	@POST
 	@Path("/addData")
 	@Produces("application/json")
@@ -1200,123 +1184,73 @@ public class EngineResource {
 			@QueryParam("existingConcept") String currConcept, 
 			@QueryParam("joinConcept") String equivConcept, 
 			@QueryParam("joinType") String joinType,
-			@QueryParam("tableID") String tableID,
+			@QueryParam("insightID") String insightID,
 			@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 
-		ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
-        if(existingData != null) {
-               if(currConcept != null && !currConcept.isEmpty() && !joinType.equals("outer")) {
-                     List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
-                     StringMap<List<Object>> stringMap;
-                     if(((StringMap) dataHash.get("QueryData")).containsKey(AbstractQueryBuilder.filterKey)) {
-                            stringMap = (StringMap<List<Object>>) ((StringMap) dataHash.get("QueryData")).get(AbstractQueryBuilder.filterKey);
-                     } else {
-                            stringMap = new StringMap<List<Object>>();
-                     }
-                     stringMap.put(currConcept, filteringValues);
-                     ((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
-               }
-        }
-		
-		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-//		boolean isSparql = builder instanceof SPARQLQueryTableBuilder;
-		builder.setJSONDataHash(dataHash);
-		builder.buildQuery();
-		String query = builder.getQuery();
+		// Very simply, here is the logic:
+		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
+		// 2. Else, we get the insight from session (if the insight isn't in session, we are done--throw an error)
+		// 2. a. If its not an outer join, add a filter transformation with all instances from other column in order to speed up join
+		// 2. b. Add join transformation since we know a tree already exists and we will have to join to it
+		// 3. Process the component
 
-		System.out.println(query);
+		// get the insight if an id has been passed
+		Insight insight = null;
 
-		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
-		String[] newNames = wrap.getVariables();
-		String[] newUriNames = new String[newNames.length];
+		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, dataHash);
 
-		List<Hashtable<String, String>> nodeV = builder.getNodeV();
-		List<Hashtable<String, String>> nodePropV = builder.getNodePropV();
-		if(nodeV != null) {
-			for(int i = 0; i < nodeV.size(); i++) {
-				String varKey = Utility.cleanVariableString(nodeV.get(i).get("varKey"));
-				String uri = nodeV.get(i).get("uriKey");
-				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(newNames, varKey);
-				newUriNames[uriIndex] = uri;
+		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
+		if(insightID == null || insightID.isEmpty()) {
+			insight = new Insight(this.coreEngine, "BTreeDataFrame", PlaySheetRDFMapBasedEnum.getSheetName("Grid")); // TODO: this needs to be an enum or grabbed from rdf map somehow
+			insightID = InsightStore.getInstance().put(insight);
+		} 
+
+		// 2. Else, we get the insight from session (if the insight isn't in session, we are done--throw an error)
+		else {
+			insight = InsightStore.getInstance().get(insightID);
+			if(insight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-		}
-		if(nodePropV != null) {
-			for(int i = 0; i < nodePropV.size(); i++) {
-				String varKey = Utility.cleanVariableString(nodePropV.get(i).get("varKey"));
-				String uri = nodePropV.get(i).get("uriKey");
-				int uriIndex = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(newNames, varKey);
-				newUriNames[uriIndex] = uri;
-			}
-		}
 
-		// if performing a join, currently need to have it s.t. the joining column is the root
-		// this will be taken care of when shifting the headers order since btree adds based on that order
-		if(tableID != null && !tableID.isEmpty()) {
-			int joiningConceptIndex = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(newNames, equivConcept);
-			if(joiningConceptIndex != 0) {
-				String varPlaceHolder = newNames[0];
-				String uriPlaceHolder = newUriNames[0];
-				newNames[0] = newNames[joiningConceptIndex];
-				newUriNames[0] = newUriNames[joiningConceptIndex];
-				newNames[joiningConceptIndex] = varPlaceHolder;
-				newUriNames[joiningConceptIndex] = uriPlaceHolder;
+			// 2. a. If its not an outer join, add a filter transformation with all instances from other column in order to speed up join
+			if(!joinType.equals("outer")) {
+				List<Object> filteringValues = Arrays.asList( ((ITableDataFrame) insight.getDataMaker()).getUniqueRawValues(currConcept));
+				Map<String, Object> transProps = new HashMap<String, Object>();
+				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, currConcept);
+				transProps.put(FilterTransformation.VALUES_KEY, filteringValues);
+				ISEMOSSTransformation filterTrans = new FilterTransformation();
+				filterTrans.setProperties(transProps);
+				dmc.addPreTrans(filterTrans);
 			}
+
+			// 2. b. Add join transformation since we know a tree already exists and we will have to join to it
+			ISEMOSSTransformation joinTrans = new JoinTransformation();
+			Map<String, Object> selectedOptions = new HashMap<String, Object>();
+			selectedOptions.put(JoinTransformation.COLUMN_ONE_KEY, currConcept);
+			selectedOptions.put(JoinTransformation.COLUMN_TWO_KEY, equivConcept);
+			selectedOptions.put("joinType", joinType);
+			joinTrans.setProperties(selectedOptions);
+			dmc.addPostTrans(joinTrans);
 		}
 
-		// creating new dataframe from query
-		ITableDataFrame newTree = new BTreeDataFrame(newNames, newUriNames);
-		while (wrap.hasNext()) {
-			ISelectStatement iss = wrap.next();
-			Map<String, Object> cleanHash = new HashMap<String, Object>();
-			Map<String, Object> rawHash = new HashMap<String, Object>();
-			for(int idx = 0; idx < newNames.length; idx++) {
-				cleanHash.put(newNames[idx], iss.getVar(newNames[idx]));
-				rawHash.put(newNames[idx], iss.getRawVar(newNames[idx]));
-			}
-			newTree.addRow(cleanHash, rawHash);
-		}
-
-		if(tableID == null || tableID.isEmpty()) {
-			// new table, store and return success
-			System.err.println("Levels in main tree are " + Arrays.toString(newTree.getColumnHeaders()));
-
-			tableID = TableDataFrameStore.getInstance().put(newTree);
-			TableDataFrameStore.getInstance().addToSessionHash(request.getSession().getId(), tableID);
-
-			Map<String, Object> retMap = new HashMap<String, Object>();
-			retMap.put("tableID", tableID);
-			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-
+		// 3. Process the component
+		System.err.println("Starting component processing...");
+		long startJoinTime = System.currentTimeMillis();
+		insight.processDataMakerComponent(dmc);
+		System.err.println("Finished processing component: " + (System.currentTimeMillis() - startJoinTime) + " ms");
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		retMap.put("insightID", insightID);
+		if(dmc.getPostTrans().isEmpty()) {
+			retMap.put("stepID", dmc.getId());
 		} else {
-			// grab existing dataframe
-			existingData = TableDataFrameStore.getInstance().get(tableID);
-			if(existingData == null) {
-				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
-			}
-
-			IMatcher alg = null;
-			switch(joinType) {
-				case "inner" : alg = new ExactStringMatcher(); 
-					break;
-				case "partial" : alg = new ExactStringPartialOuterJoinMatcher(); 
-					break;
-				case "outer" : alg = new ExactStringOuterJoinMatcher();
-					break;
-				default : alg = new ExactStringMatcher(); 
-			}
-
-			System.err.println("Starting Join...");
-			long startJoinTime = System.currentTimeMillis();
-			existingData.join(newTree, currConcept, equivConcept, 1, alg);
-			System.err.println("Finished Join: " + (System.currentTimeMillis() - startJoinTime) + " ms");
-			System.err.println("New levels in main tree are " + Arrays.toString(existingData.getColumnHeaders()));
-			Map<String, Object> retMap = new HashMap<String, Object>();
-			retMap.put("tableID", tableID);
-			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+			retMap.put("stepID", dmc.getPostTrans().get(0).getId());
 		}
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
 	@POST
@@ -1325,7 +1259,7 @@ public class EngineResource {
 	public Response getCustomFilterOptions(MultivaluedMap<String, String> form, 
 			@QueryParam("existingConcept") String currConcept, 
 			@QueryParam("joinType") String joinType,
-			@QueryParam("tableID") String tableID,
+			@QueryParam("insightID") String insightID,
 			//@QueryParam("reset") boolean reset,
 			@Context HttpServletRequest request)
 	{
@@ -1334,7 +1268,7 @@ public class EngineResource {
 		// if reset 
 
 		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+		Map<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Map<String, Object>>() {}.getType());
 
 		boolean outer = false;
 		boolean inner = false;
@@ -1345,12 +1279,20 @@ public class EngineResource {
 		}
 
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		
-		if(tableID != null && !tableID.isEmpty() && !outer) {
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty() && !outer) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			Map<String, String> errorHash = new HashMap<String, String>();
+			if(existingInsight == null) {
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+
 			// need to add bindings for query if not outer join
-			ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
+			ITableDataFrame existingData = (ITableDataFrame) existingInsight.getDataMaker();
 			if(existingData == null) {
-				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
+				errorHash.put("errorMessage", "Dataframe not found within insight");
+				return Response.status(400).entity(errorHash).build();
 			}
 
 			if(currConcept != null && !currConcept.isEmpty()) {
@@ -1367,7 +1309,8 @@ public class EngineResource {
 				stringMap.put(currConcept, filteringValues);
 				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
 			} else {
-				return Response.status(400).entity(WebUtility.getSO("Cannot perform filtering when current concept to filter on is not defined")).build();
+				errorHash.put("errorMessage", "Cannot perform filtering when current concept to filter on is not defined");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
 
@@ -1382,7 +1325,7 @@ public class EngineResource {
 		int index = 0;
 		if(newNames.length > 1) {
 			int currIndexexistingConcept = 0;
-			
+
 			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(newNames, currConcept);
 			if(currIndexexistingConcept == 0) {
 				index = 1;
@@ -1406,17 +1349,17 @@ public class EngineResource {
 
 		return Response.status(200).entity(WebUtility.getSO(retList)).build();
 	}
-	
+
 	// author: jason
-    @POST
-    @Path("searchColumn")
-    @Produces("application/json")
-    public Response searchColumn(MultivaluedMap<String, String> form,
-    		@QueryParam("existingConcept") String currConcept,
-			@QueryParam("joinType") String joinType, @QueryParam("tableID") String tableID, @QueryParam("columnHeader") String columnHeader,
+	@POST
+	@Path("searchColumn")
+	@Produces("application/json")
+	public Response searchColumn(MultivaluedMap<String, String> form,
+			@QueryParam("existingConcept") String currConcept,
+			@QueryParam("joinType") String joinType, @QueryParam("insightID") String insightID, @QueryParam("columnHeader") String columnHeader,
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") String limit, @QueryParam("offset") String offset,
 			@Context HttpServletRequest request) {
-		
+
 		HttpSession session = request.getSession();
 		// check if a result set has been cached
 		if (session.getAttribute(InstanceStreamer.KEY) != null) {
@@ -1426,9 +1369,9 @@ public class EngineResource {
 			if (ID != null && ID.equals(Utility.getInstanceName(columnHeader)) && !columnHeader.equals("")) {
 				logger.info("Fetching cached results for ID: "+stream.getID());
 				if (!searchTerm.equals("") && searchTerm != null) {
-					
+
 					logger.info("Searching cached results for searchTerm: "+searchTerm);
-					ArrayList<Object> results = stream.regexSearch(searchTerm);
+					ArrayList<Object> results = stream.search(searchTerm);
 					stream = new InstanceStreamer(results);
 					logger.info(Integer.toString(stream.getSize())+" results found.");
 				}
@@ -1441,7 +1384,7 @@ public class EngineResource {
 				return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 			}
 		}
-		
+
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 
@@ -1460,21 +1403,37 @@ public class EngineResource {
 			currConcept = currConcept.toUpperCase();
 		}
 
-		if (tableID != null && !tableID.isEmpty() && !outer) {
+		if(insightID != null && !insightID.isEmpty() && !outer) {
 			// need to add bindings for query if not outer join
-			ITableDataFrame existingData = TableDataFrameStore.getInstance().get(tableID);
+			Insight existingInsight = InsightStore.getInstance().get(insightID);
+			Map<String, String> errorHash = new HashMap<String, String>();
+			if(existingInsight == null) {
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+			
+			ITableDataFrame existingData = (ITableDataFrame) existingInsight.getDataMaker();
 			if (existingData == null) {
-				return Response.status(400).entity(WebUtility.getSO("Dataframe not found")).build();
+				errorHash.put("errorMessage", "Dataframe not found within insight");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 
 			if (currConcept != null && !currConcept.isEmpty()) {
 				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
+				// HttpSession session = request.getSession();
+				// if(session.getAttribute(tableID) == null) {
+				// session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(existingData));
+				// }
+				//
+				// InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
+				// List<HashMap<String, String>> filteringValues = scroller.getNextUniqueValues(currConcept);
+				//
 				StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
 				stringMap.put(currConcept, filteringValues);
 				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
 			} else {
-				return Response.status(400).entity(WebUtility.getSO("Cannot perform filtering when current concept to filter on is not defined"))
-						.build();
+				errorHash.put("errorMessage", "Cannot perform filtering when current concept to filter on is not defined");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
 
@@ -1488,14 +1447,14 @@ public class EngineResource {
 		int index = 0;
 		if (newNames.length > 1) {
 			int currIndexexistingConcept = 0;
-			
+
 			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
 			if (currIndexexistingConcept == 0) {
 				index = 1;
 			}
 		}
 
-        // creating new list of values from query
+		// creating new list of values from query
 		ArrayList<Object> retList = new ArrayList<Object>();
 		while (wrap.hasNext()) {
 			ISelectStatement iss = wrap.next();
@@ -1513,20 +1472,21 @@ public class EngineResource {
 		// put everything into InstanceStreamer object
 		InstanceStreamer stream = new InstanceStreamer(retList);
 		logger.info("Creating InstanceStreamer object with ID: "+columnHeader);
+		//String ID = Utility.getInstanceName(columnHeader) + Integer.toString(stream.getSize());
 		stream.setID(Utility.getInstanceName(columnHeader));
 
 		// set InstanceStreamer object
 		session.setAttribute(InstanceStreamer.KEY, stream);
 		logger.info("Searching column for searchTerm: "+searchTerm);
 		if (!searchTerm.equals("") && searchTerm != null) {
-			ArrayList<Object> results = stream.regexSearch(searchTerm);
+			ArrayList<Object> results = stream.search(searchTerm);
 			stream = new InstanceStreamer(results);
 			logger.info(Integer.toString(stream.getSize())+" results found.");
 		}
 
 		logger.info("Returning items "+offset+" through "+Integer.toString(Integer.parseInt(offset) + Integer.parseInt(limit))+".");
 		ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
-		
+
 		Map<String, Object> returnData = new HashMap<String, Object>();
 		returnData.put("data", uniqueResults);
 		returnData.put("size", stream.getSize());
@@ -1534,47 +1494,46 @@ public class EngineResource {
 	}
 
 
-    // author: jason
-    @POST
-    @Path("clearCache")
-    @Produces("application/json")
-    public Response clearCache(@Context HttpServletRequest request) {
-		
+	@POST
+	@Path("clearCache")
+	@Produces("application/json")
+	public Response clearCache(@Context HttpServletRequest request) {
+
 		HttpSession session = request.getSession();
-		
+
 		if (session.getAttribute(InstanceStreamer.KEY) != null) {
 			InstanceStreamer stream = (InstanceStreamer) session.getAttribute(InstanceStreamer.KEY);
 			stream.setID(null);
 		}
-			
+
 		Map<String, Object> returnData = new HashMap<String, Object>();
 		returnData.put("success", "yes");
-		
-		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
-    }
 
-    // author: jason
-    @POST
-    @Path("loadAllFromCache")
-    @Produces("application/json")
-    public Response loadAllFromCache(
-    		@QueryParam("searchTerm") String searchTerm, 
+		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+	}
+
+	// author: jason
+	@POST
+	@Path("loadAllFromCache")
+	@Produces("application/json")
+	public Response loadAllFromCache(
+			@QueryParam("searchTerm") String searchTerm, 
 			@Context HttpServletRequest request) {
-		
+
 		HttpSession session = request.getSession();
-		
+
 		if (session.getAttribute(InstanceStreamer.KEY) != null) {
 			InstanceStreamer stream = (InstanceStreamer) session.getAttribute(InstanceStreamer.KEY);
-			
+
 			if (!searchTerm.equals("") && searchTerm != null) {
 				logger.info("Searching column for searchTerm: "+searchTerm);
 				ArrayList<Object> results = stream.regexSearch(searchTerm);
 				stream = new InstanceStreamer(results);
 				logger.info(Integer.toString(stream.getSize())+" results found.");
 			}
-			
+
 			ArrayList<Object> cachedList = stream.getList();
-			
+
 			Map<String, Object> returnData = new HashMap<String, Object>();
 			returnData.put("data", cachedList);
 			return Response.status(200).entity(WebUtility.getSO(returnData)).build();
@@ -1582,7 +1541,7 @@ public class EngineResource {
 		else {
 			return Response.status(400).entity(WebUtility.getSO("Could not find cache")).build();
 		}
-    }
+	}
 
 
 
@@ -1590,29 +1549,31 @@ public class EngineResource {
 	@Path("getVizTable")
 	@Produces("application/json")
 	public Response getExploreTable(
-			@QueryParam("tableID") String tableID,
+			@QueryParam("insightID") String insightID,
 			//@QueryParam("start") int start,
 			//@QueryParam("end") int end,
 			@Context HttpServletRequest request)
 	{
-		ITableDataFrame mainTree = TableDataFrameStore.getInstance().get(tableID);		
-		if(mainTree == null) {
-			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
 		}
-		
-//		HttpSession session = request.getSession();
-//		boolean first = false;
-//		if(session.getAttribute(tableID) == null) {
-//			session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(mainTree));
-//			first = true;
-//		}
-//		
-//		InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-		
-		List<HashMap<String, Object>> allTableData = TableDataFrameUtilities.getTableData(mainTree);//scroller.getNextData(null, "desc", 0, mainTree.getNumRows());
+
+		ITableDataFrame mainTree = (ITableDataFrame) existingInsight.getDataMaker();		
+		if(mainTree == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Dataframe not found within insight");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+
+		List<HashMap<String, Object>> table = TableDataFrameUtilities.getTableData(mainTree);
 		Map<String, Object> returnData = new HashMap<String, Object>();
-		
-		returnData.put("data", allTableData);
+		returnData.put("data", table);
 
 		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
 		String[] varKeys = mainTree.getColumnHeaders();
@@ -1624,7 +1585,7 @@ public class EngineResource {
 			headerInfo.add(innerMap);
 		}
 		returnData.put("headers", headerInfo);
-		returnData.put("tableID", tableID);
+		returnData.put("insightID", insightID);
 		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 	}
 
@@ -1650,17 +1611,17 @@ public class EngineResource {
 	@Produces("application/json")	
 	public Response saveForm(MultivaluedMap<String, String> form) 
 	{
-		
+
 		String basePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String formName = form.getFirst("formName");
 		String jsonLoc = basePath + System.getProperty("file.separator") + "Forms" + formName + ".json";
 		String formData = form.getFirst("formData");
-		
+
 		try {
 			FormBuilder.saveForm(formData, jsonLoc);
 		} catch (IOException e) {
 			return Response.status(400).entity(WebUtility.getSO(e.getMessage())).build();
-				}
+		}
 
 		return Response.status(200).entity(WebUtility.getSO("saved successfully")).build();
 	}
@@ -1686,7 +1647,7 @@ public class EngineResource {
 		//TODO: pass string and let fron end do parsing
 		JsonParser parser = new JsonParser();
 		JsonArray ja = parser.parse(formJson).getAsJsonArray();
-		
+
 		return Response.status(200).entity(WebUtility.getSO((formJson))).build();
 	}
 
@@ -1701,175 +1662,10 @@ public class EngineResource {
 			FormBuilder.saveFormData(form);
 		} catch(Exception e) {
 			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
-			}
-			
+		}
+
 		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
 	}
-
-
-	@GET
-	@Path("menu")
-	@Produces("application/json")	
-	public Response getMenu(@QueryParam("user") String user, @QueryParam("start") String starter, @Context HttpServletRequest request)
-	{
-		if(user == null)
-			user = "All";
-		if(starter == null)
-			starter = "ContextMenu";
-
-		String menuSubMenuQuery = "SELECT ?Menu ?MType ?MURL ?Submenu ?SMenuLabel ?SURL ?SType ?ChildMenu ?ChURL ?ChLabel ?CType ?MenuFiller ?SFiller ?CFiller WHERE " +
-				"{BIND( <http://semoss.org/ontologies/Concept/Owner/" + user + "> AS ?User) " +
-				"{?Menu <http://semoss.org/ontologies/Relation/Owner> ?User} " +
-				"{?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} " +
-				"{?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel} " +
-				"{?Menu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?MenuFiller} " +
-				"{?Menu <http://semoss.org/ontologies/Relation/Contains/Type> ?MType} " +
-				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} " +
-				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} " +
-				"OPTIONAL " +
-				"{" +
-				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL> ?SURL}  " +
-				"{?Submenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?SFiller}  " +
-				"{?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} " +
-				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}" +
-				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} " +
-				"}" +
-				"OPTIONAL " +
-				"{" +
-				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;} " +
-				"{?ChildMenu <http://semoss.org/ontologies/Relation/Contains/FillerName> ?CFiller;} " +
-				"} " +
-				"OPTIONAL " +
-				"{" +
-				"{?Menu <http://semoss.org/ontologies/Relation/Contains/URL> ?MURL}" +
-				"}" +
-				"FILTER regex(str(?MenuLabel),'" + starter + "', 'i')}";
-
-		// menuSubMenuQuery = "SELECT ?Menu ?Submenu ?SMenuLabel ?SURL ?SType ?ChildMenu ?ChURL ?ChLabel WHERE {BIND( <http://semoss.org/ontologies/Concept/Owner/All> AS ?User) {?Menu <http://semoss.org/ontologies/Relation/Owner> ?User} }";
-		//{?Menu <http://semoss.org/ontologies/Relation/submenu> ?Submenu} {?Menu <http://semoss.org/ontologies/Relation/Contains/Label> ?MenuLabel} {?Submenu <http://semoss.org/ontologies/Relation/Contains/Label> ?SMenuLabel} {?Submenu <http://semoss.org/ontologies/Relation/Contains/Type> ?SType} OPTIONAL {{?Submenu <http://semoss.org/ontologies/Relation/Contains/URL> ?SURL}  {?Submenu <http://semoss.org/ontologies/Relation/submenu> ?ChildMenu} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Type> ?CType} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/URL> ?ChURL;} {?ChildMenu <http://semoss.org/ontologies/Relation/Contains/Label> ?ChLabel}} FILTER regex(str(?MenuLabel), 'Data', 'i')}";
-
-		SesameJenaSelectWrapper wrapper = new SesameJenaSelectWrapper();
-		wrapper.setEngine(coreEngine);
-		wrapper.setQuery(menuSubMenuQuery);
-		wrapper.setEngineType(IEngine.ENGINE_TYPE.SESAME);
-		wrapper.executeQuery();
-
-		System.out.println("Query.... " + menuSubMenuQuery);
-		System.out.println("Variables " + wrapper.getVariables());
-
-		Hashtable allMenu = new Hashtable();
-		ArrayList<String> subMenus = new ArrayList();
-
-		while(wrapper.hasNext())
-		{
-			System.out.println("New record");
-			SesameJenaSelectStatement stmt = wrapper.next();
-			String menu = (String)stmt.getVar("Menu");
-
-			String menuType = ((String)stmt.getVar("MType")).replace("\"", "");
-			String menuURL = ((String)stmt.getVar("MURL")).replace("\"", "").replace("*","/");
-			String menuFiller = ((String)stmt.getVar("MenuFiller")).replace("\"", "");
-
-			String subMenu = ((String)stmt.getVar("Submenu")).replace("\"", "");
-			String subMenuLabel = ((String)stmt.getVar("SMenuLabel")).replace("\"", "");
-			String sType = ((String)stmt.getVar("SType")).replace("\"", "");
-			String surl = ((String)stmt.getVar("SURL")).replace("\"", "").replace("*","/"); // eventually it will be a * instead of a -
-			String sFiller = ((String)stmt.getVar("SFiller")).replace("\"", "");
-
-			allMenu.put("Menu", starter);
-			allMenu.put("Type", menuType);
-			allMenu.put("URL", menuURL);
-			allMenu.put("Filler", menuFiller);
-
-
-			// submenu
-			Hashtable smenuHash = new Hashtable();
-			if(allMenu.containsKey(subMenuLabel)) {
-				smenuHash = (Hashtable)allMenu.get(subMenuLabel);
-			}
-			else {
-				subMenus.add(subMenuLabel);
-			}
-
-			smenuHash.put("Label", subMenuLabel);
-			smenuHash.put("Type", sType);
-			smenuHash.put("URL", surl);
-			smenuHash.put("Filler", sFiller);
-
-			// finally the sub sub menu
-			String childMenu = ((String)stmt.getVar("ChildMenu")).replace("\"", "");
-			String chMenuLabel = ((String)stmt.getVar("ChLabel")).replace("\"","");
-			String chURL = ((String)stmt.getVar("ChURL")).replace("\"", "").replace("*","/"); // eventually I will put this as a * so it can be replaced
-			String cType = ((String)stmt.getVar("CType")).replace("\"", "");
-			String cFiller = ((String)stmt.getVar("CFiller")).replace("\"", "");
-
-			ArrayList <String> childMenus = new ArrayList();
-			if(chMenuLabel != null && chMenuLabel.length() != 0)
-			{
-				System.out.println(" Child Menu for " + subMenuLabel + "  Child is " + childMenu);
-				Hashtable childMenuHash = new Hashtable();
-				if(smenuHash.containsKey(chMenuLabel))
-				{
-					System.out.println("Has the child menu label [" + chMenuLabel + "]");
-					childMenuHash = (Hashtable)smenuHash.get(chMenuLabel);
-				}
-				else {
-					childMenus.add(chMenuLabel);
-				}
-				childMenuHash.put("Label", chMenuLabel);
-				childMenuHash.put("URL", chURL);
-				childMenuHash.put("Type", cType);
-				childMenuHash.put("Filler", cFiller);
-
-				System.out.println("Child menus is " + childMenus);
-
-				if(childMenus.size() > 0) {
-					smenuHash.put("Submenus", childMenus);
-				}
-				smenuHash.put(chMenuLabel, childMenuHash);
-			}
-
-			System.out.println("Submenu " + smenuHash);
-			allMenu.put("Submenus", subMenus);
-			allMenu.put(subMenuLabel, smenuHash);
-		}
-
-		// master the hashtable for empty
-		for(int subMenuIndex = 0;subMenuIndex < subMenus.size();subMenuIndex++)
-		{
-			Hashtable thisMenu = (Hashtable)allMenu.get(subMenus.get(subMenuIndex));
-			if(!thisMenu.containsKey("Submenus") || ((ArrayList)thisMenu.get("Submenus")).size() == 0)
-			{
-				ArrayList tempList = new ArrayList();
-				tempList.add("EMPTY");
-				thisMenu.put("Submenus", tempList);
-			}
-		}
-		if(subMenus.size() == 0)
-		{
-			subMenus.add("EMPTY");
-			allMenu.put("Submenus", subMenus);
-		}	
-
-		System.out.println(">>>.... " + new GsonBuilder().setPrettyPrinting().create().toJson(allMenu));
-
-		return Response.status(200).entity(WebUtility.getSO(allMenu)).build();
-	}
-	//  	
-	//  	private ArrayList<Hashtable<String,String>> getHashArrayFromString(String arrayString){
-	//  		System.err.println("MY STRING " + arrayString);
-	//  		ArrayList<Hashtable<String,String>> retArray = new ArrayList<Hashtable<String,String>>();
-	//		if(arrayString != null) {
-	//			Gson gson = new Gson();
-	//			ArrayList<Object> varsObjArray = gson.fromJson(arrayString, ArrayList.class);
-	//			for(Object varsObj : varsObjArray){
-	//				Hashtable newHash = new Hashtable();
-	//				newHash.putAll((StringMap)varsObj);
-	//				retArray.add(newHash);
-	//			}
-	//		}
-	//		return retArray;
-	//  	}
 
 	@Path("/analytics")
 	public Object runEngineAnalytics(){
@@ -1979,11 +1775,11 @@ public class EngineResource {
 		//String query2 = form.getFirst("query2");
 
 		String query1 = "SELECT DISTINCT CAPITAL.CAPITAL, LOWERCASE.LOWERCASE, NUMBER.NUMBER FROM CAPITAL, LOWERCASE, NUMBER WHERE CAPITAL.LOWERCASE_FK=LOWERCASE.LOWERCASE AND LOWERCASE.NUMBER_FK=NUMBER.NUMBER;";
-		
+
 		// Movie_DB Query
 		// String query1 =
 		// "SELECT DISTINCT ?Title ?DomesticRevenue ?InternationalRevenue ?Budget ?RottenTomatoesCritics ?RottenTomatoesAudience WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
-		
+
 		// TAP_Core_Data Query
 		//		String query1 = "SELECT DISTINCT ?ICD ?Source ?Target ?DataObject ?Format ?Frequency ?Protocol WHERE { {?ICD <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/InterfaceControlDocument>} {?Source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?Source <http://semoss.org/ontologies/Relation/Provide> ?ICD} {?Target <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?ICD <http://semoss.org/ontologies/Relation/Consume> ?Target} {?DataObject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/DataObject>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?ICD ?carries ?DataObject} {?carries <http://semoss.org/ontologies/Relation/Contains/Protocol> ?Protocol} {?carries <http://semoss.org/ontologies/Relation/Contains/Format> ?Format} {?carries <http://semoss.org/ontologies/Relation/Contains/Frequency> ?Frequency} } ORDER BY ?ICD";
 
@@ -2027,97 +1823,99 @@ public class EngineResource {
 		DuplicationReconciliation duprec = new DuplicationReconciliation(DuplicationReconciliation.ReconciliationMode.MEAN);
 		DuplicationReconciliation duprecMed = new DuplicationReconciliation(DuplicationReconciliation.ReconciliationMode.MEDIAN);
 		for(String s : columnHeaders) {
-			
+
 		}
-		
+
 		return null;
 	}
 
-	@POST
-	@Path("/publishToFeed")
-	@Produces("application/xml")
-	public Response publishInsight(@QueryParam("visibility") String visibility, @QueryParam("insight") String insight, @Context HttpServletRequest request) {
-		boolean success = false;
-		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
-		Insight insightObj = ((AbstractEngine)coreEngine).getInsight2(insight).get(0);
+	//	@POST
+	//	@Path("/publishToFeed")
+	//	@Produces("application/xml")
+	//	public Response publishInsight(@QueryParam("visibility") String visibility, @QueryParam("insight") String insight, @Context HttpServletRequest request) {
+	//		boolean success = false;
+	//		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+	//		Insight insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
+	//
+	//		NameServerProcessor ns = new NameServerProcessor();
+	//		success = ns.publishInsightToFeed(userId, insightObj, visibility);
+	//
+	//		return success ? Response.status(200).entity(WebUtility.getSO(success)).build() : Response.status(400).entity(WebUtility.getSO(success)).build();
+	//	}
 
-		NameServerProcessor ns = new NameServerProcessor();
-		success = ns.publishInsightToFeed(userId, insightObj, visibility);
-
-		return success ? Response.status(200).entity(WebUtility.getSO(success)).build() : Response.status(400).entity(WebUtility.getSO(success)).build();
-	}
-	
 	@POST
 	@Path("/applyColumnStats")
 	@Produces("application/json")
 	public Response applyColumnStats(MultivaluedMap<String, String> form,  
 			@Context HttpServletRequest request)
 	{
-		String tableID = form.getFirst("tableID");
-		String questionID = form.getFirst("questionID");
+		String insightID = form.getFirst("insightID");
 
-		ITableDataFrame table = TableDataFrameUtilities.getTable(tableID, questionID);
-		if(table == null) {
-			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
-		}
-		
-		Gson gson = new Gson();
-//		String groupBy = form.getFirst("groupBy");
-		String[] groupByCols = gson.fromJson(form.getFirst("groupBy"), String[].class);
-		Map<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
-		
-		boolean singleColumn = groupByCols.length == 1 || (groupByCols.length == 2 && groupByCols[0].equals(groupByCols[1]));
-
-		if(singleColumn) {
-			functionMap = TableDataFrameUtilities.createColumnNamesForColumnGrouping(groupByCols[0], functionMap);
-		} else {
-			functionMap = TableDataFrameUtilities.createColumnNamesForColumnGrouping(groupByCols, functionMap);
-		}
-		
-		String[] columnHeaders = table.getColumnHeaders();
-		Set<String> columnSet = new HashSet<String>();
-		for(String key : functionMap.keySet()) {
-			Map<String, String> map = (Map)functionMap.get(key);
-			String name = map.get("calcName");
-			columnSet.add(name);
-		}
-		
-		for(String name : columnSet) {
-			if(ArrayUtilityMethods.arrayContainsValue(columnHeaders, name)) {
-				table.removeColumn(name);
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
-		
+
+		Gson gson = new Gson();
+		//		String groupBy = form.getFirst("groupBy");
+		String[] groupByCols = gson.fromJson(form.getFirst("groupBy"), String[].class);
+		Map<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
+
+		// Run math transformation
+		ISEMOSSTransformation mathTrans = new MathTransformation();
+		Map<String, Object> selectedOptions = new HashMap<String, Object>();
+		selectedOptions.put(MathTransformation.GROUPBY_COLUMNS, groupByCols);
+		selectedOptions.put(MathTransformation.MATH_MAP, functionMap);
+		mathTrans.setProperties(selectedOptions);
+		List<ISEMOSSTransformation> postTrans = new Vector<ISEMOSSTransformation>();
+		postTrans.add(mathTrans);
+		existingInsight.processPostTransformation(postTrans);
+
+		ITableDataFrame table = (ITableDataFrame) existingInsight.getDataMaker();
 		Map<String, Object> retMap = new HashMap<String, Object>();
-		//only one group by or two of the same
-		if(singleColumn) {
-			ITableStatCounter counter = new ITableStatCounter();
-			counter.addStatsToDataFrame(table, groupByCols[0], functionMap);
-		} else {
-			MultiColumnTableStatCounter multiCounter = new MultiColumnTableStatCounter();
-			multiCounter.addStatsToDataFrame(table, groupByCols, functionMap);
-		}
-		
+
 		retMap.put("tableData", TableDataFrameUtilities.getTableData(table));
 		retMap.put("mathMap", functionMap);
+		retMap.put("insightID", insightID);
+		retMap.put("stepID", mathTrans.getId());
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
-	
+
 	@POST
 	@Path("/hasDuplicates")
 	@Produces("application/json")
 	public Response hasDuplicates(MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request) 
 	{
-		String tableID = form.getFirst("tableID");
-		String questionID = form.getFirst("questionID");
-
-		ITableDataFrame table = TableDataFrameUtilities.getTable(tableID, questionID);
-
-		if(table == null) {
-			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
+		String insightID = form.getFirst("insightID");
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
 		}
-		
+		ITableDataFrame table = null;
+		try {
+			table = (ITableDataFrame) existingInsight.getDataMaker();
+		} catch(ClassCastException e) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Insight data maker could not be cast to a table data frame.");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+		if(table == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Could not find insight data maker.");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+
 		Gson gson = new Gson();
 		String[] columns = gson.fromJson(form.getFirst("concepts"), String[].class);
 		String[] columnHeaders = table.getColumnHeaders();
@@ -2125,7 +1923,7 @@ public class EngineResource {
 		for(int i = 0; i < columnHeaders.length; i++) {
 			columnMap.put(columnHeaders[i], i);
 		}
-		
+
 		Iterator<Object[]> iterator = table.iterator(false);
 		int numRows = table.getNumRows();
 		Set<String> comboSet = new HashSet<String>(numRows);
@@ -2138,11 +1936,11 @@ public class EngineResource {
 				comboValue = comboValue + nextRow[i];
 			}
 			comboSet.add(comboValue);
-			
+
 			if(comboSet.size() < rowCount) {
 				return Response.status(200).entity(WebUtility.getSO(true)).build();
 			}
-			
+
 			rowCount++;
 		}
 		boolean hasDuplicates = comboSet.size() != numRows;
@@ -2189,18 +1987,27 @@ public class EngineResource {
 	@Produces("application/json")
 	public Response sendToExplore(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, Object> returnHash = new Hashtable<String, Object>();
-		String tableID = form.getFirst("tableID");
 		String insightID = form.getFirst("insightID");
 		String query = form.getFirst("query");
 
-		ITableDataFrame dataFrame = TableDataFrameUtilities.getTable(tableID, insightID);
-
-		if (dataFrame == null) {
-			return Response.status(400).entity(WebUtility.getSO("Could not find data.")).build();
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
 		}
 
+		ITableDataFrame dataFrame = (ITableDataFrame) existingInsight.getDataMaker();
+		if (dataFrame == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Dataframe not found within insight");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
 		dataFrame.refresh();
-		
+
 		if (insightID != null && !query.isEmpty()) { // Logic when coming from a preexisting insight ("Browse")
 			Hashtable<String, Object> returnDataHash = new Hashtable<String, Object>();
 			Hashtable<String, String> nodeTriples;
@@ -2230,7 +2037,7 @@ public class EngineResource {
 					keyNode = key.toUpperCase();
 				}
 				nodeDetails = new Hashtable<String, Object>();
-				
+
 				Hashtable<String, Hashtable<String, String>> selectedPropsHash = queryParser.getReturnVariables();
 				Hashtable<String, String> selectedProperties = (Hashtable<String,String>) selectedPropsHash.get(key);
 				ArrayList<String> nodeProps = new ArrayList<String>();
@@ -2256,7 +2063,7 @@ public class EngineResource {
 				}
 			}
 			returnHash.put("nodes", returnDataHash); // Nodes that will be used to build the metamodel in Single-View
-			
+
 			ArrayList<String[]> triplesArr = (ArrayList<String[]>) queryParser.getTriplesData();
 			returnDataHash = new Hashtable<String, Object>();
 			int i = 0;
@@ -2265,7 +2072,7 @@ public class EngineResource {
 				nodeTriples.put("fromNode", triples[0]);
 				nodeTriples.put("relationshipTriple", triples[1]);
 				nodeTriples.put("toNode", triples[2]);
-				
+
 				//get instance from triple and capitalize it for rdbms since btree stores uppercase for rdbms
 				String fromNodeInstance = Utility.getInstanceName(triples[0]);
 				String toNodeInstance = Utility.getInstanceName(triples[2]);
@@ -2279,10 +2086,10 @@ public class EngineResource {
 			}
 			returnHash.put("triples", returnDataHash);
 
-			tableID = TableDataFrameStore.getInstance().put(dataFrame); // place btree into ITableDataFrameStore and generate a tableID so that user no longer uses insightID
+			insightID = InsightStore.getInstance().put(existingInsight); // place btree into ITableDataFrameStore and generate a tableID so that user no longer uses insightID
 		}
-		
-		returnHash.put("tableID", tableID);
+
+		returnHash.put("insightID", existingInsight);
 
 		return Response.status(200).entity(WebUtility.getSO(returnHash)).build();
 	}

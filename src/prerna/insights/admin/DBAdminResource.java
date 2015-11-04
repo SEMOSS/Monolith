@@ -29,6 +29,7 @@ package prerna.insights.admin;
 
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -43,6 +44,8 @@ import javax.ws.rs.core.Response;
 
 import org.apache.log4j.Logger;
 
+import com.google.gson.Gson;
+
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
@@ -51,9 +54,6 @@ import prerna.engine.impl.QuestionAdministrator;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 public class DBAdminResource {
 
@@ -68,24 +68,21 @@ public class DBAdminResource {
 	{
 		Gson gson = new Gson();
 		
-		String enginesString = form.getFirst("engine");
-		String perspectivesString = form.getFirst("perspective");
-		String questionsString = form.getFirst("question");
+		String enginesString = form.getFirst("engines");
+		String perspectivesString = form.getFirst("perspectives");
+		String questionsString = form.getFirst("insightIds");
 		
 		if (questionsString!=null){
-			Vector<String> questions = gson.fromJson(questionsString, Vector.class);
+			List<String> questionIds = gson.fromJson(questionsString, List.class);
 			AbstractEngine engine = getEngine(enginesString, request);
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
 			try{
-				questionAdmin.deleteQuestions(perspectivesString, questions);
-				questionAdmin.createQuestionXMLFile();
+				questionAdmin.removeQuestion(questionIds.toArray(new String[questionIds.size()]));
 			}catch (RuntimeException e){
 				//reload question xml from file if it errored
 				//otherwise xml gets corrupted
 				System.out.println("caught exception while deleting questions.................");
 				e.printStackTrace();
-				System.out.println("reverting xml........................");
-				questionAdmin.revertQuestionXML();
 				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
 			}
 		}
@@ -94,17 +91,12 @@ public class DBAdminResource {
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
 			try{
 				Vector<String> perspectives = gson.fromJson(perspectivesString, Vector.class);
-				for(String perspective: perspectives){
-					questionAdmin.deleteAllFromPersp(perspective);
-				}
-				questionAdmin.createQuestionXMLFile();
+				questionAdmin.removePerspective(perspectives.toArray(new String[perspectives.size()]));
 			}catch (RuntimeException e){
 				//reload question xml from file if it errored
 				//otherwise xml gets corrupted
 				System.out.println("caught exception while deleting perspectives.................");
 				e.printStackTrace();
-				System.out.println("reverting xml........................");
-				questionAdmin.revertQuestionXML();
 				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
 			}
 			
@@ -137,19 +129,17 @@ public class DBAdminResource {
 		Gson gson = new Gson();
 		String perspective = form.getFirst("perspective");
 		String enginesString = form.getFirst("engine");
-		Vector<Hashtable<String, Object>> insightArray = gson.fromJson(form.getFirst("insights") + "", new TypeToken<Vector<Hashtable<String, Object>>>() {}.getType());
+		String insightsString = form.getFirst("insights");
+		List<String> questionIds = gson.fromJson(insightsString, List.class);
 
 		AbstractEngine engine = getEngine(enginesString, request);
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
 		try{
-			questionAdmin.reorderPerspective(perspective, insightArray);
-			questionAdmin.createQuestionXMLFile();
+			questionAdmin.reorderPerspective(perspective, questionIds);
 		} catch(RuntimeException e){
 
 			System.out.println("caught exception while reordering.................");
 			e.printStackTrace();
-			System.out.println("reverting xml........................");
-			questionAdmin.revertQuestionXML();
 			return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
 		}
 
