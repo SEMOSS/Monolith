@@ -132,8 +132,8 @@ public class EngineResource {
 	}
 
 	// All playsheet specific manipulations will go through this
-	@Path("p-{playSheetID}")
-	public Object uploadFile(@PathParam("playSheetID") String insightID) {
+	@Path("p-{insightID}")
+	public Object uploadFile(@PathParam("insightID") String insightID) {
 		//	public Object uploadFile(@PathParam("playSheetID") String playSheetID) {
 
 		PlaySheetResource psr = new PlaySheetResource();
