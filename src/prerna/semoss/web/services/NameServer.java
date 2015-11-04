@@ -550,13 +550,21 @@ public class NameServer {
 			String engineName = engineMap.get("name");
 			System.out.println("Engine insights for : " + engineName);
 			AbstractEngine engine = (AbstractEngine) DIHelper.getInstance().getLocalProp(engineName);
-			List<Map<String, Object>> insightsList = engine.getAllInsightsMetaData();
-			Map<String, Object> dbMap = new Hashtable<String, Object>();
-			//TODO: not tracking count for insight views in rdbms
-			dbMap.put("insights", insightsList);
-			dbMap.put("totalCount", 0);
-			dbMap.put("maxCount", 0);
-			dataMap.put(engineName, dbMap);
+			try {
+				List<Map<String, Object>> insightsList = engine.getAllInsightsMetaData();
+				Map<String, Object> dbMap = new Hashtable<String, Object>();
+				//TODO: not tracking count for insight views in rdbms
+				dbMap.put("insights", insightsList);
+				dbMap.put("totalCount", 0);
+				dbMap.put("maxCount", 0);
+				dataMap.put(engineName, dbMap);
+			} catch (NullPointerException e){
+				logger.error("Null pointer----UNABLE TO LOAD INSIGHTS FOR " + engine.getEngineName());
+				e.printStackTrace();
+			} catch (RuntimeException e){
+				logger.error("Runtime Exception----UNABLE TO LOAD INSIGHTS FOR " + engine.getEngineName());
+				e.printStackTrace();
+			}
 		}
 		
 		Map<String, Object> settingsMap = new Hashtable<String, Object>();
