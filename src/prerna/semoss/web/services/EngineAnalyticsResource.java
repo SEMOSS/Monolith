@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Vector;
 
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -45,20 +46,24 @@ import org.apache.log4j.Logger;
 import com.google.gson.Gson;
 
 import prerna.algorithm.api.ITableDataFrame;
-import prerna.ds.TableDataFrameStore;
+import prerna.algorithm.learning.AlgorithmAction;
+import prerna.algorithm.learning.AlgorithmTransformation;
+import prerna.algorithm.learning.supervized.MatrixRegressionAlgorithm;
+import prerna.algorithm.learning.supervized.NumericalCorrelationAlgorithm;
+import prerna.algorithm.learning.unsupervised.clustering.AbstractClusteringRoutine;
+import prerna.algorithm.learning.unsupervised.clustering.MultiClusteringRoutine;
+import prerna.algorithm.learning.unsupervised.outliers.FastOutlierDetection;
+import prerna.algorithm.learning.unsupervised.outliers.LOF;
+import prerna.algorithm.learning.unsupervised.som.SOMRoutine;
+import prerna.algorithm.learning.weka.WekaAprioriAlgorithm;
+import prerna.algorithm.learning.weka.WekaClassification;
 import prerna.engine.api.IEngine;
+import prerna.om.Insight;
+import prerna.om.InsightStore;
 import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
-import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
-import prerna.ui.components.playsheets.ClusteringVizPlaySheet;
-import prerna.ui.components.playsheets.DatasetSimilairtyColumnChartPlaySheet;
-import prerna.ui.components.playsheets.MatrixRegressionVizPlaySheet;
-import prerna.ui.components.playsheets.NumericalCorrelationVizPlaySheet;
-import prerna.ui.components.playsheets.OutlierVizPlaySheet;
-import prerna.ui.components.playsheets.SelfOrganizingMap3DBarChartPlaySheet;
-import prerna.ui.components.playsheets.WekaAprioriVizPlaySheet;
-import prerna.ui.components.playsheets.WekaClassificationPlaySheet;
+import prerna.ui.components.playsheets.datamakers.ISEMOSSAction;
+import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.util.MachineLearningEnum;
-import prerna.util.QuestionPlaySheetStore;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -86,34 +91,31 @@ public class EngineAnalyticsResource {
 		return Response.status(200).entity(WebUtility.getSO(algorithmList)).build();
 	}
 	
+	//TODO: need all of these algorithms to be transformations
 	@POST
 	@Path("/runAlgorithm")
 	public Response runAlgorithm(MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 
 		String algorithm = form.getFirst("algorithm");
-		String tableID = form.getFirst("tableID");
-		String questionID = form.getFirst("id");
+		String insightID = form.getFirst("insightID");
 		
-		String retIDKey = "";
-		String retID = "";
-		ITableDataFrame dataFrame = null;
-		if(tableID != null) {
-			dataFrame = TableDataFrameStore.getInstance().get(tableID);
-			retID = tableID;
-			retIDKey = "tableID";
-		} else if(questionID != null) { //TODO: require all playsheets to be BasicProcessing for current algorithms
-			BasicProcessingPlaySheet origPS = (BasicProcessingPlaySheet) QuestionPlaySheetStore.getInstance().get(questionID);
-			dataFrame = origPS.getDataFrame();
-			retID = questionID;
-			retIDKey = "id";
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
 		}
 		
-		if(dataFrame == null) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash .put("errorMessage", "Data not found - invalid key.");
-			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-		}
+		//////////////////////TODO:
+		//////////////////////TODO:
+		//////////////////////TODO:
+		// Need to change the below to send the names of the headers to skip
+		// otherwise, need to get theaders, see which ones are to skip based on boolean, and create array of headers to skip
+		ITableDataFrame dataFrame = (ITableDataFrame) existingInsight.getDataMaker();
 		String[] columnHeaders = dataFrame.getColumnHeaders();
 		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
 		if(columnHeaders.length != includeColArr.length) {
@@ -122,58 +124,63 @@ public class EngineAnalyticsResource {
 			errorHash .put("errorMessage", "Number of headers sent does not match the numbers of headers in the dataframe.");
 			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
-		
 		dataFrame.setColumnsToSkip(new ArrayList<String>());
-		int instanceIndex = 0;
-		if(form.getFirst("instanceID") != null) {
-			instanceIndex = gson.fromJson(form.getFirst("instanceID"), Integer.class);
-		}
-		List<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
-		
 		List<String> skipAttributes = new ArrayList<String>();
 		for(int i = 0; i < includeColArr.length; i++) {
 			if(!includeColArr[i]) {
 				skipAttributes.add(columnHeaders[i]);
 			}
 		}
+		///////////////////////
 		
+		// TODO: should have the instance be passed by name and not by index
+		// could cause issues with skip-attributes 
+		int instanceIndex = 0;
+		if(form.getFirst("instanceID") != null) {
+			instanceIndex = gson.fromJson(form.getFirst("instanceID"), Integer.class);
+		}
+		//TODO: need to figure out why all of these values come back as strings..
+		List<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
+		
+		HashMap<String, Object> selectedOptions = new HashMap<String, Object>();
 		Map<String, Object> errorHash = new HashMap<String, Object>();
+		boolean isAction = false;
 		if (algorithm.equals("Clustering")) {
-			ClusteringVizPlaySheet ps = new ClusteringVizPlaySheet();
+			Integer numClusters = null;
+			// this is the normal clustering routine with a set number of clusters
 			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
-				Integer numClusters = Integer.parseInt(configParameters.get(0));
-				ps.setNumClusters(numClusters);
+				try {
+					numClusters = Integer.parseInt(configParameters.get(0));
+				} catch(NumberFormatException e) {
+					errorHash.put("errorMessage", "Invalid input for 'Number of Clusers': " + configParameters.get(0));
+					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				}
+				if(numClusters <= 1) {
+					errorHash.put("errorMessage", "Number of clusters must be larger than 2");
+					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				}
+				selectedOptions.put(AbstractClusteringRoutine.INSTANCE_INDEX_KEY, instanceIndex); 
+				selectedOptions.put(AbstractClusteringRoutine.NUM_CLUSTERS_KEY, numClusters); 
+				selectedOptions.put(AbstractClusteringRoutine.SKIP_ATTRIBUTES, skipAttributes); 
+				selectedOptions.put(AlgorithmTransformation.ALGORITHM_TYPE, AlgorithmTransformation.CLUSTERING); 
+
+				// currently not exposed to user
+				// selectedOptions.put(AbstractClusteringRoutine.DISTANCE_MEASURE, numClusters); 
+			} 
+			// this is the clustering routine which determines the number of clusters through an optimization routine
+			else {
+				selectedOptions.put(MultiClusteringRoutine.INSTANCE_INDEX_KEY, instanceIndex); 
+				selectedOptions.put(MultiClusteringRoutine.SKIP_ATTRIBUTES, skipAttributes); 
+				// currently not exposed to user, hard code min and max possible clusters
+				selectedOptions.put(MultiClusteringRoutine.MIN_NUM_CLUSTERS, 2); 
+				selectedOptions.put(MultiClusteringRoutine.MAX_NUM_CLUSTERS, 50); 
+				//selectedOptions.put(AbstractClusteringRoutine.DISTANCE_MEASURE, numClusters); 
+				selectedOptions.put(AlgorithmTransformation.ALGORITHM_TYPE, AlgorithmTransformation.MULTI_CLUSTERING); 
 			}
-			
-			ps.setInstanceIndex(instanceIndex);
-			ps.setDataFrame(dataFrame);
-			ps.setSkipAttributes(skipAttributes);
-			try {
-				ps.runAnalytics();
-			} catch(IllegalArgumentException ex) {
-				dataFrame.setColumnsToSkip(null);
-				errorHash.put("errorMessage", ex.getMessage());
-				errorHash.put("Class", ps.getClass().getName());
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-			
-			ps.processQueryData();
-			Hashtable psData = ps.getData();
-			if(psData.get("headers") == null || psData.get("data") == null) {
-				errorHash.put("errorMessage", "No results found from algorithm");
-				errorHash.put("Class", ps.getClass().getName());
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-			psData.remove("id");
-			psData.put("title", "Cluster by " + columnHeaders[instanceIndex]);
-			psData.put(retIDKey, retID);
-			psData.put("deleteKey", ps.getChangedCol());
-			dataFrame.setColumnsToSkip(null);
-			
-			return Response.status(200).entity(WebUtility.getSO(psData)).build();
 			
 		} else if (algorithm.equals("AssociationLearning")) {
-			WekaAprioriVizPlaySheet ps = new WekaAprioriVizPlaySheet();
+			isAction = true;
+			
 			Integer numRules = null;
 			Double confPer = null;
 			Double minSupport = null;
@@ -181,241 +188,198 @@ public class EngineAnalyticsResource {
 			try {
 				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
 					numRules = Integer.parseInt(configParameters.get(0));
-					ps.setNumRules(numRules);
 				}
 			} catch(NumberFormatException e) {
-				errorHash.put("errorMessage", "Invalid input for 'Number of Rules'");
+				errorHash.put("errorMessage", "Invalid input for 'Number of Rules': " + configParameters.get(0));
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			try {
 				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
 					confPer = Double.parseDouble(configParameters.get(1));
-					ps.setConfPer(confPer);
 				}
 			} catch(NumberFormatException e) {
-				errorHash.put("errorMessage", "Invalid input for 'Confidence Value (%)'");
-				errorHash.put("Class", ps.getClass().getName());
+				errorHash.put("errorMessage", "Invalid input for 'Confidence Value (%)': " + configParameters.get(1));
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			try {
 				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(2) != null && !configParameters.get(2).isEmpty()) {
 					minSupport = Double.parseDouble(configParameters.get(2));
-					ps.setMinSupport(minSupport);
 				}
 			} catch(NumberFormatException e) {
-				errorHash.put("errorMessage", "Invalid input for 'Minimum Support (%)'");
+				errorHash.put("errorMessage", "Invalid input for 'Minimum Support (%)': " + configParameters.get(2));
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			try {
 				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(3) != null && !configParameters.get(3).isEmpty()) {
 					maxSupport = Double.parseDouble(configParameters.get(3));
-					ps.setMaxSupport(maxSupport);
 				}
 			} catch(NumberFormatException e) {
-				errorHash.put("errorMessage", "Invalid input for 'Maximum Support (%)'");
+				errorHash.put("errorMessage", "Invalid input for 'Maximum Support (%)': " + configParameters.get(3));
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			if(numRules == null || confPer == null || minSupport == null || maxSupport == null) {
-				errorHash.put("errorMessage", "Parameters not set for Association Learning Algorithm");
+				errorHash.put("errorMessage", "Not all parameters are being set for Association Learning Algorithm");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			if(minSupport > maxSupport) {
 				errorHash.put("errorMessage", "Minimum Support value must be lower than Maximum Support Value");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-			ps.setDataFrame(dataFrame);
-			ps.setSkipAttributes(skipAttributes);
-			ps.runAnalytics();
-			ps.processQueryData();
 			
-			Hashtable psData = ps.getData();
-			if(psData.get("headers") == null || psData.get("data") == null) {
-				errorHash.put("errorMessage", "No results found from algorithm");
-				errorHash.put("Class", ps.getClass().getName());
-				dataFrame.setColumnsToSkip(null);
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-			psData.put("id", "");
-			psData.put("title", "Association Learning: Apriori Algorithm");
-			psData.put("deleteKey", "none");
-
-			dataFrame.setColumnsToSkip(null);
-			
-			return Response.status(200).entity(WebUtility.getSO(psData)).build();
+			selectedOptions.put(WekaAprioriAlgorithm.NUM_RULES, numRules); 
+			selectedOptions.put(WekaAprioriAlgorithm.CONFIDENCE_LEVEL, confPer); 
+			selectedOptions.put(WekaAprioriAlgorithm.MIN_SUPPORT, minSupport); 
+			selectedOptions.put(WekaAprioriAlgorithm.MAX_SUPPORT, maxSupport); 
+			selectedOptions.put(WekaAprioriAlgorithm.SKIP_ATTRIBUTES, skipAttributes); 
+			selectedOptions.put(AlgorithmTransformation.ALGORITHM_TYPE, AlgorithmAction.ASSOCATION_LEARNING); 
 			
 		} else if (algorithm.equals("Classify")) {
-			WekaClassificationPlaySheet ps = new WekaClassificationPlaySheet();
-			// instance id is the prop being classified for
-			String propName = columnHeaders[instanceIndex];
-			ps.setClassColumn(propName);
-			ps.setDataFrame(dataFrame);
-			ps.setSkipAttributes(skipAttributes);
-			ps.runAnalytics();
-			ps.processQueryData();
-			
-			Hashtable psData = ps.getData();
-			if(psData.get("headers") == null || psData.get("data") == null) {
-				dataFrame.setColumnsToSkip(null);
-				errorHash.put("errorMessage", "No results found from algorithm");
-				errorHash.put("Class", ps.getClass().getName());
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-			psData.put("id", "");
-			psData.put("title", "Classification Algorithm: For variable " + propName);
-			psData.put("deleteKey", "none");
+			isAction = true;
 
-			dataFrame.setColumnsToSkip(null);
-			
-			return Response.status(200).entity(WebUtility.getSO(psData)).build();
+			// model name is not exposed to users
+			// other models do not work that well... just stick with J48 as it gives best results
+			selectedOptions.put(WekaClassification.MODEL_NAME, "J48"); 
+			selectedOptions.put(WekaClassification.CLASS_NAME, columnHeaders[instanceIndex]); // TODO: again, pass this by name, not by index
+			selectedOptions.put(WekaAprioriAlgorithm.SKIP_ATTRIBUTES, skipAttributes); 
+			selectedOptions.put(AlgorithmTransformation.ALGORITHM_TYPE, AlgorithmAction.J48_CLASSIFICATION); 
 			
 		} else if (algorithm.equals("Outliers")) {
-			OutlierVizPlaySheet ps = new OutlierVizPlaySheet();
+			Integer k = null;
 			if (configParameters != null && !configParameters.isEmpty() && configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
-				Integer k = Integer.parseInt(configParameters.get(0));
-				ps.setK(k);
-			}
-			ps.setInstanceIndex(instanceIndex);
-			ps.setDataFrame(dataFrame);
-			ps.setSkipAttributes(skipAttributes);
-			try {
-				ps.runAnalytics();
-			} catch(IllegalArgumentException ex) {
-				dataFrame.setColumnsToSkip(null);
-				errorHash.put("errorMessage", ex.getMessage());
-				errorHash.put("Class", ps.getClass().getName());
+				try {
+					k = Integer.parseInt(configParameters.get(0));
+				} catch(NumberFormatException e) {
+					errorHash.put("errorMessage", "Invalid input for 'K-Value': " + configParameters.get(0));
+					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				}
+			} 
+			
+			if(k == null) {
+				errorHash.put("errorMessage", "No 'K-Value' defined.");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-			ps.processQueryData();
 			
-			Hashtable psData = ps.getData();
-			psData.remove("id");
-			psData.put("title", "Outliers on " + columnHeaders[instanceIndex]);
-			Hashtable<String, String> specificData = new Hashtable<String, String>();
-			List<String> changedCol = ps.getChangedCol();
-			psData.put("deleteKey", changedCol);
-			specificData.put("x-axis", changedCol.get(0));
-			specificData.put("z-axis", "COUNT");
-			psData.put("specificData", specificData);
-			psData.put(retIDKey, retID);
-			dataFrame.setColumnsToSkip(null);
+			selectedOptions.put(LOF.INSTANCE_INDEX, instanceIndex); 
+			selectedOptions.put(LOF.K_NEIGHBORS, k);
+			selectedOptions.put(LOF.SKIP_ATTRIBUTES, skipAttributes); 
+			selectedOptions.put(AlgorithmTransformation.ALGORITHM_TYPE, AlgorithmTransformation.LOCAL_OUTLIER_FACTOR); 
 			
-			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
-
 		} else if (algorithm.equals("FastOutliers")) {
-			OutlierVizPlaySheet ps = new OutlierVizPlaySheet();
-			ps.setAlgorithmSelected(OutlierVizPlaySheet.FOD);
+			Integer numSubsetSize = null;
+			Integer numIterations = null;
+			
 			if (configParameters != null && !configParameters.isEmpty()) {
 				if(configParameters.get(0) != null && !configParameters.get(0).isEmpty()) {
-					Integer numSubsetSize = Integer.parseInt(configParameters.get(0));
-					ps.setNumSubsetSize(numSubsetSize);
+					try {
+						numSubsetSize = Integer.parseInt(configParameters.get(0));
+					} catch(NumberFormatException e) {
+						errorHash.put("errorMessage", "Invalid input for 'Subset Size': " + configParameters.get(0));
+						return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+					}
 				}
 				if(configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
-					Integer numIterations = Integer.parseInt(configParameters.get(1));
-					ps.setNumRuns(numIterations);
+					try {
+						numIterations = Integer.parseInt(configParameters.get(1));
+					} catch(NumberFormatException e) {
+						errorHash.put("errorMessage", "Invalid input for 'Number of Runs': " + configParameters.get(1));
+						return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+					}
 				}
 			}
-			ps.setInstanceIndex(instanceIndex);
-			ps.setDataFrame(dataFrame);
-			ps.setSkipAttributes(skipAttributes);
-			try {
-				ps.runAnalytics();
-			} catch(IllegalArgumentException ex) {
-				dataFrame.setColumnsToSkip(null);
-				errorHash.put("errorMessage", ex.getMessage());
-				errorHash.put("Class", ps.getClass().getName());
+			
+			if(numSubsetSize == null) {
+				errorHash.put("errorMessage", "No 'Subset Size' defined.");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-			ps.processQueryData();
+			if(numIterations == null) {
+				errorHash.put("errorMessage", "No 'Number of Runs' defined.");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
 			
-			Hashtable psData = ps.getData();
-			psData.remove("id");
-			psData.put("title", "Outliers on " + columnHeaders[instanceIndex]);
-			Hashtable<String, String> specificData = new Hashtable<String, String>();
-			List<String> changedCol = ps.getChangedCol();
-			psData.put("deleteKey", changedCol);
-			specificData.put("x-axis", changedCol.get(0));
-			specificData.put("z-axis", "COUNT");
-			psData.put("specificData", specificData);
-			psData.put(retIDKey, retID);
-			dataFrame.setColumnsToSkip(null);
-			
-			return Response.status(200).entity(WebUtility.getSO(psData)).build(); 
+			selectedOptions.put(FastOutlierDetection.INSTANCE_INDEX, instanceIndex); 
+			selectedOptions.put(FastOutlierDetection.NUM_SAMPLE_SIZE, numSubsetSize); 
+			selectedOptions.put(FastOutlierDetection.NUMBER_OF_RUNS, numIterations); 
+			selectedOptions.put(FastOutlierDetection.SKIP_ATTRIBUTES, skipAttributes); 
+			selectedOptions.put(AlgorithmTransformation.ALGORITHM_TYPE, AlgorithmTransformation.FAST_OUTLIERS); 
 
 		} else if (algorithm.equals("Similarity")) {
-			DatasetSimilairtyColumnChartPlaySheet ps = new DatasetSimilairtyColumnChartPlaySheet();
-			ps.setInstanceIndex(instanceIndex);
-			ps.setDataFrame(dataFrame);
-			ps.setSkipAttributes(skipAttributes);
-			ps.runAnalytics();
-			ps.processQueryData();
-			
-			Hashtable psData = ps.getData();
-			psData.remove("id");
-			psData.put("title", "Similarity on " + columnHeaders[instanceIndex]);
-			psData.put(retIDKey, retID);
-			psData.put("deleteKey", ps.getChangedCol());
-			dataFrame.setColumnsToSkip(null);
-
-			return Response.status(200).entity(WebUtility.getSO(psData)).build();
+			selectedOptions.put(FastOutlierDetection.INSTANCE_INDEX, instanceIndex); 
+			selectedOptions.put(FastOutlierDetection.SKIP_ATTRIBUTES, skipAttributes); 
+			selectedOptions.put(AlgorithmTransformation.ALGORITHM_TYPE, AlgorithmTransformation.SIMILARITY); 
 			
 		} else if (algorithm.equals("MatrixRegression")) {
-			MatrixRegressionVizPlaySheet ps = new MatrixRegressionVizPlaySheet();
-			
-			// instance id is the prop being approximated for
-			ps.setbColumnIndex(instanceIndex);
-			ps.setIncludesInstance(false);
-			ps.setDataFrame(dataFrame);
-			ps.setSkipAttributes(skipAttributes);
-			ps.runAnalytics();
-			ps.processQueryData();
-			Hashtable psData = (Hashtable) ps.getData();
-			psData.put("id", "");
-			psData.put("title", "Matrix Regression Algorithm: For variable " + columnHeaders[instanceIndex]);
-			psData.put("deleteKey", "none");
+			isAction = true;
 
-			dataFrame.setColumnsToSkip(null);
-
-			return Response.status(200).entity(WebUtility.getSO(psData)).build();
+			selectedOptions.put(MatrixRegressionAlgorithm.INCLUDE_INSTANCES, false); 
+			selectedOptions.put(MatrixRegressionAlgorithm.B_INDEX, instanceIndex); // instance index is used for column to approximate
+			selectedOptions.put(MatrixRegressionAlgorithm.SKIP_ATTRIBUTES, skipAttributes); 
+			selectedOptions.put(AlgorithmTransformation.ALGORITHM_TYPE, AlgorithmAction.MATRIX_REGRESSION); 
 			
 		} else if (algorithm.equals("NumericalCorrelation")) {
-			NumericalCorrelationVizPlaySheet ps = new NumericalCorrelationVizPlaySheet();
-			
-			ps.setIncludesInstance(false);
-			ps.setDataFrame(dataFrame);
-			ps.setSkipAttributes(skipAttributes);
-			ps.runAnalytics();
-			ps.processQueryData();
-			Hashtable psData = (Hashtable) ps.getData();
-			psData.put("id", "");
-			psData.put("title", "Numerical Correlation Algorithm");
-			psData.put("deleteKey", "none");
+			isAction = true;
 
-			dataFrame.setColumnsToSkip(null);
-
-			return Response.status(200).entity(WebUtility.getSO(psData)).build();
+			selectedOptions.put(NumericalCorrelationAlgorithm.INCLUDE_INSTANCES, false); 
+			selectedOptions.put(NumericalCorrelationAlgorithm.SKIP_ATTRIBUTES, skipAttributes); 
+			selectedOptions.put(AlgorithmTransformation.ALGORITHM_TYPE, AlgorithmAction.NUMERICAL_CORRELATION); 
 
 		} else if (algorithm.equals("SOM")) {
-			SelfOrganizingMap3DBarChartPlaySheet ps = new SelfOrganizingMap3DBarChartPlaySheet();
+			//TODO: currently only exposed 2 parameters 
+			selectedOptions.put(SOMRoutine.INSTANCE_INDEX_KEY, instanceIndex); 
+			selectedOptions.put(SOMRoutine.SKIP_ATTRIBUTES, skipAttributes); 
+			selectedOptions.put(AlgorithmTransformation.ALGORITHM_TYPE, AlgorithmTransformation.SELF_ORGANIZING_MAP); 
+			// hard-coded at the moment
+			selectedOptions.put(SOMRoutine.INITIAL_RADIUS, 2.0);
+			selectedOptions.put(SOMRoutine.LEARNING_RATE, 0.07);
+			selectedOptions.put(SOMRoutine.TAU, 7.5);
+			selectedOptions.put(SOMRoutine.MAXIMUM_ITERATIONS, 15);
+			// THESE WILL BE DYNAMICALLY CREATED
+//			selectedOptions.put(SOMRoutine.GRID_WIDTH, 15);
+//			selectedOptions.put(SOMRoutine.GRID_LENGTH, 15);
 
-			ps.setInstanceIndex(instanceIndex);
-			ps.setDataFrame(dataFrame);
-			ps.setSkipAttributes(skipAttributes);
-			ps.runAnalytics();
-			ps.processQueryData();
-			Hashtable psData = ps.getData();
-			psData.remove("id");
-			psData.put("title", "SOM Algorithm on " + columnHeaders[instanceIndex]);
-			psData.put(retIDKey, retID);
-			psData.put("deleteKey", ps.getChangedCol());
-			dataFrame.setColumnsToSkip(null);
-
-			return Response.status(200).entity(WebUtility.getSO(psData)).build();
-			
 		} else {
 			String errorMessage = "Selected algorithm does not exist";
 			LOGGER.info("Selected algorithm does not exist...");
 			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
 		}
+		
+		Map retMap = new Hashtable();
+		retMap.put("insightID", insightID);
+		if(isAction) {
+			List<ISEMOSSAction> actions = new Vector<ISEMOSSAction>();
+			AlgorithmAction action = new AlgorithmAction();
+			actions.add(action);
+			action.setProperties(selectedOptions);
+			try {
+				Object actionObj = existingInsight.processActions(actions).get(0);
+				retMap.put("actionData", actionObj);
+				retMap.put("stepID", action.getId());
+			} catch(Exception ex) {
+				dataFrame.setColumnsToSkip(null);
+				errorHash.put("errorMessage", ex.getMessage());
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+		} else {
+			List<ISEMOSSTransformation> postTrans = new Vector<ISEMOSSTransformation>();
+			AlgorithmTransformation transformation = new AlgorithmTransformation();
+			postTrans.add(transformation);
+			transformation.setProperties(selectedOptions);
+			// don't need the DataMakerComponent or another IDataMaker in this case to run the transformation
+			try {
+				existingInsight.processPostTransformation(postTrans);
+				retMap.put("addedColumns", transformation.getAddedColumns());
+				retMap.put("stepID", transformation.getId());
+			} catch(Exception ex) {
+				dataFrame.setColumnsToSkip(null);
+				errorHash.put("errorMessage", ex.getMessage());
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+		}
+		
+		// TODO: need to figure out how to undo the columns to skip after algorithms are run
+		// get data should return everything even if some parameters not used in algorithm
+		dataFrame.setColumnsToSkip(new ArrayList<String>());
+		
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
 	@POST

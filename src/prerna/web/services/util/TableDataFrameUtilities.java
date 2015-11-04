@@ -15,11 +15,9 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import prerna.algorithm.api.ITableDataFrame;
-import prerna.ds.TableDataFrameStore;
+import prerna.ds.ITableWebAdapter;
 import prerna.ds.TableDataFrameWebAdapter;
-import prerna.ui.components.api.IPlaySheet;
-import prerna.ui.components.playsheets.BasicProcessingPlaySheet;
-import prerna.util.QuestionPlaySheetStore;
+import prerna.util.ArrayUtilityMethods;
 
 public final class TableDataFrameUtilities {
 
@@ -30,83 +28,6 @@ public final class TableDataFrameUtilities {
 	private TableDataFrameUtilities() {
 		
 	}
-	
-//	public static void filterData(ITableDataFrame mainTree, Map<String, List<Object>> filterValuesArrMap) {
-////		mainTree.unfilter();
-//		//boolean unfiltered = false;
-//		Set<String> keySet = filterValuesArrMap.keySet();
-//		String[] columnHeaders = mainTree.getColumnHeaders();
-//		String[] concepts = keySet.toArray(new String[keySet.size()]);
-//		for(String column : columnHeaders) {
-//			if(!ArrayUtilityMethods.arrayContainsValue(concepts, column)) {
-//				mainTree.unfilter(column);
-//			}
-//		}
-//		
-//		for(String concept: keySet) {
-//
-//			List<Object> filterValuesArr = filterValuesArrMap.get(concept);
-//			if(mainTree.isNumeric(concept)) {
-//				List<Object> values = new ArrayList<Object>(filterValuesArr.size());
-//				for(Object o: filterValuesArr) {
-//					try {
-//						values.add(Double.parseDouble(o.toString()));
-//					} catch(Exception e) {
-//						values.add(o);
-//					}
-//				}
-//				filterValuesArr = values;
-//			}
-//			if(filterValuesArr.isEmpty()) {
-//				mainTree.filter(concept, Arrays.asList(mainTree.getUniqueValues(concept)));
-//				return;
-//			}
-//
-////			//if filterValuesArr not a subset of superSet, then unfilter
-//			Object[] superSet = mainTree.getUniqueValues(concept);
-//
-//			int n = filterValuesArr.size();
-//			int m = superSet.length;
-//
-//			if(m < n) {
-//				mainTree.unfilter();
-//				//unfiltered = true;
-//			} else {
-//				Comparator<Object> comparator = new Comparator<Object>() {
-//					public int compare(Object o1, Object o2) {
-//						return o1.toString().compareTo(o2.toString());
-//					}
-//				};
-//
-//				//check if filterValuesArr is a subset of superSet
-//				Arrays.sort(superSet, comparator);
-//				Collections.sort(filterValuesArr, comparator);
-//
-//				int i = 0;
-//				int j = 0;
-//				while(i < n && j < m) {
-//					int compareTo = superSet[i].toString().compareToIgnoreCase(filterValuesArr.get(i).toString());
-//					if(compareTo < 0) {
-//						j++;
-//					} else if(compareTo == 0) {
-//						j++; i++;
-//					} else if(compareTo > 0) {
-//						mainTree.unfilter();
-//						//unfiltered = true;
-//						break;
-//					}
-//				}
-//			}
-//
-////			List<Object> setDiff = new ArrayList<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
-//			Set<Object> totalSet = new HashSet<Object>(Arrays.asList(mainTree.getUniqueValues(concept)));
-//			for(Object o : filterValuesArr) {
-//				totalSet.remove(o);
-//			}
-////			setDiff.removeAll(filterValuesArr);
-//			mainTree.filter(concept, new ArrayList<Object>(totalSet));
-//		}
-//	}
 	
 	public static void filterData(ITableDataFrame mainTree, Map<String, List<Object>> filterValuesArrMap) {
 
@@ -148,7 +69,7 @@ public final class TableDataFrameUtilities {
 	}
 	
 	public static String filterTableData(ITableDataFrame mainTree, Map<String, List<Object>> filterValuesArrMap) {
-	
+		
 		LOGGER.info("Filtering on table");
 		long startTime = System.currentTimeMillis();
 		
@@ -192,7 +113,7 @@ public final class TableDataFrameUtilities {
 		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
 		return returnColumn;
 	}
-	
+
 	private static void filterColumn(ITableDataFrame mainTree, String concept, List<Object> filterValuesArr) {
 		
 		if(mainTree.isNumeric(concept)) {
@@ -248,32 +169,7 @@ public final class TableDataFrameUtilities {
 			return set.size() == 0;
 		}
 	}
-	
-	/**
-	 * 
-	 * @param tableID
-	 * @param questionID
-	 * @return - the ITableDataFrame associated with the tableID and/or questionID
-	 */
-	public static ITableDataFrame getTable(String tableID, String questionID) {
-		ITableDataFrame table = null;
-		
-		try {
-			if(tableID != null) {
-				table = TableDataFrameStore.getInstance().get(tableID);
-			} else if(questionID != null) {
-				IPlaySheet origPS = (IPlaySheet) QuestionPlaySheetStore.getInstance().get(questionID);
-				if(origPS instanceof BasicProcessingPlaySheet) {
-					table = ((BasicProcessingPlaySheet) origPS).getDataFrame();
-				}
-			}
-		} catch (Exception e) {
-			return null;
-		}
 
-		return table;
-	}
-	
 	/**
 	 * 
 	 * @param table - to table from which to get flat data from
@@ -284,6 +180,21 @@ public final class TableDataFrameUtilities {
 		long startTime = System.currentTimeMillis();
 		
 		List<HashMap<String, Object>> returnData = TableDataFrameWebAdapter.getData(table);
+		
+		LOGGER.info("Formatted Data, returning to the Front End: "+(System.currentTimeMillis() - startTime)+" ms");
+		return returnData;
+	}
+	
+	/**
+	 * 
+	 * @param table - to table from which to get flat data from
+	 * @return - a list of maps, the preferred way of returning table data to the front end
+	 */
+	public static List<HashMap<String, Object>> getTableData(ITableDataFrame table, String concept, String sort, int startRow, int endRow) {
+		LOGGER.info("Formatting Data from" +  table + ", " + concept + ", " + sort + ", " + startRow + ", and " + endRow + " for the Front End");
+		long startTime = System.currentTimeMillis();
+		
+		List<HashMap<String, Object>> returnData = TableDataFrameWebAdapter.getData(table, concept, sort, startRow, endRow);
 		
 		LOGGER.info("Formatted Data, returning to the Front End: "+(System.currentTimeMillis() - startTime)+" ms");
 		return returnData;
