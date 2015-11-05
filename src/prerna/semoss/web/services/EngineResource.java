@@ -189,7 +189,11 @@ public class EngineResource {
 			gdm.processDataMakerComponent(dmc);
 			//			playSheet.setDataMaker(gdm);
 			obj = gdm.getDataMakerOutput();
-
+			
+			//TODO: this is really bad.. 
+			//undo the setting of the eng to get gdm to run
+			eng.setBaseData(null);
+			eng.setBaseHash(null);
 		} catch (Exception ex) { 
 			ex.printStackTrace();
 			Hashtable<String, String> errorHash = new Hashtable<String, String>();
