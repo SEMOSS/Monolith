@@ -964,6 +964,13 @@ public class EngineResource {
 			errorMap.put("errorMessage", "Could not find data.");
 			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 		}
+		
+		if(processes.isEmpty()) {
+			Map<String, Object> retMap = new HashMap<String, Object>();
+			retMap.put("insightID", insightID);
+			retMap.put("message", "Succesfully undone processes : " + processes);
+			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		}
 
 		Insight in = InsightStore.getInstance().get(insightID);
 		Map<String, Object> retMap = new HashMap<String, Object>();
