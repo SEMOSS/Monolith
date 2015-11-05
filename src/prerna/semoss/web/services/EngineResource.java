@@ -893,7 +893,6 @@ public class EngineResource {
 		}
 		if(removeColumns == null || removeColumns.length == 0 || removeAll) {
 
-
 			boolean success = InsightStore.getInstance().remove(insightID);
 			InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
 
@@ -1011,12 +1010,11 @@ public class EngineResource {
 		String[] columnHeaders = mainTree.getColumnHeaders();
 
 		//Grab the filter model from the form data
-		Map<String, List<Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, List<Object>>>() {}.getType());
-		String selectedColumn = "";
+		Map<String, Map<String, Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, Map<String, Object>>>() {}.getType());
 
 		//If the filter model has information, filter the tree
 		if(filterModel != null && filterModel.keySet().size() > 0) {
-			selectedColumn = TableDataFrameUtilities.filterTableData(mainTree, filterModel);
+			TableDataFrameUtilities.filterTableData(mainTree, filterModel);
 		}
 
 		//if the filtermodel is not null and contains no data then unfilter the whole tree
