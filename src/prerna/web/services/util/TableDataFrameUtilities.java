@@ -23,95 +23,107 @@ public final class TableDataFrameUtilities {
 
 	private static final Logger LOGGER = LogManager.getLogger(TableDataFrameUtilities.class.getName());
 	
-	private HashMap<String, HashSet<String>> touchedColumns = new HashMap<>();
-	
 	private TableDataFrameUtilities() {
 		
 	}
 	
-	public static void filterData(ITableDataFrame mainTree, Map<String, List<Object>> filterValuesArrMap) {
-
-		LOGGER.info("Filtering on table");
-		long startTime = System.currentTimeMillis();
-		
-		String[] columnHeaders = mainTree.getColumnHeaders();
-		
-		Map<String, Object[]> storedValues = new HashMap<String, Object[]>();
-		for(String column: columnHeaders) {
-			storedValues.put(column.toUpperCase(), mainTree.getUniqueValues(column));
-		}
-		
-		Map<String, List<Object>> map = new HashMap<String, List<Object>>();
-		for(String concept : filterValuesArrMap.keySet()) {
-			map.put(concept.toUpperCase(), filterValuesArrMap.get(concept));
-		}
-		//need to find the which column is different from previous, then filter only that column
-		//when first different column is found, call filterColumn on that column
-
-		for(String columnHeader : columnHeaders) {
-			columnHeader = columnHeader.toUpperCase();
-			Object[] storedValuesArr = storedValues.get(columnHeader);
-			if(map.containsKey(columnHeader)) {
-				List<Object> filterValuesArr = map.get(columnHeader);
-				if(!equals(filterValuesArr, storedValuesArr)) {
-					filterColumn(mainTree, columnHeader, filterValuesArr);
-				}
-			} 
-			else {
-				int totalSize = mainTree.getUniqueRawValues(columnHeader).length + mainTree.getFilteredUniqueRawValues(columnHeader).length;
-				if(totalSize != storedValuesArr.length) {
-					mainTree.unfilter();
-				}
-			}
-		}
-		
-		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
-	}
+//	public static void filterData(ITableDataFrame mainTree, Map<String, List<Object>> filterValuesArrMap) {
+//
+//		LOGGER.info("Filtering on table");
+//		long startTime = System.currentTimeMillis();
+//		
+//		String[] columnHeaders = mainTree.getColumnHeaders();
+//		
+//		Map<String, Object[]> storedValues = new HashMap<String, Object[]>();
+//		for(String column: columnHeaders) {
+//			storedValues.put(column.toUpperCase(), mainTree.getUniqueValues(column));
+//		}
+//		
+//		Map<String, List<Object>> map = new HashMap<String, List<Object>>();
+//		for(String concept : filterValuesArrMap.keySet()) {
+//			map.put(concept.toUpperCase(), filterValuesArrMap.get(concept));
+//		}
+//		//need to find the which column is different from previous, then filter only that column
+//		//when first different column is found, call filterColumn on that column
+//
+//		for(String columnHeader : columnHeaders) {
+//			columnHeader = columnHeader.toUpperCase();
+//			Object[] storedValuesArr = storedValues.get(columnHeader);
+//			if(map.containsKey(columnHeader)) {
+//				List<Object> filterValuesArr = map.get(columnHeader);
+//				if(!equals(filterValuesArr, storedValuesArr)) {
+//					filterColumn(mainTree, columnHeader, filterValuesArr);
+//				}
+//			} 
+//			else {
+//				int totalSize = mainTree.getUniqueRawValues(columnHeader).length + mainTree.getFilteredUniqueRawValues(columnHeader).length;
+//				if(totalSize != storedValuesArr.length) {
+//					mainTree.unfilter();
+//				}
+//			}
+//		}
+//		
+//		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
+//	}
 	
-	public static String filterTableData(ITableDataFrame mainTree, Map<String, List<Object>> filterValuesArrMap) {
+	public static void filterTableData(ITableDataFrame mainTree, Map<String, Map<String, Object>> filterValuesArrMap) {
 		
 		LOGGER.info("Filtering on table");
 		long startTime = System.currentTimeMillis();
 		
-		String returnColumn = "";
-		String[] columnHeaders = mainTree.getColumnHeaders();
+////		String returnColumn = "";
+//		String[] columnHeaders = mainTree.getColumnHeaders();
+//		
+////		Map<String, Object[]> storedValues = new HashMap<String, Object[]>();
+////		Map<String, Integer> sizes = new HashMap<String, Integer>();
+////		for(String column: columnHeaders) {
+////			storedValues.put(column.toUpperCase(), mainTree.getUniqueValues(column));
+////			sizes.put(column.toUpperCase(), mainTree.getUniqueRawValues(column).length + mainTree.getFilteredUniqueRawValues(column).length);
+////		}
+//		
+//		Map<String, List<Object>> map = new HashMap<String, List<Object>>();
+//		for(String concept : filterValuesArrMap.keySet()) {
+//			map.put(concept.toUpperCase(), filterValuesArrMap.get(concept));
+//		}
+//		//need to find the which column is different from previous, then filter only that column
+//		//when first different column is found, call filterColumn on that column
+//
+//		for(String columnHeader : columnHeaders) {
+//			String columnHeaderU = columnHeader.toUpperCase();
+////			Object[] storedValuesArr = storedValues.get(columnHeaderU);
+//			if(map.containsKey(columnHeaderU)) {
+//				List<Object> filterValuesArr = map.get(columnHeaderU);
+////				if(!equals(filterValuesArr, storedValuesArr)) {
+//					filterColumn(mainTree, columnHeader, filterValuesArr);
+////					returnColumn = columnHeader;
+////				}
+//			} 
+//			else {
+//				
+////				int totalSize = sizes.get(columnHeaderU);
+////				if(totalSize != storedValuesArr.length) {
+////					mainTree.unfilter(columnHeader);
+////					returnColumn = columnHeader;
+////				}
+//			}
+//		}
 		
-		Map<String, Object[]> storedValues = new HashMap<String, Object[]>();
-		Map<String, Integer> sizes = new HashMap<String, Integer>();
-		for(String column: columnHeaders) {
-			storedValues.put(column.toUpperCase(), mainTree.getUniqueValues(column));
-			sizes.put(column.toUpperCase(), mainTree.getUniqueRawValues(column).length + mainTree.getFilteredUniqueRawValues(column).length);
-		}
-		
-		Map<String, List<Object>> map = new HashMap<String, List<Object>>();
-		for(String concept : filterValuesArrMap.keySet()) {
-			map.put(concept.toUpperCase(), filterValuesArrMap.get(concept));
-		}
-		//need to find the which column is different from previous, then filter only that column
-		//when first different column is found, call filterColumn on that column
-
-		for(String columnHeader : columnHeaders) {
-			String columnHeaderU = columnHeader.toUpperCase();
-			Object[] storedValuesArr = storedValues.get(columnHeaderU);
-			if(map.containsKey(columnHeaderU)) {
-				List<Object> filterValuesArr = map.get(columnHeaderU);
-				if(!equals(filterValuesArr, storedValuesArr)) {
-					filterColumn(mainTree, columnHeader, filterValuesArr);
-					returnColumn = columnHeader;
+		for(String key : filterValuesArrMap.keySet()) {
+			Map<String, Object> columnMap = filterValuesArrMap.get(key);
+			List<Object> values = (List<Object>)columnMap.get("values");
+			if(values.size() == 0) {
+				Boolean selectAll = (Boolean)columnMap.get("selectAll");
+				if(selectAll) {
+					mainTree.unfilter();
+				} else {
+					filterColumn(mainTree, key, values);
 				}
-			} 
-			else {
-				
-				int totalSize = sizes.get(columnHeaderU);
-				if(totalSize != storedValuesArr.length) {
-					mainTree.unfilter(columnHeader);
-					returnColumn = columnHeader;
-				}
+			} else {
+				filterColumn(mainTree, key, values);
 			}
 		}
-		
 		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
-		return returnColumn;
+//		return returnColumn;
 	}
 
 	private static void filterColumn(ITableDataFrame mainTree, String concept, List<Object> filterValuesArr) {
@@ -152,23 +164,23 @@ public final class TableDataFrameUtilities {
 		}
 	}
 	
-	private static boolean equals(List<Object> newColumn, Object[] oldColumn) {
-		if(newColumn.size() != oldColumn.length) {
-			return false;
-		} else {
-			//loop through and check values
-			HashSet<String> set = new HashSet<>();
-			for(Object o : newColumn) {
-				set.add(o.toString());
-			}
-			
-			for(Object o : oldColumn) {
-				set.remove(o);
-			}
-			
-			return set.size() == 0;
-		}
-	}
+//	private static boolean equals(List<Object> newColumn, Object[] oldColumn) {
+//		if(newColumn.size() != oldColumn.length) {
+//			return false;
+//		} else {
+//			//loop through and check values
+//			HashSet<String> set = new HashSet<>();
+//			for(Object o : newColumn) {
+//				set.add(o.toString());
+//			}
+//			
+//			for(Object o : oldColumn) {
+//				set.remove(o);
+//			}
+//			
+//			return set.size() == 0;
+//		}
+//	}
 
 	/**
 	 * 
