@@ -567,16 +567,15 @@ public class EngineResource {
 					dmcList.add(dmc);
 					in.setDataMakerComponents(dmcList);
 					//					in.setDataMakerName("BTreeDataFrame");
-					InsightCreateRunner insightRunner = new InsightCreateRunner(in);
-					insightRunner.runWeb();
 					InsightStore.getInstance().put(in);
+					InsightCreateRunner insightRunner = new InsightCreateRunner(in);
+					obj = insightRunner.runWeb();
 					//					User userData = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 					//					if(userData!=null)
 					//						playSheet.setUserData(userData);
 					//					PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
 					//					playRunner.runWeb();
 					//					obj = playSheet.getData();
-					obj = in.getWebData();
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -618,9 +617,8 @@ public class EngineResource {
 				InsightStore.getInstance().put(insightObj);
 				insightObj.setParamHash(params);
 				InsightCreateRunner run = new InsightCreateRunner(insightObj);
-				run.runWeb();
+				obj = run.runWeb();
 				//			obj = insightObj.getPlaySheet().getData();
-				obj = insightObj.getWebData();
 
 				//			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
 				//			insightID = playSheet.getQuestionID();
@@ -1003,7 +1001,7 @@ public class EngineResource {
 
 		ITableDataFrame mainTree = (ITableDataFrame) existingInsight.getDataMaker();
 		if(mainTree == null) {
-			return Response.status(400).entity(WebUtility.getSO("tableID invalid. Data not found")).build();
+			return Response.status(400).entity(WebUtility.getSO("table not found for insight id. Data not found")).build();
 		}
 
 		Gson gson = new Gson();
