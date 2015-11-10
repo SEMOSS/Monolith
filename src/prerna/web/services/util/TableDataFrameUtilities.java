@@ -27,44 +27,27 @@ public final class TableDataFrameUtilities {
 		
 	}
 	
-//	public static void filterData(ITableDataFrame mainTree, Map<String, List<Object>> filterValuesArrMap) {
-//
-//		LOGGER.info("Filtering on table");
-//		long startTime = System.currentTimeMillis();
-//		
-//		String[] columnHeaders = mainTree.getColumnHeaders();
-//		
-//		Map<String, Object[]> storedValues = new HashMap<String, Object[]>();
-//		for(String column: columnHeaders) {
-//			storedValues.put(column.toUpperCase(), mainTree.getUniqueValues(column));
-//		}
-//		
-//		Map<String, List<Object>> map = new HashMap<String, List<Object>>();
-//		for(String concept : filterValuesArrMap.keySet()) {
-//			map.put(concept.toUpperCase(), filterValuesArrMap.get(concept));
-//		}
-//		//need to find the which column is different from previous, then filter only that column
-//		//when first different column is found, call filterColumn on that column
-//
-//		for(String columnHeader : columnHeaders) {
-//			columnHeader = columnHeader.toUpperCase();
-//			Object[] storedValuesArr = storedValues.get(columnHeader);
-//			if(map.containsKey(columnHeader)) {
-//				List<Object> filterValuesArr = map.get(columnHeader);
-//				if(!equals(filterValuesArr, storedValuesArr)) {
-//					filterColumn(mainTree, columnHeader, filterValuesArr);
-//				}
-//			} 
-//			else {
-//				int totalSize = mainTree.getUniqueRawValues(columnHeader).length + mainTree.getFilteredUniqueRawValues(columnHeader).length;
-//				if(totalSize != storedValuesArr.length) {
-//					mainTree.unfilter();
-//				}
-//			}
-//		}
-//		
-//		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
-//	}
+	public static void filterData(ITableDataFrame mainTree, Map<String, Map<String, Object>> filterModel) {
+
+		LOGGER.info("Filtering on table");
+		long startTime = System.currentTimeMillis();
+		
+		mainTree.unfilter();
+		for(String key : filterModel.keySet()) {
+			Map<String, Object> columnMap = filterModel.get(key);
+			List<Object> values = (List<Object>)columnMap.get("values");
+			if(values.size() == 0) {
+				Boolean selectAll = (Boolean)columnMap.get("selectAll");
+				if(!selectAll) {
+					mainTree.filter(key, values);
+				}
+			} else {
+				mainTree.filter(key, new ArrayList<Object>(values));
+			}
+		}
+		
+		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
+	}
 	
 	public static void filterTableData(ITableDataFrame mainTree, Map<String, Map<String, Object>> filterValuesArrMap) {
 		
@@ -114,7 +97,7 @@ public final class TableDataFrameUtilities {
 			if(values.size() == 0) {
 				Boolean selectAll = (Boolean)columnMap.get("selectAll");
 				if(selectAll) {
-					mainTree.unfilter();
+					mainTree.unfilter(key);
 				} else {
 					filterColumn(mainTree, key, values);
 				}
@@ -126,7 +109,7 @@ public final class TableDataFrameUtilities {
 //		return returnColumn;
 	}
 
-	private static void filterColumn(ITableDataFrame mainTree, String concept, List<Object> filterValuesArr) {
+	public static void filterColumn(ITableDataFrame mainTree, String concept, List<Object> filterValuesArr) {
 		
 		if(mainTree.isNumeric(concept)) {
 			List<Object> values = new ArrayList<Object>(filterValuesArr.size());
