@@ -1010,15 +1010,111 @@ public class EngineResource {
 		//Grab the filter model from the form data
 		Map<String, Map<String, Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, Map<String, Object>>>() {}.getType());
 
+		//get Insight
+		Insight insight = InsightStore.getInstance().get(insightID);
+		//get transformations for last datamaker component
+		List<DataMakerComponent> dmcs = insight.getDataMakerComponents();
+		DataMakerComponent dmc = dmcs.get(dmcs.size()-1);
+		List<ISEMOSSTransformation> transformations = dmc.getPostTrans();
+		
 		//If the filter model has information, filter the tree
 		if(filterModel != null && filterModel.keySet().size() > 0) {
-			TableDataFrameUtilities.filterTableData(mainTree, filterModel);
+//			if(filterModel.keySet().size() > 1) {
+//				TableDataFrameUtilities.filterData(mainTree, filterModel);
+//			} else {
+//				TableDataFrameUtilities.filterTableData(mainTree, filterModel);
+//			}
+			
+			boolean filterValues = true;
+			for(String concept : filterModel.keySet()) {
+				Map<String, Object> columnMap = filterModel.get(concept);
+				List<Object> values = (List<Object>)columnMap.get("values");
+				if(values.size() == 0) {
+					Boolean selectAll = (Boolean)columnMap.get("selectAll");
+					if(selectAll) {
+//						mainTree.unfilter(key); //undo transformation for this column
+						filterValues = false;
+					} else {
+//						filterColumn(mainTree, key, values); //otherwise get transformation, and invoke
+						filterValues = true;
+					}
+				} else {
+//					filterColumn(mainTree, key, values); //get transformation, replace values and invoke
+					filterValues = true;
+				}
+			
+			
+//				Map<String, ISEMOSSTransformation> filterTransformationMap = new HashMap<String, ISEMOSSTransformation>();
+				
+				boolean containsFilterTransformation = false;
+				
+				Iterator<ISEMOSSTransformation> iterator = transformations.listIterator();
+				while(iterator.hasNext()) {
+					ISEMOSSTransformation transform = iterator.next();
+					if(transform instanceof FilterTransformation) {
+						Map<String, Object> properties = transform.getProperties();
+						String columnHeader = properties.get(FilterTransformation.COLUMN_HEADER_KEY).toString();
+						if(columnHeader.equalsIgnoreCase(concept)) {
+							
+							if(filterValues) {
+//								List<Object> currentValues = (List<Object>)properties.get(FilterTransformation.VALUES_KEY);
+//								Set<String> newValues = new HashSet<String>();
+//								for(Object o : currentValues) {
+//									newValues.add(o.toString());
+//								}
+//								
+//								for(Object o: values) {
+//									newValues.add(o.toString());
+//								}
+								
+								properties.put(FilterTransformation.VALUES_KEY, values);
+								transform.runMethod();
+							} else {
+//								transform.undoTransformation();
+								Iterator<Object> allValueIterator = mainTree.uniqueValueIterator(columnHeader, false, true);
+								List<Object> allValues = new ArrayList<Object>();
+								while(allValueIterator.hasNext()) {
+									allValues.add(allValueIterator.next());
+								}
+								properties.put(FilterTransformation.VALUES_KEY, allValues);
+								transform.runMethod();
+							}
+							
+							containsFilterTransformation = true;
+							break;
+						}
+					}
+				}
+				
+				if(!containsFilterTransformation) {
+					ISEMOSSTransformation filterTrans = new FilterTransformation();
+					filterTrans.setTransformationType(false);
+					Map<String, Object> selectedOptions = new HashMap<String, Object>();
+					selectedOptions.put(FilterTransformation.COLUMN_HEADER_KEY, concept);
+					selectedOptions.put(FilterTransformation.VALUES_KEY, values);
+					filterTrans.setProperties(selectedOptions);
+					List<ISEMOSSTransformation> postTrans = new Vector<ISEMOSSTransformation>();
+					postTrans.add(filterTrans);
+					existingInsight.processPostTransformation(postTrans);
+				}
+			}
 		}
 
 		//if the filtermodel is not null and contains no data then unfilter the whole tree
 		//this trigger to unfilter the whole tree was decided between FE and BE for simplicity
 		else if(filterModel != null && filterModel.keySet().size() == 0) {
-			mainTree.unfilter();
+//			mainTree.unfilter();
+			
+			//undo all the filter transformations for the last component
+			Iterator<ISEMOSSTransformation> iterator = transformations.listIterator();
+			while(iterator.hasNext()) {
+				ISEMOSSTransformation transform = iterator.next();
+				if(transform instanceof FilterTransformation) {
+					transform.undoTransformation();
+				}
+				//should it be removed or left in?
+				iterator.remove();
+			}
 		} 
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
@@ -1089,8 +1185,8 @@ public class EngineResource {
 		String[] columnHeaders = mainTree.getColumnHeaders();
 		List<Object> availableFilterValues = new ArrayList<Object>();
 
-		//TODO: why is this always false?
-		boolean filterEnabled = false;
+		//TODO: why is this always true?
+		boolean filterEnabled = true;
 		if(!filterEnabled || (filterEnabled && concept.equalsIgnoreCase(columnHeaders[0]))) {
 			uniqueValueIterator = mainTree.uniqueValueIterator(concept, true, true);
 			while(uniqueValueIterator.hasNext()) {
