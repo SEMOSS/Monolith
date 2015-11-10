@@ -1019,58 +1019,49 @@ public class EngineResource {
 		
 		//If the filter model has information, filter the tree
 		if(filterModel != null && filterModel.keySet().size() > 0) {
-//			if(filterModel.keySet().size() > 1) {
-//				TableDataFrameUtilities.filterData(mainTree, filterModel);
-//			} else {
-//				TableDataFrameUtilities.filterTableData(mainTree, filterModel);
-//			}
 			
-			boolean filterValues = true;
+			boolean filterValues = true; //this boolean indicates whether values need to be filtered out of the tree
 			for(String concept : filterModel.keySet()) {
 				Map<String, Object> columnMap = filterModel.get(concept);
 				List<Object> values = (List<Object>)columnMap.get("values");
+				
+				//size of values is 0 when column needs to either be completely filtered or completely unfiltered
+				//Boolean selectAll indicates which
 				if(values.size() == 0) {
 					Boolean selectAll = (Boolean)columnMap.get("selectAll");
 					if(selectAll) {
-//						mainTree.unfilter(key); //undo transformation for this column
 						filterValues = false;
 					} else {
-//						filterColumn(mainTree, key, values); //otherwise get transformation, and invoke
 						filterValues = true;
 					}
 				} else {
-//					filterColumn(mainTree, key, values); //get transformation, replace values and invoke
 					filterValues = true;
 				}
-			
-			
-//				Map<String, ISEMOSSTransformation> filterTransformationMap = new HashMap<String, ISEMOSSTransformation>();
 				
+				//indicates whether a filter transformation exists for a particular column
 				boolean containsFilterTransformation = false;
 				
+				//iterate through all transformations for a data maker component
 				Iterator<ISEMOSSTransformation> iterator = transformations.listIterator();
 				while(iterator.hasNext()) {
 					ISEMOSSTransformation transform = iterator.next();
+					
+					//if we find a Filter Transformation
 					if(transform instanceof FilterTransformation) {
 						Map<String, Object> properties = transform.getProperties();
+						
+						//if this transformation is associated with the column we are looking for
 						String columnHeader = properties.get(FilterTransformation.COLUMN_HEADER_KEY).toString();
 						if(columnHeader.equalsIgnoreCase(concept)) {
 							
+							//values indicates what to keep in the table, replace with what is already there then run
 							if(filterValues) {
-//								List<Object> currentValues = (List<Object>)properties.get(FilterTransformation.VALUES_KEY);
-//								Set<String> newValues = new HashSet<String>();
-//								for(Object o : currentValues) {
-//									newValues.add(o.toString());
-//								}
-//								
-//								for(Object o: values) {
-//									newValues.add(o.toString());
-//								}
-								
 								properties.put(FilterTransformation.VALUES_KEY, values);
 								transform.runMethod();
-							} else {
-//								transform.undoTransformation();
+							} 
+							
+							//else need to unfilter column, i.e. keep the whole column
+							else {
 								Iterator<Object> allValueIterator = mainTree.uniqueValueIterator(columnHeader, false, true);
 								List<Object> allValues = new ArrayList<Object>();
 								while(allValueIterator.hasNext()) {
@@ -1086,6 +1077,7 @@ public class EngineResource {
 					}
 				}
 				
+				//if no new filter transformation found, create a new one
 				if(!containsFilterTransformation) {
 					ISEMOSSTransformation filterTrans = new FilterTransformation();
 					filterTrans.setTransformationType(false);
@@ -1102,8 +1094,8 @@ public class EngineResource {
 
 		//if the filtermodel is not null and contains no data then unfilter the whole tree
 		//this trigger to unfilter the whole tree was decided between FE and BE for simplicity
+		//TODO: make this an explicit call
 		else if(filterModel != null && filterModel.keySet().size() == 0) {
-//			mainTree.unfilter();
 			
 			//undo all the filter transformations for the last component
 			Iterator<ISEMOSSTransformation> iterator = transformations.listIterator();
@@ -1112,6 +1104,7 @@ public class EngineResource {
 				if(transform instanceof FilterTransformation) {
 					transform.undoTransformation();
 				}
+				
 				//should it be removed or left in?
 				iterator.remove();
 			}
