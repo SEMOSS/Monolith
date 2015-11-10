@@ -522,7 +522,7 @@ public class NameServer {
 	public StreamingOutput getPlaySheets(@Context HttpServletRequest request){
 		Hashtable<String, String> hashTable = new Hashtable<String, String>();
 
-		ArrayList<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
+		List<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
 		for(int i=0; i<sheetNames.size(); i++){
 			hashTable.put(sheetNames.get(i), PlaySheetRDFMapBasedEnum.getClassFromName(sheetNames.get(i)));
 		}
