@@ -147,6 +147,8 @@ public class QuestionAdmin {
 	
 	/**
 	 * Fills in the query for selected parameters
+	 * Example: if a user creates a question that takes in a parameter and wants to save the visualization created (with the selected parameter)
+	 * 			We need to fill in the metamodel data/query with the selected instance to re-create it properly
 	 * @param params					The SEMOSSParams that will stay as parameters for recreation of the insight
 	 * @param dmcList					The list of DataMakerComponents which contain the filters
 	 * @param paramHash					The selected parameters to get to the viz
@@ -155,6 +157,8 @@ public class QuestionAdmin {
 		if(paramHash != null) {
 			for(String selectedParamName : paramHash.keySet()) {
 				boolean stillParam = false;
+				// loop to make sure that the list of parameters that the user selected isn't still a parameter
+				// user can select a parameter value and re-save the visualization with that column still as a parameter
 				if(params != null) {
 					STILL_PARAMS : for(SEMOSSParam p : params) {
 						if(p.getName().equals(selectedParamName)) {
@@ -166,11 +170,21 @@ public class QuestionAdmin {
 				if(!stillParam) {
 					for(DataMakerComponent dmc : dmcList) {
 						Map<String, Object> mm = dmc.getMetamodelData();
+						// if there is no metamodel data, fill in the query
 						if(mm == null || mm.isEmpty()) {
 							String query = dmc.getQuery();
 							query = Utility.normalizeParam(query);
 							query = Utility.fillParam(query, paramHash);
 							dmc.setQuery(query);
+						} else {
+							// fill in the FilterTransformation with the selected values
+							List<ISEMOSSTransformation> preTrans = dmc.getPreTrans();
+							for(ISEMOSSTransformation trans : preTrans) {
+								if(trans.getProperties().get(FilterTransformation.COLUMN_HEADER_KEY).equals(selectedParamName)) {
+									trans.getProperties().put(FilterTransformation.VALUES_KEY, paramHash.get(selectedParamName));
+									break;
+								}
+							}
 						}
 					}
 				}

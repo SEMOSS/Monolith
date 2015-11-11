@@ -51,6 +51,7 @@ import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.QuestionAdministrator;
+import prerna.nameserver.DeleteFromMasterDB;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
@@ -158,8 +159,8 @@ public class DBAdminResource {
 	
 	public boolean deleteEngine(IEngine coreEngine, HttpServletRequest request)
 	{
-		coreEngine.deleteDB();
 		String engineName = coreEngine.getEngineName();
+		coreEngine.deleteDB();
 //		System.out.println("closing " + engineName);
 //		coreEngine.closeDB();
 //		System.out.println("db closed");
@@ -227,7 +228,9 @@ public class DBAdminResource {
 			String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
 			engineNames = engineNames.replace(";" + engineName, "");
 			DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engineNames);
-
+			
+			DeleteFromMasterDB remover = new DeleteFromMasterDB(Constants.LOCAL_MASTER_DB_NAME);
+			remover.deleteEngine(engineName);
 			return true;
 //		} catch (IOException e) {
 //			e.printStackTrace();
