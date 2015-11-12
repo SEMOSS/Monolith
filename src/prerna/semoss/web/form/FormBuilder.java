@@ -39,7 +39,7 @@ public final class FormBuilder {
 
 	private FormBuilder() {
 	}
-	
+
 	/**
 	 * 
 	 * @param formData the stringified JSON of the form data to save
@@ -50,12 +50,12 @@ public final class FormBuilder {
 	 * 
 	 */
 	public static void saveForm(String formData, String jsonLoc) throws IOException {
-		
+
 		//throw an error if a file of the same name exists
 		if(Files.exists(Paths.get(jsonLoc))) {
 			throw new IOException("File already exists");
 		}
-		
+
 		//write the formData json to a file
 		FileWriter file = null;
 		try {
@@ -76,7 +76,7 @@ public final class FormBuilder {
 			}
 		}
 	}
-	
+
 	/**
 	 * 
 	 * @param basePath
@@ -124,7 +124,7 @@ public final class FormBuilder {
 				}
 			}
 		}
-		
+
 		//return stringified json of form
 		return stringBuilder.toString();
 	}
@@ -133,49 +133,44 @@ public final class FormBuilder {
 	 * 
 	 * @param form
 	 */
-	public static void saveFormData(MultivaluedMap<String, String> form) {
+	public static void saveFormData(IEngine engine, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		String formData = form.getFirst("formData");
-		List<HashMap<String, Object>> Engines = gson.fromJson(formData, new TypeToken<List<HashMap<String, Object>>>() {}.getType());
-		
+		Map<String, Object> engineHash = gson.fromJson(formData, new TypeToken<Map<String, Object>>() {}.getType());
+
 		Properties p = DIHelper.getInstance().getRdfMap();
 		//TODO : need to grab this from the OWL or somewhere else
 		String semossBaseURI = "http://semoss.org/ontologies";
 
-		for(HashMap<String, Object> engineHash : Engines) {
-			String engineName = engineHash.get("engine").toString();
-			IEngine engine = (IEngine)DIHelper.getInstance().getLocalProp(engineName);
-			
-			String baseURI = semossBaseURI;
-			if(engineHash.containsKey("baseURI")) {
-				baseURI = engineHash.get("baseURI").toString();
-			}
-			
-			String relationBaseURI = semossBaseURI + "/" + Constants.DEFAULT_RELATION_CLASS;
-			String conceptBaseURI = semossBaseURI + "/" + Constants.DEFAULT_NODE_CLASS;
-			String propertyBaseURI = semossBaseURI + "/" + Constants.DEFAULT_PROPERTY_CLASS;
-
-			List<HashMap<String, Object>> nodes = (List<HashMap<String, Object>>) engineHash.get("nodes"); 
-			List<HashMap<String, Object>> relationships = new ArrayList<HashMap<String, Object>>();
-			
-			if(engineHash.containsKey("relationships")) {
-				relationships = (List<HashMap<String, Object>>)engineHash.get("relationships");
-			}
-			
-			if(engine.getEngineType() == IEngine.ENGINE_TYPE.JENA || engine.getEngineType() == IEngine.ENGINE_TYPE.SESAME) {
-				saveRDFFormData(engine, baseURI, relationBaseURI, conceptBaseURI, propertyBaseURI, nodes, relationships);
-			} else if(engine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
-				saveRDBMSFormData(engine, baseURI, relationBaseURI, conceptBaseURI, propertyBaseURI, nodes, relationships);
-			} else {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Engine type not found!");
-			}
-			
-			//commit information to db
-			engine.commit();
+		String baseURI = semossBaseURI;
+		if(engineHash.containsKey("baseURI")) {
+			baseURI = engineHash.get("baseURI").toString();
 		}
+
+		String relationBaseURI = semossBaseURI + "/" + Constants.DEFAULT_RELATION_CLASS;
+		String conceptBaseURI = semossBaseURI + "/" + Constants.DEFAULT_NODE_CLASS;
+		String propertyBaseURI = semossBaseURI + "/" + Constants.DEFAULT_PROPERTY_CLASS;
+
+		List<HashMap<String, Object>> nodes = (List<HashMap<String, Object>>) engineHash.get("nodes"); 
+		List<HashMap<String, Object>> relationships = new ArrayList<HashMap<String, Object>>();
+
+		if(engineHash.containsKey("relationships")) {
+			relationships = (List<HashMap<String, Object>>)engineHash.get("relationships");
+		}
+
+		if(engine.getEngineType() == IEngine.ENGINE_TYPE.JENA || engine.getEngineType() == IEngine.ENGINE_TYPE.SESAME) {
+			saveRDFFormData(engine, baseURI, relationBaseURI, propertyBaseURI, nodes, relationships);
+		} else if(engine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
+			saveRDBMSFormData(engine, baseURI, relationBaseURI, conceptBaseURI, propertyBaseURI, nodes, relationships);
+		} else {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Engine type not found!");
+		}
+
+		//commit information to db
+		engine.commit();
 	}
-	
+
 	/**
 	 * 
 	 * @param engine
@@ -188,7 +183,7 @@ public final class FormBuilder {
 	 * 
 	 * Save data from the form to a RDF Database
 	 */
-	private static void saveRDFFormData(IEngine engine, String baseURI, String relationBaseURI, String conceptBaseURI, String propertyBaseURI, List<HashMap<String, Object>> nodes, List<HashMap<String, Object>> relationships) {
+	private static void saveRDFFormData(IEngine engine, String baseURI, String relationBaseURI, String propertyBaseURI, List<HashMap<String, Object>> nodes, List<HashMap<String, Object>> relationships) {
 		String nodeType;
 		String nodeValue;
 		String instanceConceptURI;
@@ -196,30 +191,26 @@ public final class FormBuilder {
 		String propertyType;
 		String propertyURI;
 
-		Gson gson = new Gson();
-		
 		Map<String, String> nodeMapping = new HashMap<String, String>();
-
 		//Save nodes and properties of nodes
 		for(int i = 0; i < nodes.size(); i++) {
 			Map<String, Object> node = nodes.get(i);
 			nodeType = node.get("conceptName").toString();
 			nodeValue = node.get("conceptValue").toString();
-			nodeMapping.put(nodeType, nodeValue);
+			nodeMapping.put(nodeValue, nodeType);
 
-			instanceConceptURI = baseURI + "/" + nodeValue;
-			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDF.TYPE, conceptBaseURI + "/" + nodeType, true});
+			instanceConceptURI = baseURI + "/Concept/" + Utility.getInstanceName(nodeType) + "/" + nodeValue;
+			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDF.TYPE, nodeType, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDFS.LABEL, nodeValue, false});
-			
-			
+
 			if(node.containsKey("properties")) {
 				List<HashMap<String, Object>> properties = (List<HashMap<String, Object>>)node.get("properties");
-	
+
 				for(int j = 0; j < properties.size(); j++) {
 					Map<String, Object> property = properties.get(j);
 					propertyValue = property.get("propertyValue").toString();
 					propertyType = property.get("propertyName").toString();
-					
+
 					propertyURI = propertyBaseURI + "/" + propertyType;
 					engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
 					engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{propertyURI, RDF.TYPE, propertyBaseURI, true});
@@ -237,29 +228,29 @@ public final class FormBuilder {
 		String baseRelationshipURI;
 		String instanceRel;
 		String instanceRelationshipURI;
-		
+
 		//Save the relationships
 		for(int i = 0; i < relationships.size(); i++) {
 			Map<String, Object> relationship = relationships.get(i);
-			startNode = relationship.get("startNode").toString();
-			endNode = relationship.get("endNode").toString();
+			startNode = relationship.get("startNodeVal").toString();
+			endNode = relationship.get("endNodeVal").toString();
 			subject = nodeMapping.get(startNode);
 			object = nodeMapping.get(endNode);
-			instanceSubjectURI = baseURI + "/" + subject;
-			instanceObjectURI = baseURI + "/" + object;
-			
+			instanceSubjectURI = baseURI + "/" + Utility.getInstanceName(subject) + "/" + startNode;
+			instanceObjectURI = baseURI + "/" + Utility.getInstanceName(object) + "/" + endNode;
+
 			relType = relationship.get("relType").toString();
 			baseRelationshipURI = relationBaseURI + "/" + relType;
-			instanceRel = subject + ":" + object;
-			instanceRelationshipURI = baseRelationshipURI + "/" + instanceRel;
-			
+			instanceRel = startNode + ":" + endNode;
+			instanceRelationshipURI = baseURI + "/Relation/" + relType + "/" + instanceRel;
+
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, baseRelationshipURI, instanceObjectURI, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, instanceRelationshipURI, instanceObjectURI, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.SUBPROPERTYOF, baseRelationshipURI, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.LABEL, instanceRel, false});
 		}
 	}
-	
+
 	/**
 	 * 
 	 * @param engine
@@ -280,24 +271,24 @@ public final class FormBuilder {
 
 		for(int j = 0; j < nodes.size(); j++) {
 			Map<String, Object> node = nodes.get(j);
-			
+
 			tableName = node.get("conceptName").toString();
-//			tableColumn = node.get("columnName").toString();
+			//			tableColumn = node.get("columnName").toString();
 			tableValue = node.get("conceptValue").toString();
-			
-//			HashMap<String, String> innerMap = new HashMap<String, String>();
-//			innerMap.put(tableColumn, tableValue);
-//			nodeMapping.put(tableName, innerMap);
-			
+
+			//			HashMap<String, String> innerMap = new HashMap<String, String>();
+			//			innerMap.put(tableColumn, tableValue);
+			//			nodeMapping.put(tableName, innerMap);
+
 			Map<String, Object> templateOptions = (Map<String, Object>)node.get("templateOptions");
 			tableColumn = templateOptions.get("columnName").toString();
 			tableName = tableColumn;
 			List<HashMap<String, Object>> properties = (List<HashMap<String, Object>>)templateOptions.get("properties");
-			
+
 			HashMap<String, String> innerMap = new HashMap<String, String>();
 			innerMap.put(tableColumn, tableValue);
 			nodeMapping.put(tableName, innerMap);
-			
+
 			List<String> propTypes = new ArrayList<String>();
 			List<Object> propValues = new ArrayList<Object>();
 			for(int k = 0; k < properties.size(); k++) {
@@ -305,7 +296,7 @@ public final class FormBuilder {
 				propTypes.add(property.get("propertyName").toString());
 				propValues.add(property.get("propertyValue"));
 			}
-			
+
 			StringBuilder insertQuery = new StringBuilder();
 			insertQuery.append("INSERT INTO ");
 			insertQuery.append(tableName.toUpperCase());
@@ -317,7 +308,7 @@ public final class FormBuilder {
 					insertQuery.append(",");
 				}
 			}
-			
+
 			String dataType = checkColumnDataType(engine, tableColumn);
 			boolean useQuotes = useQuotes(dataType);
 			if(useQuotes) {
@@ -328,7 +319,7 @@ public final class FormBuilder {
 				insertQuery.append(") VALUES (");
 				insertQuery.append(tableValue);
 			}
-			
+
 			for(int i = 0; i < propValues.size(); i++) {
 				Object propertyValue = propValues.get(i);
 				if(propertyValue instanceof String) {
@@ -343,10 +334,10 @@ public final class FormBuilder {
 				}
 			}
 			insertQuery.append(");");
-			
+
 			engine.insertData(insertQuery.toString());
 		}
-		
+
 		String startTable;
 		String startCol;
 		String endTable;
@@ -391,10 +382,10 @@ public final class FormBuilder {
 					}
 				}
 			}
-			
+
 			for(int r = 0; r < relationships.size(); r++) {
 				Map<String, Object> relationship =  relationships.get(r);
-				
+
 				startTable = relationship.get("startNode").toString();
 				startCol = relationship.get("startCol").toString();
 				endTable = relationship.get("endNode").toString();
@@ -418,11 +409,11 @@ public final class FormBuilder {
 						insertQuery.append("', '");
 						insertQuery.append(nodeMapping.get(endTable).get(endCol));
 						insertQuery.append("');");
-						
+
 						engine.insertData(insertQuery.toString());
 					}
 				}
-				
+
 				Set<String> fks = tableFKs.get(startTable);
 				if(fks.contains(endTable + _FK)) {
 					// update record in startTable with FK relationship to endTable
@@ -438,10 +429,10 @@ public final class FormBuilder {
 					updateQuery.append("='");
 					updateQuery.append(nodeMapping.get(startTable).get(startCol));
 					updateQuery.append("';");
-					
+
 					engine.insertData(updateQuery.toString());
 				}
-				
+
 				fks = tableFKs.get(endTable);
 				if(fks.contains(startTable + _FK)) {
 					// update record in endTable with FK relationship to startTable
@@ -457,7 +448,7 @@ public final class FormBuilder {
 					updateQuery.append("='");
 					updateQuery.append(nodeMapping.get(endTable).get(endCol));
 					updateQuery.append("';");
-					
+
 					engine.insertData(updateQuery.toString());
 				}
 			}
@@ -466,24 +457,24 @@ public final class FormBuilder {
 			errorHash.put("errorMessage", "Base ontologogy (OWL File) not found for engine!");		
 		}
 	}
-	
-	
+
+
 	private static String checkColumnDataType(IEngine engine, String tableName) {
 		String type = "";
 		try {
-		
+
 			String getColumnTypeQuery = "SELECT * FROM" + tableName + "LIMIT 1";
 			Map<String, Object> map = (Map<String, Object>) engine.execQuery(getColumnTypeQuery);
 			ResultSet rs = (ResultSet) map.get(RDBMSNativeEngine.RESULTSET_OBJECT);
 			ResultSetMetaData rsmd = rs.getMetaData();
 			type = rsmd.getColumnTypeName(1);
-			
+
 		} catch(Exception e) {
-			
+
 		}
 		return type;
 	}
-	
+
 	private static boolean useQuotes(String columnType) {
 		if(columnType.equals("FLOAT")) return false;
 		else return true;
