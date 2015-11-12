@@ -88,6 +88,10 @@ public class PlaySheetResource {
 		Gson gson = new Gson();
 		List<String> downNodeTypes = gson.fromJson(form.getFirst("downNodeTypes"), List.class);
 		List<String> upNodeList = gson.fromJson(form.getFirst("upNode"), List.class);
+		
+		downNodeTypes = Utility.getTransformedNodeNamesList(coreEngine, downNodeTypes, false);
+		upNodeList = Utility.getTransformedNodeNamesList(coreEngine, upNodeList, false);
+		
 		logger.info("Processing downstream traversal for node instance " + upNodeList.toString() + " to types " + downNodeTypes.toString());
 		
 		boolean isRDF = (coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || 
@@ -120,9 +124,6 @@ public class PlaySheetResource {
 				String fromType = upNodeList.get(0);
 				String className = Utility.getQualifiedClassName(fromType); // gets you everything but the instance
 				String modClassName = Utility.getInstanceName(className); // since it gets me the last one , this is really the className
-				String camelClassName = Utility.toCamelCase(modClassName);
-				// replace it
-				className.replace(modClassName, camelClassName); // now I have the classname
 				
 				sparql = rdbmsEngine.traverseOutputQuery(className, downNodeTypes.get(0), false, upNodeList);
 
@@ -163,6 +164,10 @@ public class PlaySheetResource {
 		Gson gson = new Gson(); // the upstream extension comes in here - no surprises there
 		List<String> upNodeTypes = gson.fromJson(form.getFirst("upNodeTypes"), List.class); // this is a type
 		List<String> downNodeList = gson.fromJson(form.getFirst("downNode"), List.class); // this is an instance
+		
+		upNodeTypes = Utility.getTransformedNodeNamesList(coreEngine, upNodeTypes, false);
+		downNodeList = Utility.getTransformedNodeNamesList(coreEngine, downNodeList, false);
+		
 		logger.info("Processing upstream traversal for node instances " + downNodeList.toString());
 		
 		//get the query
@@ -198,9 +203,6 @@ public class PlaySheetResource {
 				String fromType = downNodeList.get(0);
 				String className = Utility.getQualifiedClassName(fromType); // gets you everything but the instance
 				String modClassName = Utility.getInstanceName(className); // since it gets me the last one , this is really the className
-				String camelClassName = Utility.toCamelCase(modClassName);
-				// replace it
-				className.replace(modClassName, camelClassName); // now I have the classname
 				
 				sparql = rdbmsEngine.traverseOutputQuery(className, upNodeTypes.get(0), false, downNodeList);
 			}
