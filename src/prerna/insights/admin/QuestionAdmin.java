@@ -29,7 +29,6 @@ package prerna.insights.admin;
 
 import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
@@ -276,8 +275,7 @@ public class QuestionAdmin {
 				String varKey = "";
 				// need to add parameters to the metamodel data
 				// we decide which DataMakerComponent based on order
-				int compNum = 0;
-				FIND_DMC : for(; compNum < dmcList.size(); compNum++) {
+				FIND_DMC : for(int compNum = 0; compNum < dmcList.size(); compNum++) {
 					DataMakerComponent dmc = dmcList.get(compNum);
 					Map<String, Object> metamodel = dmc.getMetamodelData();
 					Map<String, Object> queryData = (Map<String, Object>) metamodel.get("QueryData");
@@ -351,20 +349,6 @@ public class QuestionAdmin {
 					}
 				}
 				params.add(p);
-				
-				// need to loop through and delete any filters on this parameter that might have occurred in later post transformations
-				for(; compNum < dmcList.size(); compNum++) {
-					DataMakerComponent dmc = dmcList.get(compNum);
-					Iterator<ISEMOSSTransformation> postTransIt = dmc.getPostTrans().iterator();
-					while(postTransIt.hasNext()) {
-						ISEMOSSTransformation trans = postTransIt.next();
-						if(trans instanceof FilterTransformation) {
-							if(trans.getProperties().get(FilterTransformation.COLUMN_HEADER_KEY).equals(paramName)) {
-								postTransIt.remove();
-							}
-						}
-					}
-				}
 			}
 		}
 	}
