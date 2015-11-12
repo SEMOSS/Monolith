@@ -236,17 +236,20 @@ public final class FormBuilder {
 			endNode = relationship.get("endNodeVal").toString();
 			subject = nodeMapping.get(startNode);
 			object = nodeMapping.get(endNode);
-			instanceSubjectURI = baseURI + "/" + Utility.getInstanceName(subject) + "/" + startNode;
-			instanceObjectURI = baseURI + "/" + Utility.getInstanceName(object) + "/" + endNode;
+			instanceSubjectURI = baseURI + "/Concept/" + Utility.getInstanceName(subject) + "/" + startNode;
+			instanceObjectURI = baseURI + "/Concept/" + Utility.getInstanceName(object) + "/" + endNode;
 
 			relType = relationship.get("relType").toString();
 			baseRelationshipURI = relationBaseURI + "/" + relType;
 			instanceRel = startNode + ":" + endNode;
 			instanceRelationshipURI = baseURI + "/Relation/" + relType + "/" + instanceRel;
 
+			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, relationBaseURI, instanceObjectURI, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, baseRelationshipURI, instanceObjectURI, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, instanceRelationshipURI, instanceObjectURI, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.SUBPROPERTYOF, baseRelationshipURI, true});
+			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.SUBPROPERTYOF, relationBaseURI, true});
+			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDF.TYPE, RDF.PROPERTY, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.LABEL, instanceRel, false});
 		}
 	}
