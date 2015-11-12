@@ -1301,8 +1301,22 @@ public class EngineResource {
 		List<String> retOrder = new ArrayList<String>();
 		retOrder.add(equivConcept);
 		dataHash.put("returnOrder", retOrder);
-
+		
+		// need to remove filter and add that as a pretransformation. Otherwise our metamodel data is not truly clean metamodel data
+		Map<String, List<String>> filters = (Map<String, List<String>>)((Map<String, Object>) dataHash.get("QueryData")).remove(AbstractQueryBuilder.filterKey);
 		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, dataHash);
+		
+		if(filters != null){
+			for(String filterCol : filters.keySet()){
+				Map<String, Object> transProps = new HashMap<String, Object>();
+				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, filterCol);
+				transProps.put(FilterTransformation.VALUES_KEY, filters.get(filterCol));
+				ISEMOSSTransformation filterTrans = new FilterTransformation();
+				filterTrans.setProperties(transProps);
+				dmc.addPreTrans(filterTrans);
+			}
+		}
+
 
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
 		if(insightID == null || insightID.isEmpty()) {
@@ -1320,15 +1334,17 @@ public class EngineResource {
 			}
 
 			// 2. a. If its not an outer join, add a filter transformation with all instances from other column in order to speed up join
-			if(!joinType.equals("outer")) {
-				List<Object> filteringValues = Arrays.asList( ((ITableDataFrame) insight.getDataMaker()).getUniqueRawValues(currConcept));
-				Map<String, Object> transProps = new HashMap<String, Object>();
-				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, currConcept);
-				transProps.put(FilterTransformation.VALUES_KEY, filteringValues);
-				ISEMOSSTransformation filterTrans = new FilterTransformation();
-				filterTrans.setProperties(transProps);
-				dmc.addPreTrans(filterTrans);
-			}
+			// We no longer want to do this as we are storing the whole tree essentially a couple times over just in the RDBMS through these filters
+			// Rather the inner join on the component should somehow prompt the component to add bindings to the query
+//			if(!joinType.equals("outer")) {
+//				List<Object> filteringValues = Arrays.asList( ((ITableDataFrame) insight.getDataMaker()).getUniqueRawValues(currConcept));
+//				Map<String, Object> transProps = new HashMap<String, Object>();
+//				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, currConcept);
+//				transProps.put(FilterTransformation.VALUES_KEY, filteringValues);
+//				ISEMOSSTransformation filterTrans = new FilterTransformation();
+//				filterTrans.setProperties(transProps);
+//				dmc.addPreTrans(filterTrans);
+//			}
 
 			// 2. b. Add join transformation since we know a tree already exists and we will have to join to it
 			ISEMOSSTransformation joinTrans = new JoinTransformation();
