@@ -119,7 +119,6 @@ public class CentralNameServer {
 			@Context HttpServletRequest request)
 	{
 		String conceptURI = form.getFirst("conceptURI");
-		
 		logger.info("LOCALLY have concept selected as ::: " + conceptURI);
 
 		if(centralApi!=null) {
