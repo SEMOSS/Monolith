@@ -247,6 +247,7 @@ public class EngineResource {
 	{
 		Gson gson = new Gson();
 		List<String> uriArray = gson.fromJson(form.getFirst("node"), List.class); // comes in with the uri that was first selected i.e. the instance
+		uriArray = Utility.getTransformedNodeNamesList(coreEngine, uriArray, false);
 
 		boolean isRDF = (coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || 
 				coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE);
@@ -293,6 +294,7 @@ public class EngineResource {
 					if((boolean) engine.execQuery(filledDownAskQuery))	
 						validDownTypes.add(connectedType);
 				}
+				validDownTypes = (Vector<String>) Utility.getTransformedNodeNamesList(coreEngine, validDownTypes, true);
 				finalTypes.put("downstream", validDownTypes);
 
 				//UPSTREAM PROCESSING
@@ -314,6 +316,7 @@ public class EngineResource {
 					if((boolean) engine.execQuery(filledUpAskQuery))
 						validUpTypes.add(connectedType);
 				}
+				validUpTypes = (Vector<String>) Utility.getTransformedNodeNamesList(coreEngine, validUpTypes, true);
 				finalTypes.put("upstream", validUpTypes);
 			}
 		}
@@ -330,9 +333,7 @@ public class EngineResource {
 				String uri = uriArray.get(inputIndex);
 				String className = Utility.getQualifiedClassName(uri); // gets you everything but the instance
 				String modClassName = Utility.getInstanceName(className); // since it gets me the last one , this is really the className
-				String camelClassName = Utility.toCamelCase(modClassName);
-				// replace it
-				className.replace(modClassName, camelClassName);
+
 				if(!types.contains(className))
 					types.add(className);
 			}
@@ -349,6 +350,9 @@ public class EngineResource {
 
 			// no check for data yet.. will get to it later
 
+			validUpTypes = (Vector<String>) Utility.getTransformedNodeNamesList(coreEngine, validUpTypes, true);
+			validDownTypes = (Vector<String>) Utility.getTransformedNodeNamesList(coreEngine, validDownTypes, true);
+			
 			finalTypes.put("upstream", validUpTypes);
 			finalTypes.put("downstream", validDownTypes);
 
@@ -606,6 +610,8 @@ public class EngineResource {
 		}
 		else {
 			Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+			params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
+			
 			System.out.println("Params is " + params);
 			//			Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
 
@@ -678,8 +684,22 @@ public class EngineResource {
 		// based on the current ID get the data
 		// typically is a JSON of the insight
 		// this will also cache it
-		System.out.println(form.getFirst("query"));
-		return Response.status(200).entity(WebUtility.getSO(RDFJSONConverter.getSelectAsJSON(form.getFirst("query")+"", coreEngine))).build();
+		Gson gson = new Gson();
+		String query = form.getFirst("query");
+		String[] paramBind = gson.fromJson(form.getFirst("paramBind"), new TypeToken<String[]>() {}.getType());
+		String[] paramValue = gson.fromJson(form.getFirst("paramValue"), new TypeToken<String[]>() {}.getType());
+		//do the query binding server side isntead of on the front end.
+		if(paramBind.length > 0 && paramValue.length > 0 && (paramBind.length == paramValue.length)){
+			for(int i = 0; i < paramBind.length; i++){
+				String paramValueStr = coreEngine.getTransformedNodeName(paramValue[i], false);
+				if(coreEngine.getEngineType() == ENGINE_TYPE.RDBMS){
+					paramValueStr = Utility.getInstanceName(paramValueStr);
+				}
+				query = query.replaceAll(paramBind[i], paramValueStr);
+			}
+		}
+		System.out.println(query);
+		return Response.status(200).entity(WebUtility.getSO(RDFJSONConverter.getSelectAsJSON(query, coreEngine))).build();
 	}	
 
 	// runs a query against the engine while filtering out everything included in baseHash
@@ -890,6 +910,7 @@ public class EngineResource {
 			removeAll = false;
 		}
 		if(removeColumns == null || removeColumns.length == 0 || removeAll) {
+
 
 			boolean success = InsightStore.getInstance().remove(insightID);
 			InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
@@ -1429,7 +1450,7 @@ public class EngineResource {
 			int currIndexexistingConcept = 0;
 
 			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(newNames, currConcept);
-			if(currIndexexistingConcept == 0) {
+			if(currIndexexistingConcept <= 0) {
 				index = 1;
 			}
 		} 
@@ -1500,11 +1521,6 @@ public class EngineResource {
 
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
 
-		// TODO: why is rdbms uppper case for names? causes discrepancies
-		if (!(builder instanceof SPARQLQueryTableBuilder)) { // if not sparql then uppercase the concept
-			currConcept = currConcept.toUpperCase();
-		}
-
 		if(insightID != null && !insightID.isEmpty() && !outer) {
 			// need to add bindings for query if not outer join
 			Insight existingInsight = InsightStore.getInstance().get(insightID);
@@ -1545,12 +1561,13 @@ public class EngineResource {
 		System.out.println(query);
 
 		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
-		String[] newNames = wrap.getVariables();
+		String[] newNames = wrap.getPhysicalVariables();
+		String[] displayNames = wrap.getDisplayVariables();
 		int index = 0;
-		if (newNames.length > 1) {
+		if (displayNames.length > 1) {
 			int currIndexexistingConcept = 0;
 
-			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(newNames, currConcept);
+			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(displayNames, currConcept);
 			if (currIndexexistingConcept == 0) {
 				index = 1;
 			}
@@ -1560,14 +1577,14 @@ public class EngineResource {
 		ArrayList<Object> retList = new ArrayList<Object>();
 		while (wrap.hasNext()) {
 			ISelectStatement iss = wrap.next();
-			Object value = iss.getRawVar(newNames[index]);
+			Object value = iss.getRawVar(displayNames[index]);
 			if (inner && value.toString().isEmpty()) {
 				continue; // don't add empty values as a possibility
 			}
 			if (value instanceof BigdataURI) {
 				retList.add(((BigdataURI) value).stringValue());
 			} else {
-				retList.add(iss.getVar(newNames[index]));
+				retList.add(value);//retList.add(iss.getVar(newNames[index]));
 			}
 		}
 
@@ -1761,7 +1778,7 @@ public class EngineResource {
 		//IEngine e = null;
 		Gson gson = new Gson();
 		try {
-			FormBuilder.saveFormData(this.coreEngine, form);
+			FormBuilder.saveFormData(form);
 		} catch(Exception e) {
 			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
 		}
