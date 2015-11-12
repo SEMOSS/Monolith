@@ -394,6 +394,10 @@ public class NameServer {
 					@Context HttpServletRequest request)
 	{
 		String conceptURI = form.getFirst("conceptURI");
+		
+		IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(form.getFirst("engine"));
+		conceptURI = engine.getTransformedNodeName(conceptURI,false);
+		
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		logger.info("CENTRALLY have registered selected URIs as ::: " + conceptURI.toString());
 
@@ -461,7 +465,7 @@ public class NameServer {
 
 //		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
 //		tableViz.setJSONDataHash(dataHash);
-		Hashtable parsedPath = QueryBuilderHelper.parsePath(dataHash);
+		Hashtable parsedPath = QueryBuilderHelper.parsePath((IEngine)request.getSession().getAttribute(Constants.ENGINES),dataHash);
 //		ArrayList<Hashtable<String, String>> nodeV = tableViz.getNodeV();
 //		ArrayList<Hashtable<String, String>> predV = tableViz.getPredV();
 
@@ -522,7 +526,7 @@ public class NameServer {
 	public StreamingOutput getPlaySheets(@Context HttpServletRequest request){
 		Hashtable<String, String> hashTable = new Hashtable<String, String>();
 
-		List<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
+		ArrayList<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
 		for(int i=0; i<sheetNames.size(); i++){
 			hashTable.put(sheetNames.get(i), PlaySheetRDFMapBasedEnum.getClassFromName(sheetNames.get(i)));
 		}
@@ -550,21 +554,13 @@ public class NameServer {
 			String engineName = engineMap.get("name");
 			System.out.println("Engine insights for : " + engineName);
 			AbstractEngine engine = (AbstractEngine) DIHelper.getInstance().getLocalProp(engineName);
-			try {
-				List<Map<String, Object>> insightsList = engine.getAllInsightsMetaData();
-				Map<String, Object> dbMap = new Hashtable<String, Object>();
-				//TODO: not tracking count for insight views in rdbms
-				dbMap.put("insights", insightsList);
-				dbMap.put("totalCount", 0);
-				dbMap.put("maxCount", 0);
-				dataMap.put(engineName, dbMap);
-			} catch (NullPointerException e){
-				logger.error("Null pointer----UNABLE TO LOAD INSIGHTS FOR " + engine.getEngineName());
-				e.printStackTrace();
-			} catch (RuntimeException e){
-				logger.error("Runtime Exception----UNABLE TO LOAD INSIGHTS FOR " + engine.getEngineName());
-				e.printStackTrace();
-			}
+			List<Map<String, Object>> insightsList = engine.getAllInsightsMetaData();
+			Map<String, Object> dbMap = new Hashtable<String, Object>();
+			//TODO: not tracking count for insight views in rdbms
+			dbMap.put("insights", insightsList);
+			dbMap.put("totalCount", 0);
+			dbMap.put("maxCount", 0);
+			dataMap.put(engineName, dbMap);
 		}
 		
 		Map<String, Object> settingsMap = new Hashtable<String, Object>();
