@@ -351,6 +351,8 @@ public class Uploader extends HttpServlet {
 
 			List<String> rel = gson.fromJson(itemForFile.get("rowsRelationship"), List.class);
 			List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
+			List<String> displayNames = gson.fromJson(itemForFile.get("itemDisplayName"), List.class);
+
 			if((rel != null &&!rel.isEmpty()) || (prop != null && !prop.isEmpty()) ) {
 				allEmpty = false;
 			}
@@ -372,6 +374,16 @@ public class Uploader extends HttpServlet {
 					if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
 					{
 						propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+					}
+				}
+			}
+			
+			if(displayNames != null) {
+				for(String str : displayNames) {
+					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+					if(!((String) mRow.get("selectedNode").toString()).isEmpty() && !((String) mRow.get("selectedProperty").toString()).isEmpty() && !((String) mRow.get("selectedDisplayName").toString()).isEmpty())
+					{
+						propWriter.addDisplayName((ArrayList<String>) mRow.get("selectedNode"), (ArrayList<String>) mRow.get("selectedProperty"), (ArrayList<String>) mRow.get("selectedDisplayName"));
 					}
 				}
 			}
