@@ -118,7 +118,7 @@ public class CentralNameServer {
 			MultivaluedMap<String, String> form, 
 			@Context HttpServletRequest request)
 	{
-		String conceptURI = form.getFirst("conceptURI");
+		String conceptURI = form.getFirst("conceptURI");		
 		logger.info("LOCALLY have concept selected as ::: " + conceptURI);
 
 		if(centralApi!=null) {

@@ -394,6 +394,10 @@ public class NameServer {
 					@Context HttpServletRequest request)
 	{
 		String conceptURI = form.getFirst("conceptURI");
+		
+		IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(form.getFirst("engine"));
+		conceptURI = engine.getTransformedNodeName(conceptURI,false);
+		
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		logger.info("CENTRALLY have registered selected URIs as ::: " + conceptURI.toString());
 
