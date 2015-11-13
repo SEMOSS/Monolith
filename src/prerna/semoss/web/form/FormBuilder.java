@@ -1,13 +1,17 @@
 package prerna.semoss.web.form;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,13 +26,19 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.engine.api.IEngine;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
+import prerna.util.sql.SQLQueryUtil;
+import prerna.util.sql.SQLQueryUtil.DB_TYPE;
 
 public final class FormBuilder {
 
+	private static final DateFormat df = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
+	
 	private FormBuilder() {
+		
 	}
 
 	/**
@@ -120,11 +130,23 @@ public final class FormBuilder {
 		return stringBuilder.toString();
 	}
 
+	public static void saveFormData(IEngine engine, String userId, MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
+
+		IEngine dummyEng = getDummyEngine(engine);
+		Calendar cal = Calendar.getInstance();
+		String currTime = df.format(cal.getTime());
+		
+		String insertSql = "INSERT INTO FORM_DATA (USER_ID, DATE_ADDED, DATA) VALUES('" +
+				escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(gson.toJson(form)) + "')";
+		dummyEng.insertData(insertSql);
+	}
+	
 	/**
 	 * 
 	 * @param form
 	 */
-	public static void saveFormData(IEngine engine, MultivaluedMap<String, String> form) {
+	public static void commitFormData(IEngine engine, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		String formData = form.getFirst("formData");
 		Map<String, Object> engineHash = gson.fromJson(formData, new TypeToken<Map<String, Object>>() {}.getType());
@@ -395,5 +417,48 @@ public final class FormBuilder {
 			}
 			engine.insertData(updateQuery.toString());
 		}
+	}
+	
+	public static IEngine getDummyEngine(IEngine engine) {
+		String engineName = engine.getEngineName();
+		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+		
+		RDBMSNativeEngine dummyEng = new RDBMSNativeEngine();
+		DB_TYPE dbType = DB_TYPE.H2_DB;
+		SQLQueryUtil queryUtil = SQLQueryUtil.initialize(dbType);
+		Properties prop = new Properties();
+		String engineFolder = baseFolder + System.getProperty("file.separator") + "db" + System.getProperty("file.separator") + engineName + System.getProperty("file.separator");
+		String connectionURL = "jdbc:h2:" + engineFolder + "form_database;query_timeout=180000;early_filter=true;query_cache_size=24;cache_size=32768";
+		prop.put(Constants.CONNECTION_URL, connectionURL);
+		prop.put(Constants.USERNAME, queryUtil.getDefaultDBUserName());
+		prop.put(Constants.PASSWORD, queryUtil.getDefaultDBPassword());
+		prop.put(Constants.DRIVER,queryUtil.getDatabaseDriverClassName());
+		prop.put(Constants.TEMP_CONNECTION_URL, queryUtil.getTempConnectionURL());
+		prop.put(Constants.RDBMS_TYPE,queryUtil.getDatabaseType().toString());
+		prop.put("TEMP", "TRUE");
+		dummyEng.setProperties(prop);
+		
+		String dummyDbName = "form_database.mv.db";
+		String dummyDbLocation = engineFolder + dummyDbName;
+		boolean newDb = false;
+		if(!new File(dummyDbLocation).exists()) {
+			newDb = true;
+		}
+		dummyEng.openDB(null);
+		
+		if(newDb) {
+			String formDataTable = "CREATE TABLE FORM_DATA ("
+					+ "USER_ID VARCHAR(225), "
+					+ "DATE_ADDED TIMESTAMP, "
+					+ "DATA CLOB)";
+
+			dummyEng.insertData(formDataTable);
+		}
+		
+		return dummyEng;
+	}
+	
+	private static String escapeForSQLStatement(String s) {
+		return s.replaceAll("'", "''");
 	}
 }

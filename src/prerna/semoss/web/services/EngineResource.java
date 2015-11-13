@@ -1772,12 +1772,12 @@ public class EngineResource {
 	@POST
 	@Path("/saveFormData")
 	@Produces("application/json")
-	public Response saveFormData(MultivaluedMap<String, String> form) 
+	public Response saveFormData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
 	{
-		//IEngine e = null;
+		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		Gson gson = new Gson();
 		try {
-			FormBuilder.saveFormData(this.coreEngine, form);
+			FormBuilder.saveFormData(this.coreEngine, userId, form);
 		} catch(Exception e) {
 			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
 		}
