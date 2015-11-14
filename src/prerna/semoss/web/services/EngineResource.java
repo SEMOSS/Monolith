@@ -1465,7 +1465,7 @@ public class EngineResource {
 			int currIndexexistingConcept = 0;
 
 			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(newNames, currConcept);
-			if(currIndexexistingConcept <= 0) {
+			if(currIndexexistingConcept == 0) {
 				index = 1;
 			}
 		} 
@@ -1585,6 +1585,14 @@ public class EngineResource {
 			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(displayNames, currConcept);
 			if (currIndexexistingConcept == 0) {
 				index = 1;
+			} else if(currIndexexistingConcept == -1) {
+				//logic added for display names we need to use the current column header you are filtering on to try to determine the index.
+				//on second thought, you probably dont even need the logic above at all you can probably just use this
+				String columnHeaderInstance = Utility.getInstanceName(columnHeader);
+				currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(displayNames, columnHeaderInstance);//didnt find it in display names, try to find the match in physical names then
+				if(currIndexexistingConcept!=-1){
+					index = currIndexexistingConcept;
+				}
 			}
 		}
 
