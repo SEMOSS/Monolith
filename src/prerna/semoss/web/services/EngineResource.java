@@ -1319,7 +1319,9 @@ public class EngineResource {
 		// put join concept into dataHash so we know which varible needs to be first in the return
 		// this stems from the fact that btree can only join left to right.
 		List<String> retOrder = new ArrayList<String>();
-		retOrder.add(equivConcept);
+		//I need the physical name to be put into the retOrder, so append the displayname uri and assume that the value in equivConcept is potentially a display name, if its not we'll still get the physical name back...
+		String physicalEquivConcept = Utility.getInstanceName(this.coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + equivConcept , false));
+		retOrder.add(physicalEquivConcept);
 		dataHash.put("returnOrder", retOrder);
 		
 		// need to remove filter and add that as a pretransformation. Otherwise our metamodel data is not truly clean metamodel data
@@ -1330,7 +1332,7 @@ public class EngineResource {
 			for(String filterCol : filters.keySet()){
 				Map<String, Object> transProps = new HashMap<String, Object>();
 				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, filterCol);
-				transProps.put(FilterTransformation.VALUES_KEY, filters.get(filterCol));
+				transProps.put(FilterTransformation.VALUES_KEY, Utility.getTransformedNodeNamesList(this.coreEngine, filters.get(filterCol), false));
 				ISEMOSSTransformation filterTrans = new FilterTransformation();
 				filterTrans.setProperties(transProps);
 				dmc.addPreTrans(filterTrans);
