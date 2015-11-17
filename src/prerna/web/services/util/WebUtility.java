@@ -57,10 +57,13 @@ public class WebUtility {
                try {
                      final byte[] output2 = gson.toJson(vec).getBytes("UTF8");///Need to encode for special characters//
                      return new StreamingOutput() {
-                        public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-                           PrintStream ps = new PrintStream(outputStream);
-                           ps.write(output2, 0 , output2.length);
-                        }};  
+                         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+                             try(
+                          		   PrintStream ps = new PrintStream(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
+                                ){
+                          	   ps.write(output2, 0 , output2.length);
+                             }
+                          }};
                } catch (UnsupportedEncodingException e) {
                      logger.error("Failed to write object to stream");
                }      
