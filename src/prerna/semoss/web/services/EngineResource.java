@@ -514,6 +514,40 @@ public class EngineResource {
 
 		return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
 	}
+	
+	@GET
+	@Path("getValuesOfType")
+	@Produces("application/json")
+	public Response getListOfValues(@QueryParam("nodeUri") String nodeUri, @QueryParam("parentUri") String parentUri)
+	{
+		Vector<Object> retList = null;
+		if(this.coreEngine.getEngineType().equals(ENGINE_TYPE.RDBMS)) {
+			String type = Utility.getInstanceName(nodeUri);
+			if(parentUri == null || parentUri.isEmpty()) {
+				// the nodeUri is a concept
+				retList = this.coreEngine.getEntityOfType(type);
+			} else {
+				String parent = Utility.getInstanceName(parentUri);
+				type += ":" + parent;
+				retList = this.coreEngine.getEntityOfType(type);
+			}
+		} else {
+			// it is a sparql query
+			if(parentUri == null || parentUri.isEmpty()) {
+				// the nodeUri is a concept
+				retList = this.coreEngine.getEntityOfType(nodeUri);
+			} else {
+				// the nodeUri is a property
+				// need to get all property values that pertain to a concept
+				String query = "SELECT DISTINCT ?ENTITY WHERE {?P <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ," +
+							parentUri + ">} {?P <" + nodeUri + "> ?ENTITY} }";
+				// getCleanSelect is not on interface, but only on abstract engine
+				retList = ((AbstractEngine) this.coreEngine).getCleanSelect(query);
+			}
+		}
+		
+		return Response.status(200).entity(WebUtility.getSO(retList)).build();
+	}
 
 	/**
 	 * Executes a particular insight or runs a custom query on the specified playsheet
