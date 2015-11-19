@@ -49,6 +49,7 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
+import prerna.engine.impl.InsightsConverter;
 import prerna.engine.impl.QuestionAdministrator;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -56,6 +57,7 @@ import prerna.om.SEMOSSParam;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.FilterTransformation;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
+import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -166,10 +168,12 @@ public class QuestionAdmin {
 		
 		//TODO: how do we determine the data maker?
 		//TODO: assumption is Btree unless layout is Graph
-		String dmName = "BTreeDataFrame";
-		if(layout.equals("Graph")) {
-			dmName = "GraphDataModel";
-		}
+		List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
+		String dmName = InsightsConverter.getDataMaker(layout, allSheets);
+//		String dmName = "BTreeDataFrame";
+//		if(layout.equals("Graph")) {
+//			dmName = "GraphDataModel";
+//		}
 		
 		List<DataMakerComponent> dmcList = new ArrayList<DataMakerComponent>();
 		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
