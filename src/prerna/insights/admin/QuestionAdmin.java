@@ -27,11 +27,18 @@
  *******************************************************************************/
 package prerna.insights.admin;
 
+import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.text.DateFormat;
 import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.Iterator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -43,6 +50,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrServerException;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -54,9 +62,8 @@ import prerna.engine.impl.QuestionAdministrator;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
+import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
-import prerna.ui.components.playsheets.datamakers.FilterTransformation;
-import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -76,6 +83,8 @@ public class QuestionAdmin {
 	@Path("addFromAction")
 	@Produces("application/json")
 	public Response addInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String engineName = coreEngine.getEngineName();
+		
 		LOGGER.info("Adding question from action with following details:::: " + form.toString());
 		Gson gson = new Gson();
 		String perspective = form.getFirst("perspective");
@@ -90,18 +99,47 @@ public class QuestionAdmin {
 		boolean isDbQuery = true;
 		
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		try {
-			Insight insight = InsightStore.getInstance().get(insightID);
-			List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
-			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
-			List<SEMOSSParam> params = buildParameterList(paramMapList);
-			questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
-		}catch(RuntimeException e){
-			System.out.println("caught exception while adding question.................");
-			e.printStackTrace();
-			return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
+		Insight insight = InsightStore.getInstance().get(insightID);
+		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
+		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
+		List<SEMOSSParam> params = buildParameterList(paramMapList);
+		String newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
+		
+		Map<String, Object> solrInsights = new HashMap<>();
+		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
+		Date date = new Date();
+		String currDate = dateFormat.format(date);
+		solrInsights.put(SolrIndexEngine.NAME, insightName);
+		solrInsights.put(SolrIndexEngine.TAGS, perspective);
+		solrInsights.put(SolrIndexEngine.LAYOUT, layout);
+		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
+		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
+		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
+		
+		Set<String> engines = new HashSet<String>();
+		for(DataMakerComponent dmc : dmcList) {
+			engines.add(dmc.getEngine().getEngineName());
 		}
+		solrInsights.put(SolrIndexEngine.ENGINES, engines);
 
+		//TODO: need to add users
+		solrInsights.put(SolrIndexEngine.USER_ID, "default");
+		
+		try {
+			SolrIndexEngine.getInstance().addDocument(engineName + "_" + newInsightID, solrInsights);
+			//SolrIndexEngine.getInstance().addDocument(engine.getEngineName() + "_" + lastIDNum, solrInsights);
+		} catch (KeyManagementException e) {
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (KeyStoreException e) {
+			e.printStackTrace();
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 	
@@ -109,6 +147,8 @@ public class QuestionAdmin {
 	@Path("editFromAction")
 	@Produces("application/json")
 	public Response editInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String engineName = coreEngine.getEngineName();
+
 		LOGGER.info("Editing question from action with following details:::: " + form.toString());
 		Gson gson = new Gson();
 		String perspective = form.getFirst("perspective");
@@ -122,17 +162,39 @@ public class QuestionAdmin {
 		boolean isDbQuery = true;
 		
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		try{
-			Insight insight = InsightStore.getInstance().get(insightID);
-			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
-			List<SEMOSSParam> params = buildParameterList(paramMapList);
-			questionAdmin.modifyQuestion(insight.getRdbmsId(), insightName, perspective, insight.getDataMakerComponents(), layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
-		}catch(RuntimeException e){
-			System.out.println("caught exception while modifying question.................");
-			e.printStackTrace();
-			return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
-		}
+		Insight insight = InsightStore.getInstance().get(insightID);
+		String rdbmsId = insight.getRdbmsId();
+		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
+		
+		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
+		List<SEMOSSParam> params = buildParameterList(paramMapList);
+		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
 
+		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
+		Date date = new Date();
+		String currDate = dateFormat.format(date);
+		Map<String, Object> solrModifyInsights = new HashMap<>();
+		solrModifyInsights.put(SolrIndexEngine.NAME, insightName);
+		solrModifyInsights.put(SolrIndexEngine.TAGS, perspective);
+		solrModifyInsights.put(SolrIndexEngine.LAYOUT, layout);
+		solrModifyInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
+		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
+		//TODO: need to add users
+		solrModifyInsights.put(SolrIndexEngine.USER_ID, "default");
+		Set<String> engines = new HashSet<String>();
+		for(DataMakerComponent dmc : dmcList) {
+			engines.add(dmc.getEngine().getEngineName());
+		}
+		solrModifyInsights.put(SolrIndexEngine.ENGINES, engines);
+		
+		try {
+			SolrIndexEngine.getInstance().modifyFields(engineName + "_" + rdbmsId, solrModifyInsights);
+			//SolrIndexEngine.getInstance().modifyFields(engine.getEngineName() + "_" + insightID, solrModifyInsights);
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
+				| IOException e) {
+			e.printStackTrace();
+		}
+		
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 
@@ -142,12 +204,22 @@ public class QuestionAdmin {
 	public Response deleteInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String insightID = form.getFirst("insightID");
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		try{
-			questionAdmin.removeQuestion(insightID);
-		}catch(RuntimeException e){
-			System.out.println("caught exception while deleting question.................");
+		questionAdmin.removeQuestion(insightID);
+		
+		try {
+			List<String> removeList = new ArrayList<String>();
+			removeList.add(coreEngine.getEngineName() + "_" + insightID);
+			SolrIndexEngine.getInstance().removeDocument(removeList);
+		} catch (KeyManagementException e) {
 			e.printStackTrace();
-			return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (KeyStoreException e) {
+			e.printStackTrace();
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
@@ -156,6 +228,8 @@ public class QuestionAdmin {
 	@Path("addFromText")
 	@Produces("application/json")
 	public Response addInsightFromText(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String engineName = coreEngine.getEngineName();
+
 		LOGGER.info("Adding question from action with following details:::: " + form.toString());
 		Gson gson = new Gson();
 		String perspective = form.getFirst("perspective");
@@ -193,14 +267,42 @@ public class QuestionAdmin {
 
 		// for now use this method
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		try{
-			questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, dmName, isDbQuery, dataTableAlign, params);
-		}catch(RuntimeException e){
-			System.out.println("caught exception while adding question.................");
-			e.printStackTrace();
-			return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
+		String newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, dmName, isDbQuery, dataTableAlign, params);
+		
+		Map<String, Object> solrInsights = new HashMap<>();
+		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
+		Date date = new Date();
+		String currDate = dateFormat.format(date);
+		solrInsights.put(SolrIndexEngine.NAME, insightName);
+		solrInsights.put(SolrIndexEngine.TAGS, perspective);
+		solrInsights.put(SolrIndexEngine.LAYOUT, layout);
+		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
+		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
+		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
+		
+		Set<String> engines = new HashSet<String>();
+		for(DataMakerComponent newDmc : dmcList) {
+			engines.add(newDmc.getEngine().getEngineName());
 		}
+		solrInsights.put(SolrIndexEngine.ENGINES, engines);
 
+		//TODO: need to add users
+		solrInsights.put(SolrIndexEngine.USER_ID, "default");
+		
+		try {
+			SolrIndexEngine.getInstance().addDocument(engineName + "_" + newInsightID, solrInsights);
+			//SolrIndexEngine.getInstance().addDocument(engine.getEngineName() + "_" + lastIDNum, solrInsights);
+		} catch (KeyManagementException e) {
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (KeyStoreException e) {
+			e.printStackTrace();
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}		
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 	
