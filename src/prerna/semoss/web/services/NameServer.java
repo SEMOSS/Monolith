@@ -30,6 +30,9 @@ package prerna.semoss.web.services;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -53,6 +56,9 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
@@ -67,14 +73,16 @@ import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.ConnectedConcepts;
 import prerna.nameserver.DeleteFromMasterDB;
 import prerna.nameserver.INameServer;
+import prerna.nameserver.MasterDatabaseConstants;
 import prerna.nameserver.NameServerProcessor;
 import prerna.nameserver.SearchEngineMasterDB;
-import prerna.nameserver.SearchMasterDB;
 import prerna.rdf.query.builder.QueryBuilderHelper;
+import prerna.solr.SolrIndexEngine;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/engine")
@@ -430,21 +438,52 @@ public class NameServer {
 	{
 		Gson gson = new Gson();
 		ArrayList<String> selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
-		String localMasterDbName = form.getFirst("localMasterDbName");
-		logger.info("CENTRALLY have registered selected URIs as ::: " + selectedUris.toString());
 
-		String wordNetDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + System.getProperty("file.separator") + "WordNet-3.1";
-		String nlpPath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator") + "englishPCFG.ser";
-
-		List<Hashtable<String, Object>> contextList = null;
-		if(localMasterDbName != null) {
-			SearchMasterDB searcher = new SearchMasterDB(localMasterDbName, wordNetDir, nlpPath);
-			contextList = searcher.getRelatedInsights(selectedUris);
+		String type = Utility.getClassName(selectedUris.get(0));
+		Map<String, Object> queryMap = new HashMap<String, Object>();
+		queryMap.put(SolrIndexEngine.SET_DEFAULT, type);
+		queryMap.put(SolrIndexEngine.SEARCH_FIELD, "all_text");
+		
+		List<Map<String, Object>> contextList = new ArrayList<Map<String, Object>>();
+		SolrDocumentList results;
+		try {
+			results = SolrIndexEngine.getInstance().queryDocument(queryMap);
+			if(results != null) {
+				for(int i = 0; i < results.size(); i++) {
+					SolrDocument doc = results.get(i);
+					Map<String, Object> insightHash = new HashMap<String, Object>();
+					insightHash.put(MasterDatabaseConstants.QUESTION_ID, doc.get(SolrIndexEngine.CORE_ENGINE_ID));
+					insightHash.put(MasterDatabaseConstants.QUESTION_KEY, doc.get(SolrIndexEngine.NAME));
+					insightHash.put(MasterDatabaseConstants.VIZ_TYPE_KEY, doc.get(SolrIndexEngine.LAYOUT));
+					
+					//TODO: why does FE want this in another map???
+					Map<String, String> engineHash = new HashMap<String, String>();
+					engineHash.put("name", doc.get(SolrIndexEngine.CORE_ENGINE) + "");
+					insightHash.put(MasterDatabaseConstants.DB_KEY, engineHash);
+					
+					//try to figure out params?
+					List<String> paramTypes = (List<String>) doc.get(SolrIndexEngine.PARAMS);
+					if(paramTypes != null && paramTypes.contains(type)) {
+						insightHash.put(MasterDatabaseConstants.INSTANCE_KEY, "");
+					} else {
+						insightHash.put(MasterDatabaseConstants.INSTANCE_KEY, selectedUris.get(0));
+					}
+					
+					contextList.add(insightHash);
+				}
+			}
+		} catch (KeyManagementException e) {
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (KeyStoreException e) {
+			e.printStackTrace();
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
-		else {
-			SearchMasterDB searcher = new SearchMasterDB(wordNetDir, nlpPath);
-			contextList = searcher.getRelatedInsightsWeb(selectedUris);
-		}
+		
 		return WebUtility.getSO(contextList);
 	}
 

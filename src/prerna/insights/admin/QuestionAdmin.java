@@ -115,7 +115,8 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
 		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
-		
+		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(newInsightID));
+
 		Set<String> engines = new HashSet<String>();
 		for(DataMakerComponent dmc : dmcList) {
 			engines.add(dmc.getEngine().getEngineName());
@@ -279,7 +280,8 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
 		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
-		
+		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(newInsightID));
+
 		Set<String> engines = new HashSet<String>();
 		for(DataMakerComponent newDmc : dmcList) {
 			engines.add(newDmc.getEngine().getEngineName());
