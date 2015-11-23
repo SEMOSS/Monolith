@@ -27,6 +27,10 @@
  *******************************************************************************/
 package prerna.insights.admin;
 
+import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -43,6 +47,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrServerException;
 
 import com.google.gson.Gson;
 
@@ -52,6 +57,7 @@ import prerna.engine.api.IEngine;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.QuestionAdministrator;
 import prerna.nameserver.DeleteFromMasterDB;
+import prerna.solr.SolrIndexEngine;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
@@ -73,8 +79,9 @@ public class DBAdminResource {
 		String perspectivesString = form.getFirst("perspectives");
 		String questionsString = form.getFirst("insightIds");
 		
+		List<String> questionIds = null;
 		if (questionsString!=null){
-			List<String> questionIds = gson.fromJson(questionsString, List.class);
+			questionIds = gson.fromJson(questionsString, List.class);
 			AbstractEngine engine = getEngine(enginesString, request);
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
 			try{
@@ -92,7 +99,7 @@ public class DBAdminResource {
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
 			try{
 				Vector<String> perspectives = gson.fromJson(perspectivesString, Vector.class);
-				questionAdmin.removePerspective(perspectives.toArray(new String[perspectives.size()]));
+				questionIds = questionAdmin.removePerspective(perspectives.toArray(new String[perspectives.size()]));
 			}catch (RuntimeException e){
 				//reload question xml from file if it errored
 				//otherwise xml gets corrupted
@@ -118,6 +125,26 @@ public class DBAdminResource {
 						return Response.status(400).entity("Please log in to delete databases.").build();
 					}
 				}
+			}
+		}
+		
+		if(questionIds != null) {
+			SolrIndexEngine solrE;
+			try {
+				solrE = SolrIndexEngine.getInstance();
+				if(solrE.serverActive()) {
+					solrE.removeDocument(questionIds);
+				}
+			} catch (SolrServerException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (KeyManagementException e) {
+				e.printStackTrace();
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+			} catch (KeyStoreException e) {
+				e.printStackTrace();
 			}
 		}
   		return Response.status(200).entity(WebUtility.getSO("success")).build();
@@ -231,6 +258,21 @@ public class DBAdminResource {
 			
 			DeleteFromMasterDB remover = new DeleteFromMasterDB(Constants.LOCAL_MASTER_DB_NAME);
 			remover.deleteEngine(engineName);
+			
+			SolrIndexEngine solrE;
+			try {
+				solrE = SolrIndexEngine.getInstance();
+				if(solrE.serverActive()) {
+					solrE.deleteEngine(engineName);
+				}
+			} catch (KeyManagementException e) {
+				e.printStackTrace();
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+			} catch (KeyStoreException e) {
+				e.printStackTrace();
+			}
+			
 			return true;
 //		} catch (IOException e) {
 //			e.printStackTrace();
