@@ -504,7 +504,7 @@ public class NameServer {
 
 //		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
 //		tableViz.setJSONDataHash(dataHash);
-		Hashtable parsedPath = QueryBuilderHelper.parsePath(dataHash);
+//		Hashtable parsedPath = QueryBuilderHelper.parsePath(dataHash);
 //		ArrayList<Hashtable<String, String>> nodeV = tableViz.getNodeV();
 //		ArrayList<Hashtable<String, String>> predV = tableViz.getPredV();
 
