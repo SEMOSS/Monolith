@@ -1350,17 +1350,33 @@ public class EngineResource {
 		// get the insight if an id has been passed
 		Insight insight = null;
 		
+		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, dataHash);
+		StringMap<ArrayList<Object>> queryData = (StringMap<ArrayList<Object>>) dataHash.get("QueryData");
+		if(!currConcept.isEmpty() && !Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)).equals("Concept") 
+				&& !Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)).equals("DisplayName")) {
+			currConcept = Utility.getInstanceName(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)) + "__" + Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0).toUpperCase());
+		}
+		if(equivConcept.equals(currConcept.split("__")[0])) {
+			equivConcept = currConcept;
+		}
 		// put join concept into dataHash so we know which varible needs to be first in the return
 		// this stems from the fact that btree can only join left to right.
 		List<String> retOrder = new ArrayList<String>();
+		System.out.println("");
 		//I need the physical name to be put into the retOrder, so append the displayname uri and assume that the value in equivConcept is potentially a display name, if its not we'll still get the physical name back...
-		String physicalEquivConcept = Utility.getInstanceName(this.coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + equivConcept , false));
+		String physicalEquivConcept = "";
+		if(this.coreEngine.getEngineType().equals(IEngine.ENGINE_TYPE.RDBMS) && !equivConcept.contains("__")) {
+			physicalEquivConcept = currConcept + "__" + Utility.getInstanceName(this.coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + equivConcept , false)).toUpperCase();
+			currConcept = physicalEquivConcept;
+			equivConcept = physicalEquivConcept;
+		} else {
+			physicalEquivConcept = Utility.getInstanceName(this.coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + equivConcept , false));
+		}
 		retOrder.add(physicalEquivConcept);
 		dataHash.put("returnOrder", retOrder);
 		
 		// need to remove filter and add that as a pretransformation. Otherwise our metamodel data is not truly clean metamodel data
 		Map<String, List<String>> filters = (Map<String, List<String>>)((Map<String, Object>) dataHash.get("QueryData")).remove(AbstractQueryBuilder.filterKey);
-		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, dataHash);
 		
 		if(filters != null){
 			for(String filterCol : filters.keySet()){
@@ -1588,6 +1604,22 @@ public class EngineResource {
 			}
 
 			if (currConcept != null && !currConcept.isEmpty()) {
+				StringMap<ArrayList<Object>> queryData = (StringMap<ArrayList<Object>>) dataHash.get("QueryData");
+				if(!currConcept.isEmpty() && !Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)).equals("Concept") 
+						&& !Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)).equals("DisplayName")) {
+					currConcept = Utility.getInstanceName(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)) + "__" + Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0).toUpperCase());
+				}
+				// put join concept into dataHash so we know which varible needs to be first in the return
+				// this stems from the fact that btree can only join left to right.
+				List<String> retOrder = new ArrayList<String>();
+				//I need the physical name to be put into the retOrder, so append the displayname uri and assume that the value in equivConcept is potentially a display name, if its not we'll still get the physical name back...
+				String physicalEquivConcept = "";
+				if(this.coreEngine.getEngineType().equals(IEngine.ENGINE_TYPE.RDBMS) && !currConcept.contains("__")) {
+					physicalEquivConcept = currConcept + "__" + Utility.getInstanceName(this.coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + currConcept , false)).toUpperCase();
+					currConcept = physicalEquivConcept;
+//					equivConcept = physicalEquivConcept;
+				}
+				
 				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
 				// HttpSession session = request.getSession();
 				// if(session.getAttribute(tableID) == null) {
