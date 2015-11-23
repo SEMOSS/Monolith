@@ -55,6 +55,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
@@ -66,6 +67,7 @@ import org.openrdf.repository.RepositoryException;
 import org.openrdf.sail.SailException;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.ibm.icu.util.StringTokenizer;
 
 import prerna.algorithm.learning.unsupervised.recommender.DataStructureFromCSV;
@@ -76,6 +78,7 @@ import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.nameserver.AddToMasterDB;
 import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
+import prerna.rdf.main.ImportRDBMSProcessor;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -981,44 +984,107 @@ public class Uploader extends HttpServlet {
 		String outputText = "NLP Loading was a success.";
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
-
+	
 	@POST
-	@Path("/d2rq/upload")
+	@Path("/rdbms/getMetadata")
 	@Produces("application/json")
-	public Response uploadD2RQFile(@Context HttpServletRequest request) {
-		List<FileItem> fileItems = processRequest(request);
-		// collect all of the data input on the form
-		Hashtable<String, String> inputData = getInputData(fileItems);
-
-		Gson gson = new Gson();
+	public Response getExistingRDBMSMetadata(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		
-		System.out.println(inputData);
-		// time to run the import
-		ImportDataProcessor importer = new ImportDataProcessor();
-		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
-
-		// figure out what type of import we need to do based on parameters
-		// selected
-		//		String methodString = inputData.get("importMethod") + "";
-		//		ImportDataProcessor.IMPORT_METHOD importMethod = 
-		//				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-		//						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-		//										: null;
-
-		//call the right process method with correct parameters
-		try {
-			importer.processNewRDBMS((String) inputData.get("customBaseURI"), (String) inputData.get("file"), 
-					(String) inputData.get("newDBname"), (String) inputData.get("dbType"), (String) inputData.get("dbUrl"), 
-					(String) inputData.get("accountName"), (char[]) inputData.get("accountPassword").toCharArray());
-		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		Gson gson = new Gson();
+		HashMap<String, ArrayList<String>> ret = new HashMap<String, ArrayList<String>>();
+		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
+		
+		String driver = gson.fromJson(form.getFirst("driver"), String.class);
+		String hostname = gson.fromJson(form.getFirst("hostname"), String.class);
+		String port = gson.fromJson(form.getFirst("port"), String.class);
+		String username = gson.fromJson(form.getFirst("username"), String.class);
+		String password = gson.fromJson(form.getFirst("password"), String.class);
+		String schema = gson.fromJson(form.getFirst("schema"), String.class);
+		String connectionURL = gson.fromJson(form.getFirst("connectionURL"), String.class);
+		
+//		if(connectionURL != null && !connectionURL.isEmpty()) {
+//			importer.setConnectionURL(connectionURL);
+//		}
+		ret = importer.getAllFields(driver, hostname, port, username, password, schema);
+		
+		return Response.status(200).entity(gson.toJson(ret)).build();
+	}
+	
+	@POST
+	@Path("/rdbms/connect")
+	@Produces("application/json")
+	public Response connectExistingRDBMS(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		
+		Gson gson = new Gson();
+		HashMap<String, Object> ret = new HashMap<String, Object>();
+		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
+		HashMap<String, Object> metamodel = new HashMap<String, Object>();
+		HashMap<String, ArrayList<String>> nodesAndProps = new HashMap<String, ArrayList<String>>();
+		ArrayList<String[]> nodeRelationships = new ArrayList<String[]>();
+		
+		HashMap<String, Object> details = gson.fromJson(form.getFirst("details"), new TypeToken<HashMap<String, Object>>() {}.getType());		
+		HashMap<String, String> options = gson.fromJson(gson.toJson(details.get("options")), new TypeToken<HashMap<String, Object>>() {}.getType());
+		HashMap<String, String> metamodelData = gson.fromJson(gson.toJson(details.get("metamodelData")), new TypeToken<HashMap<String, Object>>() {}.getType());
+		HashMap<String, String> databaseOptions = gson.fromJson(gson.toJson(details.get("databaseOptions")), new TypeToken<HashMap<String, String>>() {}.getType());
+		
+		ArrayList<Object> nodes = gson.fromJson(gson.toJson(metamodelData.get("nodes")), new TypeToken<ArrayList<Object>>() {}.getType());
+		for(Object o: nodes) {
+			ArrayList<String> props = new ArrayList<String>();
+			HashMap<String, Object> nodeHash = gson.fromJson(gson.toJson(o), new TypeToken<HashMap<String, Object>>() {}.getType());
+			ArrayList<String> properties = gson.fromJson(gson.toJson(nodeHash.get("prop")), new TypeToken<ArrayList<String>>() {}.getType());
+			for(String prop : properties) {
+				props.add(prop); 
+			}
+			nodesAndProps.put(nodeHash.get("node") + "." + nodeHash.get("primaryKey"), props); // Table1.idTable1 -> [prop1, prop2, ...]
 		}
-
-		String outputText = "R2RQ Loading was a success.";
-		return Response.status(200).entity(gson.toJson(outputText)).build();
+		metamodel.put("nodes", nodesAndProps);
+		
+		ArrayList<Object> relationships = gson.fromJson(gson.toJson(metamodelData.get("relationships")), new TypeToken<ArrayList<Object>>() {}.getType());
+		for(Object o: relationships) {
+			HashMap<String, String> relationship = gson.fromJson(gson.toJson(o), new TypeToken<HashMap<String, String>>() {}.getType());
+			nodeRelationships.add(new String[] { relationship.get("sub"), relationship.get("pred"), relationship.get("obj") });
+		}
+		metamodel.put("relationships", nodeRelationships);
+		
+		boolean success = importer.addNewRDBMS(options.get("driver"), options.get("hostname"), options.get("port"), options.get("username"), options.get("password"), options.get("schema"), databaseOptions.get("databaseName"), metamodel);
+		
+		ret.put("success", success);
+		if(success) {
+			return Response.status(200).entity(gson.toJson(ret)).build();
+		} else {
+			return Response.status(400).entity(gson.toJson(ret)).build();
+		}
+	}
+	
+	@POST
+	@Path("/rdbms/test")
+	@Produces("application/json")
+	public Response testExistingRDBMSConnection(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		
+		Gson gson = new Gson();
+		String driver = gson.fromJson(form.getFirst("driver"), String.class);
+		String hostname = gson.fromJson(form.getFirst("hostname"), String.class);
+		String port = gson.fromJson(form.getFirst("port"), String.class);
+		String username = gson.fromJson(form.getFirst("username"), String.class);
+		String password = gson.fromJson(form.getFirst("password"), String.class);
+		String schema = gson.fromJson(form.getFirst("schema"), String.class);
+		String connectionURL = gson.fromJson(form.getFirst("connectionURL"), String.class);
+		
+		HashMap<String, Object> ret = new HashMap<String, Object>();
+		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
+		
+//		if(connectionURL != null && !connectionURL.isEmpty()) {
+//			importer.setConnectionURL(connectionURL);
+//		}
+		
+		String test = importer.checkConnectionParams(driver, hostname, port, username, password, schema);
+		if(Boolean.parseBoolean(test)) {
+			ret.put("success", Boolean.parseBoolean(test));
+			return Response.status(200).entity(gson.toJson(ret)).build();
+		} else {
+			ret.put("error", test);
+			return Response.status(400).entity(gson.toJson(ret)).build();
+		}
 	}
 	
 	/**
