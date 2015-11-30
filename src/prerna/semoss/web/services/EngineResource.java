@@ -1352,9 +1352,15 @@ public class EngineResource {
 		
 		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, dataHash);
 		StringMap<ArrayList<Object>> queryData = (StringMap<ArrayList<Object>>) dataHash.get("QueryData");
-		if(!currConcept.isEmpty() && !Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)).equals("Concept") 
-				&& !Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)).equals("DisplayName")) {
-			currConcept = Utility.getInstanceName(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)) + "__" + Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0).toUpperCase());
+		String relSubjURI = "";
+		for(String uri : (ArrayList<String>) queryData.get("relTriples").get(0)) {
+			if(currConcept.equalsIgnoreCase(Utility.getInstanceName(uri))) {
+				relSubjURI = uri;
+			}
+		}
+		if(!currConcept.isEmpty() && !Utility.getPrimaryKeyFromURI(relSubjURI).equals("Concept") 
+				&& !Utility.getPrimaryKeyFromURI(relSubjURI).equals("DisplayName")) {
+			currConcept = Utility.getInstanceName(relSubjURI) + "__" + Utility.getPrimaryKeyFromURI(relSubjURI.toUpperCase());
 		}
 		if(equivConcept.equals(currConcept.split("__")[0])) {
 			equivConcept = currConcept;
@@ -1605,9 +1611,15 @@ public class EngineResource {
 
 			if (currConcept != null && !currConcept.isEmpty()) {
 				StringMap<ArrayList<Object>> queryData = (StringMap<ArrayList<Object>>) dataHash.get("QueryData");
-				if(!currConcept.isEmpty() && !Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)).equals("Concept") 
-						&& !Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)).equals("DisplayName")) {
-					currConcept = Utility.getInstanceName(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0)) + "__" + Utility.getPrimaryKeyFromURI(((ArrayList<String>) queryData.get("relTriples").get(0)).get(0).toUpperCase());
+				String relSubjURI = "";
+				for(String uri : (ArrayList<String>) queryData.get("relTriples").get(0)) {
+					if(currConcept.equalsIgnoreCase(Utility.getInstanceName(uri))) {
+						relSubjURI = uri;
+					}
+				}
+				if(!currConcept.isEmpty() && !Utility.getPrimaryKeyFromURI(relSubjURI).equals("Concept") 
+						&& !Utility.getPrimaryKeyFromURI(relSubjURI).equals("DisplayName")) {
+					currConcept = Utility.getInstanceName(relSubjURI) + "__" + Utility.getPrimaryKeyFromURI(relSubjURI.toUpperCase());
 				}
 				// put join concept into dataHash so we know which varible needs to be first in the return
 				// this stems from the fact that btree can only join left to right.
