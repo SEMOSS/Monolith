@@ -62,9 +62,8 @@ import org.apache.solr.common.SolrDocumentList;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
-import com.google.gson.Gson;
-
 import prerna.auth.User;
+import prerna.ds.BTreeDataFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
@@ -76,14 +75,19 @@ import prerna.nameserver.INameServer;
 import prerna.nameserver.MasterDatabaseConstants;
 import prerna.nameserver.NameServerProcessor;
 import prerna.nameserver.SearchEngineMasterDB;
+import prerna.om.Insight;
+import prerna.om.InsightStore;
 import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.solr.SolrIndexEngine;
+import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
+
+import com.google.gson.Gson;
 
 @Path("/engine")
 public class NameServer {
@@ -447,7 +451,7 @@ public class NameServer {
 		List<Map<String, Object>> contextList = new ArrayList<Map<String, Object>>();
 		SolrDocumentList results;
 		try {
-			results = SolrIndexEngine.getInstance().queryDocument(queryMap);
+			results = SolrIndexEngine.getInstance().queryDocument(queryMap); // gives me null pointer
 			if(results != null) {
 				for(int i = 0; i < results.size(); i++) {
 					SolrDocument doc = results.get(i);
@@ -482,6 +486,11 @@ public class NameServer {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
+		}catch(Exception ignored)
+		{
+			// do nothing for now
+			// null pointer breaks it
+			// so catching it
 		}
 		
 		return WebUtility.getSO(contextList);
@@ -629,4 +638,50 @@ public class NameServer {
 		HashMap<String, Object> ret = ns.getInsightDetails(insight, user);
 		return WebUtility.getSO(ret);
 	}
+	
+	@Path("i-{insightID}")
+	public Object getInsightDataFrame(@PathParam("insightID") String insightID, @Context HttpServletRequest request) throws IOException {
+
+		// eventually I want to pick this from session
+		// but for now let us pick it from the insight store
+		System.out.println("Came into this point.. " + insightID);
+		Insight thisInsight = InsightStore.getInstance().get(insightID);
+		DataframeResource dfr = new DataframeResource();
+		dfr.insight = thisInsight;
+		
+		return dfr;
+		
+		
+		}
+	
+	@GET
+	@Path("trees")
+	@Produces("text/html")
+
+	public StreamingOutput getAllInsights() throws IOException {
+
+		// gets you all the inghts as a list / href
+		// eventually I want to pick this from session
+		// but for now let us pick it from the insight store
+		String output = "<html><body>";
+		Enumeration keys = InsightStore.getInstance().keys();
+		while(keys.hasMoreElements())
+		{
+			Insight thisInsight = InsightStore.getInstance().get(keys.nextElement());
+			IDataMaker maker = thisInsight.getDataMaker();
+			String colN = "";
+			if(maker instanceof BTreeDataFrame)
+			{
+				BTreeDataFrame frame = (BTreeDataFrame)maker;
+				String [] cols = frame.getColumnHeaders();
+				
+				for(int colIndex = 0;colIndex < cols.length;colN = colN + "  " + cols[colIndex],colIndex++);
+				
+				output = output + "<br/>" + "<a href=http://localhost:9080/MonolithDev2/api/engine/i-" + thisInsight.getInsightID() + "/bic>" + colN + "</a>";
+			}
+		}
+		output = output + "</body></html>";		
+		return WebUtility.getSO(output);
+		}
+
 }
