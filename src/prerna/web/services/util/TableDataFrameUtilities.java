@@ -49,68 +49,52 @@ public final class TableDataFrameUtilities {
 		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
 	}
 	
-	public static void filterTableData(ITableDataFrame mainTree, Map<String, Map<String, Object>> filterValuesArrMap) {
-		
+	/**
+	 * 
+	 * @param mainTree - table to filter on
+	 * @param filterValuesArrMap - values to filter on
+	 * 
+	 * filters the table data frame
+	 */
+	public static void filterTableData(ITableDataFrame mainTree, Map<String, Map<String, Object>> filterValuesArrMap) {	
 		LOGGER.info("Filtering on table");
 		long startTime = System.currentTimeMillis();
 		
-////		String returnColumn = "";
-//		String[] columnHeaders = mainTree.getColumnHeaders();
-//		
-////		Map<String, Object[]> storedValues = new HashMap<String, Object[]>();
-////		Map<String, Integer> sizes = new HashMap<String, Integer>();
-////		for(String column: columnHeaders) {
-////			storedValues.put(column.toUpperCase(), mainTree.getUniqueValues(column));
-////			sizes.put(column.toUpperCase(), mainTree.getUniqueRawValues(column).length + mainTree.getFilteredUniqueRawValues(column).length);
-////		}
-//		
-//		Map<String, List<Object>> map = new HashMap<String, List<Object>>();
-//		for(String concept : filterValuesArrMap.keySet()) {
-//			map.put(concept.toUpperCase(), filterValuesArrMap.get(concept));
-//		}
-//		//need to find the which column is different from previous, then filter only that column
-//		//when first different column is found, call filterColumn on that column
-//
-//		for(String columnHeader : columnHeaders) {
-//			String columnHeaderU = columnHeader.toUpperCase();
-////			Object[] storedValuesArr = storedValues.get(columnHeaderU);
-//			if(map.containsKey(columnHeaderU)) {
-//				List<Object> filterValuesArr = map.get(columnHeaderU);
-////				if(!equals(filterValuesArr, storedValuesArr)) {
-//					filterColumn(mainTree, columnHeader, filterValuesArr);
-////					returnColumn = columnHeader;
-////				}
-//			} 
-//			else {
-//				
-////				int totalSize = sizes.get(columnHeaderU);
-////				if(totalSize != storedValuesArr.length) {
-////					mainTree.unfilter(columnHeader);
-////					returnColumn = columnHeader;
-////				}
-//			}
-//		}
-		
+		//key represents the column to filter
 		for(String key : filterValuesArrMap.keySet()) {
 			Map<String, Object> columnMap = filterValuesArrMap.get(key);
+			
+			//grab the values for the column to filter
 			List<Object> values = (List<Object>)columnMap.get("values");
+			
+			//if values is empty it indicates to either keep everything or filter everything, this is done for optimization
+			//selectAll boolean indicates which to do
 			if(values.size() == 0) {
 				Boolean selectAll = (Boolean)columnMap.get("selectAll");
 				if(selectAll) {
+					//unfilter the column
 					mainTree.unfilter(key);
 				} else {
+					//filter the column
 					filterColumn(mainTree, key, values);
 				}
 			} else {
+				//filter the column
 				filterColumn(mainTree, key, values);
 			}
 		}
 		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
-//		return returnColumn;
 	}
 
+	/**
+	 * 
+	 * @param mainTree
+	 * @param concept
+	 * @param filterValuesArr
+	 */
 	public static void filterColumn(ITableDataFrame mainTree, String concept, List<Object> filterValuesArr) {
 		
+		//if the column is numeric, convert the values to doubles
 		if(mainTree.isNumeric(concept)) {
 			List<Object> values = new ArrayList<Object>(filterValuesArr.size());
 			for(Object o: filterValuesArr) {
@@ -122,48 +106,13 @@ public final class TableDataFrameUtilities {
 			}
 			filterValuesArr = values;
 		}
-		if(filterValuesArr.isEmpty()) {
-			mainTree.filter(concept, Arrays.asList(mainTree.getUniqueValues(concept)));
-			return;
-		}
-
-		Object[] visibleValues = mainTree.getUniqueValues(concept);
-		Set<Object> valuesToUnfilter = new HashSet<Object>(filterValuesArr);
-		Set<Object> valuesToFilter = new HashSet<Object>(Arrays.asList(visibleValues));
-		
-		for(Object o : visibleValues) {
-			valuesToUnfilter.remove(o);
-		}
-		
-		for(Object o : filterValuesArr) {
-			valuesToFilter.remove(o);
-		}
-
-		mainTree.filter(concept, new ArrayList<Object>(valuesToFilter));
-		mainTree.unfilter(concept, new ArrayList<Object>(valuesToUnfilter));
-		
-		if(valuesToFilter.size() + valuesToUnfilter.size() > 0) {
-			LOGGER.info("Filtered column: "+concept);
-		}
-	}
-	
-//	private static boolean equals(List<Object> newColumn, Object[] oldColumn) {
-//		if(newColumn.size() != oldColumn.length) {
-//			return false;
-//		} else {
-//			//loop through and check values
-//			HashSet<String> set = new HashSet<>();
-//			for(Object o : newColumn) {
-//				set.add(o.toString());
-//			}
-//			
-//			for(Object o : oldColumn) {
-//				set.remove(o);
-//			}
-//			
-//			return set.size() == 0;
+//		if(filterValuesArr.isEmpty()) {
+//			return;
 //		}
-//	}
+
+		//filter the table
+		mainTree.filter(concept, new ArrayList<Object>(filterValuesArr));
+	}
 
 	/**
 	 * 
