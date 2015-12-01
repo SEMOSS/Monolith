@@ -55,6 +55,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.ds.BTreeDataFrame;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
@@ -64,6 +65,8 @@ import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
 import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
+import prerna.ui.components.playsheets.datamakers.FilterTransformation;
+import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -104,6 +107,18 @@ public class QuestionAdmin {
 		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 		List<SEMOSSParam> params = buildParameterList(paramMapList);
 		String newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
+		
+		//Add necessary filter transformations
+		IDataMaker dm = insight.getDataMaker();
+		if(dm instanceof BTreeDataFrame) {
+			List<FilterTransformation> filterTransformations = buildFilterTransformations(((BTreeDataFrame)dm).getFilterTransformationValues());
+			
+			//add list of new filter transformations to the last component
+			DataMakerComponent lastcomponent = dmcList.get(dmcList.size() - 1);
+			for(FilterTransformation ft : filterTransformations) {
+				lastcomponent.addPostTrans(ft);
+			}
+		}
 		
 		Map<String, Object> solrInsights = new HashMap<>();
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
@@ -398,6 +413,32 @@ public class QuestionAdmin {
 			}
 		}
 		return params;
+	}
+	
+	/**
+	 * 
+	 * @param filterModel
+	 * @return
+	 * 
+	 * Creates a list of filter transformations based on the filter model
+	 */
+	private List<FilterTransformation> buildFilterTransformations(Map<String, Object[]> filterModel) {
+		
+		Set<String> columns = filterModel.keySet();
+		List<FilterTransformation> transformationList = new ArrayList<>(columns.size());
+		for(String column : columns) {
+		
+			FilterTransformation filterTrans = new FilterTransformation();
+			filterTrans.setTransformationType(false);
+			Map<String, Object> selectedOptions = new HashMap<String, Object>();
+			selectedOptions.put(FilterTransformation.COLUMN_HEADER_KEY, column);
+			selectedOptions.put(FilterTransformation.VALUES_KEY, filterModel.get(column));
+			filterTrans.setProperties(selectedOptions);
+		
+			transformationList.add(filterTrans);
+		}
+		
+		return transformationList;
 	}
 
 }
