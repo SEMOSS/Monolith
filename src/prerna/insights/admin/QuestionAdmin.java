@@ -106,19 +106,20 @@ public class QuestionAdmin {
 		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
 		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 		List<SEMOSSParam> params = buildParameterList(paramMapList);
-		String newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
 		
 		//Add necessary filter transformations
-		IDataMaker dm = insight.getDataMaker();
-		if(dm instanceof BTreeDataFrame) {
-			List<FilterTransformation> filterTransformations = buildFilterTransformations(((BTreeDataFrame)dm).getFilterTransformationValues());
-			
-			//add list of new filter transformations to the last component
-			DataMakerComponent lastcomponent = dmcList.get(dmcList.size() - 1);
-			for(FilterTransformation ft : filterTransformations) {
-				lastcomponent.addPostTrans(ft);
-			}
-		}
+//		IDataMaker dm = insight.getDataMaker();
+//		if(dm instanceof BTreeDataFrame) {
+//			List<FilterTransformation> filterTransformations = buildFilterTransformations(((BTreeDataFrame)dm).getFilterTransformationValues());
+//			
+//			//add list of new filter transformations to the last component
+//			DataMakerComponent lastcomponent = dmcList.get(dmcList.size() - 1);
+//			for(FilterTransformation ft : filterTransformations) {
+//				lastcomponent.addPostTrans(ft);
+//			}
+//		}
+		
+		String newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
 		
 		Map<String, Object> solrInsights = new HashMap<>();
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
