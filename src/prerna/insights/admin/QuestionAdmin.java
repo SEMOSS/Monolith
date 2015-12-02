@@ -55,7 +55,6 @@ import org.apache.solr.client.solrj.SolrServerException;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import prerna.ds.BTreeDataFrame;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
@@ -66,7 +65,6 @@ import prerna.om.SEMOSSParam;
 import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.FilterTransformation;
-import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -321,6 +319,91 @@ public class QuestionAdmin {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}		
+		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+	}
+	
+	@POST
+	@Path("editFromText")
+	@Produces("application/json")
+	public Response editInsightFromText(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String engineName = coreEngine.getEngineName();
+
+		LOGGER.info("Adding question from action with following details:::: " + form.toString());
+		Gson gson = new Gson();
+		String insightID = form.getFirst("insightID");
+		String perspective = form.getFirst("perspective");
+		String order = form.getFirst("order");
+		String insightName = form.getFirst("insightName");
+		String description = form.getFirst("description");
+		String layout = form.getFirst("layout");
+		//TODO: currently FE only passes a single query
+		String query = form.getFirst("query");
+		
+		//TODO: how do we determine the data maker?
+		//TODO: assumption is Btree unless layout is Graph
+		List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
+		String dmName = InsightsConverter.getDataMaker(layout, allSheets);
+//		String dmName = "BTreeDataFrame";
+//		if(layout.equals("Graph")) {
+//			dmName = "GraphDataModel";
+//		}
+		
+		List<DataMakerComponent> dmcList = new ArrayList<DataMakerComponent>();
+		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
+		dmcList.add(dmc);
+		//TODO: is it possible for FE to pass this?
+		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
+		//TODO: currently not exposed through UI
+		boolean isDbQuery = true;
+		
+		// TODO: need to change the way this data is coming back.....
+		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
+		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
+		Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
+		Map<String, String> paramsInQuery = Utility.getParamTypeHash(query);
+		// ....sad, need to define the parameter based on the engine type
+		List<SEMOSSParam> params = generateSEMOSSParamObjects(parameterDependList, parameterQueryList, parameterOptionList, paramsInQuery);
+
+		// for now use this method
+		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
+		questionAdmin.modifyQuestion(insightID, insightName, perspective, dmcList, layout, order, dmName, isDbQuery, dataTableAlign, params);
+		
+		Map<String, Object> solrInsights = new HashMap<>();
+		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
+		Date date = new Date();
+		String currDate = dateFormat.format(date);
+		solrInsights.put(SolrIndexEngine.NAME, insightName);
+		solrInsights.put(SolrIndexEngine.TAGS, perspective);
+		solrInsights.put(SolrIndexEngine.LAYOUT, layout);
+		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
+		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
+		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
+		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(insightID));
+
+		Set<String> engines = new HashSet<String>();
+		for(DataMakerComponent newDmc : dmcList) {
+			engines.add(newDmc.getEngine().getEngineName());
+		}
+		solrInsights.put(SolrIndexEngine.ENGINES, engines);
+
+		//TODO: need to add users
+		solrInsights.put(SolrIndexEngine.USER_ID, "default");
+		
+		try {
+			SolrIndexEngine.getInstance().modifyFields(engineName + "_" + insightID, solrInsights);
+			//SolrIndexEngine.getInstance().addDocument(engine.getEngineName() + "_" + lastIDNum, solrInsights);
+		} catch (KeyManagementException e) {
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (KeyStoreException e) {
+			e.printStackTrace();
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}		
+		
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 	
