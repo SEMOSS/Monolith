@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.Clob;
+import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -20,6 +22,7 @@ import java.util.Properties;
 
 import javax.ws.rs.core.MultivaluedMap;
 
+import org.h2.jdbc.JdbcClob;
 import org.openrdf.model.vocabulary.RDF;
 import org.openrdf.model.vocabulary.RDFS;
 
@@ -474,7 +477,17 @@ public final class FormBuilder {
 			Map<String, String> row = new HashMap<String, String>();
 			row.put("userId", ss.getVar(names[0]) + "");
 			row.put("dateAdded", ss.getVar(names[1]) + "");
-			row.put("data", ((InputStream) ss.getVar(names[2])).toString());
+			JdbcClob obj = (JdbcClob) ss.getRawVar(names[2]);
+			
+			InputStream insightDefinition = null;
+			try {
+				insightDefinition = obj.getAsciiStream();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			
+			row.put("data", insightDefinition.toString());
+			
 			results.add(row);
 		}
 		
