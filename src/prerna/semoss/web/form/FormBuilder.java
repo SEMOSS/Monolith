@@ -474,7 +474,7 @@ public final class FormBuilder {
 			Map<String, String> row = new HashMap<String, String>();
 			row.put("userId", ss.getVar(names[0]) + "");
 			row.put("dateAdded", ss.getVar(names[1]) + "");
-			row.put("userId", ((InputStream) ss.getVar(names[2])).toString());
+			row.put("data", ((InputStream) ss.getVar(names[2])).toString());
 			results.add(row);
 		}
 		
