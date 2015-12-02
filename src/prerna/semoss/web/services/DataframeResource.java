@@ -42,52 +42,34 @@ public class DataframeResource {
 		
 		System.out.println("Failed.. after here.. ");
 		String insights = "Mysterious";
-		if(insight != null)
+		System.out.println("Running basic checks.. ");
+		IDataMaker maker = insight.getDataMaker();
+		if(maker instanceof BTreeDataFrame)
 		{
-			System.out.println("Running basic checks.. ");
-			IDataMaker maker = insight.getDataMaker();
-			if(maker instanceof BTreeDataFrame)
-			{
-				System.out.println("Hit the second bogie.. ");
-				BTreeDataFrame daFrame = (BTreeDataFrame)maker;
-				Probablaster pb = new Probablaster();
-				pb.setDataFrame(daFrame);
-				pb.runBIC();
-			}
-			insights = "Ok.. came here.. all good";
+			System.out.println("Hit the second bogie.. ");
+			BTreeDataFrame daFrame = (BTreeDataFrame)maker;
+			Probablaster pb = new Probablaster();
+			pb.setDataFrame(daFrame);
+			pb.runBIC();
 		}
+		insights = "Ok.. came here.. all good";
 		
 		
 		return Response.status(200).entity(WebUtility.getSO(insights)).build();
 	}
-	
 	
 	@GET
 	@Path("/getFilterModel")
 	@Produces("application/json")
 	public Response getFilterModel(@Context HttpServletRequest request)
 	{	
-		if(insight != null) {
-			ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
-			if(mainTree == null) {
-				return Response.status(400).entity(WebUtility.getSO("table not found for insight id. Data not found")).build();
-			}
-			
-			if(!(mainTree instanceof BTreeDataFrame)) {
-				return Response.status(400).entity(WebUtility.getSO("table not instance of BTreeDataFrame, cannot grab filter model")).build();
-			}
-	
-			Map<String, Object> retMap = new HashMap<String, Object>();
-	
-			Object[] returnFilterModel = ((BTreeDataFrame)mainTree).getFilterModel();
-			retMap.put("unfilteredValues", returnFilterModel[0]);
-			retMap.put("filteredValues", returnFilterModel[1]);
-			
-			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-		} 
+		IDataMaker mainTree = insight.getDataMaker();
+		Map<String, Object> retMap = new HashMap<String, Object>();
+
+		Object[] returnFilterModel = ((BTreeDataFrame)mainTree).getFilterModel();
+		retMap.put("unfilteredValues", returnFilterModel[0]);
+		retMap.put("filteredValues", returnFilterModel[1]);
 		
-		else {
-			return Response.status(200).entity(WebUtility.getSO("Insight is null")).build();
-		}
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 }
