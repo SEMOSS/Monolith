@@ -1078,7 +1078,7 @@ public class EngineResource {
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
 		Object[] returnFilterModel = ((BTreeDataFrame)mainTree).getFilterModel();
-		((BTreeDataFrame)mainTree).printTree();
+//		((BTreeDataFrame)mainTree).printTree();
 		retMap.put("unfilteredValues", returnFilterModel[0]);
 		retMap.put("filteredValues", returnFilterModel[1]);
 		
