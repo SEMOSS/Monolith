@@ -53,6 +53,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
@@ -645,9 +646,19 @@ public class NameServer {
 		// eventually I want to pick this from session
 		// but for now let us pick it from the insight store
 		System.out.println("Came into this point.. " + insightID);
-		Insight thisInsight = InsightStore.getInstance().get(insightID);
+
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+		}
+		
 		DataframeResource dfr = new DataframeResource();
-		dfr.insight = thisInsight;
+		dfr.insight = existingInsight;
 		
 		return dfr;
 		
