@@ -80,13 +80,11 @@ public class DataframeResource {
 			Map<String, Object> retMap = new HashMap<String, Object>();
 	
 			Object[] returnFilterModel = ((BTreeDataFrame)mainTree).getFilterModel();
-			((BTreeDataFrame)mainTree).printTree();
 			retMap.put("unfilteredValues", returnFilterModel[0]);
 			retMap.put("filteredValues", returnFilterModel[1]);
 			
 			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 		} 
-		
 		
 		else {
 			return Response.status(200).entity(WebUtility.getSO("Insight is null")).build();
