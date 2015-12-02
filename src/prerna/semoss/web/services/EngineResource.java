@@ -88,7 +88,6 @@ import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.rdf.query.builder.AbstractQueryBuilder;
 import prerna.rdf.query.builder.IQueryBuilder;
 import prerna.rdf.query.builder.QueryBuilderHelper;
-import prerna.rdf.query.builder.SPARQLQueryTableBuilder;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.AbstractQueryParser;
 import prerna.rdf.util.RDFJSONConverter;
@@ -1788,7 +1787,38 @@ public class EngineResource {
 
 		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
 	}
+	
+	@POST
+	@Path("/getFormStagingData")
+	@Produces("application/json")
+	public Response getFormStagingData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
+	{
+		Gson gson = new Gson();
+		List<Map<String, String>> results = null;
+		try {
+			results = FormBuilder.getStagingData(this.coreEngine, form);
+		} catch(Exception e) {
+			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error retrieving data"))).build();
+		}
 
+		return Response.status(200).entity(WebUtility.getSO(gson.toJson(results))).build();
+	}
+
+	@POST
+	@Path("/commitFormData")
+	@Produces("application/json")
+	public Response commitFormData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
+	{
+		Gson gson = new Gson();
+		try {
+			FormBuilder.commitFormData(this.coreEngine, form);
+		} catch(Exception e) {
+			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
+		}
+
+		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
+	}
+	
 	@Path("/analytics")
 	public Object runEngineAnalytics(){
 		EngineAnalyticsResource analytics = new EngineAnalyticsResource(this.coreEngine);
