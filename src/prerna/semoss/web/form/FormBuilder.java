@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DateFormat;
@@ -26,7 +27,10 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.engine.api.IEngine;
+import prerna.engine.api.ISelectStatement;
+import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
+import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
@@ -36,7 +40,7 @@ import prerna.util.sql.SQLQueryUtil.DB_TYPE;
 public final class FormBuilder {
 
 	private static final DateFormat df = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
-	
+	private static transient Gson gson = new Gson();
 	private FormBuilder() {
 		
 	}
@@ -131,14 +135,10 @@ public final class FormBuilder {
 	}
 
 	public static void saveFormData(IEngine engine, String userId, MultivaluedMap<String, String> form) {
-		Gson gson = new Gson();
-
-		IEngine dummyEng = getDummyEngine(engine);
+		IEngine dummyEng = getFormEngine(engine);
 		Calendar cal = Calendar.getInstance();
 		String currTime = df.format(cal.getTime());
-		
-		String insertSql = "INSERT INTO FORM_DATA (USER_ID, DATE_ADDED, DATA) VALUES('" +
-				escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(gson.toJson(form)) + "')";
+		String insertSql = "INSERT INTO FORM_DATA (USER_ID, DATE_ADDED, DATA) VALUES('" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(gson.toJson(form)) + "')";
 		dummyEng.insertData(insertSql);
 	}
 	
@@ -147,7 +147,6 @@ public final class FormBuilder {
 	 * @param form
 	 */
 	public static void commitFormData(IEngine engine, MultivaluedMap<String, String> form) {
-		Gson gson = new Gson();
 		String formData = form.getFirst("formData");
 		Map<String, Object> engineHash = gson.fromJson(formData, new TypeToken<Map<String, Object>>() {}.getType());
 
@@ -419,7 +418,7 @@ public final class FormBuilder {
 		}
 	}
 	
-	public static IEngine getDummyEngine(IEngine engine) {
+	public static IEngine getFormEngine(IEngine engine) {
 		String engineName = engine.getEngineName();
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		
@@ -460,5 +459,25 @@ public final class FormBuilder {
 	
 	private static String escapeForSQLStatement(String s) {
 		return s.replaceAll("'", "''");
+	}
+
+	public static List<Map<String, String>> getStagingData(IEngine engine, MultivaluedMap<String, String> form) {
+		IEngine formEngine = getFormEngine(engine);
+		String sqlQuery = "SELECT USER_ID, DATE_ADDED, DATA FROM FORM_DATA";
+		
+		List<Map<String, String>> results = new ArrayList<Map<String, String>>();
+		
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formEngine, sqlQuery);
+		String[] names = wrapper.getVariables();
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			Map<String, String> row = new HashMap<String, String>();
+			row.put("userId", ss.getVar(names[0]) + "");
+			row.put("dateAdded", ss.getVar(names[1]) + "");
+			row.put("userId", ((InputStream) ss.getVar(names[2])).toString());
+			results.add(row);
+		}
+		
+		return results;
 	}
 }
