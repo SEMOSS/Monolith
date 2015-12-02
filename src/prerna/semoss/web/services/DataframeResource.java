@@ -65,8 +65,7 @@ public class DataframeResource {
 	@GET
 	@Path("/getFilterModel")
 	@Produces("application/json")
-	public Response getFilterModel(MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request)
+	public Response getFilterModel(@Context HttpServletRequest request)
 	{	
 		if(insight != null) {
 			ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
