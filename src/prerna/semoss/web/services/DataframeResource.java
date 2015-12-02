@@ -68,36 +68,29 @@ public class DataframeResource {
 	public Response getFilterModel(MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request)
 	{	
-		String insightID = form.getFirst("insightID");
-
-		Insight existingInsight = null;
-		if(insightID != null && !insightID.isEmpty()) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			if(existingInsight == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		if(insight != null) {
+			ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
+			if(mainTree == null) {
+				return Response.status(400).entity(WebUtility.getSO("table not found for insight id. Data not found")).build();
 			}
-		}
-
-		ITableDataFrame mainTree = (ITableDataFrame) existingInsight.getDataMaker();
-		if(mainTree == null) {
-			return Response.status(400).entity(WebUtility.getSO("table not found for insight id. Data not found")).build();
-		}
+			
+			if(!(mainTree instanceof BTreeDataFrame)) {
+				return Response.status(400).entity(WebUtility.getSO("table not instance of BTreeDataFrame, cannot grab filter model")).build();
+			}
+	
+			Map<String, Object> retMap = new HashMap<String, Object>();
+	
+			Object[] returnFilterModel = ((BTreeDataFrame)mainTree).getFilterModel();
+			((BTreeDataFrame)mainTree).printTree();
+			retMap.put("unfilteredValues", returnFilterModel[0]);
+			retMap.put("filteredValues", returnFilterModel[1]);
+			
+			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		} 
 		
-		if(!(mainTree instanceof BTreeDataFrame)) {
-			return Response.status(400).entity(WebUtility.getSO("table not instance of BTreeDataFrame, cannot grab filter model")).build();
-		}
-
-		Gson gson = new Gson();
-
-		Map<String, Object> retMap = new HashMap<String, Object>();
-
-		Object[] returnFilterModel = ((BTreeDataFrame)mainTree).getFilterModel();
-		((BTreeDataFrame)mainTree).printTree();
-		retMap.put("unfilteredValues", returnFilterModel[0]);
-		retMap.put("filteredValues", returnFilterModel[1]);
 		
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		else {
+			return Response.status(200).entity(WebUtility.getSO("Insight is null")).build();
+		}
 	}
 }
