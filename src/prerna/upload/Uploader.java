@@ -168,7 +168,7 @@ public class Uploader extends HttpServlet {
 		try {
 			fileIn = new FileInputStream(fileName);
 			prop.load(fileIn);			
-			Utility.loadEngine(fileName, prop);
+			Utility.loadWebEngine(fileName, prop);
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
