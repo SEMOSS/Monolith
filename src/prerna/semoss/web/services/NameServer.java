@@ -30,6 +30,8 @@ package prerna.semoss.web.services;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -645,10 +647,10 @@ public class NameServer {
 
 		// eventually I want to pick this from session
 		// but for now let us pick it from the insight store
-		System.out.println("Came into this point.. " + insightID);
 
 		Insight existingInsight = null;
 		if(insightID != null && !insightID.isEmpty()) {
+			insightID = URLDecoder.decode(insightID);
 			existingInsight = InsightStore.getInstance().get(insightID);
 			if(existingInsight == null) {
 				Map<String, String> errorHash = new HashMap<String, String>();
@@ -678,7 +680,8 @@ public class NameServer {
 		Enumeration keys = InsightStore.getInstance().keys();
 		while(keys.hasMoreElements())
 		{
-			Insight thisInsight = InsightStore.getInstance().get(keys.nextElement());
+			String key = "" + keys.nextElement();
+			Insight thisInsight = InsightStore.getInstance().get(key);
 			IDataMaker maker = thisInsight.getDataMaker();
 			String colN = "";
 			if(maker instanceof BTreeDataFrame)
@@ -688,7 +691,11 @@ public class NameServer {
 				
 				for(int colIndex = 0;colIndex < cols.length;colN = colN + "  " + cols[colIndex],colIndex++);
 				
-				output = output + "<br/>" + "<a href=http://localhost:9080/MonolithDev2/api/engine/i-" + thisInsight.getInsightID() + "/bic>" + colN + "</a>";
+				System.out.println("Before encoding... " + key);
+				key = URLEncoder.encode(key);
+				System.out.println("After decoding...  " +  URLDecoder.decode(key));
+				
+				output = output + "<br/>" + "<a href=http://localhost:9080/MonolithDev2/api/engine/i-" + key + "/bic>" + colN + "</a>";
 			}
 		}
 		output = output + "</body></html>";		

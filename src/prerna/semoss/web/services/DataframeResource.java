@@ -50,10 +50,9 @@ public class DataframeResource {
 			BTreeDataFrame daFrame = (BTreeDataFrame)maker;
 			Probablaster pb = new Probablaster();
 			pb.setDataFrame(daFrame);
-			pb.runBIC();
+			insights = pb.runBIC();
 		}
-		insights = "Ok.. came here.. all good";
-		
+		insights = "Pattern Selected..  " + insights + " !! ";
 		
 		return Response.status(200).entity(WebUtility.getSO(insights)).build();
 	}
