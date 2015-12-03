@@ -1862,6 +1862,7 @@ public class EngineResource {
 		try {
 			results = FormBuilder.getStagingData(this.coreEngine, form);
 		} catch(Exception e) {
+			e.printStackTrace();
 			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error retrieving data"))).build();
 		}
 
@@ -1877,26 +1878,28 @@ public class EngineResource {
 		try {
 			FormBuilder.commitFormData(this.coreEngine, form);
 		} catch(Exception e) {
+			e.printStackTrace();
 			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
 		}
 
 		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
 	}
 	
-//	@POST
-//	@Path("/deleteFormDataFromStaging")
-//	@Produces("application/json")
-//	public Response deleteFormDataFromStaging(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
-//	{
-//		Gson gson = new Gson();
-//		try {
-//			FormBuilder.deleteFromStaggingArea(this.coreEngine, form);
-//		} catch(Exception e) {
-//			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
-//		}
-//
-//		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
-//	}
+	@POST
+	@Path("/deleteFormDataFromStaging")
+	@Produces("application/json")
+	public Response deleteFormDataFromStaging(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
+	{
+		Gson gson = new Gson();
+		try {
+			FormBuilder.deleteFromStaggingArea(this.coreEngine, form);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error deleting staging data"))).build();
+		}
+
+		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
+	}
 	
 	@Path("/analytics")
 	public Object runEngineAnalytics(){
