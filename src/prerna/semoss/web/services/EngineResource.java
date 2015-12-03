@@ -514,6 +514,63 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
 	}
 	
+	
+	/**
+	 * Method used to get the query or raw insight makeup 
+	 * @param insight
+	 * @return
+	 */
+	@GET
+	@Path("insightMakeUp")
+	@Produces("application/json")
+	public Response getInsightMakeUp(@QueryParam("insight") String insight)
+	{
+		Insight in = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
+		IEngine makeupEng = in.getMakeupEngine();
+
+		String countQuery = "SELECT (COUNT(DISTINCT(?Component)) AS ?Count) WHERE {?Component a <http://semoss.org/ontologies/Concept/Component>. BIND('x' AS ?x) } GROUP BY ?x";
+
+		ISelectWrapper countss = WrapperManager.getInstance().getSWrapper(makeupEng, countQuery);
+		Integer total = 0;
+		while(countss.hasNext()){
+			ISelectStatement countst = countss.next();
+			total = (int) Double.parseDouble(countst.getVar("Count")+"");
+			System.out.println(" THERE ARE " + total + " COMPONENTS IN THIS INSIGHT  ");
+		}
+
+		StringBuilder returnStrBuilder = new StringBuilder();
+		boolean hasQuery = false;
+		if(total == 0) {
+			String query = "SELECT ?Component ?Query ?Metamodel WHERE { {?Component a <http://semoss.org/ontologies/Concept/Component>} OPTIONAL {?Component <http://semoss.org/ontologies/Relation/Contains/Query> ?Query} OPTIONAL {?Component <http://semoss.org/ontologies/Relation/Contains/Metamodel> ?Metamodel} }";
+			ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(makeupEng, "SELECT ?S ?P ?O WHERE {?S ?P ?0}");
+			String[] names = wrapper.getVariables();
+			String insightQuery = "";
+			String insightMetamodel = "";
+			while(wrapper.hasNext()) {
+				ISelectStatement ss = wrapper.next();
+				insightQuery = ss.getVar(names[1]) + "";
+				insightMetamodel = ss.getVar(names[2]) + "";
+			}
+			
+			if (!query.isEmpty()) {
+				hasQuery = true;
+				returnStrBuilder.append(insightQuery);
+			} 				
+		} 
+
+		if(!hasQuery){
+		
+			ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(makeupEng, "SELECT ?S ?P ?O WHERE {?S ?P ?0}");
+			String[] names = wrapper.getVariables();
+			while(wrapper.hasNext()) {
+				ISelectStatement ss = wrapper.next();
+				returnStrBuilder.append("" + ss.getRawVar(names[0]) + ss.getRawVar(names[1]) + ss.getRawVar(names[2]) + "\n");
+			}
+		}
+		
+		return Response.status(200).entity(WebUtility.getSO(returnStrBuilder.toString())).build();
+	}
+	
 	@GET
 	@Path("getValuesOfType")
 	@Produces("application/json")
@@ -1782,6 +1839,7 @@ public class EngineResource {
 		try {
 			FormBuilder.saveFormData(this.coreEngine, userId, form);
 		} catch(Exception e) {
+			e.printStackTrace();
 			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
 		}
 
