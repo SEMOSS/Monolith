@@ -566,7 +566,7 @@ public class EngineResource {
 			while(wrapper.hasNext()) {
 				ISelectStatement ss = wrapper.next();
 				if(ss.getRawVar(names[2]) instanceof Literal) {
-					returnStrBuilder.append("<" + ss.getRawVar(names[0]) + "> <" + ss.getRawVar(names[1]) + "> " + ss.getRawVar(names[2]) + ".\n");
+					returnStrBuilder.append("<" + ss.getRawVar(names[0]) + "> <" + ss.getRawVar(names[1]) + "> \"" + ss.getRawVar(names[2]) + "\".\n");
 				} else {
 					returnStrBuilder.append("<" + ss.getRawVar(names[0]) + "> <" + ss.getRawVar(names[1]) + "> <" + ss.getRawVar(names[2]) + "> .\n");
 				}
