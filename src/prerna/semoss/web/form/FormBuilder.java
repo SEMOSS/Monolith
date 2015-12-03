@@ -42,8 +42,10 @@ import prerna.util.sql.SQLQueryUtil.DB_TYPE;
 
 public final class FormBuilder {
 
+	private static final String GET_LAST_ID = "SELECT DISTINCT ID FROM FORM_DATA ORDER BY ID DESC";
 	private static final DateFormat df = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
 	private static transient Gson gson = new Gson();
+	
 	private FormBuilder() {
 		
 	}
@@ -141,7 +143,15 @@ public final class FormBuilder {
 		IEngine dummyEng = getFormEngine(engine);
 		Calendar cal = Calendar.getInstance();
 		String currTime = df.format(cal.getTime());
-		String insertSql = "INSERT INTO FORM_DATA (USER_ID, DATE_ADDED, DATA) VALUES('" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(form.getFirst("formData")) + "')";
+		
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(dummyEng, GET_LAST_ID);
+		String retName = wrapper.getVariables()[0];
+		Object lastIdNum = 0;
+		if(wrapper.hasNext()){ // need to call hasNext before you call next()
+			lastIdNum = wrapper.next().getVar(retName);
+		}
+		
+		String insertSql = "INSERT INTO FORM_DATA (ID, USER_ID, DATE_ADDED, DATA) VALUES('" + lastIdNum + "', '" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(form.getFirst("formData")) + "')";
 		dummyEng.insertData(insertSql);
 	}
 	
@@ -450,6 +460,7 @@ public final class FormBuilder {
 		
 		if(newDb) {
 			String formDataTable = "CREATE TABLE FORM_DATA ("
+					+ "ID (INT)"
 					+ "USER_ID VARCHAR(225), "
 					+ "DATE_ADDED TIMESTAMP, "
 					+ "DATA CLOB)";
@@ -466,7 +477,7 @@ public final class FormBuilder {
 
 	public static List<Map<String, String>> getStagingData(IEngine engine, MultivaluedMap<String, String> form) {
 		IEngine formEngine = getFormEngine(engine);
-		String sqlQuery = "SELECT USER_ID, DATE_ADDED, DATA FROM FORM_DATA";
+		String sqlQuery = "SELECT ID, USER_ID, DATE_ADDED, DATA FROM FORM_DATA";
 		
 		List<Map<String, String>> results = new ArrayList<Map<String, String>>();
 		
@@ -475,9 +486,10 @@ public final class FormBuilder {
 		while(wrapper.hasNext()) {
 			ISelectStatement ss = wrapper.next();
 			Map<String, String> row = new HashMap<String, String>();
-			row.put("userId", ss.getVar(names[0]) + "");
-			row.put("dateAdded", ss.getVar(names[1]) + "");
-			JdbcClob obj = (JdbcClob) ss.getRawVar(names[2]);
+			row.put("id",  ss.getVar(names[0]) + "");
+			row.put("userId", ss.getVar(names[1]) + "");
+			row.put("dateAdded", ss.getVar(names[2]) + "");
+			JdbcClob obj = (JdbcClob) ss.getRawVar(names[3]);
 			
 			InputStream insightDefinition = null;
 			try {
@@ -495,13 +507,13 @@ public final class FormBuilder {
 	}
 	
 	public static void deleteFromStaggingArea(IEngine coreEngine, MultivaluedMap<String, String> form) {
-		String idsString = createString(gson.fromJson(form.getFirst("ids"), String[].class));
-		String deleteQuery = "DELETE FROM QUESTION_ID WHERE ID IN " + idsString;
+		String idsString = createIdString(gson.fromJson(form.getFirst("ids"), String[].class));
+		String deleteQuery = "DELETE FROM FORM_DATA WHERE ID IN " + idsString;
 		IEngine dummyEng = getFormEngine(coreEngine);
 		dummyEng.removeData(deleteQuery);
 	}
 	
-	private static String createString(String... ids){
+	private static String createIdString(String... ids){
 		String idsString = "(";
 		for(String id : ids){
 			idsString = idsString + "'" + id + "', ";
