@@ -460,7 +460,7 @@ public final class FormBuilder {
 		
 		if(newDb) {
 			String formDataTable = "CREATE TABLE FORM_DATA ("
-					+ "ID (INT), "
+					+ "ID INT, "
 					+ "USER_ID VARCHAR(225), "
 					+ "DATE_ADDED TIMESTAMP, "
 					+ "DATA CLOB)";
