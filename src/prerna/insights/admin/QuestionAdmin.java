@@ -28,7 +28,6 @@
 package prerna.insights.admin;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -53,6 +52,14 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.openrdf.repository.Repository;
+import org.openrdf.repository.RepositoryConnection;
+import org.openrdf.repository.RepositoryException;
+import org.openrdf.repository.sail.SailRepository;
+import org.openrdf.rio.RDFFormat;
+import org.openrdf.rio.RDFParseException;
+import org.openrdf.sail.inferencer.fc.ForwardChainingRDFSInferencer;
+import org.openrdf.sail.memory.MemoryStore;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -62,6 +69,7 @@ import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
 import prerna.engine.impl.QuestionAdministrator;
+import prerna.engine.impl.rdf.InMemorySesameEngine;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
@@ -352,7 +360,8 @@ public class QuestionAdmin {
 		String layout = form.getFirst("layout");
 		//TODO: currently FE only passes a single query
 		String query = form.getFirst("query");
-		
+		String insightMakeup = form.getFirst("insightMakeup");
+
 		//TODO: how do we determine the data maker?
 		//TODO: assumption is Btree unless layout is Graph
 		List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
@@ -362,9 +371,45 @@ public class QuestionAdmin {
 //			dmName = "GraphDataModel";
 //		}
 		
-		List<DataMakerComponent> dmcList = new ArrayList<DataMakerComponent>();
-		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
-		dmcList.add(dmc);
+		List<DataMakerComponent> dmcList = null;
+		if(query != null && !query.isEmpty()) {
+			dmcList = new ArrayList<DataMakerComponent>();
+			DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
+			dmcList.add(dmc);
+		} else {
+			Insight in = new Insight(coreEngine, dmName, layout);
+			RepositoryConnection rc = null;
+			boolean correctMakeup = true;
+			try {
+				Repository myRepository = new SailRepository(new ForwardChainingRDFSInferencer(new MemoryStore()));
+				myRepository.initialize();
+				rc = myRepository.getConnection();
+				rc.add(IOUtils.toInputStream(insightMakeup) , "semoss.org", RDFFormat.NTRIPLES);
+			} catch(RuntimeException e) {
+				e.printStackTrace();
+				correctMakeup = false;
+			} catch (RDFParseException e) {
+				e.printStackTrace();
+				correctMakeup = false;
+			} catch (RepositoryException e) {
+				e.printStackTrace();
+				correctMakeup = false;
+			} catch (IOException e) {
+				e.printStackTrace();
+				correctMakeup = false;
+			}
+			
+			if(!correctMakeup) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+			
+			// set the rc in the in-memory engine
+			InMemorySesameEngine myEng = new InMemorySesameEngine();
+			myEng.setRepositoryConnection(rc);
+			dmcList = in.digestNTriples(myEng);
+		}
 		//TODO: is it possible for FE to pass this?
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		//TODO: currently not exposed through UI
