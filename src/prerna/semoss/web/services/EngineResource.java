@@ -564,11 +564,17 @@ public class EngineResource {
 			String[] names = wrapper.getVariables();
 			while(wrapper.hasNext()) {
 				ISelectStatement ss = wrapper.next();
-				returnStrBuilder.append("" + ss.getRawVar(names[0]) + ss.getRawVar(names[1]) + ss.getRawVar(names[2]) + "\n");
+				returnStrBuilder.append(ss.getRawVar(names[0]) + " " + ss.getRawVar(names[1]) + " " + ss.getRawVar(names[2]) + ".\\n");
 			}
 		}
 		
-		return Response.status(200).entity(WebUtility.getSO(returnStrBuilder.toString())).build();
+		Map<String, String> retMap = new HashMap<String, String>();
+		if(hasQuery) {
+			retMap.put("query", returnStrBuilder.toString());
+		} else {
+			retMap.put("insightMakeup", returnStrBuilder.toString());
+		}
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
 	@GET
@@ -1876,6 +1882,21 @@ public class EngineResource {
 
 		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
 	}
+	
+//	@POST
+//	@Path("/deleteFormDataFromStaging")
+//	@Produces("application/json")
+//	public Response deleteFormDataFromStaging(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
+//	{
+//		Gson gson = new Gson();
+//		try {
+//			FormBuilder.deleteFromStaggingArea(this.coreEngine, form);
+//		} catch(Exception e) {
+//			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
+//		}
+//
+//		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
+//	}
 	
 	@Path("/analytics")
 	public Object runEngineAnalytics(){
