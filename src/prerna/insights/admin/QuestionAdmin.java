@@ -272,27 +272,34 @@ public class QuestionAdmin {
 		String perspective = form.getFirst("perspective");
 		String order = form.getFirst("order");
 		String insightName = form.getFirst("insightName");
-		String description = form.getFirst("description");
 		String layout = form.getFirst("layout");
-		//TODO: currently FE only passes a single query
 		String query = form.getFirst("query");
-		
-		//TODO: how do we determine the data maker?
-		//TODO: assumption is Btree unless layout is Graph
-		List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
-		String dmName = InsightsConverter.getDataMaker(layout, allSheets);
-//		String dmName = "BTreeDataFrame";
-//		if(layout.equals("Graph")) {
-//			dmName = "GraphDataModel";
-//		}
-		
-		List<DataMakerComponent> dmcList = new ArrayList<DataMakerComponent>();
-		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
-		dmcList.add(dmc);
-		//TODO: is it possible for FE to pass this?
-		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
-		//TODO: currently not exposed through UI
 		boolean isDbQuery = true;
+
+		String dmName = "";
+		// if query is defined, we are defining the insight the basic way -- just query and engine
+		List<DataMakerComponent> dmcList = null;
+		if(query != null && !query.isEmpty()) {
+			List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
+			dmName = InsightsConverter.getDataMaker(layout, allSheets);
+			dmcList = new ArrayList<DataMakerComponent>();
+			DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
+			dmcList.add(dmc);
+		} 
+		// otherwise, we are defining the complex way -- with datamaker, insight makeup, layout, etc.
+		else {
+			dmName =  form.getFirst("dmName");
+			String insightMakeup = form.getFirst("insightMakeup");
+			Insight in = new Insight(coreEngine, dmName, layout);
+			InMemorySesameEngine myEng = buildMakeupEngine(insightMakeup);
+			if(myEng == null){
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+			dmcList = in.digestNTriples(myEng);
+		}
+		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		
 		// TODO: need to change the way this data is coming back.....
 		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
@@ -356,64 +363,35 @@ public class QuestionAdmin {
 		String perspective = form.getFirst("perspective");
 		String order = form.getFirst("order");
 		String insightName = form.getFirst("insightName");
-		String description = form.getFirst("description");
 		String layout = form.getFirst("layout");
 		//TODO: currently FE only passes a single query
 		String query = form.getFirst("query");
-		String insightMakeup = form.getFirst("insightMakeup");
+		boolean isDbQuery = true;
 
-		//TODO: how do we determine the data maker?
-		//TODO: assumption is Btree unless layout is Graph
-		List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
-		String dmName = InsightsConverter.getDataMaker(layout, allSheets);
-//		String dmName = "BTreeDataFrame";
-//		if(layout.equals("Graph")) {
-//			dmName = "GraphDataModel";
-//		}
-		
+		String dmName = "";
+		// if query is defined, we are defining the insight the basic way -- just query and engine
 		List<DataMakerComponent> dmcList = null;
 		if(query != null && !query.isEmpty()) {
+			List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
+			dmName = InsightsConverter.getDataMaker(layout, allSheets);
 			dmcList = new ArrayList<DataMakerComponent>();
 			DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
 			dmcList.add(dmc);
-		} else {
+		} 
+		// otherwise, we are defining the complex way -- with datamaker, insight makeup, layout, etc.
+		else {
+			dmName =  form.getFirst("dmName");
+			String insightMakeup = form.getFirst("insightMakeup");
 			Insight in = new Insight(coreEngine, dmName, layout);
-			RepositoryConnection rc = null;
-			boolean correctMakeup = true;
-			try {
-				Repository myRepository = new SailRepository(new ForwardChainingRDFSInferencer(new MemoryStore()));
-				myRepository.initialize();
-				rc = myRepository.getConnection();
-				rc.add(IOUtils.toInputStream(insightMakeup) , "semoss.org", RDFFormat.NTRIPLES);
-			} catch(RuntimeException e) {
-				e.printStackTrace();
-				correctMakeup = false;
-			} catch (RDFParseException e) {
-				e.printStackTrace();
-				correctMakeup = false;
-			} catch (RepositoryException e) {
-				e.printStackTrace();
-				correctMakeup = false;
-			} catch (IOException e) {
-				e.printStackTrace();
-				correctMakeup = false;
-			}
-			
-			if(!correctMakeup) {
+			InMemorySesameEngine myEng = buildMakeupEngine(insightMakeup);
+			if(myEng == null){
 				Map<String, String> errorHash = new HashMap<String, String>();
 				errorHash.put("errorMessage", "Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
-			
-			// set the rc in the in-memory engine
-			InMemorySesameEngine myEng = new InMemorySesameEngine();
-			myEng.setRepositoryConnection(rc);
 			dmcList = in.digestNTriples(myEng);
 		}
-		//TODO: is it possible for FE to pass this?
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
-		//TODO: currently not exposed through UI
-		boolean isDbQuery = true;
 		
 		// TODO: need to change the way this data is coming back.....
 		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
@@ -582,6 +560,39 @@ public class QuestionAdmin {
 		}
 		
 		return transformationList;
+	}
+	
+	private InMemorySesameEngine buildMakeupEngine(String insightMakeup){
+		RepositoryConnection rc = null;
+		boolean correctMakeup = true;
+		try {
+			Repository myRepository = new SailRepository(new ForwardChainingRDFSInferencer(new MemoryStore()));
+			myRepository.initialize();
+			rc = myRepository.getConnection();
+			rc.add(IOUtils.toInputStream(insightMakeup) , "semoss.org", RDFFormat.NTRIPLES);
+		} catch(RuntimeException e) {
+			e.printStackTrace();
+			correctMakeup = false;
+		} catch (RDFParseException e) {
+			e.printStackTrace();
+			correctMakeup = false;
+		} catch (RepositoryException e) {
+			e.printStackTrace();
+			correctMakeup = false;
+		} catch (IOException e) {
+			e.printStackTrace();
+			correctMakeup = false;
+		}
+		
+		if(!correctMakeup) {
+			LOGGER.error("Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
+			return null;
+		}
+		
+		// set the rc in the in-memory engine
+		InMemorySesameEngine myEng = new InMemorySesameEngine();
+		myEng.setRepositoryConnection(rc);
+		return myEng;
 	}
 
 }
