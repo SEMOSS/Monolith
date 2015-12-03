@@ -59,6 +59,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
+import org.openrdf.model.Literal;
 
 import com.bigdata.rdf.model.BigdataURI;
 import com.google.gson.Gson;
@@ -521,9 +522,9 @@ public class EngineResource {
 	 * @return
 	 */
 	@GET
-	@Path("insightMakeup")
+	@Path("insightSpecifics")
 	@Produces("application/json")
-	public Response getInsightMakeUp(@QueryParam("insightID") String insightID)
+	public Response getInsightSpecifics(@QueryParam("insightID") String insightID)
 	{
 		Insight in = ((AbstractEngine)coreEngine).getInsight(insightID).get(0);
 		IEngine makeupEng = in.getMakeupEngine();
@@ -564,16 +565,24 @@ public class EngineResource {
 			String[] names = wrapper.getVariables();
 			while(wrapper.hasNext()) {
 				ISelectStatement ss = wrapper.next();
-				returnStrBuilder.append(ss.getRawVar(names[0]) + " " + ss.getRawVar(names[1]) + " " + ss.getRawVar(names[2]) + ".\n");
+				if(ss.getRawVar(names[2]) instanceof Literal) {
+					returnStrBuilder.append("<" + ss.getRawVar(names[0]) + "> <" + ss.getRawVar(names[1]) + "> " + ss.getRawVar(names[2]) + ".\n");
+				} else {
+					returnStrBuilder.append("<" + ss.getRawVar(names[0]) + "> <" + ss.getRawVar(names[1]) + "> <" + ss.getRawVar(names[2]) + "> .\n");
+				}
 			}
 		}
 		
+		Gson gson = new Gson();
 		Map<String, String> retMap = new HashMap<String, String>();
 		if(hasQuery) {
 			retMap.put("query", returnStrBuilder.toString());
 		} else {
 			retMap.put("insightMakeup", returnStrBuilder.toString());
 		}
+		retMap.put("dataMakerName", in.getDataMakerName());
+		retMap.put("dataTableAlign", gson.toJson(in.getDataTableAlign()));
+
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
