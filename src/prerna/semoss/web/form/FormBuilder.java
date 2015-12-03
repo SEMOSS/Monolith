@@ -141,7 +141,7 @@ public final class FormBuilder {
 		IEngine dummyEng = getFormEngine(engine);
 		Calendar cal = Calendar.getInstance();
 		String currTime = df.format(cal.getTime());
-		String insertSql = "INSERT INTO FORM_DATA (USER_ID, DATE_ADDED, DATA) VALUES('" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(gson.toJson(form)) + "')";
+		String insertSql = "INSERT INTO FORM_DATA (USER_ID, DATE_ADDED, DATA) VALUES('" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(form.getFirst("formData")) + "')";
 		dummyEng.insertData(insertSql);
 	}
 	
