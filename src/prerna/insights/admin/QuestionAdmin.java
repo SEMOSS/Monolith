@@ -28,6 +28,7 @@
 package prerna.insights.admin;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -49,12 +50,14 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.ds.BTreeDataFrame;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
@@ -65,6 +68,8 @@ import prerna.om.SEMOSSParam;
 import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.FilterTransformation;
+import prerna.ui.components.playsheets.datamakers.IDataMaker;
+import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -106,18 +111,27 @@ public class QuestionAdmin {
 		List<SEMOSSParam> params = buildParameterList(paramMapList);
 		
 		//Add necessary filter transformations
-//		IDataMaker dm = insight.getDataMaker();
-//		if(dm instanceof BTreeDataFrame) {
-//			List<FilterTransformation> filterTransformations = buildFilterTransformations(((BTreeDataFrame)dm).getFilterTransformationValues());
-//			
-//			//add list of new filter transformations to the last component
-//			DataMakerComponent lastcomponent = dmcList.get(dmcList.size() - 1);
-//			for(FilterTransformation ft : filterTransformations) {
-//				lastcomponent.addPostTrans(ft);
-//			}
-//		}
+		IDataMaker dm = insight.getDataMaker();
+		String newInsightID = null;
+		if(dm instanceof BTreeDataFrame) {
+			//add list of new filter transformations to the last component
+			DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
+			List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
+			List<ISEMOSSTransformation> oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
+			List<FilterTransformation> trans2add = flushFilterModel2Transformations((BTreeDataFrame) dm);
+			newPostTrans.addAll(trans2add);
+
+			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
+
+			//reset the post trans on the last component if the filter model has been flushed to it
+			//we don't want the insight itself to change at all through this process
+			lastComponent.setPostTrans(oldPostTrans);
+		}
+		else {
+			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
+		}
 		
-		String newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
+		
 		
 		Map<String, Object> solrInsights = new HashMap<>();
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
@@ -506,8 +520,8 @@ public class QuestionAdmin {
 	 * 
 	 * Creates a list of filter transformations based on the filter model
 	 */
-	private List<FilterTransformation> buildFilterTransformations(Map<String, Object[]> filterModel) {
-		
+	private List<FilterTransformation> flushFilterModel2Transformations(BTreeDataFrame bTree) {
+		Map<String, Object[]> filterModel = bTree.getFilterTransformationValues();
 		Set<String> columns = filterModel.keySet();
 		List<FilterTransformation> transformationList = new ArrayList<>(columns.size());
 		for(String column : columns) {
