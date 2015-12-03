@@ -569,6 +569,7 @@ public class QuestionAdmin {
 			Repository myRepository = new SailRepository(new ForwardChainingRDFSInferencer(new MemoryStore()));
 			myRepository.initialize();
 			rc = myRepository.getConnection();
+			insightMakeup =	insightMakeup.replaceAll("\"", "\\\\\"");
 			rc.add(IOUtils.toInputStream(insightMakeup) , "semoss.org", RDFFormat.NTRIPLES);
 		} catch(RuntimeException e) {
 			e.printStackTrace();
