@@ -523,9 +523,9 @@ public class EngineResource {
 	@GET
 	@Path("insightMakeUp")
 	@Produces("application/json")
-	public Response getInsightMakeUp(@QueryParam("insight") String insight)
+	public Response getInsightMakeUp(@QueryParam("insightID") String insightID)
 	{
-		Insight in = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
+		Insight in = ((AbstractEngine)coreEngine).getInsight(insightID).get(0);
 		IEngine makeupEng = in.getMakeupEngine();
 
 		String countQuery = "SELECT (COUNT(DISTINCT(?Component)) AS ?Count) WHERE {?Component a <http://semoss.org/ontologies/Concept/Component>. BIND('x' AS ?x) } GROUP BY ?x";
