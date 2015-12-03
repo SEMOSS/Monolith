@@ -521,7 +521,7 @@ public class EngineResource {
 	 * @return
 	 */
 	@GET
-	@Path("insightMakeUp")
+	@Path("insightMakeup")
 	@Produces("application/json")
 	public Response getInsightMakeUp(@QueryParam("insightID") String insightID)
 	{
