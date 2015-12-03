@@ -493,4 +493,23 @@ public final class FormBuilder {
 		
 		return results;
 	}
+	
+	public static void deleteFromStaggingArea(IEngine coreEngine, MultivaluedMap<String, String> form) {
+		String idsString = createString(gson.fromJson(form.getFirst("ids"), String[].class));
+		String deleteQuery = "DELETE FROM QUESTION_ID WHERE ID IN " + idsString;
+		IEngine dummyEng = getFormEngine(coreEngine);
+		dummyEng.removeData(deleteQuery);
+	}
+	
+	private static String createString(String... ids){
+		String idsString = "(";
+		for(String id : ids){
+			idsString = idsString + "'" + id + "', ";
+		}
+		idsString = idsString.substring(0, idsString.length() - 2) + ")";
+		
+		return idsString;
+	}
+	
+	
 }
