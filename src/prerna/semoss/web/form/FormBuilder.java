@@ -146,10 +146,11 @@ public final class FormBuilder {
 		
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(dummyEng, GET_LAST_ID);
 		String retName = wrapper.getVariables()[0];
-		Object lastIdNum = 0;
+		Integer lastIdNum = 0;
 		if(wrapper.hasNext()){ // need to call hasNext before you call next()
-			lastIdNum = wrapper.next().getVar(retName);
+			lastIdNum = (int) wrapper.next().getVar(retName);
 		}
+		lastIdNum++;
 		
 		String insertSql = "INSERT INTO FORM_DATA (ID, USER_ID, DATE_ADDED, DATA) VALUES('" + lastIdNum + "', '" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(form.getFirst("formData")) + "')";
 		dummyEng.insertData(insertSql);
