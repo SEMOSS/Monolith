@@ -560,11 +560,11 @@ public class EngineResource {
 
 		if(!hasQuery){
 		
-			ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(makeupEng, "SELECT ?S ?P ?O WHERE {?S ?P ?0}");
+			ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(makeupEng, "SELECT ?S ?P ?O WHERE {?S ?P ?O}");
 			String[] names = wrapper.getVariables();
 			while(wrapper.hasNext()) {
 				ISelectStatement ss = wrapper.next();
-				returnStrBuilder.append(ss.getRawVar(names[0]) + " " + ss.getRawVar(names[1]) + " " + ss.getRawVar(names[2]) + ".\\n");
+				returnStrBuilder.append(ss.getRawVar(names[0]) + " " + ss.getRawVar(names[1]) + " " + ss.getRawVar(names[2]) + ".\n");
 			}
 		}
 		
