@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.sql.Clob;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -22,6 +21,7 @@ import java.util.Properties;
 
 import javax.ws.rs.core.MultivaluedMap;
 
+import org.apache.commons.io.IOUtils;
 import org.h2.jdbc.JdbcClob;
 import org.openrdf.model.vocabulary.RDF;
 import org.openrdf.model.vocabulary.RDFS;
@@ -482,12 +482,12 @@ public final class FormBuilder {
 			InputStream insightDefinition = null;
 			try {
 				insightDefinition = obj.getAsciiStream();
+				row.put("data", IOUtils.toString(insightDefinition));
 			} catch (SQLException e) {
 				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-			
-			row.put("data", insightDefinition.toString());
-			
 			results.add(row);
 		}
 		
