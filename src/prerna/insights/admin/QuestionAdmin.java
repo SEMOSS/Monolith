@@ -138,9 +138,7 @@ public class QuestionAdmin {
 		else {
 			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
 		}
-		
-		
-		
+				
 		Map<String, Object> solrInsights = new HashMap<>();
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
@@ -569,7 +567,6 @@ public class QuestionAdmin {
 			Repository myRepository = new SailRepository(new ForwardChainingRDFSInferencer(new MemoryStore()));
 			myRepository.initialize();
 			rc = myRepository.getConnection();
-			insightMakeup =	insightMakeup.replaceAll("\"", "\\\\\"");
 			rc.add(IOUtils.toInputStream(insightMakeup) , "semoss.org", RDFFormat.NTRIPLES);
 		} catch(RuntimeException e) {
 			e.printStackTrace();
