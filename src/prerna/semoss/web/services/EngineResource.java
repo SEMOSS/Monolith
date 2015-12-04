@@ -566,7 +566,14 @@ public class EngineResource {
 			while(wrapper.hasNext()) {
 				ISelectStatement ss = wrapper.next();
 				if(ss.getRawVar(names[2]) instanceof Literal) {
-					returnStrBuilder.append("<" + ss.getRawVar(names[0]) + "> <" + ss.getRawVar(names[1]) + "> \"" + ss.getRawVar(names[2]) + "\".\n");
+					String val = ss.getVar(names[2]).toString();
+					// need to escape single quotes for reloading
+					if(val.contains("\"")) {
+						val = "\"" + val.replaceAll("\"", "\\\\\"") + "\"";
+					} else {
+						val = ss.getRawVar(names[2]).toString();
+					}
+					returnStrBuilder.append("<" + ss.getRawVar(names[0]) + "> <" + ss.getRawVar(names[1]) + "> " + val + " .\n");
 				} else {
 					returnStrBuilder.append("<" + ss.getRawVar(names[0]) + "> <" + ss.getRawVar(names[1]) + "> <" + ss.getRawVar(names[2]) + "> .\n");
 				}
