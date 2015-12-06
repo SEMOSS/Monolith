@@ -1330,32 +1330,12 @@ public class EngineResource {
 		
 		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, dataHash);
 		StringMap<ArrayList<Object>> queryData = (StringMap<ArrayList<Object>>) dataHash.get("QueryData");
-		String relSubjURI = "";
-		for(String uri : (ArrayList<String>) queryData.get("relTriples").get(0)) {
-			if(currConcept.equalsIgnoreCase(Utility.getInstanceName(uri))) {
-				relSubjURI = uri;
-			}
-		}
-		if(!currConcept.isEmpty() && !Utility.getPrimaryKeyFromURI(relSubjURI).equals("Concept") 
-				&& !Utility.getPrimaryKeyFromURI(relSubjURI).equals("DisplayName")) {
-			currConcept = Utility.getInstanceName(relSubjURI) + "__" + Utility.getPrimaryKeyFromURI(relSubjURI.toUpperCase());
-		}
-		if(equivConcept.equals(currConcept.split("__")[0])) {
-			equivConcept = currConcept;
-		}
+		
 		// put join concept into dataHash so we know which varible needs to be first in the return
 		// this stems from the fact that btree can only join left to right.
 		List<String> retOrder = new ArrayList<String>();
-		System.out.println("");
 		//I need the physical name to be put into the retOrder, so append the displayname uri and assume that the value in equivConcept is potentially a display name, if its not we'll still get the physical name back...
-		String physicalEquivConcept = "";
-		if(this.coreEngine.getEngineType().equals(IEngine.ENGINE_TYPE.RDBMS) && !equivConcept.contains("__")) {
-			physicalEquivConcept = currConcept + "__" + Utility.getInstanceName(this.coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + equivConcept , false)).toUpperCase();
-			currConcept = physicalEquivConcept;
-			equivConcept = physicalEquivConcept;
-		} else {
-			physicalEquivConcept = Utility.getInstanceName(this.coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + equivConcept , false));
-		}
+		String physicalEquivConcept = Utility.getInstanceName(this.coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + equivConcept , false));
 		retOrder.add(physicalEquivConcept);
 		dataHash.put("returnOrder", retOrder);
 		
@@ -1589,27 +1569,10 @@ public class EngineResource {
 
 			if (currConcept != null && !currConcept.isEmpty()) {
 				StringMap<ArrayList<Object>> queryData = (StringMap<ArrayList<Object>>) dataHash.get("QueryData");
-				String relSubjURI = "";
-				for(String uri : (ArrayList<String>) queryData.get("relTriples").get(0)) {
-					if(currConcept.equalsIgnoreCase(Utility.getInstanceName(uri))) {
-						relSubjURI = uri;
-					}
-				}
-				if(!currConcept.isEmpty() && !Utility.getPrimaryKeyFromURI(relSubjURI).equals("Concept") 
-						&& !Utility.getPrimaryKeyFromURI(relSubjURI).equals("DisplayName")) {
-					currConcept = Utility.getInstanceName(relSubjURI) + "__" + Utility.getPrimaryKeyFromURI(relSubjURI.toUpperCase());
-				}
+				
 				// put join concept into dataHash so we know which varible needs to be first in the return
 				// this stems from the fact that btree can only join left to right.
 				List<String> retOrder = new ArrayList<String>();
-				//I need the physical name to be put into the retOrder, so append the displayname uri and assume that the value in equivConcept is potentially a display name, if its not we'll still get the physical name back...
-				String physicalEquivConcept = "";
-				if(this.coreEngine.getEngineType().equals(IEngine.ENGINE_TYPE.RDBMS) && !currConcept.contains("__")) {
-					physicalEquivConcept = currConcept + "__" + Utility.getInstanceName(this.coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + currConcept , false)).toUpperCase();
-					currConcept = physicalEquivConcept;
-//					equivConcept = physicalEquivConcept;
-				}
-				
 				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
 				// HttpSession session = request.getSession();
 				// if(session.getAttribute(tableID) == null) {
@@ -1646,7 +1609,12 @@ public class EngineResource {
 			} else if(currIndexexistingConcept == -1) {
 				//logic added for display names we need to use the current column header you are filtering on to try to determine the index.
 				//on second thought, you probably dont even need the logic above at all you can probably just use this
-				String columnHeaderInstance = Utility.getInstanceName(columnHeader);
+				String columnHeaderInstance = "";
+				if(this.coreEngine.getEngineType().equals(IEngine.ENGINE_TYPE.RDBMS)) {
+					columnHeaderInstance = Utility.getInstanceName(columnHeader) + "__" + Utility.getPrimaryKeyFromURI(columnHeader).toUpperCase();
+				} else {
+					columnHeaderInstance = Utility.getInstanceName(columnHeader);
+				}
 				currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(displayNames, columnHeaderInstance);//didnt find it in display names, try to find the match in physical names then
 				if(currIndexexistingConcept!=-1){
 					index = currIndexexistingConcept;
