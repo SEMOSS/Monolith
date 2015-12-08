@@ -275,14 +275,23 @@ public class QuestionAdmin {
 		boolean isDbQuery = true;
 
 		String dmName = "";
-		// if query is defined, we are defining the insight the basic way -- just query and engine
 		List<DataMakerComponent> dmcList = null;
+		List<SEMOSSParam> params = null;
+		// if query is defined, we are defining the insight the basic way -- just query and engine
 		if(query != null && !query.isEmpty()) {
 			List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
 			dmName = InsightsConverter.getDataMaker(layout, allSheets);
 			dmcList = new ArrayList<DataMakerComponent>();
 			DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
 			dmcList.add(dmc);
+			Map<String, String> paramsInQuery = Utility.getParamTypeHash(query);
+			
+			// TODO: need to change the way this data is coming back.....
+			Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
+			Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
+			Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
+			// ....sad, need to define the parameter based on the engine type
+			params = generateSEMOSSParamObjects(parameterDependList, parameterQueryList, parameterOptionList, paramsInQuery);
 		} 
 		// otherwise, we are defining the complex way -- with datamaker, insight makeup, layout, etc.
 		else {
@@ -296,16 +305,9 @@ public class QuestionAdmin {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			dmcList = in.digestNTriples(myEng);
+			params = getParamsFromDmcList(dmcList);
 		}
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
-		
-		// TODO: need to change the way this data is coming back.....
-		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
-		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
-		Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
-		Map<String, String> paramsInQuery = Utility.getParamTypeHash(query);
-		// ....sad, need to define the parameter based on the engine type
-		List<SEMOSSParam> params = generateSEMOSSParamObjects(parameterDependList, parameterQueryList, parameterOptionList, paramsInQuery);
 
 		// for now use this method
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
@@ -367,14 +369,23 @@ public class QuestionAdmin {
 		boolean isDbQuery = true;
 
 		String dmName = "";
-		// if query is defined, we are defining the insight the basic way -- just query and engine
 		List<DataMakerComponent> dmcList = null;
+		List<SEMOSSParam> params = null;
+		// if query is defined, we are defining the insight the basic way -- just query and engine
 		if(query != null && !query.isEmpty()) {
 			List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
 			dmName = InsightsConverter.getDataMaker(layout, allSheets);
 			dmcList = new ArrayList<DataMakerComponent>();
 			DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
 			dmcList.add(dmc);
+			Map<String, String> paramsInQuery = Utility.getParamTypeHash(query);
+			
+			// TODO: need to change the way this data is coming back.....
+			Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
+			Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
+			Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
+			// ....sad, need to define the parameter based on the engine type
+			params = generateSEMOSSParamObjects(parameterDependList, parameterQueryList, parameterOptionList, paramsInQuery);
 		} 
 		// otherwise, we are defining the complex way -- with datamaker, insight makeup, layout, etc.
 		else {
@@ -388,16 +399,9 @@ public class QuestionAdmin {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			dmcList = in.digestNTriples(myEng);
+			params = getParamsFromDmcList(dmcList);
 		}
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
-		
-		// TODO: need to change the way this data is coming back.....
-		Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
-		Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
-		Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
-		Map<String, String> paramsInQuery = Utility.getParamTypeHash(query);
-		// ....sad, need to define the parameter based on the engine type
-		List<SEMOSSParam> params = generateSEMOSSParamObjects(parameterDependList, parameterQueryList, parameterOptionList, paramsInQuery);
 
 		// for now use this method
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
@@ -504,16 +508,10 @@ public class QuestionAdmin {
 				//TODO: Bifurcation in processing logic if it is RDBMS vs. RDF
 				//Due to the fact that we do not store the parameters as metamodels but as queries
 				if(this.coreEngine.getEngineType() == ENGINE_TYPE.RDBMS) {
-					// rdbms will be stored as type queries if it is a "concept" or property
-					// in both situaitons will go through the getEntityOfType query
-					if(paramParent != null) {
-						String tableName = Utility.getInstanceName(paramParent);
-						p.setType(paramName + "-" + tableName + ":" + paramName);
-						p.setName(tableName + "__" + paramName);
-					} else {
-						p.setType(paramName);
-						p.setName(paramName);
-					}
+					// the uri on rdbms is always in the form /Concept/Column/Table
+//					String rdbmsType = Utility.getInstanceName(paramURI)+":"+Utility.getClassName(paramURI);  // THIS WILL BE TAKEN CARE OF IN THE ENGINE. we need the physical uri as the type to know which component is involved in question administrator
+					p.setType(paramURI);
+					p.setName(paramName);
 				} else {
 					p.setName(paramName);
 					if(paramParent != null) {
@@ -591,6 +589,55 @@ public class QuestionAdmin {
 		InMemorySesameEngine myEng = new InMemorySesameEngine();
 		myEng.setRepositoryConnection(rc);
 		return myEng;
+	}
+	
+	/**
+	 * This method uses the dmc list to determine which paramters need to be added to the rdbms
+	 * The logic is simple : 
+	 * 	Any filter transformation without a list of values set needs to be stored as param
+	 * 
+	 * @param dmcList
+	 * @return
+	 */
+	private List<SEMOSSParam> getParamsFromDmcList(List<DataMakerComponent> dmcList){
+		List<SEMOSSParam> params = new Vector<SEMOSSParam>();
+		for (DataMakerComponent dmc : dmcList){
+			List<ISEMOSSTransformation> fullTrans = new Vector<ISEMOSSTransformation>();
+			fullTrans.addAll(dmc.getPreTrans());
+			fullTrans.addAll(dmc.getPostTrans());
+			for(ISEMOSSTransformation trans : fullTrans){
+				if(trans instanceof FilterTransformation){
+					if(!trans.getProperties().containsKey(FilterTransformation.VALUES_KEY)){
+						SEMOSSParam p = new SEMOSSParam();
+						params.add(p);
+						p.setName(trans.getProperties().get(FilterTransformation.COLUMN_HEADER_KEY) + "");
+						LOGGER.info("adding new param with name : " + p.getName());
+						
+						// type needs to be gotten from the query or the metamodel data
+						String query = dmc.getQuery();
+						if(query!=null){
+							LOGGER.info("getting param type from query : " + query);
+							Map<String, String> paramMap = Utility.getParams(query);
+							for(String key : paramMap.keySet()){
+								LOGGER.info("checking param : " + key);
+								// this key should be label-type
+								String[] parts = key.split("-");
+								LOGGER.info("does param type : " + parts[0] + " match with param name?");
+								if(parts[0].equals(p.getName())){
+									LOGGER.info("yep... setting type to  " + parts [1]);
+									p.setType(parts[1]);
+								}
+							}
+						}
+						else {
+							Map<String, Object> mm = dmc.getMetamodelData();
+							LOGGER.info("getting param type from metamodel data : " + mm.toString());
+						}
+					}
+				}
+			}
+		}
+		return params;
 	}
 
 }
