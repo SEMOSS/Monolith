@@ -271,6 +271,8 @@ public class DBAdminResource {
 				e.printStackTrace();
 			} catch (KeyStoreException e) {
 				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 			
 			return true;
