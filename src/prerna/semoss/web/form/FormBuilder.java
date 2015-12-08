@@ -222,7 +222,7 @@ public final class FormBuilder {
 		for(int i = 0; i < nodes.size(); i++) {
 			Map<String, Object> node = nodes.get(i);
 			nodeType = node.get("conceptName").toString();
-			nodeValue = node.get("conceptValue").toString();
+			nodeValue = Utility.cleanString(node.get("conceptValue").toString(), true);
 			nodeMapping.put(nodeValue, nodeType);
 
 			instanceConceptURI = baseURI + "/Concept/" + Utility.getInstanceName(nodeType) + "/" + nodeValue;
@@ -246,7 +246,6 @@ public final class FormBuilder {
 
 		String startNode;
 		String endNode;
-		String relType;
 		String subject;
 		String instanceSubjectURI;
 		String object;
@@ -258,17 +257,16 @@ public final class FormBuilder {
 		//Save the relationships
 		for(int i = 0; i < relationships.size(); i++) {
 			Map<String, Object> relationship = relationships.get(i);
-			startNode = relationship.get("startNodeVal").toString();
-			endNode = relationship.get("endNodeVal").toString();
+			startNode = Utility.cleanString(relationship.get("startNodeVal").toString(), true);
+			endNode = Utility.cleanString(relationship.get("endNodeVal").toString(), true);
 			subject = nodeMapping.get(startNode);
 			object = nodeMapping.get(endNode);
 			instanceSubjectURI = baseURI + "/Concept/" + Utility.getInstanceName(subject) + "/" + startNode;
 			instanceObjectURI = baseURI + "/Concept/" + Utility.getInstanceName(object) + "/" + endNode;
 
-			relType = relationship.get("relType").toString();
-			baseRelationshipURI = relationBaseURI + "/" + relType;
+			baseRelationshipURI = relationship.get("relType").toString();
 			instanceRel = startNode + ":" + endNode;
-			instanceRelationshipURI = baseURI + "/Relation/" + relType + "/" + instanceRel;
+			instanceRelationshipURI = baseRelationshipURI + "/" + instanceRel;
 
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, relationBaseURI, instanceObjectURI, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, baseRelationshipURI, instanceObjectURI, true});
