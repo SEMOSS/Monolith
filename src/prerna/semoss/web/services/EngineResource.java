@@ -1369,18 +1369,19 @@ public class EngineResource {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 
-			// 2. a. If its not an outer join, add a filter transformation with all instances from other column in order to speed up join
-			// We no longer want to do this as we are storing the whole tree essentially a couple times over just in the RDBMS through these filters
-			// Rather the inner join on the component should somehow prompt the component to add bindings to the query
-			if(!joinType.equals("outer")) {
-//				List<Object> filteringValues = Arrays.asList( ((ITableDataFrame) insight.getDataMaker()).getUniqueRawValues(currConcept));
-				Map<String, Object> transProps = new HashMap<String, Object>();
-				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, currConcept);
-//				transProps.put(FilterTransformation.VALUES_KEY, filteringValues);
-				ISEMOSSTransformation filterTrans = new FilterTransformation();
-				filterTrans.setProperties(transProps);
-				dmc.addPreTrans(filterTrans);
-			}
+			//NO LONGER DOING THIS SINCE JOIN IS A PRE TRANSFORMAITON NOW!
+//			// 2. a. If its not an outer join, add a filter transformation with all instances from other column in order to speed up join
+//			// We no longer want to do this as we are storing the whole tree essentially a couple times over just in the RDBMS through these filters
+//			// Rather the inner join on the component should somehow prompt the component to add bindings to the query
+//			if(!joinType.equals("outer")) {
+////				List<Object> filteringValues = Arrays.asList( ((ITableDataFrame) insight.getDataMaker()).getUniqueRawValues(currConcept));
+//				Map<String, Object> transProps = new HashMap<String, Object>();
+//				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, currConcept);
+////				transProps.put(FilterTransformation.VALUES_KEY, filteringValues);
+//				ISEMOSSTransformation filterTrans = new FilterTransformation();
+//				filterTrans.setProperties(transProps);
+//				dmc.addPreTrans(filterTrans);
+//			}
 
 			// 2. b. Add join transformation since we know a tree already exists and we will have to join to it
 			ISEMOSSTransformation joinTrans = new JoinTransformation();
@@ -1389,7 +1390,8 @@ public class EngineResource {
 			selectedOptions.put(JoinTransformation.COLUMN_TWO_KEY, equivConcept);
 			selectedOptions.put("joinType", joinType);
 			joinTrans.setProperties(selectedOptions);
-			dmc.addPostTrans(joinTrans);
+//			dmc.addPostTrans(joinTrans);
+			dmc.addPreTrans(joinTrans);
 		}
 
 		// 3. Process the component
