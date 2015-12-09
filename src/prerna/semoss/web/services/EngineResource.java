@@ -619,9 +619,6 @@ public class EngineResource {
 		AddToMasterDB addMasterDB = new AddToMasterDB(Constants.LOCAL_MASTER_DB_NAME);
 		SearchMasterDB searchMasterDB = new SearchMasterDB(Constants.LOCAL_MASTER_DB_NAME);
 
-		//Get the Insight, grab its ID
-		Insight insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
-
 		// executes the output and gives the data
 		// executes the create runner
 		// once complete, it would plug the output into the session
@@ -692,6 +689,9 @@ public class EngineResource {
 			}
 		}
 		else {
+			//Get the Insight, grab its ID
+			Insight insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
+			
 			Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 			params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
 			
