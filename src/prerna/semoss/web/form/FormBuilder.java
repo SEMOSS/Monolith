@@ -387,7 +387,7 @@ public final class FormBuilder {
 			endVal = relationship.get("endNodeVal").toString();
 
 			boolean addToStart = false;
-			String[] relVals = relationship.get("relType").toString().split("\\.");
+			String[] relVals = Utility.getInstanceName(relationship.get("relType").toString()).split("\\.");
 			if(relVals[1].endsWith(_FK)) {
 				if(relVals[1].equals(startTable + _FK)) {
 					addToStart = true;
