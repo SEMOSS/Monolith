@@ -317,7 +317,7 @@ public final class FormBuilder {
 			List<Object> propValues = new ArrayList<Object>();
 			for(int k = 0; k < properties.size(); k++) {
 				Map<String, Object> property = properties.get(k);
-				propTypes.add(property.get("propertyName").toString());
+				propTypes.add(Utility.getInstanceName(property.get("propertyName").toString()));
 				propValues.add(property.get("propertyValue"));
 			}
 
