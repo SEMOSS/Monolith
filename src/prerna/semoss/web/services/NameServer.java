@@ -548,7 +548,7 @@ public class NameServer {
 		queryData.put(SolrIndexEngine.MLT_MINTF, termFreq);
 		queryData.put(SolrIndexEngine.MLT_COUNT, offsetCount);
 
-		Map<String, Object> mltFieldMap = null;
+		Map<String, SolrDocumentList> mltFieldMap = null;
 		try {
 			mltFieldMap = SolrIndexEngine.getInstance().mltDocument(queryData);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException e) {
