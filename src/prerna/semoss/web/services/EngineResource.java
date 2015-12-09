@@ -543,7 +543,7 @@ public class EngineResource {
 		boolean hasQuery = false;
 		if(total == 0) {
 			String query = "SELECT ?Component ?Query ?Metamodel WHERE { {?Component a <http://semoss.org/ontologies/Concept/Component>} OPTIONAL {?Component <http://semoss.org/ontologies/Relation/Contains/Query> ?Query} OPTIONAL {?Component <http://semoss.org/ontologies/Relation/Contains/Metamodel> ?Metamodel} }";
-			ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(makeupEng, "SELECT ?S ?P ?O WHERE {?S ?P ?0}");
+			ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(makeupEng, query);
 			String[] names = wrapper.getVariables();
 			String insightQuery = "";
 			String insightMetamodel = "";
@@ -553,7 +553,7 @@ public class EngineResource {
 				insightMetamodel = ss.getVar(names[2]) + "";
 			}
 			
-			if (!query.isEmpty()) {
+			if (!insightQuery.isEmpty()) {
 				hasQuery = true;
 				returnStrBuilder.append(insightQuery);
 			} 				
