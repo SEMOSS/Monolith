@@ -551,15 +551,15 @@ public class EngineResource {
 			retString = in.getNTriples();
 		}
 		
-		Gson gson = new Gson();
-		Map<String, String> retMap = new HashMap<String, String>();
+		Map<String, Object> retMap = new HashMap<String, Object>();
 		if(hasQuery) {
 			retMap.put("query", retString);
 		} else {
 			retMap.put("insightMakeup", retString);
 		}
 		retMap.put("dataMakerName", in.getDataMakerName());
-		retMap.put("dataTableAlign", gson.toJson(in.getDataTableAlign()));
+		retMap.put("parameters", in.getInsightParameters());
+		retMap.put("dataTableAlign", in.getDataTableAlign());
 
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
