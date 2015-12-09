@@ -100,7 +100,8 @@ public class NameServer {
 
 	// gets the engine resource necessary for all engine calls
 	@Path("e-{engine}")
-	public Object getLocalDatabase(@PathParam("engine") String db, @QueryParam("api") String api, @Context HttpServletRequest request) throws IOException {
+	public Object getLocalDatabase(@PathParam("engine") String db, @QueryParam("api") String api,
+			@Context HttpServletRequest request) throws IOException {
 		// check if api has been passed
 		// if yes:
 		// check if remote engine has already been started and stored in context
@@ -343,7 +344,7 @@ public class NameServer {
 				e.printStackTrace();
 			}
 		} else // it must be local master db thus the name of master db must
-			// have been passed
+				// have been passed
 		{
 			AddToMasterDB creater = new AddToMasterDB(localMasterDbName);
 			creater.setWordnetPath(wordNetDir);
@@ -375,7 +376,11 @@ public class NameServer {
 		return WebUtility.getSO(resultHash);
 	}
 
-	// search based on a string input
+	/**
+	 * Search based on a string input 
+	 * @param form - information passes in from the front end
+	 * @return a string version of the results attained from the query search
+	 */
 	@GET
 	@Path("central/context/getSearchInsightsResults")
 	@Produces("application/json")
@@ -419,6 +424,11 @@ public class NameServer {
 		return WebUtility.getSO(results);
 	}
 
+	/**
+	 * Facet count based on info from search. This faceted instance count based on specified field 
+	 * @param form - information passes in from the front end
+	 * @return a string version of the results attained from the query/facet search
+	 */
 	// facet
 	@GET
 	@Path("central/context/getFacetInsightsResults")
@@ -438,7 +448,7 @@ public class NameServer {
 		queryData.put(SolrIndexEngine.QUERY, facetString);
 		queryData.put(SolrIndexEngine.FACET, true);
 		StringBuilder facetStringBuilder = new StringBuilder();
-		for(int i = 0; i<facetList.size(); i++){
+		for (int i = 0; i < facetList.size(); i++) {
 			if (i == facetList.size() - 1) {
 				facetStringBuilder.append(facetList.get(i));
 			} else {
@@ -457,6 +467,11 @@ public class NameServer {
 
 	}
 
+	/**
+	 * GroupBy based based on info from search. This groups documents based on specified field 
+	 * @param form - information passes in from the front end
+	 * @return a string version of the results attained from the query/group by search
+	 */
 	// group based on info from the search
 	@GET
 	@Path("central/context/getGroupInsightsResults")
@@ -506,7 +521,11 @@ public class NameServer {
 
 	}
 
-	// MLT based on info from search
+	/**
+	 * Most Like This results based on info from search. This MLT documents based on specified field 
+	 * @param form - information passes in from the front end
+	 * @return a string version of the results attained from the query/mlt search
+	 */
 	@GET
 	@Path("central/context/getMLTInsightsResults")
 	@Produces("application/json")
@@ -523,14 +542,14 @@ public class NameServer {
 		logger.info("Group based on input: " + offsetCount);
 		String mltBy = form.getFirst("mltBy");
 		Gson gson = new Gson();
-		
+
 		Map<String, List<String>> mltByField = gson.fromJson(mltBy, new TypeToken<Map<String, List<String>>>() {}.getType());
 
 		Map<String, Object> queryData = new HashMap<>();
 		queryData.put(SolrIndexEngine.QUERY, queryString);
 		queryData.put(SolrIndexEngine.SEARCH_FIELD, searchField);
 		queryData.put(SolrIndexEngine.MLT, true);
-		//queryEngine.put(SET_ROWS, 2);
+		// queryEngine.put(SET_ROWS, 2);
 		for (String fieldName : mltByField.keySet()) {
 			List<String> groupByList = mltByField.get(fieldName);
 			StringBuilder mltList = new StringBuilder();
