@@ -529,63 +529,34 @@ public class EngineResource {
 		Insight in = ((AbstractEngine)coreEngine).getInsight(insightID).get(0);
 		IEngine makeupEng = in.getMakeupEngine();
 
-		String countQuery = "SELECT (COUNT(DISTINCT(?Component)) AS ?Count) WHERE {?Component a <http://semoss.org/ontologies/Concept/Component>. BIND('x' AS ?x) } GROUP BY ?x";
+		int total = in.getNumComponents();
 
-		ISelectWrapper countss = WrapperManager.getInstance().getSWrapper(makeupEng, countQuery);
-		Integer total = 0;
-		while(countss.hasNext()){
-			ISelectStatement countst = countss.next();
-			total = (int) Double.parseDouble(countst.getVar("Count")+"");
-			System.out.println(" THERE ARE " + total + " COMPONENTS IN THIS INSIGHT  ");
-		}
-
-		StringBuilder returnStrBuilder = new StringBuilder();
+		String retString = "";
 		boolean hasQuery = false;
-		if(total == 0) {
+		if(total == 1) {
 			String query = "SELECT ?Component ?Query ?Metamodel WHERE { {?Component a <http://semoss.org/ontologies/Concept/Component>} OPTIONAL {?Component <http://semoss.org/ontologies/Relation/Contains/Query> ?Query} OPTIONAL {?Component <http://semoss.org/ontologies/Relation/Contains/Metamodel> ?Metamodel} }";
 			ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(makeupEng, query);
 			String[] names = wrapper.getVariables();
-			String insightQuery = "";
 			String insightMetamodel = "";
 			while(wrapper.hasNext()) {
 				ISelectStatement ss = wrapper.next();
-				insightQuery = ss.getVar(names[1]) + "";
+				retString = ss.getVar(names[1]) + "";
 				insightMetamodel = ss.getVar(names[2]) + "";
 			}
-			
-			if (!insightQuery.isEmpty()) {
+			if (!retString.isEmpty()) {
 				hasQuery = true;
-				returnStrBuilder.append(insightQuery);
 			} 				
 		} 
-
 		if(!hasQuery){
-		
-			ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(makeupEng, "SELECT ?S ?P ?O WHERE {?S ?P ?O}");
-			String[] names = wrapper.getVariables();
-			while(wrapper.hasNext()) {
-				ISelectStatement ss = wrapper.next();
-				if(ss.getRawVar(names[2]) instanceof Literal) {
-					String val = ss.getVar(names[2]).toString();
-					// need to escape single quotes for reloading
-					if(val.contains("\"")) {
-						val = "\"" + val.replaceAll("\"", "\\\\\"") + "\"";
-					} else {
-						val = ss.getRawVar(names[2]).toString();
-					}
-					returnStrBuilder.append("<" + ss.getRawVar(names[0]) + "> <" + ss.getRawVar(names[1]) + "> " + val + " .\n");
-				} else {
-					returnStrBuilder.append("<" + ss.getRawVar(names[0]) + "> <" + ss.getRawVar(names[1]) + "> <" + ss.getRawVar(names[2]) + "> .\n");
-				}
-			}
+			retString = in.getNTriples();
 		}
 		
 		Gson gson = new Gson();
 		Map<String, String> retMap = new HashMap<String, String>();
 		if(hasQuery) {
-			retMap.put("query", returnStrBuilder.toString());
+			retMap.put("query", retString);
 		} else {
-			retMap.put("insightMakeup", returnStrBuilder.toString());
+			retMap.put("insightMakeup", retString);
 		}
 		retMap.put("dataMakerName", in.getDataMakerName());
 		retMap.put("dataTableAlign", gson.toJson(in.getDataTableAlign()));
