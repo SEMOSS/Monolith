@@ -477,7 +477,9 @@ public class EngineResource {
 		{
 			SEMOSSParam param = paramVector.elementAt(paramIndex);
 			if(param.isDepends().equalsIgnoreCase("false")) {
-				optionsHash.put(param.getName(), this.coreEngine.getParamOptions(param.getParamID()));
+				Vector<Object> vals = this.coreEngine.getParamOptions(param.getParamID());
+				Set<Object> uniqueVals = new HashSet<Object>(vals);
+				optionsHash.put(param.getName(), uniqueVals);			
 			}
 			//				// do the logic to get the stuff
 			//				String query = param.getQuery();
