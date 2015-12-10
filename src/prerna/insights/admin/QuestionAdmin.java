@@ -295,17 +295,19 @@ public class QuestionAdmin {
 		} 
 		// otherwise, we are defining the complex way -- with datamaker, insight makeup, layout, etc.
 		else {
-			dmName =  form.getFirst("dmName");
-			String insightMakeup = form.getFirst("insightMakeup");
-			Insight in = new Insight(coreEngine, dmName, layout);
-			InMemorySesameEngine myEng = buildMakeupEngine(insightMakeup);
-			if(myEng == null){
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-			dmcList = in.digestNTriples(myEng);
-			params = getParamsFromDmcList(dmcList);
+			LOGGER.error("Currently unable to add question via components. Need to think through param logic before enabling this.");
+			return Response.status(400).entity(WebUtility.getSO("Currently unable to add question via components. Need to think through param logic before enabling this.")).build();
+//			dmName =  form.getFirst("dmName");
+//			String insightMakeup = form.getFirst("insightMakeup");
+//			Insight in = new Insight(coreEngine, dmName, layout);
+//			InMemorySesameEngine myEng = buildMakeupEngine(insightMakeup);
+//			if(myEng == null){
+//				Map<String, String> errorHash = new HashMap<String, String>();
+//				errorHash.put("errorMessage", "Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//			}
+//			dmcList = in.digestNTriples(myEng);
+//			params = getParamsFromDmcList(dmcList);
 		}
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 
@@ -390,16 +392,22 @@ public class QuestionAdmin {
 		// otherwise, we are defining the complex way -- with datamaker, insight makeup, layout, etc.
 		else {
 			dmName =  form.getFirst("dmName");
-			String insightMakeup = form.getFirst("insightMakeup");
-			Insight in = new Insight(coreEngine, dmName, layout);
-			InMemorySesameEngine myEng = buildMakeupEngine(insightMakeup);
-			if(myEng == null){
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-			dmcList = in.digestNTriples(myEng);
-			params = getParamsFromDmcList(dmcList);
+			Insight existingIn = coreEngine.getInsight(insightID).get(0);
+			dmcList = existingIn.getDataMakerComponents();
+			params = existingIn.getInsightParameters();
+			
+			// BELOW CODE IS FOR EDITING COMPONENTS VIA TEXT
+			// CURRENTLY NOT ENABLED BECAUSE GETTING PARAMETERS FROM DMC LIST STILL NEEDS TO BE THOUGHT THROUGH
+//			String insightMakeup = form.getFirst("insightMakeup");
+//			Insight in = new Insight(coreEngine, dmName, layout);
+//			InMemorySesameEngine myEng = buildMakeupEngine(insightMakeup);
+//			if(myEng == null){
+//				Map<String, String> errorHash = new HashMap<String, String>();
+//				errorHash.put("errorMessage", "Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//			}
+//			dmcList = in.digestNTriples(myEng);
+//			params = getParamsFromDmcList(dmcList);
 		}
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 
@@ -558,86 +566,86 @@ public class QuestionAdmin {
 		return transformationList;
 	}
 	
-	private InMemorySesameEngine buildMakeupEngine(String insightMakeup){
-		RepositoryConnection rc = null;
-		boolean correctMakeup = true;
-		try {
-			Repository myRepository = new SailRepository(new ForwardChainingRDFSInferencer(new MemoryStore()));
-			myRepository.initialize();
-			rc = myRepository.getConnection();
-			rc.add(IOUtils.toInputStream(insightMakeup) , "semoss.org", RDFFormat.NTRIPLES);
-		} catch(RuntimeException e) {
-			e.printStackTrace();
-			correctMakeup = false;
-		} catch (RDFParseException e) {
-			e.printStackTrace();
-			correctMakeup = false;
-		} catch (RepositoryException e) {
-			e.printStackTrace();
-			correctMakeup = false;
-		} catch (IOException e) {
-			e.printStackTrace();
-			correctMakeup = false;
-		}
-		
-		if(!correctMakeup) {
-			LOGGER.error("Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
-			return null;
-		}
-		
-		// set the rc in the in-memory engine
-		InMemorySesameEngine myEng = new InMemorySesameEngine();
-		myEng.setRepositoryConnection(rc);
-		return myEng;
-	}
+//	private InMemorySesameEngine buildMakeupEngine(String insightMakeup){
+//		RepositoryConnection rc = null;
+//		boolean correctMakeup = true;
+//		try {
+//			Repository myRepository = new SailRepository(new ForwardChainingRDFSInferencer(new MemoryStore()));
+//			myRepository.initialize();
+//			rc = myRepository.getConnection();
+//			rc.add(IOUtils.toInputStream(insightMakeup) , "semoss.org", RDFFormat.NTRIPLES);
+//		} catch(RuntimeException e) {
+//			e.printStackTrace();
+//			correctMakeup = false;
+//		} catch (RDFParseException e) {
+//			e.printStackTrace();
+//			correctMakeup = false;
+//		} catch (RepositoryException e) {
+//			e.printStackTrace();
+//			correctMakeup = false;
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//			correctMakeup = false;
+//		}
+//		
+//		if(!correctMakeup) {
+//			LOGGER.error("Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
+//			return null;
+//		}
+//		
+//		// set the rc in the in-memory engine
+//		InMemorySesameEngine myEng = new InMemorySesameEngine();
+//		myEng.setRepositoryConnection(rc);
+//		return myEng;
+//	}
 	
-	/**
-	 * This method uses the dmc list to determine which paramters need to be added to the rdbms
-	 * The logic is simple : 
-	 * 	Any filter transformation without a list of values set needs to be stored as param
-	 * 
-	 * @param dmcList
-	 * @return
-	 */
-	private List<SEMOSSParam> getParamsFromDmcList(List<DataMakerComponent> dmcList){
-		List<SEMOSSParam> params = new Vector<SEMOSSParam>();
-		for (DataMakerComponent dmc : dmcList){
-			List<ISEMOSSTransformation> fullTrans = new Vector<ISEMOSSTransformation>();
-			fullTrans.addAll(dmc.getPreTrans());
-			fullTrans.addAll(dmc.getPostTrans());
-			for(ISEMOSSTransformation trans : fullTrans){
-				if(trans instanceof FilterTransformation){
-					if(!trans.getProperties().containsKey(FilterTransformation.VALUES_KEY)){
-						SEMOSSParam p = new SEMOSSParam();
-						params.add(p);
-						p.setName(trans.getProperties().get(FilterTransformation.COLUMN_HEADER_KEY) + "");
-						LOGGER.info("adding new param with name : " + p.getName());
-						
-						// type needs to be gotten from the query or the metamodel data
-						String query = dmc.getQuery();
-						if(query!=null){
-							LOGGER.info("getting param type from query : " + query);
-							Map<String, String> paramMap = Utility.getParams(query);
-							for(String key : paramMap.keySet()){
-								LOGGER.info("checking param : " + key);
-								// this key should be label-type
-								String[] parts = key.split("-");
-								LOGGER.info("does param type : " + parts[0] + " match with param name?");
-								if(parts[0].equals(p.getName())){
-									LOGGER.info("yep... setting type to  " + parts [1]);
-									p.setType(parts[1]);
-								}
-							}
-						}
-						else {
-							Map<String, Object> mm = dmc.getMetamodelData();
-							LOGGER.info("getting param type from metamodel data : " + mm.toString());
-						}
-					}
-				}
-			}
-		}
-		return params;
-	}
+//	/**
+//	 * This method uses the dmc list to determine which paramters need to be added to the rdbms
+//	 * The logic is simple : 
+//	 * 	Any filter transformation without a list of values set needs to be stored as param
+//	 * 
+//	 * @param dmcList
+//	 * @return
+//	 */
+//	private List<SEMOSSParam> getParamsFromDmcList(List<DataMakerComponent> dmcList){
+//		List<SEMOSSParam> params = new Vector<SEMOSSParam>();
+//		for (DataMakerComponent dmc : dmcList){
+//			List<ISEMOSSTransformation> fullTrans = new Vector<ISEMOSSTransformation>();
+//			fullTrans.addAll(dmc.getPreTrans());
+//			fullTrans.addAll(dmc.getPostTrans());
+//			for(ISEMOSSTransformation trans : fullTrans){
+//				if(trans instanceof FilterTransformation){
+//					if(!trans.getProperties().containsKey(FilterTransformation.VALUES_KEY)){
+//						SEMOSSParam p = new SEMOSSParam();
+//						params.add(p);
+//						p.setName(trans.getProperties().get(FilterTransformation.COLUMN_HEADER_KEY) + "");
+//						LOGGER.info("adding new param with name : " + p.getName());
+//						
+//						// type needs to be gotten from the query or the metamodel data
+//						String query = dmc.getQuery();
+//						if(query!=null){
+//							LOGGER.info("getting param type from query : " + query);
+//							Map<String, String> paramMap = Utility.getParams(query);
+//							for(String key : paramMap.keySet()){
+//								LOGGER.info("checking param : " + key);
+//								// this key should be label-type
+//								String[] parts = key.split("-");
+//								LOGGER.info("does param type : " + parts[0] + " match with param name?");
+//								if(parts[0].equals(p.getName())){
+//									LOGGER.info("yep... setting type to  " + parts [1]);
+//									p.setType(parts[1]);
+//								}
+//							}
+//						}
+//						else {
+//							Map<String, Object> mm = dmc.getMetamodelData();
+//							LOGGER.info("getting param type from metamodel data : " + mm.toString());
+//						}
+//					}
+//				}
+//			}
+//		}
+//		return params;
+//	}
 
 }
