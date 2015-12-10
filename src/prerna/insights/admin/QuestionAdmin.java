@@ -295,9 +295,12 @@ public class QuestionAdmin {
 		} 
 		// otherwise, we are defining the complex way -- with datamaker, insight makeup, layout, etc.
 		else {
-			LOGGER.error("Currently unable to add question via components. Need to think through param logic before enabling this.");
-			return Response.status(400).entity(WebUtility.getSO("Currently unable to add question via components. Need to think through param logic before enabling this.")).build();
-//			dmName =  form.getFirst("dmName");
+			String insightID = form.getFirst("insightID");
+			Insight existingIn = coreEngine.getInsight(insightID).get(0);
+			dmcList = existingIn.getDataMakerComponents();
+			params = existingIn.getInsightParameters();
+			
+			dmName =  form.getFirst("dmName");
 //			String insightMakeup = form.getFirst("insightMakeup");
 //			Insight in = new Insight(coreEngine, dmName, layout);
 //			InMemorySesameEngine myEng = buildMakeupEngine(insightMakeup);
