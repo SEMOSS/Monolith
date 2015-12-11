@@ -1,10 +1,12 @@
 package prerna.semoss.web.services;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
@@ -21,6 +23,8 @@ import prerna.ds.Probablaster;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
+import prerna.util.ArrayUtilityMethods;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class DataframeResource {
@@ -70,5 +74,24 @@ public class DataframeResource {
 		retMap.put("filteredValues", returnFilterModel[1]);
 		
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+	
+	@POST
+	@Path("/drop")
+	@Produces("application/json")
+	public Response dropInsight(@Context HttpServletRequest request){
+		String insightID = insight.getInsightID();
+		logger.info("Dropping insight with id ::: " + insightID);
+		boolean success = InsightStore.getInstance().remove(insightID);
+		InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
+
+		if(success) {
+			logger.info("Succesfully dropped insight " + insightID);
+			return Response.status(200).entity(WebUtility.getSO("Succesfully dropped insight " + insightID)).build();
+		} else {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Could not remove data.");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
 	}
 }
