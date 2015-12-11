@@ -77,6 +77,7 @@ import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.AbstractEngine;
+import prerna.engine.impl.InsightsConverter;
 import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
 import prerna.nameserver.AddToMasterDB;
@@ -646,7 +647,9 @@ public class EngineResource {
 					//					playSheet.setQuestionID(insightID);
 					//					QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), insightID);
 					//					IPlaySheet playSheet = Utility.getPlaySheet(coreEngine, playsheet);
-					Insight in = new Insight(coreEngine, "BTreeDataFrame", playsheet);
+					List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
+					String dmName = InsightsConverter.getDataMaker(playsheet, allSheets);
+					Insight in = new Insight(coreEngine, dmName, playsheet);
 					//					in.setPlaySheet(playSheet);
 					Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
 					DataMakerComponent dmc = new DataMakerComponent(coreEngine, sparql);
@@ -1326,7 +1329,7 @@ public class EngineResource {
 			}
 		}
 
-
+		ISEMOSSTransformation joinTrans = null;
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
 		if(insightID == null || insightID.isEmpty()) {
 			insight = new Insight(this.coreEngine, "BTreeDataFrame", PlaySheetRDFMapBasedEnum.getSheetName("Grid")); // TODO: this needs to be an enum or grabbed from rdf map somehow
@@ -1357,7 +1360,7 @@ public class EngineResource {
 //			}
 
 			// 2. b. Add join transformation since we know a tree already exists and we will have to join to it
-			ISEMOSSTransformation joinTrans = new JoinTransformation();
+			joinTrans = new JoinTransformation();
 			Map<String, Object> selectedOptions = new HashMap<String, Object>();
 			selectedOptions.put(JoinTransformation.COLUMN_ONE_KEY, currConcept);
 			selectedOptions.put(JoinTransformation.COLUMN_TWO_KEY, equivConcept);
@@ -1374,10 +1377,10 @@ public class EngineResource {
 		System.err.println("Finished processing component: " + (System.currentTimeMillis() - startJoinTime) + " ms");
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("insightID", insightID);
-		if(dmc.getPostTrans().isEmpty()) {
+		if(joinTrans==null) {
 			retMap.put("stepID", dmc.getId());
 		} else {
-			retMap.put("stepID", dmc.getPostTrans().get(0).getId());
+			retMap.put("stepID", joinTrans.getId());
 		}
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
