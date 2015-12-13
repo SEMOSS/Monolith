@@ -1046,7 +1046,7 @@ public class Uploader extends HttpServlet {
 		}
 		metamodel.put("relationships", nodeRelationships);
 		
-		boolean success = importer.addNewRDBMS(options.get("driver"), options.get("hostname"), options.get("port"), options.get("username"), options.get("password"), options.get("schema"), databaseOptions.get("databaseName"), metamodel);
+		boolean success = importer.addNewRDBMS(options.get("driver"), options.get("hostname"), options.get("port"), options.get("username"), options.get("password"), options.get("schema"), cleanSpaces(databaseOptions.get("databaseName")), metamodel);
 		
 		ret.put("success", success);
 		if(success) {
