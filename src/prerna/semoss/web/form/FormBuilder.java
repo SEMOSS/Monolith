@@ -300,13 +300,10 @@ public final class FormBuilder {
 			Map<String, Object> node = nodes.get(j);
 
 			// concept name passed to FE from metamodel so it comes back as a URI
-			tableName = node.get("conceptName").toString();
-			tableName = Utility.getInstanceName(tableName);
+			String nodeURI = node.get("conceptName").toString();
+			tableName = Utility.getInstanceName(nodeURI);
+			tableColumn = Utility.getClassName(nodeURI);
 			tableValue = node.get("conceptValue").toString();
-			
-			//TODO: tableColumn will be the primary key of the table... need additional code to get this
-			//for now, assume tableColumn is tableName
-			tableColumn = tableName;
 			
 			List<Map<String, Object>> properties = (List<Map<String, Object>>)node.get("properties");
 			Map<String, String> innerMap = new HashMap<String, String>();
@@ -372,18 +369,14 @@ public final class FormBuilder {
 		for(int r = 0; r < relationships.size(); r++) {
 			Map<String, Object> relationship =  relationships.get(r);
 
-			startTable = relationship.get("startNodeType").toString();
-			startTable = Utility.getInstanceName(startTable);
-			//TODO: tableColumn will be the primary key of the table... need additional code to get this
-			//for now, assume tableColumn is tableName
-			startCol = startTable;
+			String startURI = relationship.get("startNodeType").toString();
+			startTable = Utility.getInstanceName(startURI);
+			startCol = Utility.getClassName(startURI);
 			startVal = relationship.get("startNodeVal").toString();
 			
-			endTable = relationship.get("endNodeType").toString();
-			endTable = Utility.getInstanceName(endTable);
-			//TODO: tableColumn will be the primary key of the table... need additional code to get this
-			//for now, assume tableColumn is tableName
-			endCol = endTable;
+			String endURI = relationship.get("endNodeType").toString();
+			endTable = Utility.getInstanceName(endURI);
+			endCol =  Utility.getClassName(endURI);
 			endVal = relationship.get("endNodeVal").toString();
 
 			boolean addToStart = false;

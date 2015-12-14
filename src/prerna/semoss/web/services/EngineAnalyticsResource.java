@@ -354,6 +354,7 @@ public class EngineAnalyticsResource {
 				retMap.put("actionData", actionObj);
 				retMap.put("stepID", action.getId());
 			} catch(Exception ex) {
+				ex.printStackTrace();
 				dataFrame.setColumnsToSkip(null);
 				errorHash.put("errorMessage", ex.getMessage());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
@@ -369,6 +370,7 @@ public class EngineAnalyticsResource {
 				retMap.put("addedColumns", transformation.getAddedColumns());
 				retMap.put("stepID", transformation.getId());
 			} catch(Exception ex) {
+				ex.printStackTrace();
 				dataFrame.setColumnsToSkip(null);
 				errorHash.put("errorMessage", ex.getMessage());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
