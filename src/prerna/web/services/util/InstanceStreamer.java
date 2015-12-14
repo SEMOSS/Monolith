@@ -1,7 +1,7 @@
 /**
  *  This class provides an interface to interact with a column 
  *  of data, for:
- *            (1) quickly returning all instances that begin with a
+ *      (1) quickly returning all instances that begin with a
  *          given letter or phrase
  *      (2) quickly returning all instances that contain a
  *          given letter or phrase
@@ -31,7 +31,7 @@ public class InstanceStreamer {
 
 	private ArrayList<Object> list;
 	private int size;
-	public static final String KEY = "blah";
+	public static final String KEY = "InstanceStreamer";
 	private String ID;
 
 	public InstanceStreamer(List<Object> tempList) {
