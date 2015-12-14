@@ -1673,7 +1673,7 @@ public class EngineResource {
 
 			if (!searchTerm.equals("") && searchTerm != null) {
 				logger.info("Searching column for searchTerm: "+searchTerm);
-				ArrayList<Object> results = stream.regexSearch(searchTerm);
+				ArrayList<Object> results = stream.search(searchTerm);
 				stream = new InstanceStreamer(results);
 				logger.info(Integer.toString(stream.getSize())+" results found.");
 			}
