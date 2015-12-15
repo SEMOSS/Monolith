@@ -353,7 +353,6 @@ public class NameServer {
 
 		return WebUtility.getSO(resultHash);
 	}
-
 	// central call to remove an engine from the master db
 	@POST
 	@Path("central/context/unregisterEngine")
@@ -381,7 +380,7 @@ public class NameServer {
 	 * @param form - information passes in from the front end
 	 * @return a string version of the results attained from the query search
 	 */
-	@GET
+	@POST
 	@Path("central/context/getSearchInsightsResults")
 	@Produces("application/json")
 	public StreamingOutput getSearchInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
@@ -389,15 +388,18 @@ public class NameServer {
 		logger.info("Searching based on input: " + searchString);
 		String searchField = form.getFirst("searchField");
 		logger.info("Searching field is: " + searchField);
+		String sortString = form.getFirst("sortString");
+		logger.info("Sorting by: " + sortString);
 		String filterDataStr = form.getFirst("filterData");
 		Gson gson = new Gson();
 		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {
 		}.getType());
-
+		
 		Map<String, Object> queryData = new HashMap<String, Object>();
 		queryData.put(SolrIndexEngine.QUERY, searchString);
 		queryData.put(SolrIndexEngine.SEARCH_FIELD, searchField);
-
+		queryData.put(SolrIndexEngine.FIELD_SORT, sortString);
+		
 		Map<String, String> filterMap = new HashMap<String, String>();
 		for (String fieldName : filterData.keySet()) {
 			List<String> filterValuesList = filterData.get(fieldName);
@@ -433,8 +435,8 @@ public class NameServer {
 	@GET
 	@Path("central/context/getFacetInsightsResults")
 	@Produces("application/json")
-	public StreamingOutput getFacetInsightsResults(MultivaluedMap<String, String> form,	@Context HttpServletRequest request) {
-		String facetString = form.getFirst("facetString");
+	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String facetString, @Context HttpServletRequest request) {
+		
 		logger.info("Faceting based on input: " + facetString);
 
 		Map<String, Object> queryData = new HashMap<>();
@@ -473,7 +475,7 @@ public class NameServer {
 	 * @return a string version of the results attained from the query/group by search
 	 */
 	// group based on info from the search
-	@GET
+	@POST
 	@Path("central/context/getGroupInsightsResults")
 	@Produces("application/json")
 	public StreamingOutput getGroupInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
@@ -526,7 +528,7 @@ public class NameServer {
 	 * @param form - information passes in from the front end
 	 * @return a string version of the results attained from the query/mlt search
 	 */
-	@GET
+	@POST
 	@Path("central/context/getMLTInsightsResults")
 	@Produces("application/json")
 	public StreamingOutput getMLTInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
