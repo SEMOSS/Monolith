@@ -114,9 +114,6 @@ public class DBAdminResource {
 			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 			for(String engineString: engines){
 				IEngine engine = getEngine(engineString, request);
-				if (engine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
-					engine.deleteDB();
-				}
 				deleteEngine(engine, request);
 				if(this.securityEnabled) {
 					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {

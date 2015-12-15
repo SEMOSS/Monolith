@@ -926,8 +926,10 @@ public class Uploader extends HttpServlet {
 			}
 			if(uploadFiles.isEmpty()) {
 				uploadFiles = uploadFiles.concat(inputText);
+				file = file.concat(inputText);
 			} else {
 				uploadFiles = uploadFiles.concat(";").concat(inputText);
+				file = file.concat(":").concat(inputText);
 			}
 		}
 		if(inputData.get("nlphttpurl") != null && !inputData.get("nlphttpurl").toString().isEmpty()) {
