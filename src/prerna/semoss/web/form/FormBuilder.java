@@ -1,7 +1,6 @@
 package prerna.semoss.web.form;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -32,19 +31,16 @@ import com.google.gson.reflect.TypeToken;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
-import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
-import prerna.util.sql.SQLQueryUtil;
-import prerna.util.sql.SQLQueryUtil.DB_TYPE;
 
 public final class FormBuilder {
 
-	private static final String GET_LAST_ID = "SELECT DISTINCT ID FROM FORM_DATA ORDER BY ID DESC";
 	private static final DateFormat df = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
 	private static transient Gson gson = new Gson();
+	private static final String FORM_BUILDER_ENGINE_NAME = "form_builder_engine";
 	
 	private FormBuilder() {
 		
@@ -59,8 +55,7 @@ public final class FormBuilder {
 	 * 
 	 * 
 	 */
-	public static void saveForm(String formData, String jsonLoc) throws IOException {
-
+	public static void saveForm(String formName, String formData, String jsonLoc) throws IOException {
 		//throw an error if a file of the same name exists
 		if(Files.exists(Paths.get(jsonLoc))) {
 			throw new IOException("File already exists");
@@ -85,6 +80,15 @@ public final class FormBuilder {
 				throw new IOException("Error Writing JSON Data");
 			}
 		}
+		
+		//add form location into formbuilder db
+		String insertMetadata = "INSERT INTO FORM_METADATA (FORM_NAME, FORM_LOCATION) VALUES('" + formName + "', '" + jsonLoc + "')";
+		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
+		formBuilderEng.insertData(insertMetadata);
+		
+		//create new table to store values for form name
+		String createFormTable = "CREATE TABLE FORM_DATA (ID INT, USER_ID VARCHAR(225), DATE_ADDED TIMESTAMP, DATA CLOB)";
+		formBuilderEng.insertData(createFormTable);
 	}
 
 	/**
@@ -139,12 +143,13 @@ public final class FormBuilder {
 		return stringBuilder.toString();
 	}
 
-	public static void saveFormData(IEngine engine, String userId, MultivaluedMap<String, String> form) {
-		IEngine dummyEng = getFormEngine(engine);
+	public static void saveFormData(String formName, String userId, MultivaluedMap<String, String> form) {
+		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
 		Calendar cal = Calendar.getInstance();
 		String currTime = df.format(cal.getTime());
 		
-		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(dummyEng, GET_LAST_ID);
+		String getLastIdQuery = "SELECT DISTINCT ID FROM " + formName + " ORDER BY ID DESC";
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, getLastIdQuery);
 		String retName = wrapper.getVariables()[0];
 		Integer lastIdNum = 0;
 		if(wrapper.hasNext()){ // need to call hasNext before you call next()
@@ -152,8 +157,9 @@ public final class FormBuilder {
 		}
 		lastIdNum++;
 		
-		String insertSql = "INSERT INTO FORM_DATA (ID, USER_ID, DATE_ADDED, DATA) VALUES('" + lastIdNum + "', '" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(form.getFirst("formData")) + "')";
-		dummyEng.insertData(insertSql);
+		String insertSql = "INSERT INTO " + formName + " (ID, USER_ID, DATE_ADDED, DATA) VALUES("
+				+ "'" + lastIdNum + "', '" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(form.getFirst("formData")) + "')";
+		formBuilderEng.insertData(insertSql);
 	}
 	
 	/**
@@ -423,57 +429,17 @@ public final class FormBuilder {
 		}
 	}
 	
-	public static IEngine getFormEngine(IEngine engine) {
-		String engineName = engine.getEngineName();
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		
-		RDBMSNativeEngine dummyEng = new RDBMSNativeEngine();
-		DB_TYPE dbType = DB_TYPE.H2_DB;
-		SQLQueryUtil queryUtil = SQLQueryUtil.initialize(dbType);
-		Properties prop = new Properties();
-		String engineFolder = baseFolder + System.getProperty("file.separator") + "db" + System.getProperty("file.separator") + engineName + System.getProperty("file.separator");
-		String connectionURL = "jdbc:h2:" + engineFolder + "form_database;query_timeout=180000;early_filter=true;query_cache_size=24;cache_size=32768";
-		prop.put(Constants.CONNECTION_URL, connectionURL);
-		prop.put(Constants.USERNAME, queryUtil.getDefaultDBUserName());
-		prop.put(Constants.PASSWORD, queryUtil.getDefaultDBPassword());
-		prop.put(Constants.DRIVER,queryUtil.getDatabaseDriverClassName());
-		prop.put(Constants.TEMP_CONNECTION_URL, queryUtil.getTempConnectionURL());
-		prop.put(Constants.RDBMS_TYPE,queryUtil.getDatabaseType().toString());
-		prop.put("TEMP", "TRUE");
-		dummyEng.setProperties(prop);
-		
-		String dummyDbName = "form_database.mv.db";
-		String dummyDbLocation = engineFolder + dummyDbName;
-		boolean newDb = false;
-		if(!new File(dummyDbLocation).exists()) {
-			newDb = true;
-		}
-		dummyEng.openDB(null);
-		
-		if(newDb) {
-			String formDataTable = "CREATE TABLE FORM_DATA ("
-					+ "ID INT, "
-					+ "USER_ID VARCHAR(225), "
-					+ "DATE_ADDED TIMESTAMP, "
-					+ "DATA CLOB)";
-
-			dummyEng.insertData(formDataTable);
-		}
-		
-		return dummyEng;
-	}
-	
 	private static String escapeForSQLStatement(String s) {
 		return s.replaceAll("'", "''");
 	}
 
-	public static List<Map<String, String>> getStagingData(IEngine engine, MultivaluedMap<String, String> form) {
-		IEngine formEngine = getFormEngine(engine);
-		String sqlQuery = "SELECT ID, USER_ID, DATE_ADDED, DATA FROM FORM_DATA";
+	public static List<Map<String, String>> getStagingData(String formName) {
+		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
+		String sqlQuery = "SELECT ID, USER_ID, DATE_ADDED, DATA FROM " + formName;
 		
 		List<Map<String, String>> results = new ArrayList<Map<String, String>>();
 		
-		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formEngine, sqlQuery);
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, sqlQuery);
 		String[] names = wrapper.getVariables();
 		while(wrapper.hasNext()) {
 			ISelectStatement ss = wrapper.next();
@@ -498,11 +464,12 @@ public final class FormBuilder {
 		return results;
 	}
 	
-	public static void deleteFromStaggingArea(IEngine coreEngine, MultivaluedMap<String, String> form) {
+	public static void deleteFromStaggingArea(MultivaluedMap<String, String> form) {
+		String formName = form.getFirst("formName");
 		String idsString = createIdString(gson.fromJson(form.getFirst("ids"), String[].class));
-		String deleteQuery = "DELETE FROM FORM_DATA WHERE ID IN " + idsString;
-		IEngine dummyEng = getFormEngine(coreEngine);
-		dummyEng.removeData(deleteQuery);
+		String deleteQuery = "DELETE FROM " + formName + " WHERE ID IN " + idsString;
+		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
+		formBuilderEng.removeData(deleteQuery);
 	}
 	
 	private static String createIdString(String... ids){
@@ -515,5 +482,12 @@ public final class FormBuilder {
 		return idsString;
 	}
 	
-	
+	/**
+	 * Remove all non alpha-numeric underscores from form name
+	 * @param s
+	 * @return
+	 */
+	public static String cleanTableName(String s) {
+		return s.replaceAll("[^a-zA-Z0-9\\_]", "");
+	}
 }

@@ -1757,14 +1757,15 @@ public class EngineResource {
 	@Produces("application/json")	
 	public Response saveForm(MultivaluedMap<String, String> form) 
 	{
-
-		String basePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+		String watcherStr = DIHelper.getInstance().getProperty(Constants.ENGINE_WEB_WATCHER);
+		String folder = DIHelper.getInstance().getProperty(watcherStr + "_DIR");
+		folder += "\\form_builder_engine";
 		String formName = form.getFirst("formName");
-		String jsonLoc = basePath + System.getProperty("file.separator") + "Forms" + formName + ".json";
+		String jsonLoc = folder + "\\" + formName + ".json";
 		String formData = form.getFirst("formData");
 
 		try {
-			FormBuilder.saveForm(formData, jsonLoc);
+			FormBuilder.saveForm(formName, formData, jsonLoc);
 		} catch (IOException e) {
 			return Response.status(400).entity(WebUtility.getSO(e.getMessage())).build();
 		}
@@ -1790,10 +1791,6 @@ public class EngineResource {
 			return Response.status(400).entity(WebUtility.getSO("Error getting file")).build();
 		} 
 
-		//TODO: pass string and let fron end do parsing
-		JsonParser parser = new JsonParser();
-		JsonArray ja = parser.parse(formJson).getAsJsonArray();
-
 		return Response.status(200).entity(WebUtility.getSO((formJson))).build();
 	}
 
@@ -1803,15 +1800,15 @@ public class EngineResource {
 	public Response saveFormData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
 	{
 		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
-		Gson gson = new Gson();
+		String formName = form.getFirst("formName");
 		try {
-			FormBuilder.saveFormData(this.coreEngine, userId, form);
+			FormBuilder.saveFormData(formName, userId, form);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
+			return Response.status(200).entity(WebUtility.getSO("error saving data")).build();
 		}
 
-		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
+		return Response.status(200).entity(WebUtility.getSO("success")).build();
 	}
 	
 	@POST
@@ -1819,16 +1816,16 @@ public class EngineResource {
 	@Produces("application/json")
 	public Response getFormStagingData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
 	{
-		Gson gson = new Gson();
+		String formName = form.getFirst("formName");
 		List<Map<String, String>> results = null;
 		try {
-			results = FormBuilder.getStagingData(this.coreEngine, form);
+			results = FormBuilder.getStagingData(formName);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error retrieving data"))).build();
+			return Response.status(200).entity(WebUtility.getSO("error retrieving data")).build();
 		}
 
-		return Response.status(200).entity(WebUtility.getSO(gson.toJson(results))).build();
+		return Response.status(200).entity(WebUtility.getSO((results))).build();
 	}
 
 	@POST
@@ -1854,7 +1851,7 @@ public class EngineResource {
 	{
 		Gson gson = new Gson();
 		try {
-			FormBuilder.deleteFromStaggingArea(this.coreEngine, form);
+			FormBuilder.deleteFromStaggingArea(form);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error deleting staging data"))).build();
