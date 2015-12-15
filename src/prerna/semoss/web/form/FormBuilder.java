@@ -28,6 +28,7 @@ import org.openrdf.model.vocabulary.RDFS;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.algorithm.api.ITableDataFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
@@ -81,13 +82,20 @@ public final class FormBuilder {
 			}
 		}
 		
+		// clean table name
+		formName = cleanTableName(formName);
+		
+		// make sure table name doesn't exist
+		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
+		ITableDataFrame f2 = WrapperManager.getInstance().getSWrapper(formBuilderEng, "select count(*) from information_schema.tables where table_name = '" + formName + "'").getTableDataFrame(); 
+		if((Double)f2.getData().get(0)[0] != 0 ) {
+			throw new IOException("Form name already exists. Please modify the form name.");
+		}
+		
 		//add form location into formbuilder db
 		String insertMetadata = "INSERT INTO FORM_METADATA (FORM_NAME, FORM_LOCATION) VALUES('" + formName + "', '" + jsonLoc + "')";
-		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
-		formBuilderEng.insertData(insertMetadata);
-		
 		//create new table to store values for form name
-		String createFormTable = "CREATE TABLE FORM_DATA (ID INT, USER_ID VARCHAR(225), DATE_ADDED TIMESTAMP, DATA CLOB)";
+		String createFormTable = "CREATE TABLE " + formName + " (ID INT, USER_ID VARCHAR(225), DATE_ADDED TIMESTAMP, DATA CLOB)";
 		formBuilderEng.insertData(createFormTable);
 	}
 
@@ -147,7 +155,8 @@ public final class FormBuilder {
 		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
 		Calendar cal = Calendar.getInstance();
 		String currTime = df.format(cal.getTime());
-		
+
+		formName = cleanTableName(formName);
 		String getLastIdQuery = "SELECT DISTINCT ID FROM " + formName + " ORDER BY ID DESC";
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, getLastIdQuery);
 		String retName = wrapper.getVariables()[0];
@@ -435,6 +444,7 @@ public final class FormBuilder {
 
 	public static List<Map<String, String>> getStagingData(String formName) {
 		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
+		formName = cleanTableName(formName);
 		String sqlQuery = "SELECT ID, USER_ID, DATE_ADDED, DATA FROM " + formName;
 		
 		List<Map<String, String>> results = new ArrayList<Map<String, String>>();
@@ -466,6 +476,7 @@ public final class FormBuilder {
 	
 	public static void deleteFromStaggingArea(MultivaluedMap<String, String> form) {
 		String formName = form.getFirst("formName");
+		formName = cleanTableName(formName);
 		String idsString = createIdString(gson.fromJson(form.getFirst("ids"), String[].class));
 		String deleteQuery = "DELETE FROM " + formName + " WHERE ID IN " + idsString;
 		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
@@ -487,7 +498,7 @@ public final class FormBuilder {
 	 * @param s
 	 * @return
 	 */
-	public static String cleanTableName(String s) {
+	private static String cleanTableName(String s) {
 		return s.replaceAll("[^a-zA-Z0-9\\_]", "");
 	}
 }
