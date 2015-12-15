@@ -16,9 +16,6 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
-
-import javax.ws.rs.core.MultivaluedMap;
 
 import org.apache.commons.io.IOUtils;
 import org.h2.jdbc.JdbcClob;
@@ -26,7 +23,6 @@ import org.openrdf.model.vocabulary.RDF;
 import org.openrdf.model.vocabulary.RDFS;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.engine.api.IEngine;
@@ -34,14 +30,12 @@ import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Utility;
 
 public final class FormBuilder {
 
 	private static final DateFormat df = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
 	private static transient Gson gson = new Gson();
-	private static final String FORM_BUILDER_ENGINE_NAME = "form_builder_engine";
 	
 	private FormBuilder() {
 		
@@ -56,7 +50,7 @@ public final class FormBuilder {
 	 * 
 	 * 
 	 */
-	public static void saveForm(String formName, String formData, String jsonLoc) throws IOException {
+	public static void saveForm(IEngine formBuilderEng, String formName, String formData, String jsonLoc) throws IOException {
 		//throw an error if a file of the same name exists
 		if(Files.exists(Paths.get(jsonLoc))) {
 			throw new IOException("File already exists");
@@ -86,7 +80,6 @@ public final class FormBuilder {
 		formName = cleanTableName(formName);
 		
 		// make sure table name doesn't exist
-		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
 		ITableDataFrame f2 = WrapperManager.getInstance().getSWrapper(formBuilderEng, "select count(*) from information_schema.tables where table_name = '" + formName + "'").getTableDataFrame(); 
 		if((Double)f2.getData().get(0)[0] != 0 ) {
 			throw new IOException("Form name already exists. Please modify the form name.");
@@ -94,6 +87,7 @@ public final class FormBuilder {
 		
 		//add form location into formbuilder db
 		String insertMetadata = "INSERT INTO FORM_METADATA (FORM_NAME, FORM_LOCATION) VALUES('" + formName + "', '" + jsonLoc + "')";
+		formBuilderEng.insertData(insertMetadata);
 		//create new table to store values for form name
 		String createFormTable = "CREATE TABLE " + formName + " (ID INT, USER_ID VARCHAR(225), DATE_ADDED TIMESTAMP, DATA CLOB)";
 		formBuilderEng.insertData(createFormTable);
@@ -108,7 +102,6 @@ public final class FormBuilder {
 	 * @throws IOException
 	 */
 	public static String getForm(String jsonLoc) throws FileNotFoundException, IOException {
-
 		//file does not exist
 		if(!Files.exists(Paths.get(jsonLoc))) {
 			throw new FileNotFoundException("Form not found");
@@ -151,8 +144,7 @@ public final class FormBuilder {
 		return stringBuilder.toString();
 	}
 
-	public static void saveFormData(String formName, String userId, MultivaluedMap<String, String> form) {
-		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
+	public static void saveFormData(IEngine formBuilderEng, String formName, String userId, String formData) {
 		Calendar cal = Calendar.getInstance();
 		String currTime = df.format(cal.getTime());
 
@@ -167,7 +159,7 @@ public final class FormBuilder {
 		lastIdNum++;
 		
 		String insertSql = "INSERT INTO " + formName + " (ID, USER_ID, DATE_ADDED, DATA) VALUES("
-				+ "'" + lastIdNum + "', '" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(form.getFirst("formData")) + "')";
+				+ "'" + lastIdNum + "', '" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(formData) + "')";
 		formBuilderEng.insertData(insertSql);
 	}
 	
@@ -175,11 +167,7 @@ public final class FormBuilder {
 	 * 
 	 * @param form
 	 */
-	public static void commitFormData(IEngine engine, MultivaluedMap<String, String> form) {
-		String formData = form.getFirst("formData");
-		Map<String, Object> engineHash = gson.fromJson(formData, new TypeToken<Map<String, Object>>() {}.getType());
-
-		Properties p = DIHelper.getInstance().getRdfMap();
+	public static void commitFormData(IEngine engine, Map<String, Object> engineHash) {
 		//TODO : need to grab this from the OWL or somewhere else
 		String semossBaseURI = "http://semoss.org/ontologies";
 
@@ -442,8 +430,7 @@ public final class FormBuilder {
 		return s.replaceAll("'", "''");
 	}
 
-	public static List<Map<String, String>> getStagingData(String formName) {
-		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
+	public static List<Map<String, String>> getStagingData(IEngine formBuilderEng, String formName) {
 		formName = cleanTableName(formName);
 		String sqlQuery = "SELECT ID, USER_ID, DATE_ADDED, DATA FROM " + formName;
 		
@@ -474,12 +461,10 @@ public final class FormBuilder {
 		return results;
 	}
 	
-	public static void deleteFromStaggingArea(MultivaluedMap<String, String> form) {
-		String formName = form.getFirst("formName");
+	public static void deleteFromStaggingArea(IEngine formBuilderEng, String formName, String[] formIds) {
 		formName = cleanTableName(formName);
-		String idsString = createIdString(gson.fromJson(form.getFirst("ids"), String[].class));
+		String idsString = createIdString(formIds);
 		String deleteQuery = "DELETE FROM " + formName + " WHERE ID IN " + idsString;
-		IEngine formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
 		formBuilderEng.removeData(deleteQuery);
 	}
 	

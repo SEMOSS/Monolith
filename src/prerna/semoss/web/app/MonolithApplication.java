@@ -33,6 +33,7 @@ import java.util.Set;
 
 import javax.ws.rs.core.Application;
 
+import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.AuthorizationResource;
 import prerna.semoss.web.services.NameServer;
 import prerna.semoss.web.services.SocialResource;
@@ -46,6 +47,7 @@ public class MonolithApplication extends Application {
       singletons.add(new NameServer());
       singletons.add(new AuthorizationResource());
       singletons.add(new SocialResource());
+      singletons.add(new FormResource());
    }
 
    @Override
