@@ -107,6 +107,7 @@ public class QuestionAdmin {
 		String description = form.getFirst("description");
 		String layout = form.getFirst("layout");
 		String insightID = form.getFirst("insightID");
+		String uiOptions = form.getFirst("uiOptions");
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 
 		//TODO: currently not exposed through UI
@@ -129,14 +130,14 @@ public class QuestionAdmin {
 			List<FilterTransformation> trans2add = flushFilterModel2Transformations((BTreeDataFrame) dm);
 			newPostTrans.addAll(trans2add);
 
-			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
+			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
 			//reset the post trans on the last component if the filter model has been flushed to it
 			//we don't want the insight itself to change at all through this process
 			lastComponent.setPostTrans(oldPostTrans);
 		}
 		else {
-			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
+			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 		}
 				
 		Map<String, Object> solrInsights = new HashMap<>();
@@ -191,6 +192,7 @@ public class QuestionAdmin {
 		String order = form.getFirst("order");
 		String insightName = form.getFirst("insightName");
 		String layout = form.getFirst("layout");
+		String uiOptions = form.getFirst("uiOptions");
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		
 		//TODO: currently not exposed through UI
@@ -203,7 +205,7 @@ public class QuestionAdmin {
 		
 		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 		List<SEMOSSParam> params = buildParameterList(paramMapList);
-		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params);
+		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
@@ -272,6 +274,7 @@ public class QuestionAdmin {
 		String insightName = form.getFirst("insightName");
 		String layout = form.getFirst("layout");
 		String query = form.getFirst("query");
+		String uiOptions = form.getFirst("uiOptions");
 		boolean isDbQuery = true;
 
 		String dmName = "";
@@ -316,7 +319,7 @@ public class QuestionAdmin {
 
 		// for now use this method
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		String newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, dmName, isDbQuery, dataTableAlign, params);
+		String newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, dmName, isDbQuery, dataTableAlign, params, uiOptions);
 		
 		Map<String, Object> solrInsights = new HashMap<>();
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
@@ -371,6 +374,7 @@ public class QuestionAdmin {
 		String layout = form.getFirst("layout");
 		//TODO: currently FE only passes a single query
 		String query = form.getFirst("query");
+		String uiOptions = form.getFirst("uiOptions");
 		boolean isDbQuery = true;
 
 		String dmName = "";
@@ -416,7 +420,7 @@ public class QuestionAdmin {
 
 		// for now use this method
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		questionAdmin.modifyQuestion(insightID, insightName, perspective, dmcList, layout, order, dmName, isDbQuery, dataTableAlign, params);
+		questionAdmin.modifyQuestion(insightID, insightName, perspective, dmcList, layout, order, dmName, isDbQuery, dataTableAlign, params, uiOptions);
 		
 		Map<String, Object> solrInsights = new HashMap<>();
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
