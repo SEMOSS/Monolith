@@ -384,16 +384,22 @@ public class NameServer {
 	@Path("central/context/getSearchInsightsResults")
 	@Produces("application/json")
 	public StreamingOutput getSearchInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		//text searched in search bar
 		String searchString = form.getFirst("searchString");
 		logger.info("Searching based on input: " + searchString);
+		
+		//specification of search based on field (ie. database, name, everything, etc)
 		String searchField = form.getFirst("searchField");
 		logger.info("Searching field is: " + searchField);
+		
+		//sort (based on relevance, asc, desc)
 		String sortString = form.getFirst("sortString");
 		logger.info("Sorting by: " + sortString);
+		
+		//filter based on the boxes checked in the facet filter (filtered with an exact filter)
 		String filterDataStr = form.getFirst("filterData");
 		Gson gson = new Gson();
-		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {
-		}.getType());
+		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
 		
 		Map<String, Object> queryData = new HashMap<String, Object>();
 		queryData.put(SolrIndexEngine.QUERY, searchString);
@@ -401,25 +407,26 @@ public class NameServer {
 		queryData.put(SolrIndexEngine.FIELD_SORT, sortString);
 		
 		Map<String, String> filterMap = new HashMap<String, String>();
-		for (String fieldName : filterData.keySet()) {
-			List<String> filterValuesList = filterData.get(fieldName);
-			StringBuilder filterStr = new StringBuilder();
-			for (int i = 0; i < filterValuesList.size(); i++) {
-				if (i == filterValuesList.size() - 1) {
-					filterStr.append(filterValuesList.get(i));
-				} else {
-					filterStr.append(filterValuesList.get(i) + " OR ");
+		if (filterData != null) {
+			for (String fieldName : filterData.keySet()) {
+				List<String> filterValuesList = filterData.get(fieldName);
+				StringBuilder filterStr = new StringBuilder();
+				for (int i = 0; i < filterValuesList.size(); i++) {
+					if (i == filterValuesList.size() - 1) {
+						filterStr.append(filterValuesList.get(i));
+					} else {
+						filterStr.append(filterValuesList.get(i) + " OR ");
+					}
 				}
+				filterMap.put(fieldName, "(" + filterStr.toString() + ")");
 			}
-			filterMap.put(fieldName, "(" + filterStr.toString() + ")");
 		}
 		queryData.put(SolrIndexEngine.FITLER_QUERY, filterMap);
 
-		SolrDocumentList results = null;
+		Map<String, Object> results = null;
 		try {
-			results = SolrIndexEngine.getInstance().queryDocument(queryData);
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
-				| IOException e) {
+			results  = SolrIndexEngine.getInstance().executeQuery(queryData);
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
 			e.printStackTrace();
 		}
 
@@ -435,10 +442,10 @@ public class NameServer {
 	@GET
 	@Path("central/context/getFacetInsightsResults")
 	@Produces("application/json")
-	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String facetString, @Context HttpServletRequest request) {
-		
-		logger.info("Faceting based on input: " + facetString);
-
+	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString, @Context HttpServletRequest request) {
+		//text searched in search bar
+		logger.info("Faceting based on input: " + searchString);
+	
 		Map<String, Object> queryData = new HashMap<>();
 		List<String> facetList = new ArrayList<>();
 		facetList.add(SolrIndexEngine.CORE_ENGINE);
@@ -446,18 +453,11 @@ public class NameServer {
 		facetList.add(SolrIndexEngine.PARAMS);
 		facetList.add(SolrIndexEngine.TAGS);
 		facetList.add(SolrIndexEngine.ALGORITHMS);
-
-		queryData.put(SolrIndexEngine.QUERY, facetString);
+		queryData.put(SolrIndexEngine.FACET_FIELD, facetList);
+		queryData.put(SolrIndexEngine.QUERY, searchString);
 		queryData.put(SolrIndexEngine.FACET, true);
-		StringBuilder facetStringBuilder = new StringBuilder();
-		for (int i = 0; i < facetList.size(); i++) {
-			if (i == facetList.size() - 1) {
-				facetStringBuilder.append(facetList.get(i));
-			} else {
-				facetStringBuilder.append(facetList.get(i) + "&");
-			}
-		}
-		queryData.put(SolrIndexEngine.FACET_FIELD, facetStringBuilder);
+		queryData.put(SolrIndexEngine.FACET_MIN_COUNT, 1);
+		queryData.put(SolrIndexEngine.FACET_SORT_COUNT, true);
 
 		Map<String, Map<String, Long>> facetFieldMap = null;
 		try {
@@ -479,48 +479,35 @@ public class NameServer {
 	@Path("central/context/getGroupInsightsResults")
 	@Produces("application/json")
 	public StreamingOutput getGroupInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		//text searched in search bar
 		String searchString = form.getFirst("searchString");
 		logger.info("Searching based on input: " + searchString);
 
+		//specifies the starting number for the list of insights to return
 		String groupOffset = form.getFirst("groupOffset");
 		logger.info("Group based on input: " + groupOffset);
 
+		//specifies the number of insights to return
 		String groupLimit = form.getFirst("groupLimit");
 		logger.info("Group field is: " + groupLimit);
 
+		//specifies the single field to group by (ie. none, db)
 		String groupBy = form.getFirst("groupBy");
-		Gson gson = new Gson();
-		Map<String, List<String>> groupByField = gson.fromJson(groupBy, new TypeToken<Map<String, List<String>>>() {
-		}.getType());
 
 		Map<String, Object> queryData = new HashMap<>();
-		queryData.put(SolrIndexEngine.GROUPBY, true);
-		for (String fieldName : groupByField.keySet()) {
-			List<String> groupByList = groupByField.get(fieldName);
-			StringBuilder fieldList = new StringBuilder();
-			for (int i = 0; i < groupByList.size(); i++) {
-				if (i == groupByList.size() - 1) {
-					fieldList.append(groupByList.get(i));
-				} else {
-					fieldList.append(groupByList.get(i) + "&");
-				}
-				queryData.put(SolrIndexEngine.GROUP_FIELD, fieldList);
-			}
-		}
 		queryData.put(SolrIndexEngine.QUERY, searchString);
 		queryData.put(SolrIndexEngine.GROUP_LIMIT, groupLimit);
 		queryData.put(SolrIndexEngine.GROUP_OFFSET, groupOffset);
+		queryData.put(SolrIndexEngine.GROUP_FIELD, groupBy);
 
 		Map<String, Map<String, SolrDocumentList>> groupFieldMap = null;
 		try {
 			groupFieldMap = SolrIndexEngine.getInstance().groupDocument(queryData);
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
-				| IOException e) {
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
 			e.printStackTrace();
 		}
 
 		return WebUtility.getSO(groupFieldMap);
-
 	}
 
 	/**
@@ -534,6 +521,8 @@ public class NameServer {
 	public StreamingOutput getMLTInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String queryString = form.getFirst("queryString");
 		logger.info("Searching based on input: " + queryString);
+		
+		//text searched in search bar
 		String searchField = form.getFirst("searchField");
 		logger.info("Searching field is: " + searchField);
 		String docFreq = form.getFirst("docFreq");
@@ -542,6 +531,8 @@ public class NameServer {
 		logger.info("Group based on input: " + termFreq);
 		String offsetCount = form.getFirst("offsetCount");
 		logger.info("Group based on input: " + offsetCount);
+		
+		//field to categorize by
 		String mltBy = form.getFirst("mltBy");
 		Gson gson = new Gson();
 
