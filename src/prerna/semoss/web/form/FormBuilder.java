@@ -50,32 +50,7 @@ public final class FormBuilder {
 	 * 
 	 * 
 	 */
-	public static void saveForm(IEngine formBuilderEng, String formName, String formData, String jsonLoc) throws IOException {
-		//throw an error if a file of the same name exists
-		if(Files.exists(Paths.get(jsonLoc))) {
-			throw new IOException("File already exists");
-		}
-
-		//write the formData json to a file
-		FileWriter file = null;
-		try {
-			file = new FileWriter(jsonLoc);
-			file.write(formData);
-		} catch (IOException e) {
-			e.printStackTrace();
-			throw new IOException("Error Writing JSON Data");
-		} finally {
-			try {
-				if(file != null) {
-					file.flush();
-					file.close();
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-				throw new IOException("Error Writing JSON Data");
-			}
-		}
-		
+	public static void saveForm(IEngine formBuilderEng, String formName, String formLocation) throws IOException {
 		// clean table name
 		formName = cleanTableName(formName);
 		
@@ -86,7 +61,7 @@ public final class FormBuilder {
 		}
 		
 		//add form location into formbuilder db
-		String insertMetadata = "INSERT INTO FORM_METADATA (FORM_NAME, FORM_LOCATION) VALUES('" + formName + "', '" + jsonLoc + "')";
+		String insertMetadata = "INSERT INTO FORM_METADATA (FORM_NAME, FORM_LOCATION) VALUES('" + formName + "', '" + formLocation + "')";
 		formBuilderEng.insertData(insertMetadata);
 		//create new table to store values for form name
 		String createFormTable = "CREATE TABLE " + formName + " (ID INT, USER_ID VARCHAR(225), DATE_ADDED TIMESTAMP, DATA CLOB)";

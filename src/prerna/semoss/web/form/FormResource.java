@@ -58,40 +58,15 @@ public class FormResource {
 	}
 
 	@POST
-	@Path("/getForm")
-	@Produces("application/json")	
-	public Response getForm(MultivaluedMap<String, String> form) 
-	{
-		String basePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String formName = form.getFirst("formName");
-		String jsonLoc = basePath + System.getProperty("file.separator") + formName + ".json";
-
-		String formJson;
-		try {
-			formJson = FormBuilder.getForm(jsonLoc);
-		} catch (FileNotFoundException f) {
-			return Response.status(400).entity(WebUtility.getSO("File "+formName+" Not Found")).build();
-		}catch (IOException e) {
-			return Response.status(400).entity(WebUtility.getSO("Error getting file")).build();
-		} 
-
-		return Response.status(200).entity(WebUtility.getSO((formJson))).build();
-	}
-
-	@POST
 	@Path("/saveForm")
 	@Produces("application/json")	
 	public Response saveForm(MultivaluedMap<String, String> form) 
 	{
-		String watcherStr = DIHelper.getInstance().getProperty(Constants.ENGINE_WEB_WATCHER);
-		String folder = DIHelper.getInstance().getProperty(watcherStr + "_DIR");
-		folder += "\\form_builder_engine";
 		String formName = form.getFirst("formName");
-		String jsonLoc = folder + "\\" + formName + ".json";
-		String formData = form.getFirst("formData");
+		String formLocation = form.getFirst("formLocation");
 
 		try {
-			FormBuilder.saveForm(formBuilderEng, formName, formData, jsonLoc);
+			FormBuilder.saveForm(formBuilderEng, formName, formLocation);
 		} catch (IOException e) {
 			return Response.status(400).entity(WebUtility.getSO(e.getMessage())).build();
 		}
