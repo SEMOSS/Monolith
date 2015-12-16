@@ -343,10 +343,6 @@ public final class FormBuilder {
 		}
 	}
 	
-	private static String escapeForSQLStatement(String s) {
-		return s.replaceAll("'", "''");
-	}
-
 	public static List<Map<String, String>> getStagingData(IEngine formBuilderEng, String formName) {
 		formName = cleanTableName(formName);
 		formName = escapeForSQLStatement(formName);
@@ -402,7 +398,11 @@ public final class FormBuilder {
 	 * @param s
 	 * @return
 	 */
-	private static String cleanTableName(String s) {
+	public static String cleanTableName(String s) {
 		return s.replaceAll("[^a-zA-Z0-9\\_]", "");
+	}
+	
+	public static String escapeForSQLStatement(String s) {
+		return s.replaceAll("'", "''");
 	}
 }
