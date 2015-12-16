@@ -126,4 +126,23 @@ public class FormResource {
 		return Response.status(200).entity(WebUtility.getSO("success")).build();
 	}
 	
+	@POST
+	@Path("/deleteForm")
+	@Produces("application/json")
+	public Response deleteForm(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
+	{
+		String formName = form.getFirst("formName");
+		formName = FormBuilder.cleanTableName(formName);
+		formName = FormBuilder.escapeForSQLStatement(formName);
+		
+		// delete form information
+		String deleteQuery = "DELETE FORM FORM_METADATA WHERE FORM_NAME ='" + formName + "'"; 
+		formBuilderEng.removeData(deleteQuery);
+		// drop form table
+		deleteQuery = "DROP TABLE " + formName;
+		formBuilderEng.removeData(deleteQuery);
+		
+		return Response.status(200).entity(WebUtility.getSO("success")).build();
+	}
+	
 }
