@@ -1,6 +1,5 @@
 package prerna.semoss.web.form;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Hashtable;
 import java.util.List;
@@ -41,7 +40,7 @@ public class FormResource {
 	@Path("/getAllAvailableForms")
 	@Produces("application/json")
 	public Response getAllAvailableForms() {
-		String query = "SELECT FORM_NAME FORM_LOCATION FROM FORM_METADATA";
+		String query = "SELECT FORM_NAME, FORM_LOCATION FROM FORM_METADATA";
 		List<Map<String, String>> formsList = new Vector<Map<String, String>>();
 
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, query);

@@ -1,13 +1,7 @@
 package prerna.semoss.web.form;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -22,8 +16,6 @@ import org.h2.jdbc.JdbcClob;
 import org.openrdf.model.vocabulary.RDF;
 import org.openrdf.model.vocabulary.RDFS;
 
-import com.google.gson.Gson;
-
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
@@ -35,7 +27,6 @@ import prerna.util.Utility;
 public final class FormBuilder {
 
 	private static final DateFormat df = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
-	private static transient Gson gson = new Gson();
 	
 	private FormBuilder() {
 		
@@ -53,7 +44,8 @@ public final class FormBuilder {
 	public static void saveForm(IEngine formBuilderEng, String formName, String formLocation) throws IOException {
 		// clean table name
 		formName = cleanTableName(formName);
-		
+		formName = escapeForSQLStatement(formName);
+		formLocation = escapeForSQLStatement(formLocation);
 		// make sure table name doesn't exist
 		ITableDataFrame f2 = WrapperManager.getInstance().getSWrapper(formBuilderEng, "select count(*) from information_schema.tables where table_name = '" + formName + "'").getTableDataFrame(); 
 		if((Double)f2.getData().get(0)[0] != 0 ) {
@@ -68,62 +60,12 @@ public final class FormBuilder {
 		formBuilderEng.insertData(createFormTable);
 	}
 
-	/**
-	 * 
-	 * @param basePath
-	 * @param jsonLoc
-	 * @return
-	 * @throws FileNotFoundException
-	 * @throws IOException
-	 */
-	public static String getForm(String jsonLoc) throws FileNotFoundException, IOException {
-		//file does not exist
-		if(!Files.exists(Paths.get(jsonLoc))) {
-			throw new FileNotFoundException("Form not found");
-		}
-
-		//get the file and convert to a string
-		StringBuilder stringBuilder = new StringBuilder();
-		FileReader fReader = null;
-		BufferedReader reader = null;
-		try {
-			fReader = new FileReader(jsonLoc);
-			reader = new BufferedReader(fReader);
-			String line = null;
-			String ls = System.getProperty("line.separator");
-			while( ( line = reader.readLine() ) != null ) {
-				stringBuilder.append( line );
-				stringBuilder.append( ls );
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-			throw new IOException();
-		} finally {
-			if(fReader != null) {
-				try {
-					fReader.close();
-				} catch (IOException e) {
-					throw new IOException();
-				}
-			}
-			if(reader != null) {
-				try {
-					reader.close();
-				} catch (IOException e) {
-					throw new IOException();
-				}
-			}
-		}
-
-		//return stringified json of form
-		return stringBuilder.toString();
-	}
-
 	public static void saveFormData(IEngine formBuilderEng, String formName, String userId, String formData) {
 		Calendar cal = Calendar.getInstance();
 		String currTime = df.format(cal.getTime());
 
 		formName = cleanTableName(formName);
+		formName = escapeForSQLStatement(formName);
 		String getLastIdQuery = "SELECT DISTINCT ID FROM " + formName + " ORDER BY ID DESC";
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, getLastIdQuery);
 		String retName = wrapper.getVariables()[0];
@@ -407,6 +349,7 @@ public final class FormBuilder {
 
 	public static List<Map<String, String>> getStagingData(IEngine formBuilderEng, String formName) {
 		formName = cleanTableName(formName);
+		formName = escapeForSQLStatement(formName);
 		String sqlQuery = "SELECT ID, USER_ID, DATE_ADDED, DATA FROM " + formName;
 		
 		List<Map<String, String>> results = new ArrayList<Map<String, String>>();
@@ -438,6 +381,7 @@ public final class FormBuilder {
 	
 	public static void deleteFromStaggingArea(IEngine formBuilderEng, String formName, String[] formIds) {
 		formName = cleanTableName(formName);
+		formName = escapeForSQLStatement(formName);
 		String idsString = createIdString(formIds);
 		String deleteQuery = "DELETE FROM " + formName + " WHERE ID IN " + idsString;
 		formBuilderEng.removeData(deleteQuery);
