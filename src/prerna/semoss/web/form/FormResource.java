@@ -136,7 +136,7 @@ public class FormResource {
 		formName = FormBuilder.escapeForSQLStatement(formName);
 		
 		// delete form information
-		String deleteQuery = "DELETE FORM FORM_METADATA WHERE FORM_NAME ='" + formName + "'"; 
+		String deleteQuery = "DELETE FROM FORM_METADATA WHERE FORM_NAME ='" + formName + "'"; 
 		formBuilderEng.removeData(deleteQuery);
 		// drop form table
 		deleteQuery = "DROP TABLE " + formName;
