@@ -403,8 +403,12 @@ public class NameServer {
 		
 		Map<String, Object> queryData = new HashMap<String, Object>();
 		queryData.put(SolrIndexEngine.QUERY, searchString);
-		queryData.put(SolrIndexEngine.SEARCH_FIELD, searchField);
-		queryData.put(SolrIndexEngine.FIELD_SORT, sortString);
+		if(searchField != null && !searchField.isEmpty()) {
+			queryData.put(SolrIndexEngine.SEARCH_FIELD, searchField);
+		}
+		if(sortString != null && !sortString.isEmpty()) {
+			queryData.put(SolrIndexEngine.FIELD_SORT, sortString);
+		}
 		
 		Map<String, String> filterMap = new HashMap<String, String>();
 		if (filterData != null) {
