@@ -207,9 +207,7 @@ public class Uploader extends HttpServlet {
 
 	public void loadEngineIntoLocalMasterDB(HttpServletRequest request, String engineName, String baseURL) {
 		String localMasterDbName = Constants.LOCAL_MASTER_DB_NAME;
-		String wordNetDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + System.getProperty("file.separator") + "WordNet-3.1";
 		AddToMasterDB creater = new AddToMasterDB(localMasterDbName);
-		creater.setWordnetPath(wordNetDir);
 		creater.registerEngineLocal(engineName);
 	}
 	
