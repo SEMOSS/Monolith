@@ -27,6 +27,8 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -84,6 +86,7 @@ import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.rdf.query.builder.AbstractQueryBuilder;
 import prerna.rdf.query.builder.IQueryBuilder;
+import prerna.rdf.query.builder.QueryBuilderData;
 import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.AbstractQueryParser;
@@ -102,6 +105,7 @@ import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.ArrayUtilityMethods;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.InMemoryHash;
@@ -856,21 +860,6 @@ public class EngineResource {
 		}
 	}	
 
-	// gets a particular insight
-	// not sure if I should keep it as it is or turn this into a post because of the query
-	// Can give a set of nodeids
-	@GET
-	@Path("properties")
-	@Produces("application/json")
-	public StreamingOutput getProperties(@QueryParam("node") String nodeURI)
-	{
-		// returns the insight
-		// based on the current ID get the data
-		// typically is a JSON of the insight
-		// this will also cache it
-		return null;
-	}	
-
 	// gets all numeric properties associated with a specific node type
 	@GET
 	@Path("properties/node/type/numeric")
@@ -912,7 +901,7 @@ public class EngineResource {
 		Map<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Map<String, Object>>() {}.getType());
 
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		builder.setJSONDataHash(dataHash);
+		builder.setBuilderData(builder.getBuilderData());
 		builder.buildQuery();
 		String query = builder.getQuery();
 
@@ -938,7 +927,7 @@ public class EngineResource {
 			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 		}
 
-		List<Hashtable<String, String>> varObjVector = builder.getHeaderArray();
+		List<Map<String, String>> varObjVector = builder.getHeaderArray();
 		((Hashtable)obj).put("variableHeaders", varObjVector);
 
 		//		//still need filter queries for RDF... not sure what this is going to look like in the future yet
@@ -1287,6 +1276,7 @@ public class EngineResource {
 	{
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+		QueryBuilderData data = new QueryBuilderData(dataHash);
 
 		// Very simply, here is the logic:
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
@@ -1297,20 +1287,21 @@ public class EngineResource {
 
 		// get the insight if an id has been passed
 		Insight insight = null;
-		
-		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, dataHash);
-		StringMap<ArrayList<Object>> queryData = (StringMap<ArrayList<Object>>) dataHash.get("QueryData");
+		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, data);
 		
 		// put join concept into dataHash so we know which varible needs to be first in the return
 		// this stems from the fact that btree can only join left to right.
 		List<String> retOrder = new ArrayList<String>();
 		//I need the physical name to be put into the retOrder, so append the displayname uri and assume that the value in equivConcept is potentially a display name, if its not we'll still get the physical name back...
-		String physicalEquivConcept = Utility.getInstanceName(this.coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + equivConcept , false));
-		retOrder.add(physicalEquivConcept);
-		dataHash.put("returnOrder", retOrder);
+		if(equivConcept == null || equivConcept.isEmpty()) {
+			equivConcept = Utility.getInstanceName(data.getRelTriples().get(0).get(0));
+		}
+		
+		retOrder.add(equivConcept);
+		data.setVarReturnOrder(retOrder);
 		
 		// need to remove filter and add that as a pretransformation. Otherwise our metamodel data is not truly clean metamodel data
-		Map<String, List<String>> filters = (Map<String, List<String>>)((Map<String, Object>) dataHash.get("QueryData")).remove(AbstractQueryBuilder.filterKey);
+		Map<String, List<Object>> filters = data.getFilterData();
 		
 		if(filters != null){
 			for(String filterCol : filters.keySet()){
@@ -1395,7 +1386,8 @@ public class EngineResource {
 
 		Gson gson = new Gson();
 		Map<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Map<String, Object>>() {}.getType());
-
+		QueryBuilderData data = new QueryBuilderData(dataHash);
+		
 		boolean outer = false;
 		boolean inner = false;
 		if(joinType.equals("outer")) {
@@ -1431,16 +1423,16 @@ public class EngineResource {
 				//				InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
 				//				List<HashMap<String, String>> filteringValues = scroller.getNextUniqueValues(currConcept);
 				//								
-				StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
+				Map<String, List<Object>> stringMap = new HashMap<String, List<Object>>();
 				stringMap.put(currConcept, filteringValues);
-				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
+				data.setFilterData(stringMap);
 			} else {
 				errorHash.put("errorMessage", "Cannot perform filtering when current concept to filter on is not defined");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
 
-		builder.setJSONDataHash(dataHash);
+		builder.setBuilderData(data);
 		builder.buildQuery();
 		String query = builder.getQuery();
 
@@ -1513,7 +1505,8 @@ public class EngineResource {
 
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-
+		QueryBuilderData data = new QueryBuilderData(dataHash);
+		
 		boolean outer = false;
 		boolean inner = false;
 		if (joinType.equals("outer")) {
@@ -1540,30 +1533,21 @@ public class EngineResource {
 			}
 
 			if (currConcept != null && !currConcept.isEmpty()) {
-				StringMap<ArrayList<Object>> queryData = (StringMap<ArrayList<Object>>) dataHash.get("QueryData");
-				
 				// put join concept into dataHash so we know which varible needs to be first in the return
 				// this stems from the fact that btree can only join left to right.
 				List<String> retOrder = new ArrayList<String>();
 				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
-				// HttpSession session = request.getSession();
-				// if(session.getAttribute(tableID) == null) {
-				// session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(existingData));
-				// }
-				//
-				// InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-				// List<HashMap<String, String>> filteringValues = scroller.getNextUniqueValues(currConcept);
-				//
-				StringMap<List<Object>> stringMap = new StringMap<List<Object>>();
+				
+				Map<String, List<Object>> stringMap = new HashMap<String, List<Object>>();
 				stringMap.put(currConcept, filteringValues);
-				((StringMap) dataHash.get("QueryData")).put(AbstractQueryBuilder.filterKey, stringMap);
+				data.setFilterData(stringMap);
 			} else {
 				errorHash.put("errorMessage", "Cannot perform filtering when current concept to filter on is not defined");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
 
-		builder.setJSONDataHash(dataHash);
+		builder.setBuilderData(data);
 		builder.buildQuery();
 		String query = builder.getQuery();
 		System.out.println(query);
@@ -1575,18 +1559,13 @@ public class EngineResource {
 		if (displayNames.length > 1) {
 			int currIndexexistingConcept = 0;
 
-			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(displayNames, currConcept);
+			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(displayNames, currConcept);
 			if (currIndexexistingConcept == 0) {
 				index = 1;
 			} else if(currIndexexistingConcept == -1) {
 				//logic added for display names we need to use the current column header you are filtering on to try to determine the index.
 				//on second thought, you probably dont even need the logic above at all you can probably just use this
-				String columnHeaderInstance = "";
-				if(this.coreEngine.getEngineType().equals(IEngine.ENGINE_TYPE.RDBMS)) {
-					columnHeaderInstance = Utility.getInstanceName(columnHeader) + "__" + Utility.getPrimaryKeyFromURI(columnHeader).toUpperCase();
-				} else {
-					columnHeaderInstance = Utility.getInstanceName(columnHeader);
-				}
+				String columnHeaderInstance = Utility.getInstanceName(columnHeader);
 				currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndex(displayNames, columnHeaderInstance);//didnt find it in display names, try to find the match in physical names then
 				if(currIndexexistingConcept!=-1){
 					index = currIndexexistingConcept;
@@ -1737,7 +1716,8 @@ public class EngineResource {
 		logger.info("Getting properties for path");
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
-		Object obj = QueryBuilderHelper.getPropsFromPath(this.coreEngine, dataHash);
+		QueryBuilderData data = new QueryBuilderData(dataHash);
+		Object obj = QueryBuilderHelper.getPropsFromPath(this.coreEngine, data);
 
 		//		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
 		//		tableViz.setJSONDataHash(dataHash);
@@ -2110,9 +2090,9 @@ public class EngineResource {
 		for (DataMakerComponent comp : comps){
 			String query = comp.getQuery();
 			if(query == null){
-				Map<String, Object> mmHash = comp.getMetamodelData();
+				QueryBuilderData data = comp.getBuilderData();
 				IEngine compEng = comp.getEngine();
-				List<List<String>> rels = (List<List<String>>) ((Map<String,Object>) mmHash.get("QueryData")).get("relTriples");
+				List<List<String>> rels = data.getRelTriples();
 				System.out.println(rels);
 				for(List<String> rel: rels){
 					if(rel.size()>1){
@@ -2150,10 +2130,10 @@ public class EngineResource {
 					}
 				}
 				
-				List<Map<String, Object>> nodeProps = (List<Map<String, Object>>) mmHash.get("SelectedNodeProps");
+				List<Map<String, String>> nodeProps = data.getNodeProps();
 				System.out.println(nodeProps);
-				for(Map<String, Object> propMap : nodeProps){
-					String subjectVar = propMap.get("SubjectVar") + "";
+				for(Map<String, String> propMap : nodeProps){
+					String subjectVar = propMap.get("SubjectVar");
 					List<String> nodeProps1 = (List<String>) ((Map<String, Object>) nodesHash.get(subjectVar)).get("selectedProperties");
 					nodeProps1.add((String) propMap.get("uriKey"));
 				}
@@ -2243,4 +2223,16 @@ public class EngineResource {
 
 		return Response.status(200).entity(WebUtility.getSO(returnHash)).build();
 	}
+	
+	@GET
+    @Path("conceptProperties")
+    @Produces("application/json")
+    public Response getConceptProperties(@QueryParam("nodeUri") String nodeUri, @Context HttpServletRequest request)
+    {
+           logger.info("Getting properties for node : " + nodeUri);
+           List<String> props = this.coreEngine.getProperties4Concept(nodeUri, true);
+           
+           return Response.status(200).entity(WebUtility.getSO(props)).build();
+    }
+
 }
