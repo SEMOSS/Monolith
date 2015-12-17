@@ -130,7 +130,7 @@ public class DBAdminResource {
 			try {
 				solrE = SolrIndexEngine.getInstance();
 				if(solrE.serverActive()) {
-					solrE.removeDocument(questionIds);
+					solrE.removeInsight(questionIds);
 				}
 			} catch (SolrServerException e) {
 				e.printStackTrace();

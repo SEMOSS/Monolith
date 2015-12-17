@@ -162,8 +162,7 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.USER_ID, "default");
 		
 		try {
-			SolrIndexEngine.getInstance().addDocument(engineName + "_" + newInsightID, solrInsights);
-			//SolrIndexEngine.getInstance().addDocument(engine.getEngineName() + "_" + lastIDNum, solrInsights);
+			SolrIndexEngine.getInstance().addInsight(engineName + "_" + newInsightID, solrInsights);
 		} catch (KeyManagementException e) {
 			e.printStackTrace();
 		} catch (NoSuchAlgorithmException e) {
@@ -225,8 +224,7 @@ public class QuestionAdmin {
 		solrModifyInsights.put(SolrIndexEngine.ENGINES, engines);
 		
 		try {
-			SolrIndexEngine.getInstance().modifyFields(engineName + "_" + rdbmsId, solrModifyInsights);
-			//SolrIndexEngine.getInstance().modifyFields(engine.getEngineName() + "_" + insightID, solrModifyInsights);
+			SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + rdbmsId, solrModifyInsights);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
 				| IOException e) {
 			e.printStackTrace();
@@ -246,7 +244,7 @@ public class QuestionAdmin {
 		try {
 			List<String> removeList = new ArrayList<String>();
 			removeList.add(coreEngine.getEngineName() + "_" + insightID);
-			SolrIndexEngine.getInstance().removeDocument(removeList);
+			SolrIndexEngine.getInstance().removeInsight(removeList);
 		} catch (KeyManagementException e) {
 			e.printStackTrace();
 		} catch (NoSuchAlgorithmException e) {
@@ -343,8 +341,7 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.USER_ID, "default");
 		
 		try {
-			SolrIndexEngine.getInstance().addDocument(engineName + "_" + newInsightID, solrInsights);
-			//SolrIndexEngine.getInstance().addDocument(engine.getEngineName() + "_" + lastIDNum, solrInsights);
+			SolrIndexEngine.getInstance().addInsight(engineName + "_" + newInsightID, solrInsights);
 		} catch (KeyManagementException e) {
 			e.printStackTrace();
 		} catch (NoSuchAlgorithmException e) {
@@ -444,7 +441,7 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.USER_ID, "default");
 		
 		try {
-			SolrIndexEngine.getInstance().modifyFields(engineName + "_" + insightID, solrInsights);
+			SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + insightID, solrInsights);
 			//SolrIndexEngine.getInstance().addDocument(engine.getEngineName() + "_" + lastIDNum, solrInsights);
 		} catch (KeyManagementException e) {
 			e.printStackTrace();
