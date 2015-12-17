@@ -60,6 +60,7 @@ import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.common.params.CommonParams;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
@@ -396,39 +397,14 @@ public class NameServer {
 		Gson gson = new Gson();
 		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
 		
-		Map<String, Object> queryData = new HashMap<String, Object>();
-		queryData.put(SolrIndexEngine.QUERY, searchString);
-		if(searchField != null && !searchField.isEmpty()) {
-			queryData.put(SolrIndexEngine.SEARCH_FIELD, searchField);
-		}
-		if(sortString != null && !sortString.isEmpty()) {
-			queryData.put(SolrIndexEngine.FIELD_SORT, sortString);
-		}
-		
-		Map<String, String> filterMap = new HashMap<String, String>();
-		if (filterData != null) {
-			for (String fieldName : filterData.keySet()) {
-				List<String> filterValuesList = filterData.get(fieldName);
-				StringBuilder filterStr = new StringBuilder();
-				for (int i = 0; i < filterValuesList.size(); i++) {
-					if (i == filterValuesList.size() - 1) {
-						filterStr.append(filterValuesList.get(i));
-					} else {
-						filterStr.append(filterValuesList.get(i) + " OR ");
-					}
-				}
-				filterMap.put(fieldName, "(" + filterStr.toString() + ")");
-			}
-		}
-		queryData.put(SolrIndexEngine.FITLER_QUERY, filterMap);
-
 		Map<String, Object> results = null;
 		try {
-			results  = SolrIndexEngine.getInstance().executeQuery(queryData);
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
-			e.printStackTrace();
+			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, searchField, sortString, filterData);
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
+			e1.printStackTrace();
+			return WebUtility.getSO("Error executing solr query");
 		}
-
+		
 		return WebUtility.getSO(results);
 	}
 
@@ -442,25 +418,18 @@ public class NameServer {
 	@Path("central/context/getFacetInsightsResults")
 	@Produces("application/json")
 	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString, @Context HttpServletRequest request) {
-		//text searched in search bar
 		logger.info("Faceting based on input: " + searchString);
 	
-		Map<String, Object> queryData = new HashMap<>();
 		List<String> facetList = new ArrayList<>();
 		facetList.add(SolrIndexEngine.CORE_ENGINE);
 		facetList.add(SolrIndexEngine.LAYOUT);
 		facetList.add(SolrIndexEngine.PARAMS);
 		facetList.add(SolrIndexEngine.TAGS);
 		facetList.add(SolrIndexEngine.ALGORITHMS);
-		queryData.put(SolrIndexEngine.FACET_FIELD, facetList);
-		queryData.put(SolrIndexEngine.QUERY, searchString);
-		queryData.put(SolrIndexEngine.FACET, true);
-		queryData.put(SolrIndexEngine.FACET_MIN_COUNT, 1);
-		queryData.put(SolrIndexEngine.FACET_SORT_COUNT, true);
 
 		Map<String, Map<String, Long>> facetFieldMap = null;
 		try {
-			facetFieldMap = SolrIndexEngine.getInstance().facetDocument(queryData);
+			facetFieldMap = SolrIndexEngine.getInstance().executeQueryFacetResults(searchString, facetList);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException e) {
 			e.printStackTrace();
 		}
@@ -481,41 +450,34 @@ public class NameServer {
 		//text searched in search bar
 		String searchString = form.getFirst("searchString");
 		logger.info("Searching based on input: " + searchString);
-
+		
+		//text searched in search bar
+		String searchField = form.getFirst("searchField");
+		logger.info("Searching field is: " + searchField);
+		
 		//specifies the starting number for the list of insights to return
 		String groupOffset = form.getFirst("groupOffset");
 		logger.info("Group based on input: " + groupOffset);
-
+		
 		//specifies the number of insights to return
 		String groupLimit = form.getFirst("groupLimit");
 		logger.info("Group field is: " + groupLimit);
 
-		//specifies the single field to group by (ie. none, db)
-		String groupBy = form.getFirst("groupBy");
+		//specifies the single field to group by
+		String groupByField = form.getFirst("groupBy");
 
-		Map<String, Object> queryData = new HashMap<>();
-		if(searchString != null && !searchString.isEmpty()) {
-			queryData.put(SolrIndexEngine.QUERY, searchString);
-		}
+		Integer groupLimitInt = null;
+		Integer groupOffsetInt = null;
 		if(groupLimit != null && !groupLimit.isEmpty()) {
-			int groupLimitInt = Integer.parseInt(groupLimit);
-			queryData.put(SolrIndexEngine.GROUP_LIMIT, groupLimitInt);
-		} else {
-			queryData.put(SolrIndexEngine.GROUP_LIMIT, 200);
+			groupLimitInt = Integer.parseInt(groupLimit);
 		}
 		if(groupOffset != null && !groupOffset.isEmpty()) {
-			int groupOffsetInt = Integer.parseInt(groupOffset);
-			queryData.put(SolrIndexEngine.GROUP_OFFSET, groupOffsetInt);
-		} else {
-			queryData.put(SolrIndexEngine.GROUP_OFFSET, 0);
+			groupOffsetInt = Integer.parseInt(groupOffset);
 		}
-		List<String> groupList = new ArrayList<String>();
-		groupList.add(groupBy);
-		queryData.put(SolrIndexEngine.GROUP_FIELD, groupList);
-
+		
 		Map<String, Map<String, SolrDocumentList>> groupFieldMap = null;
 		try {
-			groupFieldMap = SolrIndexEngine.getInstance().groupDocument(queryData);
+			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, searchField, groupOffsetInt, groupLimitInt, groupByField);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
 			e.printStackTrace();
 		}
@@ -532,9 +494,8 @@ public class NameServer {
 	@Path("central/context/getMLTInsightsResults")
 	@Produces("application/json")
 	public StreamingOutput getMLTInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String queryString = form.getFirst("queryString");
-		logger.info("Searching based on input: " + queryString);
-		
+		String searchString = form.getFirst("searchString");
+		logger.info("Searching based on input: " + searchString);
 		//text searched in search bar
 		String searchField = form.getFirst("searchField");
 		logger.info("Searching field is: " + searchField);
@@ -544,38 +505,33 @@ public class NameServer {
 		logger.info("Group based on input: " + termFreq);
 		String offsetCount = form.getFirst("offsetCount");
 		logger.info("Group based on input: " + offsetCount);
-		
+		String offsetLimit = form.getFirst("offsetLimit");
+		logger.info("Group based on input: " + offsetLimit);
 		//field to categorize by
-		String mltBy = form.getFirst("mltBy");
-		Gson gson = new Gson();
+		String mltField = form.getFirst("mltField");
+		
+		Integer docFrequencyInt = null;
+		Integer termFrequencyInt = null;
+		Integer mltOffsetInt = null;
+		Integer mltLimitInt = null;
 
-		Map<String, List<String>> mltByField = gson.fromJson(mltBy, new TypeToken<Map<String, List<String>>>() {}.getType());
-
-		Map<String, Object> queryData = new HashMap<>();
-		queryData.put(SolrIndexEngine.QUERY, queryString);
-		queryData.put(SolrIndexEngine.SEARCH_FIELD, searchField);
-		queryData.put(SolrIndexEngine.MLT, true);
-		// queryEngine.put(SET_ROWS, 2);
-		for (String fieldName : mltByField.keySet()) {
-			List<String> groupByList = mltByField.get(fieldName);
-			StringBuilder mltList = new StringBuilder();
-			for (int i = 0; i < groupByList.size(); i++) {
-				if (i == groupByList.size() - 1) {
-					mltList.append(groupByList.get(i));
-				} else {
-					mltList.append(groupByList.get(i) + "&");
-				}
-				queryData.put(SolrIndexEngine.MLT_FIELD, mltList);
-			}
+		Integer groupOffsetInt = null;
+		if(docFreq != null && !docFreq.isEmpty()) {
+			docFrequencyInt = Integer.parseInt(docFreq);
 		}
-
-		queryData.put(SolrIndexEngine.MLT_MINDF, docFreq);
-		queryData.put(SolrIndexEngine.MLT_MINTF, termFreq);
-		queryData.put(SolrIndexEngine.MLT_COUNT, offsetCount);
-
+		if(termFreq != null && !termFreq.isEmpty()) {
+			termFrequencyInt = Integer.parseInt(termFreq);
+		}
+		if(offsetCount != null && !offsetCount.isEmpty()) {
+			mltOffsetInt = Integer.parseInt(offsetCount);
+		}
+		if(offsetLimit != null && !offsetLimit.isEmpty()) {
+			mltLimitInt = Integer.parseInt(offsetLimit);
+		}
+		
 		Map<String, SolrDocumentList> mltFieldMap = null;
 		try {
-			mltFieldMap = SolrIndexEngine.getInstance().mltDocument(queryData);
+			mltFieldMap = SolrIndexEngine.getInstance().executeQueryMLTResponse(searchString, searchField, docFrequencyInt, termFrequencyInt, mltOffsetInt, mltLimitInt, mltField);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException e) {
 			e.printStackTrace();
 		}
@@ -595,24 +551,18 @@ public class NameServer {
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		logger.info("CENTRALLY have registered selected URIs as ::: " + conceptURI.toString());
 
-		String wordNetDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER)
-				+ System.getProperty("file.separator") + "WordNet-3.1";
-		String nlpPath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER)
-				+ System.getProperty("file.separator") + "NLPartifacts" + System.getProperty("file.separator")
-				+ "englishPCFG.ser";
-
 		ConnectedConcepts results = null;
 		// regardless of input master/local databases, uses the same method
 		// since it only queries the master db and not the databases used to
 		// create it
 		if (localMasterDbName == null) {
 			// this call is not local, need to get the API to run queries
-			INameServer ns = new NameServerProcessor(wordNetDir, nlpPath);
+			INameServer ns = new NameServerProcessor();
 			results = ns.searchConnectedConcepts(conceptURI);
 		} else {
 			// this call is local, grab the engine from DIHelper
 			IEngine masterDB = (IEngine) DIHelper.getInstance().getLocalProp(localMasterDbName);
-			INameServer ns = new NameServerProcessor(masterDB, wordNetDir, nlpPath);
+			INameServer ns = new NameServerProcessor(masterDB);
 			results = ns.searchConnectedConcepts(conceptURI);
 		}
 		return WebUtility.getSO(results.getData());
@@ -628,10 +578,11 @@ public class NameServer {
 		Gson gson = new Gson();
 		ArrayList<String> selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
 
+		//TODO: need to change the format for this call!!!!!!!!!!
 		String type = Utility.getClassName(selectedUris.get(0));
 		Map<String, Object> queryMap = new HashMap<String, Object>();
-		queryMap.put(SolrIndexEngine.QUERY, type);
-		queryMap.put(SolrIndexEngine.SEARCH_FIELD, "all_text");
+		queryMap.put(CommonParams.Q, type);
+		queryMap.put(CommonParams.DF, "all_text");
 
 		List<Map<String, Object>> contextList = new ArrayList<Map<String, Object>>();
 		SolrDocumentList results;
