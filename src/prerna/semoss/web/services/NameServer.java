@@ -328,13 +328,9 @@ public class NameServer {
 
 		Hashtable<String, Boolean> resultHash = new Hashtable<String, Boolean>();
 
-		String wordNetDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER)
-				+ System.getProperty("file.separator") + "WordNet-3.1";
-
 		if (localMasterDbName == null) {
 			try {
 				AddToMasterDB creater = new AddToMasterDB();
-				creater.setWordnetPath(wordNetDir);
 				resultHash = creater.registerEngineAPI(baseURL, dbArray);
 			} catch (RDFParseException e) {
 				e.printStackTrace();
@@ -347,7 +343,6 @@ public class NameServer {
 				// have been passed
 		{
 			AddToMasterDB creater = new AddToMasterDB(localMasterDbName);
-			creater.setWordnetPath(wordNetDir);
 			resultHash = creater.registerEngineLocal(dbArray);
 		}
 
@@ -499,10 +494,24 @@ public class NameServer {
 		String groupBy = form.getFirst("groupBy");
 
 		Map<String, Object> queryData = new HashMap<>();
-		queryData.put(SolrIndexEngine.QUERY, searchString);
-		queryData.put(SolrIndexEngine.GROUP_LIMIT, groupLimit);
-		queryData.put(SolrIndexEngine.GROUP_OFFSET, groupOffset);
-		queryData.put(SolrIndexEngine.GROUP_FIELD, groupBy);
+		if(searchString != null && !searchString.isEmpty()) {
+			queryData.put(SolrIndexEngine.QUERY, searchString);
+		}
+		if(groupLimit != null && !groupLimit.isEmpty()) {
+			int groupLimitInt = Integer.parseInt(groupLimit);
+			queryData.put(SolrIndexEngine.GROUP_LIMIT, groupLimitInt);
+		} else {
+			queryData.put(SolrIndexEngine.GROUP_LIMIT, 200);
+		}
+		if(groupOffset != null && !groupOffset.isEmpty()) {
+			int groupOffsetInt = Integer.parseInt(groupOffset);
+			queryData.put(SolrIndexEngine.GROUP_OFFSET, groupOffsetInt);
+		} else {
+			queryData.put(SolrIndexEngine.GROUP_OFFSET, 0);
+		}
+		List<String> groupList = new ArrayList<String>();
+		groupList.add(groupBy);
+		queryData.put(SolrIndexEngine.GROUP_FIELD, groupList);
 
 		Map<String, Map<String, SolrDocumentList>> groupFieldMap = null;
 		try {
