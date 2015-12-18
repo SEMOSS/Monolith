@@ -81,8 +81,9 @@ public class FormResource {
 		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		String formName = form.getFirst("formName");
 		String formData = form.getFirst("formData");
+		String formTableName = getFormTableFromName(formName);
 		try {
-			FormBuilder.saveFormData(formBuilderEng, formName, userId, formData);
+			FormBuilder.saveFormData(formBuilderEng, formTableName, userId, formData);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return Response.status(200).entity(WebUtility.getSO("error saving data")).build();
@@ -97,9 +98,10 @@ public class FormResource {
 	public Response getFormStagingData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
 	{
 		String formName = form.getFirst("formName");
+		String formTableName = getFormTableFromName(formName);
 		List<Map<String, String>> results = null;
 		try {
-			results = FormBuilder.getStagingData(formBuilderEng, formName);
+			results = FormBuilder.getStagingData(formBuilderEng, formTableName);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return Response.status(200).entity(WebUtility.getSO("error retrieving data")).build();
@@ -132,17 +134,26 @@ public class FormResource {
 	public Response deleteForm(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
 	{
 		String formName = form.getFirst("formName");
-		formName = FormBuilder.cleanTableName(formName);
-		formName = FormBuilder.escapeForSQLStatement(formName);
+		String formTableName = getFormTableFromName(formName);
 		
 		// delete form information
-		String deleteQuery = "DELETE FROM FORM_METADATA WHERE FORM_NAME ='" + formName + "'"; 
+		String deleteQuery = "DELETE FROM FORM_METADATA WHERE FORM_TABLE ='" + formTableName + "'"; 
 		formBuilderEng.removeData(deleteQuery);
 		// drop form table
 		deleteQuery = "DROP TABLE " + formName;
 		formBuilderEng.removeData(deleteQuery);
 		
 		return Response.status(200).entity(WebUtility.getSO("success")).build();
+	}
+	
+	private String getFormTableFromName(String formName) {
+		String query = "SELECT FORM_TABLE FROM FORM_METADATA WHERE FORM_NAME = '" + formName + "'";
+		
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, query);
+		String[] names = wrapper.getVariables();
+		wrapper.hasNext();
+		ISelectStatement ss = wrapper.next();
+		return ss.getVar(names[0]).toString();
 	}
 	
 }
