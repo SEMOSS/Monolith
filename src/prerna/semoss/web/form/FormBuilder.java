@@ -8,6 +8,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -43,30 +44,29 @@ public final class FormBuilder {
 	 */
 	public static void saveForm(IEngine formBuilderEng, String formName, String formLocation) throws IOException {
 		// clean table name
-		formName = cleanTableName(formName);
 		formName = escapeForSQLStatement(formName);
+		String formStorage = cleanTableName(formName);
+		formStorage = escapeForSQLStatement(formStorage);
 		formLocation = escapeForSQLStatement(formLocation);
 		// make sure table name doesn't exist
-		ITableDataFrame f2 = WrapperManager.getInstance().getSWrapper(formBuilderEng, "select count(*) from information_schema.tables where table_name = '" + formName + "'").getTableDataFrame(); 
+		ITableDataFrame f2 = WrapperManager.getInstance().getSWrapper(formBuilderEng, "select count(*) from information_schema.tables where table_name = '" + formStorage + "'").getTableDataFrame(); 
 		if((Double)f2.getData().get(0)[0] != 0 ) {
 			throw new IOException("Form name already exists. Please modify the form name.");
 		}
 		
 		//add form location into formbuilder db
-		String insertMetadata = "INSERT INTO FORM_METADATA (FORM_NAME, FORM_LOCATION) VALUES('" + formName + "', '" + formLocation + "')";
+		String insertMetadata = "INSERT INTO FORM_METADATA (FORM_NAME, FORM_TABLE, FORM_LOCATION) VALUES('" + formName + "', '" + formStorage + "', '" + formLocation + "')";
 		formBuilderEng.insertData(insertMetadata);
 		//create new table to store values for form name
-		String createFormTable = "CREATE TABLE " + formName + " (ID INT, USER_ID VARCHAR(225), DATE_ADDED TIMESTAMP, DATA CLOB)";
+		String createFormTable = "CREATE TABLE " + formStorage + " (ID INT, USER_ID VARCHAR(225), DATE_ADDED TIMESTAMP, DATA CLOB)";
 		formBuilderEng.insertData(createFormTable);
 	}
 
-	public static void saveFormData(IEngine formBuilderEng, String formName, String userId, String formData) {
+	public static void saveFormData(IEngine formBuilderEng, String formTableName, String userId, String formData) {
 		Calendar cal = Calendar.getInstance();
 		String currTime = df.format(cal.getTime());
 
-		formName = cleanTableName(formName);
-		formName = escapeForSQLStatement(formName);
-		String getLastIdQuery = "SELECT DISTINCT ID FROM " + formName + " ORDER BY ID DESC";
+		String getLastIdQuery = "SELECT DISTINCT ID FROM " + formTableName + " ORDER BY ID DESC";
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, getLastIdQuery);
 		String retName = wrapper.getVariables()[0];
 		Integer lastIdNum = 0;
@@ -75,7 +75,7 @@ public final class FormBuilder {
 		}
 		lastIdNum++;
 		
-		String insertSql = "INSERT INTO " + formName + " (ID, USER_ID, DATE_ADDED, DATA) VALUES("
+		String insertSql = "INSERT INTO " + formTableName + " (ID, USER_ID, DATE_ADDED, DATA) VALUES("
 				+ "'" + lastIdNum + "', '" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(formData) + "')";
 		formBuilderEng.insertData(insertSql);
 	}
@@ -343,10 +343,8 @@ public final class FormBuilder {
 		}
 	}
 	
-	public static List<Map<String, String>> getStagingData(IEngine formBuilderEng, String formName) {
-		formName = cleanTableName(formName);
-		formName = escapeForSQLStatement(formName);
-		String sqlQuery = "SELECT ID, USER_ID, DATE_ADDED, DATA FROM " + formName;
+	public static List<Map<String, String>> getStagingData(IEngine formBuilderEng, String formTableName) {
+		String sqlQuery = "SELECT ID, USER_ID, DATE_ADDED, DATA FROM " + formTableName;
 		
 		List<Map<String, String>> results = new ArrayList<Map<String, String>>();
 		
@@ -399,6 +397,10 @@ public final class FormBuilder {
 	 * @return
 	 */
 	public static String cleanTableName(String s) {
+		while(s.contains("  ")){
+			s = s.replace("  ", " ");
+		}
+		s = s.replaceAll(" ", "_");
 		return s.replaceAll("[^a-zA-Z0-9\\_]", "");
 	}
 	
