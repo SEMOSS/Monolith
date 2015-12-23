@@ -417,8 +417,13 @@ public class NameServer {
 	@GET
 	@Path("central/context/getFacetInsightsResults")
 	@Produces("application/json")
-	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString, @Context HttpServletRequest request) {
-		logger.info("Faceting based on input: " + searchString);
+	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString,
+			@QueryParam("searchField") String searchField, @Context HttpServletRequest request) {
+		// text searched in search bar
+		logger.info("Searching based on input: " + searchString);
+
+		// specification of search based on field (ie. database, name, everything, etc)
+		logger.info("Searching field is: " + searchField);		
 	
 		List<String> facetList = new ArrayList<>();
 		facetList.add(SolrIndexEngine.CORE_ENGINE);
@@ -587,10 +592,7 @@ public class NameServer {
 		List<Map<String, Object>> contextList = new ArrayList<Map<String, Object>>();
 		SolrDocumentList results;
 		try {
-			results = SolrIndexEngine.getInstance().queryDocument(queryMap); // gives
-			// me
-			// null
-			// pointer
+			results = SolrIndexEngine.getInstance().queryDocument(queryMap); // gives me null pointer
 			if (results != null) {
 				for (int i = 0; i < results.size(); i++) {
 					SolrDocument doc = results.get(i);
