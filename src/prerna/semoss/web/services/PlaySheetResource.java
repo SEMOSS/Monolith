@@ -122,11 +122,9 @@ public class PlaySheetResource {
 				RDBMSNativeEngine rdbmsEngine = (RDBMSNativeEngine)coreEngine;
 				//rdbmsEngine.traverseOutputQuery(fromType, toType, false, fromInstances)
 				String fromType = upNodeList.get(0);
-				String className = Utility.getQualifiedClassName(fromType); // gets you everything but the instance
-				String modClassName = Utility.getInstanceName(className); // since it gets me the last one , this is really the className
-				
-				sparql = rdbmsEngine.traverseOutputQuery(className, downNodeTypes.get(0), false, upNodeList);
-
+				String className = Utility.getClassName(fromType); // gets you everything but the instance
+				String classUri = coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + className, false);
+				sparql = rdbmsEngine.traverseOutputQuery(classUri, downNodeTypes.get(0), false, upNodeList);
 			}
 		}
 		else if (upNodeList.size() == 1)//down node types has more than 1 so we need to put the types in the bindings
@@ -201,10 +199,9 @@ public class PlaySheetResource {
 				RDBMSNativeEngine rdbmsEngine = (RDBMSNativeEngine)coreEngine;
 				//rdbmsEngine.traverseOutputQuery(fromType, toType, false, fromInstances)
 				String fromType = downNodeList.get(0);
-				String className = Utility.getQualifiedClassName(fromType); // gets you everything but the instance
-				String modClassName = Utility.getInstanceName(className); // since it gets me the last one , this is really the className
-				
-				sparql = rdbmsEngine.traverseOutputQuery(className, upNodeTypes.get(0), false, downNodeList);
+				String className = Utility.getClassName(fromType); // gets you everything but the instance
+				String classUri = coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + className, false);
+				sparql = rdbmsEngine.traverseOutputQuery(classUri, upNodeTypes.get(0), false, downNodeList);
 			}
 		}
 		else if (downNodeList.size() == 1)//up node types has more than 1 so we need to put the types in the bindings
