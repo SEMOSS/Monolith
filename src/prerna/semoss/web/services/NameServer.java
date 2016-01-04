@@ -434,7 +434,7 @@ public class NameServer {
 
 		Map<String, Map<String, Long>> facetFieldMap = null;
 		try {
-			facetFieldMap = SolrIndexEngine.getInstance().executeQueryFacetResults(searchString, facetList);
+			facetFieldMap = SolrIndexEngine.getInstance().executeQueryFacetResults(searchString, searchField, facetList);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException e) {
 			e.printStackTrace();
 		}
