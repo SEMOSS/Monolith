@@ -901,7 +901,8 @@ public class EngineResource {
 		Map<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Map<String, Object>>() {}.getType());
 
 		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		builder.setBuilderData(builder.getBuilderData());
+		QueryBuilderData data = new QueryBuilderData(dataHash);
+		builder.setBuilderData(data);
 		builder.buildQuery();
 		String query = builder.getQuery();
 
