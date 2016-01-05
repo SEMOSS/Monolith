@@ -392,6 +392,23 @@ public class NameServer {
 		String sortString = form.getFirst("sortString");
 		logger.info("Sorting by: " + sortString);
 		
+		//offset for call
+		String offset = form.getFirst("offset");
+		logger.info("Offset is: " + offset);
+		
+		//offset for call
+		String limit = form.getFirst("limit");
+		logger.info("Limit is: " + limit);
+
+		Integer offsetInt = null;
+		Integer limitInt = null;
+		if(offset != null && !offset.isEmpty()) {
+			offsetInt = Integer.parseInt(offset);
+		}
+		if(limit != null && !limit.isEmpty()) {
+			limitInt = Integer.parseInt(limit);
+		}
+		
 		//filter based on the boxes checked in the facet filter (filtered with an exact filter)
 		String filterDataStr = form.getFirst("filterData");
 		Gson gson = new Gson();
@@ -399,7 +416,7 @@ public class NameServer {
 		
 		Map<String, Object> results = null;
 		try {
-			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, searchField, sortString, filterData);
+			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, searchField, sortString, offsetInt, limitInt, filterData);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
 			e1.printStackTrace();
 			return WebUtility.getSO("Error executing solr query");
@@ -480,9 +497,14 @@ public class NameServer {
 			groupOffsetInt = Integer.parseInt(groupOffset);
 		}
 		
-		Map<String, Map<String, SolrDocumentList>> groupFieldMap = null;
+		//filter based on the boxes checked in the facet filter (filtered with an exact filter)
+		String filterDataStr = form.getFirst("filterData");
+		Gson gson = new Gson();
+		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
+				
+		Map<String, Object> groupFieldMap = null;
 		try {
-			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, searchField, groupOffsetInt, groupLimitInt, groupByField);
+			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, searchField, groupOffsetInt, groupLimitInt, groupByField, filterData);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
 			e.printStackTrace();
 		}
@@ -729,8 +751,11 @@ public class NameServer {
 	@GET
 	@Path("insights")
 	@Produces("application/json")
-	public StreamingOutput getAllInsights(@QueryParam("groupBy") String groupBy, @QueryParam("orderBy") String orderBy,
-			@Context HttpServletRequest request) {
+	//TODO:
+	//TODO:
+	//TODO:
+	//need to delete this method once we shift to using solr to get all insights
+	public StreamingOutput getAllInsights(@QueryParam("groupBy") String groupBy, @QueryParam("orderBy") String orderBy, @Context HttpServletRequest request) {
 		// TODO: this will need to be switched to go through solr
 
 		List<Hashtable<String, String>> engineList = (List<Hashtable<String, String>>) request.getSession().getAttribute(Constants.ENGINES);
