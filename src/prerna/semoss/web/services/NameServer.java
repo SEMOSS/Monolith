@@ -477,16 +477,22 @@ public class NameServer {
 		String searchField = form.getFirst("searchField");
 		logger.info("Searching field is: " + searchField);
 		
+		//TODO: in the future, need to pass start/row into this method to determine the number of groups to send back to FE
+		
 		//specifies the starting number for the list of insights to return
 		String groupOffset = form.getFirst("groupOffset");
-		logger.info("Group based on input: " + groupOffset);
+		logger.info("Group offset is: " + groupOffset);
 		
 		//specifies the number of insights to return
 		String groupLimit = form.getFirst("groupLimit");
-		logger.info("Group field is: " + groupLimit);
+		logger.info("Group limit is: " + groupLimit);
 
+		String groupSort = form.getFirst("groupSort");
+		logger.info("Group sort is: " + groupSort);
+		
 		//specifies the single field to group by
 		String groupByField = form.getFirst("groupBy");
+		logger.info("Group field is: " + groupByField);
 
 		Integer groupLimitInt = null;
 		Integer groupOffsetInt = null;
@@ -504,7 +510,7 @@ public class NameServer {
 				
 		Map<String, Object> groupFieldMap = null;
 		try {
-			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, searchField, groupOffsetInt, groupLimitInt, groupByField, filterData);
+			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, searchField, groupOffsetInt, groupLimitInt, groupByField, groupSort, filterData);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
 			e.printStackTrace();
 		}
@@ -542,7 +548,6 @@ public class NameServer {
 		Integer mltOffsetInt = null;
 		Integer mltLimitInt = null;
 
-		Integer groupOffsetInt = null;
 		if(docFreq != null && !docFreq.isEmpty()) {
 			docFrequencyInt = Integer.parseInt(docFreq);
 		}
