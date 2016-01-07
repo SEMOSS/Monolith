@@ -29,6 +29,7 @@ package prerna.semoss.web.services;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -77,6 +78,7 @@ import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
 import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
+import prerna.equation.EquationSolver;
 import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.SearchMasterDB;
 import prerna.om.GraphDataModel;
@@ -1091,6 +1093,40 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
+	@POST
+	@Path("/derivedColumn")
+	@Produces("application/json")
+	public Response derivedColumn(MultivaluedMap<String, String> form,
+			@QueryParam("insightID") String insightID,
+			@QueryParam("expressionString") String expressionString,
+			@QueryParam("columnName") String columnName,
+			@Context HttpServletRequest request)
+	{
+		String expString = form.getFirst("expressionString");
+		String colName = form.getFirst("columnName");
+		
+		Insight insight = InsightStore.getInstance().get(insightID);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		if(insight == null) {
+			retMap.put("errorMessage", "Invalid insight ID. Data not found");
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
+		}
+		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
+
+		// return new column
+		EquationSolver solver;
+		try { solver = new EquationSolver(mainTree, expString); } 
+		catch (ParseException e) {
+			retMap.put("errorMessage", e);
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
+		}
+		
+		String returnMsg = solver.crunch(colName);
+		
+		retMap.put("status", returnMsg);
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+	
 	@GET
 	@Path("/getTableHeaders")
 	@Produces("application/json")
@@ -1772,9 +1808,13 @@ public class EngineResource {
 		// Run math transformation
 		ISEMOSSTransformation mathTrans = new MathTransformation();
 		Map<String, Object> selectedOptions = new HashMap<String, Object>();
+		// groupByCols = columns to look at
 		selectedOptions.put(MathTransformation.GROUPBY_COLUMNS, groupByCols);
+		// debug through this. also comes from frontend
 		selectedOptions.put(MathTransformation.MATH_MAP, functionMap);
+		// dont worry about this yet
 		mathTrans.setProperties(selectedOptions);
+		// just one transformation at a time. for math transformation just one thing
 		List<ISEMOSSTransformation> postTrans = new Vector<ISEMOSSTransformation>();
 		postTrans.add(mathTrans);
 		existingInsight.processPostTransformation(postTrans);
