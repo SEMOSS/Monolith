@@ -616,7 +616,7 @@ public class NameServer {
 			type = Utility.getClassName(selectedUris.get(0));
 		} catch(ClassCastException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Cannot currently run related insights on selected value.");
+			errorMap.put("errorMessage", "Cannot currently run related insights on selected value: " + selectedUris.get(0));
 			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 		}
 		Map<String, Object> queryMap = new HashMap<String, Object>();
