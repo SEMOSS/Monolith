@@ -39,6 +39,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
@@ -66,7 +67,7 @@ public class CentralNameServer {
 	@POST
 	@Path("context/insights")
 	@Produces("application/json")
-	public StreamingOutput getContextInsights(
+	public Response getContextInsights(
 			MultivaluedMap<String, String> form, 
 			@Context HttpServletRequest request)
 	{
@@ -77,7 +78,7 @@ public class CentralNameServer {
 		if(centralApi!=null){
 			Hashtable params = new Hashtable();
 			params.put("selectedURI", selectedUris);
-			return WebUtility.getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params));
+			return Response.status(200).entity(WebUtility.getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params))).build();
 		}
 		else {
 			NameServer ns = new NameServer();
