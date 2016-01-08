@@ -8,7 +8,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -27,7 +26,7 @@ import prerna.util.Utility;
 
 public final class FormBuilder {
 
-	private static final DateFormat df = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
+	private static final DateFormat DF = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
 	
 	private FormBuilder() {
 		
@@ -64,7 +63,7 @@ public final class FormBuilder {
 
 	public static void saveFormData(IEngine formBuilderEng, String formTableName, String userId, String formData) {
 		Calendar cal = Calendar.getInstance();
-		String currTime = df.format(cal.getTime());
+		String currTime = DF.format(cal.getTime());
 
 		String getLastIdQuery = "SELECT DISTINCT ID FROM " + formTableName + " ORDER BY ID DESC";
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, getLastIdQuery);

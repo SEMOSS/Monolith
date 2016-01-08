@@ -606,12 +606,19 @@ public class NameServer {
 	@POST
 	@Path("central/context/insights")
 	@Produces("application/json")
-	public StreamingOutput getCentralContextInsights(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response getCentralContextInsights(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		ArrayList<String> selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
 
 		//TODO: need to change the format for this call!!!!!!!!!!
-		String type = Utility.getClassName(selectedUris.get(0));
+		String type = "";
+		try {
+			type = Utility.getClassName(selectedUris.get(0));
+		} catch(ClassCastException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Cannot currently run related insights on selected value.");
+			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+		}
 		Map<String, Object> queryMap = new HashMap<String, Object>();
 		queryMap.put(CommonParams.Q, type);
 		queryMap.put(CommonParams.DF, "all_text");
@@ -627,6 +634,7 @@ public class NameServer {
 					insightHash.put(MasterDatabaseConstants.QUESTION_ID, doc.get(SolrIndexEngine.CORE_ENGINE_ID));
 					insightHash.put(MasterDatabaseConstants.QUESTION_KEY, doc.get(SolrIndexEngine.NAME));
 					insightHash.put(MasterDatabaseConstants.VIZ_TYPE_KEY, doc.get(SolrIndexEngine.LAYOUT));
+					insightHash.put(MasterDatabaseConstants.PERSPECTIVE_KEY, doc.get(SolrIndexEngine.TAGS));
 
 					// TODO: why does FE want this in another map???
 					Map<String, String> engineHash = new HashMap<String, String>();
@@ -660,7 +668,7 @@ public class NameServer {
 			// so catching it
 		}
 
-		return WebUtility.getSO(contextList);
+		return Response.status(200).entity(WebUtility.getSO(contextList)).build();
 	}
 
 	// get all insights related to a specific uri
