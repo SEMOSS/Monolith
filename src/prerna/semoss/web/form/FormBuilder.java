@@ -32,7 +32,7 @@ public final class FormBuilder {
 
 	private static final DateFormat DATE_DF = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
 	private static final DateFormat SIMPLE_DATE_DF = new SimpleDateFormat("yyy-MM-dd");
-	private static final DateFormat GENERIC_DF = new SimpleDateFormat("E MMM dd HH:mm:ss Z yyyy");
+	private static final DateFormat GENERIC_DF = new SimpleDateFormat("yyy-MM-dd'T'hh:mm:ss.SSSSSS'Z'");
 
 	private FormBuilder() {
 		
@@ -236,11 +236,11 @@ public final class FormBuilder {
 			tableColumn = Utility.getClassName(nodeURI);
 			tableValue = node.get("conceptValue").toString();
 			
-			Map<String, String> colNamesAndType = tableColTypesHash.get(tableName);
+			Map<String, String> colNamesAndType = tableColTypesHash.get(tableName.toUpperCase());
 			if(colNamesAndType == null) {
 				throw new IllegalArgumentException("Table name, " + tableName + ", cannot be found.");
 			}
-			if(!colNamesAndType.containsKey(tableColumn)) {
+			if(!colNamesAndType.containsKey(tableColumn.toUpperCase())) {
 				throw new IllegalArgumentException("Table column, " + tableColumn + ", within table name, " + tableName + ", cannot be found.");
 			}
 			
@@ -255,12 +255,12 @@ public final class FormBuilder {
 			for(int k = 0; k < properties.size(); k++) {
 				Map<String, Object> property = properties.get(k);
 				String propName = Utility.getInstanceName(property.get("propertyName").toString());
-				if(!colNamesAndType.containsKey(propName)) {
+				if(!colNamesAndType.containsKey(propName.toUpperCase())) {
 					throw new IllegalArgumentException("Table column, " + propName + ", within table name, " + tableName + ", cannot be found.");
 				}
 				propNames.add(propName);
 				propValues.add(property.get("propertyValue"));
-				types.add(colNamesAndType.get(propName));
+				types.add(colNamesAndType.get(propName.toUpperCase()));
 			}
 
 			StringBuilder insertQuery = new StringBuilder();
@@ -291,10 +291,10 @@ public final class FormBuilder {
 						insertQuery.append("'");
 						insertQuery.append(propertyValue.toString().toUpperCase());
 						insertQuery.append("'");
-					} else if(type.equals("INT") || type.equals("DECIMAL") || type.equals("DOUBLE") || type.equals("LONG") || type.contains("BIGINT")
+					} else if(type.contains("INT") || type.contains("DECIMAL") || type.contains("DOUBLE") || type.contains("LONG") || type.contains("BIGINT")
 							|| type.contains("TINYINT") || type.contains("SMALLINT")){
 						insertQuery.append(propertyValue);
-					} else  if(type.equals("DATE")) {
+					} else  if(type.contains("DATE")) {
 						Date dateValue = null;
 						try {
 							dateValue = GENERIC_DF.parse(propertyValue + "");
@@ -306,7 +306,7 @@ public final class FormBuilder {
 						insertQuery.append("'");
 						insertQuery.append(propertyValue);
 						insertQuery.append("'");
-					} else if(type.equals("TIMESTAMP")) {
+					} else if(type.contains("TIMESTAMP")) {
 						Date dateValue = null;
 						try {
 							dateValue = GENERIC_DF.parse(propertyValue + "");
@@ -337,6 +337,7 @@ public final class FormBuilder {
 		String endVal;
 		String _FK = "_FK";
 
+		Map<String, String> colNamesAndType = null;
 		for(int r = 0; r < relationships.size(); r++) {
 			Map<String, Object> relationship =  relationships.get(r);
 
@@ -344,11 +345,27 @@ public final class FormBuilder {
 			startTable = Utility.getInstanceName(startURI);
 			startCol = Utility.getClassName(startURI);
 			startVal = relationship.get("startNodeVal").toString();
+
+			colNamesAndType = tableColTypesHash.get(startTable.toUpperCase());
+			if(colNamesAndType == null) {
+				throw new IllegalArgumentException("Table name, " + startTable + ", cannot be found.");
+			}
+			if(!colNamesAndType.containsKey(startCol.toUpperCase())) {
+				throw new IllegalArgumentException("Table column, " + startCol + ", within table name, " + startTable + ", cannot be found.");
+			}
 			
 			String endURI = relationship.get("endNodeType").toString();
 			endTable = Utility.getInstanceName(endURI);
 			endCol =  Utility.getClassName(endURI);
 			endVal = relationship.get("endNodeVal").toString();
+
+			colNamesAndType = tableColTypesHash.get(endTable.toUpperCase());
+			if(colNamesAndType == null) {
+				throw new IllegalArgumentException("Table name, " + endTable + ", cannot be found.");
+			}
+			if(!colNamesAndType.containsKey(endCol.toUpperCase())) {
+				throw new IllegalArgumentException("Table column, " + endCol + ", within table name, " + endTable + ", cannot be found.");
+			}
 
 			boolean addToStart = false;
 			String[] relVals = Utility.getInstanceName(relationship.get("relType").toString()).split("\\.");
@@ -417,7 +434,7 @@ public final class FormBuilder {
 			Map<String, String> colTypeHash = new HashMap<String, String>();
 			while(wrapper.hasNext()) {
 				ISelectStatement ss = wrapper.next();
-				String colName = ss.getVar("FIELD") + "";
+				String colName = ss.getVar("COLUMN_NAME") + "";
 				String colType = ss.getVar("TYPE") + "";
 				colTypeHash.put(colName, colType);
 			}
