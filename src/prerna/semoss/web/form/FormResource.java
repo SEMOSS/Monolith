@@ -86,7 +86,7 @@ public class FormResource {
 			FormBuilder.saveFormData(formBuilderEng, formTableName, userId, formData);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(200).entity(WebUtility.getSO("error saving data")).build();
+			return Response.status(400).entity(WebUtility.getSO("error saving data")).build();
 		}
 
 		return Response.status(200).entity(WebUtility.getSO("success")).build();
@@ -104,7 +104,7 @@ public class FormResource {
 			results = FormBuilder.getStagingData(formBuilderEng, formTableName);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(200).entity(WebUtility.getSO("error retrieving data")).build();
+			return Response.status(2400).entity(WebUtility.getSO("error retrieving data")).build();
 		}
 
 		return Response.status(200).entity(WebUtility.getSO((results))).build();
@@ -122,7 +122,7 @@ public class FormResource {
 			FormBuilder.deleteFromStaggingArea(formBuilderEng, formName, formIds);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(200).entity(WebUtility.getSO("error deleting staging data")).build();
+			return Response.status(400).entity(WebUtility.getSO("error deleting staging data")).build();
 		}
 
 		return Response.status(200).entity(WebUtility.getSO("success")).build();

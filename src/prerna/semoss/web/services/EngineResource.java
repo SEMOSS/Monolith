@@ -1600,7 +1600,7 @@ public class EngineResource {
 			FormBuilder.commitFormData(this.coreEngine, engineHash);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(200).entity(WebUtility.getSO(gson.toJson("error saving data"))).build();
+			return Response.status(400).entity(WebUtility.getSO(gson.toJson(e.getMessage()))).build();
 		}
 
 		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
