@@ -4,12 +4,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.sql.SQLException;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.io.IOUtils;
 import org.h2.jdbc.JdbcClob;
@@ -26,8 +30,10 @@ import prerna.util.Utility;
 
 public final class FormBuilder {
 
-	private static final DateFormat DF = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
-	
+	private static final DateFormat DATE_DF = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
+	private static final DateFormat SIMPLE_DATE_DF = new SimpleDateFormat("yyy-MM-dd");
+	private static final DateFormat GENERIC_DF = new SimpleDateFormat("E MMM dd HH:mm:ss Z yyyy");
+
 	private FormBuilder() {
 		
 	}
@@ -63,7 +69,7 @@ public final class FormBuilder {
 
 	public static void saveFormData(IEngine formBuilderEng, String formTableName, String userId, String formData) {
 		Calendar cal = Calendar.getInstance();
-		String currTime = DF.format(cal.getTime());
+		String currTime = DATE_DF.format(cal.getTime());
 
 		String getLastIdQuery = "SELECT DISTINCT ID FROM " + formTableName + " ORDER BY ID DESC";
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, getLastIdQuery);
@@ -82,8 +88,13 @@ public final class FormBuilder {
 	/**
 	 * 
 	 * @param form
+	 * @throws IOException 
 	 */
-	public static void commitFormData(IEngine engine, Map<String, Object> engineHash) {
+	public static void commitFormData(IEngine engine, Map<String, Object> engineHash) throws IOException {
+		if(engine == null) {
+			throw new IOException("Engine cannot be found");
+		}
+		
 		//TODO : need to grab this from the OWL or somewhere else
 		String semossBaseURI = "http://semoss.org/ontologies";
 
@@ -108,8 +119,7 @@ public final class FormBuilder {
 		} else if(engine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
 			saveRDBMSFormData(engine, baseURI, relationBaseURI, conceptBaseURI, propertyBaseURI, nodes, relationships);
 		} else {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Engine type not found!");
+			throw new IOException("Engine type cannot be found");
 		}
 
 		//commit information to db
@@ -215,6 +225,8 @@ public final class FormBuilder {
 		String tableValue;
 		Map<String, Map<String, String>> nodeMapping = new HashMap<String, Map<String, String>>();
 
+		Map<String, Map<String, String>> tableColTypesHash = getExistingRDBMSInfo(engine);
+		
 		for(int j = 0; j < nodes.size(); j++) {
 			Map<String, Object> node = nodes.get(j);
 
@@ -224,17 +236,31 @@ public final class FormBuilder {
 			tableColumn = Utility.getClassName(nodeURI);
 			tableValue = node.get("conceptValue").toString();
 			
+			Map<String, String> colNamesAndType = tableColTypesHash.get(tableName);
+			if(colNamesAndType == null) {
+				throw new IllegalArgumentException("Table name, " + tableName + ", cannot be found.");
+			}
+			if(!colNamesAndType.containsKey(tableColumn)) {
+				throw new IllegalArgumentException("Table column, " + tableColumn + ", within table name, " + tableName + ", cannot be found.");
+			}
+			
 			List<Map<String, Object>> properties = (List<Map<String, Object>>)node.get("properties");
 			Map<String, String> innerMap = new HashMap<String, String>();
 			innerMap.put(tableColumn, tableValue);
 			nodeMapping.put(tableName, innerMap);
 
-			List<String> propTypes = new ArrayList<String>();
+			List<String> propNames = new ArrayList<String>();
 			List<Object> propValues = new ArrayList<Object>();
+			List<String> types = new ArrayList<String>();
 			for(int k = 0; k < properties.size(); k++) {
 				Map<String, Object> property = properties.get(k);
-				propTypes.add(Utility.getInstanceName(property.get("propertyName").toString()));
+				String propName = Utility.getInstanceName(property.get("propertyName").toString());
+				if(!colNamesAndType.containsKey(propName)) {
+					throw new IllegalArgumentException("Table column, " + propName + ", within table name, " + tableName + ", cannot be found.");
+				}
+				propNames.add(propName);
 				propValues.add(property.get("propertyValue"));
+				types.add(colNamesAndType.get(propName));
 			}
 
 			StringBuilder insertQuery = new StringBuilder();
@@ -242,11 +268,11 @@ public final class FormBuilder {
 			insertQuery.append(tableName.toUpperCase());
 			insertQuery.append(" (");
 			insertQuery.append(tableColumn.toUpperCase());
-			if(propTypes.size() > 0) {
+			if(propNames.size() > 0) {
 				insertQuery.append(",");
-				for(int i = 0; i < propTypes.size(); i++) {
-					insertQuery.append(propTypes.get(i).toUpperCase());
-					if(i != propTypes.size() - 1) {
+				for(int i = 0; i < propNames.size(); i++) {
+					insertQuery.append(propNames.get(i).toUpperCase());
+					if(i != propNames.size() - 1) {
 						insertQuery.append(",");
 					}
 				}
@@ -256,18 +282,44 @@ public final class FormBuilder {
 			insertQuery.append(tableValue);
 			insertQuery.append("'");
 
-			if(propTypes.size() > 0) {
+			if(propNames.size() > 0) {
 				insertQuery.append(",");
 				for(int i = 0; i < propValues.size(); i++) {
 					Object propertyValue = propValues.get(i);
-					if(propertyValue instanceof String) {
+					String type = types.get(i);
+					if(type.contains("VARCHAR")) {
 						insertQuery.append("'");
 						insertQuery.append(propertyValue.toString().toUpperCase());
 						insertQuery.append("'");
-					} else {
+					} else if(type.equals("INT") || type.equals("DECIMAL") || type.equals("DOUBLE") || type.equals("LONG") || type.contains("BIGINT")
+							|| type.contains("TINYINT") || type.contains("SMALLINT")){
 						insertQuery.append(propertyValue);
+					} else  if(type.equals("DATE")) {
+						Date dateValue = null;
+						try {
+							dateValue = GENERIC_DF.parse(propertyValue + "");
+						} catch (ParseException e) {
+							e.printStackTrace();
+							throw new IllegalArgumentException("Input value, " + propertyValue + " for column " + propNames.get(i) + " cannot be parsed as a date.");
+						}
+						propertyValue = SIMPLE_DATE_DF.format(dateValue);
+						insertQuery.append("'");
+						insertQuery.append(propertyValue);
+						insertQuery.append("'");
+					} else if(type.equals("TIMESTAMP")) {
+						Date dateValue = null;
+						try {
+							dateValue = GENERIC_DF.parse(propertyValue + "");
+						} catch (ParseException e) {
+							e.printStackTrace();
+							throw new IllegalArgumentException("Input value, " + propertyValue + " for column " + propNames.get(i) + " cannot be parsed as a date.");
+						}
+						propertyValue = DATE_DF.format(dateValue);
+						insertQuery.append("'");
+						insertQuery.append(propertyValue);
+						insertQuery.append("'");
 					}
-					if(i != propTypes.size() - 1) {
+					if(i != propNames.size() - 1) {
 						insertQuery.append(", ");
 					}
 				}
@@ -340,6 +392,41 @@ public final class FormBuilder {
 			}
 			engine.insertData(updateQuery.toString());
 		}
+	}
+	
+	//TODO: need to make this generic for any rdbms engine
+	//TODO: need to expose what the rdbms type is such that we can use the SQLQueryUtil
+	private static Map<String, Map<String, String>> getExistingRDBMSInfo(IEngine rdbmsEngine) {
+		Map<String, Map<String, String>> retMap = new HashMap<String, Map<String, String>>();
+		
+		// get all the tables names in the H2 database
+		String getAllTablesQuery = "SHOW TABLES FROM PUBLIC";
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(rdbmsEngine, getAllTablesQuery);
+		Set<String> tableNames = new HashSet<String>();
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			String tableName = ss.getVar("TABLE_NAME") + "";
+			tableNames.add(tableName);
+		}
+		
+		// get all the columns and their types for each table name
+		String defaultColTypesQuery = "SHOW COLUMNS FROM ";
+		for(String tableName : tableNames) {
+			String getAllColTypesQuery = defaultColTypesQuery + tableName;
+			wrapper = WrapperManager.getInstance().getSWrapper(rdbmsEngine, getAllColTypesQuery);
+			Map<String, String> colTypeHash = new HashMap<String, String>();
+			while(wrapper.hasNext()) {
+				ISelectStatement ss = wrapper.next();
+				String colName = ss.getVar("FIELD") + "";
+				String colType = ss.getVar("TYPE") + "";
+				colTypeHash.put(colName, colType);
+			}
+			
+			// add the table name and column type for the table name
+			retMap.put(tableName, colTypeHash);
+		}
+		
+		return retMap;
 	}
 	
 	public static List<Map<String, String>> getStagingData(IEngine formBuilderEng, String formTableName) {
