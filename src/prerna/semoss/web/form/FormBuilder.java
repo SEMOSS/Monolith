@@ -224,9 +224,10 @@ public final class FormBuilder {
 		String tableColumn;
 		String tableValue;
 		Map<String, Map<String, String>> nodeMapping = new HashMap<String, Map<String, String>>();
-
 		Map<String, Map<String, String>> tableColTypesHash = getExistingRDBMSInfo(engine);
 		
+		List<String> tablesToRemoveDuplicates = new ArrayList<String>();
+		List<String> colsForTablesToRemoveDuplicates = new ArrayList<String>();
 		for(int j = 0; j < nodes.size(); j++) {
 			Map<String, Object> node = nodes.get(j);
 
@@ -235,6 +236,11 @@ public final class FormBuilder {
 			tableName = Utility.getInstanceName(nodeURI);
 			tableColumn = Utility.getClassName(nodeURI);
 			tableValue = node.get("conceptValue").toString();
+			//TODO: need to stop doing this null check - assuming always overriding
+			boolean override = true;
+			if(node.get("override") != null) {
+				override = Boolean.parseBoolean(node.get("override").toString());
+			}
 			
 			Map<String, String> colNamesAndType = tableColTypesHash.get(tableName.toUpperCase());
 			if(colNamesAndType == null) {
@@ -263,72 +269,22 @@ public final class FormBuilder {
 				types.add(colNamesAndType.get(propName.toUpperCase()));
 			}
 
-			StringBuilder insertQuery = new StringBuilder();
-			insertQuery.append("INSERT INTO ");
-			insertQuery.append(tableName.toUpperCase());
-			insertQuery.append(" (");
-			insertQuery.append(tableColumn.toUpperCase());
-			if(propNames.size() > 0) {
-				insertQuery.append(",");
-				for(int i = 0; i < propNames.size(); i++) {
-					insertQuery.append(propNames.get(i).toUpperCase());
-					if(i != propNames.size() - 1) {
-						insertQuery.append(",");
-					}
+			if(override && conceptExists(engine, tableName, tableColumn, tableValue)) {
+				String updateQuery = createUpdateStatement(tableName, tableColumn, tableValue, propNames, propValues, types);
+				//TODO: need to enable modifying the actual instance name as opposed to only its properties.. this would set the updateQuery to never return back an empty string
+				if(!updateQuery.isEmpty()) {
+					engine.insertData(updateQuery);
 				}
-			}
-
-			insertQuery.append(") VALUES ('");
-			insertQuery.append(tableValue);
-			insertQuery.append("'");
-
-			if(propNames.size() > 0) {
-				insertQuery.append(",");
-				for(int i = 0; i < propValues.size(); i++) {
-					Object propertyValue = propValues.get(i);
-					String type = types.get(i);
-					if(type.contains("VARCHAR")) {
-						insertQuery.append("'");
-						insertQuery.append(propertyValue.toString().toUpperCase());
-						insertQuery.append("'");
-					} else if(type.contains("INT") || type.contains("DECIMAL") || type.contains("DOUBLE") || type.contains("LONG") || type.contains("BIGINT")
-							|| type.contains("TINYINT") || type.contains("SMALLINT")){
-						insertQuery.append(propertyValue);
-					} else  if(type.contains("DATE")) {
-						Date dateValue = null;
-						try {
-							dateValue = GENERIC_DF.parse(propertyValue + "");
-						} catch (ParseException e) {
-							e.printStackTrace();
-							throw new IllegalArgumentException("Input value, " + propertyValue + " for column " + propNames.get(i) + " cannot be parsed as a date.");
-						}
-						propertyValue = SIMPLE_DATE_DF.format(dateValue);
-						insertQuery.append("'");
-						insertQuery.append(propertyValue);
-						insertQuery.append("'");
-					} else if(type.contains("TIMESTAMP")) {
-						Date dateValue = null;
-						try {
-							dateValue = GENERIC_DF.parse(propertyValue + "");
-						} catch (ParseException e) {
-							e.printStackTrace();
-							throw new IllegalArgumentException("Input value, " + propertyValue + " for column " + propNames.get(i) + " cannot be parsed as a date.");
-						}
-						propertyValue = DATE_DF.format(dateValue);
-						insertQuery.append("'");
-						insertQuery.append(propertyValue);
-						insertQuery.append("'");
-					}
-					if(i != propNames.size() - 1) {
-						insertQuery.append(", ");
-					}
+				if(!tablesToRemoveDuplicates.contains(tableName)) {
+					tablesToRemoveDuplicates.add(tableName);
+					colsForTablesToRemoveDuplicates.add(tableColumn);
 				}
+			} else {
+				String insertQuery = createInsertStatement(tableName, tableColumn, tableValue, propNames, propValues, types);
+				engine.insertData(insertQuery);
 			}
-			insertQuery.append(");");
-
-			engine.insertData(insertQuery.toString());
 		}
-
+		
 		String startTable;
 		String startVal;
 		String startCol;
@@ -366,6 +322,11 @@ public final class FormBuilder {
 			if(!colNamesAndType.containsKey(endCol.toUpperCase())) {
 				throw new IllegalArgumentException("Table column, " + endCol + ", within table name, " + endTable + ", cannot be found.");
 			}
+			
+			boolean override = true;
+			if(relationship.get("override") != null) {
+				override = Boolean.parseBoolean(relationship.get("override").toString());
+			}
 
 			boolean addToStart = false;
 			String[] relVals = Utility.getInstanceName(relationship.get("relType").toString()).split("\\.");
@@ -394,6 +355,12 @@ public final class FormBuilder {
 				updateQuery.append(startVal);
 				updateQuery.append("';");
 				
+				if(override && conceptExists(engine, startTable, startCol, startVal)) {
+					if(!tablesToRemoveDuplicates.contains(startTable)) {
+						tablesToRemoveDuplicates.add(startTable);
+						colsForTablesToRemoveDuplicates.add(startCol);
+					}
+				}
 			} else {
 				updateQuery.append("UPDATE ");
 				updateQuery.append(endTable.toUpperCase());
@@ -406,11 +373,39 @@ public final class FormBuilder {
 				updateQuery.append("='");
 				updateQuery.append(endVal);
 				updateQuery.append("';");
+				
+				if(override && conceptExists(engine, endTable, endCol, endVal)) {
+					if(!tablesToRemoveDuplicates.contains(endTable)) {
+						tablesToRemoveDuplicates.add(endTable);
+						colsForTablesToRemoveDuplicates.add(endCol);
+					}
+				}
 			}
 			engine.insertData(updateQuery.toString());
 		}
+		
+		//remove duplicates for all tables affected
+		removeDuplicates(engine, tablesToRemoveDuplicates, colsForTablesToRemoveDuplicates);
 	}
 	
+	private static void removeDuplicates(IEngine engine, List<String> tablesToRemoveDuplicates, List<String> colsForTablesToRemoveDuplicates) {
+		final String TEMP_EXTENSION = "____TEMP";
+		
+		for(int i = 0; i < tablesToRemoveDuplicates.size(); i++) {
+			String tableName = tablesToRemoveDuplicates.get(i);
+			String colName = colsForTablesToRemoveDuplicates.get(i);
+			
+			String query = "CREATE TABLE " + tableName + TEMP_EXTENSION + " AS (SELECT DISTINCT * FROM " + tableName + " WHERE " + colName + " IS NOT NULL AND TRIM(TITLE) <> '' )";
+			engine.insertData(query);
+			query = "DROP TABLE " + tableName;
+			engine.insertData(query);
+			query = "DROP TABLE " + tableName;
+			engine.insertData(query);
+			query = "ALTER TABLE " + tableName + TEMP_EXTENSION + " RENAME TO " + tableName;
+			engine.insertData(query);
+		}
+	}
+
 	//TODO: need to make this generic for any rdbms engine
 	//TODO: need to expose what the rdbms type is such that we can use the SQLQueryUtil
 	private static Map<String, Map<String, String>> getExistingRDBMSInfo(IEngine rdbmsEngine) {
@@ -444,6 +439,143 @@ public final class FormBuilder {
 		}
 		
 		return retMap;
+	}
+	
+	private static boolean conceptExists(IEngine engine, String tableName, String colName, String instanceValue) {
+		String query = "SELECT DISTINCT " + colName + " FROM " + tableName + " WHERE " + colName + "='" + escapeForSQLStatement(instanceValue) + "'";
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query);
+		while(wrapper.hasNext()) {
+			return true;
+		}
+		return false;
+	}
+	
+	private static String createInsertStatement(String tableName, String tableColumn, String tableValue, List<String> propNames, List<Object> propValues, List<String> types) {
+		StringBuilder insertQuery = new StringBuilder();
+		insertQuery.append("INSERT INTO ");
+		insertQuery.append(tableName.toUpperCase());
+		insertQuery.append(" (");
+		insertQuery.append(tableColumn.toUpperCase());
+		if(propNames.size() > 0) {
+			insertQuery.append(",");
+			for(int i = 0; i < propNames.size(); i++) {
+				insertQuery.append(propNames.get(i).toUpperCase());
+				if(i != propNames.size() - 1) {
+					insertQuery.append(",");
+				}
+			}
+		}
+
+		insertQuery.append(") VALUES ('");
+		insertQuery.append(tableValue);
+		insertQuery.append("'");
+
+		if(propNames.size() > 0) {
+			insertQuery.append(",");
+			for(int i = 0; i < propValues.size(); i++) {
+				Object propertyValue = propValues.get(i);
+				String type = types.get(i);
+				if(type.contains("VARCHAR")) {
+					insertQuery.append("'");
+					insertQuery.append(propertyValue.toString().toUpperCase());
+					insertQuery.append("'");
+				} else if(type.contains("INT") || type.contains("DECIMAL") || type.contains("DOUBLE") || type.contains("LONG") || type.contains("BIGINT")
+						|| type.contains("TINYINT") || type.contains("SMALLINT")){
+					insertQuery.append(propertyValue);
+				} else  if(type.contains("DATE")) {
+					Date dateValue = null;
+					try {
+						dateValue = GENERIC_DF.parse(propertyValue + "");
+					} catch (ParseException e) {
+						e.printStackTrace();
+						throw new IllegalArgumentException("Input value, " + propertyValue + " for column " + propNames.get(i) + " cannot be parsed as a date.");
+					}
+					propertyValue = SIMPLE_DATE_DF.format(dateValue);
+					insertQuery.append("'");
+					insertQuery.append(propertyValue);
+					insertQuery.append("'");
+				} else if(type.contains("TIMESTAMP")) {
+					Date dateValue = null;
+					try {
+						dateValue = GENERIC_DF.parse(propertyValue + "");
+					} catch (ParseException e) {
+						e.printStackTrace();
+						throw new IllegalArgumentException("Input value, " + propertyValue + " for column " + propNames.get(i) + " cannot be parsed as a date.");
+					}
+					propertyValue = DATE_DF.format(dateValue);
+					insertQuery.append("'");
+					insertQuery.append(propertyValue);
+					insertQuery.append("'");
+				}
+				if(i != propNames.size() - 1) {
+					insertQuery.append(", ");
+				}
+			}
+		}
+		insertQuery.append(");");
+		
+		return insertQuery.toString();
+	}
+	
+	private static String createUpdateStatement(String tableName, String tableColumn, String tableValue, List<String> propNames, List<Object> propValues, List<String> types) {
+		if(propNames.size() == 0) {
+			return "";
+		}
+		
+		StringBuilder insertQuery = new StringBuilder();
+		insertQuery.append("UPDATE ");
+		insertQuery.append(tableName.toUpperCase());
+		insertQuery.append(" SET ");
+		for(int i = 0; i < propNames.size(); i++) {
+			String propName = propNames.get(i).toUpperCase();
+			Object propertyValue = propValues.get(i);
+			String type = types.get(i);
+			insertQuery.append(propName);
+			insertQuery.append("=");
+			if(type.contains("VARCHAR")) {
+				insertQuery.append("'");
+				insertQuery.append(propertyValue.toString().toUpperCase());
+				insertQuery.append("'");
+			} else if(type.contains("INT") || type.contains("DECIMAL") || type.contains("DOUBLE") || type.contains("LONG") || type.contains("BIGINT")
+					|| type.contains("TINYINT") || type.contains("SMALLINT")){
+				insertQuery.append(propertyValue);
+			} else  if(type.contains("DATE")) {
+				Date dateValue = null;
+				try {
+					dateValue = GENERIC_DF.parse(propertyValue + "");
+				} catch (ParseException e) {
+					e.printStackTrace();
+					throw new IllegalArgumentException("Input value, " + propertyValue + " for column " + propNames.get(i) + " cannot be parsed as a date.");
+				}
+				propertyValue = SIMPLE_DATE_DF.format(dateValue);
+				insertQuery.append("'");
+				insertQuery.append(propertyValue);
+				insertQuery.append("'");
+			} else if(type.contains("TIMESTAMP")) {
+				Date dateValue = null;
+				try {
+					dateValue = GENERIC_DF.parse(propertyValue + "");
+				} catch (ParseException e) {
+					e.printStackTrace();
+					throw new IllegalArgumentException("Input value, " + propertyValue + " for column " + propNames.get(i) + " cannot be parsed as a date.");
+				}
+				propertyValue = DATE_DF.format(dateValue);
+				insertQuery.append("'");
+				insertQuery.append(propertyValue);
+				insertQuery.append("'");
+			}
+			if(i != propNames.size() - 1) {
+				insertQuery.append(",");
+			}
+		}
+
+		insertQuery.append(" WHERE ");
+		insertQuery.append(tableColumn);
+		insertQuery.append("='");
+		insertQuery.append(tableValue);
+		insertQuery.append("'");
+
+		return insertQuery.toString();
 	}
 	
 	public static List<Map<String, String>> getStagingData(IEngine formBuilderEng, String formTableName) {
