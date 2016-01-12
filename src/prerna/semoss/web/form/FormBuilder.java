@@ -395,7 +395,7 @@ public final class FormBuilder {
 			String tableName = tablesToRemoveDuplicates.get(i);
 			String colName = colsForTablesToRemoveDuplicates.get(i);
 			
-			String query = "CREATE TABLE " + tableName + TEMP_EXTENSION + " AS (SELECT DISTINCT * FROM " + tableName + " WHERE " + colName + " IS NOT NULL AND TRIM(TITLE) <> '' )";
+			String query = "CREATE TABLE " + tableName + TEMP_EXTENSION + " AS (SELECT DISTINCT * FROM " + tableName + " WHERE " + colName + " IS NOT NULL AND TRIM(" + colName + ") <> '' )";
 			engine.insertData(query);
 			query = "DROP TABLE " + tableName;
 			engine.insertData(query);
