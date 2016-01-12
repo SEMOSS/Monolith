@@ -257,6 +257,7 @@ public final class FormBuilder {
 
 		List<String> tablesToRemoveDuplicates = new ArrayList<String>();
 		List<String> colsForTablesToRemoveDuplicates = new ArrayList<String>();
+		Map<String, List<String>> addedInstances = new HashMap<String, List<String>>();
 		for(int j = 0; j < nodes.size(); j++) {
 			Map<String, Object> node = nodes.get(j);
 
@@ -311,6 +312,13 @@ public final class FormBuilder {
 			} else {
 				String insertQuery = createInsertStatement(tableName, tableColumn, tableValue, propNames, propValues, types);
 				engine.insertData(insertQuery);
+				if(!addedInstances.containsKey(tableName+tableColumn)) {
+					List<String> instanceList = new ArrayList<String>();
+					instanceList.add(tableValue);
+					addedInstances.put(tableName + tableColumn, instanceList);
+				} else {
+					addedInstances.get(tableName + tableColumn).add(tableValue);
+				}
 			}
 		}
 
@@ -370,66 +378,47 @@ public final class FormBuilder {
 			}
 
 			StringBuilder updateQuery = new StringBuilder();
+			StringBuilder deleteBuilder = new StringBuilder();
 
 			if(addToStart) {
-
 				// need to check that concept exists to update, or else just do an insert
-				if(conceptExists(engine, startTable, endTable + _FK, endVal)) {
-					updateQuery.append("UPDATE ");
-					updateQuery.append(startTable.toUpperCase());
-					updateQuery.append(" SET " );
-					updateQuery.append(startCol);
-					updateQuery.append("='");
-					updateQuery.append(startVal);
-					updateQuery.append("' WHERE ");
-					updateQuery.append(endTable + _FK);
-					updateQuery.append("='");
-					updateQuery.append(endVal);
-					updateQuery.append("';");
+				if(addedInstances.containsKey(startTable + startCol) && addedInstances.get(startTable + startCol).contains(startVal)) {
+					updateQuery.append("UPDATE ").append(startTable.toUpperCase()).append(" SET " ).append(endTable + _FK).append("='")
+									.append(endVal).append("' WHERE ").append(startCol).append("='").append(startVal).append("';");
+					
+					if(override) {
+						//delete all other previous values
+						deleteBuilder.append("DELETE FROM ").append(startTable).append(" WHERE ").append(endTable + _FK).append("='")
+									.append(endVal).append("' AND ").append(startCol).append(" <> '").append(startVal).append("'");
+					}
+				} else if(conceptExists(engine, startTable, endTable + _FK, endVal)) {
+					updateQuery.append("UPDATE ").append(startTable.toUpperCase()).append(" SET " ).append(startCol).append("='").append(startVal)
+									.append("' WHERE ").append(endTable + _FK).append("='").append(endVal).append("';");
 				} else {
-					updateQuery.append("INSERT INTO ");
-					updateQuery.append(startTable.toUpperCase());
-					updateQuery.append(" (" );
-					updateQuery.append(startCol);
-					updateQuery.append(", ");
-					updateQuery.append(endTable + _FK);
-					updateQuery.append(") VALUES ('");
-					updateQuery.append(startVal);
-					updateQuery.append("', '");
-					updateQuery.append(endVal);
-					updateQuery.append("')");
+					updateQuery.append("INSERT INTO ").append(startTable.toUpperCase()).append(" (" ).append(startCol).append(", ").append(endTable + _FK)
+									.append(") VALUES ('").append(startVal).append("', '").append(endVal).append("')");
 				}
-
 				if(override && !tablesToRemoveDuplicates.contains(startTable)) {
 					tablesToRemoveDuplicates.add(startTable);
 					colsForTablesToRemoveDuplicates.add(startCol);
 				}
 			} else {
 				// need to check that value exists to update, or else just do an insert
-				if(conceptExists(engine, endTable, startTable + _FK, startVal)) {
-					updateQuery.append("UPDATE ");
-					updateQuery.append(endTable.toUpperCase());
-					updateQuery.append(" SET " );
-					updateQuery.append(endCol);
-					updateQuery.append("='");
-					updateQuery.append(endVal);
-					updateQuery.append("' WHERE ");
-					updateQuery.append(startTable + _FK);
-					updateQuery.append("='");
-					updateQuery.append(startVal);
-					updateQuery.append("';");
+				if(addedInstances.containsKey(endTable + endCol) && addedInstances.get(endTable + endCol).contains(endVal)) {
+					updateQuery.append("UPDATE ").append(endTable.toUpperCase()).append(" SET " ).append(startTable + _FK).append("='").append(startVal)
+									.append("' WHERE ").append(endCol).append("='").append(endVal).append("';");
+					
+					if(override) {
+						//delete all other previous values
+						deleteBuilder.append("DELETE FROM ").append(endTable).append(" WHERE ").append(startTable + _FK).append("='")
+									.append(startVal).append("' AND ").append(endCol).append(" <> '").append(endVal).append("'");
+					}
+				} else if(conceptExists(engine, endTable, startTable + _FK, startVal)) {
+					updateQuery.append("UPDATE ").append(endTable.toUpperCase()).append(" SET " ).append(endCol).append("='").append(endVal).append("' WHERE ")
+									.append(startTable + _FK).append("='").append(startVal).append("';");
 				} else {
-					updateQuery.append("INSERT INTO ");
-					updateQuery.append(endTable.toUpperCase());
-					updateQuery.append(" (" );
-					updateQuery.append(endCol);
-					updateQuery.append(", ");
-					updateQuery.append(startTable + _FK);
-					updateQuery.append(") VALUES ('");
-					updateQuery.append(endVal);
-					updateQuery.append("', '");
-					updateQuery.append(startVal);
-					updateQuery.append("')");
+					updateQuery.append("INSERT INTO ").append(endTable.toUpperCase()).append(" (" ).append(endCol).append(", ").append(startTable + _FK)
+									.append(") VALUES ('").append(endVal).append("', '").append(startVal).append("')");
 				}
 				if(override && !tablesToRemoveDuplicates.contains(endTable)) {
 					tablesToRemoveDuplicates.add(endTable);
@@ -437,6 +426,9 @@ public final class FormBuilder {
 				}
 			}
 			engine.insertData(updateQuery.toString());
+			if(!deleteBuilder.toString().isEmpty()) {
+				engine.removeData(deleteBuilder.toString());
+			}
 		}
 
 		//remove duplicates for all tables affected
