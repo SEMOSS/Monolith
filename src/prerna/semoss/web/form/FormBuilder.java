@@ -22,8 +22,6 @@ import org.openrdf.model.vocabulary.RDFS;
 
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.engine.api.IEngine;
-import prerna.engine.impl.AbstractEngine;
-import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -37,7 +35,7 @@ public final class FormBuilder {
 	private static final DateFormat GENERIC_DF = new SimpleDateFormat("yyy-MM-dd'T'hh:mm:ss.SSSSSS'Z'");
 
 	private FormBuilder() {
-		
+
 	}
 
 	/**
@@ -60,7 +58,7 @@ public final class FormBuilder {
 		if((Double)f2.getData().get(0)[0] != 0 ) {
 			throw new IOException("Form name already exists. Please modify the form name.");
 		}
-		
+
 		//add form location into formbuilder db
 		String insertMetadata = "INSERT INTO FORM_METADATA (FORM_NAME, FORM_TABLE, FORM_LOCATION) VALUES('" + formName + "', '" + formStorage + "', '" + formLocation + "')";
 		formBuilderEng.insertData(insertMetadata);
@@ -81,12 +79,12 @@ public final class FormBuilder {
 			lastIdNum = (int) wrapper.next().getVar(retName);
 		}
 		lastIdNum++;
-		
+
 		String insertSql = "INSERT INTO " + formTableName + " (ID, USER_ID, DATE_ADDED, DATA) VALUES("
 				+ "'" + lastIdNum + "', '" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(formData) + "')";
 		formBuilderEng.insertData(insertSql);
 	}
-	
+
 	/**
 	 * 
 	 * @param form
@@ -96,7 +94,7 @@ public final class FormBuilder {
 		if(engine == null) {
 			throw new IOException("Engine cannot be found");
 		}
-		
+
 		String semossBaseURI = "http://semoss.org/ontologies";
 		String baseURI = engine.getNodeBaseUri();
 		if(baseURI != null && !baseURI.isEmpty()) {
@@ -160,7 +158,7 @@ public final class FormBuilder {
 			if(node.get("override") != null) {
 				override = Boolean.parseBoolean(node.get("override").toString());
 			}
-			
+
 			instanceConceptURI = baseURI + "/Concept/" + Utility.getInstanceName(nodeType) + "/" + nodeValue;
 			// no need to add if overriding, triples already there
 			if(!override) {
@@ -224,7 +222,7 @@ public final class FormBuilder {
 
 	private static void removeRDFNodeProp(IEngine engine, String instanceConceptURI, String propertyURI) {
 		String getOldNodePropValuesQuery = "SELECT DISTINCT ?propVal WHERE { BIND(<" + instanceConceptURI + "> AS ?instance) {?instance <" + propertyURI + "> ?propVal} }";
-		
+
 		List<Object> propVals = new ArrayList<Object>();
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, getOldNodePropValuesQuery);
 		String[] names = wrapper.getVariables();
@@ -232,12 +230,12 @@ public final class FormBuilder {
 			ISelectStatement ss = wrapper.next();
 			propVals.add(ss.getVar(names[0]));
 		}
-		
+
 		for(Object propertyValue : propVals) {
 			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
 		}
 	}
-	
+
 	/**
 	 * 
 	 * @param engine
@@ -256,7 +254,7 @@ public final class FormBuilder {
 		String tableValue;
 		Map<String, Map<String, String>> nodeMapping = new HashMap<String, Map<String, String>>();
 		Map<String, Map<String, String>> tableColTypesHash = getExistingRDBMSStructure(engine);
-		
+
 		List<String> tablesToRemoveDuplicates = new ArrayList<String>();
 		List<String> colsForTablesToRemoveDuplicates = new ArrayList<String>();
 		for(int j = 0; j < nodes.size(); j++) {
@@ -272,7 +270,7 @@ public final class FormBuilder {
 			if(node.get("override") != null) {
 				override = Boolean.parseBoolean(node.get("override").toString());
 			}
-			
+
 			Map<String, String> colNamesAndType = tableColTypesHash.get(tableName.toUpperCase());
 			if(colNamesAndType == null) {
 				throw new IllegalArgumentException("Table name, " + tableName + ", cannot be found.");
@@ -280,7 +278,7 @@ public final class FormBuilder {
 			if(!colNamesAndType.containsKey(tableColumn.toUpperCase())) {
 				throw new IllegalArgumentException("Table column, " + tableColumn + ", within table name, " + tableName + ", cannot be found.");
 			}
-			
+
 			List<Map<String, Object>> properties = (List<Map<String, Object>>)node.get("properties");
 			Map<String, String> innerMap = new HashMap<String, String>();
 			innerMap.put(tableColumn, tableValue);
@@ -315,7 +313,7 @@ public final class FormBuilder {
 				engine.insertData(insertQuery);
 			}
 		}
-		
+
 		String startTable;
 		String startVal;
 		String startCol;
@@ -340,7 +338,7 @@ public final class FormBuilder {
 			if(!colNamesAndType.containsKey(startCol.toUpperCase())) {
 				throw new IllegalArgumentException("Table column, " + startCol + ", within table name, " + startTable + ", cannot be found.");
 			}
-			
+
 			String endURI = relationship.get("endNodeType").toString();
 			endTable = Utility.getInstanceName(endURI);
 			endCol =  Utility.getClassName(endURI);
@@ -353,7 +351,7 @@ public final class FormBuilder {
 			if(!colNamesAndType.containsKey(endCol.toUpperCase())) {
 				throw new IllegalArgumentException("Table column, " + endCol + ", within table name, " + endTable + ", cannot be found.");
 			}
-			
+
 			boolean override = true;
 			if(relationship.get("override") != null) {
 				override = Boolean.parseBoolean(relationship.get("override").toString());
@@ -370,62 +368,88 @@ public final class FormBuilder {
 					addToStart = true;
 				}
 			}
-			
+
 			StringBuilder updateQuery = new StringBuilder();
-			
+
 			if(addToStart) {
-				updateQuery.append("UPDATE ");
-				updateQuery.append(startTable.toUpperCase());
-				updateQuery.append(" SET " );
-				updateQuery.append(startCol);
-				updateQuery.append("='");
-				updateQuery.append(startVal);
-				updateQuery.append("' WHERE ");
-				updateQuery.append(endTable + _FK);
-				updateQuery.append("='");
-				updateQuery.append(endVal);
-				updateQuery.append("';");
-				
-				if(override && conceptExists(engine, startTable, startCol, startVal)) {
-					if(!tablesToRemoveDuplicates.contains(startTable)) {
-						tablesToRemoveDuplicates.add(startTable);
-						colsForTablesToRemoveDuplicates.add(startCol);
-					}
+
+				// need to check that concept exists to update, or else just do an insert
+				if(conceptExists(engine, startTable, endTable + _FK, endVal)) {
+					updateQuery.append("UPDATE ");
+					updateQuery.append(startTable.toUpperCase());
+					updateQuery.append(" SET " );
+					updateQuery.append(startCol);
+					updateQuery.append("='");
+					updateQuery.append(startVal);
+					updateQuery.append("' WHERE ");
+					updateQuery.append(endTable + _FK);
+					updateQuery.append("='");
+					updateQuery.append(endVal);
+					updateQuery.append("';");
+				} else {
+					updateQuery.append("INSERT INTO ");
+					updateQuery.append(startTable.toUpperCase());
+					updateQuery.append(" (" );
+					updateQuery.append(startCol);
+					updateQuery.append(", ");
+					updateQuery.append(endTable + _FK);
+					updateQuery.append(") VALUES ('");
+					updateQuery.append(startVal);
+					updateQuery.append("', '");
+					updateQuery.append(endVal);
+					updateQuery.append("')");
+				}
+
+				if(override && !tablesToRemoveDuplicates.contains(startTable)) {
+					tablesToRemoveDuplicates.add(startTable);
+					colsForTablesToRemoveDuplicates.add(startCol);
 				}
 			} else {
-				updateQuery.append("UPDATE ");
-				updateQuery.append(endTable.toUpperCase());
-				updateQuery.append(" SET " );
-				updateQuery.append(endCol);
-				updateQuery.append("='");
-				updateQuery.append(endVal);
-				updateQuery.append("' WHERE ");
-				updateQuery.append(startTable + _FK);
-				updateQuery.append("='");
-				updateQuery.append(startVal);
-				updateQuery.append("';");
-				
-				if(override && conceptExists(engine, endTable, endCol, endVal)) {
-					if(!tablesToRemoveDuplicates.contains(endTable)) {
-						tablesToRemoveDuplicates.add(endTable);
-						colsForTablesToRemoveDuplicates.add(endCol);
-					}
+				// need to check that value exists to update, or else just do an insert
+				if(conceptExists(engine, endTable, startTable + _FK, startVal)) {
+					updateQuery.append("UPDATE ");
+					updateQuery.append(endTable.toUpperCase());
+					updateQuery.append(" SET " );
+					updateQuery.append(endCol);
+					updateQuery.append("='");
+					updateQuery.append(endVal);
+					updateQuery.append("' WHERE ");
+					updateQuery.append(startTable + _FK);
+					updateQuery.append("='");
+					updateQuery.append(startVal);
+					updateQuery.append("';");
+				} else {
+					updateQuery.append("INSERT INTO ");
+					updateQuery.append(endTable.toUpperCase());
+					updateQuery.append(" (" );
+					updateQuery.append(endCol);
+					updateQuery.append(", ");
+					updateQuery.append(startTable + _FK);
+					updateQuery.append(") VALUES ('");
+					updateQuery.append(endVal);
+					updateQuery.append("', '");
+					updateQuery.append(startVal);
+					updateQuery.append("')");
+				}
+				if(override && !tablesToRemoveDuplicates.contains(endTable)) {
+					tablesToRemoveDuplicates.add(endTable);
+					colsForTablesToRemoveDuplicates.add(endCol);
 				}
 			}
 			engine.insertData(updateQuery.toString());
 		}
-		
+
 		//remove duplicates for all tables affected
 		removeDuplicates(engine, tablesToRemoveDuplicates, colsForTablesToRemoveDuplicates);
 	}
-	
+
 	private static void removeDuplicates(IEngine engine, List<String> tablesToRemoveDuplicates, List<String> colsForTablesToRemoveDuplicates) {
 		final String TEMP_EXTENSION = "____TEMP";
-		
+
 		for(int i = 0; i < tablesToRemoveDuplicates.size(); i++) {
 			String tableName = tablesToRemoveDuplicates.get(i);
 			String colName = colsForTablesToRemoveDuplicates.get(i);
-			
+
 			String query = "CREATE TABLE " + tableName + TEMP_EXTENSION + " AS (SELECT DISTINCT * FROM " + tableName + " WHERE " + colName + " IS NOT NULL AND TRIM(" + colName + ") <> '' )";
 			engine.insertData(query);
 			query = "DROP TABLE " + tableName;
@@ -439,7 +463,7 @@ public final class FormBuilder {
 	//TODO: need to expose what the rdbms type is such that we can use the SQLQueryUtil
 	private static Map<String, Map<String, String>> getExistingRDBMSStructure(IEngine rdbmsEngine) {
 		Map<String, Map<String, String>> retMap = new HashMap<String, Map<String, String>>();
-		
+
 		// get all the tables names in the H2 database
 		String getAllTablesQuery = "SHOW TABLES FROM PUBLIC";
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(rdbmsEngine, getAllTablesQuery);
@@ -450,7 +474,7 @@ public final class FormBuilder {
 			String tableName = ss.getVar("TABLE_NAME") + "";
 			tableNames.add(tableName);
 		}
-		
+
 		// get all the columns and their types for each table name
 		String defaultColTypesQuery = "SHOW COLUMNS FROM ";
 		for(String tableName : tableNames) {
@@ -464,14 +488,14 @@ public final class FormBuilder {
 				String colType = ss.getVar("TYPE") + "";
 				colTypeHash.put(colName, colType);
 			}
-			
+
 			// add the table name and column type for the table name
 			retMap.put(tableName, colTypeHash);
 		}
-		
+
 		return retMap;
 	}
-	
+
 	private static boolean conceptExists(IEngine engine, String tableName, String colName, String instanceValue) {
 		String query = "SELECT DISTINCT " + colName + " FROM " + tableName + " WHERE " + colName + "='" + escapeForSQLStatement(instanceValue) + "'";
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query);
@@ -481,7 +505,7 @@ public final class FormBuilder {
 		}
 		return false;
 	}
-	
+
 	private static String createInsertStatement(String tableName, String tableColumn, String tableValue, List<String> propNames, List<Object> propValues, List<String> types) {
 		StringBuilder insertQuery = new StringBuilder();
 		insertQuery.append("INSERT INTO ");
@@ -545,15 +569,15 @@ public final class FormBuilder {
 			}
 		}
 		insertQuery.append(");");
-		
+
 		return insertQuery.toString();
 	}
-	
+
 	private static String createUpdateStatement(String tableName, String tableColumn, String tableValue, List<String> propNames, List<Object> propValues, List<String> types) {
 		if(propNames.size() == 0) {
 			return "";
 		}
-		
+
 		StringBuilder insertQuery = new StringBuilder();
 		insertQuery.append("UPDATE ");
 		insertQuery.append(tableName.toUpperCase());
@@ -609,12 +633,12 @@ public final class FormBuilder {
 
 		return insertQuery.toString();
 	}
-	
+
 	public static List<Map<String, String>> getStagingData(IEngine formBuilderEng, String formTableName) {
 		String sqlQuery = "SELECT ID, USER_ID, DATE_ADDED, DATA FROM " + formTableName;
-		
+
 		List<Map<String, String>> results = new ArrayList<Map<String, String>>();
-		
+
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, sqlQuery);
 		String[] names = wrapper.getVariables();
 		while(wrapper.hasNext()) {
@@ -624,7 +648,7 @@ public final class FormBuilder {
 			row.put("userId", ss.getVar(names[1]) + "");
 			row.put("dateAdded", ss.getVar(names[2]) + "");
 			JdbcClob obj = (JdbcClob) ss.getRawVar(names[3]);
-			
+
 			InputStream insightDefinition = null;
 			try {
 				insightDefinition = obj.getAsciiStream();
@@ -636,10 +660,10 @@ public final class FormBuilder {
 			}
 			results.add(row);
 		}
-		
+
 		return results;
 	}
-	
+
 	public static void deleteFromStaggingArea(IEngine formBuilderEng, String formName, String[] formIds) {
 		formName = cleanTableName(formName);
 		formName = escapeForSQLStatement(formName);
@@ -647,17 +671,17 @@ public final class FormBuilder {
 		String deleteQuery = "DELETE FROM " + formName + " WHERE ID IN " + idsString;
 		formBuilderEng.removeData(deleteQuery);
 	}
-	
+
 	private static String createIdString(String... ids){
 		String idsString = "(";
 		for(String id : ids){
 			idsString = idsString + "'" + id + "', ";
 		}
 		idsString = idsString.substring(0, idsString.length() - 2) + ")";
-		
+
 		return idsString;
 	}
-	
+
 	/**
 	 * Remove all non alpha-numeric underscores from form name
 	 * @param s
@@ -670,7 +694,7 @@ public final class FormBuilder {
 		s = s.replaceAll(" ", "_");
 		return s.replaceAll("[^a-zA-Z0-9\\_]", "");
 	}
-	
+
 	public static String escapeForSQLStatement(String s) {
 		return s.replaceAll("'", "''");
 	}
