@@ -399,8 +399,6 @@ public final class FormBuilder {
 			engine.insertData(query);
 			query = "DROP TABLE " + tableName;
 			engine.insertData(query);
-			query = "DROP TABLE " + tableName;
-			engine.insertData(query);
 			query = "ALTER TABLE " + tableName + TEMP_EXTENSION + " RENAME TO " + tableName;
 			engine.insertData(query);
 		}
