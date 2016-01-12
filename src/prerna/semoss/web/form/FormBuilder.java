@@ -22,6 +22,8 @@ import org.openrdf.model.vocabulary.RDFS;
 
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.engine.api.IEngine;
+import prerna.engine.impl.AbstractEngine;
+import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -95,12 +97,12 @@ public final class FormBuilder {
 			throw new IOException("Engine cannot be found");
 		}
 		
-		//TODO : need to grab this from the OWL or somewhere else
 		String semossBaseURI = "http://semoss.org/ontologies";
-
-		String baseURI = semossBaseURI;
-		if(engineHash.containsKey("baseURI")) {
-			baseURI = engineHash.get("baseURI").toString();
+		String baseURI = engine.getNodeBaseUri();
+		if(baseURI != null && !baseURI.isEmpty()) {
+			baseURI = baseURI.replace("/Concept/", "");
+		} else {
+			baseURI = semossBaseURI;
 		}
 
 		String relationBaseURI = semossBaseURI + "/" + Constants.DEFAULT_RELATION_CLASS;
@@ -153,10 +155,18 @@ public final class FormBuilder {
 			nodeType = node.get("conceptName").toString();
 			nodeValue = Utility.cleanString(node.get("conceptValue").toString(), true);
 			nodeMapping.put(nodeValue, nodeType);
-
+			//TODO: need to stop doing this null check - assuming always overriding
+			boolean override = true;
+			if(node.get("override") != null) {
+				override = Boolean.parseBoolean(node.get("override").toString());
+			}
+			
 			instanceConceptURI = baseURI + "/Concept/" + Utility.getInstanceName(nodeType) + "/" + nodeValue;
-			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDF.TYPE, nodeType, true});
-			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDFS.LABEL, nodeValue, false});
+			// no need to add if overriding, triples already there
+			if(!override) {
+				engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDF.TYPE, nodeType, true});
+				engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDFS.LABEL, nodeValue, false});
+			}
 
 			if(node.containsKey("properties")) {
 				List<HashMap<String, Object>> properties = (List<HashMap<String, Object>>)node.get("properties");
@@ -167,6 +177,9 @@ public final class FormBuilder {
 					propertyType = property.get("propertyName").toString();
 
 					propertyURI = propertyBaseURI + "/" + propertyType;
+					if(override) {
+						removeRDFNodeProp(engine, instanceConceptURI, propertyURI);
+					}
 					engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
 					engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{propertyURI, RDF.TYPE, propertyBaseURI, true});
 				}
@@ -185,6 +198,8 @@ public final class FormBuilder {
 
 		//Save the relationships
 		for(int i = 0; i < relationships.size(); i++) {
+			//TODO: how to deal with override
+			//TODO: which direction does the override occur in, the subject or the object?
 			Map<String, Object> relationship = relationships.get(i);
 			startNode = Utility.cleanString(relationship.get("startNodeVal").toString(), true);
 			endNode = Utility.cleanString(relationship.get("endNodeVal").toString(), true);
@@ -207,6 +222,22 @@ public final class FormBuilder {
 		}
 	}
 
+	private static void removeRDFNodeProp(IEngine engine, String instanceConceptURI, String propertyURI) {
+		String getOldNodePropValuesQuery = "SELECT DISTINCT ?propVal WHERE { BIND(<" + instanceConceptURI + "> AS ?instance) {?instance <" + propertyURI + "> ?propVal} }";
+		
+		List<Object> propVals = new ArrayList<Object>();
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, getOldNodePropValuesQuery);
+		String[] names = wrapper.getVariables();
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			propVals.add(ss.getVar(names[0]));
+		}
+		
+		for(Object propertyValue : propVals) {
+			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
+		}
+	}
+	
 	/**
 	 * 
 	 * @param engine
@@ -224,7 +255,7 @@ public final class FormBuilder {
 		String tableColumn;
 		String tableValue;
 		Map<String, Map<String, String>> nodeMapping = new HashMap<String, Map<String, String>>();
-		Map<String, Map<String, String>> tableColTypesHash = getExistingRDBMSInfo(engine);
+		Map<String, Map<String, String>> tableColTypesHash = getExistingRDBMSStructure(engine);
 		
 		List<String> tablesToRemoveDuplicates = new ArrayList<String>();
 		List<String> colsForTablesToRemoveDuplicates = new ArrayList<String>();
@@ -346,13 +377,13 @@ public final class FormBuilder {
 				updateQuery.append("UPDATE ");
 				updateQuery.append(startTable.toUpperCase());
 				updateQuery.append(" SET " );
-				updateQuery.append(endTable + _FK);
-				updateQuery.append("='");
-				updateQuery.append(endVal);
-				updateQuery.append("' WHERE ");
 				updateQuery.append(startCol);
 				updateQuery.append("='");
 				updateQuery.append(startVal);
+				updateQuery.append("' WHERE ");
+				updateQuery.append(endTable + _FK);
+				updateQuery.append("='");
+				updateQuery.append(endVal);
 				updateQuery.append("';");
 				
 				if(override && conceptExists(engine, startTable, startCol, startVal)) {
@@ -365,13 +396,13 @@ public final class FormBuilder {
 				updateQuery.append("UPDATE ");
 				updateQuery.append(endTable.toUpperCase());
 				updateQuery.append(" SET " );
-				updateQuery.append(startTable + _FK);
-				updateQuery.append("='");
-				updateQuery.append(startVal);
-				updateQuery.append("' WHERE ");
 				updateQuery.append(endCol);
 				updateQuery.append("='");
 				updateQuery.append(endVal);
+				updateQuery.append("' WHERE ");
+				updateQuery.append(startTable + _FK);
+				updateQuery.append("='");
+				updateQuery.append(startVal);
 				updateQuery.append("';");
 				
 				if(override && conceptExists(engine, endTable, endCol, endVal)) {
@@ -406,12 +437,13 @@ public final class FormBuilder {
 
 	//TODO: need to make this generic for any rdbms engine
 	//TODO: need to expose what the rdbms type is such that we can use the SQLQueryUtil
-	private static Map<String, Map<String, String>> getExistingRDBMSInfo(IEngine rdbmsEngine) {
+	private static Map<String, Map<String, String>> getExistingRDBMSStructure(IEngine rdbmsEngine) {
 		Map<String, Map<String, String>> retMap = new HashMap<String, Map<String, String>>();
 		
 		// get all the tables names in the H2 database
 		String getAllTablesQuery = "SHOW TABLES FROM PUBLIC";
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(rdbmsEngine, getAllTablesQuery);
+		String[] names = wrapper.getVariables();
 		Set<String> tableNames = new HashSet<String>();
 		while(wrapper.hasNext()) {
 			ISelectStatement ss = wrapper.next();
@@ -424,6 +456,7 @@ public final class FormBuilder {
 		for(String tableName : tableNames) {
 			String getAllColTypesQuery = defaultColTypesQuery + tableName;
 			wrapper = WrapperManager.getInstance().getSWrapper(rdbmsEngine, getAllColTypesQuery);
+			names = wrapper.getVariables();
 			Map<String, String> colTypeHash = new HashMap<String, String>();
 			while(wrapper.hasNext()) {
 				ISelectStatement ss = wrapper.next();
@@ -442,6 +475,7 @@ public final class FormBuilder {
 	private static boolean conceptExists(IEngine engine, String tableName, String colName, String instanceValue) {
 		String query = "SELECT DISTINCT " + colName + " FROM " + tableName + " WHERE " + colName + "='" + escapeForSQLStatement(instanceValue) + "'";
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query);
+		String[] names = wrapper.getVariables();
 		while(wrapper.hasNext()) {
 			return true;
 		}
