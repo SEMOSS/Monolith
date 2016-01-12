@@ -104,7 +104,7 @@ public class FormResource {
 			results = FormBuilder.getStagingData(formBuilderEng, formTableName);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(2400).entity(WebUtility.getSO("error retrieving data")).build();
+			return Response.status(400).entity(WebUtility.getSO("error retrieving data")).build();
 		}
 
 		return Response.status(200).entity(WebUtility.getSO((results))).build();
