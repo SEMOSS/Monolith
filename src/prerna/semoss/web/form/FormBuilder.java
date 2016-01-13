@@ -156,7 +156,7 @@ public final class FormBuilder {
 			//TODO: need to stop doing this null check - assuming always overriding
 			boolean override = false;
 			if(node.get("override") != null) {
-				override = Boolean.parseBoolean(node.get("override").toString());
+				override = Boolean.parseBoolean(node.get("overwrite").toString());
 			}
 
 			instanceConceptURI = baseURI + "/Concept/" + Utility.getInstanceName(nodeType) + "/" + nodeValue;
@@ -269,7 +269,7 @@ public final class FormBuilder {
 			//TODO: need to stop doing this null check - assuming always overriding
 			boolean override = false;
 			if(node.get("override") != null) {
-				override = Boolean.parseBoolean(node.get("override").toString());
+				override = Boolean.parseBoolean(node.get("overwrite").toString());
 			}
 
 			Map<String, String> colNamesAndType = tableColTypesHash.get(tableName.toUpperCase());
@@ -362,7 +362,7 @@ public final class FormBuilder {
 
 			boolean override = false;
 			if(relationship.get("override") != null) {
-				override = Boolean.parseBoolean(relationship.get("override").toString());
+				override = Boolean.parseBoolean(relationship.get("overwrite").toString());
 			}
 
 			boolean addToStart = false;
