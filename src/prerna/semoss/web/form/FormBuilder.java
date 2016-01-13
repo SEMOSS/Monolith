@@ -154,7 +154,7 @@ public final class FormBuilder {
 			nodeValue = Utility.cleanString(node.get("conceptValue").toString(), true);
 			nodeMapping.put(nodeValue, nodeType);
 			//TODO: need to stop doing this null check - assuming always overriding
-			boolean override = true;
+			boolean override = false;
 			if(node.get("override") != null) {
 				override = Boolean.parseBoolean(node.get("override").toString());
 			}
@@ -267,7 +267,7 @@ public final class FormBuilder {
 			tableColumn = Utility.getClassName(nodeURI);
 			tableValue = node.get("conceptValue").toString();
 			//TODO: need to stop doing this null check - assuming always overriding
-			boolean override = true;
+			boolean override = false;
 			if(node.get("override") != null) {
 				override = Boolean.parseBoolean(node.get("override").toString());
 			}
@@ -337,7 +337,7 @@ public final class FormBuilder {
 			String startURI = relationship.get("startNodeType").toString();
 			startTable = Utility.getInstanceName(startURI);
 			startCol = Utility.getClassName(startURI);
-			startVal = relationship.get("startNodeVal").toString();
+			startVal = escapeForSQLStatement(relationship.get("startNodeVal").toString());
 
 			colNamesAndType = tableColTypesHash.get(startTable.toUpperCase());
 			if(colNamesAndType == null) {
@@ -350,7 +350,7 @@ public final class FormBuilder {
 			String endURI = relationship.get("endNodeType").toString();
 			endTable = Utility.getInstanceName(endURI);
 			endCol =  Utility.getClassName(endURI);
-			endVal = relationship.get("endNodeVal").toString();
+			endVal = escapeForSQLStatement(relationship.get("endNodeVal").toString());
 
 			colNamesAndType = tableColTypesHash.get(endTable.toUpperCase());
 			if(colNamesAndType == null) {
@@ -360,7 +360,7 @@ public final class FormBuilder {
 				throw new IllegalArgumentException("Table column, " + endCol + ", within table name, " + endTable + ", cannot be found.");
 			}
 
-			boolean override = true;
+			boolean override = false;
 			if(relationship.get("override") != null) {
 				override = Boolean.parseBoolean(relationship.get("override").toString());
 			}
@@ -525,7 +525,7 @@ public final class FormBuilder {
 				String type = types.get(i);
 				if(type.contains("VARCHAR")) {
 					insertQuery.append("'");
-					insertQuery.append(propertyValue.toString().toUpperCase());
+					insertQuery.append(escapeForSQLStatement(propertyValue.toString()));
 					insertQuery.append("'");
 				} else if(type.contains("INT") || type.contains("DECIMAL") || type.contains("DOUBLE") || type.contains("LONG") || type.contains("BIGINT")
 						|| type.contains("TINYINT") || type.contains("SMALLINT")){
@@ -540,7 +540,7 @@ public final class FormBuilder {
 					}
 					propertyValue = SIMPLE_DATE_DF.format(dateValue);
 					insertQuery.append("'");
-					insertQuery.append(propertyValue);
+					insertQuery.append(escapeForSQLStatement(propertyValue + ""));
 					insertQuery.append("'");
 				} else if(type.contains("TIMESTAMP")) {
 					Date dateValue = null;
@@ -552,7 +552,7 @@ public final class FormBuilder {
 					}
 					propertyValue = DATE_DF.format(dateValue);
 					insertQuery.append("'");
-					insertQuery.append(propertyValue);
+					insertQuery.append(escapeForSQLStatement(propertyValue + ""));
 					insertQuery.append("'");
 				}
 				if(i != propNames.size() - 1) {
@@ -582,7 +582,7 @@ public final class FormBuilder {
 			insertQuery.append("=");
 			if(type.contains("VARCHAR")) {
 				insertQuery.append("'");
-				insertQuery.append(propertyValue.toString().toUpperCase());
+				insertQuery.append(escapeForSQLStatement(propertyValue.toString()));
 				insertQuery.append("'");
 			} else if(type.contains("INT") || type.contains("DECIMAL") || type.contains("DOUBLE") || type.contains("LONG") || type.contains("BIGINT")
 					|| type.contains("TINYINT") || type.contains("SMALLINT")){
@@ -597,7 +597,7 @@ public final class FormBuilder {
 				}
 				propertyValue = SIMPLE_DATE_DF.format(dateValue);
 				insertQuery.append("'");
-				insertQuery.append(propertyValue);
+				insertQuery.append(escapeForSQLStatement(propertyValue + ""));
 				insertQuery.append("'");
 			} else if(type.contains("TIMESTAMP")) {
 				Date dateValue = null;
@@ -609,7 +609,7 @@ public final class FormBuilder {
 				}
 				propertyValue = DATE_DF.format(dateValue);
 				insertQuery.append("'");
-				insertQuery.append(propertyValue);
+				insertQuery.append(escapeForSQLStatement(propertyValue + ""));
 				insertQuery.append("'");
 			}
 			if(i != propNames.size() - 1) {
