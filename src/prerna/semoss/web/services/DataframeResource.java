@@ -1,6 +1,5 @@
 package prerna.semoss.web.services;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -10,21 +9,16 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import org.apache.log4j.Logger;
 
-import com.google.gson.Gson;
-
-import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
+import prerna.ds.TinkerFrame;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
-import prerna.util.ArrayUtilityMethods;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class DataframeResource {
@@ -48,7 +42,7 @@ public class DataframeResource {
 		String insights = "Mysterious";
 		System.out.println("Running basic checks.. ");
 		IDataMaker maker = insight.getDataMaker();
-		if(maker instanceof BTreeDataFrame)
+		if(maker instanceof TinkerFrame)
 		{
 			System.out.println("Hit the second bogie.. ");
 			BTreeDataFrame daFrame = (BTreeDataFrame)maker;
@@ -66,14 +60,21 @@ public class DataframeResource {
 	@Produces("application/json")
 	public Response getFilterModel(@Context HttpServletRequest request)
 	{	
-		IDataMaker mainTree = insight.getDataMaker();
+		IDataMaker table = insight.getDataMaker();
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
-		Object[] returnFilterModel = ((BTreeDataFrame)mainTree).getFilterModel();
-		retMap.put("unfilteredValues", returnFilterModel[0]);
-		retMap.put("filteredValues", returnFilterModel[1]);
+		if(table instanceof TinkerFrame) {
+			Object[] returnFilterModel = ((TinkerFrame)table).getFilterModel();
+			retMap.put("unfilteredValues", returnFilterModel[0]);
+			retMap.put("filteredValues", returnFilterModel[1]);
+			
+			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		} 
 		
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		else {
+			return Response.status(200).entity(WebUtility.getSO("Data Maker not instance of BTreeDataFrame.  Cannot grab filter model from Data Maker.")).build();
+		}
+		
 	}
 	
 	@POST

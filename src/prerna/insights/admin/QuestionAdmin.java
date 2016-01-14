@@ -49,17 +49,27 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.openrdf.repository.Repository;
+import org.openrdf.repository.RepositoryConnection;
+import org.openrdf.repository.RepositoryException;
+import org.openrdf.repository.sail.SailRepository;
+import org.openrdf.rio.RDFFormat;
+import org.openrdf.rio.RDFParseException;
+import org.openrdf.sail.inferencer.fc.ForwardChainingRDFSInferencer;
+import org.openrdf.sail.memory.MemoryStore;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import prerna.ds.BTreeDataFrame;
+import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
 import prerna.engine.impl.QuestionAdministrator;
+import prerna.engine.impl.rdf.InMemorySesameEngine;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
@@ -112,12 +122,12 @@ public class QuestionAdmin {
 		//Add necessary filter transformations
 		IDataMaker dm = insight.getDataMaker();
 		String newInsightID = null;
-		if(dm instanceof BTreeDataFrame) {
+		if(dm instanceof TinkerFrame) {
 			//add list of new filter transformations to the last component
 			DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
 			List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
 			List<ISEMOSSTransformation> oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
-			List<FilterTransformation> trans2add = flushFilterModel2Transformations((BTreeDataFrame) dm);
+			List<FilterTransformation> trans2add = flushFilterModel2Transformations((TinkerFrame) dm);
 			newPostTrans.addAll(trans2add);
 
 			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
@@ -541,7 +551,7 @@ public class QuestionAdmin {
 	 * 
 	 * Creates a list of filter transformations based on the filter model
 	 */
-	private List<FilterTransformation> flushFilterModel2Transformations(BTreeDataFrame bTree) {
+	private List<FilterTransformation> flushFilterModel2Transformations(TinkerFrame bTree) {
 		Map<String, Object[]> filterModel = bTree.getFilterTransformationValues();
 		Set<String> columns = filterModel.keySet();
 		List<FilterTransformation> transformationList = new ArrayList<>(columns.size());
@@ -558,6 +568,7 @@ public class QuestionAdmin {
 		}
 		
 		return transformationList;
+
 	}
 	
 //	private InMemorySesameEngine buildMakeupEngine(String insightMakeup){

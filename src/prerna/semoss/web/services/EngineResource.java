@@ -69,7 +69,7 @@ import com.google.gson.reflect.TypeToken;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.learning.util.DuplicationReconciliation;
 import prerna.auth.User;
-import prerna.ds.BTreeDataFrame;
+import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.ISelectStatement;
@@ -970,7 +970,7 @@ public class EngineResource {
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
-		Object[] returnFilterModel = ((BTreeDataFrame)mainTree).getFilterModel();
+		Object[] returnFilterModel = ((TinkerFrame)mainTree).getFilterModel();
 //		((BTreeDataFrame)mainTree).printTree();
 		retMap.put("unfilteredValues", returnFilterModel[0]);
 		retMap.put("filteredValues", returnFilterModel[1]);
@@ -978,6 +978,8 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
+
+	
 	@GET
 	@Path("/unfilterColumns")
 	@Produces("application/json")
@@ -1207,7 +1209,7 @@ public class EngineResource {
 		ISEMOSSTransformation joinTrans = null;
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
 		if(insightID == null || insightID.isEmpty()) {
-			insight = new Insight(this.coreEngine, "BTreeDataFrame", PlaySheetRDFMapBasedEnum.getSheetName("Grid")); // TODO: this needs to be an enum or grabbed from rdf map somehow
+			insight = new Insight(this.coreEngine, "TinkerFrame", PlaySheetRDFMapBasedEnum.getSheetName("Grid")); // TODO: this needs to be an enum or grabbed from rdf map somehow
 			insightID = InsightStore.getInstance().put(insight);
 		} 
 
@@ -1406,7 +1408,7 @@ public class EngineResource {
 		ISEMOSSTransformation joinTrans = null;
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
 		if(insightID == null || insightID.isEmpty()) {
-			insight = new Insight(this.coreEngine, "BTreeDataFrame", PlaySheetRDFMapBasedEnum.getSheetName("Grid")); // TODO: this needs to be an enum or grabbed from rdf map somehow
+			insight = new Insight(this.coreEngine, "TinkerFrame", PlaySheetRDFMapBasedEnum.getSheetName("Grid")); // TODO: this needs to be an enum or grabbed from rdf map somehow
 		} 
 
 		// 2. Else, we get the insight from session (if the insight isn't in session, we are done--throw an error)
@@ -1726,12 +1728,12 @@ public class EngineResource {
 		HttpSession session = request.getSession(false);
 		float start = System.currentTimeMillis();
 
-		BTreeDataFrame tree1 = null;
+		TinkerFrame tree1 = null;
 		String[] names1 = null;
 		if(query1 != null){
 			ISelectWrapper wrap1 = WrapperManager.getInstance().getSWrapper(this.coreEngine, query1);
 			names1 = wrap1.getVariables();
-			tree1 = new BTreeDataFrame(names1);
+			tree1 = new TinkerFrame(names1);
 			while(wrap1.hasNext()) {
 				ISelectStatement iss1 = wrap1.next();
 				tree1.addRow(iss1.getPropHash(), iss1.getRPropHash());
