@@ -155,7 +155,7 @@ public final class FormBuilder {
 			nodeMapping.put(nodeValue, nodeType);
 			//TODO: need to stop doing this null check - assuming always overriding
 			boolean override = false;
-			if(node.get("override") != null) {
+			if(node.get("overwrite") != null) {
 				override = Boolean.parseBoolean(node.get("overwrite").toString());
 			}
 
@@ -268,7 +268,7 @@ public final class FormBuilder {
 			tableValue = node.get("conceptValue").toString();
 			//TODO: need to stop doing this null check - assuming always overriding
 			boolean override = false;
-			if(node.get("override") != null) {
+			if(node.get("overwrite") != null) {
 				override = Boolean.parseBoolean(node.get("overwrite").toString());
 			}
 
@@ -361,7 +361,7 @@ public final class FormBuilder {
 			}
 
 			boolean override = false;
-			if(relationship.get("override") != null) {
+			if(relationship.get("overwrite") != null) {
 				override = Boolean.parseBoolean(relationship.get("overwrite").toString());
 			}
 
