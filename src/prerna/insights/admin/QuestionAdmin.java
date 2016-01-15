@@ -275,13 +275,13 @@ public class QuestionAdmin {
 		String uiOptions = form.getFirst("uiOptions");
 		boolean isDbQuery = true;
 
-		String dmName = "";
+		String dmName = "PrimaryKeyTinkerFrame";
 		List<DataMakerComponent> dmcList = null;
 		List<SEMOSSParam> params = null;
 		// if query is defined, we are defining the insight the basic way -- just query and engine
 		if(query != null && !query.isEmpty()) {
 			List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
-			dmName = InsightsConverter.getDataMaker(layout, allSheets);
+//			dmName = InsightsConverter.getDataMaker(layout, allSheets);
 			dmcList = new ArrayList<DataMakerComponent>();
 			DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
 			dmcList.add(dmc);
@@ -301,7 +301,7 @@ public class QuestionAdmin {
 			dmcList = existingIn.getDataMakerComponents();
 			params = existingIn.getInsightParameters();
 			
-			dmName =  form.getFirst("dmName");
+//			dmName =  form.getFirst("dmName");
 //			String insightMakeup = form.getFirst("insightMakeup");
 //			Insight in = new Insight(coreEngine, dmName, layout);
 //			InMemorySesameEngine myEng = buildMakeupEngine(insightMakeup);
