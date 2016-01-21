@@ -1804,7 +1804,7 @@ public class EngineResource {
 
 		Gson gson = new Gson();
 		//		String groupBy = form.getFirst("groupBy");
-		String[] groupByCols = gson.fromJson(form.getFirst("groupBy"), String[].class);
+		List groupByCols = gson.fromJson(form.getFirst("groupBy"), List.class);
 		Map<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
 
 		// Run math transformation
