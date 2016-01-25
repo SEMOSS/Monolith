@@ -61,6 +61,8 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.params.CommonParams;
+import org.apache.solr.common.params.FacetParams;
+import org.apache.solr.common.params.SpellingParams;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
@@ -371,6 +373,27 @@ public class NameServer {
 		return WebUtility.getSO(resultHash);
 	}
 
+	
+	/**
+	 * Complete user search based on string input
+	 * @return
+	 */
+	@GET
+	@Path("central/context/getAutoCompleteResults")
+	@Produces("application/json")
+	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String completeTerm, @Context HttpServletRequest request) {
+		logger.info("Searching based on input: " + completeTerm);
+				
+		Map<String, List<String>> results = null;
+		try {
+			results = SolrIndexEngine.getInstance().executeAutoCompleteQuery(completeTerm);
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
+				| IOException e) {
+			e.printStackTrace();
+		}
+		return WebUtility.getSO(results);
+	}
+	
 	/**
 	 * Search based on a string input 
 	 * @param form - information passes in from the front end
@@ -434,8 +457,7 @@ public class NameServer {
 	@GET
 	@Path("central/context/getFacetInsightsResults")
 	@Produces("application/json")
-	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString,
-			@QueryParam("searchField") String searchField, @Context HttpServletRequest request) {
+	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString, @QueryParam("searchField") String searchField, @Context HttpServletRequest request) {
 		// text searched in search bar
 		logger.info("Searching based on input: " + searchString);
 
@@ -606,69 +628,77 @@ public class NameServer {
 	@POST
 	@Path("central/context/insights")
 	@Produces("application/json")
-	public Response getCentralContextInsights(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response getCentralContextInsights(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+			throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException, SolrServerException, IOException {
 		Gson gson = new Gson();
-		ArrayList<String> selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
-
-		//TODO: need to change the format for this call!!!!!!!!!!
-		String type = "";
+		ArrayList<String> selectedUris;
 		try {
-			type = Utility.getClassName(selectedUris.get(0));
-		} catch(ClassCastException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Cannot currently run related insights on selected value: " + selectedUris.get(0));
-			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+			selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
+		} catch (ClassCastException e) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Can only run related insights on concepts and properties!");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
+
+		// TODO: need to change the format for this call!!!!!!!!!!
+		String type = Utility.getClassName(selectedUris.get(0));
 		Map<String, Object> queryMap = new HashMap<String, Object>();
 		queryMap.put(CommonParams.Q, type);
-		queryMap.put(CommonParams.DF, "all_text");
+		queryMap.put(CommonParams.DF, SolrIndexEngine.ALL_TEXT);
 
-		List<Map<String, Object>> contextList = new ArrayList<Map<String, Object>>();
-		SolrDocumentList results;
-		try {
-			results = SolrIndexEngine.getInstance().queryDocument(queryMap); // gives me null pointer
-			if (results != null) {
-				for (int i = 0; i < results.size(); i++) {
-					SolrDocument doc = results.get(i);
-					Map<String, Object> insightHash = new HashMap<String, Object>();
-					insightHash.put(MasterDatabaseConstants.QUESTION_ID, doc.get(SolrIndexEngine.CORE_ENGINE_ID));
-					insightHash.put(MasterDatabaseConstants.QUESTION_KEY, doc.get(SolrIndexEngine.NAME));
-					insightHash.put(MasterDatabaseConstants.VIZ_TYPE_KEY, doc.get(SolrIndexEngine.LAYOUT));
-					insightHash.put(MasterDatabaseConstants.PERSPECTIVE_KEY, doc.get(SolrIndexEngine.TAGS));
+		List<String> facetList = new ArrayList<>();
+		facetList.add(SolrIndexEngine.CORE_ENGINE);
+		facetList.add(SolrIndexEngine.LAYOUT);
+		facetList.add(SolrIndexEngine.PARAMS);
+		facetList.add(SolrIndexEngine.TAGS);
+		facetList.add(SolrIndexEngine.ALGORITHMS);
 
-					// TODO: why does FE want this in another map???
-					Map<String, String> engineHash = new HashMap<String, String>();
-					engineHash.put("name", doc.get(SolrIndexEngine.CORE_ENGINE) + "");
-					insightHash.put(MasterDatabaseConstants.DB_KEY, engineHash);
+		// offset for call
+		String offset = form.getFirst("offset");
+		logger.info("Offset is: " + offset);
 
-					// try to figure out params?
-					List<String> paramTypes = (List<String>) doc.get(SolrIndexEngine.PARAMS);
-					if (paramTypes != null && paramTypes.contains(type)) {
-						insightHash.put(MasterDatabaseConstants.INSTANCE_KEY, "");
-					} else {
-						insightHash.put(MasterDatabaseConstants.INSTANCE_KEY, selectedUris.get(0));
-					}
+		// offset for call
+		String limit = form.getFirst("limit");
+		logger.info("Limit is: " + limit);
 
-					contextList.add(insightHash);
-				}
-			}
-		} catch (KeyManagementException e) {
-			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		} catch (KeyStoreException e) {
-			e.printStackTrace();
-		} catch (SolrServerException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (Exception ignored) {
-			// do nothing for now
-			// null pointer breaks it
-			// so catching it
+		Integer offsetInt = null;
+		Integer limitInt = null;
+		if (offset != null && !offset.isEmpty()) {
+			offsetInt = Integer.parseInt(offset);
+			queryMap.put(CommonParams.START, offsetInt);
+
+		}
+		if (limit != null && !limit.isEmpty()) {
+			limitInt = Integer.parseInt(limit);
+			queryMap.put(CommonParams.ROWS, limitInt);
 		}
 
-		return Response.status(200).entity(WebUtility.getSO(contextList)).build();
+		// filter based on the boxes checked in the facet filter (filtered with an exact filter)
+		String filterDataStr = form.getFirst("filterData");
+		Gson gsonVar = new Gson();
+		Map<String, List<String>> filterData = gsonVar.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
+		if (filterData != null) {
+			queryMap.put(CommonParams.FQ, filterData);
+		}
+			
+		SolrDocumentList results = SolrIndexEngine.getInstance().queryDocument(queryMap);
+		Long insightCount = results.getNumFound();
+		
+		// throw an error if there are no results
+		if (results == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "No related insights found!");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+		
+		// query for facet results
+		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, SolrIndexEngine.ALL_TEXT, facetList);
+
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		retMap.put("insightCount", insightCount);
+		retMap.put("results", results);
+		retMap.put("facet", facetCount);
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
 	// get all insights related to a specific uri

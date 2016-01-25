@@ -37,6 +37,9 @@ import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -160,7 +163,7 @@ public class Uploader extends HttpServlet {
 		return fileItems;
 	}
 	
-	public void loadEngineIntoSession(HttpServletRequest request, String engineName) {
+	public void loadEngineIntoSession(HttpServletRequest request, String engineName) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
 		Properties prop = new Properties();
 		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
 		String fileName = baseFolder + "/db/"  +  engineName + ".smss";
