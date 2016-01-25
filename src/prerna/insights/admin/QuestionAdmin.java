@@ -144,7 +144,8 @@ public class QuestionAdmin {
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
 		String currDate = dateFormat.format(date);
-		solrInsights.put(SolrIndexEngine.NAME, insightName);
+		solrInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
+		solrInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
 		solrInsights.put(SolrIndexEngine.TAGS, perspective);
 		solrInsights.put(SolrIndexEngine.LAYOUT, layout);
 		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
@@ -210,7 +211,8 @@ public class QuestionAdmin {
 		Date date = new Date();
 		String currDate = dateFormat.format(date);
 		Map<String, Object> solrModifyInsights = new HashMap<>();
-		solrModifyInsights.put(SolrIndexEngine.NAME, insightName);
+		solrModifyInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
+		solrModifyInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
 		solrModifyInsights.put(SolrIndexEngine.TAGS, perspective);
 		solrModifyInsights.put(SolrIndexEngine.LAYOUT, layout);
 		solrModifyInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
@@ -323,7 +325,8 @@ public class QuestionAdmin {
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
 		String currDate = dateFormat.format(date);
-		solrInsights.put(SolrIndexEngine.NAME, insightName);
+		solrInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
+		solrInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
 		solrInsights.put(SolrIndexEngine.TAGS, perspective);
 		solrInsights.put(SolrIndexEngine.LAYOUT, layout);
 		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
@@ -423,7 +426,8 @@ public class QuestionAdmin {
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
 		String currDate = dateFormat.format(date);
-		solrInsights.put(SolrIndexEngine.NAME, insightName);
+		solrInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
+		solrInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
 		solrInsights.put(SolrIndexEngine.TAGS, perspective);
 		solrInsights.put(SolrIndexEngine.LAYOUT, layout);
 		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
@@ -512,8 +516,8 @@ public class QuestionAdmin {
 		List<SEMOSSParam> params = new Vector<SEMOSSParam>();
 		if(paramMapList != null && !paramMapList.isEmpty()) {
 			for(Map<String, String> paramMap : paramMapList) {
-				String paramURI = this.coreEngine.getTransformedNodeName(paramMap.get("value"), false);
-				String paramParent = this.coreEngine.getTransformedNodeName(paramMap.get("parent"), false);
+				String paramURI = paramMap.get("value");
+				String paramParent = paramMap.get("parent");
 				String paramName = paramMap.get("name");
 
 				SEMOSSParam p = new SEMOSSParam();

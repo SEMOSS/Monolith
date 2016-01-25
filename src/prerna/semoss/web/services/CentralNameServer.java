@@ -27,6 +27,10 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
@@ -43,6 +47,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrServerException;
 
 import prerna.util.Constants;
 import prerna.util.Utility;
@@ -69,7 +74,7 @@ public class CentralNameServer {
 	@Produces("application/json")
 	public Response getContextInsights(
 			MultivaluedMap<String, String> form, 
-			@Context HttpServletRequest request)
+			@Context HttpServletRequest request) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException, SolrServerException, IOException
 	{
 		String selectedUris = form.getFirst("selectedURI");
 		logger.info("LOCALLY have registered selected URIs as ::: " + selectedUris.toString());
