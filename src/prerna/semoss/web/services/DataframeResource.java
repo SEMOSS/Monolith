@@ -1,24 +1,46 @@
 package prerna.semoss.web.services;
 
+import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
 import prerna.ds.TinkerFrame;
+import prerna.equation.EquationSolver;
+import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.SEMOSSVertex;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
+import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
+import prerna.ui.components.playsheets.datamakers.MathTransformation;
+import prerna.util.Constants;
+import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
 
 public class DataframeResource {
@@ -77,6 +99,15 @@ public class DataframeResource {
 		
 	}
 	
+//	@POST
+//	@Path("/openBackDoor")
+//	@Produces("application/json")
+//	public Response openBackDoor(@Context HttpServletRequest request){
+//		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
+//		tf.openBackDoor();
+//		return Response.status(200).entity(WebUtility.getSO("Succesfully closed back door")).build();
+//	}
+	
 	@POST
 	@Path("/drop")
 	@Produces("application/json")
@@ -94,5 +125,402 @@ public class DataframeResource {
 			errorHash.put("errorMessage", "Could not remove data.");
 			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
+	}
+
+	// temporary function for getting chart it data
+	// will be replaced with query builder
+	@GET
+	@Path("chartData")
+	@Produces("application/json")
+	public StreamingOutput getPlaySheetChartData(@Context HttpServletRequest request) {
+		Hashtable<String, Vector<SEMOSSVertex>> typeHash = new Hashtable<String, Vector<SEMOSSVertex>>();
+		IDataMaker maker = this.insight.getDataMaker();
+		Hashtable<String, SEMOSSVertex> nodeHash = null;
+		if(maker instanceof GraphDataModel){
+			nodeHash = ((GraphDataModel)maker).getVertStore();
+		} else if (maker instanceof TinkerFrame){
+			nodeHash = (Hashtable<String, SEMOSSVertex>) ((TinkerFrame) maker).getGraphOutput().get("nodes");
+		}
+		else{
+			logger.error("Unable to create chart it data with current data maker");
+			Hashtable<String, String> errorHash = new Hashtable<String, String>();
+			errorHash.put("Message", "Unable to create chart it data with current data maker");
+			return WebUtility.getSO(errorHash);
+		}
+		
+		// need to create type hash... its the way chartit wants the data..
+		logger.info("creating type hash...");
+		for( SEMOSSVertex vert : nodeHash.values()){
+			String type = vert.getProperty(Constants.VERTEX_TYPE) + "";
+			Vector<SEMOSSVertex> typeVert = typeHash.get(type);
+			if(typeVert == null)
+				typeVert = new Vector<SEMOSSVertex>();
+			typeVert.add(vert);
+			typeHash.put(type, typeVert);
+		}
+		
+		Hashtable retHash = new Hashtable();
+		retHash.put("Nodes", typeHash);
+		return WebUtility.getSO(retHash);
+	}
+
+	@POST
+	@Path("/undoInsightProcess")
+	@Produces("application/xml")
+	public Response undoInsightProcess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
+		List<String> processes = gson.fromJson(form.getFirst("processes"), List.class);
+		String insightID = this.insight.getInsightID();
+		
+		if(processes.isEmpty()) {
+			Map<String, Object> retMap = new HashMap<String, Object>();
+			retMap.put("insightID", insightID);
+			retMap.put("message", "No processes set to undo");
+			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		}
+
+		Insight in = InsightStore.getInstance().get(insightID);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		in.undoProcesses(processes);
+		retMap.put("insightID", insightID);
+		retMap.put("message", "Succesfully undone processes : " + processes);
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+
+	@POST
+	@Path("/filterData")
+	@Produces("application/json")
+	public Response filterData(MultivaluedMap<String, String> form,
+			@Context HttpServletRequest request)
+	{	
+		String insightID = form.getFirst("insightID");
+
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+		}
+
+		ITableDataFrame mainTree = (ITableDataFrame) existingInsight.getDataMaker();
+		if(mainTree == null) {
+			return Response.status(400).entity(WebUtility.getSO("table not found for insight id. Data not found")).build();
+		}
+
+		Gson gson = new Gson();
+
+		//Grab the filter model from the form data
+		Map<String, Map<String, Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, Map<String, Object>>>() {}.getType());
+		
+		//If the filter model has information, filter the tree
+		if(filterModel != null && filterModel.keySet().size() > 0) {
+			TableDataFrameUtilities.filterTableData(mainTree, filterModel);
+		}
+
+		//if the filtermodel is not null and contains no data then unfilter the whole tree
+		//this trigger to unfilter the whole tree was decided between FE and BE for simplicity
+		//TODO: make this an explicit call
+		else if(filterModel != null && filterModel.keySet().size() == 0) {
+			//unfilter the tree
+		} 
+
+		Map<String, Object> retMap = new HashMap<String, Object>();
+
+		Object[] returnFilterModel = ((TinkerFrame)mainTree).getFilterModel();
+//		((BTreeDataFrame)mainTree).printTree();
+		retMap.put("unfilteredValues", returnFilterModel[0]);
+		retMap.put("filteredValues", returnFilterModel[1]);
+		
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+	
+	@GET
+	@Path("/unfilterColumns")
+	@Produces("application/json")
+	public Response getVisibleValues(MultivaluedMap<String, String> form,
+			@QueryParam("insightID") String insightID,
+			@QueryParam("concept") String[] concepts)
+	{
+		Insight insight = InsightStore.getInstance().get(insightID);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		if(insight == null) {
+			retMap.put("errorMessage", "Invalid insight ID. Data not found");
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
+		}
+		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
+
+		for(String concept: concepts) {
+			mainTree.unfilter(concept);
+		}
+
+		retMap.put("insightID", insightID);
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+
+
+	@POST
+	@Path("/getNextTableData")
+	@Produces("application/json")
+	public Response getNextTable(MultivaluedMap<String, String> form,
+			@QueryParam("startRow") Integer startRow,
+			@QueryParam("endRow") Integer endRow,
+			@QueryParam("insightID") String insightID,
+			@Context HttpServletRequest request)
+	{
+		Insight insight = InsightStore.getInstance().get(insightID);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		if(insight == null) {
+			retMap.put("errorMessage", "Invalid insight ID. Data not found");
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
+		}
+		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
+
+		Gson gson = new Gson();
+		String concept = null;
+		String sort = null;
+
+		try {
+			Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
+			concept = sortModel.get("colId");
+			sort = sortModel.get("sort");
+		} catch (Exception e) {
+			sort = "asc";
+		}
+
+		Map<String, Object> valuesMap = new HashMap<String, Object>();
+		valuesMap.put(insightID, TableDataFrameUtilities.getTableData(mainTree, concept, sort, startRow, endRow));
+
+		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
+		String[] varKeys = mainTree.getColumnHeaders();
+		String[] uriKeys = mainTree.getURIColumnHeaders();
+		for(int i = 0; i < varKeys.length; i++) {
+			Map<String, String> innerMap = new HashMap<String, String>();
+			innerMap.put("uri", uriKeys[i]);
+			innerMap.put("varKey", varKeys[i]);
+			headerInfo.add(innerMap);
+		}
+
+		retMap.put("insightID", insightID);
+		retMap.put("numRows", mainTree.getNumRows());
+		retMap.put("headers", headerInfo);
+		retMap.put("tableData", valuesMap);
+
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+
+	@POST
+	@Path("/derivedColumn")
+	@Produces("application/json")
+	public Response derivedColumn(MultivaluedMap<String, String> form,
+			@QueryParam("insightID") String insightID,
+			@QueryParam("expressionString") String expressionString,
+			@QueryParam("columnName") String columnName,
+			@Context HttpServletRequest request)
+	{
+		String expString = form.getFirst("expressionString");
+		String colName = form.getFirst("columnName");
+		
+		Insight insight = InsightStore.getInstance().get(insightID);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		if(insight == null) {
+			retMap.put("errorMessage", "Invalid insight ID. Data not found");
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
+		}
+		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
+
+		// return new column
+		EquationSolver solver;
+		try { solver = new EquationSolver(mainTree, expString); } 
+		catch (ParseException e) {
+			retMap.put("errorMessage", e);
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
+		}
+		
+		String returnMsg = solver.crunch(colName);
+		
+		retMap.put("status", returnMsg);
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+	
+	@GET
+	@Path("/getTableHeaders")
+	@Produces("application/json")
+	public Response getTableHeaders(@QueryParam("insightID") String insightID) {
+		Insight insight = InsightStore.getInstance().get(insightID);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		if(insight == null) {
+			retMap.put("errorMessage", "Invalid insight ID. Data not found");
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
+		}
+		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();	
+
+		List<Map<String, String>> tableHeaders = new ArrayList<Map<String, String>>();
+		String[] columnHeaders = table.getColumnHeaders();
+		String[] uriKeys = table.getURIColumnHeaders();
+		for(int i = 0; i < columnHeaders.length; i++) {
+			Map<String, String> innerMap = new HashMap<String, String>();
+			innerMap.put("uri", uriKeys[i]);
+			innerMap.put("varKey", columnHeaders[i]);
+			tableHeaders.add(innerMap);
+		}
+
+		retMap.put("insightID", insightID);
+		retMap.put("tableHeaders", tableHeaders);
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+
+	@POST
+	@Path("getVizTable")
+	@Produces("application/json")
+	public Response getExploreTable(
+			@QueryParam("insightID") String insightID,
+			//@QueryParam("start") int start,
+			//@QueryParam("end") int end,
+			@Context HttpServletRequest request)
+	{
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+		}
+
+		ITableDataFrame mainTree = (ITableDataFrame) existingInsight.getDataMaker();		
+		if(mainTree == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Dataframe not found within insight");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+
+		List<HashMap<String, Object>> table = TableDataFrameUtilities.getTableData(mainTree);
+		Map<String, Object> returnData = new HashMap<String, Object>();
+		returnData.put("data", table);
+
+		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
+		String[] varKeys = mainTree.getColumnHeaders();
+		String[] uriKeys = mainTree.getURIColumnHeaders();
+		for(int i = 0; i < varKeys.length; i++) {
+			Map<String, String> innerMap = new HashMap<String, String>();
+			innerMap.put("uri", uriKeys[i]);
+			innerMap.put("varKey", varKeys[i]);
+			headerInfo.add(innerMap);
+		}
+		returnData.put("headers", headerInfo);
+		returnData.put("insightID", insightID);
+		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+	}
+
+	@POST
+	@Path("/applyColumnStats")
+	@Produces("application/json")
+	public Response applyColumnStats(MultivaluedMap<String, String> form,  
+			@Context HttpServletRequest request)
+	{
+		String insightID = form.getFirst("insightID");
+
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+		}
+
+		Gson gson = new Gson();
+		//		String groupBy = form.getFirst("groupBy");
+		List groupByCols = gson.fromJson(form.getFirst("groupBy"), List.class);
+		Map<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
+
+		// Run math transformation
+		ISEMOSSTransformation mathTrans = new MathTransformation();
+		Map<String, Object> selectedOptions = new HashMap<String, Object>();
+		// groupByCols = columns to look at
+		selectedOptions.put(MathTransformation.GROUPBY_COLUMNS, groupByCols);
+		// debug through this. also comes from frontend
+		selectedOptions.put(MathTransformation.MATH_MAP, functionMap);
+		// dont worry about this yet
+		mathTrans.setProperties(selectedOptions);
+		// just one transformation at a time. for math transformation just one thing
+		List<ISEMOSSTransformation> postTrans = new Vector<ISEMOSSTransformation>();
+		postTrans.add(mathTrans);
+		existingInsight.processPostTransformation(postTrans);
+
+		ITableDataFrame table = (ITableDataFrame) existingInsight.getDataMaker();
+		Map<String, Object> retMap = new HashMap<String, Object>();
+
+		retMap.put("tableData", TableDataFrameUtilities.getTableData(table));
+		retMap.put("mathMap", functionMap);
+		retMap.put("insightID", insightID);
+		retMap.put("stepID", mathTrans.getId());
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+
+	@POST
+	@Path("/hasDuplicates")
+	@Produces("application/json")
+	public Response hasDuplicates(MultivaluedMap<String, String> form,
+			@Context HttpServletRequest request) 
+	{
+		String insightID = form.getFirst("insightID");
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+		}
+		ITableDataFrame table = null;
+		try {
+			table = (ITableDataFrame) existingInsight.getDataMaker();
+		} catch(ClassCastException e) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Insight data maker could not be cast to a table data frame.");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+		if(table == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Could not find insight data maker.");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+
+		Gson gson = new Gson();
+		String[] columns = gson.fromJson(form.getFirst("concepts"), String[].class);
+		String[] columnHeaders = table.getColumnHeaders();
+		Map<String, Integer> columnMap = new HashMap<>();
+		for(int i = 0; i < columnHeaders.length; i++) {
+			columnMap.put(columnHeaders[i], i);
+		}
+
+		Iterator<Object[]> iterator = table.iterator(false);
+		int numRows = table.getNumRows();
+		Set<String> comboSet = new HashSet<String>(numRows);
+		int rowCount = 1;
+		while(iterator.hasNext()) {
+			Object[] nextRow = iterator.next();
+			String comboValue = "";
+			for(String c : columns) {
+				int i = columnMap.get(c);
+				comboValue = comboValue + nextRow[i];
+			}
+			comboSet.add(comboValue);
+
+			if(comboSet.size() < rowCount) {
+				return Response.status(200).entity(WebUtility.getSO(true)).build();
+			}
+
+			rowCount++;
+		}
+		boolean hasDuplicates = comboSet.size() != numRows;
+		return Response.status(200).entity(WebUtility.getSO(hasDuplicates)).build();
 	}
 }
