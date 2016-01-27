@@ -193,19 +193,7 @@ public class DataframeResource {
 	public Response filterData(MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request)
 	{	
-		String insightID = form.getFirst("insightID");
-
-		Insight existingInsight = null;
-		if(insightID != null && !insightID.isEmpty()) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			if(existingInsight == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-		}
-
-		ITableDataFrame mainTree = (ITableDataFrame) existingInsight.getDataMaker();
+		ITableDataFrame mainTree = (ITableDataFrame) this.insight.getDataMaker();
 		if(mainTree == null) {
 			return Response.status(400).entity(WebUtility.getSO("table not found for insight id. Data not found")).build();
 		}
@@ -241,22 +229,16 @@ public class DataframeResource {
 	@Path("/unfilterColumns")
 	@Produces("application/json")
 	public Response getVisibleValues(MultivaluedMap<String, String> form,
-			@QueryParam("insightID") String insightID,
 			@QueryParam("concept") String[] concepts)
 	{
-		Insight insight = InsightStore.getInstance().get(insightID);
 		Map<String, Object> retMap = new HashMap<String, Object>();
-		if(insight == null) {
-			retMap.put("errorMessage", "Invalid insight ID. Data not found");
-			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
-		}
 		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
 
 		for(String concept: concepts) {
 			mainTree.unfilter(concept);
 		}
 
-		retMap.put("insightID", insightID);
+		retMap.put("insightID", insight.getInsightID());
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
@@ -267,16 +249,11 @@ public class DataframeResource {
 	public Response getNextTable(MultivaluedMap<String, String> form,
 			@QueryParam("startRow") Integer startRow,
 			@QueryParam("endRow") Integer endRow,
-			@QueryParam("insightID") String insightID,
 			@Context HttpServletRequest request)
 	{
-		Insight insight = InsightStore.getInstance().get(insightID);
 		Map<String, Object> retMap = new HashMap<String, Object>();
-		if(insight == null) {
-			retMap.put("errorMessage", "Invalid insight ID. Data not found");
-			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
-		}
 		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
+		String insightID = insight.getInsightID();
 
 		Gson gson = new Gson();
 		String concept = null;
@@ -315,7 +292,6 @@ public class DataframeResource {
 	@Path("/derivedColumn")
 	@Produces("application/json")
 	public Response derivedColumn(MultivaluedMap<String, String> form,
-			@QueryParam("insightID") String insightID,
 			@QueryParam("expressionString") String expressionString,
 			@QueryParam("columnName") String columnName,
 			@Context HttpServletRequest request)
@@ -323,12 +299,7 @@ public class DataframeResource {
 		String expString = form.getFirst("expressionString");
 		String colName = form.getFirst("columnName");
 		
-		Insight insight = InsightStore.getInstance().get(insightID);
 		Map<String, Object> retMap = new HashMap<String, Object>();
-		if(insight == null) {
-			retMap.put("errorMessage", "Invalid insight ID. Data not found");
-			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
-		}
 		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
 
 		// return new column
@@ -348,13 +319,8 @@ public class DataframeResource {
 	@GET
 	@Path("/getTableHeaders")
 	@Produces("application/json")
-	public Response getTableHeaders(@QueryParam("insightID") String insightID) {
-		Insight insight = InsightStore.getInstance().get(insightID);
+	public Response getTableHeaders() {
 		Map<String, Object> retMap = new HashMap<String, Object>();
-		if(insight == null) {
-			retMap.put("errorMessage", "Invalid insight ID. Data not found");
-			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
-		}
 		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();	
 
 		List<Map<String, String>> tableHeaders = new ArrayList<Map<String, String>>();
@@ -367,7 +333,7 @@ public class DataframeResource {
 			tableHeaders.add(innerMap);
 		}
 
-		retMap.put("insightID", insightID);
+		retMap.put("insightID", insight.getInsightID());
 		retMap.put("tableHeaders", tableHeaders);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
@@ -376,22 +342,12 @@ public class DataframeResource {
 	@Path("getVizTable")
 	@Produces("application/json")
 	public Response getExploreTable(
-			@QueryParam("insightID") String insightID,
 			//@QueryParam("start") int start,
 			//@QueryParam("end") int end,
 			@Context HttpServletRequest request)
 	{
-		Insight existingInsight = null;
-		if(insightID != null && !insightID.isEmpty()) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			if(existingInsight == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-		}
 
-		ITableDataFrame mainTree = (ITableDataFrame) existingInsight.getDataMaker();		
+		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();		
 		if(mainTree == null) {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Dataframe not found within insight");
@@ -412,7 +368,7 @@ public class DataframeResource {
 			headerInfo.add(innerMap);
 		}
 		returnData.put("headers", headerInfo);
-		returnData.put("insightID", insightID);
+		returnData.put("insightID", insight.getInsightID());
 		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 	}
 
@@ -422,18 +378,6 @@ public class DataframeResource {
 	public Response applyColumnStats(MultivaluedMap<String, String> form,  
 			@Context HttpServletRequest request)
 	{
-		String insightID = form.getFirst("insightID");
-
-		Insight existingInsight = null;
-		if(insightID != null && !insightID.isEmpty()) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			if(existingInsight == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-		}
-
 		Gson gson = new Gson();
 		//		String groupBy = form.getFirst("groupBy");
 		List groupByCols = gson.fromJson(form.getFirst("groupBy"), List.class);
@@ -451,14 +395,14 @@ public class DataframeResource {
 		// just one transformation at a time. for math transformation just one thing
 		List<ISEMOSSTransformation> postTrans = new Vector<ISEMOSSTransformation>();
 		postTrans.add(mathTrans);
-		existingInsight.processPostTransformation(postTrans);
+		insight.processPostTransformation(postTrans);
 
-		ITableDataFrame table = (ITableDataFrame) existingInsight.getDataMaker();
+		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
 		retMap.put("tableData", TableDataFrameUtilities.getTableData(table));
 		retMap.put("mathMap", functionMap);
-		retMap.put("insightID", insightID);
+		retMap.put("insightID", insight.getInsightID());
 		retMap.put("stepID", mathTrans.getId());
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
@@ -469,19 +413,9 @@ public class DataframeResource {
 	public Response hasDuplicates(MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request) 
 	{
-		String insightID = form.getFirst("insightID");
-		Insight existingInsight = null;
-		if(insightID != null && !insightID.isEmpty()) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			if(existingInsight == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-		}
 		ITableDataFrame table = null;
 		try {
-			table = (ITableDataFrame) existingInsight.getDataMaker();
+			table = (ITableDataFrame) insight.getDataMaker();
 		} catch(ClassCastException e) {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Insight data maker could not be cast to a table data frame.");
