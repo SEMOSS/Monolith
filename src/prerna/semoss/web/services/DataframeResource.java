@@ -85,8 +85,8 @@ public class DataframeResource {
 		IDataMaker table = insight.getDataMaker();
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
-		if(table instanceof TinkerFrame) {
-			Object[] returnFilterModel = ((TinkerFrame)table).getFilterModel();
+		if(table instanceof ITableDataFrame) {
+			Object[] returnFilterModel = ((ITableDataFrame)table).getFilterModel();
 			retMap.put("unfilteredValues", returnFilterModel[0]);
 			retMap.put("filteredValues", returnFilterModel[1]);
 			
@@ -94,7 +94,7 @@ public class DataframeResource {
 		} 
 		
 		else {
-			return Response.status(200).entity(WebUtility.getSO("Data Maker not instance of BTreeDataFrame.  Cannot grab filter model from Data Maker.")).build();
+			return Response.status(200).entity(WebUtility.getSO("Data Maker not instance of ITableDataFrame.  Cannot grab filter model from Data Maker.")).build();
 		}
 		
 	}
