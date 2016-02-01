@@ -33,11 +33,82 @@ public final class FormBuilder {
 	private static final DateFormat DATE_DF = new SimpleDateFormat("yyy-MM-dd hh:mm:ss");
 	private static final DateFormat SIMPLE_DATE_DF = new SimpleDateFormat("yyy-MM-dd");
 	private static final DateFormat GENERIC_DF = new SimpleDateFormat("yyy-MM-dd'T'hh:mm:ss.SSSSSS'Z'");
+	private static final String UPSTREAM = "upstream";
+	private static final String DOWNSTREAM = "downstream";
+	private static final String OVERRIDE = "override";
+	private static final String OVERRIDE_TYPE = "overrideType";
+	private static final String DELETE_UNCONNECTED_CONCEPTS = "deleteUnconnected";
+	private static final String REMOVE_NODE = "removeNode";
 
 	private FormBuilder() {
 
 	}
 
+	public static List<Map<String, String>> getStagingData(IEngine formBuilderEng, String formTableName) {
+		String sqlQuery = "SELECT ID, USER_ID, DATE_ADDED, DATA FROM " + formTableName;
+
+		List<Map<String, String>> results = new ArrayList<Map<String, String>>();
+
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, sqlQuery);
+		String[] names = wrapper.getVariables();
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			Map<String, String> row = new HashMap<String, String>();
+			row.put("id",  ss.getVar(names[0]) + "");
+			row.put("userId", ss.getVar(names[1]) + "");
+			row.put("dateAdded", ss.getVar(names[2]) + "");
+			JdbcClob obj = (JdbcClob) ss.getRawVar(names[3]);
+
+			InputStream insightDefinition = null;
+			try {
+				insightDefinition = obj.getAsciiStream();
+				row.put("data", IOUtils.toString(insightDefinition));
+			} catch (SQLException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			results.add(row);
+		}
+
+		return results;
+	}
+
+	public static void deleteFromStaggingArea(IEngine formBuilderEng, String formName, String[] formIds) {
+		formName = cleanTableName(formName);
+		formName = escapeForSQLStatement(formName);
+		String idsString = createIdString(formIds);
+		String deleteQuery = "DELETE FROM " + formName + " WHERE ID IN " + idsString;
+		formBuilderEng.removeData(deleteQuery);
+	}
+
+	private static String createIdString(String... ids){
+		String idsString = "(";
+		for(String id : ids){
+			idsString = idsString + "'" + id + "', ";
+		}
+		idsString = idsString.substring(0, idsString.length() - 2) + ")";
+
+		return idsString;
+	}
+
+	/**
+	 * Remove all non alpha-numeric underscores from form name
+	 * @param s
+	 * @return
+	 */
+	public static String cleanTableName(String s) {
+		while(s.contains("  ")){
+			s = s.replace("  ", " ");
+		}
+		s = s.replaceAll(" ", "_");
+		return s.replaceAll("[^a-zA-Z0-9\\_]", "");
+	}
+
+	public static String escapeForSQLStatement(String s) {
+		return s.replaceAll("'", "''");
+	}
+	
 	/**
 	 * 
 	 * @param formData the stringified JSON of the form data to save
@@ -125,6 +196,8 @@ public final class FormBuilder {
 		//commit information to db
 		engine.commit();
 	}
+	
+	/////////////////////////////////////////////RDF CODE/////////////////////////////////////////////
 
 	/**
 	 * 
@@ -143,7 +216,6 @@ public final class FormBuilder {
 		String nodeValue;
 		String instanceConceptURI;
 		String propertyValue;
-		String propertyType;
 		String propertyURI;
 
 		Map<String, String> nodeMapping = new HashMap<String, String>();
@@ -153,18 +225,15 @@ public final class FormBuilder {
 			nodeType = node.get("conceptName").toString();
 			nodeValue = Utility.cleanString(node.get("conceptValue").toString(), true);
 			nodeMapping.put(nodeValue, nodeType);
-			//TODO: need to stop doing this null check - assuming always overriding
+
 			boolean override = false;
-			if(node.get("overwrite") != null) {
-				override = Boolean.parseBoolean(node.get("overwrite").toString());
+			if(node.get(OVERRIDE) != null) {
+				override = Boolean.parseBoolean(node.get(OVERRIDE).toString());
 			}
 
 			instanceConceptURI = baseURI + "/Concept/" + Utility.getInstanceName(nodeType) + "/" + nodeValue;
-			// no need to add if overriding, triples already there
-			if(!override) {
-				engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDF.TYPE, nodeType, true});
-				engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDFS.LABEL, nodeValue, false});
-			}
+			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDF.TYPE, nodeType, true});
+			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDFS.LABEL, nodeValue, false});
 
 			if(node.containsKey("properties")) {
 				List<HashMap<String, Object>> properties = (List<HashMap<String, Object>>)node.get("properties");
@@ -172,9 +241,8 @@ public final class FormBuilder {
 				for(int j = 0; j < properties.size(); j++) {
 					Map<String, Object> property = properties.get(j);
 					propertyValue = property.get("propertyValue").toString();
-					propertyType = property.get("propertyName").toString();
+					propertyURI = property.get("propertyName").toString();
 
-					propertyURI = propertyBaseURI + "/" + propertyType;
 					if(override) {
 						removeRDFNodeProp(engine, instanceConceptURI, propertyURI);
 					}
@@ -194,22 +262,51 @@ public final class FormBuilder {
 		String instanceRel;
 		String instanceRelationshipURI;
 
+		//deleted relationships - need to keep track since many-to-many relationships are sent one at a time
+		Set<String> deletedRels = new HashSet<String>();
 		//Save the relationships
 		for(int i = 0; i < relationships.size(); i++) {
-			//TODO: how to deal with override
-			//TODO: which direction does the override occur in, the subject or the object?
 			Map<String, Object> relationship = relationships.get(i);
 			startNode = Utility.cleanString(relationship.get("startNodeVal").toString(), true);
 			endNode = Utility.cleanString(relationship.get("endNodeVal").toString(), true);
 			subject = nodeMapping.get(startNode);
-			object = nodeMapping.get(endNode);
+			object =  nodeMapping.get(endNode);
 			instanceSubjectURI = baseURI + "/Concept/" + Utility.getInstanceName(subject) + "/" + startNode;
-			instanceObjectURI = baseURI + "/Concept/" + Utility.getInstanceName(object) + "/" + endNode;
+			instanceObjectURI = baseURI + "/Concept/" + Utility.getInstanceName(object) + "/" +endNode;
 
 			baseRelationshipURI = relationship.get("relType").toString();
 			instanceRel = startNode + ":" + endNode;
 			instanceRelationshipURI = baseRelationshipURI + "/" + instanceRel;
 
+			boolean override = false;
+			if(relationship.get(OVERRIDE) != null) {
+				override = Boolean.parseBoolean(relationship.get(OVERRIDE).toString());
+			}
+			if(override) {
+				String type = relationship.get(OVERRIDE_TYPE).toString();
+				boolean deleteUnconnectedConcepts = false;
+				if(relationship.get(DELETE_UNCONNECTED_CONCEPTS) != null) {
+					deleteUnconnectedConcepts = Boolean.parseBoolean(relationship.get(DELETE_UNCONNECTED_CONCEPTS).toString());
+				}
+				boolean removeNode = false;
+				if(relationship.get(REMOVE_NODE) != null) {
+					removeNode = Boolean.parseBoolean(relationship.get(REMOVE_NODE).toString());
+				}
+				if(type.equalsIgnoreCase(UPSTREAM)) {
+					if(!deletedRels.contains(instanceObjectURI + subject + baseRelationshipURI)) {
+						overrideRDFRelationship(engine, instanceSubjectURI, subject, instanceObjectURI, object, baseRelationshipURI, false, deleteUnconnectedConcepts, removeNode);
+						deletedRels.add(instanceObjectURI + subject + baseRelationshipURI);
+					}
+				} else if(type.equalsIgnoreCase(DOWNSTREAM)){
+					if(!deletedRels.contains(instanceSubjectURI + object + baseRelationshipURI)) {
+						overrideRDFRelationship(engine, instanceSubjectURI, subject, instanceObjectURI, object, baseRelationshipURI, true, deleteUnconnectedConcepts, removeNode);
+						deletedRels.add(instanceSubjectURI + object + baseRelationshipURI);
+					}
+				} else {
+					throw new IllegalArgumentException("Need to define relationship as either: " + UPSTREAM + " or " + DOWNSTREAM);
+				}
+			}
+			
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, relationBaseURI, instanceObjectURI, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, baseRelationshipURI, instanceObjectURI, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, instanceRelationshipURI, instanceObjectURI, true});
@@ -235,7 +332,386 @@ public final class FormBuilder {
 			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
 		}
 	}
+	
+	/**
+	 * Deletes the relationship and relationship properties that exist between an instance and all other instances of a specified type
+	 * @param engine
+	 * @param instanceSubjectURI
+	 * @param subjectTypeURI
+	 * @param instanceObjectURI
+	 * @param objectTypeURI
+	 * @param baseRelationshipURI
+	 * @param deleteDownstream
+	 * @param removeNode 
+	 * @param deleteUnconnectedConcepts 
+	 * @param removeNode 
+	 * @param deleteUnconnectedConcepts 
+	 */
+	private static void overrideRDFRelationship(IEngine engine, String instanceSubjectURI, String subjectTypeURI, String instanceObjectURI, String objectTypeURI, String baseRelationshipURI, boolean deleteDownstream, boolean deleteUnconnectedConcepts, boolean removeNode) {
+		StringBuilder query = new StringBuilder("SELECT DISTINCT ?SUB ?PRED ?OBJ ?LABEL ?PROP ?VAL WHERE { ");
+		if(deleteDownstream) {
+			query.append("BIND(<" + instanceSubjectURI + "> AS ?SUB) ");
+		} else {
+			query.append("BIND(<" + instanceObjectURI + "> AS ?OBJ) ");
+		}
+		query.append("{?SUB <").append(RDF.TYPE).append("> <" + subjectTypeURI + ">} ");
+		query.append("{?OBJ <").append(RDF.TYPE).append("> <" + objectTypeURI + ">} ");
+		query.append("{ ");
+		query.append("{?PRED <").append(RDFS.SUBPROPERTYOF).append("> <" + baseRelationshipURI + ">} ");
+		query.append("{?SUB ?PRED ?OBJ} ");
+		query.append("OPTIONAL{ ?PRED <").append(RDFS.LABEL).append("> ?LABEL} ");
+		query.append("} UNION { ");
+		query.append("{?PRED <").append(RDFS.SUBPROPERTYOF).append("> <" + baseRelationshipURI + ">} ");
+		query.append("{?SUB ?PRED ?OBJ} ");
+		query.append("OPTIONAL{ ?PRED <").append(RDFS.LABEL).append("> ?LABEL} ");
+		query.append("{?PROP <").append(RDF.TYPE).append("> <http://semoss.org/ontologies/Relation/Contains>} ");
+		query.append("{?PRED ?PROP ?VAL} ");
+		query.append("} }");
 
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query.toString());
+		String[] names = wrapper.getVariables();
+		Set<String> uriBindingList = new HashSet<String>();
+		String baseRelationURI = "http://semoss.org/ontologies/Relation";
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			String subURI = ss.getRawVar(names[0]) + "";
+			String predURI = ss.getRawVar(names[1]) + "";
+			String objURI = ss.getRawVar(names[2]) + "";
+			Object label = ss.getVar(names[3]);
+			Object propURI = ss.getRawVar(names[4]);
+			Object propVal = ss.getVar(names[5]);
+
+			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{subURI, predURI, objURI, true});
+			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{subURI, baseRelationshipURI, objURI, true});
+			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{subURI, baseRelationURI, objURI, true});
+			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDFS.SUBPROPERTYOF, baseRelationshipURI, true});
+			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDFS.SUBPROPERTYOF, baseRelationURI, true});
+			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDF.TYPE, RDF.PROPERTY, true});
+			if(label != null && label.toString().isEmpty()) {
+				engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDFS.LABEL, label.toString(), false});
+			}
+			if(propURI != null && !propURI.toString().isEmpty()) {
+				engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, propURI.toString(), propVal, false});
+			}
+			
+			if(deleteDownstream) {
+				uriBindingList.add(objURI);
+//				if(removeNode) {
+//					deleteAllRDFConnectionsToConcept(engine, objURI);
+//				} else if(deleteUnconnectedConcepts) {
+//					removeUnconnectedRDFNodes(engine, objURI);
+//				}
+			} else {
+				uriBindingList.add(subURI);
+//				if(removeNode) {
+//					deleteAllRDFConnectionsToConcept(engine, subURI);
+//				} else if(deleteUnconnectedConcepts) {
+//					removeUnconnectedRDFNodes(engine, subURI);
+//				}
+			}
+		}
+		
+		if(removeNode) {
+			deleteAllRDFConnectionsToConcept(engine, uriBindingList);
+		} else if(deleteUnconnectedConcepts) {
+			removeUnconnectedRDFNodes(engine, uriBindingList);
+		}
+		
+	}
+	
+	private static void deleteAllRDFConnectionsToConcept(IEngine engine, Set<String> uriBindingList) {
+		String[] queries = new String[]{
+				generateDeleteAllRDFConnectionsToConceptQuery(uriBindingList, true),
+				generateDeleteAllRDFConnectionsToConceptQuery(uriBindingList, false)};
+		
+		for(String query : queries) {
+			if(query == null) {
+				continue;
+			}
+			ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query);
+			String[] names = wrapper.getVariables();
+			while(wrapper.hasNext()) {
+				ISelectStatement ss = wrapper.next();
+				String subURI = ss.getRawVar(names[0]) + "";
+				String predURI = ss.getRawVar(names[1]) + "";
+				String objURI = ss.getRawVar(names[2]) + "";
+				Object label = ss.getVar(names[3]);
+				Object propURI = ss.getRawVar(names[4]);
+				Object propVal = ss.getVar(names[5]);
+	
+				engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{subURI, predURI, objURI, true});
+				if(label != null && label.toString().isEmpty()) {
+					engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDFS.LABEL, label, false});
+				}
+				if(propURI != null && !propURI.toString().isEmpty()) {
+					engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, propURI, propVal, false});
+				}
+			}
+		}
+		
+		// lastly, remove the node and all its props
+		removeRDFNodeAndAllProps(engine, uriBindingList);
+	}
+
+//	private static void deleteAllRDFConnectionsToConcept(IEngine engine, String conceptURI) {
+//		// generate queries to delete all upstream/downstream nodes to concept uri
+//		String[] queries = new String[]{
+//				generateDeleteAllRDFConnectionsToConceptQuery(conceptURI, true),
+//				generateDeleteAllRDFConnectionsToConceptQuery(conceptURI, false)};
+//		
+//		for(String query : queries) {
+//			ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query);
+//			String[] names = wrapper.getVariables();
+//			while(wrapper.hasNext()) {
+//				ISelectStatement ss = wrapper.next();
+//				String subURI = ss.getRawVar(names[0]) + "";
+//				String predURI = ss.getRawVar(names[1]) + "";
+//				String objURI = ss.getRawVar(names[2]) + "";
+//				String label = ss.getVar(names[3]) + "";
+//				String propURI = ss.getRawVar(names[4]) + "";
+//				Object propVal = ss.getVar(names[5]);
+//	
+//				engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{subURI, predURI, objURI, true});
+//				if(!label.isEmpty()) {
+//					engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDFS.LABEL, label, false});
+//				}
+//				if(!propURI.isEmpty()) {
+//					engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, propURI, propVal, false});
+//				}
+//			}
+//		}
+//		
+//		// lastly, remove the node and all its props
+//		removeRDFNodeAndAllProps(engine, conceptURI);
+//	}
+	
+	private static String generateDeleteAllRDFConnectionsToConceptQuery(Set<String> conceptURI, boolean downstream) {
+		if(conceptURI.isEmpty()) {
+			return null;
+		}
+		StringBuilder query = new StringBuilder("SELECT DISTINCT ?SUB ?PRED ?OBJ ?LABEL ?PROP ?VAL WHERE { ");
+		query.append("{ ");
+		query.append("{?PRED <").append(RDFS.SUBPROPERTYOF).append("> <http://semoss.org/ontologies/Relation>} ");
+		query.append("{?SUB ?PRED ?OBJ} ");
+		query.append("OPTIONAL{ ?PRED <").append(RDFS.LABEL).append("> ?LABEL} ");
+		query.append("} UNION { ");
+		query.append("{?PRED <").append(RDFS.SUBPROPERTYOF).append("> <http://semoss.org/ontologies/Relation>} ");
+		query.append("{?SUB ?PRED ?OBJ} ");
+		query.append("OPTIONAL{ ?PRED <").append(RDFS.LABEL).append("> ?LABEL} ");
+		query.append("{?PROP <").append(RDF.TYPE).append("> <http://semoss.org/ontologies/Relation/Contains>} ");
+		query.append("{?PRED ?PROP ?VAL} ");
+		query.append("} }");
+		if(downstream) {
+			query.append("BINDINGS ?SUB {");
+		} else {
+			query.append("BINDINGS ?OBJ {");
+		}
+		for(String concept : conceptURI) {
+			query.append("(<");
+			query.append(concept);
+			query.append(">)");
+		}
+		query.append("}");
+
+		return query.toString();
+	}
+	
+//	private static String generateDeleteAllRDFConnectionsToConceptQuery(String conceptURI, boolean downstream) {
+//		StringBuilder query = new StringBuilder("SELECT DISTINCT ?SUB ?PRED ?OBJ ?LABEL ?PROP ?VAL WHERE { ");
+//		if(downstream) {
+//			query.append("BIND(<" + conceptURI + "> AS ?SUB) ");
+//		} else {
+//			query.append("BIND(<" + conceptURI + "> AS ?OBJ) ");
+//		}
+//		query.append("{ ");
+//		query.append("{?PRED <").append(RDFS.SUBPROPERTYOF).append("> <http://semoss.org/ontologies/Relation>} ");
+//		query.append("{?SUB ?PRED ?OBJ} ");
+//		query.append("OPTIONAL{ ?PRED <").append(RDFS.LABEL).append("> ?LABEL} ");
+//		query.append("} UNION { ");
+//		query.append("{?PRED <").append(RDFS.SUBPROPERTYOF).append("> <http://semoss.org/ontologies/Relation>} ");
+//		query.append("{?SUB ?PRED ?OBJ} ");
+//		query.append("OPTIONAL{ ?PRED <").append(RDFS.LABEL).append("> ?LABEL} ");
+//		query.append("{?PROP <").append(RDF.TYPE).append("> <http://semoss.org/ontologies/Relation/Contains>} ");
+//		query.append("{?PRED ?PROP ?VAL} ");
+//		query.append("} }");
+//		
+//		return query.toString();
+//	}
+	
+	private static void removeUnconnectedRDFNodes(IEngine engine, Set<String> uriBindingList) {
+		if(uriBindingList.isEmpty()) {
+			return;
+		}
+		// check relationships in one direction
+		StringBuilder query = new StringBuilder("SELECT DISTINCT ?CONCEPT (COUNT(?REL) AS ?C_RELS) WHERE {");
+		query.append("{?REL <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} "); 
+		query.append("{?CONCEPT a <http://semoss.org/ontologies/Concept>} ");
+		query.append("{?NODE ?REL ?CONCEPT} } ");
+		query.append("GROUP BY ?CONCEPT BINDINGS ?NODE {");
+		for(String concept : uriBindingList) {
+			query.append("(<");
+			query.append(concept);
+			query.append(">)");
+		}
+		query.append("}");
+		
+		Set<String> allNodes = new HashSet<String>();
+		Set<String> connectedNodes = new HashSet<String>();
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query.toString());
+		String[] names = wrapper.getVariables();
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			String nodeURI = ss.getRawVar(names[0]) + "";
+			int count = ((Number) ss.getVar(names[1])).intValue();
+			
+			allNodes.add(nodeURI);
+			if(count > 0) {
+				connectedNodes.add(nodeURI);
+			}
+		}
+		
+		// make sure to check relationships in the other direction
+		query = new StringBuilder("SELECT DISTINCT ?CONCEPT (COUNT(?REL) AS ?C_RELS) WHERE {");
+		query.append("{?REL <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} "); 
+		query.append("{?CONCEPT a <http://semoss.org/ontologies/Concept>} ");
+		query.append("{?CONCEPT ?REL ?NODE} } ");
+		query.append("GROUP BY ?CONCEPT BINDINGS ?NODE {");
+		for(String concept : uriBindingList) {
+			query.append("(<");
+			query.append(concept);
+			query.append(">)");
+		}
+		query.append("} ");
+
+		wrapper = WrapperManager.getInstance().getSWrapper(engine, query.toString());
+		names = wrapper.getVariables();
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			String nodeURI = ss.getRawVar(names[0]) + "";
+			int count = ((Number) ss.getVar(names[1])).intValue();
+			
+			allNodes.add(nodeURI);
+			if(count > 0) {
+				connectedNodes.add(nodeURI);
+			}
+		}
+		
+		allNodes.removeAll(connectedNodes);
+		if(allNodes.size() > 0) {
+			// made sure has no upstream or downstream, so delete it and all its properties
+			removeRDFNodeAndAllProps(engine, allNodes);
+		}
+	}
+	
+//	public static void removeUnconnectedRDFNodes(IEngine engine, String conceptURI) {
+//		// check relationships in one direction
+//		StringBuilder query = new StringBuilder("SELECT DISTINCT (COUNT(?REL) AS ?C_RELS) WHERE {");
+//		query.append("BIND(<" + conceptURI + "> AS ?NODE) ");
+//		query.append("{?REL <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} "); 
+//		query.append("{?CONCEPT a <http://semoss.org/ontologies/Concept>} ");
+//		query.append("{?NODE ?REL ?CONCEPT} }");
+//
+//		boolean isConnected = false;
+//		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query.toString());
+//		String[] names = wrapper.getVariables();
+//		while(wrapper.hasNext()) {
+//			ISelectStatement ss = wrapper.next();
+//			Integer count = (Integer) ss.getVar(names[0]);
+//			
+//			if(count > 0) {
+//				isConnected = true;
+//			}
+//		}
+//		
+//		if(isConnected) {
+//			return;
+//		} else {
+//			// make sure to check relationships in the other direction
+//			query = new StringBuilder("SELECT DISTINCT (COUNT(?REL) AS ?C_RELS) WHERE {");
+//			query.append("BIND(<" + conceptURI + "> AS ?NODE) ");
+//			query.append("{?REL <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation>} "); 
+//			query.append("{?CONCEPT a <http://semoss.org/ontologies/Concept>} ");
+//			query.append("{?CONCEPT ?REL ?NODE} }");
+//
+//			wrapper = WrapperManager.getInstance().getSWrapper(engine, query.toString());
+//			names = wrapper.getVariables();
+//			while(wrapper.hasNext()) {
+//				ISelectStatement ss = wrapper.next();
+//				Integer count = (Integer) ss.getVar(names[0]);
+//				
+//				if(count > 0) {
+//					isConnected = true;
+//				}
+//			}
+//			
+//			if(!isConnected) {
+//				// made sure has no upstream or downstream, so delete it and all its properties
+//				removeRDFNodeAndAllProps(engine, conceptURI);
+//			}
+//		}
+//	}
+	
+	private static void removeRDFNodeAndAllProps(IEngine engine, Set<String> uriBindingList) {
+		if(uriBindingList.isEmpty()) {
+			return;
+		}
+		
+		// delete the properties for the instances
+		StringBuilder query = new StringBuilder("SELECT DISTINCT ?NODE ?PROP ?VAL WHERE { ");
+		query.append("{?PROP <").append(RDF.TYPE).append("> <http://semoss.org/ontologies/Relation/Contains>} ");
+		query.append("{?NODE ?PROP ?VAL} } ");
+		query.append("BINDINGS ?NODE {");
+		for(String concept : uriBindingList) {
+			query.append("(<");
+			query.append(concept);
+			query.append(">)");
+		}
+		query.append("}");
+		
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query.toString());
+		String[] names = wrapper.getVariables();
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			String nodeURI = ss.getRawVar(names[0]) + "";
+			String propURI = ss.getRawVar(names[1]) + "";
+			Object propVal = ss.getVar(names[2]);
+			
+			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{nodeURI, propURI, propVal, false});
+		}
+		
+		// deletes the instances
+		String semossBaseConcept = "http://semoss.org/ontologies/Concept";
+		for(String nodeURI : uriBindingList) {
+			String typeURI = semossBaseConcept + "/" + Utility.getClassName(nodeURI);
+			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{nodeURI, RDF.TYPE, typeURI, true});
+			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{nodeURI, RDFS.LABEL, Utility.getInstanceName(nodeURI), false});
+		}
+		
+	}
+
+//	private static void removeRDFNodeAndAllProps(IEngine engine, String conceptURI) {
+//		StringBuilder query = new StringBuilder("SELECT DISTINCT ?NODE ?PROP ?VAL WHERE { ");
+//		query.append("BIND(<" + conceptURI + "> AS ?NODE) ");
+//		query.append("{?PROP <").append(RDF.TYPE).append("> <http://semoss.org/ontologies/Relation/Contains>} ");
+//		query.append("{?NODE ?PROP ?VAL} ");
+//		
+//		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query.toString());
+//		String[] names = wrapper.getVariables();
+//		while(wrapper.hasNext()) {
+//			ISelectStatement ss = wrapper.next();
+//			String nodeURI = ss.getRawVar(names[0]) + "";
+//			String propURI = ss.getRawVar(names[1]) + "";
+//			Object propVal = ss.getVar(names[2]);
+//			
+//			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{nodeURI, propURI, propVal, false});
+//		}
+//		String typeURI = "http://semoss.org/ontologies/Concept/" + Utility.getClassName(conceptURI);
+//		engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{conceptURI, RDF.TYPE, typeURI, true});
+//		engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{conceptURI, RDFS.LABEL, Utility.getInstanceName(conceptURI), false});
+//	}
+
+	/////////////////////////////////////////////RDBMS CODE/////////////////////////////////////////////
+	
 	/**
 	 * 
 	 * @param engine
@@ -257,7 +733,6 @@ public final class FormBuilder {
 
 		List<String> tablesToRemoveDuplicates = new ArrayList<String>();
 		List<String> colsForTablesToRemoveDuplicates = new ArrayList<String>();
-		Map<String, List<String>> addedInstances = new HashMap<String, List<String>>();
 		for(int j = 0; j < nodes.size(); j++) {
 			Map<String, Object> node = nodes.get(j);
 
@@ -266,10 +741,10 @@ public final class FormBuilder {
 			tableName = Utility.getInstanceName(nodeURI);
 			tableColumn = Utility.getClassName(nodeURI);
 			tableValue = node.get("conceptValue").toString();
-			//TODO: need to stop doing this null check - assuming always overriding
+
 			boolean override = false;
-			if(node.get("overwrite") != null) {
-				override = Boolean.parseBoolean(node.get("overwrite").toString());
+			if(node.get(OVERRIDE) != null) {
+				override = Boolean.parseBoolean(node.get(OVERRIDE).toString());
 			}
 
 			Map<String, String> colNamesAndType = tableColTypesHash.get(tableName.toUpperCase());
@@ -304,40 +779,31 @@ public final class FormBuilder {
 				//TODO: need to enable modifying the actual instance name as opposed to only its properties.. this would set the updateQuery to never return back an empty string
 				if(!updateQuery.isEmpty()) {
 					engine.insertData(updateQuery);
-				}
-				if(!tablesToRemoveDuplicates.contains(tableName)) {
-					tablesToRemoveDuplicates.add(tableName);
-					colsForTablesToRemoveDuplicates.add(tableColumn);
+					if(!tablesToRemoveDuplicates.contains(tableName)) {
+						tablesToRemoveDuplicates.add(tableName);
+						colsForTablesToRemoveDuplicates.add(tableColumn);
+					}
 				}
 			} else {
 				String insertQuery = createInsertStatement(tableName, tableColumn, tableValue, propNames, propValues, types);
 				engine.insertData(insertQuery);
-				if(!addedInstances.containsKey(tableName+tableColumn)) {
-					List<String> instanceList = new ArrayList<String>();
-					instanceList.add(tableValue);
-					addedInstances.put(tableName + tableColumn, instanceList);
-				} else {
-					addedInstances.get(tableName + tableColumn).add(tableValue);
-				}
 			}
 		}
 
-		String startTable;
-		String startVal;
-		String startCol;
-		String endTable;
-		String endCol;
-		String endVal;
-		String _FK = "_FK";
+		String table = "";
+		String conceptCol = "";
+		String conceptVal = "";
+		String foreignKeyCol = "";
+		String foreignKeyVal = "";
 
+		Set<String> deletedRels = new HashSet<String>();
 		Map<String, String> colNamesAndType = null;
 		for(int r = 0; r < relationships.size(); r++) {
-			Map<String, Object> relationship =  relationships.get(r);
+			Map<String, Object> relationship = relationships.get(r);
 
 			String startURI = relationship.get("startNodeType").toString();
-			startTable = Utility.getInstanceName(startURI);
-			startCol = Utility.getClassName(startURI);
-			startVal = escapeForSQLStatement(relationship.get("startNodeVal").toString());
+			String startTable = Utility.getInstanceName(startURI);
+			String startCol = Utility.getClassName(startURI);
 
 			colNamesAndType = tableColTypesHash.get(startTable.toUpperCase());
 			if(colNamesAndType == null) {
@@ -348,9 +814,8 @@ public final class FormBuilder {
 			}
 
 			String endURI = relationship.get("endNodeType").toString();
-			endTable = Utility.getInstanceName(endURI);
-			endCol =  Utility.getClassName(endURI);
-			endVal = escapeForSQLStatement(relationship.get("endNodeVal").toString());
+			String endTable = Utility.getInstanceName(endURI);
+			String endCol = Utility.getClassName(endURI);
 
 			colNamesAndType = tableColTypesHash.get(endTable.toUpperCase());
 			if(colNamesAndType == null) {
@@ -359,75 +824,82 @@ public final class FormBuilder {
 			if(!colNamesAndType.containsKey(endCol.toUpperCase())) {
 				throw new IllegalArgumentException("Table column, " + endCol + ", within table name, " + endTable + ", cannot be found.");
 			}
+			
+			String[] relVals = Utility.getInstanceName(relationship.get("relType").toString()).split("\\.");
+			// use the relationship to get the information 
+			// format is Title.Title.Studio.Title_FK (OTHER_TABLE_NAME, OTHER_COL_NAME, TABLE_NAME, FOREIGN_KEY)
+			if(relVals[0].equalsIgnoreCase(startTable) && relVals[1].equalsIgnoreCase(startCol)) {
+				table = relVals[2];
+				conceptCol = endTable;
+				conceptVal = relationship.get("endNodeVal").toString();
+				foreignKeyCol =  relVals[3];
+				foreignKeyVal = relationship.get("startNodeVal").toString();
+			} else if(relVals[2].equalsIgnoreCase(startTable) && relVals[3].equalsIgnoreCase(startCol)) {
+				table = relVals[0];
+				conceptCol = startTable;
+				conceptVal = relationship.get("endNodeVal").toString();
+				foreignKeyCol =  relVals[1];
+				foreignKeyVal = relationship.get("startNodeVal").toString();
+			} else if (relVals[0].equalsIgnoreCase(endTable) && relVals[1].equalsIgnoreCase(endCol)) {
+				table = relVals[2];
+				conceptCol = startTable;
+				conceptVal = relationship.get("startNodeVal").toString();
+				foreignKeyCol =  relVals[3];
+				foreignKeyVal = relationship.get("endNodeVal").toString();
+			} else if(relVals[3].equalsIgnoreCase(endTable) && relVals[4].equalsIgnoreCase(endCol)) {
+				table = relVals[0];
+				conceptCol = startTable;
+				conceptVal = relationship.get("startNodeVal").toString();
+				foreignKeyCol =  relVals[1];
+				foreignKeyVal = relationship.get("endNodeVal").toString();
+			}
+			
+			colNamesAndType = tableColTypesHash.get(table.toUpperCase());
+			if(colNamesAndType == null) {
+				throw new IllegalArgumentException("Table name, " + table + ", cannot be found.");
+			}
+			if(!colNamesAndType.containsKey(conceptCol.toUpperCase())) {
+				throw new IllegalArgumentException("Table column, " + conceptCol + ", within table name, " +table + ", cannot be found.");
+			}
+			if(!colNamesAndType.containsKey(foreignKeyCol.toUpperCase())) {
+				throw new IllegalArgumentException("Table column, " + foreignKeyCol + ", within table name, " + table + ", cannot be found.");
+			}
 
 			boolean override = false;
-			if(relationship.get("overwrite") != null) {
-				override = Boolean.parseBoolean(relationship.get("overwrite").toString());
+			if(relationship.get(OVERRIDE) != null) {
+				override = Boolean.parseBoolean(relationship.get(OVERRIDE).toString());
 			}
-
-			boolean addToStart = false;
-			String[] relVals = Utility.getInstanceName(relationship.get("relType").toString()).split("\\.");
-			if(relVals[1].endsWith(_FK)) {
-				if(relVals[1].equals(startTable + _FK)) {
-					addToStart = true;
-				} 
-			} if(relVals[3].endsWith(_FK)) {
-				if(relVals[1].equals(startTable + _FK)) {
-					addToStart = true;
+			if(override) {
+				String type = relationship.get(OVERRIDE_TYPE).toString();
+				boolean deleteUnconnectedConcepts = false;
+				if(relationship.get(DELETE_UNCONNECTED_CONCEPTS) != null) {
+					deleteUnconnectedConcepts = Boolean.parseBoolean(relationship.get(DELETE_UNCONNECTED_CONCEPTS).toString());
 				}
-			}
-
-			StringBuilder updateQuery = new StringBuilder();
-			StringBuilder deleteBuilder = new StringBuilder();
-
-			if(addToStart) {
-				// need to check that concept exists to update, or else just do an insert
-				if(addedInstances.containsKey(startTable + startCol) && addedInstances.get(startTable + startCol).contains(startVal)) {
-					updateQuery.append("UPDATE ").append(startTable.toUpperCase()).append(" SET " ).append(endTable + _FK).append("='")
-									.append(endVal).append("' WHERE ").append(startCol).append("='").append(startVal).append("';");
-					
-					if(override) {
-						//delete all other previous values
-						deleteBuilder.append("DELETE FROM ").append(startTable).append(" WHERE ").append(endTable + _FK).append("='")
-									.append(endVal).append("' AND ").append(startCol).append(" <> '").append(startVal).append("'");
+				boolean removeNode = false;
+				if(relationship.get(REMOVE_NODE) != null) {
+					removeNode = Boolean.parseBoolean(relationship.get(REMOVE_NODE).toString());
+				}
+				if(type.equalsIgnoreCase(UPSTREAM)) {
+					if(!deletedRels.contains(table + foreignKeyCol + foreignKeyVal)) {
+						overrideUpstreamRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash, deleteUnconnectedConcepts, removeNode);
+						deletedRels.add(table + foreignKeyCol + foreignKeyVal);
+					} else {
+						//already did the override once, now just insert
+						addRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash);
 					}
-				} else if(conceptExists(engine, startTable, endTable + _FK, endVal)) {
-					updateQuery.append("UPDATE ").append(startTable.toUpperCase()).append(" SET " ).append(startCol).append("='").append(startVal)
-									.append("' WHERE ").append(endTable + _FK).append("='").append(endVal).append("';");
-				} else {
-					updateQuery.append("INSERT INTO ").append(startTable.toUpperCase()).append(" (" ).append(startCol).append(", ").append(endTable + _FK)
-									.append(") VALUES ('").append(startVal).append("', '").append(endVal).append("')");
-				}
-				if(override && !tablesToRemoveDuplicates.contains(startTable)) {
-					tablesToRemoveDuplicates.add(startTable);
-					colsForTablesToRemoveDuplicates.add(startCol);
+				} else if(type.equalsIgnoreCase(DOWNSTREAM)){
+					if(!deletedRels.contains(table + conceptCol + conceptVal)) {
+						overrideDownstreamRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash, deleteUnconnectedConcepts, removeNode);
+						deletedRels.add(table + conceptCol + conceptVal);
+					} else {
+						//already did the override once, now just insert
+						addRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash);
+					}
 				}
 			} else {
-				// need to check that value exists to update, or else just do an insert
-				if(addedInstances.containsKey(endTable + endCol) && addedInstances.get(endTable + endCol).contains(endVal)) {
-					updateQuery.append("UPDATE ").append(endTable.toUpperCase()).append(" SET " ).append(startTable + _FK).append("='").append(startVal)
-									.append("' WHERE ").append(endCol).append("='").append(endVal).append("';");
-					
-					if(override) {
-						//delete all other previous values
-						deleteBuilder.append("DELETE FROM ").append(endTable).append(" WHERE ").append(startTable + _FK).append("='")
-									.append(startVal).append("' AND ").append(endCol).append(" <> '").append(endVal).append("'");
-					}
-				} else if(conceptExists(engine, endTable, startTable + _FK, startVal)) {
-					updateQuery.append("UPDATE ").append(endTable.toUpperCase()).append(" SET " ).append(endCol).append("='").append(endVal).append("' WHERE ")
-									.append(startTable + _FK).append("='").append(startVal).append("';");
-				} else {
-					updateQuery.append("INSERT INTO ").append(endTable.toUpperCase()).append(" (" ).append(endCol).append(", ").append(startTable + _FK)
-									.append(") VALUES ('").append(endVal).append("', '").append(startVal).append("')");
-				}
-				if(override && !tablesToRemoveDuplicates.contains(endTable)) {
-					tablesToRemoveDuplicates.add(endTable);
-					colsForTablesToRemoveDuplicates.add(endCol);
-				}
-			}
-			engine.insertData(updateQuery.toString());
-			if(!deleteBuilder.toString().isEmpty()) {
-				engine.removeData(deleteBuilder.toString());
+				// adding without any override modifications
+				// method checks is value currently exists
+				addRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash);
 			}
 		}
 
@@ -435,20 +907,136 @@ public final class FormBuilder {
 		removeDuplicates(engine, tablesToRemoveDuplicates, colsForTablesToRemoveDuplicates);
 	}
 
-	private static void removeDuplicates(IEngine engine, List<String> tablesToRemoveDuplicates, List<String> colsForTablesToRemoveDuplicates) {
-		final String TEMP_EXTENSION = "____TEMP";
+	private static void overrideUpstreamRDBMSRelationship(IEngine engine, String table, String conceptCol,
+			String conceptVal, String foreignKeyCol, String foreignKeyVal,
+			Map<String, Map<String, String>> tableColTypesHash, boolean deleteUnconnectedConcepts, boolean removeNode) 
+	{
+		StringBuilder queryBuilder = new StringBuilder();
+		// override all current values that exist for the relationship to the foreign key
+		queryBuilder.append("DELETE FROM ").append(table).append(" WHERE ").append(foreignKeyCol).append("='").append(foreignKeyVal).append("'");
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
+		// insert the new relationship
+		addRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash);
+	}
 
+	private static void overrideDownstreamRDBMSRelationship(IEngine engine, String table, String conceptCol, 
+			String conceptVal, String foreignKeyCol, String foreignKeyVal, 
+			Map<String, Map<String, String>> tableColTypesHash, boolean deleteUnconnectedConcepts, boolean removeNode) 
+	{
+		final String TEMP_EXTENSION = "____TEMP";
+		
+		StringBuilder queryBuilder = new StringBuilder();
+		// create a new temp table for the specific instance
+		queryBuilder.append("CREATE TABLE ").append(table).append(TEMP_EXTENSION).append(" AS (SELECT DISTINCT * FROM ")
+					.append(table).append(" WHERE ").append(conceptCol).append("='").append(conceptVal).append("')");
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
+		// set all the values in the foreign key column to the new value we are adding
+		queryBuilder.append("UPDATE ").append(table).append(TEMP_EXTENSION).append(" SET " ).append(foreignKeyCol).append("='").append(foreignKeyVal)
+					.append("' WHERE ").append(conceptCol).append("='").append(conceptVal).append("';");
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
+		// remove the duplicated
+		removeDuplicates(engine, table + TEMP_EXTENSION, conceptCol);
+		// delete all the current values for the instance from the table 
+		queryBuilder.append("DELETE FROM ").append(table).append(" WHERE ").append(foreignKeyCol).append("='").append(foreignKeyVal).append("'");
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
+		// add all the values from the temp table into the table we care about
+		queryBuilder.append("INSERT INTO ").append(table).append(" SELECT * FROM ").append(table).append(TEMP_EXTENSION);
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
+		// drop the temp table
+		queryBuilder.append("DROP TABLE ").append(table).append(TEMP_EXTENSION);
+		engine.insertData(queryBuilder.toString());
+	}
+	
+	private static void addRDBMSRelationship(IEngine engine, String table, String conceptCol, String conceptVal, 
+			String foreignKeyCol, String foreignKeyVal, Map<String, Map<String, String>> tableColTypesHash) {
+		// if concept already exists, need to add in manner to preserve many-to-many relationship structure
+		if(conceptExists(engine, table, conceptCol, conceptVal)) {
+			appendRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash);
+		} else {
+			// just perform an insert statement
+			StringBuilder queryBuilder = new StringBuilder();
+			queryBuilder.append("INSERT INTO ").append(table.toUpperCase()).append(" (" ).append(conceptCol).append(", ").append(foreignKeyCol)
+			.append(") VALUES ('").append(conceptVal).append("', '").append(foreignKeyCol).append("')");
+			engine.insertData(queryBuilder.toString());
+		}
+	}
+	
+	private static void appendRDBMSRelationship(IEngine engine, String table, String conceptCol, String conceptVal, 
+			String foreignKeyCol, String foreignKeyVal, Map<String, Map<String, String>> tableColTypesHash) {
+		StringBuilder queryBuilder = new StringBuilder();
+		// it exists, now need to find all unique values given the instance except the foreign key and append that to the table 
+		final String TEMP_EXTENSION = "____TEMP";
+		StringBuilder cols = new StringBuilder();
+		Map<String, String> tableCols = tableColTypesHash.get(table.toUpperCase());
+		// find the type of the foreign key column
+		String foreignKeyType = tableCols.get(foreignKeyCol.toUpperCase());
+		// get the list of all the columns except the foreign key we are looking at
+		for(String columnName : tableCols.keySet()) {
+			if(columnName.equals(foreignKeyCol.toUpperCase())) {
+				continue;
+			}
+			if(cols.length()==0) {
+				cols.append(columnName.toUpperCase());
+			} else {
+				cols.append(", ").append(columnName.toUpperCase());
+			}
+		}
+
+		// create a new temp table that is the unique set of all columns for the specific instance excluding other foreign key values
+		queryBuilder.append("CREATE TABLE ").append(table).append(TEMP_EXTENSION).append(" AS (SELECT DISTINCT ").append(cols.toString())
+					.append(" FROM ").append(table).append(" WHERE ").append(conceptCol).append("='").append(conceptVal).append("')");
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
+		// alter the table to add a column for the new foreign key value we are adding
+		queryBuilder.append("ALTER TABLE ").append(table).append(TEMP_EXTENSION).append(" ADD ").append(foreignKeyCol).append(" ").append(foreignKeyType);
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
+		// set all the values in the foreign key column to the new value we are adding
+		queryBuilder.append("UPDATE ").append(table).append(TEMP_EXTENSION).append(" SET " ).append(foreignKeyCol).append("='").append(foreignKeyVal)
+					.append("' WHERE ").append(conceptCol).append("='").append(conceptVal).append("';");
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
+		//TODO: is it possible to have duplicates at this point????
+		// remove the duplicated
+		removeDuplicates(engine, table + TEMP_EXTENSION, conceptCol);
+		// add all the values from the temp table into the table we care about
+		queryBuilder.append("INSERT INTO ").append(table).append(" SELECT * FROM ").append(table).append(TEMP_EXTENSION);
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
+		// drop the temp table
+		queryBuilder.append("DROP TABLE ").append(table).append(TEMP_EXTENSION);
+		engine.insertData(queryBuilder.toString());
+	}
+	
+	private static void removeDuplicates(IEngine engine, List<String> tablesToRemoveDuplicates, List<String> colsForTablesToRemoveDuplicates) {
 		for(int i = 0; i < tablesToRemoveDuplicates.size(); i++) {
 			String tableName = tablesToRemoveDuplicates.get(i);
 			String colName = colsForTablesToRemoveDuplicates.get(i);
-
-			String query = "CREATE TABLE " + tableName + TEMP_EXTENSION + " AS (SELECT DISTINCT * FROM " + tableName + " WHERE " + colName + " IS NOT NULL AND TRIM(" + colName + ") <> '' )";
-			engine.insertData(query);
-			query = "DROP TABLE " + tableName;
-			engine.insertData(query);
-			query = "ALTER TABLE " + tableName + TEMP_EXTENSION + " RENAME TO " + tableName;
-			engine.insertData(query);
+			removeDuplicates(engine, tableName, colName);
 		}
+	}
+	
+	private static void removeDuplicates(IEngine engine, String tableName, String colName) {
+		final String TEMP_EXTENSION = "____TEMP";
+
+		// remove the duplicated
+		StringBuilder queryBuilder = new StringBuilder();
+		queryBuilder.append("CREATE TABLE ").append(tableName).append(TEMP_EXTENSION).append(" AS (SELECT DISTINCT * FROM ")
+					.append(tableName).append(" WHERE ").append(colName).append(" IS NOT NULL AND TRIM(").append(colName)
+					.append(") <> '' )");
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
+		queryBuilder.append("DROP TABLE ").append(tableName);
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
+		queryBuilder.append("ALTER TABLE ").append(tableName).append(TEMP_EXTENSION).append(" RENAME TO ").append(tableName);
+		engine.insertData(queryBuilder.toString());
+		queryBuilder.setLength(0);
 	}
 
 	//TODO: need to make this generic for any rdbms engine
@@ -525,7 +1113,7 @@ public final class FormBuilder {
 				String type = types.get(i);
 				if(type.contains("VARCHAR")) {
 					insertQuery.append("'");
-					insertQuery.append(escapeForSQLStatement(propertyValue.toString()));
+					insertQuery.append(propertyValue.toString().toUpperCase());
 					insertQuery.append("'");
 				} else if(type.contains("INT") || type.contains("DECIMAL") || type.contains("DOUBLE") || type.contains("LONG") || type.contains("BIGINT")
 						|| type.contains("TINYINT") || type.contains("SMALLINT")){
@@ -540,7 +1128,7 @@ public final class FormBuilder {
 					}
 					propertyValue = SIMPLE_DATE_DF.format(dateValue);
 					insertQuery.append("'");
-					insertQuery.append(escapeForSQLStatement(propertyValue + ""));
+					insertQuery.append(propertyValue);
 					insertQuery.append("'");
 				} else if(type.contains("TIMESTAMP")) {
 					Date dateValue = null;
@@ -552,7 +1140,7 @@ public final class FormBuilder {
 					}
 					propertyValue = DATE_DF.format(dateValue);
 					insertQuery.append("'");
-					insertQuery.append(escapeForSQLStatement(propertyValue + ""));
+					insertQuery.append(propertyValue);
 					insertQuery.append("'");
 				}
 				if(i != propNames.size() - 1) {
@@ -582,7 +1170,7 @@ public final class FormBuilder {
 			insertQuery.append("=");
 			if(type.contains("VARCHAR")) {
 				insertQuery.append("'");
-				insertQuery.append(escapeForSQLStatement(propertyValue.toString()));
+				insertQuery.append(propertyValue.toString().toUpperCase());
 				insertQuery.append("'");
 			} else if(type.contains("INT") || type.contains("DECIMAL") || type.contains("DOUBLE") || type.contains("LONG") || type.contains("BIGINT")
 					|| type.contains("TINYINT") || type.contains("SMALLINT")){
@@ -597,7 +1185,7 @@ public final class FormBuilder {
 				}
 				propertyValue = SIMPLE_DATE_DF.format(dateValue);
 				insertQuery.append("'");
-				insertQuery.append(escapeForSQLStatement(propertyValue + ""));
+				insertQuery.append(propertyValue);
 				insertQuery.append("'");
 			} else if(type.contains("TIMESTAMP")) {
 				Date dateValue = null;
@@ -609,7 +1197,7 @@ public final class FormBuilder {
 				}
 				propertyValue = DATE_DF.format(dateValue);
 				insertQuery.append("'");
-				insertQuery.append(escapeForSQLStatement(propertyValue + ""));
+				insertQuery.append(propertyValue);
 				insertQuery.append("'");
 			}
 			if(i != propNames.size() - 1) {
@@ -626,68 +1214,4 @@ public final class FormBuilder {
 		return insertQuery.toString();
 	}
 
-	public static List<Map<String, String>> getStagingData(IEngine formBuilderEng, String formTableName) {
-		String sqlQuery = "SELECT ID, USER_ID, DATE_ADDED, DATA FROM " + formTableName;
-
-		List<Map<String, String>> results = new ArrayList<Map<String, String>>();
-
-		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, sqlQuery);
-		String[] names = wrapper.getVariables();
-		while(wrapper.hasNext()) {
-			ISelectStatement ss = wrapper.next();
-			Map<String, String> row = new HashMap<String, String>();
-			row.put("id",  ss.getVar(names[0]) + "");
-			row.put("userId", ss.getVar(names[1]) + "");
-			row.put("dateAdded", ss.getVar(names[2]) + "");
-			JdbcClob obj = (JdbcClob) ss.getRawVar(names[3]);
-
-			InputStream insightDefinition = null;
-			try {
-				insightDefinition = obj.getAsciiStream();
-				row.put("data", IOUtils.toString(insightDefinition));
-			} catch (SQLException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			results.add(row);
-		}
-
-		return results;
-	}
-
-	public static void deleteFromStaggingArea(IEngine formBuilderEng, String formName, String[] formIds) {
-		formName = cleanTableName(formName);
-		formName = escapeForSQLStatement(formName);
-		String idsString = createIdString(formIds);
-		String deleteQuery = "DELETE FROM " + formName + " WHERE ID IN " + idsString;
-		formBuilderEng.removeData(deleteQuery);
-	}
-
-	private static String createIdString(String... ids){
-		String idsString = "(";
-		for(String id : ids){
-			idsString = idsString + "'" + id + "', ";
-		}
-		idsString = idsString.substring(0, idsString.length() - 2) + ")";
-
-		return idsString;
-	}
-
-	/**
-	 * Remove all non alpha-numeric underscores from form name
-	 * @param s
-	 * @return
-	 */
-	public static String cleanTableName(String s) {
-		while(s.contains("  ")){
-			s = s.replace("  ", " ");
-		}
-		s = s.replaceAll(" ", "_");
-		return s.replaceAll("[^a-zA-Z0-9\\_]", "");
-	}
-
-	public static String escapeForSQLStatement(String s) {
-		return s.replaceAll("'", "''");
-	}
 }
