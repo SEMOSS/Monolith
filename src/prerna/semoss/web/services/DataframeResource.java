@@ -46,6 +46,15 @@ import prerna.web.services.util.WebUtility;
 public class DataframeResource {
 	Logger logger = Logger.getLogger(DataframeResource.class.getName());
 	Insight insight = null;
+	
+
+	
+	@Path("/analytics")
+	public Object runEngineAnalytics(){
+		AnalyticsResource analytics = new AnalyticsResource();
+		return analytics;
+	}
+	
 	/**
 	 * Retrieve top executed insights.
 	 * 
@@ -106,6 +115,13 @@ public class DataframeResource {
 //		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
 //		tf.openBackDoor();
 //		return Response.status(200).entity(WebUtility.getSO("Succesfully closed back door")).build();
+//	}
+//	@POST
+//	@Path("/getGraphData")
+//	@Produces("application/json")
+//	public Response getGraphData(@Context HttpServletRequest request){
+//		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
+//		return Response.status(200).entity(WebUtility.getSO(tf.getGraphOutput())).build();
 //	}
 	
 	@POST
