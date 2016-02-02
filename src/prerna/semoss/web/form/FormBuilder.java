@@ -258,6 +258,7 @@ public final class FormBuilder {
 		String instanceSubjectURI;
 		String object;
 		String instanceObjectURI;
+		String relationType;
 		String baseRelationshipURI;
 		String instanceRel;
 		String instanceRelationshipURI;
@@ -274,10 +275,11 @@ public final class FormBuilder {
 			instanceSubjectURI = baseURI + "/Concept/" + Utility.getInstanceName(subject) + "/" + startNode;
 			instanceObjectURI = baseURI + "/Concept/" + Utility.getInstanceName(object) + "/" +endNode;
 
-			baseRelationshipURI = relationship.get("relType").toString();
+			relationType = Utility.getInstanceName(relationship.get("relType").toString());
+			baseRelationshipURI = baseURI + "/Relation/" + relationType;
 			instanceRel = startNode + ":" + endNode;
 			instanceRelationshipURI = baseRelationshipURI + "/" + instanceRel;
-
+			
 			boolean override = false;
 			if(relationship.get(OVERRIDE) != null) {
 				override = Boolean.parseBoolean(relationship.get(OVERRIDE).toString());
