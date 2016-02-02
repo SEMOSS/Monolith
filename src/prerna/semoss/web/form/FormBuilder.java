@@ -276,9 +276,9 @@ public final class FormBuilder {
 			instanceObjectURI = baseURI + "/Concept/" + Utility.getInstanceName(object) + "/" +endNode;
 
 			relationType = Utility.getInstanceName(relationship.get("relType").toString());
-			baseRelationshipURI = baseURI + "/Relation/" + relationType;
+			baseRelationshipURI = relationBaseURI + "/" + relationType;
 			instanceRel = startNode + ":" + endNode;
-			instanceRelationshipURI = baseRelationshipURI + "/" + instanceRel;
+			instanceRelationshipURI =  baseURI + "/Relation/" + relationType + "/" + instanceRel;
 			
 			boolean override = false;
 			if(relationship.get(OVERRIDE) != null) {
