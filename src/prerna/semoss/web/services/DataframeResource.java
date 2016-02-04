@@ -1,5 +1,9 @@
 package prerna.semoss.web.services;
 
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PushbackReader;
+import java.io.StringBufferInputStream;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,6 +40,12 @@ import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
+import prerna.sablecc.Translation;
+import prerna.sablecc.lexer.Lexer;
+import prerna.sablecc.lexer.LexerException;
+import prerna.sablecc.node.Start;
+import prerna.sablecc.parser.Parser;
+import prerna.sablecc.parser.ParserException;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
@@ -122,6 +132,39 @@ public class DataframeResource {
 //	public Response getGraphData(@Context HttpServletRequest request){
 //		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
 //		return Response.status(200).entity(WebUtility.getSO(tf.getGraphOutput())).build();
+//	}
+//	@POST
+//	@Path("/applyCalc")
+//	@Produces("application/json")
+//	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
+//		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
+//		String string = form.getFirst("String");
+//		Parser p =
+//			    new Parser(
+//			    new Lexer(
+//			    new PushbackReader(
+//			    new InputStreamReader(new StringBufferInputStream(string)), 1024)));
+//			// new InputStreamReader(System.in), 1024)));
+//
+//			   // Parse the input.
+//			   Start tree;
+//			try {
+//				tree = p.parse();
+//				   // Apply the translation.
+//				   tree.apply(new Translation(tf));
+//			} catch (ParserException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			} catch (LexerException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			} catch (IOException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//
+//
+//		return Response.status(200).entity("done").build();
 //	}
 	
 	@POST
