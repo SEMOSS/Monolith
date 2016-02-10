@@ -318,7 +318,13 @@ public class NameServer {
 		upload.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
 		return upload;
 	}
-
+	
+	@Path("central/context/generateTableFromJSON")
+	public String generateTableFromJSON(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		Uploader upload = new Uploader();
+		return upload.generateTableFromJSON(form.getFirst("jsonString"));
+	}
+	
 	// central call to store an engine in the master db
 	@POST
 	@Path("central/context/registerEngine")

@@ -76,9 +76,12 @@ import com.ibm.icu.util.StringTokenizer;
 import prerna.algorithm.learning.unsupervised.recommender.DataStructureFromCSV;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
+import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.nameserver.AddToMasterDB;
+import prerna.om.Insight;
+import prerna.om.InsightStore;
 import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
 import prerna.rdf.main.ImportRDBMSProcessor;
@@ -97,10 +100,8 @@ public class Uploader extends HttpServlet {
 	int maxFileSize = 1000000 * 1024;
 	int maxMemSize = 4 * 1024;
 	String output = "";
-
 	String filePath;
 	String tempFilePath = "";
-	
 	boolean securityEnabled;
 	
 	public void setFilePath(String filePath){
@@ -1127,5 +1128,14 @@ public class Uploader extends HttpServlet {
 			s = s.replace("  ", " ");
 		}
 		return s.replaceAll(" ", "_");
+	}
+	
+	public String generateTableFromJSON(String jsonString) {
+		// generate tinker frame from 
+		TinkerFrame tf = TinkerFrame.generateTinkerFrameFromJson(jsonString);
+		Insight in = new Insight(null, "TinkerFrame", "Grid");
+		in.setDataMaker(tf);
+		String insightId = InsightStore.getInstance().put(in);
+		return insightId;
 	}
 }
