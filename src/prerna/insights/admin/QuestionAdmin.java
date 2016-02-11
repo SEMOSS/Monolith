@@ -516,8 +516,11 @@ public class QuestionAdmin {
 		List<SEMOSSParam> params = new Vector<SEMOSSParam>();
 		if(paramMapList != null && !paramMapList.isEmpty()) {
 			for(Map<String, String> paramMap : paramMapList) {
-				String paramURI = paramMap.get("value");
-				String paramParent = paramMap.get("parent");
+				String paramURI = this.coreEngine.getTransformedNodeName(paramMap.get("value"), false);
+				String paramParent = null;
+				if(paramMap.get("parent") != null) {
+					 paramParent = this.coreEngine.getTransformedNodeName(paramMap.get("parent"), false);
+				} 
 				String paramName = paramMap.get("name");
 
 				SEMOSSParam p = new SEMOSSParam();
@@ -530,6 +533,7 @@ public class QuestionAdmin {
 					p.setName(paramName);
 				} else {
 					p.setName(paramName);
+					p.setType(paramURI);
 					if(paramParent != null) {
 						// if it is a property, we need to define a unique query which pulls up values for the property based on the parent
 						String query = "SELECT DISTINCT ?entity WHERE { {?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <" + paramParent + "> } "
