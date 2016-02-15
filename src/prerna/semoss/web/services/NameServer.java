@@ -319,6 +319,7 @@ public class NameServer {
 		return upload;
 	}
 	
+	@POST
 	@Path("central/context/generateTableFromJSON")
 	public String generateTableFromJSON(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Uploader upload = new Uploader();
@@ -604,7 +605,11 @@ public class NameServer {
 	@Produces("application/json")
 	public StreamingOutput getConnectedConcepts(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String conceptURI = form.getFirst("conceptURI");
-
+		//TODO: need to figure out how the FE should pass us information for this
+		//TODO: decide this once data format is finalized for graph tinker
+		if(!conceptURI.startsWith("http://")) {
+			conceptURI = Constants.CONCEPT_URI + conceptURI;
+		}
 		IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(form.getFirst("engine"));
 		conceptURI = engine.getTransformedNodeName(conceptURI, false);
 
@@ -862,6 +867,7 @@ public class NameServer {
 		System.out.println("Came into this point.. " + insightID);
 
 		Insight existingInsight = null;
+		insightID = InsightStore.getInstance().keySet().iterator().next();
 		if (insightID != null && !insightID.isEmpty()) {
 			existingInsight = InsightStore.getInstance().get(insightID);
 			if (existingInsight == null) {

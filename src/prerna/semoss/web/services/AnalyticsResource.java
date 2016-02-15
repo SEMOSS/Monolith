@@ -36,7 +36,6 @@ import java.util.Vector;
 
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
@@ -57,14 +56,11 @@ import prerna.algorithm.learning.unsupervised.outliers.LOF;
 import prerna.algorithm.learning.unsupervised.som.SOMRoutine;
 import prerna.algorithm.learning.weka.WekaAprioriAlgorithm;
 import prerna.algorithm.learning.weka.WekaClassification;
-import prerna.engine.api.IEngine;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.ui.components.playsheets.AnalyticsBasePlaySheet;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSAction;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.util.MachineLearningEnum;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class AnalyticsResource {
