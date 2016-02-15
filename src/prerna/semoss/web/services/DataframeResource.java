@@ -406,20 +406,11 @@ public class DataframeResource {
 			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
 
-		List<HashMap<String, Object>> table = TableDataFrameUtilities.getTableData(mainTree);
+		List<Object[]> table = mainTree.getRawData();
+		String[] headers = mainTree.getColumnHeaders();
 		Map<String, Object> returnData = new HashMap<String, Object>();
 		returnData.put("data", table);
-
-		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
-		String[] varKeys = mainTree.getColumnHeaders();
-		String[] uriKeys = mainTree.getURIColumnHeaders();
-		for(int i = 0; i < varKeys.length; i++) {
-			Map<String, String> innerMap = new HashMap<String, String>();
-			innerMap.put("uri", uriKeys[i]);
-			innerMap.put("varKey", varKeys[i]);
-			headerInfo.add(innerMap);
-		}
-		returnData.put("headers", headerInfo);
+		returnData.put("headers", headers);
 		returnData.put("insightID", insight.getInsightID());
 		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 	}
