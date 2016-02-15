@@ -127,13 +127,6 @@ public class DataframeResource {
 //		return Response.status(200).entity(WebUtility.getSO("Succesfully closed back door")).build();
 //	}
 //	@POST
-//	@Path("/getGraphData")
-//	@Produces("application/json")
-//	public Response getGraphData(@Context HttpServletRequest request){
-//		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
-//		return Response.status(200).entity(WebUtility.getSO(tf.getGraphOutput())).build();
-//	}
-//	@POST
 //	@Path("/applyCalc")
 //	@Produces("application/json")
 //	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
@@ -429,6 +422,14 @@ public class DataframeResource {
 		returnData.put("headers", headerInfo);
 		returnData.put("insightID", insight.getInsightID());
 		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+	}
+
+	@POST
+	@Path("/getGraphData")
+	@Produces("application/json")
+	public Response getGraphData(@Context HttpServletRequest request){
+		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
+		return Response.status(200).entity(WebUtility.getSO(tf.getGraphOutput())).build();
 	}
 
 	@POST
