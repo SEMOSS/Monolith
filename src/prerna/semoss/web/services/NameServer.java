@@ -58,11 +58,8 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.params.CommonParams;
-import org.apache.solr.common.params.FacetParams;
-import org.apache.solr.common.params.SpellingParams;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
@@ -79,7 +76,6 @@ import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.ConnectedConcepts;
 import prerna.nameserver.DeleteFromMasterDB;
 import prerna.nameserver.INameServer;
-import prerna.nameserver.MasterDatabaseConstants;
 import prerna.nameserver.NameServerProcessor;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -321,9 +317,15 @@ public class NameServer {
 	
 	@POST
 	@Path("central/context/generateTableFromJSON")
-	public String generateTableFromJSON(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response generateTableFromJSON(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Uploader upload = new Uploader();
-		return upload.generateTableFromJSON(form.getFirst("jsonString"));
+		try {
+			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(form.getFirst("jsonString")))).build();
+		} catch(Exception e) {
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Error processing new data");
+			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+		}
 	}
 	
 	// central call to store an engine in the master db
