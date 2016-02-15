@@ -277,7 +277,7 @@ public class QuestionAdmin {
 		String uiOptions = form.getFirst("uiOptions");
 		boolean isDbQuery = true;
 
-		String dmName = "PrimaryKeyTinkerFrame";
+		String dmName = "TinkerFrame";
 		List<DataMakerComponent> dmcList = null;
 		List<SEMOSSParam> params = null;
 		// if query is defined, we are defining the insight the basic way -- just query and engine
