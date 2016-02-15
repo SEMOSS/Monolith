@@ -28,7 +28,8 @@ import prerna.web.services.util.WebUtility;
 @Path("/form")
 public class FormResource {
 
-	private static final String FORM_BUILDER_ENGINE_NAME = "form_builder_engine";
+	public static final String FORM_BUILDER_ENGINE_NAME = "form_builder_engine";
+	public static final String AUDIT_FORM_SUFFIX = "_FORM_LOG";
 	private IEngine formBuilderEng;
 	
 	public FormResource() {
