@@ -11,9 +11,11 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Vector;
 
 import org.apache.commons.io.IOUtils;
 import org.h2.jdbc.JdbcClob;
@@ -1298,6 +1300,29 @@ public final class FormBuilder {
 						.append(relName).append(valuesBreak).append(endNode).append(valuesBreak).append(propName).append(valuesBreak)
 						.append(propValue).append(valuesBreak).append(timeStamp).append("')");
 		formEng.insertData(insertLogStatement.toString());
+	}
+
+	public static Map<String, Object> getAuditDataForEngine(String engineName) {
+		Map<String, Object> retMap = new Hashtable<String, Object>();
+		String auditLogTableName = escapeForSQLStatement(cleanTableName(engineName)).toUpperCase() + FormResource.AUDIT_FORM_SUFFIX;
+		IEngine formEng = (IEngine) DIHelper.getInstance().getLocalProp(FormResource.FORM_BUILDER_ENGINE_NAME);
+		
+		String query = "SELECT * FROM " + auditLogTableName;
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formEng, query);
+		String[] names = wrapper.getVariables();
+		List<Object[]> data = new Vector<Object[]>();
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			Object[] row = new Object[names.length];
+			for(int i = 0; i < names.length; i++) {
+				row[i] = ss.getVar(names[i]);
+			}
+			data.add(row);
+		}
+		
+		retMap.put("headers", names);
+		retMap.put("data", data);
+		return retMap;
 	}
 	
 }
