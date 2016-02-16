@@ -869,7 +869,6 @@ public class NameServer {
 		System.out.println("Came into this point.. " + insightID);
 
 		Insight existingInsight = null;
-		insightID = InsightStore.getInstance().keySet().iterator().next();
 		if (insightID != null && !insightID.isEmpty()) {
 			existingInsight = InsightStore.getInstance().get(insightID);
 			if (existingInsight == null) {
