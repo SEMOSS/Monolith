@@ -276,13 +276,16 @@ public class QuestionAdmin {
 		String query = form.getFirst("query");
 		String uiOptions = form.getFirst("uiOptions");
 		boolean isDbQuery = true;
-
-		String dmName = "TinkerFrame";
+		String dmName = form.getFirst("dmName");
+		if(dmName == null || dmName.isEmpty()) {
+			dmName = "TinkerFrame";
+		} 
+		
 		List<DataMakerComponent> dmcList = null;
 		List<SEMOSSParam> params = null;
 		// if query is defined, we are defining the insight the basic way -- just query and engine
 		if(query != null && !query.isEmpty()) {
-			List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
+//			List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
 //			dmName = InsightsConverter.getDataMaker(layout, allSheets);
 			dmcList = new ArrayList<DataMakerComponent>();
 			DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
@@ -376,14 +379,17 @@ public class QuestionAdmin {
 		String query = form.getFirst("query");
 		String uiOptions = form.getFirst("uiOptions");
 		boolean isDbQuery = true;
-
-		String dmName = "";
+		String dmName = form.getFirst("dmName");
+		if(dmName == null || dmName.isEmpty()) {
+			dmName = "TinkerFrame";
+		} 
+		
 		List<DataMakerComponent> dmcList = null;
 		List<SEMOSSParam> params = null;
 		// if query is defined, we are defining the insight the basic way -- just query and engine
 		if(query != null && !query.isEmpty()) {
-			List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
-			dmName = InsightsConverter.getDataMaker(layout, allSheets);
+//			List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
+//			dmName = InsightsConverter.getDataMaker(layout, allSheets);
 			dmcList = new ArrayList<DataMakerComponent>();
 			DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
 			dmcList.add(dmc);
@@ -398,7 +404,7 @@ public class QuestionAdmin {
 		} 
 		// otherwise, we are defining the complex way -- with datamaker, insight makeup, layout, etc.
 		else {
-			dmName =  form.getFirst("dmName");
+//			dmName =  form.getFirst("dmName");
 			Insight existingIn = coreEngine.getInsight(insightID).get(0);
 			dmcList = existingIn.getDataMakerComponents();
 			params = existingIn.getInsightParameters();
