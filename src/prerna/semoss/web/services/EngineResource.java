@@ -1996,7 +1996,7 @@ public class EngineResource {
 				for(Map<String, String> propMap : nodeProps){
 					String subjectVar = propMap.get("SubjectVar");
 					List<String> nodeProps1 = (List<String>) ((Map<String, Object>) nodesHash.get(subjectVar)).get("selectedProperties");
-					nodeProps1.add((String) propMap.get("uriKey"));
+					nodeProps1.add(Utility.getTransformedNodeName(compEng, (String) propMap.get("uriKey"), true));
 				}
 			}
 			else { // Logic when coming from a preexisting insight that does not have metamodel data
