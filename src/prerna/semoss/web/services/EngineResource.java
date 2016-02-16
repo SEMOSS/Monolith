@@ -27,8 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,8 +60,10 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.log4j.Logger;
 
 import com.bigdata.rdf.model.BigdataURI;
+import com.bigdata.rdf.model.BigdataURI;
 import com.google.gson.Gson;
-import com.google.gson.internal.StringMap;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
@@ -86,7 +86,6 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.wrappers.WrapperManager;
-import prerna.rdf.query.builder.AbstractQueryBuilder;
 import prerna.rdf.query.builder.IQueryBuilder;
 import prerna.rdf.query.builder.QueryBuilderData;
 import prerna.rdf.query.builder.QueryBuilderHelper;
@@ -105,20 +104,12 @@ import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.ArrayUtilityMethods;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.InstanceStreamer;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
-
-import com.bigdata.rdf.model.BigdataURI;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonParser;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
 
 public class EngineResource {
 
@@ -1606,6 +1597,23 @@ public class EngineResource {
 		}
 
 		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
+	}
+	
+	@POST
+	@Path("/commitFormData")
+	@Produces("application/json")
+	public Response getAuditLogForEngine(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
+	{
+		Gson gson = new Gson();
+		Map<String, Object> auditInfo = null;
+		try {
+			auditInfo = FormBuilder.getAuditDataForEngine(this.coreEngine.getEngineName());
+		} catch(Exception e) {
+			e.printStackTrace();
+			return Response.status(400).entity(WebUtility.getSO(gson.toJson(e.getMessage()))).build();
+		}
+
+		return Response.status(200).entity(WebUtility.getSO(gson.toJson(auditInfo))).build();
 	}
 
 	@Path("/generateInsights")
