@@ -1600,7 +1600,7 @@ public class EngineResource {
 	}
 	
 	@POST
-	@Path("/commitFormData")
+	@Path("/getAuditLogForEngine")
 	@Produces("application/json")
 	public Response getAuditLogForEngine(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
 	{
