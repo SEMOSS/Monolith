@@ -685,6 +685,7 @@ public class EngineResource {
 			Insight insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
 			Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 			params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
+			insightObj.setParamHash(params);
 
 			// check if the insight has already been cached
 			System.out.println("Params is " + params);
@@ -694,7 +695,6 @@ public class EngineResource {
 			if(f.exists() && !f.isDirectory()) {
 				// insight has been cached, send it to the FE with a new insight id
 				String id = InsightStore.getInstance().put(insightObj);
-				insightObj.setParamHash(params);
 				String s = CacheAdmin.readFromFileString(fileName);
 				Map<String, Object> uploaded = gson.fromJson(s, new TypeToken<Map<String, Object>>() {}.getType());
 				uploaded.put("insightID", id);
@@ -703,7 +703,6 @@ public class EngineResource {
 				// insight visualization data has not been cached, run the insight
 				try {
 					InsightStore.getInstance().put(insightObj);
-					insightObj.setParamHash(params);
 					InsightCreateRunner run = new InsightCreateRunner(insightObj);
 					obj = run.runWeb();
 					// save the insight data to cache it for faster retrieval
@@ -712,6 +711,12 @@ public class EngineResource {
 					saveObj.putAll((Map)obj);
 					saveObj.put("insightID", null);
 					CacheAdmin.writeToFile(fileName, saveObj);
+					// now cache the graph of the insight for faster retrieval
+					IDataMaker dataTable = insightObj.getDataMaker();
+					if(dataTable instanceof TinkerFrame) {
+						String file = CacheAdmin.getFileName(insightObj.getEngineName(), insightObj.getDatabaseID(), insightObj.getRdbmsId(), insightObj.getParamHash(), FileType.GRAPH_DATA);
+						((TinkerFrame)dataTable).save(file);
+					}
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -730,7 +735,6 @@ public class EngineResource {
 	@Produces("application/json")
 	public Response createDataFrame(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
 	{
-		Gson gson = new Gson();
 		String insightId = form.getFirst("insightId");
 		String origInsight = form.getFirst("origId");
 		// grab the cached insight object from insight store
@@ -738,8 +742,7 @@ public class EngineResource {
 			Insight insightObj = InsightStore.getInstance().get(insightId);
 			if(insightObj != null) {
 				// get the params to run the insight with
-				Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
-				params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
+				Map<String, List<Object>> params = insightObj.getParamHash();
 				System.out.println("Params is " + params);
 				//grab the file name associated with the tinker graph
 				String fileName = CacheAdmin.getFileName(coreEngine.getEngineName(), insightObj.getDatabaseID(), origInsight, params, FileType.GRAPH_DATA);
@@ -748,8 +751,6 @@ public class EngineResource {
 				if(f.exists() && !f.isDirectory()) {
 					insightObj.setParamHash(params);
 					insightObj.setDataMaker(TinkerFrame.open(fileName));
-					InsightCreateRunner run = new InsightCreateRunner(insightObj);
-					run.runWeb();
 				} 
 				// the graph is not cached, so create it from dm components 
 				else {
