@@ -75,7 +75,9 @@ public class CacheAdmin {
 	public static String getFileName(String engineName, String DatabaseID, String insightID, Map<String, List<Object>> params, FileType filetype) {
 		String fileNameBase = fileNameBase(engineName, DatabaseID, insightID, params);
 		String fileNameExt = fileNameExtension(filetype);		
-		return fileNameBase + fileNameExt;
+		String fileName = fileNameBase + fileNameExt;
+		fileName = fileName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		return fileName;
 	}
 	
 	/**
@@ -144,6 +146,7 @@ public class CacheAdmin {
 	
 	public static void writeToFile(String fileName, Object vec) {
 		try {
+			fileName = fileName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
 			Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
 			String data = gson.toJson(vec);
 			IOUtils.write(data, new FileOutputStream(new File(fileName)));
