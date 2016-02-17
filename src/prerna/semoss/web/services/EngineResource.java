@@ -731,8 +731,7 @@ public class EngineResource {
 	public Response createDataFrame(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
 	{
 		Gson gson = new Gson();
-		String insight = form.getFirst("insight");
-		insight = InsightStore.getInstance().keySet().iterator().next();
+		String insight = form.getFirst("insightID");
 		String origInsight = form.getFirst("origID");
 		// grab the cached insight object from insight store
 		if(InsightStore.getInstance().get(insight) != null) {
