@@ -689,7 +689,7 @@ public class EngineResource {
 
 			// check if the insight has already been cached
 			System.out.println("Params is " + params);
-			String fileName = CacheAdmin.getFileName(coreEngine.getEngineName(), insightObj.getDatabaseID(), insight, params, FileType.VIZ_DATA);
+			String fileName = CacheAdmin.getFileName(coreEngine.getEngineName(), insightObj.getRdbmsId(), insight, params, FileType.VIZ_DATA);
 			File f = new File(fileName);
 			Object obj = null;
 			if(f.exists() && !f.isDirectory()) {
@@ -714,7 +714,7 @@ public class EngineResource {
 					// now cache the graph of the insight for faster retrieval
 					IDataMaker dataTable = insightObj.getDataMaker();
 					if(dataTable instanceof TinkerFrame) {
-						String file = CacheAdmin.getFileName(insightObj.getEngineName(), insightObj.getDatabaseID(), insightObj.getRdbmsId(), insightObj.getParamHash(), FileType.GRAPH_DATA);
+						String file = CacheAdmin.getFileName(insightObj.getEngineName(), insightObj.getRdbmsId(), insightObj.getRdbmsId(), insightObj.getParamHash(), FileType.GRAPH_DATA);
 						((TinkerFrame)dataTable).save(file);
 					}
 				} catch (Exception ex) { //need to specify the different exceptions 
@@ -745,7 +745,7 @@ public class EngineResource {
 				Map<String, List<Object>> params = insightObj.getParamHash();
 				System.out.println("Params is " + params);
 				//grab the file name associated with the tinker graph
-				String fileName = CacheAdmin.getFileName(coreEngine.getEngineName(), insightObj.getDatabaseID(), origInsight, params, FileType.GRAPH_DATA);
+				String fileName = CacheAdmin.getFileName(coreEngine.getEngineName(), insightObj.getRdbmsId(), origInsight, params, FileType.GRAPH_DATA);
 				File f = new File(fileName);
 				// if that graph cache exists load it and sent to the FE
 				if(f.exists() && !f.isDirectory()) {
@@ -761,7 +761,7 @@ public class EngineResource {
 						// now cache the graph of the insight for faster retrieval
 						IDataMaker dataTable = insightObj.getDataMaker();
 						if(dataTable instanceof TinkerFrame) {
-							String file = CacheAdmin.getFileName(insightObj.getEngineName(), insightObj.getDatabaseID(), insightObj.getRdbmsId(), insightObj.getParamHash(), FileType.GRAPH_DATA);
+							String file = CacheAdmin.getFileName(insightObj.getEngineName(), insightObj.getRdbmsId(), insightObj.getRdbmsId(), insightObj.getParamHash(), FileType.GRAPH_DATA);
 							((TinkerFrame)dataTable).save(file);
 						}
 					} catch (Exception ex) {

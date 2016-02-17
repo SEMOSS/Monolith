@@ -72,11 +72,15 @@ public class CacheAdmin {
 	 * 
 	 * get the full directory and filename for the given paramters
 	 */
-	public static String getFileName(String engineName, String DatabaseID, String insightID, Map<String, List<Object>> params, FileType filetype) {
-		String fileNameBase = fileNameBase(engineName, DatabaseID, insightID, params);
+	public static String getFileName(String engineName, String databaseID, String insightID, Map<String, List<Object>> params, FileType filetype) {
+		engineName = engineName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		databaseID = databaseID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		insightID = insightID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		String paramsStr = params.toString().replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+
+		String fileNameBase = fileNameBase(engineName, databaseID, insightID, paramsStr);
 		String fileNameExt = fileNameExtension(filetype);		
 		String fileName = fileNameBase + fileNameExt;
-		fileName = fileName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
 		return fileName;
 	}
 	
@@ -88,11 +92,11 @@ public class CacheAdmin {
 	 * @param params
 	 * @return
 	 */
-	private static String fileNameBase(String engineName, String DatabaseID, String insightID, Map<String, List<Object>> params) {
+	private static String fileNameBase(String engineName, String DatabaseID, String insightID, String params) {
 		String fileName = getDirectoryName(engineName, insightID);
 		
 		if(params != null) {
-			fileName += "/" + engineName + DatabaseID + insightID+ params.toString();
+			fileName += "/" + engineName + DatabaseID + insightID + params.toString();
 		} else {
 			fileName += "/" + engineName + DatabaseID + insightID;
 		}
@@ -120,6 +124,9 @@ public class CacheAdmin {
 	 * create a unique directory for this insight ID and engine name if the directory doesn't already exist
 	 */
 	public static void createDirectory(String engineName, String insightID) {
+		engineName = engineName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		insightID = insightID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		
 		File basefolder = new File(getDirectoryName(engineName, insightID));
 		if(!basefolder.exists()) {
 			try {
@@ -146,7 +153,6 @@ public class CacheAdmin {
 	
 	public static void writeToFile(String fileName, Object vec) {
 		try {
-			fileName = fileName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
 			Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
 			String data = gson.toJson(vec);
 			IOUtils.write(data, new FileOutputStream(new File(fileName)));
