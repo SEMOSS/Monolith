@@ -29,9 +29,11 @@ package prerna.semoss.web.services;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.net.URLEncoder;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -53,6 +55,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
 
 import prerna.auth.User;
@@ -89,7 +92,7 @@ public class UserResource
 	
 	private final String GOOGLE_CLIENT_SECRET = "VNIxZUbsMj-wV5CNDwF5gXcV";	
 	
-	private final String FACEBOOK_APP_SECRET = "aaab566fd8f0b9c48d3a44c2241fb25b";
+	private final String FACEBOOK_APP_SECRET = "d19e07178689958a9f773c5f6f1c5d45";
 	private final String FACEBOOK_ACCESS_TOKEN_NEW = "https://graph.facebook.com/oauth/access_token?code=%s&client_id=%s&redirect_uri=%s&client_secret=%s";
 	
 	/**
@@ -196,7 +199,7 @@ public class UserResource
 		if (tokenData == null) {
 			ret.put("success", "false");
 			ret.put("error", "User is not connected.");
-			return Response.status(400).entity(WebUtility.getSO(ret)).build();
+			return Response.status(200).entity(WebUtility.getSO(ret)).build();
 		}
 
 		request.getSession().invalidate();
@@ -230,16 +233,16 @@ public class UserResource
 		String accessToken = "";
 		
 		CloseableHttpClient httpclient = HttpClients.createDefault();
-		HttpGet http = new HttpGet(
-				String.format(this.FACEBOOK_ACCESS_TOKEN_NEW, code, clientId, redirectUri, this.FACEBOOK_APP_SECRET));
+		String url = String.format(this.FACEBOOK_ACCESS_TOKEN_NEW, code, clientId, URLEncoder.encode(redirectUri, "UTF-8"), this.FACEBOOK_APP_SECRET);
+		HttpGet http = new HttpGet(url);
 		CloseableHttpResponse response = httpclient.execute(http);
 		
 		// Retrieve Facebook OAuth access token
 		try {
 		    HttpEntity entity = response.getEntity();
 		    if (entity != null) {
-		    	long len = entity.getContentLength();
-		        if (len != -1) {
+		    	InputStream is = entity.getContent();
+		        if (is != null) {
 		            String resp = EntityUtils.toString(entity);
 		            
 		            if(resp.contains("access_token")) {
