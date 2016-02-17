@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.File;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,10 +61,8 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.log4j.Logger;
 
 import com.bigdata.rdf.model.BigdataURI;
-import com.bigdata.rdf.model.BigdataURI;
 import com.google.gson.Gson;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
@@ -79,6 +78,8 @@ import prerna.engine.impl.InsightsConverter;
 import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
 import prerna.equation.EquationSolver;
+import prerna.insights.admin.CacheAdmin;
+import prerna.insights.admin.CacheAdmin.FileType;
 import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.SearchMasterDB;
 import prerna.om.GraphDataModel;
@@ -96,6 +97,7 @@ import prerna.semoss.web.form.FormBuilder;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.FilterTransformation;
+import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.JoinTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
@@ -113,6 +115,8 @@ import prerna.web.services.util.WebUtility;
 
 public class EngineResource {
 
+	
+	
 	// gets everything specific to an engine
 	// essentially this is a wrapper over the engine
 	IEngine coreEngine = null;
@@ -122,6 +126,24 @@ public class EngineResource {
 	// to send class name if error occurs
 	String className = this.getClass().getName();
 
+	
+	public static void main(String[] args) {
+		
+		Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
+		Map<String, Object> testMap = new HashMap<String, Object>();
+		Map<String, Object> innerMap = new HashMap<String, Object>();
+		innerMap.put("object1", "value1");
+		innerMap.put("object2", "value2");
+		
+		String bytes = gson.toJson(innerMap);
+		
+		testMap.put("object", "value");
+		testMap.put("innerMap", bytes);
+		
+		String s = gson.toJson(testMap);
+		Map<String, Object> newMap = gson.fromJson(s, new TypeToken<Map<String, Object>>() {}.getType());
+		
+	}
 	public void setEngine(IEngine coreEngine)
 	{
 		System.out.println("Setting core engine to " + coreEngine);
@@ -612,11 +634,7 @@ public class EngineResource {
 	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
 	{
 		Gson gson = new Gson();
-
 		String insight = form.getFirst("insight");
-		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
-		AddToMasterDB addMasterDB = new AddToMasterDB(Constants.LOCAL_MASTER_DB_NAME);
-		SearchMasterDB searchMasterDB = new SearchMasterDB(Constants.LOCAL_MASTER_DB_NAME);
 
 		// executes the output and gives the data
 		// executes the create runner
@@ -636,31 +654,16 @@ public class EngineResource {
 
 				Object obj = null;
 				try {
-					//					QuestionPlaySheetStore.getInstance().idCount++;
-					//					insightID = QuestionPlaySheetStore.getInstance().getIDCount() + "";
-					//					// This will store the playsheet in QuesitonPlaySheetStore
-					//					IPlaySheet playSheet = Utility.preparePlaySheet(coreEngine, sparql, playsheet, coreEngine.getEngineName() + ": " + insightID, insightID);
-					//					playSheet.setQuestionID(insightID);
-					//					QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), insightID);
-					//					IPlaySheet playSheet = Utility.getPlaySheet(coreEngine, playsheet);
 					List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
 					String dmName = InsightsConverter.getDataMaker(playsheet, allSheets);
 					Insight in = new Insight(coreEngine, dmName, playsheet);
-					//					in.setPlaySheet(playSheet);
 					Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
 					DataMakerComponent dmc = new DataMakerComponent(coreEngine, sparql);
 					dmcList.add(dmc);
 					in.setDataMakerComponents(dmcList);
-					//					in.setDataMakerName("BTreeDataFrame");
 					InsightStore.getInstance().put(in);
 					InsightCreateRunner insightRunner = new InsightCreateRunner(in);
 					obj = insightRunner.runWeb();
-					//					User userData = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-					//					if(userData!=null)
-					//						playSheet.setUserData(userData);
-					//					PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
-					//					playRunner.runWeb();
-					//					obj = playSheet.getData();
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -668,85 +671,112 @@ public class EngineResource {
 					errorHash.put("Class", className);
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
-
-				//Increment the insight's execution count for the logged in user\
-				// TODO: how to do this part
-				//				addMasterDB.processInsightExecutionForUser(userId, insightObj);
-				//				String visibility = searchMasterDB.getVisibilityForInsight(userId, insightObj.getInsightID());
-				//				Hashtable ret = (Hashtable) obj;
-				//				if(ret !=  null) {
-				//					ret.put("query", insightObj.getSparql());
-				//					ret.put("insightId", insightID);
-				//					ret.put("visibility", visibility);
-				//				}
 				return Response.status(200).entity(WebUtility.getSO(obj)).build();
 			}
 			else{
 				Hashtable<String, String> errorHash = new Hashtable<String, String>();
 				errorHash.put("Message", "No question defined.");
 				errorHash.put("Class", className);
-				//			return getSO(errorHash);
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
 		else {
 			//Get the Insight, grab its ID
 			Insight insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
-			
 			Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 			params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
-			
+
+			// check if the insight has already been cached
 			System.out.println("Params is " + params);
-			//			Hashtable<String, Object> paramHash = Utility.getParamsFromString(params);
-
-			//		ExecuteQueryProcessor exQueryProcessor = new ExecuteQueryProcessor();
-			//		// This will store the playsheet in QuesitonPlaySheetStore
-			//		exQueryProcessor.processQuestionQuery(coreEngine, insight, paramHash);
+			String fileName = CacheAdmin.getFileName(coreEngine.getEngineName(), insightObj.getDatabaseID(), insight, params, FileType.VIZ_DATA);
+			File f = new File(fileName);
 			Object obj = null;
-			try {
-				InsightStore.getInstance().put(insightObj);
+			if(f.exists() && !f.isDirectory()) {
+				// insight has been cached, send it to the FE with a new insight id
+				String id = InsightStore.getInstance().put(insightObj);
 				insightObj.setParamHash(params);
-				InsightCreateRunner run = new InsightCreateRunner(insightObj);
-				obj = run.runWeb();
-				//			obj = insightObj.getPlaySheet().getData();
-
-				//			IPlaySheet playSheet= exQueryProcessor.getPlaySheet();
-				//			insightID = playSheet.getQuestionID();
-				//			QuestionPlaySheetStore.getInstance().addToSessionHash(request.getSession().getId(), insightID);
-				//
-				//			//			User userData = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-				//			//			if(userData!=null)
-				//			//				playSheet.setUserData(userData);
-				//			//			if(playSheet instanceof IStreamable){
-				//			//				ServletOutputStream stream = response.getOutputStream();
-				//			//				((IStreamable) playSheet).setOutputStream(stream);
-				//			//			}
-				//			PlaysheetCreateRunner playRunner = new PlaysheetCreateRunner(playSheet);
-				//			playRunner.runWeb();
-				//			obj = playSheet.getData();
-			} catch (Exception ex) { //need to specify the different exceptions 
-				ex.printStackTrace();
-				Hashtable<String, String> errorHash = new Hashtable<String, String>();
-				errorHash.put("Message", "Error occured processing question.");
-				errorHash.put("Class", className);
-				//			return getSO(errorHash);
-				return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
+				String s = CacheAdmin.readFromFileString(fileName);
+				Map<String, Object> uploaded = gson.fromJson(s, new TypeToken<Map<String, Object>>() {}.getType());
+				uploaded.put("insightID", id);
+				return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
+			} else {
+				// insight visualization data has not been cached, run the insight
+				try {
+					InsightStore.getInstance().put(insightObj);
+					insightObj.setParamHash(params);
+					InsightCreateRunner run = new InsightCreateRunner(insightObj);
+					obj = run.runWeb();
+					// save the insight data to cache it for faster retrieval
+					CacheAdmin.createDirectory(coreEngine.getEngineName(), insight);
+					Map saveObj = new HashMap();
+					saveObj.putAll((Map)obj);
+					saveObj.put("insightID", null);
+					CacheAdmin.writeToFile(fileName, saveObj);
+				} catch (Exception ex) { //need to specify the different exceptions 
+					ex.printStackTrace();
+					Hashtable<String, String> errorHash = new Hashtable<String, String>();
+					errorHash.put("Message", "Error occured processing question.");
+					errorHash.put("Class", className);
+					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
+				}
 			}
 
-			//Increment the insight's execution count for the logged in user
-			// TODO: how to do this part
-			//		addMasterDB.processInsightExecutionForUser(userId, insightObj);
-			//		String visibility = searchMasterDB.getVisibilityForInsight(userId, insightObj.getInsightID());
-			//		Hashtable ret = (Hashtable) obj;
-			//		if(ret !=  null) {
-			//			ret.put("query", insightObj.getSparql());
-			//			ret.put("insightId", insightID);
-			//			ret.put("visibility", visibility);
-			//		}
 			return Response.status(200).entity(WebUtility.getSO(obj)).build();
 		}
 	}
-
+	
+	@POST
+	@Path("createDataFrame")
+	@Produces("application/json")
+	public Response createDataFrame(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
+	{
+		Gson gson = new Gson();
+		String insight = form.getFirst("insight");
+		insight = InsightStore.getInstance().keySet().iterator().next();
+		String origInsight = form.getFirst("origID");
+		// grab the cached insight object from insight store
+		if(InsightStore.getInstance().get(insight) != null) {
+			Insight insightObj = InsightStore.getInstance().get(insight);
+			if(insightObj != null) {
+				// get the params to run the insight with
+				Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+				params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
+				System.out.println("Params is " + params);
+				//grab the file name associated with the tinker graph
+				String fileName = CacheAdmin.getFileName(coreEngine.getEngineName(), insightObj.getDatabaseID(), origInsight, params, FileType.GRAPH_DATA);
+				File f = new File(fileName);
+				// if that graph cache exists load it and sent to the FE
+				if(f.exists() && !f.isDirectory()) {
+					insightObj.setParamHash(params);
+					insightObj.setDataMaker(TinkerFrame.open(fileName));
+					InsightCreateRunner run = new InsightCreateRunner(insightObj);
+					run.runWeb();
+				} 
+				// the graph is not cached, so create it from dm components 
+				else {
+					try {
+						insightObj.setParamHash(params);
+						InsightCreateRunner run = new InsightCreateRunner(insightObj);
+						run.runWeb();
+						// now cache the graph of the insight for faster retrieval
+						IDataMaker dataTable = insightObj.getDataMaker();
+						if(dataTable instanceof TinkerFrame) {
+							String file = CacheAdmin.getFileName(insightObj.getEngineName(), insightObj.getDatabaseID(), insightObj.getRdbmsId(), insightObj.getParamHash(), FileType.GRAPH_DATA);
+							((TinkerFrame)dataTable).save(file);
+						}
+					} catch (Exception ex) {
+						ex.printStackTrace();
+						Hashtable<String, String> errorHash = new Hashtable<String, String>();
+						errorHash.put("Message", "Error occured processing question.");
+						errorHash.put("Class", className);
+						return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
+					}
+				}
+			}
+		}
+		return Response.status(200).entity(WebUtility.getSO("success")).build();
+	}
+	
 	// executes a particular insight
 	@GET
 	@Path("outputs")
@@ -831,7 +861,7 @@ public class EngineResource {
 		// typically is a JSON of the insight
 		// this will also cache it
 		// now should I assume the dude is always trying to get a graph
-		// need discussion witht he team
+		// need discussion with the team
 		return null;
 	}	
 
@@ -1066,7 +1096,8 @@ public class EngineResource {
 		}
 
 		Map<String, Object> valuesMap = new HashMap<String, Object>();
-		valuesMap.put(insightID, TableDataFrameUtilities.getTableData(mainTree, concept, sort, startRow, endRow));
+		List<HashMap<String, Object>> tableData = TableDataFrameUtilities.getTableData(mainTree, concept, sort, startRow, endRow);
+		valuesMap.put(insightID, tableData);
 
 		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
 		String[] varKeys = mainTree.getColumnHeaders();
@@ -1079,7 +1110,7 @@ public class EngineResource {
 		}
 
 		retMap.put("insightID", insightID);
-		retMap.put("numRows", mainTree.getNumRows());
+		retMap.put("numRows", tableData.size());
 		retMap.put("headers", headerInfo);
 		retMap.put("tableData", valuesMap);
 
@@ -1546,6 +1577,7 @@ public class EngineResource {
 		}
 
 		List<HashMap<String, Object>> table = TableDataFrameUtilities.getTableData(mainTree);
+//		List<Object[]> table = mainTree.getRawData();
 		Map<String, Object> returnData = new HashMap<String, Object>();
 		returnData.put("data", table);
 
