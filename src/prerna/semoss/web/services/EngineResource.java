@@ -731,11 +731,11 @@ public class EngineResource {
 	public Response createDataFrame(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
 	{
 		Gson gson = new Gson();
-		String insight = form.getFirst("insightID");
-		String origInsight = form.getFirst("origID");
+		String insightId = form.getFirst("insightId");
+		String origInsight = form.getFirst("origId");
 		// grab the cached insight object from insight store
-		if(InsightStore.getInstance().get(insight) != null) {
-			Insight insightObj = InsightStore.getInstance().get(insight);
+		if(InsightStore.getInstance().get(insightId) != null) {
+			Insight insightObj = InsightStore.getInstance().get(insightId);
 			if(insightObj != null) {
 				// get the params to run the insight with
 				Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
@@ -773,7 +773,7 @@ public class EngineResource {
 				}
 			}
 		}
-		return Response.status(200).entity(WebUtility.getSO("success")).build();
+		return Response.status(200).entity(WebUtility.getSO(insightId)).build();
 	}
 	
 	// executes a particular insight
