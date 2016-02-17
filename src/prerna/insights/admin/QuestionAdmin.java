@@ -207,6 +207,8 @@ public class QuestionAdmin {
 		List<SEMOSSParam> params = buildParameterList(paramMapList);
 		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
+		CacheAdmin.deleteCache(insight);
+		
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
 		String currDate = dateFormat.format(date);
@@ -409,6 +411,7 @@ public class QuestionAdmin {
 			dmcList = existingIn.getDataMakerComponents();
 			params = existingIn.getInsightParameters();
 			
+			CacheAdmin.deleteCache(existingIn);
 			// BELOW CODE IS FOR EDITING COMPONENTS VIA TEXT
 			// CURRENTLY NOT ENABLED BECAUSE GETTING PARAMETERS FROM DMC LIST STILL NEEDS TO BE THOUGHT THROUGH
 //			String insightMakeup = form.getFirst("insightMakeup");
