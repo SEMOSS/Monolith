@@ -76,7 +76,10 @@ public class CacheAdmin {
 		engineName = engineName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
 		databaseID = databaseID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
 		insightID = insightID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		String paramsStr = params.toString().replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		String paramsStr = "";
+		if(params != null) {
+			paramsStr = params.toString().replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		} 
 
 		String fileNameBase = fileNameBase(engineName, databaseID, insightID, paramsStr);
 		String fileNameExt = fileNameExtension(filetype);		
