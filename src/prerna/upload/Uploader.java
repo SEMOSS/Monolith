@@ -1119,7 +1119,7 @@ public class Uploader extends HttpServlet {
 	
 	public void addEngineOwner(String engine, String userId) {
 		UserPermissionsMasterDB masterDB = new UserPermissionsMasterDB();
-		masterDB.addEngineOwner(engine, userId);
+		masterDB.addEngineAndOwner(engine, userId);
 	}
 	
 	//TODO: this cleaning will not be necessary once insights are shifted to RDBMS

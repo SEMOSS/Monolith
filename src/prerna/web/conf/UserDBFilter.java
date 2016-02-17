@@ -52,7 +52,6 @@ import com.ibm.icu.util.StringTokenizer;
 
 public class UserDBFilter implements Filter {
 	FilterConfig config;
-	UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 	User user = new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.anonymous, "Anonymous");
 	
 	@Override
@@ -82,6 +81,7 @@ public class UserDBFilter implements Filter {
 			ArrayList<String> userEngines = new ArrayList<String>();
 			session = ((HttpServletRequest)arg0).getSession(true);
 			if(securityEnabled) {
+				UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 				userEngines = permissions.getUserAccessibleEngines(user.getId());
 			}
 			// get all the engines and add the top engines

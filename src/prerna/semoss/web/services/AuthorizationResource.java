@@ -57,7 +57,6 @@ public class AuthorizationResource
 {
 	@Context ServletContext context;
 	String output = "";
-	private final UserPermissionsMasterDB permissions = new UserPermissionsMasterDB(Constants.LOCAL_MASTER_DB_NAME);
 	
 	/**
 	 * Returns a list of engines the currently logged in user can access on the DB Admin page.
@@ -66,6 +65,7 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("dbAdminEngines")
 	public StreamingOutput getDBAdminEngines(@Context HttpServletRequest request) throws IOException {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		Hashtable<String, ArrayList<Hashtable<String, String>>> ret = new Hashtable<String, ArrayList<Hashtable<String, String>>>();
 		ArrayList<Hashtable<String, String>> allEngines = new ArrayList<Hashtable<String, String>>((ArrayList<Hashtable<String, String>>)request.getSession().getAttribute(Constants.ENGINES));
 		
@@ -74,7 +74,7 @@ public class AuthorizationResource
 			return WebUtility.getSO(ret);
 		}
 		
-		EnginePermission[] permissionsList = new EnginePermission[] { EnginePermission.EDIT_INSIGHT };
+		EnginePermission[] permissionsList = new EnginePermission[] { EnginePermission.OWNER };
 		
 		ArrayList<String> accessibleEngines = permissions.getEnginesForUserAndPermissions(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), permissionsList);
 		ArrayList<Hashtable<String, String>> engines = new ArrayList<Hashtable<String, String>>();
@@ -93,6 +93,7 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("getEngineAccessRequests")
 	public Response getEngineAccessRequestsForUser(@Context HttpServletRequest request) throws IOException {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		Hashtable<String, ArrayList<Hashtable<String, Object>>> ret = new Hashtable<String, ArrayList<Hashtable<String, Object>>>();
 		ArrayList<Hashtable<String, Object>> requests = new ArrayList<Hashtable<String,Object>>();
 		Hashtable<String, Object> requestdetails;
@@ -102,7 +103,7 @@ public class AuthorizationResource
 			ArrayList<EngineAccessRequest> reqs = permissions.getEngineAccessRequestsForUser(user.getId());
 			ArrayList<String> allPermissionsList = new ArrayList<String>();
 			for(EnginePermission ep : EnginePermission.values()) {
-				allPermissionsList.add(ep.getPermissionName());
+				allPermissionsList.add(ep.getPermission());
 			}
 			for(EngineAccessRequest req : reqs) {
 				requestdetails = new Hashtable<String, Object>();
@@ -122,6 +123,7 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("addEngineAccessRequest")
 	public Response addEngineAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		Hashtable<String, Boolean> ret = new Hashtable<String, Boolean>();
 		String engineName = form.getFirst("engine");
 		
@@ -138,8 +140,11 @@ public class AuthorizationResource
 		Hashtable<String, Boolean> ret = new Hashtable<String, Boolean>();
 		Gson gson = new Gson();
 		String requestId = form.getFirst("requestId");
-		ArrayList<String> enginePermissions = gson.fromJson(form.getFirst("permissions"), ArrayList.class);
+//		ArrayList<String> enginePermissions = gson.fromJson(form.getFirst("permissions"), ArrayList.class);
+		ArrayList<String> enginePermissions = new ArrayList<String>();
+		enginePermissions.add(EnginePermission.READ_ONLY.getPermission());
 		
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		boolean success = permissions.processEngineAccessRequest(requestId, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), enginePermissions.toArray(new String[enginePermissions.size()]));
 		
 		ret.put("success", success);
