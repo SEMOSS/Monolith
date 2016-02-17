@@ -325,7 +325,7 @@ public class UserResource
 	 * @param email		Email address of user retrieved from Identity Provider
 	 */
 	private void addUser(User newUser) {
-		UserPermissionsMasterDB master = new UserPermissionsMasterDB(Constants.LOCAL_MASTER_DB_NAME);
+		UserPermissionsMasterDB master = new UserPermissionsMasterDB();
 		master.addUser(newUser);
 	}
 

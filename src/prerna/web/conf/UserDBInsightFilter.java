@@ -47,7 +47,6 @@ import prerna.util.Constants;
 
 public class UserDBInsightFilter implements Filter {
 	FilterConfig config;
-	UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 	String engineAPIPath = "/e-";
 
 	@Override
@@ -67,6 +66,7 @@ public class UserDBInsightFilter implements Filter {
 				if(user!= null) {
 					userId = user.getId();
 				}
+				UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 				ArrayList<String> userEngines = permissions.getUserAccessibleEngines(userId);
 				if(!engineName.equals(Constants.LOCAL_MASTER_DB_NAME) && !userEngines.contains(engineName)) {
 					HttpServletResponse response = (HttpServletResponse) arg1;
