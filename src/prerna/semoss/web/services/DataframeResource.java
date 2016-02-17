@@ -28,9 +28,6 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
@@ -40,7 +37,7 @@ import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
-//import prerna.sablecc.Translation;
+import prerna.sablecc.Translation;
 import prerna.sablecc.lexer.Lexer;
 import prerna.sablecc.lexer.LexerException;
 import prerna.sablecc.node.Start;
@@ -52,6 +49,10 @@ import prerna.ui.components.playsheets.datamakers.MathTransformation;
 import prerna.util.Constants;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 
 public class DataframeResource {
 	Logger logger = Logger.getLogger(DataframeResource.class.getName());
@@ -118,47 +119,48 @@ public class DataframeResource {
 		
 	}
 	
-//	@POST
-//	@Path("/openBackDoor")
-//	@Produces("application/json")
-//	public Response openBackDoor(@Context HttpServletRequest request){
-//		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
-//		tf.openBackDoor();
-//		return Response.status(200).entity(WebUtility.getSO("Succesfully closed back door")).build();
-//	}
-//	@POST
-//	@Path("/applyCalc")
-//	@Produces("application/json")
-//	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
-//		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
-//		String string = form.getFirst("String");
-//		Parser p =
-//			    new Parser(
-//			    new Lexer(
-//			    new PushbackReader(
-//			    new InputStreamReader(new StringBufferInputStream(string)), 1024)));
-//			// new InputStreamReader(System.in), 1024)));
-//
-//			   // Parse the input.
-//			   Start tree;
-//			try {
-//				tree = p.parse();
-//				   // Apply the translation.
-//				   tree.apply(new Translation(tf));
-//			} catch (ParserException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			} catch (LexerException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			} catch (IOException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
-//
-//
-//		return Response.status(200).entity("done").build();
-//	}
+	@POST
+	@Path("/openBackDoor")
+	@Produces("application/json")
+	public Response openBackDoor(@Context HttpServletRequest request){
+		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
+		tf.openBackDoor();
+		return Response.status(200).entity(WebUtility.getSO("Succesfully closed back door")).build();
+	}
+
+	@POST
+	@Path("/applyCalc")
+	@Produces("application/json")
+	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
+		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
+		String string = form.getFirst("String");
+		Parser p =
+			    new Parser(
+			    new Lexer(
+			    new PushbackReader(
+			    new InputStreamReader(new StringBufferInputStream(string)), 1024)));
+			// new InputStreamReader(System.in), 1024)));
+
+			   // Parse the input.
+			   Start tree;
+			try {
+				tree = p.parse();
+				   // Apply the translation.
+				   tree.apply(new Translation(tf));
+			} catch (ParserException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (LexerException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+
+		return Response.status(200).entity("done").build();
+	}
 	
 	@POST
 	@Path("/drop")
