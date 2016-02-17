@@ -58,6 +58,14 @@ public class AuthorizationResource
 	@Context ServletContext context;
 	String output = "";
 	
+	@GET
+	@Produces("application/json")
+	@Path("securityEnabled")
+	public StreamingOutput isSecurityEnabled() {
+		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
+		return WebUtility.getSO(securityEnabled);
+	}
+	
 	/**
 	 * Returns a list of engines the currently logged in user can access on the DB Admin page.
 	 */
