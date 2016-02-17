@@ -50,6 +50,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Vector;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -86,6 +87,7 @@ import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
 import prerna.rdf.main.ImportRDBMSProcessor;
 import prerna.ui.components.ImportDataProcessor;
+import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
@@ -1134,6 +1136,10 @@ public class Uploader extends HttpServlet {
 		// generate tinker frame from 
 		TinkerFrame tf = TinkerFrame.generateTinkerFrameFromJson(jsonString);
 		Insight in = new Insight(null, "TinkerFrame", "Grid");
+		DataMakerComponent dmc = new DataMakerComponent(""); //dmc currently doesn't have a location since it is not saved yet
+		Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
+		dmcList.add(dmc);
+		in.setDataMakerComponents(dmcList);
 		in.setDataMaker(tf);
 		String insightId = InsightStore.getInstance().put(in);
 		return insightId;
