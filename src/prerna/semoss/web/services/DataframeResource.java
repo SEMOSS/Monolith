@@ -6,6 +6,7 @@ import java.io.PushbackReader;
 import java.io.StringBufferInputStream;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -19,6 +20,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
@@ -32,21 +34,28 @@ import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
 import prerna.ds.TinkerFrame;
+import prerna.engine.api.IEngine;
+import prerna.engine.api.IEngine.ENGINE_TYPE;
+import prerna.engine.impl.AbstractEngine;
 import prerna.equation.EquationSolver;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
+import prerna.rdf.query.builder.QueryBuilderData;
+import prerna.rdf.util.AbstractQueryParser;
 import prerna.sablecc.Translation;
 import prerna.sablecc.lexer.Lexer;
 import prerna.sablecc.lexer.LexerException;
 import prerna.sablecc.node.Start;
 import prerna.sablecc.parser.Parser;
 import prerna.sablecc.parser.ParserException;
+import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
 
@@ -161,7 +170,7 @@ public class DataframeResource {
 
 		return Response.status(200).entity("done").build();
 	}
-	
+//	
 	@POST
 	@Path("/drop")
 	@Produces("application/json")
@@ -421,8 +430,192 @@ public class DataframeResource {
 	@Path("/getGraphData")
 	@Produces("application/json")
 	public Response getGraphData(@Context HttpServletRequest request){
-		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
-		return Response.status(200).entity(WebUtility.getSO(tf.getGraphOutput())).build();
+		IDataMaker maker = insight.getDataMaker();
+		if(maker instanceof TinkerFrame){ 
+			return Response.status(200).entity(WebUtility.getSO(((TinkerFrame)maker).getGraphOutput())).build();
+		}
+		else if (maker instanceof GraphDataModel){
+			return Response.status(200).entity(WebUtility.getSO(((GraphDataModel)maker).getDataMakerOutput())).build();
+		}
+		else
+			return Response.status(400).entity(WebUtility.getSO("Illegal data maker type ")).build();
+	}
+
+	/**
+	 * If its a tinker, parse the meta graph to get metamodel
+	 * Otherwise go through the components and either 1. parse QueryBuilderData or 2. parse query
+	 * 
+	 * @param insightID
+	 * @return
+	 */
+	@POST
+	@Path("/getInsightMetamodel")
+	@Produces("application/json")
+	public Response getInsightMetamodel(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String insightID = form.getFirst("insightID");
+
+		Insight existingInsight = null;
+		if(insightID != null && !insightID.isEmpty()) {
+			existingInsight = InsightStore.getInstance().get(insightID);
+			if(existingInsight == null) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+		}
+
+		ITableDataFrame dataFrame = (ITableDataFrame) existingInsight.getDataMaker();
+		if (dataFrame == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Dataframe not found within insight");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+		dataFrame.refresh();
+
+		Hashtable<String, Object> returnHash = new Hashtable<String, Object>();
+		List<DataMakerComponent> comps = existingInsight.getDataMakerComponents();
+		Map<String, Object> nodesHash = new Hashtable<String, Object>();
+		Map<String, Object> triplesHash = new Hashtable<String, Object>();
+		for (DataMakerComponent comp : comps){
+			String query = comp.getQuery();
+			if(query == null){
+				QueryBuilderData data = comp.getBuilderData();
+				IEngine compEng = comp.getEngine();
+				List<List<String>> rels = data.getRelTriples();
+				System.out.println(rels);
+				for(List<String> rel: rels){
+					if(rel.size()>1){
+						// store the triple
+						Map<String, String> nodeTriples = new Hashtable<String, String>();
+						nodeTriples.put("fromNode", rel.get(0));
+						nodeTriples.put("relationshipTriple", rel.get(1));
+						nodeTriples.put("toNode", rel.get(2));
+						triplesHash.put(triplesHash.size()+"", nodeTriples);
+						
+						//store the object node
+						String node2 = rel.get(2);
+						String node2Name = Utility.getInstanceName(node2);
+						if(!nodesHash.containsKey(node2Name)){
+							List<String> node2Props = new Vector<String>();
+							Map<String, Object> node2Details = new HashMap<String, Object>();
+							node2Details.put("selectedProperties", node2Props);
+							node2Details.put("uri", node2);
+							node2Details.put("engineName", compEng.getEngineName());
+							node2Details.put("engineType", compEng.getEngineType());
+							nodesHash.put(node2Name, node2Details);
+						}
+					}
+					//store the subject node
+					String node1 = rel.get(0);
+					String nodeName = Utility.getInstanceName(node1);
+					if(!nodesHash.containsKey(nodeName)){
+						List<String> nodeProps = new Vector<String>();
+						Map<String, Object> nodeDetails = new HashMap<String, Object>();
+						nodeDetails.put("selectedProperties", nodeProps);
+						nodeDetails.put("uri", node1);
+						nodeDetails.put("engineName", compEng.getEngineName());
+						nodeDetails.put("engineType", compEng.getEngineType());
+						nodesHash.put(nodeName, nodeDetails);
+					}
+				}
+				
+				List<Map<String, String>> nodeProps = data.getNodeProps();
+				System.out.println(nodeProps);
+				for(Map<String, String> propMap : nodeProps){
+					String subjectVar = propMap.get("SubjectVar");
+					List<String> nodeProps1 = (List<String>) ((Map<String, Object>) nodesHash.get(subjectVar)).get("selectedProperties");
+					nodeProps1.add(Utility.getTransformedNodeName(compEng, (String) propMap.get("uriKey"), true));
+				}
+			}
+			else { // Logic when coming from a preexisting insight that does not have metamodel data
+				try{
+					Hashtable<String, String> nodeTriples;
+					Hashtable<String, Object> nodeDetails;
+		
+					//get the btree headers for comparison against what you want to display back to the user
+					List<String> columnHeaders = new ArrayList<String>();
+					Collections.addAll(columnHeaders, dataFrame.getColumnHeaders()); 
+					//for RDBMS everything is uppercase in the btree
+					boolean useUpperCase = false;
+					if(ENGINE_TYPE.RDBMS == comp.getEngine().getEngineType()){
+						useUpperCase = true;
+					}
+					AbstractQueryParser queryParser = ((AbstractEngine) comp.getEngine()).getQueryParser();
+					queryParser.setQuery(query);
+					queryParser.parseQuery();
+					//aggregate functions not eligible for nagivation back through explore
+					if(queryParser.hasAggregateFunction()){
+						Hashtable<String, String> errorHash = new Hashtable<String, String>();
+						errorHash.put("Message", "This Insight is not eligible to navigate through Explore. The query uses aggregation.");
+						return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+					}
+					Hashtable<String, String> nodes = queryParser.getNodesFromQuery();
+					for (String key : nodes.keySet()) {
+						String keyNode = key;
+						if(useUpperCase){
+							keyNode = key.toUpperCase();
+						}
+						nodeDetails = new Hashtable<String, Object>();
+		
+						Hashtable<String, Hashtable<String, String>> selectedPropsHash = queryParser.getReturnVariables();
+						Hashtable<String, String> selectedProperties = (Hashtable<String,String>) selectedPropsHash.get(key);
+						ArrayList<String> nodeProps = new ArrayList<String>();
+						if (selectedProperties != null) {
+							//selectedProperties is a map of the column alias and its column name the keyset has the alias.  
+							for (String singleProperty : selectedProperties.keySet()) {
+								nodeProps.add(selectedProperties.get(singleProperty));
+							}
+						}
+						nodeDetails.put("selectedProperties", nodeProps);
+						nodeDetails.put("uri", nodes.get(key));
+		
+						if(!columnHeaders.contains(keyNode)){
+							//if the node doesnt exist in the btree, thats fine we just wont add it to the ui, so take no action
+							//BUT if the node properties were included in the btree then we should error out
+							if(nodeProps.size()>0){
+								Hashtable<String, String> errorHash = new Hashtable<String, String>();
+								errorHash.put("Message", "This Insight is not eligible to navigate through Explore.");
+								return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+							}
+						} else {
+							nodesHash.put(key, nodeDetails);
+						}
+					}
+		
+					ArrayList<String[]> triplesArr = (ArrayList<String[]>) queryParser.getTriplesData();
+					int i = 0;
+					for (String[] triples : triplesArr) {
+						nodeTriples = new Hashtable<String, String>();
+						nodeTriples.put("fromNode", triples[0]);
+						nodeTriples.put("relationshipTriple", triples[1]);
+						nodeTriples.put("toNode", triples[2]);
+		
+						//get instance from triple and capitalize it for rdbms since btree stores uppercase for rdbms
+						String fromNodeInstance = Utility.getInstanceName(triples[0]);
+						String toNodeInstance = Utility.getInstanceName(triples[2]);
+						if(useUpperCase){
+							fromNodeInstance = fromNodeInstance.toUpperCase();
+							toNodeInstance = toNodeInstance.toUpperCase();
+						}
+						if(columnHeaders.contains(fromNodeInstance) && columnHeaders.contains(toNodeInstance)){
+							triplesHash.put(Integer.toString(i++), nodeTriples);
+						}
+					}
+		
+					// don't need this anymore as insights and tables are not stored separately
+	//				insightID = InsightStore.getInstance().put(existingInsight); // place btree into ITableDataFrameStore and generate a tableID so that user no longer uses insightID
+				}catch(Exception e){
+					logger.info("failed to parse a query");
+					e.printStackTrace();
+				}
+			}
+		}
+		returnHash.put("nodes", nodesHash); // Nodes that will be used to build the metamodel in Single-View
+		returnHash.put("triples", triplesHash);
+
+		returnHash.put("insightID", existingInsight.getInsightID());
+
+		return Response.status(200).entity(WebUtility.getSO(returnHash)).build();
 	}
 
 	@POST
@@ -510,4 +703,16 @@ public class DataframeResource {
 		boolean hasDuplicates = comboSet.size() != numRows;
 		return Response.status(200).entity(WebUtility.getSO(hasDuplicates)).build();
 	}
+
+    //for handling playsheet specific tool calls
+    @POST
+    @Path("do-{method}")
+	@Produces("application/json")
+    public Response doMethod(@PathParam("method") String method, MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+    {    	
+    	Gson gson = new Gson();
+		Hashtable<String, Object> hash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+    	Object ret = this.insight.getPlaySheet().doMethod(method, hash);
+        return Response.status(200).entity(WebUtility.getSO(ret)).build();
+    }
 }
