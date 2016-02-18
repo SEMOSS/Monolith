@@ -68,9 +68,12 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
+import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
+import prerna.insights.admin.CacheAdmin;
+import prerna.insights.admin.CacheAdmin.FileType;
 import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.ConnectedConcepts;
@@ -81,6 +84,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
+import prerna.ui.helpers.InsightCreateRunner;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -871,18 +875,31 @@ public class NameServer {
 		Insight existingInsight = null;
 		if (insightID != null && !insightID.isEmpty()) {
 			existingInsight = InsightStore.getInstance().get(insightID);
-			if (existingInsight == null) {
+			if (existingInsight == null) {				
 				Map<String, String> errorHash = new HashMap<String, String>();
 				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			} else if(!existingInsight.hasInstantiatedDataMaker()) {
+				
+				//if file exists
+				IDataMaker dm = CacheAdmin.getCachedDataMaker(existingInsight);
+				if(dm != null) {
+					existingInsight.setDataMaker(dm);
+				} else {
+					Insight insightObj = InsightStore.getInstance().get(insightID);
+					InsightCreateRunner run = new InsightCreateRunner(insightObj);
+					Map<String, Object> webData = run.runWeb();
+					
+					CacheAdmin.createCache(insightObj, webData);
+				}
 			}
 		}
 
+		
 		DataframeResource dfr = new DataframeResource();
 		dfr.insight = existingInsight;
 
 		return dfr;
-
 	}
 
 	@GET

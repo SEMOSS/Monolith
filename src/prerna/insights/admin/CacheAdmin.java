@@ -8,6 +8,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -16,28 +18,57 @@ import org.apache.tika.io.IOUtils;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
+import prerna.ds.TinkerFrame;
 import prerna.om.Insight;
+import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 
 public class CacheAdmin {
 
+	//TODO: Generate filenames based on hashing/hashcodes
+	
 	private static final String DIRECTORY = (String)DIHelper.getInstance().getProperty(Constants.BASE_FOLDER)+"/InsightCache";
-	public enum FileType{VIZ_DATA, INSTANCE_DATA, GRAPH_DATA, RECIPE_DATA};
+	public enum FileType{VIZ_DATA, GRAPH_DATA, /*RECIPE_DATA, INSTANCE_DATA,*/};
+	private static HashSet<String> supportedTypes;
 	
-	public static void createCache() {
-		
+	static {
+		supportedTypes = new HashSet<>();
+		supportedTypes.add("TinkerFrame");
 	}
 	
-	public static void createL1Cache(String engineName, String insightID) {
-		createDirectory(engineName, insightID);
+	/**
+	 * 
+	 * @param insight
+	 * @param obj
+	 */
+	public static void createCache(Insight insight, Map<String, Object> vizData) {		
+		if(supportedTypes.contains(insight.getDataMakerName())) {
+			createDirectory(insight);
+			createL2Cache(insight);
+			String fileName = CacheAdmin.getFileName(insight.getEngineName(), insight.getDatabaseID(), insight.getRdbmsId(), insight.getParamHash(), FileType.VIZ_DATA);
+			if(!(new File(fileName).exists())) {
+				Map<String, Object> saveObj = new HashMap<>();
+				saveObj.putAll(vizData);
+				saveObj.put("insightID", null);
+				CacheAdmin.writeToFile(fileName, saveObj);
+			}
+		}
 	}
 	
-	public static void createL1Cache(Insight insight) {
-		String engineName = insight.getEngineName();
-		String insightRDBMSID = insight.getRdbmsId();
-		createDirectory(engineName, insightRDBMSID);
+	/**
+	 * 
+	 * @param insight
+	 */
+	private static void createL2Cache(Insight insight) {
+		IDataMaker dataTable = insight.getDataMaker();
+		if(dataTable instanceof TinkerFrame) {
+			String file = CacheAdmin.getFileName(insight.getEngineName(), insight.getDatabaseID(), insight.getRdbmsId(), insight.getParamHash(), FileType.GRAPH_DATA);
+			if(!(new File(file).exists())) {
+				((TinkerFrame)dataTable).save(file);
+			}
+		} else {
+		}
 	}
 	
 	/**
@@ -63,6 +94,59 @@ public class CacheAdmin {
 	
 	/**
 	 * 
+	 * @param insight
+	 * @return
+	 */
+	public static IDataMaker getCachedDataMaker(Insight insight) {
+		TinkerFrame tf = null;
+		String fileName = getFileName(insight.getEngineName(), insight.getDatabaseID(), insight.getRdbmsId(), insight.getParamHash(), FileType.GRAPH_DATA);			
+		File f = new File(fileName);
+		
+		// if that graph cache exists load it and sent to the FE
+		if(f.exists() && !f.isDirectory()) {
+			tf = TinkerFrame.open(fileName);
+		}
+		
+		return tf;
+	}
+	
+	/**
+	 * 
+	 * @param insight
+	 * @return
+	 */
+	public static String getVizData(Insight insight) {
+		String vizData = null;
+		
+		String fileName = getFileName(insight.getEngineName(), insight.getDatabaseID(), insight.getRdbmsId(), insight.getParamHash(), FileType.VIZ_DATA);
+		File f = new File(fileName);
+		if(f.exists() && !f.isDirectory()) {
+			vizData = CacheAdmin.readFromFileString(fileName);
+		}
+		
+		return vizData;
+	}
+	
+	/**
+	 * 
+	 * @param engineName
+	 * @param insightID
+	 * 
+	 * create a unique directory for this insight ID and engine name if the directory doesn't already exist
+	 */
+	private static void createDirectory(Insight insight) {
+		File basefolder = new File(getDirectoryName(insight.getEngineName(), insight.getRdbmsId()));
+		if(!basefolder.exists()) {
+			try {
+				FileUtils.forceMkdir(basefolder);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	/**
+	 * 
 	 * @param engineName
 	 * @param DatabaseID
 	 * @param insightID
@@ -72,10 +156,10 @@ public class CacheAdmin {
 	 * 
 	 * get the full directory and filename for the given paramters
 	 */
-	public static String getFileName(String engineName, String databaseID, String insightID, Map<String, List<Object>> params, FileType filetype) {
-		engineName = engineName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		databaseID = databaseID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		insightID = insightID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+	private static String getFileName(String engineName, String databaseID, String insightID, Map<String, List<Object>> params, FileType filetype) {
+		if(engineName != null) engineName = engineName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		if(databaseID != null) databaseID = databaseID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		if(insightID != null) insightID = insightID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
 		String paramsStr = "";
 		if(params != null) {
 			paramsStr = params.toString().replaceAll("[^a-zA-Z0-9-_\\.]", "_");
@@ -119,42 +203,26 @@ public class CacheAdmin {
 		return DIRECTORY+"/"+engineName+insightID;
 	}
 	
-	/**
-	 * 
-	 * @param engineName
-	 * @param insightID
-	 * 
-	 * create a unique directory for this insight ID and engine name if the directory doesn't already exist
-	 */
-	public static void createDirectory(String engineName, String insightID) {
-		engineName = engineName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		insightID = insightID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		
-		File basefolder = new File(getDirectoryName(engineName, insightID));
-		if(!basefolder.exists()) {
-			try {
-				FileUtils.forceMkdir(basefolder);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-	
 	private static String fileNameExtension(FileType filetype) {
 		
 		String fileExt = "";
 		
 		switch(filetype) {
-		case VIZ_DATA: fileExt = "_VizData.json"; break;
-		case INSTANCE_DATA: fileExt = "_filterModel.json"; break;
-		case GRAPH_DATA: fileExt = ".tg"; break;
-		case RECIPE_DATA: fileExt = "_Recipe.dat"; break;
+			case VIZ_DATA: fileExt = "_VizData.json"; break;
+			case GRAPH_DATA: fileExt = ".tg"; break;
+//			case INSTANCE_DATA: fileExt = "_filterModel.json"; break;
+//			case RECIPE_DATA: fileExt = "_Recipe.dat"; break;
 		}
 	
 		return fileExt;
 	}
 	
-	public static void writeToFile(String fileName, Object vec) {
+	/**
+	 * 
+	 * @param fileName
+	 * @param vec
+	 */
+	private static void writeToFile(String fileName, Object vec) {
 		try {
 			Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
 			String data = gson.toJson(vec);
@@ -171,29 +239,34 @@ public class CacheAdmin {
 		}
 	}
 	
-	public static byte[] readFromFile(String fileName) {
-      	
-    	Reader is;
-
-        try {
-            is = new BufferedReader(new FileReader(new File(fileName)));
-
-            byte[] retData = IOUtils.toByteArray(is, "UTF8");
-            is.close();
-            return retData;
-        } catch (FileNotFoundException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-
-        return null;
-            // Always close files.
-    }
+//	private static byte[] readFromFile(String fileName) {
+//      	
+//    	Reader is;
+//
+//        try {
+//            is = new BufferedReader(new FileReader(new File(fileName)));
+//
+//            byte[] retData = IOUtils.toByteArray(is, "UTF8");
+//            is.close();
+//            return retData;
+//        } catch (FileNotFoundException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//        } catch (IOException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//        }
+//
+//        return null;
+//            // Always close files.
+//    }
 	
-	public static String readFromFileString(String fileName) {
+	/**
+	 * 
+	 * @param fileName
+	 * @return
+	 */
+	private static String readFromFileString(String fileName) {
     	Reader is;
 
         try {
