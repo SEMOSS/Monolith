@@ -452,19 +452,7 @@ public class DataframeResource {
 	@Path("/getInsightMetamodel")
 	@Produces("application/json")
 	public Response getInsightMetamodel(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		String insightID = form.getFirst("insightID");
-
-		Insight existingInsight = null;
-		if(insightID != null && !insightID.isEmpty()) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			if(existingInsight == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-		}
-
-		ITableDataFrame dataFrame = (ITableDataFrame) existingInsight.getDataMaker();
+		ITableDataFrame dataFrame = (ITableDataFrame) this.insight.getDataMaker();
 		if (dataFrame == null) {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Dataframe not found within insight");
@@ -473,7 +461,7 @@ public class DataframeResource {
 		dataFrame.refresh();
 
 		Hashtable<String, Object> returnHash = new Hashtable<String, Object>();
-		List<DataMakerComponent> comps = existingInsight.getDataMakerComponents();
+		List<DataMakerComponent> comps = this.insight.getDataMakerComponents();
 		Map<String, Object> nodesHash = new Hashtable<String, Object>();
 		Map<String, Object> triplesHash = new Hashtable<String, Object>();
 		for (DataMakerComponent comp : comps){
@@ -613,7 +601,7 @@ public class DataframeResource {
 		returnHash.put("nodes", nodesHash); // Nodes that will be used to build the metamodel in Single-View
 		returnHash.put("triples", triplesHash);
 
-		returnHash.put("insightID", existingInsight.getInsightID());
+		returnHash.put("insightID", this.insight.getInsightID());
 
 		return Response.status(200).entity(WebUtility.getSO(returnHash)).build();
 	}
