@@ -132,9 +132,18 @@ public class DataframeResource {
 	@Produces("application/json")
 	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
 		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
+		Hashtable<String, Object> resultHash = new Hashtable<String, Object>();
+
+		tf.setTempExpressionResult("FAIL");
 		String expression = form.getFirst("expression");
 		Object result = tf.runPKQL(expression);
-		Hashtable<String, Object> resultHash = new Hashtable<String, Object>();
+		
+		if(!result.toString().equalsIgnoreCase("FAIL")) { //TODO: set status in exception handling
+			resultHash.put("status", "success");
+		} else {
+			resultHash.put("status", "error");
+		}
+		
 		resultHash.put("result", result);
 
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
