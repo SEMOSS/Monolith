@@ -865,8 +865,7 @@ public class NameServer {
 	}
 
 	@Path("i-{insightID}")
-	public Object getInsightDataFrame(@PathParam("insightID") String insightID, @Context HttpServletRequest request)
-			throws IOException {
+	public Object getInsightDataFrame(@PathParam("insightID") String insightID, @Context HttpServletRequest request){
 
 		// eventually I want to pick this from session
 		// but for now let us pick it from the insight store
