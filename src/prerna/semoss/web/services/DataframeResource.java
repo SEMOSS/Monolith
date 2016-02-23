@@ -26,6 +26,9 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
@@ -48,9 +51,6 @@ import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 
 public class DataframeResource {
@@ -134,8 +134,10 @@ public class DataframeResource {
 		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
 		String expression = form.getFirst("expression");
 		Object result = tf.runPKQL(expression);
+		Hashtable<String, Object> resultHash = new Hashtable<String, Object>();
+		resultHash.put("result", result);
 
-		return Response.status(200).entity(result).build();
+		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
 	}
 
 	@POST
