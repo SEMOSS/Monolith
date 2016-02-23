@@ -49,17 +49,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.openrdf.repository.Repository;
-import org.openrdf.repository.RepositoryConnection;
-import org.openrdf.repository.RepositoryException;
-import org.openrdf.repository.sail.SailRepository;
-import org.openrdf.rio.RDFFormat;
-import org.openrdf.rio.RDFParseException;
-import org.openrdf.sail.inferencer.fc.ForwardChainingRDFSInferencer;
-import org.openrdf.sail.memory.MemoryStore;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -67,9 +58,7 @@ import com.google.gson.reflect.TypeToken;
 import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
-import prerna.engine.impl.InsightsConverter;
 import prerna.engine.impl.QuestionAdministrator;
-import prerna.engine.impl.rdf.InMemorySesameEngine;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
@@ -78,7 +67,7 @@ import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.FilterTransformation;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
-import prerna.util.PlaySheetRDFMapBasedEnum;
+import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -117,7 +106,7 @@ public class QuestionAdmin {
 		Insight insight = InsightStore.getInstance().get(insightID);
 		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
 		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
-		List<SEMOSSParam> params = buildParameterList(paramMapList);
+		List<SEMOSSParam> params = buildParameterList(insight, paramMapList);
 		
 		//Add necessary filter transformations
 		IDataMaker dm = insight.getDataMaker();
@@ -204,7 +193,7 @@ public class QuestionAdmin {
 		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
 		
 		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
-		List<SEMOSSParam> params = buildParameterList(paramMapList);
+		List<SEMOSSParam> params = buildParameterList(insight, paramMapList);
 		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
 		CacheAdmin.deleteCache(insight);
@@ -521,16 +510,31 @@ public class QuestionAdmin {
 	 * @param dmcList					The list of the DataMakerComponents for the insight
 	 * @param params					A list of SEMOSSParams to store the parameters with the correct options
 	 */
-	private List<SEMOSSParam> buildParameterList(Vector<Map<String, String>> paramMapList) {
+	private List<SEMOSSParam> buildParameterList(Insight insight, Vector<Map<String, String>> paramMapList) {
+		Map<String, Object> metamodelData = insight.getInsightMetadata();
 		List<SEMOSSParam> params = new Vector<SEMOSSParam>();
 		if(paramMapList != null && !paramMapList.isEmpty()) {
 			for(Map<String, String> paramMap : paramMapList) {
-				String paramURI = this.coreEngine.getTransformedNodeName(paramMap.get("value"), false);
-				String paramParent = null;
-				if(paramMap.get("parent") != null) {
-					 paramParent = this.coreEngine.getTransformedNodeName(paramMap.get("parent"), false);
-				} 
 				String paramName = paramMap.get("name");
+				String logicalParamURI = Constants.DISPLAY_URI + paramName;
+//				String logicalParamURI = paramMap.get("value");
+				String paramURI = this.coreEngine.getTransformedNodeName(logicalParamURI, false);
+				String paramParent = null;
+				Map<String, Object> nodes = (Map<String, Object>) metamodelData.get("nodes");
+				
+				PARAM_TYPE_LOOP : for(String node : nodes.keySet()) {
+					Map<String, Object> nodeMap = (Map<String, Object>) nodes.get(node);
+					if(nodeMap.get("uri").equals(paramURI)) {
+						break PARAM_TYPE_LOOP;
+					} else {
+						//TODO: properties are stored in logical
+						List<String> propertiesList = (List<String>) nodeMap.get("selectedProperties");
+						if(propertiesList.contains(logicalParamURI)) {
+							paramParent = (String) nodeMap.get("uri");
+							break PARAM_TYPE_LOOP;
+						}
+					}
+				}
 
 				SEMOSSParam p = new SEMOSSParam();
 				//TODO: Bifurcation in processing logic if it is RDBMS vs. RDF
