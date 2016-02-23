@@ -27,15 +27,11 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.File;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,9 +62,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
-import prerna.algorithm.learning.util.DuplicationReconciliation;
-import prerna.auth.User;
-import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.ISelectStatement;
@@ -77,11 +70,7 @@ import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
 import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
-import prerna.equation.EquationSolver;
 import prerna.insights.admin.CacheAdmin;
-import prerna.insights.admin.CacheAdmin.FileType;
-import prerna.nameserver.AddToMasterDB;
-import prerna.nameserver.SearchMasterDB;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -91,26 +80,21 @@ import prerna.rdf.query.builder.IQueryBuilder;
 import prerna.rdf.query.builder.QueryBuilderData;
 import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.rdf.query.util.SEMOSSQuery;
-import prerna.rdf.util.AbstractQueryParser;
 import prerna.rdf.util.RDFJSONConverter;
 import prerna.semoss.web.form.FormBuilder;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.FilterTransformation;
-import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.JoinTransformation;
-import prerna.ui.components.playsheets.datamakers.MathTransformation;
 import prerna.ui.helpers.InsightCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.ArrayUtilityMethods;
-import prerna.util.Constants;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.InstanceStreamer;
-import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
 
 public class EngineResource {
@@ -186,7 +170,7 @@ public class EngineResource {
 
 		//hard code playsheet attributes since no insight exists for this
 		String sparql = "SELECT ?s ?p ?o WHERE {?s ?p ?o} LIMIT 1";
-		String playSheetName = "Graph";
+		String playSheetName = "GDMGraph";
 		String dataMakerName = "GraphDataModel";
 		String title = "Metamodel";
 		String id = coreEngine.getEngineName() + "-Metamodel";
@@ -913,264 +897,6 @@ public class EngineResource {
 	}
 
 	@POST
-	@Path("/undoInsightProcess")
-	@Produces("application/xml")
-	public Response undoInsightProcess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		Gson gson = new Gson();
-		String insightID = form.getFirst("insightID");
-		List<String> processes = gson.fromJson(form.getFirst("processes"), List.class);
-
-		if(insightID == null || insightID.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Could not find data.");
-			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
-		}
-		
-		if(processes.isEmpty()) {
-			Map<String, Object> retMap = new HashMap<String, Object>();
-			retMap.put("insightID", insightID);
-			retMap.put("message", "Succesfully undone processes : " + processes);
-			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-		}
-
-		Insight in = InsightStore.getInstance().get(insightID);
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		in.undoProcesses(processes);
-		retMap.put("insightID", insightID);
-		retMap.put("message", "Succesfully undone processes : " + processes);
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-	}
-
-	@POST
-	@Path("/filterData")
-	@Produces("application/json")
-	public Response filterData(MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request)
-	{	
-		String insightID = form.getFirst("insightID");
-
-		Insight existingInsight = null;
-		if(insightID != null && !insightID.isEmpty()) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			if(existingInsight == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-		}
-
-		ITableDataFrame mainTree = (ITableDataFrame) existingInsight.getDataMaker();
-		if(mainTree == null) {
-			return Response.status(400).entity(WebUtility.getSO("table not found for insight id. Data not found")).build();
-		}
-
-		Gson gson = new Gson();
-
-		//Grab the filter model from the form data
-		Map<String, Map<String, Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, Map<String, Object>>>() {}.getType());
-		
-		//If the filter model has information, filter the tree
-		if(filterModel != null && filterModel.keySet().size() > 0) {
-			TableDataFrameUtilities.filterTableData(mainTree, filterModel);
-		}
-
-		//if the filtermodel is not null and contains no data then unfilter the whole tree
-		//this trigger to unfilter the whole tree was decided between FE and BE for simplicity
-		//TODO: make this an explicit call
-		else if(filterModel != null && filterModel.keySet().size() == 0) {
-			//unfilter the tree
-		} 
-
-		Map<String, Object> retMap = new HashMap<String, Object>();
-
-		Object[] returnFilterModel = ((TinkerFrame)mainTree).getFilterModel();
-//		((BTreeDataFrame)mainTree).printTree();
-		retMap.put("unfilteredValues", returnFilterModel[0]);
-		retMap.put("filteredValues", returnFilterModel[1]);
-		
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-	}
-
-
-	
-	@GET
-	@Path("/unfilterColumns")
-	@Produces("application/json")
-	public Response getVisibleValues(MultivaluedMap<String, String> form,
-			@QueryParam("insightID") String insightID,
-			@QueryParam("concept") String[] concepts)
-	{
-		Insight insight = InsightStore.getInstance().get(insightID);
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		if(insight == null) {
-			retMap.put("errorMessage", "Invalid insight ID. Data not found");
-			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
-		}
-		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
-
-		for(String concept: concepts) {
-			mainTree.unfilter(concept);
-		}
-
-		retMap.put("insightID", insightID);
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-	}
-
-	@GET
-	@Path("/getFilterValues")
-	@Produces("application/json")
-	public Response getNextUniqueValues(@QueryParam("insightID") String insightID,
-			@QueryParam("concept") String concept,
-			@QueryParam("filterEnabled") String FilterEnabled,
-			@Context HttpServletRequest request)
-	{
-		Insight insight = InsightStore.getInstance().get(insightID);
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		if(insight == null) {
-			retMap.put("errorMessage", "Invalid insight ID. Data not found");
-			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
-		}
-		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
-		Iterator<Object> uniqueValueIterator = mainTree.uniqueValueIterator(concept, true, false);
-		List<Object> selectedFilterValues = new ArrayList<Object>();
-		while(uniqueValueIterator.hasNext()) {
-			selectedFilterValues.add(uniqueValueIterator.next());
-		}
-
-		String[] columnHeaders = mainTree.getColumnHeaders();
-		List<Object> availableFilterValues = new ArrayList<Object>();
-
-		//TODO: why is this always true?
-		boolean filterEnabled = true;
-		if(!filterEnabled || (filterEnabled && concept.equalsIgnoreCase(columnHeaders[0]))) {
-			uniqueValueIterator = mainTree.uniqueValueIterator(concept, true, true);
-			while(uniqueValueIterator.hasNext()) {
-				availableFilterValues.add(uniqueValueIterator.next());
-			}
-		} else {
-			availableFilterValues = selectedFilterValues;
-		}
-
-		retMap.put("insightID", insightID);
-		retMap.put("selectedFilterValues", selectedFilterValues);
-		retMap.put("availableFilterValues", availableFilterValues);
-
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-	}
-
-	@POST
-	@Path("/getNextTableData")
-	@Produces("application/json")
-	public Response getNextTable(MultivaluedMap<String, String> form,
-			@QueryParam("startRow") Integer startRow,
-			@QueryParam("endRow") Integer endRow,
-			@QueryParam("insightID") String insightID,
-			@Context HttpServletRequest request)
-	{
-		Insight insight = InsightStore.getInstance().get(insightID);
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		if(insight == null) {
-			retMap.put("errorMessage", "Invalid insight ID. Data not found");
-			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
-		}
-		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
-
-		Gson gson = new Gson();
-		String concept = null;
-		String sort = null;
-
-		try {
-			Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
-			concept = sortModel.get("colId");
-			sort = sortModel.get("sort");
-		} catch (Exception e) {
-			sort = "asc";
-		}
-
-		Map<String, Object> valuesMap = new HashMap<String, Object>();
-		List<HashMap<String, Object>> tableData = TableDataFrameUtilities.getTableData(mainTree, concept, sort, startRow, endRow);
-		valuesMap.put(insightID, tableData);
-
-		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
-		String[] varKeys = mainTree.getColumnHeaders();
-		String[] uriKeys = mainTree.getURIColumnHeaders();
-		for(int i = 0; i < varKeys.length; i++) {
-			Map<String, String> innerMap = new HashMap<String, String>();
-			innerMap.put("uri", uriKeys[i]);
-			innerMap.put("varKey", varKeys[i]);
-			headerInfo.add(innerMap);
-		}
-
-		retMap.put("insightID", insightID);
-		retMap.put("numRows", tableData.size());
-		retMap.put("headers", headerInfo);
-		retMap.put("tableData", valuesMap);
-
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-	}
-
-	@POST
-	@Path("/derivedColumn")
-	@Produces("application/json")
-	public Response derivedColumn(MultivaluedMap<String, String> form,
-			@QueryParam("insightID") String insightID,
-			@QueryParam("expressionString") String expressionString,
-			@QueryParam("columnName") String columnName,
-			@Context HttpServletRequest request)
-	{
-		String expString = form.getFirst("expressionString");
-		String colName = form.getFirst("columnName");
-		
-		Insight insight = InsightStore.getInstance().get(insightID);
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		if(insight == null) {
-			retMap.put("errorMessage", "Invalid insight ID. Data not found");
-			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
-		}
-		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
-
-		// return new column
-		EquationSolver solver;
-		try { solver = new EquationSolver(mainTree, expString); } 
-		catch (ParseException e) {
-			retMap.put("errorMessage", e);
-			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
-		}
-		
-		String returnMsg = solver.crunch(colName);
-		
-		retMap.put("status", returnMsg);
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-	}
-	
-	@GET
-	@Path("/getTableHeaders")
-	@Produces("application/json")
-	public Response getTableHeaders(@QueryParam("insightID") String insightID) {
-		Insight insight = InsightStore.getInstance().get(insightID);
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		if(insight == null) {
-			retMap.put("errorMessage", "Invalid insight ID. Data not found");
-			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
-		}
-		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();	
-
-		List<Map<String, String>> tableHeaders = new ArrayList<Map<String, String>>();
-		String[] columnHeaders = table.getColumnHeaders();
-		String[] uriKeys = table.getURIColumnHeaders();
-		for(int i = 0; i < columnHeaders.length; i++) {
-			Map<String, String> innerMap = new HashMap<String, String>();
-			innerMap.put("uri", uriKeys[i]);
-			innerMap.put("varKey", columnHeaders[i]);
-			tableHeaders.add(innerMap);
-		}
-
-		retMap.put("insightID", insightID);
-		retMap.put("tableHeaders", tableHeaders);
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-	}
-
-	@POST
 	@Path("/addData")
 	@Produces("application/json")
 	public Response addData(MultivaluedMap<String, String> form, 
@@ -1229,6 +955,8 @@ public class EngineResource {
 
 		// 2. Else, we get the insight from session (if the insight isn't in session, we are done--throw an error)
 		else {
+			NameServer ns = new NameServer();
+			ns.getInsightDataFrame(insightID, request);
 			insight = InsightStore.getInstance().get(insightID);
 			if(insight == null) {
 				Map<String, String> errorHash = new HashMap<String, String>();
@@ -1540,53 +1268,6 @@ public class EngineResource {
 		}
 	}
 
-
-
-	@POST
-	@Path("getVizTable")
-	@Produces("application/json")
-	public Response getExploreTable(
-			@QueryParam("insightID") String insightID,
-			//@QueryParam("start") int start,
-			//@QueryParam("end") int end,
-			@Context HttpServletRequest request)
-	{
-		Insight existingInsight = null;
-		if(insightID != null && !insightID.isEmpty()) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			if(existingInsight == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-		}
-
-		ITableDataFrame mainTree = (ITableDataFrame) existingInsight.getDataMaker();		
-		if(mainTree == null) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Dataframe not found within insight");
-			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-		}
-
-		List<HashMap<String, Object>> table = TableDataFrameUtilities.getTableData(mainTree);
-//		List<Object[]> table = mainTree.getRawData();
-		Map<String, Object> returnData = new HashMap<String, Object>();
-		returnData.put("data", table);
-
-		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
-		String[] varKeys = mainTree.getColumnHeaders();
-		String[] uriKeys = mainTree.getURIColumnHeaders();
-		for(int i = 0; i < varKeys.length; i++) {
-			Map<String, String> innerMap = new HashMap<String, String>();
-			innerMap.put("uri", uriKeys[i]);
-			innerMap.put("varKey", varKeys[i]);
-			headerInfo.add(innerMap);
-		}
-		returnData.put("headers", headerInfo);
-		returnData.put("insightID", insightID);
-		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
-	}
-
 	@GET
 	@Path("customVizPathProperties")
 	@Produces("application/json")
@@ -1733,68 +1414,6 @@ public class EngineResource {
 		return "Returned.. ";
 	}  
 
-	@POST
-	@Path("/btreeTester")
-	@Produces("application/xml")
-	public StreamingOutput btreeTester(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		//String query1 = form.getFirst("query1");
-		//String query2 = form.getFirst("query2");
-
-		String query1 = "SELECT DISTINCT CAPITAL.CAPITAL, LOWERCASE.LOWERCASE, NUMBER.NUMBER FROM CAPITAL, LOWERCASE, NUMBER WHERE CAPITAL.LOWERCASE_FK=LOWERCASE.LOWERCASE AND LOWERCASE.NUMBER_FK=NUMBER.NUMBER;";
-
-		// Movie_DB Query
-		// String query1 =
-		// "SELECT DISTINCT ?Title ?DomesticRevenue ?InternationalRevenue ?Budget ?RottenTomatoesCritics ?RottenTomatoesAudience WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
-
-		// TAP_Core_Data Query
-		//		String query1 = "SELECT DISTINCT ?ICD ?Source ?Target ?DataObject ?Format ?Frequency ?Protocol WHERE { {?ICD <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/InterfaceControlDocument>} {?Source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?Source <http://semoss.org/ontologies/Relation/Provide> ?ICD} {?Target <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/System>} {?ICD <http://semoss.org/ontologies/Relation/Consume> ?Target} {?DataObject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/DataObject>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?carries <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <http://semoss.org/ontologies/Relation/Payload>} {?ICD ?carries ?DataObject} {?carries <http://semoss.org/ontologies/Relation/Contains/Protocol> ?Protocol} {?carries <http://semoss.org/ontologies/Relation/Contains/Format> ?Format} {?carries <http://semoss.org/ontologies/Relation/Contains/Frequency> ?Frequency} } ORDER BY ?ICD";
-
-		//run query 1
-		HttpSession session = request.getSession(false);
-		float start = System.currentTimeMillis();
-
-		TinkerFrame tree1 = null;
-		String[] names1 = null;
-		if(query1 != null){
-			ISelectWrapper wrap1 = WrapperManager.getInstance().getSWrapper(this.coreEngine, query1);
-			names1 = wrap1.getVariables();
-			tree1 = new TinkerFrame(names1);
-			while(wrap1.hasNext()) {
-				ISelectStatement iss1 = wrap1.next();
-				tree1.addRow(iss1.getPropHash(), iss1.getRPropHash());
-			}
-		}
-
-		float end = System.currentTimeMillis();
-		tree1.removeValue("1", "http://semoss.org/ontologies/Concept/Number/1", "NUMBER");
-		System.out.println("Construction time = " + ((end-start)/1000) );
-
-		Iterator<Object> capIterator = tree1.uniqueValueIterator("CAPITAL", false, true); // Change for each query
-		while (capIterator.hasNext()) {
-			System.out.println(capIterator.next().toString());
-		}
-		Iterator<Object> lowerIterator = tree1.uniqueValueIterator("LOWERCASE", false, true); // Change for each query
-		while (lowerIterator.hasNext()) {
-			System.out.println(lowerIterator.next().toString());
-		}
-		Iterator<Object> numIterator = tree1.uniqueValueIterator("NUMBER", false, true); // Change for each query
-		while (numIterator.hasNext()) {
-			System.out.println(numIterator.next().toString());
-		}
-		System.out.println("Done");
-
-
-		String[] columnHeaders = tree1.getColumnHeaders();
-		boolean[] isNumeric = tree1.isNumeric();
-		DuplicationReconciliation duprec = new DuplicationReconciliation(DuplicationReconciliation.ReconciliationMode.MEAN);
-		DuplicationReconciliation duprecMed = new DuplicationReconciliation(DuplicationReconciliation.ReconciliationMode.MEDIAN);
-		for(String s : columnHeaders) {
-
-		}
-
-		return null;
-	}
-
 	//	@POST
 	//	@Path("/publishToFeed")
 	//	@Produces("application/xml")
@@ -1809,141 +1428,6 @@ public class EngineResource {
 	//		return success ? Response.status(200).entity(WebUtility.getSO(success)).build() : Response.status(400).entity(WebUtility.getSO(success)).build();
 	//	}
 
-	@POST
-	@Path("/applyColumnStats")
-	@Produces("application/json")
-	public Response applyColumnStats(MultivaluedMap<String, String> form,  
-			@Context HttpServletRequest request)
-	{
-		String insightID = form.getFirst("insightID");
-
-		Insight existingInsight = null;
-		if(insightID != null && !insightID.isEmpty()) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			if(existingInsight == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-		}
-
-		Gson gson = new Gson();
-		//		String groupBy = form.getFirst("groupBy");
-		List groupByCols = gson.fromJson(form.getFirst("groupBy"), List.class);
-		Map<String, Object> functionMap = gson.fromJson(form.getFirst("mathMap"), new TypeToken<HashMap<String, Object>>() {}.getType());
-
-		// Run math transformation
-		ISEMOSSTransformation mathTrans = new MathTransformation();
-		Map<String, Object> selectedOptions = new HashMap<String, Object>();
-		// groupByCols = columns to look at
-		selectedOptions.put(MathTransformation.GROUPBY_COLUMNS, groupByCols);
-		// debug through this. also comes from frontend
-		selectedOptions.put(MathTransformation.MATH_MAP, functionMap);
-		// dont worry about this yet
-		mathTrans.setProperties(selectedOptions);
-		// just one transformation at a time. for math transformation just one thing
-		List<ISEMOSSTransformation> postTrans = new Vector<ISEMOSSTransformation>();
-		postTrans.add(mathTrans);
-		existingInsight.processPostTransformation(postTrans);
-
-		ITableDataFrame table = (ITableDataFrame) existingInsight.getDataMaker();
-		Map<String, Object> retMap = new HashMap<String, Object>();
-
-		retMap.put("tableData", TableDataFrameUtilities.getTableData(table));
-		retMap.put("mathMap", functionMap);
-		retMap.put("insightID", insightID);
-		retMap.put("stepID", mathTrans.getId());
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-	}
-
-	@POST
-	@Path("/hasDuplicates")
-	@Produces("application/json")
-	public Response hasDuplicates(MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request) 
-	{
-		String insightID = form.getFirst("insightID");
-		Insight existingInsight = null;
-		if(insightID != null && !insightID.isEmpty()) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			if(existingInsight == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-		}
-		ITableDataFrame table = null;
-		try {
-			table = (ITableDataFrame) existingInsight.getDataMaker();
-		} catch(ClassCastException e) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Insight data maker could not be cast to a table data frame.");
-			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-		}
-		if(table == null) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Could not find insight data maker.");
-			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-		}
-
-		Gson gson = new Gson();
-		String[] columns = gson.fromJson(form.getFirst("concepts"), String[].class);
-		String[] columnHeaders = table.getColumnHeaders();
-		Map<String, Integer> columnMap = new HashMap<>();
-		for(int i = 0; i < columnHeaders.length; i++) {
-			columnMap.put(columnHeaders[i], i);
-		}
-
-		Iterator<Object[]> iterator = table.iterator(false);
-		int numRows = table.getNumRows();
-		Set<String> comboSet = new HashSet<String>(numRows);
-		int rowCount = 1;
-		while(iterator.hasNext()) {
-			Object[] nextRow = iterator.next();
-			String comboValue = "";
-			for(String c : columns) {
-				int i = columnMap.get(c);
-				comboValue = comboValue + nextRow[i];
-			}
-			comboSet.add(comboValue);
-
-			if(comboSet.size() < rowCount) {
-				return Response.status(200).entity(WebUtility.getSO(true)).build();
-			}
-
-			rowCount++;
-		}
-		boolean hasDuplicates = comboSet.size() != numRows;
-		return Response.status(200).entity(WebUtility.getSO(hasDuplicates)).build();
-	}
-	//	public static void main(String[] args) {
-	//		String query1 = "SELECT DISTINCT ?Title  ?DomesticRevenue  WHERE {{?Title <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Title>}{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-Domestic> ?DomesticRevenue }{?Title <http://semoss.org/ontologies/Relation/Contains/Revenue-International> ?InternationalRevenue}{?Title <http://semoss.org/ontologies/Relation/Contains/MovieBudget> ?Budget}{?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Critics> ?RottenTomatoesCritics } {?Title <http://semoss.org/ontologies/Relation/Contains/RottenTomatoes-Audience> ?RottenTomatoesAudience }{?Director <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Director>}{?Genre <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Genre>}{?Nominated <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Nominated>}{?Studio <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Concept/Studio>}{?Title <http://semoss.org/ontologies/Relation/DirectedBy> ?Director}{?Title <http://semoss.org/ontologies/Relation/BelongsTo> ?Genre}{?Title <http://semoss.org/ontologies/Relation/Was> ?Nominated}{?Title <http://semoss.org/ontologies/Relation/DirectedAt> ?Studio}} ORDER BY ?Title";
-	//
-	//		//run query 1
-	//		//HttpSession session = request.getSession(false);
-	//		BTreeDataFrame tree1 = null;
-	//		String[] names1 = null;
-	//		if(query1 != null){
-	//			ISelectWrapper wrap1 = WrapperManager.getInstance().getSWrapper(this.coreEngine, query1);
-	//			names1 = wrap1.getVariables();
-	//			tree1 = new BTreeDataFrame(names1);
-	//			while(wrap1.hasNext()){
-	//				ISelectStatement iss1 = wrap1.next();//
-	//				tree1.addRow(iss1.getPropHash(), iss1.getRPropHash());
-	//			}
-	//		}
-	//		
-	//		tree1.performAction(new ClusteringRoutine());
-	//		List<Object[]> flatData = tree1.getData();
-	//		
-	//		for(Object[] row: flatData) {
-	//			for(Object instance: row) {
-	//				System.out.print(instance.toString()+" ");
-	//			}
-	//			System.out.println();
-	//		}
-	//	}
-	
 	@GET
     @Path("conceptProperties")
     @Produces("application/json")
