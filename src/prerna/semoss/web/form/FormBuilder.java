@@ -244,13 +244,11 @@ public final class FormBuilder {
 		String propertyValue;
 		String propertyURI;
 
-		Map<String, String> nodeMapping = new HashMap<String, String>();
 		//Save nodes and properties of nodes
 		for(int i = 0; i < nodes.size(); i++) {
 			Map<String, Object> node = nodes.get(i);
 			nodeType = node.get("conceptName").toString();
 			nodeValue = Utility.cleanString(node.get("conceptValue").toString(), true);
-			nodeMapping.put(nodeValue, nodeType);
 
 			boolean override = false;
 			if(node.get(OVERRIDE) != null) {
@@ -300,8 +298,8 @@ public final class FormBuilder {
 			Map<String, Object> relationship = relationships.get(i);
 			startNode = Utility.cleanString(relationship.get("startNodeVal").toString(), true);
 			endNode = Utility.cleanString(relationship.get("endNodeVal").toString(), true);
-			subject = nodeMapping.get(startNode);
-			object =  nodeMapping.get(endNode);
+			subject = relationship.get("startNodeType").toString();
+			object =  relationship.get("endNodeType").toString(); 
 			instanceSubjectURI = baseURI + "/Concept/" + Utility.getInstanceName(subject) + "/" + startNode;
 			instanceObjectURI = baseURI + "/Concept/" + Utility.getInstanceName(object) + "/" +endNode;
 
