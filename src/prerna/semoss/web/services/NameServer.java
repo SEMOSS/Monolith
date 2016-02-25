@@ -877,15 +877,16 @@ public class NameServer {
 				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			} else if(!existingInsight.hasInstantiatedDataMaker()) {
-				
-				//TODO: move folder to constants
 				String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
 				IDataMaker dm = null;
+				// check if the insight is from a csv
 				if(existingInsight.isNonDbInsight()) {
+					// it better end up being created here since it must be serialized as a tinker
 					List<String> folderStructure = new ArrayList<String>();
 					folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
 					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getDatabaseID(), existingInsight.getParamHash());
 				} else {
+					// otherwise, grab the serialization if it is there
 					List<String> folderStructure = new ArrayList<String>();
 					folderStructure.add(existingInsight.getEngineName());
 					folderStructure.add(existingInsight.getRdbmsId());
@@ -893,14 +894,19 @@ public class NameServer {
 				}
 				
 				if(dm != null) {
+					// this means the serialization was good and pushing it into the insight object
 					existingInsight.setDataMaker(dm);
 				} else {
+					// this means the serialization has never occurred
+					// could be because hasn't happened, or could be because it is not a tinker frame
 					Insight insightObj = InsightStore.getInstance().get(insightID);
 					InsightCreateRunner run = new InsightCreateRunner(insightObj);
 					Map<String, Object> webData = run.runWeb();
 					List<String> folderStructure = new ArrayList<String>();
 					folderStructure.add(existingInsight.getEngineName());
 					folderStructure.add(existingInsight.getRdbmsId());
+					// try to serialize
+					// this will do nothing if not a tinker frame
 					CacheAdmin.createCache(insightObj.getDataMaker(), webData, path, folderStructure, insightObj.getRdbmsId(), existingInsight.getParamHash());
 				}
 			}
