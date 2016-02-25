@@ -326,6 +326,7 @@ public class NameServer {
 		try {
 			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(form.getFirst("jsonString")))).build();
 		} catch(Exception e) {
+			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "Error processing new data");
 			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
