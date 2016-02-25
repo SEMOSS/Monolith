@@ -695,10 +695,9 @@ public class NameServer {
 		String filterDataStr = form.getFirst("filterData");
 		Gson gsonVar = new Gson();
 		Map<String, List<String>> filterData = gsonVar.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
-		if (filterData != null) {
+		if (filterData != null && !filterData.isEmpty()) {
 			queryMap.put(CommonParams.FQ, filterData);
 		}
-			
 		SolrDocumentList results = SolrIndexEngine.getInstance().queryDocument(queryMap);
 		Long insightCount = results.getNumFound();
 		
