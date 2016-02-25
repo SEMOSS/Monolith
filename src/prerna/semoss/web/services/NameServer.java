@@ -68,12 +68,10 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.ds.BTreeDataFrame;
-import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.insights.admin.CacheAdmin;
-import prerna.insights.admin.CacheAdmin.FileType;
 import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.ConnectedConcepts;
@@ -880,16 +878,30 @@ public class NameServer {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			} else if(!existingInsight.hasInstantiatedDataMaker()) {
 				
-				//if file exists
-				IDataMaker dm = CacheAdmin.getCachedDataMaker(existingInsight);
+				//TODO: move folder to constants
+				String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
+				IDataMaker dm = null;
+				if(existingInsight.isNonDbInsight()) {
+					List<String> folderStructure = new ArrayList<String>();
+					folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
+					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getDatabaseID(), existingInsight.getParamHash());
+				} else {
+					List<String> folderStructure = new ArrayList<String>();
+					folderStructure.add(existingInsight.getEngineName());
+					folderStructure.add(existingInsight.getRdbmsId());
+					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getRdbmsId(), existingInsight.getParamHash());
+				}
+				
 				if(dm != null) {
 					existingInsight.setDataMaker(dm);
 				} else {
 					Insight insightObj = InsightStore.getInstance().get(insightID);
 					InsightCreateRunner run = new InsightCreateRunner(insightObj);
 					Map<String, Object> webData = run.runWeb();
-					
-					CacheAdmin.createCache(insightObj, webData);
+					List<String> folderStructure = new ArrayList<String>();
+					folderStructure.add(existingInsight.getEngineName());
+					folderStructure.add(existingInsight.getRdbmsId());
+					CacheAdmin.createCache(insightObj.getDataMaker(), webData, path, folderStructure, insightObj.getRdbmsId(), existingInsight.getParamHash());
 				}
 			}
 		}

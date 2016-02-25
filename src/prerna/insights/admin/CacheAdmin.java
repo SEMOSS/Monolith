@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -18,57 +17,36 @@ import org.apache.tika.io.IOUtils;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+
 import prerna.ds.TinkerFrame;
-import prerna.om.Insight;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
-import prerna.util.Constants;
-import prerna.util.DIHelper;
 
 public class CacheAdmin {
 
-	//TODO: Generate filenames based on hashing/hashcodes
-	
-	private static final String DIRECTORY = (String)DIHelper.getInstance().getProperty(Constants.BASE_FOLDER)+"/InsightCache";
-	public enum FileType{VIZ_DATA, GRAPH_DATA, /*RECIPE_DATA, INSTANCE_DATA,*/};
-	private static HashSet<String> supportedTypes;
-	
-	static {
-		supportedTypes = new HashSet<>();
-		supportedTypes.add("TinkerFrame");
-	}
+	private static final String DM_EXTENSION = ".tg";
+	private static final String JSON_EXTENSION = "_VizData.json";
 	
 	/**
 	 * 
 	 * @param insight
 	 * @param obj
 	 */
-	public static void createCache(Insight insight, Map<String, Object> vizData) {		
-		if(supportedTypes.contains(insight.getDataMakerName())) {
-			createDirectory(insight);
-			createL2Cache(insight);
-			String fileName = CacheAdmin.getFileName(insight.getEngineName(), insight.getDatabaseID(), insight.getRdbmsId(), insight.getParamHash(), FileType.VIZ_DATA);
-			if(!(new File(fileName).exists())) {
-				Map<String, Object> saveObj = new HashMap<>();
-				saveObj.putAll(vizData);
-				saveObj.put("insightID", null);
-				CacheAdmin.writeToFile(fileName, saveObj);
+	public static String createCache(IDataMaker dm, Map<String, Object> vizData, String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {		
+		String baseFile = getBasePath(basePath, folderStructure, name, paramHash);
+		if(dm instanceof TinkerFrame) {
+			String dmFilePath = baseFile + DM_EXTENSION;
+			if(!(new File(dmFilePath).exists())) {
+				((TinkerFrame)dm).save(dmFilePath);
 			}
 		}
-	}
-	
-	/**
-	 * 
-	 * @param insight
-	 */
-	private static void createL2Cache(Insight insight) {
-		IDataMaker dataTable = insight.getDataMaker();
-		if(dataTable instanceof TinkerFrame) {
-			String file = CacheAdmin.getFileName(insight.getEngineName(), insight.getDatabaseID(), insight.getRdbmsId(), insight.getParamHash(), FileType.GRAPH_DATA);
-			if(!(new File(file).exists())) {
-				((TinkerFrame)dataTable).save(file);
-			}
-		} else {
+		String jsonFilePath = baseFile + JSON_EXTENSION;
+		if(!(new File(jsonFilePath).exists())) {
+			Map<String, Object> saveObj = new HashMap<>();
+			saveObj.putAll(vizData);
+			saveObj.put("insightID", null);
+			CacheAdmin.writeToFile(jsonFilePath, saveObj);
 		}
+		return baseFile;
 	}
 	
 	/**
@@ -77,12 +55,10 @@ public class CacheAdmin {
 	 * 
 	 * Deletes the cache associated with the insight
 	 */
-	public static void deleteCache(Insight insight) {
-		
+	public static void deleteCache(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {
 		//grab variables from insight that are used to create the file name
-		String engineName = insight.getEngineName();
-		String insightRDBMSID = insight.getRdbmsId();
-		File basefolder = new File(getDirectoryName(engineName, insightRDBMSID));
+		String baseFolderPath = getBaseFolder(basePath, folderStructure);
+		File basefolder = new File(baseFolderPath);
 		if(!basefolder.exists()) {
 			try {
 				FileUtils.forceDelete(basefolder);
@@ -94,17 +70,16 @@ public class CacheAdmin {
 	
 	/**
 	 * 
-	 * @param insight
 	 * @return
 	 */
-	public static IDataMaker getCachedDataMaker(Insight insight) {
+	public static IDataMaker getCachedDataMaker(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {
 		TinkerFrame tf = null;
-		String fileName = getFileName(insight.getEngineName(), insight.getDatabaseID(), insight.getRdbmsId(), insight.getParamHash(), FileType.GRAPH_DATA);			
-		File f = new File(fileName);
-		
+		String baseFile = getBasePath(basePath, folderStructure, name, paramHash);
+		String dmFilePath = baseFile + DM_EXTENSION;
+		File f = new File(dmFilePath);
 		// if that graph cache exists load it and sent to the FE
 		if(f.exists() && !f.isDirectory()) {
-			tf = TinkerFrame.open(fileName);
+			tf = TinkerFrame.open(dmFilePath);
 		}
 		
 		return tf;
@@ -112,30 +87,28 @@ public class CacheAdmin {
 	
 	/**
 	 * 
-	 * @param insight
 	 * @return
 	 */
-	public static String getVizData(Insight insight) {
+	public static String getVizData(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {
 		String vizData = null;
-		
-		String fileName = getFileName(insight.getEngineName(), insight.getDatabaseID(), insight.getRdbmsId(), insight.getParamHash(), FileType.VIZ_DATA);
-		File f = new File(fileName);
+		String baseFile = getBasePath(basePath, folderStructure, name, paramHash);
+		String jsonFilePath = baseFile + JSON_EXTENSION;
+		File f = new File(jsonFilePath);
+		// if that viz is serialized
 		if(f.exists() && !f.isDirectory()) {
-			vizData = CacheAdmin.readFromFileString(fileName);
+			vizData  = CacheAdmin.readFromFileString(jsonFilePath);
 		}
 		
 		return vizData;
 	}
 	
-	/**
-	 * 
-	 * @param engineName
-	 * @param insightID
-	 * 
-	 * create a unique directory for this insight ID and engine name if the directory doesn't already exist
-	 */
-	private static void createDirectory(Insight insight) {
-		File basefolder = new File(getDirectoryName(insight.getEngineName(), insight.getRdbmsId()));
+	private static String getBaseFolder(String basePath, List<String> folderStructure) {
+		String directory = basePath;
+		for(String s : folderStructure) {
+			directory += "/" + s.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		}
+
+		File basefolder = new File(directory);
 		if(!basefolder.exists()) {
 			try {
 				FileUtils.forceMkdir(basefolder);
@@ -143,78 +116,19 @@ public class CacheAdmin {
 				e.printStackTrace();
 			}
 		}
-	}
-	
-	/**
-	 * 
-	 * @param engineName
-	 * @param DatabaseID
-	 * @param insightID
-	 * @param params
-	 * @param filetype
-	 * @return
-	 * 
-	 * get the full directory and filename for the given paramters
-	 */
-	private static String getFileName(String engineName, String databaseID, String insightID, Map<String, List<Object>> params, FileType filetype) {
-		if(engineName != null) engineName = engineName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		if(databaseID != null) databaseID = databaseID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		if(insightID != null) insightID = insightID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		String paramsStr = "";
-		if(params != null) {
-			paramsStr = params.toString().replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		} 
-
-		String fileNameBase = fileNameBase(engineName, databaseID, insightID, paramsStr);
-		String fileNameExt = fileNameExtension(filetype);		
-		String fileName = fileNameBase + fileNameExt;
-		return fileName;
-	}
-	
-	/**
-	 * 
-	 * @param engineName
-	 * @param DatabaseID
-	 * @param insightID
-	 * @param params
-	 * @return
-	 */
-	private static String fileNameBase(String engineName, String DatabaseID, String insightID, String params) {
-		String fileName = getDirectoryName(engineName, insightID);
 		
-		if(params != null) {
-			fileName += "/" + engineName + DatabaseID + insightID + params.toString();
-		} else {
-			fileName += "/" + engineName + DatabaseID + insightID;
+		return directory;
+	}
+	
+	private static String getBasePath(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {
+		name = name.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		String directory = getBaseFolder(basePath, folderStructure);
+		
+		if(paramHash != null) {
+			name += paramHash.toString().replaceAll("[^a-zA-Z0-9-_\\.]", "_");
 		}
-		
-		return fileName;
-	}
-	
-	/**
-	 * 
-	 * @param engineName
-	 * @param insightID
-	 * @return
-	 * 
-	 * return the name of the base folder in the directory for this engine name and insightID
-	 */
-	private static String getDirectoryName(String engineName, String insightID) {
-		return DIRECTORY+"/"+engineName+insightID;
-	}
-	
-	private static String fileNameExtension(FileType filetype) {
-		
-		String fileExt = "";
-		
-		switch(filetype) {
-			case VIZ_DATA: fileExt = "_VizData.json"; break;
-			case GRAPH_DATA: fileExt = ".tg"; break;
-//			case INSTANCE_DATA: fileExt = "_filterModel.json"; break;
-//			case RECIPE_DATA: fileExt = "_Recipe.dat"; break;
-		}
-	
-		return fileExt;
+		String baseFile = directory + "/" + name;
+		return baseFile;
 	}
 	
 	/**
