@@ -51,6 +51,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
 
@@ -215,7 +216,6 @@ public class QuestionAdmin {
 
 		//TODO: need to add users
 		solrInsights.put(SolrIndexEngine.USER_ID, "default");
-		
 		try {
 			SolrIndexEngine.getInstance().addInsight(engineName + "_" + newInsightID, solrInsights);
 		} catch (KeyManagementException e) {
@@ -235,35 +235,102 @@ public class QuestionAdmin {
 	@Path("editFromAction")
 	@Produces("application/json")
 	public Response editInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String engineName = coreEngine.getEngineName();
-
 		LOGGER.info("Editing question from action with following details:::: " + form.toString());
 		Gson gson = new Gson();
-		String perspective = form.getFirst("perspective");
 		String insightID = form.getFirst("insightID");
+		String perspective = form.getFirst("perspective");
 		String order = form.getFirst("order");
 		String insightName = form.getFirst("insightName");
 		String layout = form.getFirst("layout");
 		String uiOptions = form.getFirst("uiOptions");
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		
+		Insight insight = InsightStore.getInstance().get(insightID);
+		boolean isNonDbInsight = insight.isNonDbInsight();
+		if(isNonDbInsight) {
+			//TODO: assume person will not have parameters
+			editInsightTinkerCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
+		} else {
+			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
+			editInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
+		}
+		
+		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+	}
+
+	private void editInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
+		String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
+		List<String> folderStructure = new ArrayList<String>();
+		folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
+		String uniqueID = insight.getRdbmsId();
+		insight.setInsightName(insightName);
+		insight.setOutput(layout);
+		insight.setDataTableAlign(dataTableAlign);
+		insight.setUiOptions(uiOptions);
+		// delete existing cache
+		CacheAdmin.deleteCacheFiles(path, folderStructure, uniqueID, null);
+		// save new cache
+		String saveFileLocation = CacheAdmin.createCache(insight.getDataMaker(), insight.getWebData(), path, folderStructure, uniqueID, null);
+		
+		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
+		Date date = new Date();
+		String currDate = dateFormat.format(date);
+		Map<String, Object> solrModifyInsights = new HashMap<>();
+		solrModifyInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
+		solrModifyInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
+		solrModifyInsights.put(SolrIndexEngine.TAGS, perspective);
+		solrModifyInsights.put(SolrIndexEngine.LAYOUT, layout);
+		solrModifyInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
+		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE, Constants.LOCAL_MASTER_DB_NAME);
+		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE_ID, uniqueID);
+		solrModifyInsights.put(SolrIndexEngine.NON_DB_INSIGHT, true);
+		Set<String> engines = new HashSet<String>();
+		engines.add(Constants.LOCAL_MASTER_DB_NAME);
+		solrModifyInsights.put(SolrIndexEngine.ENGINES, engines);
+		//TODO: need to add users
+		solrModifyInsights.put(SolrIndexEngine.USER_ID, "default");
+
+		try {
+			solrModifyInsights = SolrIndexEngine.getInstance().modifyInsight(uniqueID, solrModifyInsights);
+			saveFileLocation = saveFileLocation + "_Solr.txt";
+			File solrFile = new File(saveFileLocation);
+			if(solrFile.exists()) {
+				FileUtils.forceDelete(solrFile);
+			}
+			SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
+			writer.writeSolrDocument(uniqueID, solrModifyInsights);
+			writer.closeExport();
+		} catch (KeyManagementException e) {
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (KeyStoreException e) {
+			e.printStackTrace();
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+	}
+
+	private void editInsightFromDb(Insight insight, String insightName, String perspective, String order, String layout, String uiOptions, Map<String, String> dataTableAlign, Vector<Map<String, String>> paramMapList) {
 		//TODO: currently not exposed through UI
 		boolean isDbQuery = true;
-		
+
+		String engineName = coreEngine.getEngineName();
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		Insight insight = InsightStore.getInstance().get(insightID);
 		String rdbmsId = insight.getRdbmsId();
 		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
-		
-		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
+
 		List<SEMOSSParam> params = buildParameterList(insight, paramMapList);
 		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
 		List<String> folderStructure = new ArrayList<String>();
 		folderStructure.add(insight.getEngineName());
 		folderStructure.add(insight.getRdbmsId());
-		CacheAdmin.deleteCache(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, insight.getRdbmsId(), insight.getParamHash());
-		
+		CacheAdmin.deleteCacheFolder(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, insight.getRdbmsId(), insight.getParamHash());
+
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
 		String currDate = dateFormat.format(date);
@@ -281,15 +348,13 @@ public class QuestionAdmin {
 			engines.add(dmc.getEngine().getEngineName());
 		}
 		solrModifyInsights.put(SolrIndexEngine.ENGINES, engines);
-		
+
 		try {
 			SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + rdbmsId, solrModifyInsights);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
 				| IOException e) {
 			e.printStackTrace();
 		}
-		
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 
 	@POST
@@ -469,7 +534,7 @@ public class QuestionAdmin {
 			List<String> folderStructure = new ArrayList<String>();
 			folderStructure.add(existingIn.getEngineName());
 			folderStructure.add(existingIn.getRdbmsId());
-			CacheAdmin.deleteCache(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, existingIn.getRdbmsId(), existingIn.getParamHash());
+			CacheAdmin.deleteCacheFolder(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, existingIn.getRdbmsId(), existingIn.getParamHash());
 			// BELOW CODE IS FOR EDITING COMPONENTS VIA TEXT
 			// CURRENTLY NOT ENABLED BECAUSE GETTING PARAMETERS FROM DMC LIST STILL NEEDS TO BE THOUGHT THROUGH
 //			String insightMakeup = form.getFirst("insightMakeup");
