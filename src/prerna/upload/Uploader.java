@@ -1141,6 +1141,7 @@ public class Uploader extends HttpServlet {
 		dmcList.add(dmc);
 		in.setDataMakerComponents(dmcList);
 		in.setDataMaker(tf);
+		in.setIsNonDbInsight(true);
 		String insightId = InsightStore.getInstance().put(in);
 		return insightId;
 	}
