@@ -115,7 +115,6 @@ public class QuestionAdmin {
 	}
 	
 	private void addInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
-		//TODO: put this shit in constants
 		String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
 		List<String> folderStructure = new ArrayList<String>();
 		folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
