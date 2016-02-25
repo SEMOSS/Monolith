@@ -105,7 +105,7 @@ public class QuestionAdmin {
 		boolean isNonDbInsight = insight.isNonDbInsight();
 		if(isNonDbInsight) {
 			//TODO: assume person will not have parameters
-			addInsightTinkerCache(insight, insightName, perspective, layout, uiOptions);
+			addInsightTinkerCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
 		} else {
 			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 			addInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
@@ -114,7 +114,7 @@ public class QuestionAdmin {
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 	
-	private void addInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, String uiOptions) {
+	private void addInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
 		//TODO: put this shit in constants
 		String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
 		List<String> folderStructure = new ArrayList<String>();
@@ -122,6 +122,7 @@ public class QuestionAdmin {
 		String uniqueID = UUID.randomUUID().toString();
 		insight.setInsightName(insightName);
 		insight.setOutput(layout);
+		insight.setDataTableAlign(dataTableAlign);
 		insight.setUiOptions(uiOptions);
 		String saveFileLocation = CacheAdmin.createCache(insight.getDataMaker(), insight.getWebData(), path, folderStructure, uniqueID, null);
 		
