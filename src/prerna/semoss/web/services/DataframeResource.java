@@ -2,7 +2,6 @@ package prerna.semoss.web.services;
 
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -33,22 +32,15 @@ import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
 import prerna.ds.TinkerFrame;
-import prerna.engine.api.IEngine;
-import prerna.engine.api.IEngine.ENGINE_TYPE;
-import prerna.engine.impl.AbstractEngine;
 import prerna.equation.EquationSolver;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
-import prerna.rdf.query.builder.QueryBuilderData;
-import prerna.rdf.util.AbstractQueryParser;
-import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
 
@@ -470,8 +462,14 @@ public class DataframeResource {
 		// just one transformation at a time. for math transformation just one thing
 		List<ISEMOSSTransformation> postTrans = new Vector<ISEMOSSTransformation>();
 		postTrans.add(mathTrans);
-		insight.processPostTransformation(postTrans);
-
+		try {
+			insight.processPostTransformation(postTrans);
+		} catch(RuntimeException e) {
+			e.printStackTrace();
+			Map<String, String> retMap = new HashMap<String, String>();
+			retMap.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
+		}
 		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
