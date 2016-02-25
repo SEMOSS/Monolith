@@ -105,7 +105,7 @@ public class QuestionAdmin {
 		boolean isNonDbInsight = insight.isNonDbInsight();
 		if(isNonDbInsight) {
 			//TODO: assume person will not have parameters
-			addInsightTinkerCache(insight, insightName, perspective, layout);
+			addInsightTinkerCache(insight, insightName, perspective, layout, uiOptions);
 		} else {
 			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 			addInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
@@ -114,12 +114,15 @@ public class QuestionAdmin {
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 	
-	private void addInsightTinkerCache(Insight insight, String insightName, String perspective, String layout) {
+	private void addInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, String uiOptions) {
 		//TODO: put this shit in constants
 		String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
 		List<String> folderStructure = new ArrayList<String>();
 		folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
 		String uniqueID = UUID.randomUUID().toString();
+		insight.setInsightName(insightName);
+		insight.setOutput(layout);
+		insight.setUiOptions(uiOptions);
 		String saveFileLocation = CacheAdmin.createCache(insight.getDataMaker(), insight.getWebData(), path, folderStructure, uniqueID, null);
 		
 		Map<String, Object> solrInsights = new HashMap<>();
@@ -227,9 +230,6 @@ public class QuestionAdmin {
 			e.printStackTrace();
 		}
 	}
-	
-	
-	
 	
 	@POST
 	@Path("editFromAction")
