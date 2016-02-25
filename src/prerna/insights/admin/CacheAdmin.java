@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
@@ -55,7 +56,7 @@ public class CacheAdmin {
 	 * 
 	 * Deletes the cache associated with the insight
 	 */
-	public static void deleteCache(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {
+	public static void deleteCacheFolder(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {
 		//grab variables from insight that are used to create the file name
 		String baseFolderPath = getBaseFolder(basePath, folderStructure);
 		File basefolder = new File(baseFolderPath);
@@ -64,6 +65,26 @@ public class CacheAdmin {
 				FileUtils.forceDelete(basefolder);
 			} catch (IOException e) {
 				e.printStackTrace();
+			}
+		}
+	}
+	
+	public static void deleteCacheFiles(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {
+		String baseFolderPath = getBaseFolder(basePath, folderStructure);
+		File basefolder = new File(baseFolderPath);
+		if(basefolder.isDirectory()) {
+			File[] files = basefolder.listFiles(new FilenameFilter(){
+				@Override
+				public boolean accept(File dir, String fileName) {
+					return fileName.startsWith(name);
+				}
+			});
+			for(File f : files) {
+				try {
+					FileUtils.forceDelete(f);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}
@@ -137,19 +158,26 @@ public class CacheAdmin {
 	 * @param vec
 	 */
 	private static void writeToFile(String fileName, Object vec) {
+		FileOutputStream os = null;
 		try {
 			Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
 			String data = gson.toJson(vec);
-			IOUtils.write(data, new FileOutputStream(new File(fileName)));
+			os = new FileOutputStream(new File(fileName));
+			IOUtils.write(data, os);
 		} catch (UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} finally {
+			try {
+				if(os != null) {
+					os.close();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 	
