@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Vector;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -81,6 +82,7 @@ import prerna.nameserver.NameServerProcessor;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.solr.SolrIndexEngine;
+import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.helpers.InsightCreateRunner;
 import prerna.upload.Uploader;
@@ -885,6 +887,10 @@ public class NameServer {
 					List<String> folderStructure = new ArrayList<String>();
 					folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
 					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getDatabaseID(), existingInsight.getParamHash());
+					DataMakerComponent dmc = new DataMakerComponent(CacheAdmin.getDMPath(path, folderStructure, existingInsight.getDatabaseID(), existingInsight.getParamHash())); 
+					Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
+					dmcList.add(dmc);
+					existingInsight.setDataMakerComponents(dmcList);
 				} else {
 					// otherwise, grab the serialization if it is there
 					List<String> folderStructure = new ArrayList<String>();
