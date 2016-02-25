@@ -703,8 +703,6 @@ public class EngineResource {
 					errorHash.put("Class", className);
 					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 				}
-			} else {
-				path = (String)DIHelper.getInstance().getProperty(Constants.BASE_FOLDER)+"/InsightCache";
 			}
 			
 			// check if the insight has already been cached
