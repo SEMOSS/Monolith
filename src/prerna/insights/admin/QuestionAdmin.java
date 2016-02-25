@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.insights.admin;
 
+import java.io.File;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -39,6 +40,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -62,12 +64,14 @@ import prerna.engine.impl.QuestionAdministrator;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
+import prerna.solr.SolrDocumentExportWriter;
 import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.FilterTransformation;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -86,8 +90,6 @@ public class QuestionAdmin {
 	@Path("addFromAction")
 	@Produces("application/json")
 	public Response addInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String engineName = coreEngine.getEngineName();
-		
 		LOGGER.info("Adding question from action with following details:::: " + form.toString());
 		Gson gson = new Gson();
 		String perspective = form.getFirst("perspective");
@@ -99,18 +101,78 @@ public class QuestionAdmin {
 		String uiOptions = form.getFirst("uiOptions");
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 
+		Insight insight = InsightStore.getInstance().get(insightID);
+		boolean isNonDbInsight = insight.isNonDbInsight();
+		if(isNonDbInsight) {
+			//TODO: assume person will not have parameters
+			addInsightTinkerCache(insight, insightName, perspective, layout);
+		} else {
+			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
+			addInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
+		}
+		
+		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+	}
+	
+	private void addInsightTinkerCache(Insight insight, String insightName, String perspective, String layout) {
+		//TODO: put this shit in constants
+		String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
+		List<String> folderStructure = new ArrayList<String>();
+		folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
+		String uniqueID = UUID.randomUUID().toString();
+		String saveFileLocation = CacheAdmin.createCache(insight.getDataMaker(), insight.getWebData(), path, folderStructure, uniqueID, null);
+		
+		Map<String, Object> solrInsights = new HashMap<>();
+		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
+		Date date = new Date();
+		String currDate = dateFormat.format(date);
+		solrInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
+		solrInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
+		solrInsights.put(SolrIndexEngine.TAGS, perspective);
+		solrInsights.put(SolrIndexEngine.LAYOUT, layout);
+		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
+		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
+		solrInsights.put(SolrIndexEngine.CORE_ENGINE, Constants.LOCAL_MASTER_DB_NAME);
+		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, uniqueID);
+		solrInsights.put(SolrIndexEngine.NON_DB_INSIGHT, true);
+		Set<String> engines = new HashSet<String>();
+		engines.add(Constants.LOCAL_MASTER_DB_NAME);
+		solrInsights.put(SolrIndexEngine.ENGINES, engines);
+		//TODO: need to add users
+		solrInsights.put(SolrIndexEngine.USER_ID, "default");
+		
+		try {
+			SolrIndexEngine.getInstance().addInsight(uniqueID, solrInsights);
+			saveFileLocation = saveFileLocation + "_Solr.txt";
+			File solrFile = new File(saveFileLocation);
+			SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
+			writer.writeSolrDocument(uniqueID, solrInsights);
+			writer.closeExport();
+		} catch (KeyManagementException e) {
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (KeyStoreException e) {
+			e.printStackTrace();
+		} catch (SolrServerException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void addInsightFromDb(Insight insight, String insightName, String perspective, String order, String layout, String uiOptions, Map<String, String> dataTableAlign, Vector<Map<String, String>> paramMapList) {
 		//TODO: currently not exposed through UI
 		boolean isDbQuery = true;
 		
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		Insight insight = InsightStore.getInstance().get(insightID);
 		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
-		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 		List<SEMOSSParam> params = buildParameterList(insight, paramMapList);
 		
 		//Add necessary filter transformations
 		IDataMaker dm = insight.getDataMaker();
 		String newInsightID = null;
+		String engineName = coreEngine.getEngineName();
+		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
 		if(dm instanceof TinkerFrame) {
 			//add list of new filter transformations to the last component
 			DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
@@ -164,9 +226,10 @@ public class QuestionAdmin {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
+	
+	
+	
 	
 	@POST
 	@Path("editFromAction")
@@ -196,7 +259,10 @@ public class QuestionAdmin {
 		List<SEMOSSParam> params = buildParameterList(insight, paramMapList);
 		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
-		CacheAdmin.deleteCache(insight);
+		List<String> folderStructure = new ArrayList<String>();
+		folderStructure.add(insight.getEngineName());
+		folderStructure.add(insight.getRdbmsId());
+		CacheAdmin.deleteCache(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, insight.getRdbmsId(), insight.getParamHash());
 		
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
@@ -400,7 +466,10 @@ public class QuestionAdmin {
 			dmcList = existingIn.getDataMakerComponents();
 			params = existingIn.getInsightParameters();
 			
-			CacheAdmin.deleteCache(existingIn);
+			List<String> folderStructure = new ArrayList<String>();
+			folderStructure.add(existingIn.getEngineName());
+			folderStructure.add(existingIn.getRdbmsId());
+			CacheAdmin.deleteCache(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, existingIn.getRdbmsId(), existingIn.getParamHash());
 			// BELOW CODE IS FOR EDITING COMPONENTS VIA TEXT
 			// CURRENTLY NOT ENABLED BECAUSE GETTING PARAMETERS FROM DMC LIST STILL NEEDS TO BE THOUGHT THROUGH
 //			String insightMakeup = form.getFirst("insightMakeup");

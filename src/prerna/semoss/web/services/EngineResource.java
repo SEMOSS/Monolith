@@ -35,6 +35,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 
@@ -91,6 +92,8 @@ import prerna.ui.helpers.InsightCreateRunner;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.ArrayUtilityMethods;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.InMemoryHash;
@@ -464,6 +467,17 @@ public class EngineResource {
 		// typically is a JSON of the insight
 		System.out.println("Insight is " + insight);
 		Insight in = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
+		if(in.isNonDbInsight()) {
+			// data is not from engine
+			// send back empties since cannot have parameters in these questions
+			Hashtable outputHash = new Hashtable<String, Hashtable>();
+			outputHash.put("result", in.getInsightID());
+			Hashtable optionsHash = new Hashtable();
+			Hashtable paramsHash = new Hashtable();
+			outputHash.put("options", optionsHash);
+			outputHash.put("params", paramsHash);
+			return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
+		}
 		System.out.println("Insight is " + in);
 		System.out.println(in.getOutput());
 		Hashtable outputHash = new Hashtable<String, Hashtable>();
@@ -670,10 +684,35 @@ public class EngineResource {
 			Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 			params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
 			insightObj.setParamHash(params);
-
+			
+			String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
+			if(insightObj.isNonDbInsight()) {
+				insightObj.setDatabaseID(insight);
+				List<String> folderStructure = new ArrayList<String>();
+				folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
+				String vizData = CacheAdmin.getVizData(path, folderStructure, insight, params);
+				if(vizData != null) {
+					// insight has been cached, send it to the FE with a new insight id
+					String id = InsightStore.getInstance().put(insightObj);
+					Map<String, Object> uploaded = gson.fromJson(vizData, new TypeToken<Map<String, Object>>() {}.getType());
+					uploaded.put("insightID", id);
+					return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
+				} else {
+					Hashtable<String, String> errorHash = new Hashtable<String, String>();
+					errorHash.put("Message", "Error getting data for saved insight via csv.");
+					errorHash.put("Class", className);
+					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				}
+			} else {
+				path = (String)DIHelper.getInstance().getProperty(Constants.BASE_FOLDER)+"/InsightCache";
+			}
+			
 			// check if the insight has already been cached
 			System.out.println("Params is " + params);
-			String vizData = CacheAdmin.getVizData(insightObj);
+			List<String> folderStructure = new ArrayList<String>();
+			folderStructure.add(insightObj.getEngineName());
+			folderStructure.add(insightObj.getRdbmsId());
+			String vizData = CacheAdmin.getVizData(path, folderStructure, insightObj.getRdbmsId(), params);
 			Object obj = null;
 			if(vizData != null) {
 				// insight has been cached, send it to the FE with a new insight id
@@ -688,7 +727,7 @@ public class EngineResource {
 					InsightCreateRunner run = new InsightCreateRunner(insightObj);
 					obj = run.runWeb();
 					
-					CacheAdmin.createCache(insightObj, (Map<String, Object>)obj);
+					CacheAdmin.createCache(insightObj.getDataMaker(), insightObj.getWebData(), path, folderStructure, insightObj.getRdbmsId(), params);
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
