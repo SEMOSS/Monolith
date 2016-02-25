@@ -59,7 +59,7 @@ public class CacheAdmin {
 		//grab variables from insight that are used to create the file name
 		String baseFolderPath = getBaseFolder(basePath, folderStructure);
 		File basefolder = new File(baseFolderPath);
-		if(!basefolder.exists()) {
+		if(basefolder.isDirectory()) {
 			try {
 				FileUtils.forceDelete(basefolder);
 			} catch (IOException e) {
@@ -181,20 +181,28 @@ public class CacheAdmin {
 	 * @return
 	 */
 	private static String readFromFileString(String fileName) {
-    	Reader is;
-
+    	Reader is = null;
+    	FileReader fr = null;
         try {
-            is = new BufferedReader(new FileReader(new File(fileName)));
-
+        	fr = new FileReader(new File(fileName));
+            is = new BufferedReader(fr);
             String retData = IOUtils.toString(is);//(is, "UTF8");
-            is.close();
             return retData;
         } catch (FileNotFoundException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
+        } finally {
+        	try {
+	        	if(fr != null) {
+	        		fr.close();
+	        	}
+	        	if(is != null) {
+					is.close();
+	        	}
+        	} catch (IOException e) {
+				e.printStackTrace();
+			}
         }
 
         return null;
