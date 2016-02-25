@@ -95,8 +95,7 @@ public class CacheAdmin {
 	 */
 	public static IDataMaker getCachedDataMaker(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {
 		TinkerFrame tf = null;
-		String baseFile = getBasePath(basePath, folderStructure, name, paramHash);
-		String dmFilePath = baseFile + DM_EXTENSION;
+		String dmFilePath = getDMPath(basePath, folderStructure, name, paramHash);
 		File f = new File(dmFilePath);
 		// if that graph cache exists load it and sent to the FE
 		if(f.exists() && !f.isDirectory()) {
@@ -150,6 +149,12 @@ public class CacheAdmin {
 		}
 		String baseFile = directory + "/" + name;
 		return baseFile;
+	}
+	
+	public static String getDMPath(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash){
+		String base = getBasePath(basePath, folderStructure, name, paramHash);
+		String dmFilePath = base + DM_EXTENSION;
+		return dmFilePath;
 	}
 	
 	/**
