@@ -111,14 +111,13 @@ public class AnalyticsResource {
 		
 		List<String> skipAttributes = new ArrayList<String>();
 		for(String header : columnHeaders) {
-			if(includeColMap.containsKey(header) && !includeColMap.get(header)) {
-				skipAttributes.add(header);
-			} else {
+			if(!includeColMap.containsKey(header)) {
 				//this is annoying, need it for prim key
+				skipAttributes.add(header);
+			} else if(!includeColMap.get(header)){
 				skipAttributes.add(header);
 			}
 		}
-		dataFrame.setColumnsToSkip(skipAttributes);
 
 		int instanceIndex = 0;
 		String instanceName = form.getFirst("instanceID");
@@ -127,7 +126,6 @@ public class AnalyticsResource {
 		}
 		
 		// need to adjust the instance index based on the skipping of other columns
-		columnHeaders = dataFrame.getColumnHeaders();
 		int origIndex = instanceIndex;
 		for(int i = 0; i < columnHeaders.length; i++) {
 			if(i < origIndex) {
@@ -138,6 +136,8 @@ public class AnalyticsResource {
 				break;
 			}
 		}
+		dataFrame.setColumnsToSkip(skipAttributes);
+
 		
 		//TODO: need to figure out why all of these values come back as strings..
 		List<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
