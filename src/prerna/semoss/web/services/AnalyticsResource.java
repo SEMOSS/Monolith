@@ -137,7 +137,7 @@ public class AnalyticsResource {
 			}
 		}
 		dataFrame.setColumnsToSkip(skipAttributes);
-
+		columnHeaders = dataFrame.getColumnHeaders();
 		
 		//TODO: need to figure out why all of these values come back as strings..
 		List<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
@@ -239,7 +239,7 @@ public class AnalyticsResource {
 			// model name is not exposed to users
 			// other models do not work that well... just stick with J48 as it gives best results
 			selectedOptions.put(WekaClassification.MODEL_NAME, "J48"); 
-			selectedOptions.put(WekaClassification.CLASS_NAME, columnHeaders[instanceIndex]); // TODO: again, pass this by name, not by index
+			selectedOptions.put(WekaClassification.CLASS_NAME, instanceName);
 			selectedOptions.put(WekaAprioriAlgorithm.SKIP_ATTRIBUTES, skipAttributes); 
 			selectedOptions.put(AlgorithmTransformation.ALGORITHM_TYPE, AlgorithmAction.J48_CLASSIFICATION); 
 			
