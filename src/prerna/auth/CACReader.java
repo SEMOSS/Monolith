@@ -1,6 +1,7 @@
 package prerna.auth;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.security.KeyStore;
 import java.security.Provider;
@@ -16,6 +17,7 @@ import javax.smartcardio.CardChannel;
 import javax.smartcardio.CardTerminal;
 import javax.smartcardio.TerminalFactory;
 
+import prerna.util.DIHelper;
 import sun.security.pkcs11.SunPKCS11;
 
 public class CACReader {
@@ -45,7 +47,10 @@ public class CACReader {
 		
 		try {
 			KeyStore keyStore;
-			SunPKCS11 providerMSCAPI = new SunPKCS11("C:\\Development\\Security\\CACauth\\pkcs11.cfg");
+			String config = "showInfo = true" 
+					+ "\nlibrary = " + DIHelper.getInstance().getProperty("BaseFolder") + "\\config\\CACauth\\opensc-pkcs11.dll"
+					+ "\nname = SmartCard";
+			SunPKCS11 providerMSCAPI = new SunPKCS11(new ByteArrayInputStream(config.getBytes("UTF-8")));
 			Provider p = providerMSCAPI;
 			Security.addProvider(p);
 	
