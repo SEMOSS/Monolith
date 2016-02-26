@@ -682,8 +682,9 @@ public class QuestionAdmin {
 					p.setName(paramName);
 					p.setType(paramURI);
 					if(paramParent != null) {
+						String paramParentURI = this.coreEngine.getTransformedNodeName(paramParent, false);
 						// if it is a property, we need to define a unique query which pulls up values for the property based on the parent
-						String query = "SELECT DISTINCT ?entity WHERE { {?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <" + paramParent + "> } "
+						String query = "SELECT DISTINCT ?entity WHERE { {?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <" + paramParentURI + "> } "
 								+ "{ ?x <" + paramURI + "> ?entity} }";
 						p.setQuery(query);
 					} else {
