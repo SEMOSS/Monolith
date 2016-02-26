@@ -110,9 +110,10 @@ public class AuthorizationResource
 		if(user != null && !user.getId().equals(Constants.ANONYMOUS_USER_ID)) {
 			ArrayList<EngineAccessRequest> reqs = permissions.getEngineAccessRequestsForUser(user.getId());
 			ArrayList<String> allPermissionsList = new ArrayList<String>();
-			for(EnginePermission ep : EnginePermission.values()) {
-				allPermissionsList.add(ep.getPermission());
-			}
+//			for(EnginePermission ep : EnginePermission.values()) {
+//				allPermissionsList.add(ep.getPermission());
+//			}
+			allPermissionsList.add(EnginePermission.READ_ONLY.getPermission());
 			for(EngineAccessRequest req : reqs) {
 				requestdetails = new Hashtable<String, Object>();
 				requestdetails.put("requestId", req.getRequestId());
