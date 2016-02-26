@@ -946,7 +946,7 @@ public final class FormBuilder {
 					removeNode = Boolean.parseBoolean(relationship.get(REMOVE_NODE).toString());
 				}
 				if(type.equalsIgnoreCase(UPSTREAM)) {
-					if(!deletedRels.contains(table + foreignKeyCol + foreignKeyVal)) {
+					if(!deletedRels.contains(table + foreignKeyCol + conceptVal)) {
 						overrideUpstreamRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash, deleteUnconnectedConcepts, removeNode);
 						deletedRels.add(table + foreignKeyCol + foreignKeyVal);
 					} else {
@@ -954,7 +954,7 @@ public final class FormBuilder {
 						addRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash);
 					}
 				} else if(type.equalsIgnoreCase(DOWNSTREAM)){
-					if(!deletedRels.contains(table + conceptCol + conceptVal)) {
+					if(!deletedRels.contains(table + conceptCol + foreignKeyVal)) {
 						overrideDownstreamRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash, deleteUnconnectedConcepts, removeNode);
 						deletedRels.add(table + conceptCol + conceptVal);
 					} else {
