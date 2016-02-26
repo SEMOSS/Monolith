@@ -45,6 +45,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
@@ -55,9 +56,9 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.protocol.HTTP;
 import org.apache.http.util.EntityUtils;
 
+import prerna.auth.CACReader;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.util.Constants;
@@ -319,6 +320,14 @@ public class UserResource
 		
 		ret.put("success", "true");
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("login/cac")
+	public StreamingOutput loginCAC(@Context HttpServletRequest request, @QueryParam("pin") String pin) {
+		CACReader reader = new CACReader();
+    	return WebUtility.getSO(reader.getCACName(pin));
 	}
 	
 	/**
