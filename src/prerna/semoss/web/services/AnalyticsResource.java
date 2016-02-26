@@ -60,6 +60,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSAction;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
+import prerna.util.ArrayUtilityMethods;
 import prerna.util.MachineLearningEnum;
 import prerna.web.services.util.WebUtility;
 
@@ -101,35 +102,43 @@ public class AnalyticsResource {
 			}
 		}
 		
-		//////////////////////TODO:
-		//////////////////////TODO:
-		//////////////////////TODO:
-		// Need to change the below to send the names of the headers to skip
-		// otherwise, need to get theaders, see which ones are to skip based on boolean, and create array of headers to skip
 		ITableDataFrame dataFrame = (ITableDataFrame) existingInsight.getDataMaker();
 		String[] columnHeaders = dataFrame.getColumnHeaders();
-		Boolean[] includeColArr = gson.fromJson(form.getFirst("filterParams"), Boolean[].class);
-		if(columnHeaders.length != includeColArr.length) {
-			//front end issue, needs to send appropriate headers such that filtering is occuring properly
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash .put("errorMessage", "Number of headers sent does not match the numbers of headers in the dataframe.");
-			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-		}
+		Map<String, Boolean> includeColMap = gson.fromJson(form.getFirst("filterParams"), Map.class);
+
+		// clear any skip columns
 		dataFrame.setColumnsToSkip(new ArrayList<String>());
+		
 		List<String> skipAttributes = new ArrayList<String>();
-		for(int i = 0; i < includeColArr.length; i++) {
-			if(!includeColArr[i]) {
-				skipAttributes.add(columnHeaders[i]);
+		for(String header : columnHeaders) {
+			if(includeColMap.containsKey(header) && !includeColMap.get(header)) {
+				skipAttributes.add(header);
+			} else {
+				//this is annoying, need it for prim key
+				skipAttributes.add(header);
 			}
 		}
-		///////////////////////
-		
-		// TODO: should have the instance be passed by name and not by index
-		// could cause issues with skip-attributes 
+		dataFrame.setColumnsToSkip(skipAttributes);
+
 		int instanceIndex = 0;
-		if(form.getFirst("instanceID") != null) {
-			instanceIndex = gson.fromJson(form.getFirst("instanceID"), Integer.class);
+		String instanceName = form.getFirst("instanceID");
+		if(instanceName != null) {
+			instanceIndex = ArrayUtilityMethods.arrayContainsValueAtIndex(columnHeaders, instanceName);
 		}
+		
+		// need to adjust the instance index based on the skipping of other columns
+		columnHeaders = dataFrame.getColumnHeaders();
+		int origIndex = instanceIndex;
+		for(int i = 0; i < columnHeaders.length; i++) {
+			if(i < origIndex) {
+				if(skipAttributes.contains(columnHeaders[i])) {
+					instanceIndex--;
+				}
+			} else {
+				break;
+			}
+		}
+		
 		//TODO: need to figure out why all of these values come back as strings..
 		List<String> configParameters = gson.fromJson(form.getFirst("parameters"), ArrayList.class);
 		
@@ -346,7 +355,7 @@ public class AnalyticsResource {
 				retMap.put("stepID", action.getId());
 			} catch(Exception ex) {
 				ex.printStackTrace();
-				dataFrame.setColumnsToSkip(null);
+				dataFrame.setColumnsToSkip(new ArrayList<String>());
 				errorHash.put("errorMessage", ex.getMessage());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
@@ -362,7 +371,7 @@ public class AnalyticsResource {
 				retMap.put("stepID", transformation.getId());
 			} catch(Exception ex) {
 				ex.printStackTrace();
-				dataFrame.setColumnsToSkip(null);
+				dataFrame.setColumnsToSkip(new ArrayList<String>());
 				errorHash.put("errorMessage", ex.getMessage());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
