@@ -256,7 +256,7 @@ public class DataframeResource {
 		retMap.put("filteredValues", returnFilterModel[1]);
 		
 		// update any derived columns that this graph is using
-//		this.insight.recalcDerivedColumns();
+		this.insight.recalcDerivedColumns();
 		
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
