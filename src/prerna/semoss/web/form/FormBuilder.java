@@ -948,7 +948,7 @@ public final class FormBuilder {
 				if(type.equalsIgnoreCase(UPSTREAM)) {
 					if(!deletedRels.contains(table + foreignKeyCol + conceptVal)) {
 						overrideUpstreamRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash, deleteUnconnectedConcepts, removeNode);
-						deletedRels.add(table + foreignKeyCol + foreignKeyVal);
+						deletedRels.add(table + foreignKeyCol + conceptVal);
 					} else {
 						//already did the override once, now just insert
 						addRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash);
@@ -956,7 +956,7 @@ public final class FormBuilder {
 				} else if(type.equalsIgnoreCase(DOWNSTREAM)){
 					if(!deletedRels.contains(table + conceptCol + foreignKeyVal)) {
 						overrideDownstreamRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash, deleteUnconnectedConcepts, removeNode);
-						deletedRels.add(table + conceptCol + conceptVal);
+						deletedRels.add(table + conceptCol + foreignKeyVal);
 					} else {
 						//already did the override once, now just insert
 						addRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash);
