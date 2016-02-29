@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Vector;
 
 import javax.servlet.ServletContext;
@@ -398,7 +399,7 @@ public class NameServer {
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String completeTerm, @Context HttpServletRequest request) {
 		logger.info("Searching based on input: " + completeTerm);
 				
-		Map<String, List<String>> results = null;
+		Set<String> results = null;
 		try {
 			results = SolrIndexEngine.getInstance().executeAutoCompleteQuery(completeTerm);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
