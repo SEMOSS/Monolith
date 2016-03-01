@@ -1071,7 +1071,7 @@ public final class FormBuilder {
 		// remove the duplicated
 		removeDuplicates(engine, table + TEMP_EXTENSION, conceptCol);
 		// add all the values from the temp table into the table we care about
-		queryBuilder.append("INSERT INTO ").append(table).append(" SELECT * FROM ").append(table).append(TEMP_EXTENSION);
+		queryBuilder.append("INSERT INTO ").append(table).append("(").append(cols).append(", ").append(foreignKeyCol).append(")").append(" SELECT * FROM ").append(table).append(TEMP_EXTENSION);
 		engine.insertData(queryBuilder.toString());
 		queryBuilder.setLength(0);
 		// drop the temp table
