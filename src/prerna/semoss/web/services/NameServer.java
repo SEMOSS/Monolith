@@ -613,29 +613,40 @@ public class NameServer {
 	@Produces("application/json")
 	public StreamingOutput getConnectedConcepts(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String conceptURI = form.getFirst("conceptURI");
-		//TODO: need to figure out how the FE should pass us information for this
-		//TODO: decide this once data format is finalized for graph tinker
-		if(!conceptURI.startsWith("http://")) {
-			conceptURI = Constants.CONCEPT_URI + conceptURI;
-		}
-		IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(form.getFirst("engine"));
-		conceptURI = engine.getTransformedNodeName(conceptURI, false);
-
+		
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		logger.info("CENTRALLY have registered selected URIs as ::: " + conceptURI.toString());
+		IEngine masterDB = (IEngine) DIHelper.getInstance().getLocalProp(localMasterDbName);
 
+		INameServer ns = null;
+		if(!conceptURI.startsWith("http://")) {
+			ns = new NameServerProcessor(masterDB);
+			conceptURI = ns.findMostSimilarKeyword(conceptURI);
+			if(conceptURI == null) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "No similar concepts found");
+				return WebUtility.getSO(errorMap);
+			}
+			//Need to get rid of keyword portion to create concept uri in owl
+			conceptURI = conceptURI.replace("Keyword/", "");
+		} else {
+			IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(form.getFirst("engine"));
+			conceptURI = engine.getTransformedNodeName(conceptURI, false);
+		}
+		
 		ConnectedConcepts results = null;
 		// regardless of input master/local databases, uses the same method
 		// since it only queries the master db and not the databases used to
 		// create it
 		if (localMasterDbName == null) {
 			// this call is not local, need to get the API to run queries
-			INameServer ns = new NameServerProcessor();
+			ns = new NameServerProcessor();
 			results = ns.searchConnectedConcepts(conceptURI);
 		} else {
 			// this call is local, grab the engine from DIHelper
-			IEngine masterDB = (IEngine) DIHelper.getInstance().getLocalProp(localMasterDbName);
-			INameServer ns = new NameServerProcessor(masterDB);
+			if(ns ==  null) {
+				ns = new NameServerProcessor(masterDB);
+			}
 			results = ns.searchConnectedConcepts(conceptURI);
 		}
 		return WebUtility.getSO(results.getData());
