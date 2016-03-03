@@ -625,7 +625,8 @@ public class NameServer {
 			if(conceptURI == null) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "No similar concepts found");
-				return WebUtility.getSO(errorMap);
+//				return WebUtility.getSO(errorMap);
+				return WebUtility.getSO("");
 			}
 			//Need to get rid of keyword portion to create concept uri in owl
 			conceptURI = conceptURI.replace("Keyword/", "");
