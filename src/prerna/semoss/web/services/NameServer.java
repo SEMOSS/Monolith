@@ -325,7 +325,7 @@ public class NameServer {
 	public Response generateTableFromJSON(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Uploader upload = new Uploader();
 		try {
-			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(form.getFirst("jsonString")))).build();
+			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(form.getFirst("jsonString"), form.getFirst("delimiter")))).build();
 		} catch(Exception e) {
 			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
