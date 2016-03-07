@@ -400,12 +400,12 @@ public class NameServer {
 //		logger.info("Searching based on input: " + completeTerm);
 //				
 		Set<String> results = null;
-//		try {
-//			results = SolrIndexEngine.getInstance().executeAutoCompleteQuery(completeTerm);
-//		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
-//				| IOException e) {
-//			e.printStackTrace();
-//		}
+		try {
+			results = SolrIndexEngine.getInstance().executeAutoCompleteQuery(completeTerm);
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
+				| IOException e) {
+			e.printStackTrace();
+		}
 		return WebUtility.getSO(results);
 	}
 	
