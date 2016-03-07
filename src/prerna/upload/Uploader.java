@@ -1132,9 +1132,12 @@ public class Uploader extends HttpServlet {
 		return s.replaceAll(" ", "_");
 	}
 	
-	public String generateTableFromJSON(String jsonString) {
+	public String generateTableFromJSON(String dataStr, String delimiter) {
 		// generate tinker frame from 
-		TinkerFrame tf = TinkerFrame.generateTinkerFrameFromJson(jsonString);
+		if(delimiter == null || delimiter.isEmpty()) {
+			delimiter = "\t";
+		}
+		TinkerFrame tf = TinkerFrame.generateTinkerFrameFromFile(dataStr, delimiter);
 		Insight in = new Insight(null, "TinkerFrame", "Grid");
 		DataMakerComponent dmc = new DataMakerComponent(""); //dmc currently doesn't have a location since it is not saved yet
 		Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
