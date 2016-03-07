@@ -397,15 +397,15 @@ public class NameServer {
 	@Path("central/context/getAutoCompleteResults")
 	@Produces("application/json")
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String completeTerm, @Context HttpServletRequest request) {
-		logger.info("Searching based on input: " + completeTerm);
-				
+//		logger.info("Searching based on input: " + completeTerm);
+//				
 		Set<String> results = null;
-		try {
-			results = SolrIndexEngine.getInstance().executeAutoCompleteQuery(completeTerm);
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
-				| IOException e) {
-			e.printStackTrace();
-		}
+//		try {
+//			results = SolrIndexEngine.getInstance().executeAutoCompleteQuery(completeTerm);
+//		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
+//				| IOException e) {
+//			e.printStackTrace();
+//		}
 		return WebUtility.getSO(results);
 	}
 	
