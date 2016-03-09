@@ -1181,7 +1181,7 @@ public final class FormBuilder {
 				String type = types.get(i);
 				if(type.contains("VARCHAR")) {
 					insertQuery.append("'");
-					insertQuery.append(propertyValue.toString().toUpperCase());
+					insertQuery.append(escapeForSQLStatement(propertyValue.toString()));
 					insertQuery.append("'");
 				} else if(type.contains("INT") || type.contains("DECIMAL") || type.contains("DOUBLE") || type.contains("LONG") || type.contains("BIGINT")
 						|| type.contains("TINYINT") || type.contains("SMALLINT")){
