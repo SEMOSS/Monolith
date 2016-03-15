@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,6 +60,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.commons.fileupload.FileItem;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocumentList;
@@ -332,6 +335,55 @@ public class NameServer {
 			errorMap.put("errorMessage", "Error processing new data");
 			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 		}
+	}
+	
+	@POST
+	@Path("central/context/generateTableFromCSV")
+	public Response generateTableFromCSV(@Context HttpServletRequest request) {
+
+		Uploader upload = new Uploader();
+		upload.setTempFilePath("C:\\\\Temp"); //is this always the case?
+		List<FileItem> fileItems = upload.processRequest(request);
+		
+		// Process the uploaded file items
+		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
+		String csvData = "";
+		String delimiter = "";
+		
+		try {
+			
+			while(iteratorFileItems.hasNext()) 
+			{
+				FileItem fi = (FileItem) iteratorFileItems.next();
+				// Get the uploaded file parameters
+				String fieldName = fi.getFieldName();
+				String fileName = fi.getName();
+				String value = fi.getString();
+				if (!fi.isFormField()) {
+					if(fileName.equals("")) {
+						continue;
+					}
+					else {
+						if(fieldName.equals("file") || fieldName.equals("mapFile") || fieldName.equals("questionFile")) {
+							csvData = value;
+						} 
+					}
+				} else {
+					if(fieldName.equals("delimiter")) {
+						delimiter = value;
+					}
+				}
+			}
+			
+			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(csvData, delimiter))).build();
+			
+		} catch(Exception e) {
+			e.printStackTrace();
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Error processing new data");
+			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+		}
+
 	}
 	
 	// central call to store an engine in the master db

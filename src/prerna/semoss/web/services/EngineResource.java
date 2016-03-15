@@ -738,58 +738,6 @@ public class EngineResource {
 		}
 	}
 	
-//	@POST
-//	@Path("createDataFrame")
-//	@Produces("application/json")
-//	public Response createDataFrame(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
-//	{
-//		String insightId = form.getFirst("insightId");
-//		String origInsight = form.getFirst("origId");
-//		// grab the cached insight object from insight store
-//		if(InsightStore.getInstance().get(insightId) != null) {
-//			Insight insightObj = InsightStore.getInstance().get(insightId);
-//			if(insightObj != null) {
-//				// get the params to run the insight with
-////				Map<String, List<Object>> params = insightObj.getParamHash();
-////				System.out.println("Params is " + params);
-////				//grab the file name associated with the tinker graph
-////				String fileName = CacheAdmin.getFileName(coreEngine.getEngineName(), insightObj.getDatabaseID(), origInsight, params, FileType.GRAPH_DATA);
-////				File f = new File(fileName);
-////				// if that graph cache exists load it and sent to the FE
-////				if(f.exists() && !f.isDirectory()) {
-////					insightObj.setParamHash(params);
-////					insightObj.setDataMaker(TinkerFrame.open(fileName));
-////				}
-//				
-//				IDataMaker dm = CacheAdmin.getCachedDataMaker(insightObj);
-//				insightObj.setDataMaker(dm);
-//			}
-//				// the graph is not cached, so create it from dm components 
-//				else {
-//					try {
-//						insightObj.setParamHash(params);
-//						InsightCreateRunner run = new InsightCreateRunner(insightObj);
-//						run.runWeb();
-//						// now cache the graph of the insight for faster retrieval
-////						IDataMaker dataTable = insightObj.getDataMaker();
-////						if(dataTable instanceof TinkerFrame) {
-////							String file = CacheAdmin.getFileName(insightObj.getEngineName(), insightObj.getDatabaseID(), insightObj.getRdbmsId(), insightObj.getParamHash(), FileType.GRAPH_DATA);
-////							((TinkerFrame)dataTable).save(file);
-////						}
-//						CacheAdmin.createL2Cache(insightObj);
-//					} catch (Exception ex) {
-//						ex.printStackTrace();
-//						Hashtable<String, String> errorHash = new Hashtable<String, String>();
-//						errorHash.put("Message", "Error occured processing question.");
-//						errorHash.put("Class", className);
-//						return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
-//					}
-//				}
-//			}
-//		}
-//		return Response.status(200).entity(WebUtility.getSO(insightId)).build();
-//	}
-	
 	// executes a particular insight
 	@GET
 	@Path("outputs")
