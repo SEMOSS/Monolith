@@ -725,7 +725,7 @@ public class EngineResource {
 					InsightCreateRunner run = new InsightCreateRunner(insightObj);
 					obj = run.runWeb();
 					
-					CacheAdmin.createCache(insightObj.getDataMaker(), insightObj.getWebData(), path, folderStructure, insightObj.getRdbmsId(), params);
+					CacheAdmin.createCache(insightObj.getDataMaker(), (Map<String, Object>)obj, path, folderStructure, insightObj.getRdbmsId(), params);
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
