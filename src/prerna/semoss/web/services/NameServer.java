@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -449,8 +448,6 @@ public class NameServer {
 	@Path("central/context/getAutoCompleteResults")
 	@Produces("application/json")
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String completeTerm, @Context HttpServletRequest request) {
-//		logger.info("Searching based on input: " + completeTerm);
-//				
 		Set<String> results = null;
 		try {
 			results = SolrIndexEngine.getInstance().executeAutoCompleteQuery(completeTerm);
@@ -472,6 +469,9 @@ public class NameServer {
 	public StreamingOutput getSearchInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		//text searched in search bar
 		String searchString = form.getFirst("searchString");
+		if(searchString != null && !searchString.isEmpty() && !searchString.equals(SolrIndexEngine.QUERY_ALL)){
+			searchString = "*"+ searchString + "*";
+		}
 		logger.info("Searching based on input: " + searchString);
 		
 		//specification of search based on field (ie. database, name, everything, etc)
@@ -526,6 +526,9 @@ public class NameServer {
 	@Produces("application/json")
 	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString, @QueryParam("searchField") String searchField, @Context HttpServletRequest request) {
 		// text searched in search bar
+		if(searchString != null && !searchString.isEmpty() && !searchString.equals(SolrIndexEngine.QUERY_ALL)){
+			searchString = "*"+ searchString + "*";
+		}
 		logger.info("Searching based on input: " + searchString);
 
 		// specification of search based on field (ie. database, name, everything, etc)
@@ -560,8 +563,11 @@ public class NameServer {
 	public StreamingOutput getGroupInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		//text searched in search bar
 		String searchString = form.getFirst("searchString");
+		if(searchString != null && !searchString.isEmpty() && !searchString.equals(SolrIndexEngine.QUERY_ALL)){
+			searchString = "*"+ searchString + "*";
+		}
 		logger.info("Searching based on input: " + searchString);
-		
+				
 		//text searched in search bar
 		String searchField = form.getFirst("searchField");
 		logger.info("Searching field is: " + searchField);
@@ -612,53 +618,53 @@ public class NameServer {
 	 * @param form - information passes in from the front end
 	 * @return a string version of the results attained from the query/mlt search
 	 */
-	@POST
-	@Path("central/context/getMLTInsightsResults")
-	@Produces("application/json")
-	public StreamingOutput getMLTInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String searchString = form.getFirst("searchString");
-		logger.info("Searching based on input: " + searchString);
-		//text searched in search bar
-		String searchField = form.getFirst("searchField");
-		logger.info("Searching field is: " + searchField);
-		String docFreq = form.getFirst("docFreq");
-		logger.info("Group based on input: " + docFreq);
-		String termFreq = form.getFirst("termFreq");
-		logger.info("Group based on input: " + termFreq);
-		String offsetCount = form.getFirst("offsetCount");
-		logger.info("Group based on input: " + offsetCount);
-		String offsetLimit = form.getFirst("offsetLimit");
-		logger.info("Group based on input: " + offsetLimit);
-		//field to categorize by
-		String mltField = form.getFirst("mltField");
-		
-		Integer docFrequencyInt = null;
-		Integer termFrequencyInt = null;
-		Integer mltOffsetInt = null;
-		Integer mltLimitInt = null;
-
-		if(docFreq != null && !docFreq.isEmpty()) {
-			docFrequencyInt = Integer.parseInt(docFreq);
-		}
-		if(termFreq != null && !termFreq.isEmpty()) {
-			termFrequencyInt = Integer.parseInt(termFreq);
-		}
-		if(offsetCount != null && !offsetCount.isEmpty()) {
-			mltOffsetInt = Integer.parseInt(offsetCount);
-		}
-		if(offsetLimit != null && !offsetLimit.isEmpty()) {
-			mltLimitInt = Integer.parseInt(offsetLimit);
-		}
-		
-		Map<String, SolrDocumentList> mltFieldMap = null;
-		try {
-			mltFieldMap = SolrIndexEngine.getInstance().executeQueryMLTResponse(searchString, searchField, docFrequencyInt, termFrequencyInt, mltOffsetInt, mltLimitInt, mltField);
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException e) {
-			e.printStackTrace();
-		}
-
-		return WebUtility.getSO(mltFieldMap);
-	}
+//	@POST
+//	@Path("central/context/getMLTInsightsResults")
+//	@Produces("application/json")
+//	public StreamingOutput getMLTInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+//		String searchString = form.getFirst("searchString");
+//		logger.info("Searching based on input: " + searchString);
+//		//text searched in search bar
+//		String searchField = form.getFirst("searchField");
+//		logger.info("Searching field is: " + searchField);
+//		String docFreq = form.getFirst("docFreq");
+//		logger.info("Group based on input: " + docFreq);
+//		String termFreq = form.getFirst("termFreq");
+//		logger.info("Group based on input: " + termFreq);
+//		String offsetCount = form.getFirst("offsetCount");
+//		logger.info("Group based on input: " + offsetCount);
+//		String offsetLimit = form.getFirst("offsetLimit");
+//		logger.info("Group based on input: " + offsetLimit);
+//		//field to categorize by
+//		String mltField = form.getFirst("mltField");
+//		
+//		Integer docFrequencyInt = null;
+//		Integer termFrequencyInt = null;
+//		Integer mltOffsetInt = null;
+//		Integer mltLimitInt = null;
+//
+//		if(docFreq != null && !docFreq.isEmpty()) {
+//			docFrequencyInt = Integer.parseInt(docFreq);
+//		}
+//		if(termFreq != null && !termFreq.isEmpty()) {
+//			termFrequencyInt = Integer.parseInt(termFreq);
+//		}
+//		if(offsetCount != null && !offsetCount.isEmpty()) {
+//			mltOffsetInt = Integer.parseInt(offsetCount);
+//		}
+//		if(offsetLimit != null && !offsetLimit.isEmpty()) {
+//			mltLimitInt = Integer.parseInt(offsetLimit);
+//		}
+//		
+//		Map<String, SolrDocumentList> mltFieldMap = null;
+//		try {
+//			mltFieldMap = SolrIndexEngine.getInstance().executeQueryMLTResponse(searchString, searchField, docFrequencyInt, termFrequencyInt, mltOffsetInt, mltLimitInt, mltField);
+//		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException e) {
+//			e.printStackTrace();
+//		}
+//
+//		return WebUtility.getSO(mltFieldMap);
+//	}
 
 	@POST
 	@Path("central/context/getConnectedConcepts")
