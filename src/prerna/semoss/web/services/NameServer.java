@@ -40,7 +40,6 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Vector;
 
 import javax.servlet.ServletContext;
@@ -63,7 +62,6 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocumentList;
-import org.apache.solr.common.params.CommonParams;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
@@ -85,6 +83,7 @@ import prerna.nameserver.NameServerProcessor;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.solr.SolrIndexEngine;
+import prerna.solr.SolrIndexEngineQueryBuilder;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.helpers.InsightCreateRunner;
@@ -447,10 +446,10 @@ public class NameServer {
 	@GET
 	@Path("central/context/getAutoCompleteResults")
 	@Produces("application/json")
-	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String completeTerm, @Context HttpServletRequest request) {
-		Set<String> results = null;
+	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String searchString, @Context HttpServletRequest request) {
+		List<String> results = null;
 		try {
-			results = SolrIndexEngine.getInstance().executeAutoCompleteQuery(completeTerm);
+			results = SolrIndexEngine.getInstance().executeAutoCompleteQuery(searchString);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
 				| IOException e) {
 			e.printStackTrace();
@@ -469,9 +468,6 @@ public class NameServer {
 	public StreamingOutput getSearchInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		//text searched in search bar
 		String searchString = form.getFirst("searchString");
-		if(searchString != null && !searchString.isEmpty() && !searchString.equals(SolrIndexEngine.QUERY_ALL)){
-			searchString = "*"+ searchString + "*";
-		}
 		logger.info("Searching based on input: " + searchString);
 		
 		//specification of search based on field (ie. database, name, everything, etc)
@@ -525,10 +521,6 @@ public class NameServer {
 	@Path("central/context/getFacetInsightsResults")
 	@Produces("application/json")
 	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString, @QueryParam("searchField") String searchField, @Context HttpServletRequest request) {
-		// text searched in search bar
-		if(searchString != null && !searchString.isEmpty() && !searchString.equals(SolrIndexEngine.QUERY_ALL)){
-			searchString = "*"+ searchString + "*";
-		}
 		logger.info("Searching based on input: " + searchString);
 
 		// specification of search based on field (ie. database, name, everything, etc)
@@ -563,16 +555,11 @@ public class NameServer {
 	public StreamingOutput getGroupInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		//text searched in search bar
 		String searchString = form.getFirst("searchString");
-		if(searchString != null && !searchString.isEmpty() && !searchString.equals(SolrIndexEngine.QUERY_ALL)){
-			searchString = "*"+ searchString + "*";
-		}
 		logger.info("Searching based on input: " + searchString);
 				
 		//text searched in search bar
 		String searchField = form.getFirst("searchField");
 		logger.info("Searching field is: " + searchField);
-		
-		//TODO: in the future, need to pass start/row into this method to determine the number of groups to send back to FE
 		
 		//specifies the starting number for the list of insights to return
 		String groupOffset = form.getFirst("groupOffset");
@@ -612,59 +599,6 @@ public class NameServer {
 
 		return WebUtility.getSO(groupFieldMap);
 	}
-
-	/**
-	 * Most Like This results based on info from search. This MLT documents based on specified field 
-	 * @param form - information passes in from the front end
-	 * @return a string version of the results attained from the query/mlt search
-	 */
-//	@POST
-//	@Path("central/context/getMLTInsightsResults")
-//	@Produces("application/json")
-//	public StreamingOutput getMLTInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-//		String searchString = form.getFirst("searchString");
-//		logger.info("Searching based on input: " + searchString);
-//		//text searched in search bar
-//		String searchField = form.getFirst("searchField");
-//		logger.info("Searching field is: " + searchField);
-//		String docFreq = form.getFirst("docFreq");
-//		logger.info("Group based on input: " + docFreq);
-//		String termFreq = form.getFirst("termFreq");
-//		logger.info("Group based on input: " + termFreq);
-//		String offsetCount = form.getFirst("offsetCount");
-//		logger.info("Group based on input: " + offsetCount);
-//		String offsetLimit = form.getFirst("offsetLimit");
-//		logger.info("Group based on input: " + offsetLimit);
-//		//field to categorize by
-//		String mltField = form.getFirst("mltField");
-//		
-//		Integer docFrequencyInt = null;
-//		Integer termFrequencyInt = null;
-//		Integer mltOffsetInt = null;
-//		Integer mltLimitInt = null;
-//
-//		if(docFreq != null && !docFreq.isEmpty()) {
-//			docFrequencyInt = Integer.parseInt(docFreq);
-//		}
-//		if(termFreq != null && !termFreq.isEmpty()) {
-//			termFrequencyInt = Integer.parseInt(termFreq);
-//		}
-//		if(offsetCount != null && !offsetCount.isEmpty()) {
-//			mltOffsetInt = Integer.parseInt(offsetCount);
-//		}
-//		if(offsetLimit != null && !offsetLimit.isEmpty()) {
-//			mltLimitInt = Integer.parseInt(offsetLimit);
-//		}
-//		
-//		Map<String, SolrDocumentList> mltFieldMap = null;
-//		try {
-//			mltFieldMap = SolrIndexEngine.getInstance().executeQueryMLTResponse(searchString, searchField, docFrequencyInt, termFrequencyInt, mltOffsetInt, mltLimitInt, mltField);
-//		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException e) {
-//			e.printStackTrace();
-//		}
-//
-//		return WebUtility.getSO(mltFieldMap);
-//	}
 
 	@POST
 	@Path("central/context/getConnectedConcepts")
@@ -731,9 +665,10 @@ public class NameServer {
 
 		// TODO: need to change the format for this call!!!!!!!!!!
 		String type = Utility.getClassName(selectedUris.get(0));
-		Map<String, Object> queryMap = new HashMap<String, Object>();
-		queryMap.put(CommonParams.Q, type);
-		queryMap.put(CommonParams.DF, SolrIndexEngine.ALL_TEXT);
+
+		SolrIndexEngineQueryBuilder queryBuilder = new SolrIndexEngineQueryBuilder();
+		queryBuilder.setSearchString(type);
+		queryBuilder.setDefaultSearchField(SolrIndexEngine.ALL_TEXT);
 
 		List<String> facetList = new ArrayList<>();
 		facetList.add(SolrIndexEngine.CORE_ENGINE);
@@ -741,7 +676,8 @@ public class NameServer {
 		facetList.add(SolrIndexEngine.PARAMS);
 		facetList.add(SolrIndexEngine.TAGS);
 		facetList.add(SolrIndexEngine.ALGORITHMS);
-
+		queryBuilder.setFacetField(facetList);
+		
 		// offset for call
 		String offset = form.getFirst("offset");
 		logger.info("Offset is: " + offset);
@@ -754,12 +690,11 @@ public class NameServer {
 		Integer limitInt = null;
 		if (offset != null && !offset.isEmpty()) {
 			offsetInt = Integer.parseInt(offset);
-			queryMap.put(CommonParams.START, offsetInt);
-
+			queryBuilder.setOffset(offsetInt);
 		}
 		if (limit != null && !limit.isEmpty()) {
 			limitInt = Integer.parseInt(limit);
-			queryMap.put(CommonParams.ROWS, limitInt);
+			queryBuilder.setLimit(limitInt);
 		}
 
 		// filter based on the boxes checked in the facet filter (filtered with an exact filter)
@@ -767,18 +702,18 @@ public class NameServer {
 		Gson gsonVar = new Gson();
 		Map<String, List<String>> filterData = gsonVar.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
 		if (filterData != null && !filterData.isEmpty()) {
-			queryMap.put(CommonParams.FQ, filterData);
+			queryBuilder.setFilterOptions(filterData);
 		}
-		SolrDocumentList results = SolrIndexEngine.getInstance().queryDocument(queryMap);
-		Long insightCount = results.getNumFound();
 		
+		SolrDocumentList results = SolrIndexEngine.getInstance().queryDocument(queryBuilder);
 		// throw an error if there are no results
 		if (results == null) {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "No related insights found!");
 			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
-		
+		Long insightCount = results.getNumFound();
+
 		// query for facet results
 		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, SolrIndexEngine.ALL_TEXT, facetList);
 
@@ -882,10 +817,7 @@ public class NameServer {
 	@GET
 	@Path("insights")
 	@Produces("application/json")
-	//TODO:
-	//TODO:
-	//TODO:
-	//need to delete this method once we shift to using solr to get all insights
+	//TODO: need to delete this method once we shift to using solr to get all insights
 	public StreamingOutput getAllInsights(@QueryParam("groupBy") String groupBy, @QueryParam("orderBy") String orderBy, @Context HttpServletRequest request) {
 		// TODO: this will need to be switched to go through solr
 
