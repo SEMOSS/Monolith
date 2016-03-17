@@ -268,7 +268,7 @@ public class QuestionAdmin {
 		insight.setDataTableAlign(dataTableAlign);
 		insight.setUiOptions(uiOptions);
 		// delete existing cache
-		CacheAdmin.deleteCacheFiles(path, folderStructure, uniqueID, null);
+		CacheAdmin.deleteCacheFiles(path, folderStructure, uniqueID);
 		// save new cache
 		String saveFileLocation = CacheAdmin.createCache(insight.getDataMaker(), insight.getWebData(), path, folderStructure, uniqueID, null);
 		
@@ -329,7 +329,7 @@ public class QuestionAdmin {
 		List<String> folderStructure = new ArrayList<String>();
 		folderStructure.add(insight.getEngineName());
 		folderStructure.add(insight.getRdbmsId());
-		CacheAdmin.deleteCacheFolder(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, insight.getRdbmsId(), insight.getParamHash());
+		CacheAdmin.deleteCacheFolder(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, insight.getRdbmsId());
 
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
@@ -534,7 +534,7 @@ public class QuestionAdmin {
 			List<String> folderStructure = new ArrayList<String>();
 			folderStructure.add(existingIn.getEngineName());
 			folderStructure.add(existingIn.getRdbmsId());
-			CacheAdmin.deleteCacheFolder(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, existingIn.getRdbmsId(), existingIn.getParamHash());
+			CacheAdmin.deleteCacheFolder(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, existingIn.getRdbmsId());
 			// BELOW CODE IS FOR EDITING COMPONENTS VIA TEXT
 			// CURRENTLY NOT ENABLED BECAUSE GETTING PARAMETERS FROM DMC LIST STILL NEEDS TO BE THOUGHT THROUGH
 //			String insightMakeup = form.getFirst("insightMakeup");
