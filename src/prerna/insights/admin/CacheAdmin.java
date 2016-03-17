@@ -9,6 +9,9 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +25,10 @@ import com.google.gson.GsonBuilder;
 import prerna.ds.TinkerFrame;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 
+
+/**
+ * Class used to create/delete/get cached datamakers and viz data for Insights
+ */
 public class CacheAdmin {
 
 	private static final String DM_EXTENSION = ".tg";
@@ -56,7 +63,7 @@ public class CacheAdmin {
 	 * 
 	 * Deletes the cache associated with the insight
 	 */
-	public static void deleteCacheFolder(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {
+	public static void deleteCacheFolder(String basePath, List<String> folderStructure, String name) {
 		//grab variables from insight that are used to create the file name
 		String baseFolderPath = getBaseFolder(basePath, folderStructure);
 		File basefolder = new File(baseFolderPath);
@@ -144,11 +151,51 @@ public class CacheAdmin {
 		name = name.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
 		String directory = getBaseFolder(basePath, folderStructure);
 		
-		if(paramHash != null) {
-			name += paramHash.toString().replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		}
+		name += getParamString(paramHash);
+//		if(paramHash != null) {
+//			name += paramHash.toString().replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+//		}
 		String baseFile = directory + "/" + name;
 		return baseFile;
+	}
+	
+	
+	/**
+	 * 
+	 * @param paramHash
+	 * @return
+	 * 
+	 * Converts paramHash to a string that will be used for file naming
+	 * The purpose of this is to guarantee paramHashes will always yield the same value and the file name does not become too long
+	 * 
+	 * Note: ~77,000 random strings, 50% chance two hashes will collide
+	 * 		
+	 */
+	private static String getParamString(Map<String, List<Object>> paramHash) {
+		
+		if(paramHash == null) return "";
+		
+		List<String> keys = new ArrayList<String>(paramHash.keySet());
+		Collections.sort(keys);
+		
+		StringBuilder paramString = new StringBuilder();
+		
+		for(String key : keys) {
+			List<Object> params = paramHash.get(key);
+			Collections.sort(params, new Comparator<Object>() {
+				public int compare(Object o1, Object o2) {
+					return o1.toString().toLowerCase().compareTo(o2.toString().toLowerCase());
+				}
+			});
+			
+			paramString.append(key+":::");
+			for(Object param : params) {
+				paramString.append(param);
+			}
+		}
+		
+		//use other types of hashing if this won't be sufficient
+		return paramString.toString().hashCode()+"";
 	}
 	
 	public static String getDMPath(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash){
@@ -185,28 +232,6 @@ public class CacheAdmin {
 			}
 		}
 	}
-	
-//	private static byte[] readFromFile(String fileName) {
-//      	
-//    	Reader is;
-//
-//        try {
-//            is = new BufferedReader(new FileReader(new File(fileName)));
-//
-//            byte[] retData = IOUtils.toByteArray(is, "UTF8");
-//            is.close();
-//            return retData;
-//        } catch (FileNotFoundException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        } catch (IOException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        }
-//
-//        return null;
-//            // Always close files.
-//    }
 	
 	/**
 	 * 
