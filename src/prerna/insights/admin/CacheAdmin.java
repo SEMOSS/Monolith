@@ -76,7 +76,7 @@ public class CacheAdmin {
 		}
 	}
 	
-	public static void deleteCacheFiles(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {
+	public static void deleteCacheFiles(String basePath, List<String> folderStructure, String name) {
 		String baseFolderPath = getBaseFolder(basePath, folderStructure);
 		File basefolder = new File(baseFolderPath);
 		if(basefolder.isDirectory()) {
