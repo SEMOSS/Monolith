@@ -470,10 +470,6 @@ public class NameServer {
 		String searchString = form.getFirst("searchString");
 		logger.info("Searching based on input: " + searchString);
 		
-		//specification of search based on field (ie. database, name, everything, etc)
-		String searchField = form.getFirst("searchField");
-		logger.info("Searching field is: " + searchField);
-		
 		//sort (based on relevance, asc, desc)
 		String sortString = form.getFirst("sortString");
 		logger.info("Sorting by: " + sortString);
@@ -502,7 +498,7 @@ public class NameServer {
 		
 		Map<String, Object> results = null;
 		try {
-			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, searchField, sortString, offsetInt, limitInt, filterData);
+			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortString, offsetInt, limitInt, filterData);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
 			e1.printStackTrace();
 			return WebUtility.getSO("Error executing solr query");
@@ -520,12 +516,9 @@ public class NameServer {
 	@GET
 	@Path("central/context/getFacetInsightsResults")
 	@Produces("application/json")
-	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString, @QueryParam("searchField") String searchField, @Context HttpServletRequest request) {
+	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString, @Context HttpServletRequest request) {
 		logger.info("Searching based on input: " + searchString);
 
-		// specification of search based on field (ie. database, name, everything, etc)
-		logger.info("Searching field is: " + searchField);		
-	
 		List<String> facetList = new ArrayList<>();
 		facetList.add(SolrIndexEngine.CORE_ENGINE);
 		facetList.add(SolrIndexEngine.LAYOUT);
@@ -535,7 +528,7 @@ public class NameServer {
 
 		Map<String, Map<String, Long>> facetFieldMap = null;
 		try {
-			facetFieldMap = SolrIndexEngine.getInstance().executeQueryFacetResults(searchString, searchField, facetList);
+			facetFieldMap = SolrIndexEngine.getInstance().executeQueryFacetResults(searchString, facetList);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException e) {
 			e.printStackTrace();
 		}
@@ -557,10 +550,6 @@ public class NameServer {
 		String searchString = form.getFirst("searchString");
 		logger.info("Searching based on input: " + searchString);
 				
-		//text searched in search bar
-		String searchField = form.getFirst("searchField");
-		logger.info("Searching field is: " + searchField);
-		
 		//specifies the starting number for the list of insights to return
 		String groupOffset = form.getFirst("groupOffset");
 		logger.info("Group offset is: " + groupOffset);
@@ -592,7 +581,7 @@ public class NameServer {
 				
 		Map<String, Object> groupFieldMap = null;
 		try {
-			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, searchField, groupOffsetInt, groupLimitInt, groupByField, groupSort, filterData);
+			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, groupOffsetInt, groupLimitInt, groupByField, groupSort, filterData);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
 			e.printStackTrace();
 		}
@@ -668,7 +657,11 @@ public class NameServer {
 
 		SolrIndexEngineQueryBuilder queryBuilder = new SolrIndexEngineQueryBuilder();
 		queryBuilder.setSearchString(type);
-		queryBuilder.setDefaultSearchField(SolrIndexEngine.ALL_TEXT);
+		//TODO: should the params be different for this than the default search?
+		//TODO: need to test this out more
+		queryBuilder.setDefaultDisMaxWeighting();
+		// facet still requires a df
+		queryBuilder.setDefaultSearchField(SolrIndexEngine.INDEX_NAME);
 
 		List<String> facetList = new ArrayList<>();
 		facetList.add(SolrIndexEngine.CORE_ENGINE);
@@ -705,6 +698,10 @@ public class NameServer {
 			queryBuilder.setFilterOptions(filterData);
 		}
 		
+		// always sort by score and name desc
+		queryBuilder.setSort(SolrIndexEngine.SCORE, SolrIndexEngine.DESC);
+		queryBuilder.setSort(SolrIndexEngine.STORAGE_NAME, SolrIndexEngine.ASC);
+		
 		SolrDocumentList results = SolrIndexEngine.getInstance().queryDocument(queryBuilder);
 		// throw an error if there are no results
 		if (results == null) {
@@ -715,7 +712,7 @@ public class NameServer {
 		Long insightCount = results.getNumFound();
 
 		// query for facet results
-		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, SolrIndexEngine.ALL_TEXT, facetList);
+		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, facetList);
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("insightCount", insightCount);
