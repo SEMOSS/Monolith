@@ -86,6 +86,7 @@ public class DBAdminResource {
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
 			try{
 				questionAdmin.removeQuestion(questionIds.toArray(new String[questionIds.size()]));
+				questionIds = SolrIndexEngine.getSolrIdFromInsightEngineId(engine.getEngineName(), questionIds);
 			}catch (RuntimeException e){
 				//reload question xml from file if it errored
 				//otherwise xml gets corrupted
@@ -100,6 +101,8 @@ public class DBAdminResource {
 			try{
 				Vector<String> perspectives = gson.fromJson(perspectivesString, Vector.class);
 				questionIds = questionAdmin.removePerspective(perspectives.toArray(new String[perspectives.size()]));
+				questionIds = SolrIndexEngine.getSolrIdFromInsightEngineId(engine.getEngineName(), questionIds);
+
 			}catch (RuntimeException e){
 				//reload question xml from file if it errored
 				//otherwise xml gets corrupted
@@ -276,7 +279,7 @@ public class DBAdminResource {
 //			return false;
 //		}	
 	}
-  	
+	
   	private AbstractEngine getEngine(String engineName, HttpServletRequest request){
 		HttpSession session = request.getSession();
 		AbstractEngine engine = (AbstractEngine)session.getAttribute(engineName);
