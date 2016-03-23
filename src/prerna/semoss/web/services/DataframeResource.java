@@ -136,7 +136,11 @@ public class DataframeResource {
 			resultHash.put("status", "error");
 		}
 		
-		resultHash.put("result", result);
+		if(result instanceof Object[]) {
+			resultHash.put("result", ((Object[])(result))[0]);
+		} else {
+			resultHash.put("result", result);
+		}
 
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
 	}
@@ -278,6 +282,19 @@ public class DataframeResource {
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
+	@GET
+	@Path("unfilterAll")
+	@Produces("application/json")
+	public Response unfilterAllValues(MultivaluedMap<String, String> form)
+	{
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
+
+		mainTree.unfilter();
+
+		retMap.put("insightID", insight.getInsightID());
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
 
 	@POST
 	@Path("/getNextTableData")
