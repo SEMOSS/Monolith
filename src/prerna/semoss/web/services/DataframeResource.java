@@ -283,9 +283,9 @@ public class DataframeResource {
 	}
 
 	@GET
-	@Path("unfilterAll")
+	@Path("/unfilterAll")
 	@Produces("application/json")
-	public Response unfilterAllValues(MultivaluedMap<String, String> form)
+	public Response unfilterAllValues()
 	{
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
