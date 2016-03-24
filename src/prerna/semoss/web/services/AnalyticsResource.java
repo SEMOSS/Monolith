@@ -194,27 +194,27 @@ public class AnalyticsResource {
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			try {
-				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
-					confPer = Double.parseDouble(configParameters.get(1));
+				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(3) != null && !configParameters.get(3).isEmpty()) {
+					confPer = Double.parseDouble(configParameters.get(3));
 				}
 			} catch(NumberFormatException e) {
-				errorHash.put("errorMessage", "Invalid input for 'Confidence Value (%)': " + configParameters.get(1));
+				errorHash.put("errorMessage", "Invalid input for 'Confidence Value (%)': " + configParameters.get(3));
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
+			try {
+				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
+					minSupport = Double.parseDouble(configParameters.get(1));
+				}
+			} catch(NumberFormatException e) {
+				errorHash.put("errorMessage", "Invalid input for 'Minimum Support (%)': " + configParameters.get(1));
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			try {
 				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(2) != null && !configParameters.get(2).isEmpty()) {
-					minSupport = Double.parseDouble(configParameters.get(2));
+					maxSupport = Double.parseDouble(configParameters.get(2));
 				}
 			} catch(NumberFormatException e) {
-				errorHash.put("errorMessage", "Invalid input for 'Minimum Support (%)': " + configParameters.get(2));
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-			try {
-				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(3) != null && !configParameters.get(3).isEmpty()) {
-					maxSupport = Double.parseDouble(configParameters.get(3));
-				}
-			} catch(NumberFormatException e) {
-				errorHash.put("errorMessage", "Invalid input for 'Maximum Support (%)': " + configParameters.get(3));
+				errorHash.put("errorMessage", "Invalid input for 'Maximum Support (%)': " + configParameters.get(2));
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 			if(numRules == null || confPer == null || minSupport == null || maxSupport == null) {
