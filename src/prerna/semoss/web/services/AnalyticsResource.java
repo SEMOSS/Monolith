@@ -195,7 +195,7 @@ public class AnalyticsResource {
 			}
 			try {
 				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(3) != null && !configParameters.get(3).isEmpty()) {
-					confPer = Double.parseDouble(configParameters.get(3));
+					confPer = Double.parseDouble(configParameters.get(3))/100.0;
 				}
 			} catch(NumberFormatException e) {
 				errorHash.put("errorMessage", "Invalid input for 'Confidence Value (%)': " + configParameters.get(3));
@@ -203,7 +203,7 @@ public class AnalyticsResource {
 			}
 			try {
 				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
-					minSupport = Double.parseDouble(configParameters.get(1));
+					minSupport = Double.parseDouble(configParameters.get(1))/100.0;
 				}
 			} catch(NumberFormatException e) {
 				errorHash.put("errorMessage", "Invalid input for 'Minimum Support (%)': " + configParameters.get(1));
@@ -211,7 +211,7 @@ public class AnalyticsResource {
 			}
 			try {
 				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(2) != null && !configParameters.get(2).isEmpty()) {
-					maxSupport = Double.parseDouble(configParameters.get(2));
+					maxSupport = Double.parseDouble(configParameters.get(2))/100.0;
 				}
 			} catch(NumberFormatException e) {
 				errorHash.put("errorMessage", "Invalid input for 'Maximum Support (%)': " + configParameters.get(2));
