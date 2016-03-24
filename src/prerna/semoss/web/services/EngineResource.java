@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,7 +36,6 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 
@@ -85,6 +85,8 @@ import prerna.rdf.query.builder.QueryBuilderHelper;
 import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.RDFJSONConverter;
 import prerna.semoss.web.form.FormBuilder;
+import prerna.solr.SolrDocumentExportWriter;
+import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.FilterTransformation;
@@ -693,10 +695,9 @@ public class EngineResource {
 			
 			String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
 			if(insightObj.isNonDbInsight()) {
-				insightObj.setDatabaseID(insight);
 				List<String> folderStructure = new ArrayList<String>();
 				folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
-				String vizData = CacheAdmin.getVizData(path, folderStructure, insight, params);
+				String vizData = CacheAdmin.getVizData(path, folderStructure, insight + "_" + insightObj.getInsightName(), params);
 				if(vizData != null) {
 					// insight has been cached, send it to the FE with a new insight id
 					String id = InsightStore.getInstance().put(insightObj);
@@ -717,8 +718,8 @@ public class EngineResource {
 			System.out.println("Params is " + params);
 			List<String> folderStructure = new ArrayList<String>();
 			folderStructure.add(insightObj.getEngineName());
-			folderStructure.add(insightObj.getRdbmsId());
-			String vizData = CacheAdmin.getVizData(path, folderStructure, insightObj.getRdbmsId(), params);
+			folderStructure.add(insightObj.getRdbmsId() + "_" + insightObj.getInsightName());
+			String vizData = CacheAdmin.getVizData(path, folderStructure, insightObj.getRdbmsId() + "_" + insightObj.getInsightName(), params);
 			Object obj = null;
 			if(vizData != null) {
 				// insight has been cached, send it to the FE with a new insight id
@@ -735,7 +736,13 @@ public class EngineResource {
 					InsightCreateRunner run = new InsightCreateRunner(insightObj);
 					obj = run.runWeb();
 					
-					CacheAdmin.createCache(insightObj.getDataMaker(), (Map<String, Object>)obj, path, folderStructure, insightObj.getRdbmsId(), params);
+					String saveFileLocation = CacheAdmin.createCache(insightObj.getDataMaker(), (Map<String, Object>)obj, path, folderStructure, insightObj.getRdbmsId() + "_" + insightObj.getInsightName(), params);
+					saveFileLocation = saveFileLocation + "_Solr.txt";
+					File solrFile = new File(saveFileLocation);
+					String solrId = SolrIndexEngine.getSolrIdFromInsightEngineId(insightObj.getEngineName(), insightObj.getRdbmsId());
+					SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
+					writer.writeSolrDocument(SolrIndexEngine.getInstance().getInsight(solrId));
+					writer.closeExport();
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();

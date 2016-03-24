@@ -156,10 +156,10 @@ public class CacheAdmin {
 		name = name.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
 		String directory = getBaseFolder(basePath, folderStructure);
 		
-		name += getParamString(paramHash);
-//		if(paramHash != null) {
-//			name += paramHash.toString().replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-//		}
+		String paramStr = getParamString(paramHash);
+		if(!paramStr.isEmpty())
+			name += "_" + getParamString(paramHash);
+		
 		String baseFile = directory + "/" + name;
 		return baseFile;
 	}
@@ -178,7 +178,7 @@ public class CacheAdmin {
 	 */
 	private static String getParamString(Map<String, List<Object>> paramHash) {
 		
-		if(paramHash == null) return "";
+		if(paramHash == null || paramHash.isEmpty()) return "";
 		
 		List<String> keys = new ArrayList<String>(paramHash.keySet());
 		Collections.sort(keys);
