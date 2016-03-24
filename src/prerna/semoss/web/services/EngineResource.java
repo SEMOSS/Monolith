@@ -63,6 +63,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
+import prerna.auth.User;
+import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.ISelectStatement;
@@ -633,7 +635,9 @@ public class EngineResource {
 	{
 		Gson gson = new Gson();
 		String insight = form.getFirst("insight");
-
+		UserPermissionsMasterDB tracker = new UserPermissionsMasterDB();
+		HttpSession session = request.getSession();
+		
 		// executes the output and gives the data
 		// executes the create runner
 		// once complete, it would plug the output into the session
@@ -649,12 +653,12 @@ public class EngineResource {
 			String sparql = form.getFirst("sparql");
 			//check for sparql and playsheet; if not null then parameters have been passed in for preview functionality
 			if(sparql != null && playsheet != null){
-
+				Insight in = null;
 				Object obj = null;
 				try {
 					List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
 					String dmName = InsightsConverter.getDataMaker(playsheet, allSheets);
-					Insight in = new Insight(coreEngine, dmName, playsheet);
+					in = new Insight(coreEngine, dmName, playsheet);
 					Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
 					DataMakerComponent dmc = new DataMakerComponent(coreEngine, sparql);
 					dmcList.add(dmc);
@@ -669,6 +673,8 @@ public class EngineResource {
 					errorHash.put("Class", className);
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
+				
+				tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), in.getInsightID(), session.getId());
 				return Response.status(200).entity(WebUtility.getSO(obj)).build();
 			}
 			else{
@@ -696,6 +702,8 @@ public class EngineResource {
 					String id = InsightStore.getInstance().put(insightObj);
 					Map<String, Object> uploaded = gson.fromJson(vizData, new TypeToken<Map<String, Object>>() {}.getType());
 					uploaded.put("insightID", id);
+					
+					tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), id, session.getId());
 					return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
 				} else {
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -717,6 +725,8 @@ public class EngineResource {
 				String id = InsightStore.getInstance().put(insightObj);
 				Map<String, Object> uploaded = gson.fromJson(vizData, new TypeToken<Map<String, Object>>() {}.getType());
 				uploaded.put("insightID", id);
+				
+				tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), id, session.getId());
 				return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
 			} else {
 				// insight visualization data has not been cached, run the insight
@@ -733,7 +743,10 @@ public class EngineResource {
 					errorHash.put("Class", className);
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
+				
+				tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), insightObj.getInsightID(), session.getId());
 			}
+			
 			return Response.status(200).entity(WebUtility.getSO(obj)).build();
 		}
 	}
