@@ -305,7 +305,6 @@ public class DataframeResource {
 			@Context HttpServletRequest request)
 	{
 		ITableDataFrame dm = (ITableDataFrame) insight.getDataMaker();
-		String insightID = insight.getInsightID();
 
 		Gson gson = new Gson();
 		Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
@@ -333,21 +332,12 @@ public class DataframeResource {
 			table.add(it.next());
 		}
 		
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
-		retMap.put("insightID", insightID);
-		retMap.put("headers", headerInfo);
-		String[] varKeys = dm.getColumnHeaders();
-		String[] uriKeys = dm.getURIColumnHeaders();
-		for(int i = 0; i < varKeys.length; i++) {
-			Map<String, String> innerMap = new HashMap<String, String>();
-			innerMap.put("uri", uriKeys[i]);
-			innerMap.put("varKey", varKeys[i]);
-			headerInfo.add(innerMap);
-		}
-		retMap.put("tableData", table);
+		Map<String, Object> returnData = new HashMap<String, Object>();
+		returnData.put("data", table);
+		returnData.put("headers", dm.getColumnHeaders());
+		returnData.put("insightID", insight.getInsightID());
 
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 	}
 
 	@POST
