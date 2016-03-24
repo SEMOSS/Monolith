@@ -334,7 +334,7 @@ public class DataframeResource {
 		
 		Map<String, Object> returnData = new HashMap<String, Object>();
 		returnData.put("data", table);
-		returnData.put("headers", dm.getColumnHeaders());
+		returnData.put("headers", selectors);
 		returnData.put("insightID", insight.getInsightID());
 
 		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
