@@ -289,4 +289,14 @@ public class DBAdminResource {
   	public void setSecurityEnabled(boolean securityEnabled) {
   		this.securityEnabled = securityEnabled;
   	}
+  	
+	@POST
+	@Path ("/deleteCache")
+	@Produces ("application/json")
+	public Response deleteCache(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String dbName = form.getFirst("engine");
+		String insightID = form.getFirst("insightID");
+		CacheAdmin.deleteCache(dbName, insightID);
+		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+	}
 }
