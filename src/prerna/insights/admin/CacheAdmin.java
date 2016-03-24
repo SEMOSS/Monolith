@@ -273,6 +273,8 @@ public class CacheAdmin {
 	
 	public static void deleteCache(String dbName, String insightID) {
 		String directory = basepath;
+		dbName = dbName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		insightID = insightID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
 		directory += "/" + dbName + "/" + insightID;
 		File basefolder = new File(directory);
 		if(basefolder.isDirectory()) {
