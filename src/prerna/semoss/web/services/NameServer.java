@@ -872,8 +872,8 @@ public class NameServer {
 					// it better end up being created here since it must be serialized as a tinker
 					List<String> folderStructure = new ArrayList<String>();
 					folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
-					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getDatabaseID(), existingInsight.getParamHash());
-					DataMakerComponent dmc = new DataMakerComponent(CacheAdmin.getDMPath(path, folderStructure, existingInsight.getDatabaseID(), existingInsight.getParamHash())); 
+					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getDatabaseID() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash());
+					DataMakerComponent dmc = new DataMakerComponent(CacheAdmin.getDMPath(path, folderStructure, existingInsight.getDatabaseID() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash())); 
 					Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
 					dmcList.add(dmc);
 					existingInsight.setDataMakerComponents(dmcList);
@@ -881,8 +881,8 @@ public class NameServer {
 					// otherwise, grab the serialization if it is there
 					List<String> folderStructure = new ArrayList<String>();
 					folderStructure.add(existingInsight.getEngineName());
-					folderStructure.add(existingInsight.getRdbmsId());
-					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getRdbmsId(), existingInsight.getParamHash());
+					folderStructure.add(existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName());
+					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash());
 				}
 				
 				if(dm != null) {
@@ -891,15 +891,14 @@ public class NameServer {
 				} else {
 					// this means the serialization has never occurred
 					// could be because hasn't happened, or could be because it is not a tinker frame
-					Insight insightObj = InsightStore.getInstance().get(insightID);
-					InsightCreateRunner run = new InsightCreateRunner(insightObj);
+					InsightCreateRunner run = new InsightCreateRunner(existingInsight);
 					Map<String, Object> webData = run.runWeb();
 					List<String> folderStructure = new ArrayList<String>();
 					folderStructure.add(existingInsight.getEngineName());
-					folderStructure.add(existingInsight.getRdbmsId());
+					folderStructure.add(existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName());
 					// try to serialize
 					// this will do nothing if not a tinker frame
-					CacheAdmin.createCache(insightObj.getDataMaker(), webData, path, folderStructure, insightObj.getRdbmsId(), existingInsight.getParamHash());
+					CacheAdmin.createCache(existingInsight.getDataMaker(), webData, path, folderStructure, existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash());
 				}
 			}
 		}
