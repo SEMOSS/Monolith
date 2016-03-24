@@ -126,14 +126,14 @@ public class InstanceStreamer {
 			results.add(list.get(firstIndex).toString()); // add first value
 			for (int i = firstIndex-1; i >= 0; i--) {     // add all relevant values to the left
 				String value = Utility.getInstanceName(list.get(i).toString()).toLowerCase();
-				if (value.startsWith(searchTerm)) {
+				if (value.contains(searchTerm)) {
 					results.add(list.get(i).toString());
 				}
 				else break;
 			}
 			for (int i = firstIndex+1; i < size; i++) {   // add all relevant values to the right
 				String value = Utility.getInstanceName(list.get(i).toString()).toLowerCase();
-				if (value.startsWith(searchTerm)) {
+				if (value.contains(searchTerm)) {
 					results.add(list.get(i).toString());
 				}
 				else break;
