@@ -24,16 +24,21 @@ import com.google.gson.GsonBuilder;
 
 import prerna.ds.TinkerFrame;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
 
 
 /**
  * Class used to create/delete/get cached datamakers and viz data for Insights
  */
+//TODO: this file needs to be responsible for all caching and io related to caching, paths should not be built outside - Encapsulate
 public class CacheAdmin {
 
 	private static final String DM_EXTENSION = ".tg";
 	private static final String JSON_EXTENSION = "_VizData.json";
 	
+	private static String basepath = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
+	private static String csvbasepath = DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER);
 	/**
 	 * 
 	 * @param insight
@@ -264,5 +269,18 @@ public class CacheAdmin {
         }
 
         return null;
+	}
+	
+	public static void deleteCache(String dbName, String insightID) {
+		String directory = basepath;
+		directory += "/" + dbName + "/" + insightID;
+		File basefolder = new File(directory);
+		if(basefolder.isDirectory()) {
+			try {
+				FileUtils.forceDelete(basefolder);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 }
