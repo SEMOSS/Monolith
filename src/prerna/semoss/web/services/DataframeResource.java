@@ -304,39 +304,48 @@ public class DataframeResource {
 			@QueryParam("endRow") Integer endRow,
 			@Context HttpServletRequest request)
 	{
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
+		ITableDataFrame dm = (ITableDataFrame) insight.getDataMaker();
 		String insightID = insight.getInsightID();
 
 		Gson gson = new Gson();
+		Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
 		String concept = null;
-		String sort = null;
-
-		try {
-			Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
+		String orderDirection = null;
+		if(sortModel != null && !sortModel.isEmpty()) {
 			concept = sortModel.get("colId");
-			sort = sortModel.get("sort");
-		} catch (Exception e) {
-			sort = "asc";
+			if(concept != null && !concept.isEmpty()) {
+				orderDirection = sortModel.get("sort");
+				if(orderDirection == null || orderDirection.isEmpty()) {
+					orderDirection = "asc";
+				}
+				((TinkerFrame) dm).setSortColumn(concept, orderDirection);
+			}
 		}
-
-		Map<String, Object> valuesMap = new HashMap<String, Object>();
-		valuesMap.put(insightID, TableDataFrameUtilities.getTableData(mainTree, concept, sort, startRow, endRow));
-
+		if(startRow > 0 && endRow > startRow) {
+			((TinkerFrame) dm).setRange(startRow, endRow);
+		}
+		
+		List<Object[]> table = new Vector<Object[]>();
+		
+		List<String> selectors = gson.fromJson(form.getFirst("selectors"), new TypeToken<List<String>>() {}.getType());
+		Iterator<Object[]> it = dm.iterator(true, selectors);
+		while(it.hasNext()) {
+			table.add(it.next());
+		}
+		
+		Map<String, Object> retMap = new HashMap<String, Object>();
 		List<Map<String, String>> headerInfo = new ArrayList<Map<String, String>>();
-		String[] varKeys = mainTree.getColumnHeaders();
-		String[] uriKeys = mainTree.getURIColumnHeaders();
+		retMap.put("insightID", insightID);
+		retMap.put("headers", headerInfo);
+		String[] varKeys = dm.getColumnHeaders();
+		String[] uriKeys = dm.getURIColumnHeaders();
 		for(int i = 0; i < varKeys.length; i++) {
 			Map<String, String> innerMap = new HashMap<String, String>();
 			innerMap.put("uri", uriKeys[i]);
 			innerMap.put("varKey", varKeys[i]);
 			headerInfo.add(innerMap);
 		}
-
-		retMap.put("insightID", insightID);
-		retMap.put("numRows", mainTree.getNumRows());
-		retMap.put("headers", headerInfo);
-		retMap.put("tableData", valuesMap);
+		retMap.put("tableData", table);
 
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
