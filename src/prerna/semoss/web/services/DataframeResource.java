@@ -323,24 +323,26 @@ public class DataframeResource {
 		if(startRow > 0 && endRow > startRow) {
 			((TinkerFrame) dm).setRange(startRow, endRow);
 		}
-		
+
+		Map<String, Object> returnData = new HashMap<String, Object>();
+		returnData.put("insightID", insight.getInsightID());
+
 		List<Object[]> table = new Vector<Object[]>();
-		
 		List<String> selectors = gson.fromJson(form.getFirst("selectors"), new TypeToken<List<String>>() {}.getType());
 		Iterator<Object[]> it = null;
+		
 		if(selectors.isEmpty()) {
+			returnData.put("headers", dm.getColumnHeaders());
 			it = dm.iterator(true);
 		} else {
+			returnData.put("headers", selectors);
 			it = dm.iterator(true, selectors);
 		}
 		while(it.hasNext()) {
 			table.add(it.next());
 		}
 		
-		Map<String, Object> returnData = new HashMap<String, Object>();
 		returnData.put("data", table);
-		returnData.put("headers", selectors);
-		returnData.put("insightID", insight.getInsightID());
 
 		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 	}
