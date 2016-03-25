@@ -695,13 +695,11 @@ public class NameServer {
 			errorHash.put("errorMessage", "No related insights found!");
 			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
-		Long insightCount = results.getNumFound();
-
 		// query for facet results
 		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, facetList);
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
-		retMap.put("insightCount", insightCount);
+		retMap.put(SolrIndexEngine.NUM_FOUND, results.getNumFound());
 		retMap.put("results", results);
 		retMap.put("facet", facetCount);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
