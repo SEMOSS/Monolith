@@ -496,10 +496,11 @@ public class DataframeResource {
 			retMap.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
 		}
-		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
-		retMap.put("tableData", TableDataFrameUtilities.getTableData(table));
+		// FE now uses getNextTable call to get the information back
+//		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();
+//		retMap.put("tableData", TableDataFrameUtilities.getTableData(table));
 		retMap.put("mathMap", functionMap);
 		retMap.put("insightID", insight.getInsightID());
 		retMap.put("stepID", mathTrans.getId());
