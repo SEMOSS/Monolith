@@ -327,7 +327,12 @@ public class DataframeResource {
 		List<Object[]> table = new Vector<Object[]>();
 		
 		List<String> selectors = gson.fromJson(form.getFirst("selectors"), new TypeToken<List<String>>() {}.getType());
-		Iterator<Object[]> it = dm.iterator(true, selectors);
+		Iterator<Object[]> it = null;
+		if(selectors.isEmpty()) {
+			it = dm.iterator(true);
+		} else {
+			it = dm.iterator(true, selectors);
+		}
 		while(it.hasNext()) {
 			table.add(it.next());
 		}
