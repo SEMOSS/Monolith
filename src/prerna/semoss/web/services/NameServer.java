@@ -872,8 +872,7 @@ public class NameServer {
 				// check if the insight is from a csv
 				if(existingInsight.isNonDbInsight()) {
 					// it better end up being created here since it must be serialized as a tinker
-					List<String> folderStructure = new ArrayList<String>();
-					folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
+					List<String> folderStructure = CacheAdmin.getFolderStructure(Constants.CSV_INSIGHT_CACHE_FOLDER);
 					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getDatabaseID() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash());
 					DataMakerComponent dmc = new DataMakerComponent(CacheAdmin.getDMPath(path, folderStructure, existingInsight.getDatabaseID() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash())); 
 					Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
@@ -881,9 +880,7 @@ public class NameServer {
 					existingInsight.setDataMakerComponents(dmcList);
 				} else {
 					// otherwise, grab the serialization if it is there
-					List<String> folderStructure = new ArrayList<String>();
-					folderStructure.add(existingInsight.getEngineName());
-					folderStructure.add(existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName());
+					List<String> folderStructure = CacheAdmin.getFolderStructure(existingInsight.getEngineName(), existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName());
 					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash());
 				}
 				
@@ -895,9 +892,7 @@ public class NameServer {
 					// could be because hasn't happened, or could be because it is not a tinker frame
 					InsightCreateRunner run = new InsightCreateRunner(existingInsight);
 					Map<String, Object> webData = run.runWeb();
-					List<String> folderStructure = new ArrayList<String>();
-					folderStructure.add(existingInsight.getEngineName());
-					folderStructure.add(existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName());
+					List<String> folderStructure = CacheAdmin.getFolderStructure(existingInsight.getEngineName(), existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName());
 					// try to serialize
 					// this will do nothing if not a tinker frame
 					CacheAdmin.createCache(existingInsight.getDataMaker(), webData, path, folderStructure, existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash());

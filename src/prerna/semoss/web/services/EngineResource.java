@@ -695,8 +695,7 @@ public class EngineResource {
 			
 			String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
 			if(insightObj.isNonDbInsight()) {
-				List<String> folderStructure = new ArrayList<String>();
-				folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
+				List<String> folderStructure = CacheAdmin.getFolderStructure(Constants.CSV_INSIGHT_CACHE_FOLDER);
 				String vizData = CacheAdmin.getVizData(path, folderStructure, insight + "_" + insightObj.getInsightName(), params);
 				if(vizData != null) {
 					// insight has been cached, send it to the FE with a new insight id
@@ -716,9 +715,7 @@ public class EngineResource {
 			
 			// check if the insight has already been cached
 			System.out.println("Params is " + params);
-			List<String> folderStructure = new ArrayList<String>();
-			folderStructure.add(insightObj.getEngineName());
-			folderStructure.add(insightObj.getRdbmsId() + "_" + insightObj.getInsightName());
+			List<String> folderStructure = CacheAdmin.getFolderStructure(insightObj.getEngineName(), insightObj.getRdbmsId() + "_" + insightObj.getInsightName());
 			String vizData = CacheAdmin.getVizData(path, folderStructure, insightObj.getRdbmsId() + "_" + insightObj.getInsightName(), params);
 			Object obj = null;
 			if(vizData != null) {

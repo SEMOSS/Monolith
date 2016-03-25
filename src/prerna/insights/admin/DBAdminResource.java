@@ -293,10 +293,12 @@ public class DBAdminResource {
 	@POST
 	@Path ("/deleteCache")
 	@Produces ("application/json")
-	public Response deleteCache(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response deleteDbCache(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String dbName = form.getFirst("engine");
 		String insightID = form.getFirst("insightID");
-		CacheAdmin.deleteCache(dbName, insightID);
+		String questionName = form.getFirst("questionName");
+		List<String> folderStructure = CacheAdmin.getFolderStructure(dbName, insightID + "_" + questionName);
+		CacheAdmin.deleteCache(folderStructure);
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 }
