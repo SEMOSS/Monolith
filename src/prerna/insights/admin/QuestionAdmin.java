@@ -117,8 +117,7 @@ public class QuestionAdmin {
 	
 	private void addInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
 		String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
-		List<String> folderStructure = new ArrayList<String>();
-		folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
+		List<String> folderStructure = CacheAdmin.getFolderStructure(Constants.CSV_INSIGHT_CACHE_FOLDER);
 		String uniqueID = UUID.randomUUID().toString();
 		insight.setDatabaseID(uniqueID);
 		insight.setInsightName(insightName);
@@ -263,8 +262,7 @@ public class QuestionAdmin {
 
 	private void editInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
 		String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
-		List<String> folderStructure = new ArrayList<String>();
-		folderStructure.add(DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER));
+		List<String> folderStructure = CacheAdmin.getFolderStructure(Constants.CSV_INSIGHT_CACHE_FOLDER);
 		String uniqueID = insight.getDatabaseID();
 		
 		// delete existing cache
@@ -334,9 +332,7 @@ public class QuestionAdmin {
 		List<SEMOSSParam> params = buildParameterList(insight, paramMapList);
 		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
-		List<String> folderStructure = new ArrayList<String>();
-		folderStructure.add(insight.getEngineName());
-		folderStructure.add(insight.getRdbmsId());
+		List<String> folderStructure = CacheAdmin.getFolderStructure(insight.getEngineName(), insight.getRdbmsId() + "_" + insight.getInsightName());
 		CacheAdmin.deleteCacheFolder(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, insight.getRdbmsId() + "_" + insight.getInsightName());
 
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
@@ -539,9 +535,7 @@ public class QuestionAdmin {
 			dmcList = existingIn.getDataMakerComponents();
 			params = existingIn.getInsightParameters();
 			
-			List<String> folderStructure = new ArrayList<String>();
-			folderStructure.add(existingIn.getEngineName());
-			folderStructure.add(existingIn.getRdbmsId());
+			List<String> folderStructure = CacheAdmin.getFolderStructure(existingIn.getEngineName(), existingIn.getRdbmsId() + "_" + existingIn.getInsightName());
 			CacheAdmin.deleteCacheFolder(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, existingIn.getRdbmsId() + "_" + existingIn.getInsightName());
 			// BELOW CODE IS FOR EDITING COMPONENTS VIA TEXT
 			// CURRENTLY NOT ENABLED BECAUSE GETTING PARAMETERS FROM DMC LIST STILL NEEDS TO BE THOUGHT THROUGH
