@@ -640,7 +640,11 @@ public class NameServer {
 
 		// TODO: need to change the format for this call!!!!!!!!!!
 		String type = Utility.getClassName(selectedUris.get(0));
-
+		if (type == null) {
+			// this occurs when a column is artificially created in a query
+			type = selectedUris.get(0);
+		}
+		
 		SolrIndexEngineQueryBuilder queryBuilder = new SolrIndexEngineQueryBuilder();
 		queryBuilder.setSearchString(type);
 		//TODO: should the params be different for this than the default search?
