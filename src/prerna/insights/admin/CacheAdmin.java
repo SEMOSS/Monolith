@@ -154,6 +154,9 @@ public class CacheAdmin {
 	
 	private static String getBasePath(String basePath, List<String> folderStructure, String name, Map<String, List<Object>> paramHash) {
 		name = name.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
+		if(name.length() > 25) {
+			name = name.substring(0, 25);
+		}
 		String directory = getBaseFolder(basePath, folderStructure);
 		
 		String paramStr = getParamString(paramHash);
@@ -162,6 +165,20 @@ public class CacheAdmin {
 		
 		String baseFile = directory + "/" + name;
 		return baseFile;
+	}
+	
+	public static List<String> getFolderStructure(String... folders) {
+		List<String> folderStructure = new ArrayList<String>();
+		int numFolders = folders.length;
+		for(int i = 0; i < numFolders; i++) {
+			String folder = folders[i];
+			if(folder.length() > 25) {
+				folder = folder.substring(0, 25);
+			}
+			folderStructure.add(folder.replaceAll("[^a-zA-Z0-9-_\\.]", "_"));
+		}
+		
+		return folderStructure;
 	}
 	
 	
@@ -271,12 +288,9 @@ public class CacheAdmin {
         return null;
 	}
 	
-	public static void deleteCache(String dbName, String insightID) {
-		String directory = basepath;
-		dbName = dbName.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		insightID = insightID.replaceAll("[^a-zA-Z0-9-_\\.]", "_");
-		directory += "/" + dbName + "/" + insightID;
-		File basefolder = new File(directory);
+	public static void deleteCache(List<String> folderStructure) {
+		String folder = getBaseFolder(basepath, folderStructure);
+		File basefolder = new File(folder);
 		if(basefolder.isDirectory()) {
 			try {
 				FileUtils.forceDelete(basefolder);
@@ -284,5 +298,6 @@ public class CacheAdmin {
 				e.printStackTrace();
 			}
 		}
+		
 	}
 }
