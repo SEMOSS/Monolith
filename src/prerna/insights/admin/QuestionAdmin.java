@@ -58,6 +58,8 @@ import org.apache.solr.client.solrj.SolrServerException;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.cache.CacheFactory;
+import prerna.cache.InsightCache;
 import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
@@ -72,7 +74,6 @@ import prerna.ui.components.playsheets.datamakers.FilterTransformation;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -116,8 +117,6 @@ public class QuestionAdmin {
 	}
 	
 	private void addInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
-		String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
-		List<String> folderStructure = CacheAdmin.getFolderStructure(Constants.CSV_INSIGHT_CACHE_FOLDER);
 		String uniqueID = UUID.randomUUID().toString();
 		insight.setDatabaseID(uniqueID);
 		insight.setInsightName(insightName);
@@ -126,8 +125,8 @@ public class QuestionAdmin {
 		insight.setUiOptions(uiOptions);
 		insight.setIsNonDbInsight(true);
 		
-		String saveFileLocation = CacheAdmin.createCache(insight.getDataMaker(), insight.getWebData(), path, folderStructure, uniqueID + "_" + insightName, null);
-		
+		String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).cacheInsight(insight);
+
 		Map<String, Object> solrInsights = new HashMap<>();
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
@@ -261,13 +260,12 @@ public class QuestionAdmin {
 	}
 
 	private void editInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
-		String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
-		List<String> folderStructure = CacheAdmin.getFolderStructure(Constants.CSV_INSIGHT_CACHE_FOLDER);
 		String uniqueID = insight.getDatabaseID();
 		
 		// delete existing cache
 		// do this before overriding with new insight metadata
-		CacheAdmin.deleteCacheFiles(path, folderStructure, uniqueID + insight.getInsightName());
+		InsightCache inCache = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE);
+		inCache.deleteCacheFiles(insight);
 		
 		insight.setInsightName(insightName);
 		insight.setOutput(layout);
@@ -276,8 +274,8 @@ public class QuestionAdmin {
 		insight.setIsNonDbInsight(true);
 
 		// save new cache
-		String saveFileLocation = CacheAdmin.createCache(insight.getDataMaker(), insight.getWebData(), path, folderStructure, uniqueID + "_" + insightName, null);
-		
+		String saveFileLocation = inCache.cacheInsight(insight);
+
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
 		String currDate = dateFormat.format(date);
@@ -324,6 +322,9 @@ public class QuestionAdmin {
 		//TODO: currently not exposed through UI
 		boolean isDbQuery = true;
 
+		// delete existing cache folder for insight if present
+		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteCacheFolder(insight);
+		
 		String engineName = coreEngine.getEngineName();
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
 		String rdbmsId = insight.getRdbmsId();
@@ -331,9 +332,6 @@ public class QuestionAdmin {
 
 		List<SEMOSSParam> params = buildParameterList(insight, paramMapList);
 		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
-
-		List<String> folderStructure = CacheAdmin.getFolderStructure(insight.getEngineName(), insight.getRdbmsId() + "_" + insight.getInsightName());
-		CacheAdmin.deleteCacheFolder(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, insight.getRdbmsId() + "_" + insight.getInsightName());
 
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
@@ -510,6 +508,9 @@ public class QuestionAdmin {
 			dmName = "TinkerFrame";
 		} 
 		
+		Insight existingIn = coreEngine.getInsight(insightID).get(0);
+		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteCacheFolder(existingIn);
+		
 		List<DataMakerComponent> dmcList = null;
 		List<SEMOSSParam> params = null;
 		// if query is defined, we are defining the insight the basic way -- just query and engine
@@ -531,12 +532,9 @@ public class QuestionAdmin {
 		// otherwise, we are defining the complex way -- with datamaker, insight makeup, layout, etc.
 		else {
 //			dmName =  form.getFirst("dmName");
-			Insight existingIn = coreEngine.getInsight(insightID).get(0);
 			dmcList = existingIn.getDataMakerComponents();
 			params = existingIn.getInsightParameters();
 			
-			List<String> folderStructure = CacheAdmin.getFolderStructure(existingIn.getEngineName(), existingIn.getRdbmsId() + "_" + existingIn.getInsightName());
-			CacheAdmin.deleteCacheFolder(DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), folderStructure, existingIn.getRdbmsId() + "_" + existingIn.getInsightName());
 			// BELOW CODE IS FOR EDITING COMPONENTS VIA TEXT
 			// CURRENTLY NOT ENABLED BECAUSE GETTING PARAMETERS FROM DMC LIST STILL NEEDS TO BE THOUGHT THROUGH
 //			String insightMakeup = form.getFirst("insightMakeup");

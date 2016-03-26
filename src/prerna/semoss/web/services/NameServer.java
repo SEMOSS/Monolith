@@ -69,11 +69,12 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
+import prerna.cache.CacheFactory;
+import prerna.cache.InsightCache;
 import prerna.ds.BTreeDataFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
-import prerna.insights.admin.CacheAdmin;
 import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.ConnectedConcepts;
@@ -867,21 +868,20 @@ public class NameServer {
 				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			} else if(!existingInsight.hasInstantiatedDataMaker()) {
-				String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
 				IDataMaker dm = null;
 				// check if the insight is from a csv
 				if(existingInsight.isNonDbInsight()) {
 					// it better end up being created here since it must be serialized as a tinker
-					List<String> folderStructure = CacheAdmin.getFolderStructure(Constants.CSV_INSIGHT_CACHE_FOLDER);
-					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getDatabaseID() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash());
-					DataMakerComponent dmc = new DataMakerComponent(CacheAdmin.getDMPath(path, folderStructure, existingInsight.getDatabaseID() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash())); 
+					InsightCache inCache = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE);
+					dm = inCache.getDMCache(existingInsight);
+					DataMakerComponent dmc = new DataMakerComponent(inCache.getDMFilePath(existingInsight));
+					
 					Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
 					dmcList.add(dmc);
 					existingInsight.setDataMakerComponents(dmcList);
 				} else {
 					// otherwise, grab the serialization if it is there
-					List<String> folderStructure = CacheAdmin.getFolderStructure(existingInsight.getEngineName(), existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName());
-					dm = CacheAdmin.getCachedDataMaker(path, folderStructure, existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash());
+					dm = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getDMCache(existingInsight);
 				}
 				
 				if(dm != null) {
@@ -892,10 +892,9 @@ public class NameServer {
 					// could be because hasn't happened, or could be because it is not a tinker frame
 					InsightCreateRunner run = new InsightCreateRunner(existingInsight);
 					Map<String, Object> webData = run.runWeb();
-					List<String> folderStructure = CacheAdmin.getFolderStructure(existingInsight.getEngineName(), existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName());
 					// try to serialize
 					// this will do nothing if not a tinker frame
-					CacheAdmin.createCache(existingInsight.getDataMaker(), webData, path, folderStructure, existingInsight.getRdbmsId() + "_" + existingInsight.getInsightName(), existingInsight.getParamHash());
+					CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(existingInsight, webData);
 				}
 			}
 		}
