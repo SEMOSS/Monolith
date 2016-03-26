@@ -65,6 +65,7 @@ import com.google.gson.reflect.TypeToken;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
+import prerna.cache.CacheFactory;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.ISelectStatement;
@@ -73,7 +74,6 @@ import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
 import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
-import prerna.insights.admin.CacheAdmin;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -695,8 +695,7 @@ public class EngineResource {
 			
 			String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
 			if(insightObj.isNonDbInsight()) {
-				List<String> folderStructure = CacheAdmin.getFolderStructure(Constants.CSV_INSIGHT_CACHE_FOLDER);
-				String vizData = CacheAdmin.getVizData(path, folderStructure, insight + "_" + insightObj.getInsightName(), params);
+				String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getVizData(insightObj);
 				if(vizData != null) {
 					// insight has been cached, send it to the FE with a new insight id
 					String id = InsightStore.getInstance().put(insightObj);
@@ -715,8 +714,8 @@ public class EngineResource {
 			
 			// check if the insight has already been cached
 			System.out.println("Params is " + params);
-			List<String> folderStructure = CacheAdmin.getFolderStructure(insightObj.getEngineName(), insightObj.getRdbmsId() + "_" + insightObj.getInsightName());
-			String vizData = CacheAdmin.getVizData(path, folderStructure, insightObj.getRdbmsId() + "_" + insightObj.getInsightName(), params);
+			String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getVizData(insightObj);
+
 			Object obj = null;
 			if(vizData != null) {
 				// insight has been cached, send it to the FE with a new insight id
@@ -733,7 +732,8 @@ public class EngineResource {
 					InsightCreateRunner run = new InsightCreateRunner(insightObj);
 					obj = run.runWeb();
 					
-					String saveFileLocation = CacheAdmin.createCache(insightObj.getDataMaker(), (Map<String, Object>)obj, path, folderStructure, insightObj.getRdbmsId() + "_" + insightObj.getInsightName(), params);
+					String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(insightObj);
+					
 					saveFileLocation = saveFileLocation + "_Solr.txt";
 					File solrFile = new File(saveFileLocation);
 					String solrId = SolrIndexEngine.getSolrIdFromInsightEngineId(insightObj.getEngineName(), insightObj.getRdbmsId());
