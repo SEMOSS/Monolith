@@ -53,10 +53,12 @@ import com.google.gson.Gson;
 
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
+import prerna.cache.CacheFactory;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.QuestionAdministrator;
 import prerna.nameserver.DeleteFromMasterDB;
+import prerna.om.Insight;
 import prerna.solr.SolrIndexEngine;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -297,8 +299,11 @@ public class DBAdminResource {
 		String dbName = form.getFirst("engine");
 		String insightID = form.getFirst("insightID");
 		String questionName = form.getFirst("questionName");
-		List<String> folderStructure = CacheAdmin.getFolderStructure(dbName, insightID + "_" + questionName);
-		CacheAdmin.deleteCache(folderStructure);
+		Insight in = new Insight(getEngine(dbName, request), "", "");
+		in.setRdbmsId(insightID);
+		in.setInsightName(questionName);
+		
+		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteCacheFolder(in);
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 }
