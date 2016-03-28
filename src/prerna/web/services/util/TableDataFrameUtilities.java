@@ -1,9 +1,6 @@
 package prerna.web.services.util;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -15,9 +12,6 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import prerna.algorithm.api.ITableDataFrame;
-import prerna.ds.ITableWebAdapter;
-import prerna.ds.TableDataFrameWebAdapter;
-import prerna.util.ArrayUtilityMethods;
 
 public final class TableDataFrameUtilities {
 
@@ -27,27 +21,27 @@ public final class TableDataFrameUtilities {
 		
 	}
 	
-	public static void filterData(ITableDataFrame mainTree, Map<String, Map<String, Object>> filterModel) {
-
-		LOGGER.info("Filtering on table");
-		long startTime = System.currentTimeMillis();
-		
-		mainTree.unfilter();
-		for(String key : filterModel.keySet()) {
-			Map<String, Object> columnMap = filterModel.get(key);
-			List<Object> values = (List<Object>)columnMap.get("values");
-			if(values.size() == 0) {
-				Boolean selectAll = (Boolean)columnMap.get("selectAll");
-				if(!selectAll) {
-					mainTree.filter(key, values);
-				}
-			} else {
-				mainTree.filter(key, new ArrayList<Object>(values));
-			}
-		}
-		
-		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
-	}
+//	public static void filterData(ITableDataFrame mainTree, Map<String, Map<String, Object>> filterModel) {
+//
+//		LOGGER.info("Filtering on table");
+//		long startTime = System.currentTimeMillis();
+//		
+//		mainTree.unfilter();
+//		for(String key : filterModel.keySet()) {
+//			Map<String, Object> columnMap = filterModel.get(key);
+//			List<Object> values = (List<Object>)columnMap.get("values");
+//			if(values.size() == 0) {
+//				Boolean selectAll = (Boolean)columnMap.get("selectAll");
+//				if(!selectAll) {
+//					mainTree.filter(key, values);
+//				}
+//			} else {
+//				mainTree.filter(key, new ArrayList<Object>(values));
+//			}
+//		}
+//		
+//		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
+//	}
 	
 	/**
 	 * 
@@ -76,11 +70,13 @@ public final class TableDataFrameUtilities {
 					mainTree.unfilter(key);
 				} else {
 					//filter the column
-					filterColumn(mainTree, key, values);
+					mainTree.filter(key, values);
+//					filterColumn(mainTree, key, values);
 				}
 			} else {
 				//filter the column
-				filterColumn(mainTree, key, values);
+				mainTree.filter(key, values);
+//				filterColumn(mainTree, key, values);
 			}
 		}
 		LOGGER.info("Finished Filtering: "+ (System.currentTimeMillis() - startTime)+" ms");
@@ -92,57 +88,57 @@ public final class TableDataFrameUtilities {
 	 * @param concept
 	 * @param filterValuesArr
 	 */
-	public static void filterColumn(ITableDataFrame mainTree, String concept, List<Object> filterValuesArr) {
-		
-		//if the column is numeric, convert the values to doubles
-		if(mainTree.isNumeric(concept)) {
-			List<Object> values = new ArrayList<Object>(filterValuesArr.size());
-			for(Object o: filterValuesArr) {
-				try {
-					values.add(Double.parseDouble(o.toString()));
-				} catch(Exception e) {
-					values.add(o);
-				}
-			}
-			filterValuesArr = values;
-		}
-//		if(filterValuesArr.isEmpty()) {
+//	public static void filterColumn(ITableDataFrame mainTree, String concept, List<Object> filterValuesArr) {
+//		
+//		// if the column is numeric, convert the values to doubles
+//		if(mainTree.isNumeric(concept)) {
+//			List<Object> values = new ArrayList<Object>(filterValuesArr.size());
+//			for(Object o: filterValuesArr) {
+//				try {
+//					values.add(Double.parseDouble(o.toString()));
+//				} catch(Exception e) {
+//					values.add(o);
+//				}
+//			}
+//			filterValuesArr = values;
+//		}
+////		if(filterValuesArr.isEmpty()) {
 //			return;
 //		}
-
+//
 		//filter the table
-		mainTree.filter(concept, new ArrayList<Object>(filterValuesArr));
-	}
+//		mainTree.filter(concept, new ArrayList<Object>(filterValuesArr));
+//	}
 
-	/**
-	 * 
-	 * @param table - to table from which to get flat data from
-	 * @return - a list of maps, the preferred way of returning table data to the front end
-	 */
-	public static List<HashMap<String, Object>> getTableData(ITableDataFrame table) {
-		LOGGER.info("Formatting Data from Table for the Front End");
-		long startTime = System.currentTimeMillis();
-		
-		List<HashMap<String, Object>> returnData = TableDataFrameWebAdapter.getData(table);
-		
-		LOGGER.info("Formatted Data, returning to the Front End: "+(System.currentTimeMillis() - startTime)+" ms");
-		return returnData;
-	}
+//	/**
+//	 * 
+//	 * @param table - to table from which to get flat data from
+//	 * @return - a list of maps, the preferred way of returning table data to the front end
+//	 */
+//	public static List<HashMap<String, Object>> getTableData(ITableDataFrame table) {
+//		LOGGER.info("Formatting Data from Table for the Front End");
+//		long startTime = System.currentTimeMillis();
+//		
+//		List<HashMap<String, Object>> returnData = TableDataFrameWebAdapter.getData(table);
+//		
+//		LOGGER.info("Formatted Data, returning to the Front End: "+(System.currentTimeMillis() - startTime)+" ms");
+//		return returnData;
+//	}
 	
-	/**
-	 * 
-	 * @param table - to table from which to get flat data from
-	 * @return - a list of maps, the preferred way of returning table data to the front end
-	 */
-	public static List<HashMap<String, Object>> getTableData(ITableDataFrame table, String concept, String sort, int startRow, int endRow) {
-		LOGGER.info("Formatting Data from" +  table + ", " + concept + ", " + sort + ", " + startRow + ", and " + endRow + " for the Front End");
-		long startTime = System.currentTimeMillis();
-		
-		List<HashMap<String, Object>> returnData = TableDataFrameWebAdapter.getData(table, concept, sort, startRow, endRow);
-		
-		LOGGER.info("Formatted Data, returning to the Front End: "+(System.currentTimeMillis() - startTime)+" ms");
-		return returnData;
-	}
+//	/**
+//	 * 
+//	 * @param table - to table from which to get flat data from
+//	 * @return - a list of maps, the preferred way of returning table data to the front end
+//	 */
+//	public static List<HashMap<String, Object>> getTableData(ITableDataFrame table, String concept, String sort, int startRow, int endRow) {
+//		LOGGER.info("Formatting Data from" +  table + ", " + concept + ", " + sort + ", " + startRow + ", and " + endRow + " for the Front End");
+//		long startTime = System.currentTimeMillis();
+//		
+//		List<HashMap<String, Object>> returnData = TableDataFrameWebAdapter.getData(table, concept, sort, startRow, endRow);
+//		
+//		LOGGER.info("Formatted Data, returning to the Front End: "+(System.currentTimeMillis() - startTime)+" ms");
+//		return returnData;
+//	}
 	
 	public static boolean hasDuplicates(ITableDataFrame table, String[] columns) {
 		String[] columnHeaders = table.getColumnHeaders();
@@ -213,7 +209,7 @@ public final class TableDataFrameUtilities {
 		return functionMap;
 	}
 
-	public static Object[] getExploreTableFilterModel(ITableDataFrame table) {
-		return TableDataFrameWebAdapter.getRawFilterModel(table);
-	}
+//	public static Object[] getExploreTableFilterModel(ITableDataFrame table) {
+//		return TableDataFrameWebAdapter.getRawFilterModel(table);
+//	}
 }
