@@ -2,6 +2,7 @@ package prerna.semoss.web.services;
 
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -310,6 +311,8 @@ public class DataframeResource {
 		Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
 		String concept = null;
 		String orderDirection = null;
+		
+		Map<String, Object> options = new HashMap<String, Object>();
 		if(sortModel != null && !sortModel.isEmpty()) {
 			concept = sortModel.get("colId");
 			if(concept != null && !concept.isEmpty()) {
@@ -317,11 +320,13 @@ public class DataframeResource {
 				if(orderDirection == null || orderDirection.isEmpty()) {
 					orderDirection = "asc";
 				}
-				((TinkerFrame) dm).setSortColumn(concept, orderDirection);
+				options.put(TinkerFrame.SORT_BY, concept);
+				options.put(TinkerFrame.SORT_BY_DIRECTION, orderDirection);
 			}
 		}
 		if(startRow > 0 && endRow > startRow) {
-			((TinkerFrame) dm).setRange(startRow, endRow);
+			options.put(TinkerFrame.OFFSET, startRow);
+			options.put(TinkerFrame.LIMIT, endRow);
 		}
 
 		Map<String, Object> returnData = new HashMap<String, Object>();
@@ -329,15 +334,17 @@ public class DataframeResource {
 
 		List<Object[]> table = new Vector<Object[]>();
 		List<String> selectors = gson.fromJson(form.getFirst("selectors"), new TypeToken<List<String>>() {}.getType());
-		Iterator<Object[]> it = null;
 		
 		if(selectors.isEmpty()) {
+			options.put(TinkerFrame.SELECTORS, Arrays.asList(dm.getColumnHeaders()));
 			returnData.put("headers", dm.getColumnHeaders());
-			it = dm.iterator(true);
 		} else {
+			options.put(TinkerFrame.SELECTORS, selectors);
 			returnData.put("headers", selectors);
-			it = dm.iterator(true, selectors);
 		}
+		options.put(TinkerFrame.DE_DUP, true);
+		
+		Iterator<Object[]> it = dm.iterator(true, options);
 		while(it.hasNext()) {
 			table.add(it.next());
 		}
