@@ -953,7 +953,7 @@ public class EngineResource {
 		if(insightID == null || insightID.isEmpty()) {
 			String datatype = "TinkerFrame";
 			String type;
-			if((type = form.get("dataFrameType").get(0)) != null) {
+			if(form.get("dataFrameType") != null && (type = form.get("dataFrameType").get(0)) != null) {
 				if(type.equalsIgnoreCase("H2")) {
 					datatype = "TinkerH2Frame";
 				}
