@@ -951,7 +951,14 @@ public class EngineResource {
 		ISEMOSSTransformation joinTrans = null;
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
 		if(insightID == null || insightID.isEmpty()) {
-			insight = new Insight(this.coreEngine, "TinkerFrame", PlaySheetRDFMapBasedEnum.getSheetName("Grid")); // TODO: this needs to be an enum or grabbed from rdf map somehow
+			String datatype = "TinkerFrame";
+			String type;
+			if((type = form.get("dataFrameType").get(0)) != null) {
+				if(type.equalsIgnoreCase("H2")) {
+					datatype = "TinkerH2Frame";
+				}
+			}
+			insight = new Insight(this.coreEngine, datatype, PlaySheetRDFMapBasedEnum.getSheetName("Grid")); // TODO: this needs to be an enum or grabbed from rdf map somehow
 			insightID = InsightStore.getInstance().put(insight);
 		} 
 
