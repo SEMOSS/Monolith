@@ -248,6 +248,7 @@ public class Uploader extends HttpServlet {
 				value = inputData.get(fieldName) + ";" + value;
 			}
 			inputData.put(fieldName, value);
+			fi.delete();
 		}
 
 		return inputData;
