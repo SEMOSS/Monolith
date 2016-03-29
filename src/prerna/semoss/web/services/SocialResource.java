@@ -30,23 +30,23 @@ public class SocialResource {
 	 * 
 	 * @return			Top insights and total execution count for all to be used for normalization of popularity
 	 */
-	@GET
-	@Path("/topinsights")
-	@Produces("application/json")
-	public Response getTopInsights(@QueryParam("engine") String engine, @QueryParam("limit") String limit, @Context HttpServletRequest request) {
-		if(engine == null) {
-			engine = "";
-		}
-		if(limit == null) {
-			//Default limit for # of top insights to return
-			limit = "6";
-		}
-		
-		NameServerProcessor ns = new NameServerProcessor();
-		HashMap<String, Object> insights = ns.getTopInsights(engine, limit);
-		
-		return Response.status(200).entity(WebUtility.getSO(insights)).build();
-	}
+//	@GET
+//	@Path("/topinsights")
+//	@Produces("application/json")
+//	public Response getTopInsights(@QueryParam("engine") String engine, @QueryParam("limit") String limit, @Context HttpServletRequest request) {
+//		if(engine == null) {
+//			engine = "";
+//		}
+//		if(limit == null) {
+//			//Default limit for # of top insights to return
+//			limit = "6";
+//		}
+//		
+//		NameServerProcessor ns = new NameServerProcessor();
+//		HashMap<String, Object> insights = ns.getTopInsights(engine, limit);
+//		
+//		return Response.status(200).entity(WebUtility.getSO(insights)).build();
+//	}
 	
 	/**
 	 * Retrieve top executed insights.
@@ -57,22 +57,22 @@ public class SocialResource {
 	 * 
 	 * @return			Top insights and total execution count for all to be used for normalization of popularity
 	 */
-	@GET
-	@Path("/feedInsights")
-	@Produces("application/json")
-	public Response getInsightsForFeed(@QueryParam("visibility") String visibility, @QueryParam("limit") String limit, @Context HttpServletRequest request) {
-		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if(visibility == null) {
-			visibility = "friends";
-		}
-		if(limit == null) {
-			//Default limit for # of published insights to return
-			limit = "50";
-		}
-		
-		NameServerProcessor ns = new NameServerProcessor();
-		HashMap<String, Object> insights = ns.getFeedInsights(user.getId(), visibility, limit);
-		
-		return Response.status(200).entity(WebUtility.getSO(insights)).build();
-	}
+//	@GET
+//	@Path("/feedInsights")
+//	@Produces("application/json")
+//	public Response getInsightsForFeed(@QueryParam("visibility") String visibility, @QueryParam("limit") String limit, @Context HttpServletRequest request) {
+//		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+//		if(visibility == null) {
+//			visibility = "friends";
+//		}
+//		if(limit == null) {
+//			//Default limit for # of published insights to return
+//			limit = "50";
+//		}
+//		
+//		NameServerProcessor ns = new NameServerProcessor();
+//		HashMap<String, Object> insights = ns.getFeedInsights(user.getId(), visibility, limit);
+//		
+//		return Response.status(200).entity(WebUtility.getSO(insights)).build();
+//	}
 }

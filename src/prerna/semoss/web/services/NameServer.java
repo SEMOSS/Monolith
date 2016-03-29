@@ -73,6 +73,8 @@ import prerna.cache.CacheFactory;
 import prerna.cache.InsightCache;
 import prerna.ds.BTreeDataFrame;
 import prerna.engine.api.IEngine;
+import prerna.engine.api.ISelectStatement;
+import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.insights.admin.DBAdminResource;
@@ -80,9 +82,11 @@ import prerna.nameserver.AddToMasterDB;
 import prerna.nameserver.ConnectedConcepts;
 import prerna.nameserver.DeleteFromMasterDB;
 import prerna.nameserver.INameServer;
+import prerna.nameserver.MasterDatabaseQueries;
 import prerna.nameserver.NameServerProcessor;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
@@ -623,6 +627,35 @@ public class NameServer {
 		}
 		return WebUtility.getSO(results.getData());
 	}
+	
+	
+	@POST
+	@Path("central/context/getAllConcepts")
+	@Produces("application/json")
+	public Response getAllConceptsFromEngines(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String localMasterDbName = form.getFirst("localMasterDbName");
+		IEngine masterDB = (IEngine) DIHelper.getInstance().getLocalProp(localMasterDbName);
+		
+		List<Map<String, String>> retList = new ArrayList<Map<String, String>>();
+		
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(masterDB, MasterDatabaseQueries.GET_ALL_KEYWORDS_AND_ENGINES);
+		String[] names = wrapper.getDisplayVariables();
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			String engine = ss.getVar(names[0]) + "";
+			String keywordURI = ss.getRawVar(names[1]) + "";
+			String conceptURI = keywordURI.replace("Keyword/", "");
+			
+			String returnURI = ((IEngine) DIHelper.getInstance().getLocalProp(engine)).getTransformedNodeName(conceptURI, true);
+			
+			Map<String, String> map = new HashMap<String, String>();
+			map.put("engine", engine);
+			map.put("concept", returnURI);
+			retList.add(map);
+		}
+		
+		return Response.status(200).entity(WebUtility.getSO(retList)).build();
+	}
 
 	// get all insights related to a specific uri
 	// preferably we would also pass vert store and edge store... the more
@@ -844,17 +877,17 @@ public class NameServer {
 		return WebUtility.getSO(ret);
 	}
 
-	@GET
-	@Path("/insightDetails")
-	@Produces("application/json")
-	public StreamingOutput getInsightDetails(@QueryParam("insight") String insight,
-			@Context HttpServletRequest request) {
-		NameServerProcessor ns = new NameServerProcessor();
-		String user = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
-
-		HashMap<String, Object> ret = ns.getInsightDetails(insight, user);
-		return WebUtility.getSO(ret);
-	}
+//	@GET
+//	@Path("/insightDetails")
+//	@Produces("application/json")
+//	public StreamingOutput getInsightDetails(@QueryParam("insight") String insight,
+//			@Context HttpServletRequest request) {
+//		NameServerProcessor ns = new NameServerProcessor();
+//		String user = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+//
+//		HashMap<String, Object> ret = ns.getInsightDetails(insight, user);
+//		return WebUtility.getSO(ret);
+//	}
 
 	@Path("i-{insightID}")
 	public Object getInsightDataFrame(@PathParam("insightID") String insightID, @Context HttpServletRequest request){
