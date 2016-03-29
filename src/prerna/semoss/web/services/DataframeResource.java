@@ -324,7 +324,7 @@ public class DataframeResource {
 				options.put(TinkerFrame.SORT_BY_DIRECTION, orderDirection);
 			}
 		}
-		if(startRow > 0 && endRow > startRow) {
+		if(startRow >= 0 && endRow > startRow) {
 			options.put(TinkerFrame.OFFSET, startRow);
 			options.put(TinkerFrame.LIMIT, endRow);
 		}
