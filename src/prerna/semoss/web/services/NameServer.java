@@ -348,6 +348,7 @@ public class NameServer {
 		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
 		String csvData = "";
 		String delimiter = "";
+		String dataFrameType = "";
 		
 		try {
 			
@@ -370,11 +371,13 @@ public class NameServer {
 				} else {
 					if(fieldName.equals("delimiter")) {
 						delimiter = value;
+					} else if(fieldName.equals("dataFrameType")){
+						dataFrameType = value;
 					}
 				}
 			}
 			
-			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(csvData, delimiter))).build();
+			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(csvData, delimiter, dataFrameType))).build();
 			
 		} catch(Exception e) {
 			e.printStackTrace();
