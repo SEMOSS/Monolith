@@ -67,9 +67,11 @@ import org.openrdf.sail.SailException;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.algorithm.api.ITableDataFrame;
 import prerna.algorithm.learning.unsupervised.recommender.DataStructureFromCSV;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
+import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
@@ -1134,18 +1136,24 @@ public class Uploader extends HttpServlet {
 		return s.replaceAll(" ", "_");
 	}
 	
-	public String generateTableFromJSON(String dataStr, String delimiter) {
+	public String generateTableFromJSON(String dataStr, String delimiter, String dataFrameType) {
 		// generate tinker frame from 
 		if(delimiter == null || delimiter.isEmpty()) {
 			delimiter = "\t";
 		}
-		TinkerFrame tf = TinkerFrame.generateTinkerFrameFromFile(dataStr, delimiter);
-		Insight in = new Insight(null, "TinkerFrame", "Grid");
+		ITableDataFrame table = TableDataFrameFactory.generateDataFrameFromFile(dataStr, delimiter, dataFrameType);
+		String dataFrame;
+		if(dataFrameType.equalsIgnoreCase("H2")) {
+			dataFrame = "TinkerH2Frame";
+		} else {
+			dataFrame = "TinkerFrame";
+		}
+		Insight in = new Insight(null, dataFrame, "Grid");
 		DataMakerComponent dmc = new DataMakerComponent(""); //dmc currently doesn't have a location since it is not saved yet
 		Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
 		dmcList.add(dmc);
 		in.setDataMakerComponents(dmcList);
-		in.setDataMaker(tf);
+		in.setDataMaker(table);
 		in.setIsNonDbInsight(true);
 		String insightId = InsightStore.getInstance().put(in);
 		return insightId;
