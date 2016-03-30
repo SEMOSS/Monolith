@@ -693,7 +693,6 @@ public class EngineResource {
 			params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
 			insightObj.setParamHash(params);
 			
-			String path = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR);
 			if(insightObj.isNonDbInsight()) {
 				String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getVizData(insightObj);
 				if(vizData != null) {
@@ -732,7 +731,7 @@ public class EngineResource {
 					InsightCreateRunner run = new InsightCreateRunner(insightObj);
 					obj = run.runWeb();
 					
-					String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(insightObj);
+					String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
 					
 					saveFileLocation = saveFileLocation + "_Solr.txt";
 					File solrFile = new File(saveFileLocation);
