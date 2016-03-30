@@ -40,6 +40,9 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.Vector;
 
 import javax.servlet.ServletContext;
@@ -636,7 +639,7 @@ public class NameServer {
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		IEngine masterDB = (IEngine) DIHelper.getInstance().getLocalProp(localMasterDbName);
 		
-		List<Map<String, String>> retList = new ArrayList<Map<String, String>>();
+		Map<String, Set<String>> retMap = new TreeMap<String, Set<String>>();
 		
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(masterDB, MasterDatabaseQueries.GET_ALL_KEYWORDS_AND_ENGINES);
 		String[] names = wrapper.getDisplayVariables();
@@ -648,13 +651,18 @@ public class NameServer {
 			
 			String returnURI = ((IEngine) DIHelper.getInstance().getLocalProp(engine)).getTransformedNodeName(conceptURI, true);
 			
-			Map<String, String> map = new HashMap<String, String>();
-			map.put("engine", engine);
-			map.put("concept", returnURI);
-			retList.add(map);
+			Set<String> conceptSet = null;
+			if(retMap.containsKey(engine)) {
+				conceptSet = retMap.get(engine);
+				conceptSet.add(returnURI);
+			} else {
+				conceptSet = new TreeSet<String>();
+				conceptSet.add(returnURI);
+				retMap.put(engine, conceptSet);
+			}
 		}
 		
-		return Response.status(200).entity(WebUtility.getSO(retList)).build();
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
 	// get all insights related to a specific uri
