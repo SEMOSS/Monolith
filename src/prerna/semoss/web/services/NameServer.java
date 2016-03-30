@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -68,10 +69,6 @@ import org.apache.solr.common.SolrDocumentList;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
-import prerna.auth.User;
 import prerna.cache.CacheFactory;
 import prerna.cache.InsightCache;
 import prerna.ds.BTreeDataFrame;
@@ -101,6 +98,9 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 @Path("/engine")
 public class NameServer {
@@ -348,7 +348,8 @@ public class NameServer {
 	public Response generateTableFromCSV(@Context HttpServletRequest request) {
 
 		Uploader upload = new Uploader();
-		upload.setTempFilePath("C:\\\\Temp"); //is this always the case?
+		String folda = "C:\\\\Temp";
+		upload.setTempFilePath(folda); //is this always the case?
 		List<FileItem> fileItems = upload.processRequest(request);
 		
 		// Process the uploaded file items
@@ -357,6 +358,9 @@ public class NameServer {
 		String delimiter = "";
 		String dataFrameType = "";
 		
+		String tempFileName = folda + "/f" +System.nanoTime();
+		File daFile = new File(tempFileName);
+
 		try {
 			
 			while(iteratorFileItems.hasNext()) 
@@ -366,12 +370,16 @@ public class NameServer {
 				String fieldName = fi.getFieldName();
 				String fileName = fi.getName();
 				String value = fi.getString();
+				
 				if (!fi.isFormField()) {
 					if(fileName.equals("")) {
 						continue;
 					}
 					else {
 						if(fieldName.equals("file") || fieldName.equals("mapFile") || fieldName.equals("questionFile")) {
+							
+							upload.writeFile(fi, daFile);
+							daFile.deleteOnExit(); // need to revisit this once we have lazy load done
 							csvData = value;
 						} 
 					}
@@ -384,7 +392,9 @@ public class NameServer {
 				}
 			}
 			
-			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(csvData, delimiter, dataFrameType))).build();
+			
+			//return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(csvData, delimiter, dataFrameType))).build();
+			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(tempFileName, delimiter, dataFrameType))).build();
 			
 		} catch(Exception e) {
 			e.printStackTrace();
