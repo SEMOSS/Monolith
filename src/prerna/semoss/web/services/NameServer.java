@@ -28,6 +28,7 @@
 package prerna.semoss.web.services;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -334,7 +335,15 @@ public class NameServer {
 	public Response generateTableFromJSON(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Uploader upload = new Uploader();
 		try {
-			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(form.getFirst("jsonString"), form.getFirst("delimiter"), form.getFirst("dataFrameType")))).build();
+			String output = form.getFirst("jsonString");
+			String folda = "C:\\\\Temp";
+			String tempFileName = folda + "/f" +System.nanoTime();
+			File daFile = new File(tempFileName);
+			FileWriter fw = new FileWriter(daFile);
+			fw.write(output);
+			fw.close();
+			daFile.deleteOnExit();
+			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(tempFileName, form.getFirst("delimiter"), form.getFirst("dataFrameType")))).build();
 		} catch(Exception e) {
 			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
