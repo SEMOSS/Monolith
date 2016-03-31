@@ -498,12 +498,19 @@ public class NameServer {
 	public StreamingOutput getSearchInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		//text searched in search bar
 		String searchString = form.getFirst("searchString");
+		logger.info("Searching based on input: " + searchString);
+		
 		//sort (based on relevance, asc, desc)
 		String sortString = form.getFirst("sortString");
+		logger.info("Sorting by: " + sortString);
+		
 		//offset for call
 		String offset = form.getFirst("offset");
+		logger.info("Offset is: " + offset);
+		
 		//offset for call
 		String limit = form.getFirst("limit");
+		logger.info("Limit is: " + limit);
 
 		Integer offsetInt = null;
 		Integer limitInt = null;
@@ -521,7 +528,6 @@ public class NameServer {
 		
 		Map<String, Object> results = null;
 		try {
-			logger.info("Searching based on input: " + searchString + " Sorting by: " + sortString + " Offset is: " + offset + " Limit is: " + limit);
 			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortString, offsetInt, limitInt, filterData);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
 			e1.printStackTrace();
@@ -572,13 +578,22 @@ public class NameServer {
 	public StreamingOutput getGroupInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		//text searched in search bar
 		String searchString = form.getFirst("searchString");
+		logger.info("Searching based on input: " + searchString);
+				
 		//specifies the starting number for the list of insights to return
 		String groupOffset = form.getFirst("groupOffset");
+		logger.info("Group offset is: " + groupOffset);
+		
 		//specifies the number of insights to return
 		String groupLimit = form.getFirst("groupLimit");
+		logger.info("Group limit is: " + groupLimit);
+
 		String groupSort = form.getFirst("groupSort");
+		logger.info("Group sort is: " + groupSort);
+		
 		//specifies the single field to group by
 		String groupByField = form.getFirst("groupBy");
+		logger.info("Group field is: " + groupByField);
 
 		Integer groupLimitInt = null;
 		Integer groupOffsetInt = null;
@@ -596,7 +611,6 @@ public class NameServer {
 				
 		Map<String, Object> groupFieldMap = null;
 		try {
-			logger.info("Group Searching based on input: " + searchString + " Grouping by: " + groupByField + " Sorting by: " + groupSort + " Offset is: " + groupOffset + " Limit is: " + groupLimit);
 			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, groupOffsetInt, groupLimitInt, groupByField, groupSort, filterData);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
 			e.printStackTrace();
@@ -924,7 +938,7 @@ public class NameServer {
 		System.out.println("Came into this point.. " + insightID);
 
 		Insight existingInsight = null;
-		if (insightID != null && !insightID.isEmpty()) {
+		if (insightID != null && !insightID.isEmpty() && !insightID.equals("new")) {
 			existingInsight = InsightStore.getInstance().get(insightID);
 			if (existingInsight == null) {				
 				Map<String, String> errorHash = new HashMap<String, String>();
@@ -960,6 +974,11 @@ public class NameServer {
 					CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(existingInsight, webData);
 				}
 			}
+		}
+		else
+		{
+			existingInsight = new Insight(null, "TinkerFrame", "Grid");
+			InsightStore.getInstance().put(existingInsight);
 		}
 
 		
