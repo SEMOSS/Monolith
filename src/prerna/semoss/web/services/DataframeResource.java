@@ -95,6 +95,7 @@ public class DataframeResource {
 	public Response getFilterModel(@Context HttpServletRequest request)
 	{	
 		IDataMaker table = insight.getDataMaker();
+//		String colName = form.getFirst("col");
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
 		if(table instanceof ITableDataFrame) {
@@ -142,6 +143,7 @@ public class DataframeResource {
 		} else {
 			resultHash.put("result", result);
 		}
+		resultHash.put("insightID", insight.getInsightID());
 
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
 	}
@@ -463,7 +465,7 @@ public class DataframeResource {
 		}
 		Map<String, Object> returnHash = null;
 		try {
-			returnHash = insight.getInsightMetadata();
+			returnHash = insight.getInsightMetaModel();
 		} catch(IllegalArgumentException e) {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());

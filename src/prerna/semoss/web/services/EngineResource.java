@@ -63,6 +63,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
+import prerna.ds.QueryStruct;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.cache.CacheFactory;
@@ -911,6 +912,8 @@ public class EngineResource {
 		Gson gson = new Gson();
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 		QueryBuilderData data = new QueryBuilderData(dataHash);
+		QueryBuilderHelper.parsePath(data, this.coreEngine);
+		QueryStruct qs = data.getQueryStruct();
 
 		// Very simply, here is the logic:
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
@@ -921,31 +924,21 @@ public class EngineResource {
 
 		// get the insight if an id has been passed
 		Insight insight = null;
-		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, data);
-		
-		// put join concept into dataHash so we know which varible needs to be first in the return
-		// this stems from the fact that btree can only join left to right.
-//		List<String> retOrder = new ArrayList<String>();
-//		//I need the physical name to be put into the retOrder, so append the displayname uri and assume that the value in equivConcept is potentially a display name, if its not we'll still get the physical name back...
-//		String physicalEquivConcept = Utility.getInstanceName(this.coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + equivConcept , false));
-//		retOrder.add(physicalEquivConcept);
-//		data.setVarReturnOrder(retOrder);
-		// Shouldn't this just be logical name...?
-		data.setVarReturnOrder(equivConcept, 0);
+		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, qs);
 		
 		// need to remove filter and add that as a pretransformation. Otherwise our metamodel data is not truly clean metamodel data
-		Map<String, List<Object>> filters = data.getFilterData();
-		
-		if(filters != null){
-			for(String filterCol : filters.keySet()){
-				Map<String, Object> transProps = new HashMap<String, Object>();
-				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, filterCol);
-				transProps.put(FilterTransformation.VALUES_KEY, Utility.getTransformedNodeNamesList(this.coreEngine, filters.get(filterCol), false));
-				ISEMOSSTransformation filterTrans = new FilterTransformation();
-				filterTrans.setProperties(transProps);
-				dmc.addPreTrans(filterTrans);
-			}
-		}
+//		Map<String, List<Object>> filters = data.getFilterData();
+//		
+//		if(filters != null){
+//			for(String filterCol : filters.keySet()){
+//				Map<String, Object> transProps = new HashMap<String, Object>();
+//				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, filterCol);
+//				transProps.put(FilterTransformation.VALUES_KEY, Utility.getTransformedNodeNamesList(this.coreEngine, filters.get(filterCol), false));
+//				ISEMOSSTransformation filterTrans = new FilterTransformation();
+//				filterTrans.setProperties(transProps);
+//				dmc.addPreTrans(filterTrans);
+//			}
+//		}
 
 		ISEMOSSTransformation joinTrans = null;
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
@@ -1143,6 +1136,8 @@ public class EngineResource {
 		QueryBuilderData data = new QueryBuilderData(dataHash);
 		data.setVarReturnOrder(newConcept, 0);
 		data.setLimitReturnToVarsList(true);
+		QueryBuilderHelper.parsePath(data, this.coreEngine);
+		QueryStruct qs = data.getQueryStruct();
 
 		// Very simply, here is the logic:
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
@@ -1153,7 +1148,7 @@ public class EngineResource {
 
 		// get the insight if an id has been passed
 		Insight insight = null;
-		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, data);
+		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, qs);
 
 		ISEMOSSTransformation joinTrans = null;
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations

@@ -58,6 +58,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.algorithm.api.IMetaData;
 import prerna.cache.CacheFactory;
 import prerna.cache.InsightCache;
 import prerna.ds.TinkerFrame;
@@ -645,7 +646,8 @@ public class QuestionAdmin {
 	 * @param params					A list of SEMOSSParams to store the parameters with the correct options
 	 */
 	private List<SEMOSSParam> buildParameterList(Insight insight, Vector<Map<String, String>> paramMapList) {
-		Map<String, Object> metamodelData = insight.getInsightMetadata();
+		Map<String, Object> metamodelData = insight.getInsightMetaModel();
+		IMetaData metaData = insight.getMetaData();
 		List<SEMOSSParam> params = new Vector<SEMOSSParam>();
 		if(paramMapList != null && !paramMapList.isEmpty()) {
 			for(Map<String, String> paramMap : paramMapList) {
@@ -653,23 +655,21 @@ public class QuestionAdmin {
 				String logicalParamURI = Constants.DISPLAY_URI + paramName;
 //				String logicalParamURI = paramMap.get("value");
 				String paramURI = this.coreEngine.getTransformedNodeName(logicalParamURI, false);
+				
+				// get the paramParent if it is a property
 				String paramParent = null;
 				Map<String, Object> nodes = (Map<String, Object>) metamodelData.get("nodes");
-				
 				PARAM_TYPE_LOOP : for(String node : nodes.keySet()) {
+
 					Map<String, Object> nodeMap = (Map<String, Object>) nodes.get(node);
-					if(nodeMap.get("uri").equals(paramURI)) {
-						break PARAM_TYPE_LOOP;
-					} else {
-						//TODO: properties are stored in logical
-						List<String> propertiesList = (List<String>) nodeMap.get("selectedProperties");
-						if(propertiesList.contains(logicalParamURI)) {
-							paramParent = (String) nodeMap.get("uri");
-							break PARAM_TYPE_LOOP;
+					if(nodeMap.get("uri").equals(paramName)) {
+						if(nodeMap.containsKey("prop")){
+							paramParent = metaData.getPhysicalUriForNode(nodeMap.get("prop") + "", this.coreEngine.getEngineName());
 						}
+						break PARAM_TYPE_LOOP;
 					}
 				}
-
+					
 				SEMOSSParam p = new SEMOSSParam();
 				//TODO: Bifurcation in processing logic if it is RDBMS vs. RDF
 				//Due to the fact that we do not store the parameters as metamodels but as queries
