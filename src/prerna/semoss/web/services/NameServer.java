@@ -672,7 +672,7 @@ public class NameServer {
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		IEngine masterDB = (IEngine) DIHelper.getInstance().getLocalProp(localMasterDbName);
 		
-		Map<String, Set<String>> retMap = new TreeMap<String, Set<String>>();
+		Map<String, Map<String, String>> retMap = new TreeMap<String, Map<String, String>>();
 		
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(masterDB, MasterDatabaseQueries.GET_ALL_KEYWORDS_AND_ENGINES);
 		String[] names = wrapper.getDisplayVariables();
@@ -684,13 +684,13 @@ public class NameServer {
 			
 			String returnURI = ((IEngine) DIHelper.getInstance().getLocalProp(engine)).getTransformedNodeName(conceptURI, true);
 			
-			Set<String> conceptSet = null;
+			Map<String, String> conceptSet = null;
 			if(retMap.containsKey(engine)) {
 				conceptSet = retMap.get(engine);
-				conceptSet.add(returnURI);
+				conceptSet.put(returnURI, Utility.getInstanceName(conceptURI));
 			} else {
-				conceptSet = new TreeSet<String>();
-				conceptSet.add(returnURI);
+				conceptSet = new TreeMap<String, String>();
+				conceptSet.put(returnURI, Utility.getInstanceName(conceptURI));
 				retMap.put(engine, conceptSet);
 			}
 		}
