@@ -28,6 +28,7 @@
 package prerna.upload;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -36,6 +37,9 @@ import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -45,10 +49,13 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.StringTokenizer;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -72,7 +79,6 @@ import prerna.algorithm.learning.unsupervised.recommender.DataStructureFromCSV;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.ds.TableDataFrameFactory;
-import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.om.Insight;
@@ -99,6 +105,11 @@ public class Uploader extends HttpServlet {
 	String filePath;
 	String tempFilePath = "";
 	boolean securityEnabled;
+	
+	// we will control the adding of the engine into local master and solr
+	// such that we dont send a success before those processes are complete
+	boolean autoLoad = false;
+	
 	
 	public void setFilePath(String filePath){
 		this.filePath = filePath;
@@ -160,57 +171,51 @@ public class Uploader extends HttpServlet {
 		return fileItems;
 	}
 	
-//	public void loadEngineIntoSession(HttpServletRequest request, String engineName) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
-//		Properties prop = new Properties();
-//		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-//		String fileName = baseFolder + "/db/"  +  engineName + ".smss";
-//		FileInputStream fileIn = null;
-//		try {
-//			fileIn = new FileInputStream(fileName);
-//			prop.load(fileIn);			
-//			Utility.loadWebEngine(fileName, prop);
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		} finally {
-//			try {
-//				if(fileIn != null) {
-//					fileIn.close();
-//				}
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			}
-//		}
-//		
-//		HttpSession session = request.getSession();
-//		String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
-//		StringTokenizer tokens = new StringTokenizer(engineNames, ";");
-//		ArrayList<Hashtable<String, String>> engines = new ArrayList<Hashtable<String, String>>();
-//		while(tokens.hasMoreTokens())
-//		{
-//			// this would do some check to see
-//			String nextEngine = tokens.nextToken();
-//			System.out.println(" >>> " + nextEngine);
-//			IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(nextEngine);
-//			boolean hidden = (engine.getProperty(Constants.HIDDEN_DATABASE) != null && Boolean.parseBoolean(engine.getProperty(Constants.HIDDEN_DATABASE)));
-//			if(!hidden) {
-//				Hashtable<String, String> engineHash = new Hashtable<String, String> ();
-//				engineHash.put("name", nextEngine);
-//				engineHash.put("type", engine.getEngineType() + "");
-//				engines.add(engineHash);
-//			}
-//			// set this guy into the session of our user
-//			session.setAttribute(nextEngine, engine);
-//			// and over
-//		}			
-//		session.setAttribute(Constants.ENGINES, engines);
-//	}
-//
-//	public void loadEngineIntoLocalMasterDB(HttpServletRequest request, String engineName, String baseURL) {
-//		String localMasterDbName = Constants.LOCAL_MASTER_DB_NAME;
-//		AddToMasterDB creater = new AddToMasterDB(localMasterDbName);
-//		creater.registerEngineLocal(engineName);
-//	}
-	
+	public void loadEngineIntoSession(HttpServletRequest request, String engineName) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
+		Properties prop = new Properties();
+		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
+		String fileName = baseFolder + "/db/"  +  engineName + ".smss";
+		FileInputStream fileIn = null;
+		try {
+			fileIn = new FileInputStream(fileName);
+			prop.load(fileIn);			
+			Utility.loadWebEngine(fileName, prop);
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if(fileIn != null) {
+					fileIn.close();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		HttpSession session = request.getSession();
+		String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
+		StringTokenizer tokens = new StringTokenizer(engineNames, ";");
+		ArrayList<Hashtable<String, String>> engines = new ArrayList<Hashtable<String, String>>();
+		while(tokens.hasMoreTokens())
+		{
+			// this would do some check to see
+			String nextEngine = tokens.nextToken();
+			System.out.println(" >>> " + nextEngine);
+			IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(nextEngine);
+			boolean hidden = (engine.getProperty(Constants.HIDDEN_DATABASE) != null && Boolean.parseBoolean(engine.getProperty(Constants.HIDDEN_DATABASE)));
+			if(!hidden) {
+				Hashtable<String, String> engineHash = new Hashtable<String, String> ();
+				engineHash.put("name", nextEngine);
+				engineHash.put("type", engine.getEngineType() + "");
+				engines.add(engineHash);
+			}
+			// set this guy into the session of our user
+			session.setAttribute(nextEngine, engine);
+			// and over
+		}			
+		session.setAttribute(Constants.ENGINES, engines);
+	}
+
 	public Hashtable<String, String> getInputData(List<FileItem> fileItems) 
 	{
 		// Process the uploaded file items
@@ -458,9 +463,8 @@ public class Uploader extends HttpServlet {
 			if(importMethod == ImportDataProcessor.IMPORT_METHOD.CREATE_NEW) {
 				// force fitting the RDBMS here
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates);
-//				loadEngineIntoSession(request, dbName);
-//				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("designateBaseUri"));
+						inputData.get("designateBaseUri"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates, autoLoad);
+				loadEngineIntoSession(request, dbName);
 			} else { // add to existing or modify
 				IEngine dbEngine = (IEngine) DIHelper.getInstance().getLocalProp(dbName);
 				if (dbEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
@@ -469,7 +473,7 @@ public class Uploader extends HttpServlet {
 					rdbmsType = rdbmsEngine.getDbType();
 				}
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), "","","","", dbName, storeType, rdbmsType, allowDuplicates);
+						inputData.get("designateBaseUri"), "","","","", dbName, storeType, rdbmsType, allowDuplicates, autoLoad);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -670,9 +674,8 @@ public class Uploader extends HttpServlet {
 			if(methodString.equals("Create new database engine")) {
 				// force fitting the RDBMS here
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates);
-//				loadEngineIntoSession(request, dbName);
-//				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("designateBaseUri"));
+						inputData.get("designateBaseUri"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates, autoLoad);
+				loadEngineIntoSession(request, dbName);
 			} else { // add to existing or modify
 				IEngine dbEngine = (IEngine) DIHelper.getInstance().getLocalProp(dbName);
 				if (dbEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
@@ -681,7 +684,7 @@ public class Uploader extends HttpServlet {
 					rdbmsType = rdbmsEngine.getDbType();
 				}
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), mapFile,"", questionFile,"", dbName, storeType, rdbmsType, allowDuplicates);
+						inputData.get("designateBaseUri"), mapFile,"", questionFile,"", dbName, storeType, rdbmsType, allowDuplicates, autoLoad);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -815,12 +818,11 @@ public class Uploader extends HttpServlet {
 		try {
 			if(methodString.equals("Create new database engine")) {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
-						inputData.get("customBaseURI"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates);
-//				loadEngineIntoSession(request, dbName);
-//				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("customBaseURI"));
+						inputData.get("customBaseURI"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates, autoLoad);
+				loadEngineIntoSession(request, dbName);
 			} else {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
-						inputData.get("customBaseURI"), "", mapFile,"", questionFile, dbName, storeType, rdbmsType, allowDuplicates);
+						inputData.get("customBaseURI"), "", mapFile,"", questionFile, dbName, storeType, rdbmsType, allowDuplicates, autoLoad);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -956,12 +958,11 @@ public class Uploader extends HttpServlet {
 		try {
 			if(methodString.equals("Create new database engine")) {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
-						inputData.get("customBaseURI")+"", dbName,"","", questionFile,"", storeType, null, false);
-//				loadEngineIntoSession(request, dbName);
-//				loadEngineIntoLocalMasterDB(request, dbName, inputData.get("customBaseURI"));
+						inputData.get("customBaseURI")+"", dbName,"","", questionFile,"", storeType, null, false, autoLoad);
+				loadEngineIntoSession(request, dbName);
 			} else {
 				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
-						inputData.get("customBaseURI")+"", "","", questionFile,"", dbName, storeType, null, false);
+						inputData.get("customBaseURI")+"", "","", questionFile,"", dbName, storeType, null, false, autoLoad);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
