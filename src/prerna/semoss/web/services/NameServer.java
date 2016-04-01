@@ -336,8 +336,8 @@ public class NameServer {
 		Uploader upload = new Uploader();
 		try {
 			String output = form.getFirst("jsonString");
-			String folda = "C:\\\\Temp";
-			String tempFileName = folda + "/f" +System.nanoTime();
+			String tempFilePath = context.getInitParameter("temp-file-upload");
+			String tempFileName = tempFilePath + "/f" +System.nanoTime();
 			File daFile = new File(tempFileName);
 			FileWriter fw = new FileWriter(daFile);
 			fw.write(output);
@@ -357,8 +357,8 @@ public class NameServer {
 	public Response generateTableFromCSV(@Context HttpServletRequest request) {
 
 		Uploader upload = new Uploader();
-		String folda = "C:\\\\Temp";
-		upload.setTempFilePath(folda); //is this always the case?
+		String tempFilePath = context.getInitParameter("temp-file-upload");
+		upload.setTempFilePath(tempFilePath); //is this always the case?
 		List<FileItem> fileItems = upload.processRequest(request);
 		
 		// Process the uploaded file items
@@ -367,7 +367,7 @@ public class NameServer {
 		String delimiter = "";
 		String dataFrameType = "";
 		
-		String tempFileName = folda + "/f" +System.nanoTime();
+		String tempFileName = tempFilePath + "/f" +System.nanoTime();
 		File daFile = new File(tempFileName);
 
 		try {
