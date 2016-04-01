@@ -26,6 +26,7 @@ import prerna.algorithm.api.ITableDataFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
+import prerna.poi.main.RDBMSEngineCreationHelper;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -80,8 +81,8 @@ public final class FormBuilder {
 	}
 
 	public static void deleteFromStaggingArea(IEngine formBuilderEng, String formName, String[] formIds) {
-		formName = cleanTableName(formName);
-		formName = escapeForSQLStatement(formName);
+		formName = RDBMSEngineCreationHelper.cleanTableName(formName);
+		formName = RDBMSEngineCreationHelper.escapeForSQLStatement(formName);
 		String idsString = createIdString(formIds);
 		String deleteQuery = "DELETE FROM " + formName + " WHERE ID IN " + idsString;
 		formBuilderEng.removeData(deleteQuery);
@@ -98,23 +99,6 @@ public final class FormBuilder {
 	}
 
 	/**
-	 * Remove all non alpha-numeric underscores from form name
-	 * @param s
-	 * @return
-	 */
-	public static String cleanTableName(String s) {
-		while(s.contains("  ")){
-			s = s.replace("  ", " ");
-		}
-		s = s.replaceAll(" ", "_");
-		return s.replaceAll("[^a-zA-Z0-9\\_]", "");
-	}
-
-	public static String escapeForSQLStatement(String s) {
-		return s.replaceAll("'", "''");
-	}
-	
-	/**
 	 * 
 	 * @param formData the stringified JSON of the form data to save
 	 * @param jsonLoc the file name and path
@@ -125,10 +109,10 @@ public final class FormBuilder {
 	 */
 	public static void saveForm(IEngine formBuilderEng, String formName, String formLocation) throws IOException {
 		// clean table name
-		formName = escapeForSQLStatement(formName);
-		String formStorage = cleanTableName(formName);
-		formStorage = escapeForSQLStatement(formStorage);
-		formLocation = escapeForSQLStatement(formLocation);
+		formName = RDBMSEngineCreationHelper.escapeForSQLStatement(formName);
+		String formStorage = RDBMSEngineCreationHelper.cleanTableName(formName);
+		formStorage = RDBMSEngineCreationHelper.escapeForSQLStatement(formStorage);
+		formLocation = RDBMSEngineCreationHelper.escapeForSQLStatement(formLocation);
 		// make sure table name doesn't exist
 		ITableDataFrame f2 = WrapperManager.getInstance().getSWrapper(formBuilderEng, "select count(*) from information_schema.tables where table_name = '" + formStorage + "'").getTableDataFrame(); 
 		if((Double)f2.getData().get(0)[0] != 0 ) {
@@ -157,7 +141,7 @@ public final class FormBuilder {
 		lastIdNum++;
 
 		String insertSql = "INSERT INTO " + formTableName + " (ID, USER_ID, DATE_ADDED, DATA) VALUES("
-				+ "'" + lastIdNum + "', '" + escapeForSQLStatement(userId) + "', '" + currTime + "', '" + escapeForSQLStatement(formData) + "')";
+				+ "'" + lastIdNum + "', '" + RDBMSEngineCreationHelper.escapeForSQLStatement(userId) + "', '" + currTime + "', '" + RDBMSEngineCreationHelper.escapeForSQLStatement(formData) + "')";
 		formBuilderEng.insertData(insertSql);
 	}
 
@@ -175,7 +159,7 @@ public final class FormBuilder {
 			user = engineHash.get("user").toString();
 		}
 		
-		String auditLogTableName = escapeForSQLStatement(cleanTableName(engine.getEngineName())).toUpperCase() + FormResource.AUDIT_FORM_SUFFIX;
+		String auditLogTableName = RDBMSEngineCreationHelper.escapeForSQLStatement(RDBMSEngineCreationHelper.cleanTableName(engine.getEngineName())).toUpperCase() + FormResource.AUDIT_FORM_SUFFIX;
 		IEngine formEng = (IEngine) DIHelper.getInstance().getLocalProp(FormResource.FORM_BUILDER_ENGINE_NAME);
 		// create audit table if doesn't exist
 		String checkTableQuery = "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='" + auditLogTableName + "'";
@@ -797,7 +781,7 @@ public final class FormBuilder {
 		String tableColumn;
 		String tableValue;
 		Map<String, Map<String, String>> nodeMapping = new HashMap<String, Map<String, String>>();
-		Map<String, Map<String, String>> tableColTypesHash = getExistingRDBMSStructure(engine);
+		Map<String, Map<String, String>> tableColTypesHash = RDBMSEngineCreationHelper.getExistingRDBMSStructure(engine);
 
 		List<String> tablesToRemoveDuplicates = new ArrayList<String>();
 		List<String> colsForTablesToRemoveDuplicates = new ArrayList<String>();
@@ -842,7 +826,7 @@ public final class FormBuilder {
 				types.add(colNamesAndType.get(propName.toUpperCase()));
 			}
 
-			if(override && conceptExists(engine, tableName, tableColumn, tableValue)) {
+			if(override && RDBMSEngineCreationHelper.conceptExists(engine, tableName, tableColumn, tableValue)) {
 				String updateQuery = createUpdateStatement(tableName, tableColumn, tableValue, propNames, propValues, types);
 				//TODO: need to enable modifying the actual instance name as opposed to only its properties.. this would set the updateQuery to never return back an empty string
 				if(!updateQuery.isEmpty()) {
@@ -1023,13 +1007,13 @@ public final class FormBuilder {
 	private static void addRDBMSRelationship(IEngine engine, String table, String conceptCol, String conceptVal, 
 			String foreignKeyCol, String foreignKeyVal, Map<String, Map<String, String>> tableColTypesHash) {
 		// if concept already exists, need to add in manner to preserve many-to-many relationship structure
-		if(conceptExists(engine, table, conceptCol, conceptVal)) {
+		if(RDBMSEngineCreationHelper.conceptExists(engine, table, conceptCol, conceptVal)) {
 			appendRDBMSRelationship(engine, table, conceptCol, conceptVal, foreignKeyCol, foreignKeyVal, tableColTypesHash);
 		} else {
 			// just perform an insert statement
 			StringBuilder queryBuilder = new StringBuilder();
 			queryBuilder.append("INSERT INTO ").append(table.toUpperCase()).append(" (" ).append(conceptCol).append(", ").append(foreignKeyCol)
-			.append(") VALUES ('").append(conceptVal).append("', '").append(foreignKeyCol).append("')");
+					.append(") VALUES ('").append(conceptVal).append("', '").append(foreignKeyCol).append("')");
 			engine.insertData(queryBuilder.toString());
 		}
 	}
@@ -1107,53 +1091,6 @@ public final class FormBuilder {
 		queryBuilder.setLength(0);
 	}
 
-	//TODO: need to make this generic for any rdbms engine
-	//TODO: need to expose what the rdbms type is such that we can use the SQLQueryUtil
-	private static Map<String, Map<String, String>> getExistingRDBMSStructure(IEngine rdbmsEngine) {
-		Map<String, Map<String, String>> retMap = new HashMap<String, Map<String, String>>();
-
-		// get all the tables names in the H2 database
-		String getAllTablesQuery = "SHOW TABLES FROM PUBLIC";
-		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(rdbmsEngine, getAllTablesQuery);
-		String[] names = wrapper.getVariables();
-		Set<String> tableNames = new HashSet<String>();
-		while(wrapper.hasNext()) {
-			ISelectStatement ss = wrapper.next();
-			String tableName = ss.getVar("TABLE_NAME") + "";
-			tableNames.add(tableName);
-		}
-
-		// get all the columns and their types for each table name
-		String defaultColTypesQuery = "SHOW COLUMNS FROM ";
-		for(String tableName : tableNames) {
-			String getAllColTypesQuery = defaultColTypesQuery + tableName;
-			wrapper = WrapperManager.getInstance().getSWrapper(rdbmsEngine, getAllColTypesQuery);
-			names = wrapper.getVariables();
-			Map<String, String> colTypeHash = new HashMap<String, String>();
-			while(wrapper.hasNext()) {
-				ISelectStatement ss = wrapper.next();
-				String colName = ss.getVar("COLUMN_NAME") + "";
-				String colType = ss.getVar("TYPE") + "";
-				colTypeHash.put(colName, colType);
-			}
-
-			// add the table name and column type for the table name
-			retMap.put(tableName, colTypeHash);
-		}
-
-		return retMap;
-	}
-
-	private static boolean conceptExists(IEngine engine, String tableName, String colName, String instanceValue) {
-		String query = "SELECT DISTINCT " + colName + " FROM " + tableName + " WHERE " + colName + "='" + escapeForSQLStatement(instanceValue) + "'";
-		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query);
-		String[] names = wrapper.getVariables();
-		while(wrapper.hasNext()) {
-			return true;
-		}
-		return false;
-	}
-
 	private static String createInsertStatement(String tableName, String tableColumn, String tableValue, List<String> propNames, List<Object> propValues, List<String> types) {
 		StringBuilder insertQuery = new StringBuilder();
 		insertQuery.append("INSERT INTO ");
@@ -1181,7 +1118,7 @@ public final class FormBuilder {
 				String type = types.get(i);
 				if(type.contains("VARCHAR")) {
 					insertQuery.append("'");
-					insertQuery.append(escapeForSQLStatement(propertyValue.toString()));
+					insertQuery.append(RDBMSEngineCreationHelper.escapeForSQLStatement(propertyValue.toString()));
 					insertQuery.append("'");
 				} else if(type.contains("INT") || type.contains("DECIMAL") || type.contains("DOUBLE") || type.contains("LONG") || type.contains("BIGINT")
 						|| type.contains("TINYINT") || type.contains("SMALLINT")){
@@ -1238,7 +1175,7 @@ public final class FormBuilder {
 			insertQuery.append("=");
 			if(type.contains("VARCHAR")) {
 				insertQuery.append("'");
-				insertQuery.append(escapeForSQLStatement(propertyValue.toString()));
+				insertQuery.append(RDBMSEngineCreationHelper.escapeForSQLStatement(propertyValue.toString()));
 				insertQuery.append("'");
 			} else if(type.contains("INT") || type.contains("DECIMAL") || type.contains("DOUBLE") || type.contains("LONG") || type.contains("BIGINT")
 					|| type.contains("TINYINT") || type.contains("SMALLINT")){
@@ -1286,12 +1223,12 @@ public final class FormBuilder {
 		if(formEng == null || auditLogTableName == null || auditLogTableName.isEmpty()) {
 			return;
 		}
-		user = escapeForSQLStatement(user);
-		startNode = escapeForSQLStatement(startNode);
-		relName = escapeForSQLStatement(relName);
-		endNode = escapeForSQLStatement(endNode);
-		propName = escapeForSQLStatement(propName);
-		propValue = escapeForSQLStatement(propValue);
+		user = RDBMSEngineCreationHelper.escapeForSQLStatement(user);
+		startNode = RDBMSEngineCreationHelper.escapeForSQLStatement(startNode);
+		relName = RDBMSEngineCreationHelper.escapeForSQLStatement(relName);
+		endNode = RDBMSEngineCreationHelper.escapeForSQLStatement(endNode);
+		propName = RDBMSEngineCreationHelper.escapeForSQLStatement(propName);
+		propValue = RDBMSEngineCreationHelper.escapeForSQLStatement(propValue);
 
 		String valuesBreak = "', '";
 		StringBuilder insertLogStatement = new StringBuilder("INSERT INTO ");
@@ -1304,7 +1241,7 @@ public final class FormBuilder {
 
 	public static Map<String, Object> getAuditDataForEngine(String engineName) {
 		Map<String, Object> retMap = new Hashtable<String, Object>();
-		String auditLogTableName = escapeForSQLStatement(cleanTableName(engineName)).toUpperCase() + FormResource.AUDIT_FORM_SUFFIX;
+		String auditLogTableName = RDBMSEngineCreationHelper.escapeForSQLStatement(RDBMSEngineCreationHelper.cleanTableName(engineName)).toUpperCase() + FormResource.AUDIT_FORM_SUFFIX;
 		IEngine formEng = (IEngine) DIHelper.getInstance().getLocalProp(FormResource.FORM_BUILDER_ENGINE_NAME);
 		
 		String query = "SELECT * FROM " + auditLogTableName;
