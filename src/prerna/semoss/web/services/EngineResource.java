@@ -913,7 +913,7 @@ public class EngineResource {
 		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 		QueryBuilderData data = new QueryBuilderData(dataHash);
 		QueryBuilderHelper.parsePath(data, this.coreEngine);
-		QueryStruct qs = data.getQueryStruct();
+		QueryStruct qs = data.getQueryStruct(false);
 
 		// Very simply, here is the logic:
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
@@ -927,18 +927,18 @@ public class EngineResource {
 		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, qs);
 		
 		// need to remove filter and add that as a pretransformation. Otherwise our metamodel data is not truly clean metamodel data
-//		Map<String, List<Object>> filters = data.getFilterData();
-//		
-//		if(filters != null){
-//			for(String filterCol : filters.keySet()){
-//				Map<String, Object> transProps = new HashMap<String, Object>();
-//				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, filterCol);
-//				transProps.put(FilterTransformation.VALUES_KEY, Utility.getTransformedNodeNamesList(this.coreEngine, filters.get(filterCol), false));
-//				ISEMOSSTransformation filterTrans = new FilterTransformation();
-//				filterTrans.setProperties(transProps);
-//				dmc.addPreTrans(filterTrans);
-//			}
-//		}
+		Map<String, List<Object>> filters = data.getFilterData();
+		
+		if(filters != null){
+			for(String filterCol : filters.keySet()){
+				Map<String, Object> transProps = new HashMap<String, Object>();
+				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, filterCol);
+				transProps.put(FilterTransformation.VALUES_KEY, Utility.getTransformedNodeNamesList(this.coreEngine, filters.get(filterCol), false));
+				ISEMOSSTransformation filterTrans = new FilterTransformation();
+				filterTrans.setProperties(transProps);
+				dmc.addPreTrans(filterTrans);
+			}
+		}
 
 		ISEMOSSTransformation joinTrans = null;
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
@@ -1137,7 +1137,7 @@ public class EngineResource {
 		data.setVarReturnOrder(newConcept, 0);
 		data.setLimitReturnToVarsList(true);
 		QueryBuilderHelper.parsePath(data, this.coreEngine);
-		QueryStruct qs = data.getQueryStruct();
+		QueryStruct qs = data.getQueryStruct(true);
 
 		// Very simply, here is the logic:
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
