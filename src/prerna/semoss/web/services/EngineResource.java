@@ -1437,9 +1437,15 @@ public class EngineResource {
     public Response getConceptProperties(@QueryParam("nodeUri") String nodeUri, @Context HttpServletRequest request)
     {
            logger.info("Getting properties for node : " + nodeUri);
-           List<String> props = this.coreEngine.getProperties4Concept(nodeUri, true);
+           List<String> uriProps = this.coreEngine.getProperties4Concept(nodeUri, false);
+           Map<String, String> retMap = new HashMap<String, String>();
+			// need to go through each one and translate
+			for(String uriProp : uriProps){
+				String logicalName = this.coreEngine.getTransformedNodeName(uriProp, true);
+				retMap.put(logicalName, Utility.getInstanceName(uriProp));
+			}
            
-           return Response.status(200).entity(WebUtility.getSO(props)).build();
+           return Response.status(200).entity(WebUtility.getSO(retMap)).build();
     }
 
 }
