@@ -33,6 +33,7 @@ import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
 import prerna.ds.TinkerFrame;
+import prerna.ds.TinkerMetaData;
 import prerna.equation.EquationSolver;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
@@ -394,10 +395,12 @@ public class DataframeResource {
 		List<Map<String, String>> tableHeaders = new ArrayList<Map<String, String>>();
 		String[] columnHeaders = table.getColumnHeaders();
 		String[] uriKeys = table.getURIColumnHeaders();
+		Map<String, String> typeMap = ((TinkerMetaData) table.getMetaData()).getNodeTypesForUniqueAlias();
 		for(int i = 0; i < columnHeaders.length; i++) {
 			Map<String, String> innerMap = new HashMap<String, String>();
 			innerMap.put("uri", uriKeys[i]);
 			innerMap.put("varKey", columnHeaders[i]);
+			innerMap.put("type", typeMap.get(columnHeaders[i]));
 			tableHeaders.add(innerMap);
 		}
 
