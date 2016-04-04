@@ -910,10 +910,12 @@ public class EngineResource {
 	{
 		equivConcept = Utility.getInstanceName(equivConcept);
 		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-		QueryBuilderData data = new QueryBuilderData(dataHash);
-		QueryBuilderHelper.parsePath(data, this.coreEngine);
-		QueryStruct qs = data.getQueryStruct(false);
+//		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+//		QueryBuilderData data = new QueryBuilderData(dataHash);
+//		QueryBuilderHelper.parsePath(data, this.coreEngine);
+//		QueryStruct qs = data.getQueryStruct(false);
+		
+		QueryStruct qs = gson.fromJson(form.getFirst("QueryData"), new QueryStruct().getClass());
 
 		// Very simply, here is the logic:
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
@@ -927,18 +929,18 @@ public class EngineResource {
 		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, qs);
 		
 		// need to remove filter and add that as a pretransformation. Otherwise our metamodel data is not truly clean metamodel data
-		Map<String, List<Object>> filters = data.getFilterData();
+//		Map<String, List<Object>> filters = data.getFilterData();
 		
-		if(filters != null){
-			for(String filterCol : filters.keySet()){
-				Map<String, Object> transProps = new HashMap<String, Object>();
-				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, filterCol);
-				transProps.put(FilterTransformation.VALUES_KEY, Utility.getTransformedNodeNamesList(this.coreEngine, filters.get(filterCol), false));
-				ISEMOSSTransformation filterTrans = new FilterTransformation();
-				filterTrans.setProperties(transProps);
-				dmc.addPreTrans(filterTrans);
-			}
-		}
+//		if(filters != null){
+//			for(String filterCol : filters.keySet()){
+//				Map<String, Object> transProps = new HashMap<String, Object>();
+//				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, filterCol);
+//				transProps.put(FilterTransformation.VALUES_KEY, Utility.getTransformedNodeNamesList(this.coreEngine, filters.get(filterCol), false));
+//				ISEMOSSTransformation filterTrans = new FilterTransformation();
+//				filterTrans.setProperties(transProps);
+//				dmc.addPreTrans(filterTrans);
+//			}
+//		}
 
 		ISEMOSSTransformation joinTrans = null;
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
@@ -1189,12 +1191,12 @@ public class EngineResource {
 		ArrayList<Object> retList = new ArrayList<Object>();
 		while (wrap.hasNext()) {
 			ISelectStatement iss = wrap.next();
-			Object value = iss.getRawVar(displayNames[0]);
-			if (value instanceof BigdataURI) {
-				retList.add(((BigdataURI) value).stringValue());
-			} else {
+			Object value = iss.getVar(displayNames[0]);
+//			if (value instanceof BigdataURI) {
+//				retList.add(((BigdataURI) value).stringValue());
+//			} else {
 				retList.add(value);//retList.add(iss.getVar(newNames[index]));
-			}
+//			}
 		}
 
 		// put everything into InstanceStreamer object
