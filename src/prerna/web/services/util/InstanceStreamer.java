@@ -93,7 +93,7 @@ public class InstanceStreamer {
 		int mid = lo + ((hi - lo) / 2);
 
 		// use .getInstanceName() to strip URI
-		String middleTerm = Utility.getInstanceName(list.get(mid).toString()).toLowerCase();
+		String middleTerm = list.get(mid).toString().toLowerCase();
 
 		if (middleTerm.indexOf(searchTerm) == 0) {
 			return mid;         
@@ -125,14 +125,14 @@ public class InstanceStreamer {
 		if (firstIndex != -1) {
 			results.add(list.get(firstIndex).toString()); // add first value
 			for (int i = firstIndex-1; i >= 0; i--) {     // add all relevant values to the left
-				String value = Utility.getInstanceName(list.get(i).toString()).toLowerCase();
+				String value = list.get(i).toString().toLowerCase();
 				if (value.contains(searchTerm)) {
 					results.add(list.get(i).toString());
 				}
 				else break;
 			}
 			for (int i = firstIndex+1; i < size; i++) {   // add all relevant values to the right
-				String value = Utility.getInstanceName(list.get(i).toString()).toLowerCase();
+				String value = list.get(i).toString().toLowerCase();
 				if (value.contains(searchTerm)) {
 					results.add(list.get(i).toString());
 				}
@@ -157,7 +157,7 @@ public class InstanceStreamer {
 		ArrayList<Object> results = new ArrayList<Object>();
 
 		for (int i = 0; i < list.size(); i++) {
-			String value = Utility.getInstanceName(list.get(i).toString()).toLowerCase();
+			String value = list.get(i).toString().toLowerCase();
 			if (value.contains(searchTerm)) {
 				results.add(list.get(i).toString());
 			}
