@@ -56,6 +56,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
+import org.openrdf.model.vocabulary.RDFS;
 
 import com.bigdata.rdf.model.BigdataURI;
 import com.google.gson.Gson;
@@ -63,10 +64,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
-import prerna.ds.QueryStruct;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.cache.CacheFactory;
+import prerna.ds.QueryStruct;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.ISelectStatement;
@@ -75,6 +76,7 @@ import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
 import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
+import prerna.nameserver.ConnectedConcepts;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -90,7 +92,6 @@ import prerna.solr.SolrDocumentExportWriter;
 import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
-import prerna.ui.components.playsheets.datamakers.FilterTransformation;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.JoinTransformation;
 import prerna.ui.helpers.InsightCreateRunner;
@@ -98,7 +99,6 @@ import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
 import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
 import prerna.util.ArrayUtilityMethods;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.InMemoryHash;
@@ -223,14 +223,81 @@ public class EngineResource {
 	@Produces("application/json")
 	public Response getNeighbors(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
 	{
-		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
-		if(coreEngine instanceof AbstractEngine){
-			Vector<String> downNodes = ((AbstractEngine) coreEngine).getToNeighbors(type, 0);
-			finalTypes.put("downstream", downNodes);
-			Vector<String> upNodes = ((AbstractEngine) coreEngine).getFromNeighbors(type, 0);
-			finalTypes.put("upstream", upNodes);
-		} 
-		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
+		String dataType = Constants.DISPLAY_URI + Utility.getInstanceName(type);
+		String physicalNodeType = coreEngine.getTransformedNodeName(dataType, false);
+		IEngine baseDb = ((AbstractEngine) coreEngine).getBaseDataEngine();
+		
+		String upQuery = "SELECT DISTINCT ?rel (COALESCE(?display, ?node) AS ?Display) WHERE { BIND(<" + physicalNodeType + "> AS ?start) {?rel <" + RDFS.SUBPROPERTYOF + "> <http://semoss.org/ontologies/Relation>} "
+				+ "{?node ?rel ?start} OPTIONAL{?node <http://semoss.org/ontologies/DisplayName> ?display } }";
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(baseDb, upQuery);
+		String[] names = wrapper.getDisplayVariables();
+		
+		Map<String, Map<String, String>> upResultsMap = new Hashtable<String, Map<String, String>>();
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			String relUri = ss.getRawVar(names[0]) + "";
+			// ignore base relation
+			if(relUri.equals("http://semoss.org/ontologies/Relation")) {
+				continue;
+			}
+			String nodeUri = ss.getRawVar(names[1]) + "";
+			String node = ss.getVar(names[1]) + "";
+			
+			Map<String, String> nodeMap;
+			if(upResultsMap.containsKey(relUri)) {
+				nodeMap = upResultsMap.get(relUri);
+			} else {
+				nodeMap = new Hashtable<String, String>();
+				upResultsMap.put(relUri, nodeMap);
+			}
+			nodeMap.put(nodeUri, node);
+		}
+		
+		String downQuery = "SELECT DISTINCT ?rel (COALESCE(?display, ?node) AS ?Display) WHERE { BIND(<" + physicalNodeType + "> AS ?start) {?rel <" + RDFS.SUBPROPERTYOF + "> <http://semoss.org/ontologies/Relation>}"
+				+ " {?start ?rel ?node} OPTIONAL{?node <http://semoss.org/ontologies/DisplayName> ?display } }";
+		wrapper = WrapperManager.getInstance().getSWrapper(baseDb, downQuery);
+		names = wrapper.getDisplayVariables();
+		
+		Map<String, Map<String, String>> downResultsMap = new Hashtable<String, Map<String, String>>();
+		while(wrapper.hasNext()) {
+			ISelectStatement ss = wrapper.next();
+			String relUri = ss.getRawVar(names[0]) + "";
+			// ignore base relation
+			if(relUri.equals("http://semoss.org/ontologies/Relation")) {
+				continue;
+			}
+			String nodeUri = ss.getRawVar(names[1]) + "";
+			String node = ss.getVar(names[1]) + "";
+			
+			Map<String, String> nodeMap;
+			if(downResultsMap.containsKey(relUri)) {
+				nodeMap = downResultsMap.get(relUri);
+			} else {
+				nodeMap = new Hashtable<String, String>();
+				downResultsMap.put(relUri, nodeMap);
+			}
+			nodeMap.put(nodeUri, node);
+		}
+		
+		
+		Map<String, Object> relMap = new Hashtable<String, Object>();
+		relMap.put("upstream", upResultsMap);
+		relMap.put("downstream", downResultsMap);
+
+		ConnectedConcepts combineResults = new ConnectedConcepts();
+		combineResults.addData(coreEngine.getEngineName(), dataType, Utility.getInstanceName(physicalNodeType), relMap);
+		combineResults.addSimilarity(coreEngine.getEngineName(), dataType, 1);
+		
+		
+		// CANNOT USE BELOW SINCE FE EXPECTS INFORMATION IN FORMAT COMPATABLE WITH GOING THROUGH LOCAL MASTER
+//		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
+//		if(coreEngine instanceof AbstractEngine){
+//			Vector<String> downNodes = ((AbstractEngine) coreEngine).getToNeighbors(type, 0);
+//			finalTypes.put("downstream", downNodes);
+//			Vector<String> upNodes = ((AbstractEngine) coreEngine).getFromNeighbors(type, 0);
+//			finalTypes.put("upstream", upNodes);
+//		} 
+		return Response.status(200).entity(WebUtility.getSO(combineResults.getData())).build();
 	}
 
 	//	//gets all node types connected to a given node type along with the verbs connecting the given types
