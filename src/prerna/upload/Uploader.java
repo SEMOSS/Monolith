@@ -88,6 +88,7 @@ import prerna.poi.main.ExcelPropFileBuilder;
 import prerna.rdf.main.ImportRDBMSProcessor;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
+import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
@@ -1138,26 +1139,69 @@ public class Uploader extends HttpServlet {
 		return s.replaceAll(" ", "_");
 	}
 	
-	public String generateTableFromJSON(String dataStr, String delimiter, String dataFrameType) {
+	/**
+	 * Create a data frame based on a file
+	 * @param request
+	 * @return
+	 */
+	public String generateTableFromFile(@Context HttpServletRequest request) {
+		List<FileItem> fileItems = processRequest(request);
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = getInputData(fileItems);
+		
+		String fileName = inputData.get("file");
+		String delimiter = inputData.get("delimiter");
+		String dataFrameType = inputData.get("dataFrameType");
 		// generate tinker frame from 
-		if(delimiter == null || delimiter.isEmpty()) {
+		if(inputData.get("delimiter") == null || inputData.get("delimiter").isEmpty()) {
 			delimiter = "\t";
 		}
-		ITableDataFrame table = TableDataFrameFactory.generateDataFrameFromFile(dataStr, delimiter, dataFrameType);
+		if(inputData.get("dataFrameType") == null || inputData.get("dataFrameType").isEmpty()) {
+			dataFrameType = "H2";
+		}
+	
+		IDataMaker table = TableDataFrameFactory.generateDataFrameFromFile(fileName, delimiter, dataFrameType);
 		String dataFrame;
 		if(dataFrameType.equalsIgnoreCase("H2")) {
 			dataFrame = "TinkerH2Frame";
 		} else {
 			dataFrame = "TinkerFrame";
 		}
-		Insight in = new Insight(null, dataFrame, "Grid");
+		return generateInsight(table, dataFrame);
+	}
+	
+	/**
+	 * Create a data frame based on copy/paste
+	 * @param dataStr
+	 * @param delimiter
+	 * @param dataFrameType
+	 * @return
+	 */
+	public String generateTableFromFile(String dataStr, String delimiter, String dataFrameType) {
+		// generate tinker frame from 
+		if(delimiter == null || delimiter.isEmpty()) {
+			delimiter = "\t";
+		}
+		IDataMaker table = TableDataFrameFactory.generateDataFrameFromFile(dataStr, delimiter, dataFrameType);
+		String dataFrame;
+		if(dataFrameType.equalsIgnoreCase("H2")) {
+			dataFrame = "TinkerH2Frame";
+		} else {
+			dataFrame = "TinkerFrame";
+		}
+		return generateInsight(table, dataFrame);
+	}
+	
+	private String generateInsight(IDataMaker dm, String dataMakerName) {
+		Insight in = new Insight(null, dataMakerName, "Grid");
 		DataMakerComponent dmc = new DataMakerComponent(""); //dmc currently doesn't have a location since it is not saved yet
 		Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
 		dmcList.add(dmc);
 		in.setDataMakerComponents(dmcList);
-		in.setDataMaker(table);
+		in.setDataMaker(dm);
 		in.setIsNonDbInsight(true);
 		String insightId = InsightStore.getInstance().put(in);
 		return insightId;
 	}
+	
 }
