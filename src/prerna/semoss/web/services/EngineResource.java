@@ -1519,7 +1519,7 @@ public class EngineResource {
            Map<String, Object> retMap = new HashMap<String, Object>();
            retMap.put("props", propMap);
            retMap.put("myPhysicalName", Utility.getInstanceName(this.coreEngine.getTransformedNodeName(nodeUri, false)));
-           return Response.status(200).entity(WebUtility.getSO(propMap)).build();
+           return Response.status(200).entity(WebUtility.getSO(retMap)).build();
     }
 
 }
