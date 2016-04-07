@@ -39,12 +39,9 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.Vector;
 
 import javax.servlet.ServletContext;
@@ -63,12 +60,14 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import org.apache.commons.fileupload.FileItem;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocumentList;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import prerna.cache.CacheFactory;
 import prerna.cache.InsightCache;
@@ -99,9 +98,6 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 @Path("/engine")
 public class NameServer {
@@ -330,6 +326,7 @@ public class NameServer {
 		return upload;
 	}
 	
+	//TODO: change to generateTableFromText
 	@POST
 	@Path("central/context/generateTableFromJSON")
 	public Response generateTableFromJSON(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
@@ -343,7 +340,7 @@ public class NameServer {
 			fw.write(output);
 			fw.close();
 			daFile.deleteOnExit();
-			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(tempFileName, form.getFirst("delimiter"), form.getFirst("dataFrameType")))).build();
+			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromFile(tempFileName, form.getFirst("delimiter"), form.getFirst("dataFrameType")))).build();
 		} catch(Exception e) {
 			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
@@ -352,66 +349,23 @@ public class NameServer {
 		}
 	}
 	
+	//TODO: change to generateTableFromFILE
 	@POST
 	@Path("central/context/generateTableFromCSV")
 	public Response generateTableFromCSV(@Context HttpServletRequest request) {
-
 		Uploader upload = new Uploader();
+		String filePath = context.getInitParameter("file-upload");
+		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
-		upload.setTempFilePath(tempFilePath); //is this always the case?
-		List<FileItem> fileItems = upload.processRequest(request);
-		
-		// Process the uploaded file items
-		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
-		String csvData = "";
-		String delimiter = "";
-		String dataFrameType = "";
-		
-		String tempFileName = tempFilePath + "/f" +System.nanoTime();
-		File daFile = new File(tempFileName);
-
+		upload.setTempFilePath(tempFilePath);
 		try {
-			
-			while(iteratorFileItems.hasNext()) 
-			{
-				FileItem fi = (FileItem) iteratorFileItems.next();
-				// Get the uploaded file parameters
-				String fieldName = fi.getFieldName();
-				String fileName = fi.getName();
-				String value = fi.getString();
-				
-				if (!fi.isFormField()) {
-					if(fileName.equals("")) {
-						continue;
-					}
-					else {
-						if(fieldName.equals("file") || fieldName.equals("mapFile") || fieldName.equals("questionFile")) {
-							
-							upload.writeFile(fi, daFile);
-							daFile.deleteOnExit(); // need to revisit this once we have lazy load done
-							csvData = value;
-						} 
-					}
-				} else {
-					if(fieldName.equals("delimiter")) {
-						delimiter = value;
-					} else if(fieldName.equals("dataFrameType")){
-						dataFrameType = value;
-					}
-				}
-			}
-			
-			
-			//return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(csvData, delimiter, dataFrameType))).build();
-			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromJSON(tempFileName, delimiter, dataFrameType))).build();
-			
+			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromFile(request))).build();
 		} catch(Exception e) {
 			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "Error processing new data");
 			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 		}
-
 	}
 	
 	// central call to store an engine in the master db
