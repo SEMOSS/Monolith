@@ -30,8 +30,10 @@ package prerna.semoss.web.services;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.net.URLEncoder;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -60,13 +62,22 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocumentList;
+import org.jsoup.Jsoup;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
 import com.google.gson.Gson;
+import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.cache.CacheFactory;
@@ -971,5 +982,56 @@ public class NameServer {
 		output = output + "</body></html>";
 		return WebUtility.getSO(output);
 	}
-
+	
+	/**
+	 * Executes search on MediaWiki/Wikipedia for a given search term and returns the top results.
+	 * 
+	 * @param searchTerm	Search term to be queried against endpoint
+	 * @return	ret			Map<ProductOntology URL, Short description of entity>
+	 */
+	@GET
+	@Path("mediawiki/tags")
+	@Produces("application/json")
+	public StreamingOutput getMediaWikiTagsForSearchTerm(@QueryParam("searchTerm") String searchTerm, @QueryParam("numResults") int numResults) {
+		String MEDAWIKI_ENDPOINT = "https://en.wikipedia.org/w/api.php?action=query&srlimit=" + numResults + "&list=search&format=json&utf8=1&srprop=snippet&srsearch=";
+		String PRODUCT_ONTOLOGY_PREFIX = "http://www.productontology.org/id/";
+		StringMap<String> ret = new StringMap<String>();
+		
+		if(searchTerm != null && !searchTerm.isEmpty()) {
+			try {
+				CloseableHttpClient httpClient = null;
+				CloseableHttpResponse response = null;
+				try {
+					httpClient = HttpClients.createDefault();
+					HttpGet http = new HttpGet(MEDAWIKI_ENDPOINT + URLEncoder.encode(searchTerm));
+					response = httpClient.execute(http);
+	
+					HttpEntity entity = response.getEntity();
+					if (entity != null) {
+						InputStream is = entity.getContent();
+						if (is != null) {
+							String resp = EntityUtils.toString(entity);
+							Gson gson = new Gson();
+							HashMap<String, StringMap<List<StringMap<String>>>> k = gson.fromJson(resp, HashMap.class);;
+							List<StringMap<String>> mapsList = (List<StringMap<String>>)k.get("query").get("search");
+	
+							for(StringMap<String> s : mapsList) {
+								ret.put(PRODUCT_ONTOLOGY_PREFIX + s.get("title"), Jsoup.parse(s.get("snippet")).text());
+							}
+						}
+					}
+				} catch (ClientProtocolException e) {
+					e.printStackTrace();
+				} finally {
+					httpClient.close();
+					response.close();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		return WebUtility.getSO(ret);
+	}
+	
 }
