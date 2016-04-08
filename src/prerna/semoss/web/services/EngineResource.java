@@ -744,7 +744,6 @@ public class EngineResource {
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
 				
-				tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), in.getInsightID(), session.getId());
 				return Response.status(200).entity(WebUtility.getSO(obj)).build();
 			}
 			else{
