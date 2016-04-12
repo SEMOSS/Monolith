@@ -1051,6 +1051,13 @@ public class EngineResource {
 		System.err.println("Finished processing component: " + (System.currentTimeMillis() - startJoinTime) + " ms");
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("insightID", insightID);
+		
+		//get the last added column
+		ITableDataFrame df = (ITableDataFrame) insight.getDataMaker();
+		String[] headerList = df.getColumnHeaders();
+		String lastAddedColumn = headerList[headerList.length - 1];
+		
+		retMap.put("logicalName", lastAddedColumn);
 		if(joinTrans==null) {
 			retMap.put("stepID", dmc.getId());
 		} else {
