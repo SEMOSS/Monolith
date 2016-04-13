@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
@@ -137,7 +138,7 @@ public class FileUploader extends Uploader{
 					String[] types = helper.predictRowTypes(sheetName);
 					String[] headers = helper.getHeaders(sheetName);
 					
-					Map<String, String> headerTypes = new Hashtable<String, String>();
+					Map<String, String> headerTypes = new LinkedHashMap<String, String>();
 					for(int j = 0; j < headers.length; j++) {
 						headerTypes.put(headers[j], getCleanDataType(types[j]));
 					}
@@ -157,7 +158,7 @@ public class FileUploader extends Uploader{
 				String [] headers = helper.getHeaders();
 				String [] types = helper.predictTypes();
 				
-				Map<String, String> headerTypes = new Hashtable<String, String>();
+				Map<String, String> headerTypes = new LinkedHashMap<String, String>();
 				for(int j = 0; j < headers.length; j++) {
 					headerTypes.put(headers[j], getCleanDataType(types[j]));
 				}
