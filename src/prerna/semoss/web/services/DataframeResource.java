@@ -34,6 +34,7 @@ import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
 import prerna.ds.TinkerFrame;
 import prerna.ds.TinkerMetaData2;
+import prerna.ds.H2.TinkerH2Frame;
 import prerna.equation.EquationSolver;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
@@ -575,10 +576,15 @@ public class DataframeResource {
 	@Produces("application/json")
 	public Response saveAsFlatDatabase(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
 	{
-		
-		
-		
-		return Response.status(200).entity(WebUtility.getSO("")).build();
+		IDataMaker dm = insight.getDataMaker();
+		if(dm instanceof TinkerFrame || dm instanceof TinkerH2Frame) {
+			Map<String, Object> output = dm.getDataMakerOutput();
+			List<Object[]> data = (List<Object[]>) output.get("data");
+			
+			return Response.status(200).entity(WebUtility.getSO("New engine is called ")).build();
+		} else {
+			return Response.status(400).entity(WebUtility.getSO("This insight cannot be saved as a flat table")).build();
+		}
 	}
 
     //for handling playsheet specific tool calls
