@@ -103,6 +103,8 @@ import prerna.solr.SolrIndexEngineQueryBuilder;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.helpers.InsightCreateRunner;
+import prerna.upload.DatabaseUploader;
+import prerna.upload.FileUploader;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -326,9 +328,9 @@ public class NameServer {
 	}
 
 	// uploader functionality
-	@Path("/insight/upload")
-	public Object uploadFile(@Context HttpServletRequest request) {
-		Uploader upload = new Uploader();
+	@Path("/uploadDatabase")
+	public Uploader uploadDatabase(@Context HttpServletRequest request) {
+		Uploader upload = new DatabaseUploader();
 		String filePath = context.getInitParameter("file-upload");
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
@@ -337,46 +339,15 @@ public class NameServer {
 		return upload;
 	}
 	
-	//TODO: change to generateTableFromText
-	@POST
-	@Path("central/context/generateTableFromJSON")
-	public Response generateTableFromJSON(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		Uploader upload = new Uploader();
-		try {
-			String output = form.getFirst("jsonString");
-			String tempFilePath = context.getInitParameter("temp-file-upload");
-			String tempFileName = tempFilePath + "/f" +System.nanoTime();
-			File daFile = new File(tempFileName);
-			FileWriter fw = new FileWriter(daFile);
-			fw.write(output);
-			fw.close();
-			daFile.deleteOnExit();
-			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromFile(tempFileName, form.getFirst("delimiter"), form.getFirst("dataFrameType")))).build();
-		} catch(Exception e) {
-			e.printStackTrace();
-			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Error processing new data");
-			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
-		}
-	}
-	
-	//TODO: change to generateTableFromFILE
-	@POST
-	@Path("central/context/generateTableFromCSV")
-	public Response generateTableFromCSV(@Context HttpServletRequest request) {
-		Uploader upload = new Uploader();
+	@Path("/uploadFile")
+	public Uploader uploadFile(@Context HttpServletRequest request) {
+		Uploader upload = new FileUploader();
 		String filePath = context.getInitParameter("file-upload");
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
-		try {
-			return Response.status(200).entity(WebUtility.getSO(upload.generateTableFromFile(request))).build();
-		} catch(Exception e) {
-			e.printStackTrace();
-			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Error processing new data");
-			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
-		}
+		upload.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
+		return upload;
 	}
 	
 	// central call to store an engine in the master db
