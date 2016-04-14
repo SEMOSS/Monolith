@@ -223,15 +223,19 @@ public class EngineResource {
 	@Produces("application/json")
 	public Response getNeighbors(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
 	{
-		String dataType = Constants.DISPLAY_URI + Utility.getInstanceName(type);
+		String dataType = type;
+		if(!dataType.contains("http://")){
+			dataType = Constants.DISPLAY_URI + Utility.cleanString(type, true);
+		}
+
 		String physicalNodeType = coreEngine.getTransformedNodeName(dataType, false);
 		IEngine baseDb = ((AbstractEngine) coreEngine).getBaseDataEngine();
-		
+
 		String upQuery = "SELECT DISTINCT ?rel (COALESCE(?display, ?node) AS ?Display) WHERE { BIND(<" + physicalNodeType + "> AS ?start) {?rel <" + RDFS.SUBPROPERTYOF + "> <http://semoss.org/ontologies/Relation>} "
 				+ "{?node ?rel ?start} OPTIONAL{?node <http://semoss.org/ontologies/DisplayName> ?display } }";
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(baseDb, upQuery);
 		String[] names = wrapper.getDisplayVariables();
-		
+
 		Map<String, Map<String, String>> upResultsMap = new Hashtable<String, Map<String, String>>();
 		while(wrapper.hasNext()) {
 			ISelectStatement ss = wrapper.next();
@@ -1507,25 +1511,25 @@ public class EngineResource {
 	//	}
 
 	@GET
-    @Path("conceptProperties")
-    @Produces("application/json")
-    public Response getConceptProperties(@QueryParam("nodeUri") String nodeUri, @Context HttpServletRequest request)
-    {
-           logger.info("Getting properties for node : " + nodeUri);
-           if(!nodeUri.contains("http://")){
-        	   nodeUri = Constants.DISPLAY_URI + nodeUri;
-   			}
-           List<String> uriProps = this.coreEngine.getProperties4Concept(nodeUri, false);
-           Map<String, String> propMap = new HashMap<String, String>();
-			// need to go through each one and translate
-			for(String uriProp : uriProps){
-				String logicalName = this.coreEngine.getTransformedNodeName(uriProp, true);
-				propMap.put(logicalName, Utility.getInstanceName(uriProp));
-			}
-           Map<String, Object> retMap = new HashMap<String, Object>();
-           retMap.put("props", propMap);
-           retMap.put("myPhysicalName", Utility.getInstanceName(this.coreEngine.getTransformedNodeName(nodeUri, false)));
-           return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-    }
+	@Path("conceptProperties")
+	@Produces("application/json")
+	public Response getConceptProperties(@QueryParam("nodeUri") String nodeUri, @Context HttpServletRequest request)
+	{
+		logger.info("Getting properties for node : " + nodeUri);
+		if(!nodeUri.contains("http://")){
+			nodeUri = Constants.DISPLAY_URI + Utility.cleanString(nodeUri, true);
+		}
+		List<String> uriProps = this.coreEngine.getProperties4Concept(nodeUri, false);
+		Map<String, String> propMap = new HashMap<String, String>();
+		// need to go through each one and translate
+		for(String uriProp : uriProps){
+			String logicalName = this.coreEngine.getTransformedNodeName(uriProp, true);
+			propMap.put(logicalName, Utility.getInstanceName(uriProp));
+		}
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		retMap.put("props", propMap);
+		retMap.put("myPhysicalName", Utility.getInstanceName(this.coreEngine.getTransformedNodeName(nodeUri, false)));
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
 
 }
