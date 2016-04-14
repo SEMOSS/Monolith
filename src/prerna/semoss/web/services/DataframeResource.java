@@ -259,7 +259,7 @@ public class DataframeResource {
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
-		Object[] returnFilterModel = ((TinkerFrame)mainTree).getFilterModel();
+		Object[] returnFilterModel = ((ITableDataFrame)mainTree).getFilterModel();
 //		((BTreeDataFrame)mainTree).printTree();
 		retMap.put("unfilteredValues", returnFilterModel[0]);
 		retMap.put("filteredValues", returnFilterModel[1]);
