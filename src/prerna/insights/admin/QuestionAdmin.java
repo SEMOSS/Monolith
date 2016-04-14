@@ -662,7 +662,7 @@ public class QuestionAdmin {
 				PARAM_TYPE_LOOP : for(String node : nodes.keySet()) {
 
 					Map<String, Object> nodeMap = (Map<String, Object>) nodes.get(node);
-					if(nodeMap.get("uri").equals(paramName)) {
+					if(node.equals(paramName)) {
 						if(nodeMap.containsKey("prop")){
 							paramParent = ((ITableDataFrame)insight.getDataMaker()).getPhysicalUriForNode(nodeMap.get("prop") + "", this.coreEngine.getEngineName());
 						}
