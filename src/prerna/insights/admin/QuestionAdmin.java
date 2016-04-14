@@ -677,7 +677,11 @@ public class QuestionAdmin {
 					// the uri on rdbms is always in the form /Concept/Column/Table
 //					String rdbmsType = Utility.getInstanceName(paramURI)+":"+Utility.getClassName(paramURI);  // THIS WILL BE TAKEN CARE OF IN THE ENGINE. we need the physical uri as the type to know which component is involved in question administrator
 					p.setType(paramURI);
-					p.setName(paramName);
+					if(paramParent != null) {
+						p.setName(Utility.getInstanceName(paramParent) + "__" + paramName);
+					} else {
+						p.setName(paramName);
+					}
 				} else {
 					p.setName(paramName);
 					p.setType(paramURI);
