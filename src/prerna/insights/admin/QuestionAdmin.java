@@ -58,7 +58,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import prerna.algorithm.api.IMetaData;
+import prerna.algorithm.api.ITableDataFrame;
 import prerna.cache.CacheFactory;
 import prerna.cache.InsightCache;
 import prerna.ds.TinkerFrame;
@@ -647,7 +647,7 @@ public class QuestionAdmin {
 	 */
 	private List<SEMOSSParam> buildParameterList(Insight insight, Vector<Map<String, String>> paramMapList) {
 		Map<String, Object> metamodelData = insight.getInsightMetaModel();
-		IMetaData metaData = insight.getMetaData();
+//		IMetaData metaData = insight.getMetaData();
 		List<SEMOSSParam> params = new Vector<SEMOSSParam>();
 		if(paramMapList != null && !paramMapList.isEmpty()) {
 			for(Map<String, String> paramMap : paramMapList) {
@@ -664,7 +664,7 @@ public class QuestionAdmin {
 					Map<String, Object> nodeMap = (Map<String, Object>) nodes.get(node);
 					if(nodeMap.get("uri").equals(paramName)) {
 						if(nodeMap.containsKey("prop")){
-							paramParent = metaData.getPhysicalUriForNode(nodeMap.get("prop") + "", this.coreEngine.getEngineName());
+							paramParent = ((ITableDataFrame)insight.getDataMaker()).getPhysicalUriForNode(nodeMap.get("prop") + "", this.coreEngine.getEngineName());
 						}
 						break PARAM_TYPE_LOOP;
 					}

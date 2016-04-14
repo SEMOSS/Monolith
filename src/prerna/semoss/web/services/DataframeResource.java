@@ -391,22 +391,10 @@ public class DataframeResource {
 	@Produces("application/json")
 	public Response getTableHeaders() {
 		Map<String, Object> retMap = new HashMap<String, Object>();
+
 		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();	
-
-		List<Map<String, String>> tableHeaders = new ArrayList<Map<String, String>>();
-		String[] columnHeaders = table.getColumnHeaders();
-		String[] uriKeys = table.getURIColumnHeaders();
-		Map<String, String> typeMap = ((TinkerMetaData2) table.getMetaData()).getNodeTypesForUniqueAlias();
-		for(int i = 0; i < columnHeaders.length; i++) {
-			Map<String, String> innerMap = new HashMap<String, String>();
-			innerMap.put("uri", uriKeys[i]);
-			innerMap.put("varKey", columnHeaders[i]);
-			innerMap.put("type", typeMap.get(columnHeaders[i]));
-			tableHeaders.add(innerMap);
-		}
-
 		retMap.put("insightID", insight.getInsightID());
-		retMap.put("tableHeaders", tableHeaders);
+		retMap.put("tableHeaders", table.getTableHeaderObjects());
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
