@@ -1,7 +1,6 @@
 package prerna.semoss.web.services;
 
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,13 +32,13 @@ import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
 import prerna.ds.TinkerFrame;
-import prerna.ds.TinkerMetaData2;
 import prerna.ds.H2.TinkerH2Frame;
 import prerna.equation.EquationSolver;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
+import prerna.sablecc.PKQLRunner;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
@@ -127,24 +126,13 @@ public class DataframeResource {
 	@Path("/applyCalc")
 	@Produces("application/json")
 	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
-		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
-		Hashtable<String, Object> resultHash = new Hashtable<String, Object>();
+		PKQLRunner runner = new PKQLRunner();
+		ITableDataFrame frame = (ITableDataFrame) insight.getDataMaker();
+		HashMap<String, Object> resultHash = null;
 
-		tf.setTempExpressionResult("FAIL");
 		String expression = form.getFirst("expression");
-		Object result = tf.runPKQL(expression);
+		resultHash = runner.runPKQL(expression, frame);
 		
-		if(!result.toString().equalsIgnoreCase("FAIL")) { //TODO: set status in exception handling
-			resultHash.put("status", "success");
-		} else {
-			resultHash.put("status", "error");
-		}
-		
-		if(result instanceof Object[]) {
-			resultHash.put("result", ((Object[])(result))[0]);
-		} else {
-			resultHash.put("result", result);
-		}
 		resultHash.put("insightID", insight.getInsightID());
 
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
