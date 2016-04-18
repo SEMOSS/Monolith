@@ -179,12 +179,12 @@ public class QuestionAdmin {
 		String newInsightID = null;
 		String engineName = coreEngine.getEngineName();
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		if(dm instanceof TinkerFrame) {
+		if(dm instanceof ITableDataFrame) {
 			//add list of new filter transformations to the last component
 			DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
 			List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
 			List<ISEMOSSTransformation> oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
-			List<FilterTransformation> trans2add = flushFilterModel2Transformations((TinkerFrame) dm);
+			List<FilterTransformation> trans2add = flushFilterModel2Transformations((ITableDataFrame) dm);
 			newPostTrans.addAll(trans2add);
 
 			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
@@ -711,8 +711,8 @@ public class QuestionAdmin {
 	 * 
 	 * Creates a list of filter transformations based on the filter model
 	 */
-	private List<FilterTransformation> flushFilterModel2Transformations(TinkerFrame bTree) {
-		Map<String, Object[]> filterModel = bTree.getFilterTransformationValues();
+	private List<FilterTransformation> flushFilterModel2Transformations(ITableDataFrame table) {
+		Map<String, Object[]> filterModel = table.getFilterTransformationValues();
 		Set<String> columns = filterModel.keySet();
 		List<FilterTransformation> transformationList = new ArrayList<>(columns.size());
 		for(String column : columns) {
