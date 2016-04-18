@@ -50,6 +50,7 @@ public class FileUploader extends Uploader{
 			String delimiter = form.getFirst("delimiter");
 			String dataFrameType = form.getFirst("dataFrameType");
 			String dataTypeMapStr = form.getFirst("headerData");
+			String mainColumnStr = form.getFirst("mainColumn");
 			
 			Gson gson = new Gson();
 			Map<String, Map<String, String>> dataTypeMap = gson.fromJson(dataTypeMapStr, new TypeToken<Map<String, Map<String, String>>>() {}.getType());
@@ -75,8 +76,13 @@ public class FileUploader extends Uploader{
 			if(dataFrameType == null || dataFrameType.isEmpty()) {
 				dataFrameType = "H2";
 			}
+			
+			Map<String, String> mainCol = new HashMap<String, String>();
+			if(mainColumnStr != null) {
+				mainCol = gson.fromJson(mainColumnStr, new TypeToken<Map<String, String>>() {}.getType());
+			}
 		
-			IDataMaker table = TableDataFrameFactory.generateDataFrameFromFile(fileName, delimiter, dataFrameType, dataTypeMap);
+			IDataMaker table = TableDataFrameFactory.generateDataFrameFromFile(fileName, delimiter, dataFrameType, dataTypeMap, mainCol);
 			String dataFrame;
 			if(dataFrameType.equalsIgnoreCase("H2")) {
 				dataFrame = "TinkerH2Frame";
