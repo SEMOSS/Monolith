@@ -128,6 +128,21 @@ public class AuthorizationResource
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 	
+	@GET
+	@Produces("application/json")
+	@Path("getEngineAccessRequestsByUser")
+	public StreamingOutput getEngineAccessRequestsByUser(@Context HttpServletRequest request) throws IOException {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		ArrayList<String> enginesRequested = new ArrayList<String>();
+		
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(user != null && !user.getId().equals(Constants.ANONYMOUS_USER_ID)) {
+			enginesRequested = permissions.getEngineAccessRequestsByUser(user.getId());
+		}
+		
+		return WebUtility.getSO(enginesRequested);
+	}
+	
 	@POST
 	@Produces("application/json")
 	@Path("addEngineAccessRequest")
