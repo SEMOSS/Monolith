@@ -30,6 +30,7 @@ package prerna.semoss.web.services;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Hashtable;
 
 import javax.servlet.ServletContext;
@@ -44,6 +45,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import com.google.gson.Gson;
+import com.google.gson.internal.StringMap;
 
 import prerna.auth.EngineAccessRequest;
 import prerna.auth.User;
@@ -148,12 +150,22 @@ public class AuthorizationResource
 	@Path("addEngineAccessRequest")
 	public Response addEngineAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
-		Hashtable<String, Boolean> ret = new Hashtable<String, Boolean>();
+		HashMap<String, Object> ret = new HashMap<String, Object>();
 		String engineName = form.getFirst("engine");
+		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		Boolean success = false;
+		String error = "";
 		
-		boolean success = permissions.addEngineAccessRequest(engineName, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+		if(userId != null && !userId.isEmpty() && userId.equals(Constants.ANONYMOUS_USER_ID)) {
+			error = "Must be logged in to request access.";
+		} else if(engineName == null || engineName.isEmpty()) {
+			error = "No database selected.";
+		} else {
+			success = permissions.addEngineAccessRequest(engineName, userId);
+		}
 		
 		ret.put("success", success);
+		ret.put("error", error);
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 	
