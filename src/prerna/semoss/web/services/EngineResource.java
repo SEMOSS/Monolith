@@ -1211,12 +1211,14 @@ public class EngineResource {
 		}
 		
 		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-		QueryBuilderData data = new QueryBuilderData(dataHash);
-		data.setVarReturnOrder(newConcept, 0);
-		data.setLimitReturnToVarsList(true);
-		QueryBuilderHelper.parsePath(data, this.coreEngine);
-		QueryStruct qs = data.getQueryStruct(true);
+//		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+//		QueryBuilderData data = new QueryBuilderData(dataHash);
+//		data.setVarReturnOrder(newConcept, 0);
+//		data.setLimitReturnToVarsList(true);
+//		QueryBuilderHelper.parsePath(data, this.coreEngine);
+//		QueryStruct qs = data.getQueryStruct(true);
+
+		QueryStruct qs = gson.fromJson(form.getFirst("QueryData"), new QueryStruct().getClass());
 
 		// Very simply, here is the logic:
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
