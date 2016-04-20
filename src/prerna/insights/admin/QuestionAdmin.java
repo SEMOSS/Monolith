@@ -106,18 +106,32 @@ public class QuestionAdmin {
 
 		Insight insight = InsightStore.getInstance().get(insightID);
 		boolean isNonDbInsight = insight.isNonDbInsight();
+		
+		String newInsightID = "";
 		if(isNonDbInsight) {
 			//TODO: assume person will not have parameters
-			addInsightTinkerCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
+			newInsightID = addInsightTinkerCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
+			Map<String, Object> retMap = new HashMap<String, Object>();
+			retMap.put("newInsightID", newInsightID);
+			if (newInsightID != null) {
+				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+			} else {
+				return Response.status(500).entity(WebUtility.getSO("Error adding insight")).build();
+			}
 		} else {
 			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
-			addInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
-		}
-		
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+			newInsightID = addInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
+			Map<String, Object> retMap = new HashMap<String, Object>();
+			retMap.put("newInsightID", newInsightID);
+			if (newInsightID != null) {
+				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+			} else {
+				return Response.status(500).entity(WebUtility.getSO("Error adding insight")).build();
+			}
+		}		
 	}
 	
-	private void addInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
+	private String addInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
 		String uniqueID = UUID.randomUUID().toString();
 		insight.setDatabaseID(uniqueID);
 		insight.setInsightName(insightName);
@@ -154,6 +168,7 @@ public class QuestionAdmin {
 			SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
 			writer.writeSolrDocument(uniqueID, solrInsights);
 			writer.closeExport();
+			return uniqueID;
 		} catch (KeyManagementException e) {
 			e.printStackTrace();
 		} catch (NoSuchAlgorithmException e) {
@@ -165,9 +180,10 @@ public class QuestionAdmin {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		return null;
 	}
 
-	private void addInsightFromDb(Insight insight, String insightName, String perspective, String order, String layout, String uiOptions, Map<String, String> dataTableAlign, Vector<Map<String, String>> paramMapList) {
+	private String addInsightFromDb(Insight insight, String insightName, String perspective, String order, String layout, String uiOptions, Map<String, String> dataTableAlign, Vector<Map<String, String>> paramMapList) {
 		//TODO: currently not exposed through UI
 		boolean isDbQuery = true;
 		
@@ -220,6 +236,7 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.USER_ID, "default");
 		try {
 			SolrIndexEngine.getInstance().addInsight(engineName + "_" + newInsightID, solrInsights);
+			return newInsightID;
 		} catch (KeyManagementException e) {
 			e.printStackTrace();
 		} catch (NoSuchAlgorithmException e) {
@@ -231,6 +248,8 @@ public class QuestionAdmin {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
+		return null;
 	}
 	
 	@POST
