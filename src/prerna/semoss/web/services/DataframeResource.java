@@ -135,7 +135,7 @@ public class DataframeResource {
 		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
 		list.add(pkql);
 		insight.processPostTransformation(list);
-		Hashtable<String, Object> resultHash = new Hashtable<String, Object>();
+		Map<String, Object> resultHash = new HashMap<String, Object>();
 		resultHash.putAll(pkql.getResultHash());
 		
 //		PKQLRunner runner = new PKQLRunner();
@@ -144,9 +144,10 @@ public class DataframeResource {
 //
 //		String expression = form.getFirst("expression");
 //		resultHash = runner.runPKQL(expression, frame);
-		Hashtable<String, Object> dataHash = new Hashtable<String, Object>();
+		Map<String, Object> dataHash = new HashMap<String, Object>();
 		dataHash.putAll(pkql.getFeData());//
 		dataHash.put("insightID", insight.getInsightID());
+		resultHash.put("insightID", insight.getInsightID());
 		resultHash.put("data", dataHash);
 
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
