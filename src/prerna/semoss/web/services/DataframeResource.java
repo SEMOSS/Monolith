@@ -42,6 +42,7 @@ import prerna.sablecc.PKQLRunner;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
+import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
 import prerna.util.Constants;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
@@ -126,14 +127,27 @@ public class DataframeResource {
 	@Path("/applyCalc")
 	@Produces("application/json")
 	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
-		PKQLRunner runner = new PKQLRunner();
-		ITableDataFrame frame = (ITableDataFrame) insight.getDataMaker();
-		HashMap<String, Object> resultHash = null;
-
-		String expression = form.getFirst("expression");
-		resultHash = runner.runPKQL(expression, frame);
 		
-		resultHash.put("insightID", insight.getInsightID());
+		PKQLTransformation pkql = new PKQLTransformation();
+		Map<String, Object> props = new HashMap<String, Object>();
+		props.put(PKQLTransformation.EXPRESSION, form.getFirst("expression"));
+		pkql.setProperties(props);
+		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
+		list.add(pkql);
+		insight.processPostTransformation(list);
+		Hashtable<String, Object> resultHash = new Hashtable<String, Object>();
+		resultHash.putAll(pkql.getResultHash());
+		
+//		PKQLRunner runner = new PKQLRunner();
+//		ITableDataFrame frame = (ITableDataFrame) insight.getDataMaker();
+//		HashMap<String, Object> resultHash = null;
+//
+//		String expression = form.getFirst("expression");
+//		resultHash = runner.runPKQL(expression, frame);
+		Hashtable<String, Object> dataHash = new Hashtable<String, Object>();
+		dataHash.putAll(pkql.getFeData());//
+		dataHash.put("insightID", insight.getInsightID());
+		resultHash.put("data", dataHash);
 
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
 	}
