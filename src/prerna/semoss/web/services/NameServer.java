@@ -27,8 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -608,7 +606,7 @@ public class NameServer {
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		IEngine masterDB = (IEngine) DIHelper.getInstance().getLocalProp(localMasterDbName);
 		
-		Map<String, Map<String, String>> retMap = new TreeMap<String, Map<String, String>>();
+		Map<String, Map<String, Map<String, String>>> retMap = new TreeMap<String, Map<String, Map<String, String>>>();
 		
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(masterDB, MasterDatabaseQueries.GET_ALL_KEYWORDS_AND_ENGINES);
 		String[] names = wrapper.getDisplayVariables();
@@ -618,17 +616,38 @@ public class NameServer {
 			String keywordURI = ss.getRawVar(names[1]) + "";
 			String conceptURI = keywordURI.replace("Keyword/", "");
 			
-			String returnURI = ((IEngine) DIHelper.getInstance().getLocalProp(engine)).getTransformedNodeName(conceptURI, true);
+			IEngine eng = (IEngine) DIHelper.getInstance().getLocalProp(engine);
+			String returnURI = eng.getTransformedNodeName(conceptURI, true);
 			
-			Map<String, String> conceptSet = null;
+			String instanceName = conceptURI.replaceAll(".*/Concept/", "");;
+			
+			Map<String, Map<String, String>> conceptSet = null;
 			if(retMap.containsKey(engine)) {
 				conceptSet = retMap.get(engine);
-				conceptSet.put(returnURI, Utility.getInstanceName(conceptURI));
 			} else {
-				conceptSet = new TreeMap<String, String>();
-				conceptSet.put(returnURI, Utility.getInstanceName(conceptURI));
-				retMap.put(engine, conceptSet);
+				conceptSet = new TreeMap<String, Map<String, String>>();
 			}
+			
+			String parent = null;
+			if(instanceName.contains("/")) {
+				// this is for properties that are also concepts
+				String propName = instanceName.substring(0, instanceName.lastIndexOf("/"));
+				String conceptName = instanceName.substring(instanceName.lastIndexOf("/") + 1, instanceName.length());
+				if(!propName.equals(conceptName)) {
+					instanceName = propName;
+					parent = conceptName;
+				} else {
+					instanceName = conceptName;
+				}
+			}
+			Map<String, String> nodeMap = new Hashtable<String, String>();
+			nodeMap.put("physicalName", instanceName);
+			if(parent != null) {
+				nodeMap.put("parent", parent);
+			}
+			
+			conceptSet.put(returnURI, nodeMap);
+			retMap.put(engine, conceptSet);
 		}
 		
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
