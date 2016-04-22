@@ -236,7 +236,7 @@ public class EngineResource {
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(baseDb, upQuery);
 		String[] names = wrapper.getDisplayVariables();
 
-		Map<String, Map<String, String>> upResultsMap = new Hashtable<String, Map<String, String>>();
+		Map<String, Map<String, Map<String, String>>> upResultsMap = new Hashtable<String, Map<String, Map<String, String>>>();
 		while(wrapper.hasNext()) {
 			ISelectStatement ss = wrapper.next();
 			String relUri = ss.getRawVar(names[0]) + "";
@@ -244,17 +244,37 @@ public class EngineResource {
 			if(relUri.equals("http://semoss.org/ontologies/Relation")) {
 				continue;
 			}
-			String nodeUri = ss.getRawVar(names[1]) + "";
-			String node = ss.getVar(names[1]) + "";
 			
-			Map<String, String> nodeMap;
-			if(upResultsMap.containsKey(relUri)) {
-				nodeMap = upResultsMap.get(relUri);
-			} else {
-				nodeMap = new Hashtable<String, String>();
-				upResultsMap.put(relUri, nodeMap);
+			String nodeUri = ss.getRawVar(names[1]) + "";
+			String node = nodeUri.replaceAll(".*/Concept/", "");
+			String parent = null;
+			if(node.contains("/")) {
+				// this is for properties that are also concepts
+				String propName = node.substring(0, node.lastIndexOf("/"));
+				String conceptName = node.substring(node.lastIndexOf("/") + 1, node.length());
+				if(!propName.equals(conceptName)) {
+					parent = conceptName;
+					node = propName;
+				} else {
+					node = conceptName;
+				}
 			}
-			nodeMap.put(nodeUri, node);
+			
+			nodeUri = this.coreEngine.getTransformedNodeName(nodeUri, true);
+
+			Map<String, Map<String, String>> mainNodeMap;
+			if(upResultsMap.containsKey(relUri)) {
+				mainNodeMap = upResultsMap.get(relUri);
+			} else {
+				mainNodeMap = new Hashtable<String, Map<String, String>>();
+				upResultsMap.put(relUri, mainNodeMap);
+			}
+			Map<String, String> nodeMap = new Hashtable<String, String>();
+			nodeMap.put("physicalName", node);
+			if(parent != null) {
+				nodeMap.put("parent", parent);
+			}
+			mainNodeMap.put(nodeUri, nodeMap);
 		}
 		
 		String downQuery = "SELECT DISTINCT ?rel (COALESCE(?display, ?node) AS ?Display) WHERE { BIND(<" + physicalNodeType + "> AS ?start) {?rel <" + RDFS.SUBPROPERTYOF + "> <http://semoss.org/ontologies/Relation>}"
@@ -262,7 +282,7 @@ public class EngineResource {
 		wrapper = WrapperManager.getInstance().getSWrapper(baseDb, downQuery);
 		names = wrapper.getDisplayVariables();
 		
-		Map<String, Map<String, String>> downResultsMap = new Hashtable<String, Map<String, String>>();
+		Map<String, Map<String, Map<String, String>>> downResultsMap = new Hashtable<String, Map<String, Map<String, String>>>();
 		while(wrapper.hasNext()) {
 			ISelectStatement ss = wrapper.next();
 			String relUri = ss.getRawVar(names[0]) + "";
@@ -270,17 +290,38 @@ public class EngineResource {
 			if(relUri.equals("http://semoss.org/ontologies/Relation")) {
 				continue;
 			}
-			String nodeUri = ss.getRawVar(names[1]) + "";
-			String node = ss.getVar(names[1]) + "";
 			
-			Map<String, String> nodeMap;
-			if(downResultsMap.containsKey(relUri)) {
-				nodeMap = downResultsMap.get(relUri);
-			} else {
-				nodeMap = new Hashtable<String, String>();
-				downResultsMap.put(relUri, nodeMap);
+			String nodeUri = ss.getRawVar(names[1]) + "";
+			String node = nodeUri.replaceAll(".*/Concept/", "");
+			String parent = null;
+			if(node.contains("/")) {
+				// this is for properties that are also concepts
+				String propName = node.substring(0, node.lastIndexOf("/"));
+				String conceptName = node.substring(node.lastIndexOf("/") + 1, node.length());
+				if(!propName.equals(conceptName)) {
+					parent = conceptName;
+					node = propName;
+				} else {
+					node = conceptName;
+				}
 			}
-			nodeMap.put(nodeUri, node);
+			
+			nodeUri = this.coreEngine.getTransformedNodeName(nodeUri, true);
+
+			Map<String, Map<String, String>> mainNodeMap;
+			if(downResultsMap.containsKey(relUri)) {
+				mainNodeMap = downResultsMap.get(relUri);
+			} else {
+				mainNodeMap = new Hashtable<String, Map<String, String>>();
+				downResultsMap.put(relUri, mainNodeMap);
+			}
+			
+			Map<String, String> nodeMap = new Hashtable<String, String>();
+			nodeMap.put("physicalName", node);
+			if(parent != null) {
+				nodeMap.put("parent", parent);
+			}
+			mainNodeMap.put(nodeUri, nodeMap);
 		}
 		
 		
@@ -289,7 +330,22 @@ public class EngineResource {
 		relMap.put("downstream", downResultsMap);
 
 		ConnectedConcepts combineResults = new ConnectedConcepts();
-		combineResults.addData(coreEngine.getEngineName(), dataType, Utility.getInstanceName(physicalNodeType), relMap);
+		
+		String name = physicalNodeType.replaceAll(".*/Concept/", "");
+		String parent = null;
+		if(name.contains("/")) {
+			// this is for properties that are also concepts
+			String propName = name.substring(0, name.lastIndexOf("/"));
+			String conceptName = name.substring(name.lastIndexOf("/") + 1, name.length());
+			if(!conceptName.equals(propName)) {
+				name = propName;
+				parent = conceptName;
+			} else {
+				name = conceptName;
+			}
+		}
+		
+		combineResults.addData(coreEngine.getEngineName(), dataType, name, parent, relMap);
 		combineResults.addSimilarity(coreEngine.getEngineName(), dataType, 1);
 		
 		
@@ -774,7 +830,23 @@ public class EngineResource {
 					
 					tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), id, session.getId());
 					return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
-				} else {
+				} 
+//				Should we just get the cached DM if the Viz has been deleted and send that to the FE?
+//				
+//				ITableDataFrame dataFrame = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getDMCache(insightObj);
+//				if(dataFrame != null) {
+//					insightObj.setDataMaker(dataFrame);
+//					String id = InsightStore.getInstance().put(insightObj);
+//					InsightCreateRunner run = new InsightCreateRunner(insightObj);
+//					Map<String, Object> obj = run.runWeb();
+//					obj.put("insightID", id);
+//					
+//					// cahce json for future
+//					CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
+//					
+//					return Response.status(200).entity(WebUtility.getSO(obj)).build();
+//				}
+				else {
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
 					errorHash.put("Message", "Error getting data for saved insight via csv.");
 					errorHash.put("Class", className);
@@ -855,9 +927,16 @@ public class EngineResource {
 			for(int i = 0; i < paramBind.length; i++){
 				String paramValueStr = coreEngine.getTransformedNodeName(paramValue[i], false);
 				if(coreEngine.getEngineType() == ENGINE_TYPE.RDBMS){
-					paramValueStr = Utility.getInstanceName(paramValueStr);
+					String paramValueTable = Utility.getInstanceName(paramValueStr);
+					String paramValueCol = Utility.getClassName(paramValueStr);
+					
+					//very risky business going on right now.... will not work on other bindings
+					query = query.replaceFirst(paramBind[i], paramValueCol);
+					query = query.replaceFirst(paramBind[i], paramValueTable);
+
+				} else {
+					query = query.replaceFirst(paramBind[i], paramValueStr);
 				}
-				query = query.replaceAll(paramBind[i], paramValueStr);
 			}
 		}
 		System.out.println(query);
