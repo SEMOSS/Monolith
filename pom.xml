@@ -70,13 +70,19 @@
 				<enabled>false</enabled>
 			</snapshots>
 		</repository>
+		<repository>
+			<id>3rdPartyJARs</id>
+			<name>Maven repository</name>
+			<url>http://maven.semoss.org:8081/repository/3rdPartyJARs</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
 	</repositories>
 	<dependencies>
-	<dependency>
-		<groupId>org.openrdf.sesame</groupId>
-		<artifactId>sesame-runtime</artifactId>
-		<version>2.7.14</version>
-	</dependency>
 	<dependency>
 	    <groupId>jdk.tools</groupId>
 	    <artifactId>jdk.tools</artifactId>
@@ -96,8 +102,8 @@
 	</dependency>
 	<dependency>
 		<groupId>com.blazegraph</groupId>
-		<artifactId>bigdata-core</artifactId>
-		<version>2.1.0</version>
+		<artifactId>bigdata</artifactId>
+		<version>1.4.0</version>
 	</dependency>
 	<dependency>
 		<groupId>de.l3s.boilerpipe</groupId>
@@ -510,11 +516,6 @@
 		<version>1.3.3</version>
 	</dependency>
 	<dependency>
-		<groupId>net.fortytwo</groupId>
-		<artifactId>linked-data-sail</artifactId>
-		<version>1.0</version>
-	</dependency>
-	<dependency>
 		<groupId>log4j</groupId>
 		<artifactId>log4j</artifactId>
 		<version>1.2.17</version>
@@ -625,14 +626,14 @@
 		<version>1.6.16</version>
 	</dependency>
 	<dependency>
-		<groupId>net.fortytwo.ripple</groupId>
+		<groupId>net.fortytwo</groupId>
 		<artifactId>ripple-base</artifactId>
-		<version>1.0</version>
+		<version>0.7</version>
 	</dependency>
 	<dependency>
-		<groupId>net.fortytwo.ripple</groupId>
-		<artifactId>ripple-flow-rdf</artifactId>
-		<version>1.0</version>
+		<groupId>net.fortytwo</groupId>
+		<artifactId>ripple-rdf</artifactId>
+		<version>0.7</version>
 	</dependency>
 	<dependency>
 		<groupId>com.googlecode.sizeofag</groupId>
@@ -804,6 +805,106 @@
 		<groupId>org.apache.zookeeper</groupId>
 		<artifactId>zookeeper</artifactId>
 		<version>3.4.5</version>
+	</dependency>
+	<dependency>
+	<groupId>aurelionribon.ui</groupId>
+	<artifactId>css-engine-swing-api</artifactId>
+	<version>1.0.0</version>
+	</dependency>
+	<dependency>
+		<groupId>com.teamdev.jxbrowser</groupId>
+		<artifactId>engine-gecko</artifactId>
+		<version>1.0</version>
+	</dependency>
+	<dependency>
+		<groupId>com.teamdev.jxbrowser</groupId>
+		<artifactId>engine-gecko15</artifactId>
+		<version>1.0</version>
+	</dependency>
+	<dependency>
+		<groupId>com.teamdev.jxbrowser</groupId>
+		<artifactId>engine-ie</artifactId>
+		<version>1.0</version>
+	</dependency>
+	<dependency>
+		<groupId>com.teamdev.jxbrowser</groupId>
+		<artifactId>engine-webkit</artifactId>
+		<version>1.0</version>
+	</dependency>
+	<dependency>
+		<groupId>com.teamdev.jxbrowser</groupId>
+		<artifactId>fastutil-stripped</artifactId>
+		<version>1.0</version>
+	</dependency>
+	<dependency>
+		<groupId>com.teamdev.jxbrowser</groupId>
+		<artifactId>jxbrowser</artifactId>
+		<version>5.2</version>
+	</dependency>
+	<dependency>
+		<groupId>com.teamdev.jxbrowser</groupId>
+		<artifactId>jxbrowser-win</artifactId>
+		<version>5.2</version>
+	</dependency>
+	<dependency>
+		<groupId>com.teamdev.jxbrowser</groupId>
+		<artifactId>runtime</artifactId>
+		<version>5.2</version>
+	</dependency>
+	<dependency>
+		<groupId>com.jniwrapper</groupId>
+		<artifactId>jniwrap</artifactId>
+		<version>3.8.4</version>
+	</dependency>
+	<dependency>
+		<groupId>net.fortytwo</groupId>
+		<artifactId>linked-data-sail</artifactId>
+		<version>0.7</version>
+	</dependency>
+	<dependency>
+		<groupId>net.fortytwo</groupId>
+		<artifactId>rdfflow</artifactId>
+		<version>0.7</version>
+	</dependency>
+	<dependency>
+		<groupId>org.rednoise</groupId>
+		<artifactId>rita</artifactId>
+		<version>1.0.68</version>
+	</dependency>
+	<dependency>
+		<groupId>org.rednoise</groupId>
+		<artifactId>rita.support</artifactId>
+		<version>1.0.68</version>
+	</dependency>
+	<dependency>
+		<groupId>com.microsoft</groupId>
+		<artifactId>sqlserver</artifactId>
+		<version>4</version>
+	</dependency>
+	<dependency>
+		<groupId>com.jniwrapper</groupId>
+		<artifactId>winpack</artifactId>
+		<version>3.8.3</version>
+	</dependency>
+	<dependency>
+		<groupId>edu.cmu</groupId>
+		<artifactId>ws4j</artifactId>
+		<version>1.0.1</version>
+	</dependency>
+	<dependency>
+		<groupId>org.rosuda.REngine</groupId>
+		<artifactId>Rserve</artifactId>
+		<version>1.8.1</version>
+	</dependency>
+	<dependency>
+		<groupId>org.rosuda.REngine</groupId>
+		<artifactId>REngine</artifactId>
+		<version>2.1.0</version>
+	</dependency>
+	<dependency>
+		<groupId>org.openrdf.sesame</groupId>
+		<artifactId>sesame-onejar</artifactId>
+		<version>2.7.14</version>
 	</dependency>
 	</dependencies>
 </project>
