@@ -14,29 +14,10 @@
 			<attribute name="org.eclipse.jst.component.dependency" value="/WEB-INF/lib"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8">
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER">
 		<attributes>
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/css-engine-swing-api.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/engine-gecko.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/engine-gecko15.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/engine-ie.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/engine-webkit.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/fastutil-stripped.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jniwrap-3.8.4.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jxbrowser-5.2.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/jxbrowser-win-5.2.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/linked-data-sail-0.7.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/rdfflow-0.7.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/REngine.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/rita-1.0.68.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/rita.support.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/Rserve.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/runtime.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/sqljdbc4.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/winpack-3.8.3.jar"/>
-	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/ws4j-1.0.1.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
