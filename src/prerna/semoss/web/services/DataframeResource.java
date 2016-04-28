@@ -137,7 +137,6 @@ public class DataframeResource {
 		insight.processPostTransformation(list);
 		Map<String, Object> resultHash = new HashMap<String, Object>();
 		resultHash.putAll(pkql.getResultHash());
-		
 //		PKQLRunner runner = new PKQLRunner();
 //		ITableDataFrame frame = (ITableDataFrame) insight.getDataMaker();
 //		HashMap<String, Object> resultHash = null;
@@ -149,6 +148,7 @@ public class DataframeResource {
 		dataHash.put("insightID", insight.getInsightID());
 		resultHash.put("insightID", insight.getInsightID());
 		resultHash.put("data", dataHash);
+		resultHash.put("stepID", pkql.getId());
 
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
 	}
