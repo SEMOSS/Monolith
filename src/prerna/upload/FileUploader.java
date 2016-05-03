@@ -30,6 +30,7 @@ import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.XLFileHelper;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class FileUploader extends Uploader{
@@ -61,7 +62,7 @@ public class FileUploader extends Uploader{
 					Map<String, String> headerTypes = dataTypeMap.get(sheet);
 					Map<String, String> newHeaderTypes = new Hashtable<String, String>();
 					for(String header : headerTypes.keySet()) {
-						newHeaderTypes.put(header, getRawDataType(headerTypes.get(header)));
+						newHeaderTypes.put(header, Utility.getRawDataType(headerTypes.get(header)));
 					}
 					// override existing with new
 					dataTypeMap.put(sheet, newHeaderTypes);
@@ -146,7 +147,7 @@ public class FileUploader extends Uploader{
 					
 					Map<String, String> headerTypes = new LinkedHashMap<String, String>();
 					for(int j = 0; j < headers.length; j++) {
-						headerTypes.put(headers[j], getCleanDataType(types[j]));
+						headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
 					}
 					headerTypeMap.put(sheetName, headerTypes);
 				}
@@ -166,7 +167,7 @@ public class FileUploader extends Uploader{
 				
 				Map<String, String> headerTypes = new LinkedHashMap<String, String>();
 				for(int j = 0; j < headers.length; j++) {
-					headerTypes.put(headers[j], getCleanDataType(types[j]));
+					headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
 				}
 				headerTypeMap.put(CSV_FILE_KEY, headerTypes);
 			}
@@ -233,39 +234,5 @@ public class FileUploader extends Uploader{
 		return inputData;
 	}
 	
-	private String getCleanDataType(String origDataType) {
-		if(origDataType == null || origDataType.isEmpty()) {
-			return "STRING";
-		}
-		origDataType = origDataType.toUpperCase();
-		
-		if(origDataType.equals("DOUBLE") || origDataType.equals("INT")) {
-			return "DOUBLE";
-		}
-		
-		if(origDataType.contains("DATE")) {
-			return "DATE";
-		}
-		
-		if(origDataType.contains("VARCHAR")) {
-			return "STRING";
-		}
-		
-		return "STRING";
-	}
-	
-	private String getRawDataType(String cleanDataType) {
-		if(cleanDataType == null || cleanDataType.isEmpty()) {
-			return "VARCHAR(800)";
-		}
-		cleanDataType = cleanDataType.toUpperCase();
-		
-		if(cleanDataType.equals("STRING")) {
-			return "VARCHAR(800)";
-		}
-		
-		// currently send double and date, which are the same as raw data type
-		return cleanDataType;
-	}
-	
+
 }
