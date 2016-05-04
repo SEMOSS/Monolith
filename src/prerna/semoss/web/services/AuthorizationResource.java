@@ -39,6 +39,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -174,7 +175,6 @@ public class AuthorizationResource
 	@Path("processEngineAccessRequest")
 	public Response approveEngineAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, Boolean> ret = new Hashtable<String, Boolean>();
-		Gson gson = new Gson();
 		String requestId = form.getFirst("requestId");
 //		ArrayList<String> enginePermissions = gson.fromJson(form.getFirst("permissions"), ArrayList.class);
 		ArrayList<String> enginePermissions = new ArrayList<String>();
@@ -186,4 +186,72 @@ public class AuthorizationResource
 		ret.put("success", success);
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
+	
+	@GET
+	@Produces("application/json")//DONE
+	@Path("getGroups")
+	public StreamingOutput getGroupsAndMembers(@Context HttpServletRequest request) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		StringMap<ArrayList<StringMap<String>>> ret = permissions.getGroupsAndMembersForUser(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+		
+		return WebUtility.getSO(ret);
+	}
+	
+	@GET
+	@Produces("application/json")//DONE
+	@Path("getOwnedDatabases")
+	public StreamingOutput getOwnedDatabases(@Context HttpServletRequest request) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		ArrayList<String> engines = permissions.getUserOwnedEngines(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+		
+		return WebUtility.getSO(engines);
+	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("getAllPermissionsForDatabase")//DONE
+	public StreamingOutput getAllPermissionsForDatabase(@Context HttpServletRequest request, @QueryParam("database") String engineName) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		HashMap<String, ArrayList<StringMap<String>>> ret = new HashMap<String, ArrayList<StringMap<String>>>();
+		ret = permissions.getAllPermissionsGrantedByEngine(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), engineName);
+		
+		return WebUtility.getSO(ret);
+	}
+	
+	@GET
+	@Produces("application/json")//DONE
+	@Path("searchForUser")
+	public StreamingOutput searchForUser(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		ArrayList<StringMap<String>> ret = permissions.searchForUser(searchTerm);
+		
+		return WebUtility.getSO(ret);
+	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("getAllDatabasesAndPermissions")//DONE
+	public StreamingOutput getAllDatabasesAndPermissions(@Context HttpServletRequest request) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		ArrayList<StringMap<String>> ret = permissions.getAllEnginesAndPermissionsForUser(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+		
+		return WebUtility.getSO(ret);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("addNewGroup")
+	public Response addNewGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		Gson gson = new Gson();
+		ArrayList<String> users = gson.fromJson(form.getFirst("users"), ArrayList.class);
+		Boolean success = permissions.addGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), form.getFirst("groupName"), users);
+		
+		if(success) {
+			return Response.status(200).entity(success).build();
+		} else {
+			return Response.status(400).entity(success).build();
+		}
+	}
+	
 }
