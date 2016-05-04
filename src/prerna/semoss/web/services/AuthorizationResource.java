@@ -240,7 +240,7 @@ public class AuthorizationResource
 	
 	@POST
 	@Produces("application/json")
-	@Path("addNewGroup")
+	@Path("addGroup")
 	public Response addNewGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		Gson gson = new Gson();
@@ -254,4 +254,82 @@ public class AuthorizationResource
 		}
 	}
 	
+	@POST
+	@Produces("application/json")
+	@Path("removeGroup")
+	public Response removeGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		String groupName = form.getFirst("groupName");
+		Boolean success = permissions.removeGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName);
+		
+		if(success) {
+			return Response.status(200).entity(success).build();
+		} else {
+			return Response.status(400).entity(success).build();
+		}
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("editGroup")
+	public Response editGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		Gson gson = new Gson();
+		
+		String groupName = form.getFirst("groupName");
+		StringMap<ArrayList<String>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
+		ArrayList<String> toAdd = users.get("add");
+		ArrayList<String> toRemove = users.get("remove");
+		
+		for(String add : toAdd) {
+			permissions.addUserToGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName, add);
+		}
+		
+		for(String remove : toRemove) {
+			permissions.removeUserFromGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName, remove);
+		}
+		
+		return Response.status(200).entity(true).build();
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("savePermissions")
+	public Response savePermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		Gson gson = new Gson();
+		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		
+		String engineName = form.getFirst("databaseName");
+		StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
+		ArrayList<StringMap<String>> groupsToAdd = groups.get("add");
+		ArrayList<StringMap<String>> groupsToRemove = groups.get("remove");
+		
+		for(StringMap<String> map : groupsToRemove) {
+			permissions.removeAllPermissionsForGroup(userId, map.get("groupName"), engineName);
+		}
+		
+		for(StringMap<String> map : groupsToAdd) {
+			String perm = map.get("permission");
+			EnginePermission[] permArray = new EnginePermission[] { EnginePermission.valueOf(perm) };
+			permissions.setPermissionsForGroup(userId, map.get("groupName"), engineName, permArray);
+		}
+		
+		StringMap<ArrayList<StringMap<String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
+		ArrayList<StringMap<String>> usersToAdd = users.get("add");
+		ArrayList<StringMap<String>> usersToRemove = users.get("remove");
+		
+		for(StringMap<String> map : usersToRemove) {
+			permissions.removeAllPermissionsForUser(userId, engineName, map.get("id"));
+		}
+		
+		for(StringMap<String> map : usersToAdd) {
+			String perm = map.get("permission");
+			EnginePermission[] permArray = new EnginePermission[] { EnginePermission.valueOf(perm) };
+			permissions.setPermissionsForUser(userId, engineName, map.get("id"), permArray);
+		}
+		
+		
+		return Response.status(200).entity(true).build();
+	}
 }
