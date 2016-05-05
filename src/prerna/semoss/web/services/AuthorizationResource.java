@@ -248,9 +248,9 @@ public class AuthorizationResource
 		Boolean success = permissions.addGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), form.getFirst("groupName"), users);
 		
 		if(success) {
-			return Response.status(200).entity(success).build();
+			return Response.status(200).entity(WebUtility.getSO(success)).build();
 		} else {
-			return Response.status(400).entity(success).build();
+			return Response.status(400).entity(WebUtility.getSO(success)).build();
 		}
 	}
 	
@@ -263,9 +263,9 @@ public class AuthorizationResource
 		Boolean success = permissions.removeGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName);
 		
 		if(success) {
-			return Response.status(200).entity(success).build();
+			return Response.status(200).entity(WebUtility.getSO(success)).build();
 		} else {
-			return Response.status(400).entity(success).build();
+			return Response.status(400).entity(WebUtility.getSO(success)).build();
 		}
 	}
 	
@@ -289,7 +289,7 @@ public class AuthorizationResource
 			permissions.removeUserFromGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName, remove);
 		}
 		
-		return Response.status(200).entity(true).build();
+		return Response.status(200).entity(WebUtility.getSO(true)).build();
 	}
 	
 	@POST
@@ -330,6 +330,6 @@ public class AuthorizationResource
 		}
 		
 		
-		return Response.status(200).entity(true).build();
+		return Response.status(200).entity(WebUtility.getSO(true)).build();
 	}
 }
