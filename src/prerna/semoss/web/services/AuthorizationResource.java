@@ -311,7 +311,7 @@ public class AuthorizationResource
 		
 		for(StringMap<String> map : groupsToAdd) {
 			String perm = map.get("permission");
-			EnginePermission[] permArray = new EnginePermission[] { EnginePermission.valueOf(perm) };
+			EnginePermission[] permArray = new EnginePermission[] { EnginePermission.getPermissionByValue(perm) };
 			permissions.setPermissionsForGroup(userId, map.get("groupName"), engineName, permArray);
 		}
 		
@@ -325,7 +325,7 @@ public class AuthorizationResource
 		
 		for(StringMap<String> map : usersToAdd) {
 			String perm = map.get("permission");
-			EnginePermission[] permArray = new EnginePermission[] { EnginePermission.valueOf(perm) };
+			EnginePermission[] permArray = new EnginePermission[] { EnginePermission.getPermissionByValue(perm) };
 			permissions.setPermissionsForUser(userId, engineName, map.get("id"), permArray);
 		}
 		
