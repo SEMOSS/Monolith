@@ -38,6 +38,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +79,8 @@ import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.auth.User;
+import prerna.auth.UserPermissionsMasterDB;
 import prerna.cache.CacheFactory;
 import prerna.cache.InsightCache;
 import prerna.ds.BTreeDataFrame;
@@ -460,6 +463,33 @@ public class NameServer {
 		Gson gson = new Gson();
 		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
 		
+		//If security is enabled, remove the engines in the filters that aren't accessible - if none in filters, add all accessible engines to filter list
+		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
+			HttpSession session = request.getSession(true);
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			String userId = "";
+			if(user!= null) {
+				userId = user.getId();
+			}
+			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
+			ArrayList<String> filterEngines = new ArrayList<String>();
+			if(filterData.get("core_engine") != null) {
+				filterEngines.addAll(filterData.get("core_engine"));
+			}
+			if(filterEngines.size() > 0) {
+				for(String s : filterEngines) {
+					if(!userEngines.contains(s)) {
+						filterData.get("core_engine").remove(s);
+					}
+				}
+			} else {
+				filterEngines.addAll(userEngines);
+				if(filterEngines.size() > 0) 
+					filterData.put("core_engine", filterEngines);
+			}
+		}
+		
 		Map<String, Object> results = null;
 		try {
 			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortString, offsetInt, limitInt, filterData);
@@ -542,7 +572,34 @@ public class NameServer {
 		String filterDataStr = form.getFirst("filterData");
 		Gson gson = new Gson();
 		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
-				
+		
+		//If security is enabled, remove the engines in the filters that aren't accessible - if none in filters, add all accessible engines to filter list
+		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
+			HttpSession session = request.getSession(true);
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			String userId = "";
+			if(user!= null) {
+				userId = user.getId();
+			}
+			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
+			ArrayList<String> filterEngines = new ArrayList<String>();
+			if(filterData.get("core_engine") != null) {
+				filterEngines.addAll(filterData.get("core_engine"));
+			}
+			if(filterEngines.size() > 0) {
+				for(String s : filterEngines) {
+					if(!userEngines.contains(s)) {
+						filterData.get("core_engine").remove(s);
+					}
+				}
+			} else {
+				filterEngines.addAll(userEngines);
+				if(filterEngines.size() > 0) 
+					filterData.put("core_engine", filterEngines);
+			}
+		}
+		
 		Map<String, Object> groupFieldMap = null;
 		try {
 			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, groupOffsetInt, groupLimitInt, groupByField, groupSort, filterData);
