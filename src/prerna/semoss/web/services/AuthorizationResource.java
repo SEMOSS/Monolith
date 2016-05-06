@@ -213,7 +213,7 @@ public class AuthorizationResource
 	public StreamingOutput getAllPermissionsForDatabase(@Context HttpServletRequest request, @QueryParam("database") String engineName) {
 		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		HashMap<String, ArrayList<StringMap<String>>> ret = new HashMap<String, ArrayList<StringMap<String>>>();
-		ret = permissions.getAllPermissionsGrantedByEngine(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), engineName);
+		ret = permissions.getAllPermissionsGrantedByEngine(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), engineName.trim());
 		
 		return WebUtility.getSO(ret);
 	}
@@ -223,7 +223,7 @@ public class AuthorizationResource
 	@Path("searchForUser")
 	public StreamingOutput searchForUser(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm) {
 		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
-		ArrayList<StringMap<String>> ret = permissions.searchForUser(searchTerm);
+		ArrayList<StringMap<String>> ret = permissions.searchForUser(searchTerm.trim());
 		
 		return WebUtility.getSO(ret);
 	}
@@ -245,7 +245,7 @@ public class AuthorizationResource
 		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		Gson gson = new Gson();
 		ArrayList<String> users = gson.fromJson(form.getFirst("users"), ArrayList.class);
-		Boolean success = permissions.addGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), form.getFirst("groupName"), users);
+		Boolean success = permissions.addGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), form.getFirst("groupName").trim(), users);
 		
 		if(success) {
 			return Response.status(200).entity(WebUtility.getSO(success)).build();
@@ -259,7 +259,7 @@ public class AuthorizationResource
 	@Path("removeGroup")
 	public Response removeGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
-		String groupName = form.getFirst("groupName");
+		String groupName = form.getFirst("groupName").trim();
 		Boolean success = permissions.removeGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName);
 		
 		if(success) {
@@ -276,10 +276,9 @@ public class AuthorizationResource
 		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		Gson gson = new Gson();
 		
-		String groupName = form.getFirst("groupName");
-		StringMap<ArrayList<String>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
-		ArrayList<String> toAdd = users.get("add");
-		ArrayList<String> toRemove = users.get("remove");
+		String groupName = form.getFirst("groupName").trim();
+		ArrayList<String> toAdd = gson.fromJson(form.getFirst("add"), ArrayList.class);
+		ArrayList<String> toRemove = gson.fromJson(form.getFirst("remove"), ArrayList.class);
 		
 		for(String add : toAdd) {
 			permissions.addUserToGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName, add);
@@ -300,19 +299,19 @@ public class AuthorizationResource
 		Gson gson = new Gson();
 		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		String engineName = form.getFirst("databaseName");
+		String engineName = form.getFirst("databaseName").trim();
 		StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
 		ArrayList<StringMap<String>> groupsToAdd = groups.get("add");
 		ArrayList<StringMap<String>> groupsToRemove = groups.get("remove");
 		
 		for(StringMap<String> map : groupsToRemove) {
-			permissions.removeAllPermissionsForGroup(userId, map.get("groupName"), engineName);
+			permissions.removeAllPermissionsForGroup(userId, map.get("name"), engineName);
 		}
 		
 		for(StringMap<String> map : groupsToAdd) {
 			String perm = map.get("permission");
 			EnginePermission[] permArray = new EnginePermission[] { EnginePermission.getPermissionByValue(perm) };
-			permissions.setPermissionsForGroup(userId, map.get("groupName"), engineName, permArray);
+			permissions.setPermissionsForGroup(userId, map.get("name"), engineName, permArray);
 		}
 		
 		StringMap<ArrayList<StringMap<String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
