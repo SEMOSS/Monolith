@@ -29,6 +29,7 @@ package prerna.web.conf;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Hashtable;
 
 import javax.servlet.Filter;
@@ -78,7 +79,7 @@ public class UserDBFilter implements Filter {
 		boolean dbInitialized = session != null && session.getAttribute(Constants.ENGINES+"unused") != null;
 		if(!dbInitialized) // this is our new friend
 		{
-			ArrayList<String> userEngines = new ArrayList<String>();
+			HashSet<String> userEngines = new HashSet<String>();
 			session = ((HttpServletRequest)arg0).getSession(true);
 			if(securityEnabled) {
 				UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();

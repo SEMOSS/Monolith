@@ -29,6 +29,7 @@ package prerna.web.conf;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -67,7 +68,7 @@ public class UserDBInsightFilter implements Filter {
 					userId = user.getId();
 				}
 				UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
-				ArrayList<String> userEngines = permissions.getUserAccessibleEngines(userId);
+				HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
 				if(!engineName.equals(Constants.LOCAL_MASTER_DB_NAME) && !userEngines.contains(engineName)) {
 					HttpServletResponse response = (HttpServletResponse) arg1;
 					response.addHeader("userId", userId);
