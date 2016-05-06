@@ -38,6 +38,7 @@ import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
+import prerna.sablecc.PKQLRunner;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
@@ -131,17 +132,13 @@ public class DataframeResource {
 		Map<String, Object> props = new HashMap<String, Object>();
 		props.put(PKQLTransformation.EXPRESSION, form.getFirst("expression"));
 		pkql.setProperties(props);
+		PKQLRunner runner = new PKQLRunner();
+		pkql.setRunner(runner);
 		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
 		list.add(pkql);
 		insight.processPostTransformation(list);
-		Map<String, Object> resultHash = new HashMap<String, Object>();
-		
-		List<Map> pkqlData = pkql.getResultHash();
-		Map feData = pkql.getFeData();
-
-		resultHash.put("insightID", insight.getInsightID());
-		resultHash.put("pkqlData", pkqlData);
-		resultHash.put("feData", feData);
+		insight.setPkqlRunner(runner);
+		Map resultHash = insight.getPKQLData();
 
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
 	}
