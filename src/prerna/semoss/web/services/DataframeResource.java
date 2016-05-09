@@ -138,7 +138,7 @@ public class DataframeResource {
 		list.add(pkql);
 		insight.processPostTransformation(list);
 		insight.setPkqlRunner(runner);
-		Map resultHash = insight.getPKQLData();
+		Map resultHash = insight.getPKQLData(true);
 
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
 	}
