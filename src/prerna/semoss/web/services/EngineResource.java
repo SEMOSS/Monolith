@@ -292,7 +292,9 @@ public class EngineResource {
 			}
 			
 			String nodeUri = ss.getRawVar(names[1]) + "";
-			String node = nodeUri.replaceAll(".*/Concept/", "");
+//			String node = nodeUri.replaceAll(".*/Concept/", "");
+			String pkqlUri = this.coreEngine.getPkqlLogicalFromPhysical(nodeUri);
+			String node = pkqlUri.replaceAll(".*/DisplayName/", "");
 			String parent = null;
 			if(node.contains("/")) {
 				// this is for properties that are also concepts
@@ -306,7 +308,8 @@ public class EngineResource {
 				}
 			}
 			
-			nodeUri = this.coreEngine.getTransformedNodeName(nodeUri, true);
+//			nodeUri = this.coreEngine.getTransformedNodeName(nodeUri, true);
+			nodeUri = this.coreEngine.getPkqlLogicalFromPhysical(nodeUri);
 
 			Map<String, Map<String, String>> mainNodeMap;
 			if(downResultsMap.containsKey(relUri)) {
@@ -1605,11 +1608,13 @@ public class EngineResource {
 		// need to go through each one and translate
 		for(String uriProp : uriProps){
 			String logicalName = this.coreEngine.getTransformedNodeName(uriProp, true);
-			propMap.put(logicalName, Utility.getInstanceName(uriProp));
+			String pkqlLogical = this.coreEngine.getPkqlLogicalFromPhysical(uriProp);
+			propMap.put(logicalName, Utility.getInstanceName(pkqlLogical));
 		}
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("props", propMap);
-		retMap.put("myPhysicalName", Utility.getInstanceName(this.coreEngine.getTransformedNodeName(nodeUri, false)));
+//		retMap.put("myPhysicalName", Utility.getInstanceName(this.coreEngine.getTransformedNodeName(nodeUri, false)));
+		retMap.put("myPhysicalName", Utility.getInstanceName(this.coreEngine.getPkqlFromAlias(nodeUri)));
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
