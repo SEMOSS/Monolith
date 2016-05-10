@@ -674,9 +674,9 @@ public class NameServer {
 			String conceptURI = keywordURI.replace("Keyword/", "");
 			
 			IEngine eng = (IEngine) DIHelper.getInstance().getLocalProp(engine);
-			String returnURI = eng.getTransformedNodeName(conceptURI, true);
+			String returnURI = eng.getTransformedNodeName(conceptURI, true); // returns DisplayName uri
 			
-			String instanceName = conceptURI.replaceAll(".*/Concept/", "");;
+			String instanceName = conceptURI.replaceAll(".*/Concept/", "");
 			
 			Map<String, Map<String, String>> conceptSet = null;
 			if(retMap.containsKey(engine)) {
@@ -699,11 +699,12 @@ public class NameServer {
 			}
 			Map<String, String> nodeMap = new Hashtable<String, String>();
 			nodeMap.put("physicalName", instanceName);
+			nodeMap.put("displayName", returnURI);
 			if(parent != null) {
 				nodeMap.put("parent", parent);
 			}
 			
-			conceptSet.put(returnURI, nodeMap);
+			conceptSet.put(instanceName, nodeMap);
 			retMap.put(engine, conceptSet);
 		}
 		
