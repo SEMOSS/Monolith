@@ -55,6 +55,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.openrdf.model.vocabulary.RDFS;
 
@@ -224,8 +225,12 @@ public class EngineResource {
 	public Response getNeighbors(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
 	{
 		String dataType = type;
+		int loopIndex = dataType.lastIndexOf("_");
+		if(loopIndex > 0 && StringUtils.isNumeric(dataType.substring(loopIndex + 1))) {
+			dataType = dataType.substring(0,loopIndex);
+		}
 		if(!dataType.contains("http://")){
-			dataType = Constants.DISPLAY_URI + Utility.cleanString(type, true);
+			dataType = Constants.DISPLAY_URI + Utility.cleanString(dataType, true);
 		}
 
 		String physicalNodeType = coreEngine.getTransformedNodeName(dataType, false);
@@ -267,14 +272,15 @@ public class EngineResource {
 				mainNodeMap = upResultsMap.get(relUri);
 			} else {
 				mainNodeMap = new Hashtable<String, Map<String, String>>();
-				upResultsMap.put(relUri, mainNodeMap);
+				upResultsMap.put(node, mainNodeMap);
 			}
 			Map<String, String> nodeMap = new Hashtable<String, String>();
 			nodeMap.put("physicalName", node);
+			nodeMap.put("displayName", nodeUri);
 			if(parent != null) {
 				nodeMap.put("parent", parent);
 			}
-			mainNodeMap.put(nodeUri, nodeMap);
+			mainNodeMap.put(node, nodeMap);
 		}
 		
 		String downQuery = "SELECT DISTINCT ?rel (COALESCE(?display, ?node) AS ?Display) WHERE { BIND(<" + physicalNodeType + "> AS ?start) {?rel <" + RDFS.SUBPROPERTYOF + "> <http://semoss.org/ontologies/Relation>}"
@@ -316,15 +322,16 @@ public class EngineResource {
 				mainNodeMap = downResultsMap.get(relUri);
 			} else {
 				mainNodeMap = new Hashtable<String, Map<String, String>>();
-				downResultsMap.put(relUri, mainNodeMap);
+				downResultsMap.put(node, mainNodeMap);
 			}
 			
 			Map<String, String> nodeMap = new Hashtable<String, String>();
 			nodeMap.put("physicalName", node);
+			nodeMap.put("displayName", nodeUri);
 			if(parent != null) {
 				nodeMap.put("parent", parent);
 			}
-			mainNodeMap.put(nodeUri, nodeMap);
+			mainNodeMap.put(node, nodeMap);
 		}
 		
 		
@@ -349,7 +356,7 @@ public class EngineResource {
 		}
 		
 		combineResults.addData(coreEngine.getEngineName(), dataType, name, parent, relMap);
-		combineResults.addSimilarity(coreEngine.getEngineName(), dataType, 1);
+		combineResults.addSimilarity(coreEngine.getEngineName(), name, 1);
 		
 		
 		// CANNOT USE BELOW SINCE FE EXPECTS INFORMATION IN FORMAT COMPATABLE WITH GOING THROUGH LOCAL MASTER
@@ -1094,7 +1101,7 @@ public class EngineResource {
 //			}
 //		}
 
-		ISEMOSSTransformation joinTrans = null;
+		JoinTransformation joinTrans = null;
 		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
 		if(insightID == null || insightID.isEmpty()) {
 			String datatype = "TinkerFrame";
@@ -1138,12 +1145,35 @@ public class EngineResource {
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("insightID", insightID);
 		
-		//get the last added column
-		ITableDataFrame df = (ITableDataFrame) insight.getDataMaker();
-		String[] headerList = df.getColumnHeaders();
-		String lastAddedColumn = headerList[headerList.length - 1];
+		//get the added column(s) if table data frame
+		ITableDataFrame frame = (ITableDataFrame) insight.getDataMaker();
+		Map<String, Object> nodesHash = new Hashtable<String, Object>();
+		if (joinTrans != null && frame instanceof ITableDataFrame){
+			List<String> addedCols = joinTrans.getAddedColumns();
+			Map<String, String> props = frame.getProperties();
+			for(String addedCol : addedCols ){
+				Map<String, Object> nodeObj = new HashMap<String, Object>();
+				Set<String> subEngineNameSet = frame.getEnginesForUniqueName(addedCol);
+				// this is for the FE s.t. it doesn't break when no engines are sent back
+				if(subEngineNameSet == null || subEngineNameSet.isEmpty()) {
+					subEngineNameSet = new HashSet<String>();
+					subEngineNameSet.add(Constants.LOCAL_MASTER_DB_NAME);
+				}
+				nodeObj.put("engineName", subEngineNameSet);
+				if(props.containsKey(addedCol)){
+					nodeObj.put("prop", props.get(addedCol));
+				}
+				nodesHash.put(addedCol, nodeObj);
+				
+			}
+		}
 		
-		retMap.put("logicalName", lastAddedColumn);
+		
+//				ITableDataFrame df = (ITableDataFrame) insight.getDataMaker();
+//				String[] headerList = df.getColumnHeaders();
+//				String lastAddedColumn = headerList[headerList.length - 1];
+		
+		retMap.put("addedCol", nodesHash);
 		if(joinTrans==null) {
 			retMap.put("stepID", dmc.getId());
 		} else {
@@ -1151,6 +1181,7 @@ public class EngineResource {
 		}
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
+
 
 	@POST
 	@Path("customFilterOptions")
@@ -1607,14 +1638,18 @@ public class EngineResource {
 		Map<String, String> propMap = new HashMap<String, String>();
 		// need to go through each one and translate
 		for(String uriProp : uriProps){
+//			String physicalName = Utility.getInstanceName(uriProp);
+//			String displayName = this.coreEngine.getTransformedNodeName(uriProp, true);
+//			propMap.put(physicalName, displayName);
 			String logicalName = this.coreEngine.getTransformedNodeName(uriProp, true);
 			String pkqlLogical = this.coreEngine.getPkqlLogicalFromPhysical(uriProp);
-			propMap.put(logicalName, Utility.getInstanceName(pkqlLogical));
+			propMap.put(Utility.getInstanceName(pkqlLogical), logicalName);
 		}
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("props", propMap);
-//		retMap.put("myPhysicalName", Utility.getInstanceName(this.coreEngine.getTransformedNodeName(nodeUri, false)));
-		retMap.put("myPhysicalName", Utility.getInstanceName(this.coreEngine.getPkqlFromAlias(nodeUri)));
+//		retMap.put("physicalName", Utility.getInstanceName(this.coreEngine.getTransformedNodeName(nodeUri, false)));
+//		retMap.put("displayName", nodeUri);
+		retMap.put("physicalName", Utility.getInstanceName(this.coreEngine.getPkqlFromAlias(nodeUri)));
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
