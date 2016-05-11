@@ -151,6 +151,10 @@ public class DataframeResource {
 		logger.info("Dropping insight with id ::: " + insightID);
 		boolean success = InsightStore.getInstance().remove(insightID);
 		InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
+		if(insight.getDataMaker() instanceof TinkerH2Frame) {
+			TinkerH2Frame frame = (TinkerH2Frame)insight.getDataMaker();
+			frame.closeRRunner();
+		}
 
 		if(success) {
 			logger.info("Succesfully dropped insight " + insightID);
