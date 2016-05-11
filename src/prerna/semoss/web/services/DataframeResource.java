@@ -402,41 +402,8 @@ public class DataframeResource {
 	@Produces("application/json")
 	public Response getRecipe() {
 		
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		List<Map<String, String>> recipeList = new ArrayList<>();
-		List<DataMakerComponent> components = insight.getDataMakerComponents();
-		
-		String pkqlKey = "pkql";
-		String otherKey = "transformation";
-		for(DataMakerComponent dmc : components) {
-			for(ISEMOSSTransformation ist : dmc.getPreTrans()) {
-				Map<String, Object> nextIngredient = new HashMap<>();
-				if(ist instanceof PKQLTransformation) {
-					String pkql = ((PKQLTransformation)ist).getPkql();
-					nextIngredient.put(pkqlKey, pkql);
-				} else {
-					Map<String, Object> properties = ist.getProperties();
-					properties.put("transformationType", ist.getClass().toString());
-					properties.put("stepID", ist.getId());
-					nextIngredient.put(otherKey, ist.getId());
-				}
-			}
-			
-			for(ISEMOSSTransformation ist : dmc.getPreTrans()) {
-				Map<String, Object> nextIngredient = new HashMap<>();
-				if(ist instanceof PKQLTransformation) {
-					String pkql = ((PKQLTransformation)ist).getPkql();
-					nextIngredient.put(pkqlKey, pkql);
-				} else {
-					Map<String, Object> properties = ist.getProperties();
-					properties.put("transformationType", ist.getClass().toString());
-					properties.put("stepID", ist.getId());
-					nextIngredient.put(otherKey, ist.getId());
-				}
-			}
-		}
-		
-		retMap.put("recipe", recipeList);
+		Map<String, Object> retMap = new HashMap<String, Object>();		
+		retMap.put("recipe", insight.getRecipe());
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
