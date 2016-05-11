@@ -1,6 +1,7 @@
 package prerna.semoss.web.services;
 
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,6 +40,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
 import prerna.sablecc.PKQLRunner;
+import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
@@ -392,6 +394,49 @@ public class DataframeResource {
 		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();	
 		retMap.put("insightID", insight.getInsightID());
 		retMap.put("tableHeaders", table.getTableHeaderObjects());
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+	
+	@GET
+	@Path("/recipe")
+	@Produces("application/json")
+	public Response getRecipe() {
+		
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		List<Map<String, String>> recipeList = new ArrayList<>();
+		List<DataMakerComponent> components = insight.getDataMakerComponents();
+		
+		String pkqlKey = "pkql";
+		String otherKey = "transformation";
+		for(DataMakerComponent dmc : components) {
+			for(ISEMOSSTransformation ist : dmc.getPreTrans()) {
+				Map<String, Object> nextIngredient = new HashMap<>();
+				if(ist instanceof PKQLTransformation) {
+					String pkql = ((PKQLTransformation)ist).getPkql();
+					nextIngredient.put(pkqlKey, pkql);
+				} else {
+					Map<String, Object> properties = ist.getProperties();
+					properties.put("transformationType", ist.getClass().toString());
+					properties.put("stepID", ist.getId());
+					nextIngredient.put(otherKey, ist.getId());
+				}
+			}
+			
+			for(ISEMOSSTransformation ist : dmc.getPreTrans()) {
+				Map<String, Object> nextIngredient = new HashMap<>();
+				if(ist instanceof PKQLTransformation) {
+					String pkql = ((PKQLTransformation)ist).getPkql();
+					nextIngredient.put(pkqlKey, pkql);
+				} else {
+					Map<String, Object> properties = ist.getProperties();
+					properties.put("transformationType", ist.getClass().toString());
+					properties.put("stepID", ist.getId());
+					nextIngredient.put(otherKey, ist.getId());
+				}
+			}
+		}
+		
+		retMap.put("recipe", recipeList);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
