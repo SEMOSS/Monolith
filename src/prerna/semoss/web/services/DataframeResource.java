@@ -34,6 +34,7 @@ import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
 import prerna.ds.TinkerFrame;
 import prerna.ds.H2.TinkerH2Frame;
+import prerna.engine.api.IEngine;
 import prerna.equation.EquationSolver;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
@@ -46,6 +47,7 @@ import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
 
@@ -60,6 +62,27 @@ public class DataframeResource {
 	public Object runEngineAnalytics(){
 		AnalyticsResource analytics = new AnalyticsResource();
 		return analytics;
+	}
+	
+	@POST
+	@Path("/clear")
+	@Produces("application/json")
+	public Response clearInsight(@Context HttpServletRequest request){
+		String id = insight.getInsightID();
+		String dmName = insight.getDataMakerName();
+		String engName = insight.getEngineName();
+		IEngine eng = null;
+		if(engName != null){
+			eng = (IEngine) DIHelper.getInstance().getLocalProp(engName);
+		}
+		String layoutName = insight.getOutput();
+		
+		this.insight = new Insight(eng, dmName, layoutName);
+		this.insight.getDataMaker(); // need to instatiate datamaker so next call doesn't try to get it from cache
+		this.insight.setInsightID(id);
+		InsightStore.getInstance().put(id, insight);
+				
+		return Response.status(200).entity(WebUtility.getSO("Insight " + id + " has been cleared")).build();
 	}
 	
 	/**
@@ -132,12 +155,18 @@ public class DataframeResource {
 		
 		PKQLTransformation pkql = new PKQLTransformation();
 		Map<String, Object> props = new HashMap<String, Object>();
-		props.put(PKQLTransformation.EXPRESSION, form.getFirst("expression"));
+		String pkqlCmd = form.getFirst("expression");
+		props.put(PKQLTransformation.EXPRESSION, pkqlCmd);
 		pkql.setProperties(props);
 		PKQLRunner runner = new PKQLRunner();
 		pkql.setRunner(runner);
 		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
 		list.add(pkql);
+		
+//		if(pkqlCmd.contains("data.maker("){
+//			
+//		}
+		
 		insight.processPostTransformation(list);
 		insight.setPkqlRunner(runner);
 		Map resultHash = insight.getPKQLData(true);
