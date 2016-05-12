@@ -1111,8 +1111,7 @@ public class EngineResource {
 		// 2. Else, we get the insight from session (if the insight isn't in session, we are done--throw an error)
 		else {
 			NameServer ns = new NameServer();
-//			ns.getInsightDataFrame(insightID, null, request);
-			ns.getInsightDataFrame(insightID, request);
+			ns.getInsightDataFrame(insightID, null, request);
 			insight = InsightStore.getInstance().get(insightID);
 			if(insight == null) {
 				Map<String, String> errorHash = new HashMap<String, String>();
