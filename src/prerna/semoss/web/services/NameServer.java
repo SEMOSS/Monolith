@@ -943,9 +943,7 @@ public class NameServer {
 //	}
 
 	@Path("i-{insightID}")
-	public Object getInsightDataFrame(@PathParam("insightID") String insightID, @Context HttpServletRequest request){
-//	public Object getInsightDataFrame(@PathParam("insightID") String insightID, MultivaluedMap<String, String> form, @Context HttpServletRequest request){
-
+	public Object getInsightDataFrame(@PathParam("insightID") String insightID, @QueryParam("dataFrameType") String dataFrameType, @Context HttpServletRequest request){
 		// eventually I want to pick this from session
 		// but for now let us pick it from the insight store
 		System.out.println("Came into this point.. " + insightID);
@@ -995,10 +993,9 @@ public class NameServer {
 		else
 		{
 			// get the data frame type and set it from the FE
-			String dataFrameType = "TinkerH2Frame";
-//			if(form != null && form.containsKey("dataFrameType")) {
-//				dataFrameType = form.getFirst("dataFrameType");
-//			}
+			if(dataFrameType == null) {
+				dataFrameType = "TinkerH2Frame";
+			}
 			existingInsight = new Insight(null, dataFrameType, "Grid");
 			InsightStore.getInstance().put(existingInsight);
 		}
