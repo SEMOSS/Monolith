@@ -28,6 +28,9 @@
 package prerna.semoss.web.services;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -35,8 +38,10 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URLEncoder;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.Scanner;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -62,6 +67,7 @@ import prerna.auth.CACReader;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
 
@@ -96,6 +102,23 @@ public class UserResource
 	private final String FACEBOOK_APP_SECRET = "d19e07178689958a9f773c5f6f1c5d45";
 	private final String FACEBOOK_ACCESS_TOKEN_NEW = "https://graph.facebook.com/oauth/access_token?code=%s&client_id=%s&redirect_uri=%s&client_secret=%s";
 	
+	private static ArrayList<String> userEmails = new ArrayList<String>();
+	
+	static {
+		String whitelistPath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "/db/" + Constants.SECURITY_DB + "/" + Constants.AUTH_WHITELIST_FILE;
+		try {
+			File whitelistFile = new File(whitelistPath);
+			if(whitelistFile.exists()) {
+				Scanner whitelist = new Scanner(new FileReader(whitelistFile));
+				while(whitelist.hasNext()) {
+					userEmails.add(whitelist.nextLine().trim());
+				}
+				whitelist.close();
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+	}
 	/**
 	 * Logs user in through Google+.
 	 */
@@ -153,6 +176,10 @@ public class UserResource
 			String email = idToken.getPayload().getEmail();
 			String name = userinfo.getGivenName() + " " + userinfo.getFamilyName();
 			String picture = userinfo.getPicture();
+			
+			if(!checkWhitelistForEmail(email)) {
+				return Response.status(401).entity(WebUtility.getSO("Not permitted to log in. Please contact administrator.")).build();
+			}
 			
 			ret.put("token", tokenResponse.getAccessToken());
 			ret.put("id", gplusId);
@@ -274,6 +301,11 @@ public class UserResource
 		String id = me.getId();
 		String email = me.getEmail();
 		String name = me.getName();
+		
+		if(!checkWhitelistForEmail(email)) {
+			return Response.status(401).entity(WebUtility.getSO("Not permitted to log in. Please contact administrator.")).build();
+		}
+		
 		User newUser;
 		if(me.getPicture() != null) {
 			String picture = me.getPicture().getUrl();
@@ -320,6 +352,14 @@ public class UserResource
 		
 		ret.put("success", "true");
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+	}
+	
+	private boolean checkWhitelistForEmail(String email) {
+		if(userEmails.isEmpty() || userEmails.contains(email)) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 	
 	@POST
