@@ -145,10 +145,14 @@ public class FileUploader extends Uploader{
 					String sheetName = sheets[i];
 					String[] types = helper.predictRowTypes(sheetName);
 					String[] headers = helper.getHeaders(sheetName);
+					String [] cleanHeaders = new String[headers.length];
+					for(int x = 0; x < headers.length; x++) {
+						cleanHeaders[i] = Utility.cleanVariableString(headers[i]);
+					}
 					
 					Map<String, String> headerTypes = new LinkedHashMap<String, String>();
-					for(int j = 0; j < headers.length; j++) {
-						headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
+					for(int j = 0; j < cleanHeaders.length; j++) {
+						headerTypes.put(cleanHeaders[j], Utility.getCleanDataType(types[j]));
 					}
 					headerTypeMap.put(sheetName, headerTypes);
 				}
@@ -164,11 +168,16 @@ public class FileUploader extends Uploader{
 				helper.parse(fileLoc);
 				
 				String [] headers = helper.getHeaders();
+				String [] cleanHeaders = new String[headers.length];
+				for(int i = 0; i < headers.length; i++) {
+					cleanHeaders[i] = Utility.cleanVariableString(headers[i]);
+				}
+				
 				String [] types = helper.predictTypes();
 				
 				Map<String, String> headerTypes = new LinkedHashMap<String, String>();
-				for(int j = 0; j < headers.length; j++) {
-					headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
+				for(int j = 0; j < cleanHeaders.length; j++) {
+					headerTypes.put(cleanHeaders[j], Utility.getCleanDataType(types[j]));
 				}
 				headerTypeMap.put(CSV_FILE_KEY, headerTypes);
 			}
