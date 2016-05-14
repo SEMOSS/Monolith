@@ -676,7 +676,8 @@ public class NameServer {
 			IEngine eng = (IEngine) DIHelper.getInstance().getLocalProp(engine);
 			String returnURI = eng.getTransformedNodeName(conceptURI, true);
 			
-			String instanceName = conceptURI.replaceAll(".*/Concept/", "");;
+//			String instanceName = conceptURI.replaceAll(".*/Concept/", "");
+			String instanceName = Utility.getInstanceName(returnURI);
 			
 			Map<String, Map<String, String>> conceptSet = null;
 			if(retMap.containsKey(engine)) {
