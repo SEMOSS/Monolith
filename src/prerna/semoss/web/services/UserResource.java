@@ -141,6 +141,7 @@ public class UserResource
 		String clientId = h.get("clientId");
 		request.getSession().setAttribute("clientId", clientId);
 		String code = h.get("code");
+		String redirectUri = h.get("redirectUri");
 
 		// Only connect a user that is not already connected.
 		String tokenData = (String) request.getSession().getAttribute("token");
@@ -159,7 +160,7 @@ public class UserResource
 		GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
 		try {
 			// Upgrade the authorization code into an access and refresh token.
-			tokenResponse =	new GoogleAuthorizationCodeTokenRequest(TRANSPORT, JSON_FACTORY, clientId, GOOGLE_CLIENT_SECRET, code, "https://localhost").execute();
+			tokenResponse =	new GoogleAuthorizationCodeTokenRequest(TRANSPORT, JSON_FACTORY, clientId, GOOGLE_CLIENT_SECRET, code, redirectUri).execute();
 
 			// Grab the Google user info
 			GoogleCredential credential = new GoogleCredential.Builder()
