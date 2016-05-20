@@ -185,6 +185,7 @@ public class DataframeResource {
 		if(insight.getDataMaker() instanceof TinkerH2Frame) {
 			TinkerH2Frame frame = (TinkerH2Frame)insight.getDataMaker();
 			frame.closeRRunner();
+			frame.dropTable();
 		}
 
 		if(success) {
