@@ -57,7 +57,7 @@ public class DatabaseUploader extends Uploader {
 	// such that we dont send a success before those processes are complete
 	boolean autoLoad = false;
 	
-	private void loadEngineIntoSession(HttpServletRequest request, String engineName) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
+	protected void loadEngineIntoSession(HttpServletRequest request, String engineName) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
 		Properties prop = new Properties();
 		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
 		String fileName = baseFolder + "/db/"  +  engineName + ".smss";

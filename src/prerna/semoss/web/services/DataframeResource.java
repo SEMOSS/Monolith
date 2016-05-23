@@ -1,7 +1,6 @@
 package prerna.semoss.web.services;
 
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -12,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -33,7 +33,7 @@ import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
 import prerna.ds.TinkerFrame;
-import prerna.ds.H2.TinkerH2Frame;
+import prerna.ds.H2.H2Frame;
 import prerna.engine.api.IEngine;
 import prerna.equation.EquationSolver;
 import prerna.om.GraphDataModel;
@@ -41,7 +41,6 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
 import prerna.sablecc.PKQLRunner;
-import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
@@ -53,10 +52,12 @@ import prerna.web.services.util.WebUtility;
 
 
 public class DataframeResource {
+	
+	@Context
+	ServletContext context;
+	
 	Logger logger = Logger.getLogger(DataframeResource.class.getName());
 	Insight insight = null;
-	
-
 	
 	@Path("/analytics")
 	public Object runEngineAnalytics(){
@@ -182,8 +183,8 @@ public class DataframeResource {
 		logger.info("Dropping insight with id ::: " + insightID);
 		boolean success = InsightStore.getInstance().remove(insightID);
 		InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
-		if(insight.getDataMaker() instanceof TinkerH2Frame) {
-			TinkerH2Frame frame = (TinkerH2Frame)insight.getDataMaker();
+		if(insight.getDataMaker() instanceof H2Frame) {
+			H2Frame frame = (H2Frame)insight.getDataMaker();
 			frame.closeRRunner();
 			frame.dropTable();
 		}
@@ -445,7 +446,6 @@ public class DataframeResource {
 			//@QueryParam("end") int end,
 			@Context HttpServletRequest request)
 	{
-
 		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();		
 		if(mainTree == null) {
 			Map<String, String> errorHash = new HashMap<String, String>();
@@ -598,21 +598,6 @@ public class DataframeResource {
 		return Response.status(200).entity(WebUtility.getSO(hasDuplicates)).build();
 	}
 	
-	@POST
-	@Path("/saveAsFlatDatabase")
-	@Produces("application/json")
-	public Response saveAsFlatDatabase(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
-	{
-		IDataMaker dm = insight.getDataMaker();
-		if(dm instanceof TinkerFrame || dm instanceof TinkerH2Frame) {
-			Map<String, Object> output = dm.getDataMakerOutput();
-			List<Object[]> data = (List<Object[]>) output.get("data");
-			
-			return Response.status(200).entity(WebUtility.getSO("New engine is called ")).build();
-		} else {
-			return Response.status(400).entity(WebUtility.getSO("This insight cannot be saved as a flat table")).build();
-		}
-	}
 
     //for handling playsheet specific tool calls
     @POST
