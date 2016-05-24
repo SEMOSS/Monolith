@@ -995,7 +995,7 @@ public class NameServer {
 		{
 			// get the data frame type and set it from the FE
 			if(dataFrameType == null) {
-				dataFrameType = "TinkerH2Frame";
+				dataFrameType = "H2Frame";
 			}
 			existingInsight = new Insight(null, dataFrameType, "Grid");
 			InsightStore.getInstance().put(existingInsight);
