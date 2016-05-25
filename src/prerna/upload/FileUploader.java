@@ -87,7 +87,7 @@ public class FileUploader extends Uploader{
 			IDataMaker table = TableDataFrameFactory.generateDataFrameFromFile(fileName, delimiter, dataFrameType, dataTypeMap, mainCol);
 			String dataFrame;
 			if(dataFrameType.equalsIgnoreCase("H2")) {
-				dataFrame = "TinkerH2Frame";
+				dataFrame = "H2Frame";
 			} else {
 				dataFrame = "TinkerFrame";
 			}
