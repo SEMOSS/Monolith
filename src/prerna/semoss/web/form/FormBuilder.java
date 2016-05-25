@@ -185,15 +185,25 @@ public final class FormBuilder {
 		String conceptBaseURI = semossBaseURI + "/" + Constants.DEFAULT_NODE_CLASS;
 		String propertyBaseURI = semossBaseURI + "/" + Constants.DEFAULT_PROPERTY_CLASS;
 
-		List<HashMap<String, Object>> nodes = (List<HashMap<String, Object>>) engineHash.get("nodes"); 
+		List<HashMap<String, Object>> nodes = new ArrayList<HashMap<String, Object>>();
+		if(engineHash.containsKey("nodes")) {
+			nodes = (List<HashMap<String, Object>>) engineHash.get("nodes"); 
+		}
 		List<HashMap<String, Object>> relationships = new ArrayList<HashMap<String, Object>>();
-
 		if(engineHash.containsKey("relationships")) {
 			relationships = (List<HashMap<String, Object>>)engineHash.get("relationships");
 		}
+		List<HashMap<String, Object>> removeNodes = new ArrayList<HashMap<String, Object>>();
+		if(engineHash.containsKey("removeNodes")) {
+			removeNodes = (List<HashMap<String, Object>>) engineHash.get("removeNodes"); 
+		}
+		List<HashMap<String, Object>> removeRelationships = new ArrayList<HashMap<String, Object>>();
+		if(engineHash.containsKey("removeRelationships")) {
+			removeRelationships = (List<HashMap<String, Object>>)engineHash.get("removeRelationships");
+		}
 
 		if(engine.getEngineType() == IEngine.ENGINE_TYPE.JENA || engine.getEngineType() == IEngine.ENGINE_TYPE.SESAME) {
-			saveRDFFormData(engine, baseURI, relationBaseURI, propertyBaseURI, nodes, relationships, formEng, auditLogTableName, user);
+			saveRDFFormData(engine, baseURI, relationBaseURI, propertyBaseURI, nodes, relationships, removeNodes, removeRelationships, formEng, auditLogTableName, user);
 		} else if(engine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
 			saveRDBMSFormData(engine, baseURI, relationBaseURI, conceptBaseURI, propertyBaseURI, nodes, relationships, formEng, auditLogTableName, user);
 		} else {
@@ -221,7 +231,7 @@ public final class FormBuilder {
 	 * @param formEng 
 	 * @param user 
 	 */
-	private static void saveRDFFormData(IEngine engine, String baseURI, String relationBaseURI, String propertyBaseURI, List<HashMap<String, Object>> nodes, List<HashMap<String, Object>> relationships, IEngine formEng, String auditLogTableName, String user) {
+	private static void saveRDFFormData(IEngine engine, String baseURI, String relationBaseURI, String propertyBaseURI, List<HashMap<String, Object>> nodes, List<HashMap<String, Object>> relationships, List<HashMap<String, Object>> removeNodes, List<HashMap<String, Object>> removeRelationships, IEngine formEng, String auditLogTableName, String user) {
 		String startNode;
 		String endNode;
 		String subject;
@@ -232,10 +242,79 @@ public final class FormBuilder {
 		String baseRelationshipURI;
 		String instanceRel;
 		String instanceRelationshipURI;
+		String conceptType;
+		String conceptValue;
+		String instanceConceptURI;
+		Object propertyValue;
+		String propertyURI;
 
-		//deleted relationships - need to keep track since many-to-many relationships are sent one at a time
-		Set<String> deletedRels = new HashSet<String>();
-		//Save the relationships
+		// for deleting existing relationships
+		for(int i = 0; i < removeRelationships.size(); i++) {
+			Map<String, Object> deleteRelationships = removeRelationships.get(i);
+			startNode = Utility.cleanString(deleteRelationships.get("startNodeVal").toString(), true);
+			endNode = Utility.cleanString(deleteRelationships.get("endNodeVal").toString(), true);
+			subject = deleteRelationships.get("startNodeType").toString();
+			object =  deleteRelationships.get("endNodeType").toString(); 
+			instanceSubjectURI = baseURI + "/Concept/" + Utility.getInstanceName(subject) + "/" + startNode;
+			instanceObjectURI = baseURI + "/Concept/" + Utility.getInstanceName(object) + "/" +endNode;
+
+			relationType = Utility.getInstanceName(deleteRelationships.get("relType").toString());
+			baseRelationshipURI = relationBaseURI + "/" + relationType;
+			instanceRel = startNode + ":" + endNode;
+			instanceRelationshipURI =  baseURI + "/Relation/" + relationType + "/" + instanceRel;
+			
+			boolean deleteUnconnectedConcepts = false;
+			boolean removeNode = false;
+			overrideRDFRelationship(engine, instanceSubjectURI, subject, instanceObjectURI, object, baseRelationshipURI, true, deleteUnconnectedConcepts, removeNode, formEng, auditLogTableName, user);
+		}
+		
+		// for deleting existing concepts
+		for(int i = 0; i < removeNodes.size(); i++) {
+			Map<String, Object> deleteConcept = removeNodes.get(i);
+			conceptType = deleteConcept.get("conceptName").toString();
+			conceptValue = Utility.cleanString(deleteConcept.get("conceptValue").toString(), true);
+			instanceConceptURI = baseURI + "/Concept/" + Utility.getInstanceName(conceptType) + "/" + conceptValue;
+			
+			boolean removeConcept = false;
+			if(deleteConcept.get(OVERRIDE) != null) {
+				removeConcept = Boolean.parseBoolean(deleteConcept.get(OVERRIDE).toString());
+			}
+			
+			if(removeConcept){
+				// need to delete all properties before deleting concept
+				Set<String> uriBindingList = new HashSet<String>();
+				uriBindingList.add(instanceConceptURI);
+				deleteAllRDFConnectionsToConcept(engine, uriBindingList, formEng, auditLogTableName, user);
+				removeRDFNodeAndAllProps(engine, uriBindingList, formEng, auditLogTableName, user);
+			} else if(deleteConcept.containsKey("properties")) {
+				List<HashMap<String, Object>> properties = (List<HashMap<String, Object>>) deleteConcept.get("properties");
+
+				for(int j = 0; j < properties.size(); j++) {
+					Map<String, Object> property = properties.get(j);
+					propertyValue = property.get("propertyValue");
+					if(propertyValue instanceof String) {
+						// check if string val is a date
+						SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+							try {
+								dateFormat.setLenient(true);
+								propertyValue= (Date) dateFormat.parse(((String) propertyValue).trim());
+							} catch (ParseException e) {
+								propertyValue = propertyValue.toString();
+							}
+					}
+					propertyURI = property.get("propertyName").toString();
+
+					engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
+					// add audit log statement
+					Calendar cal = Calendar.getInstance();
+					String currTime = DATE_DF.format(cal.getTime());
+					addAuditLog(formEng, auditLogTableName, user, REMOVE, instanceConceptURI, "", "", propertyURI, propertyValue + "", currTime);
+					engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{propertyURI, RDF.TYPE, propertyBaseURI, true});
+				}
+			}
+		}
+		
+		// for adding new relationships
 		for(int i = 0; i < relationships.size(); i++) {
 			Map<String, Object> relationship = relationships.get(i);
 			startNode = Utility.cleanString(relationship.get("startNodeVal").toString(), true);
@@ -249,36 +328,7 @@ public final class FormBuilder {
 			baseRelationshipURI = relationBaseURI + "/" + relationType;
 			instanceRel = startNode + ":" + endNode;
 			instanceRelationshipURI =  baseURI + "/Relation/" + relationType + "/" + instanceRel;
-			
-			boolean override = false;
-			if(relationship.get(OVERRIDE) != null) {
-				override = Boolean.parseBoolean(relationship.get(OVERRIDE).toString());
-			}
-			if(override) {
-				String type = relationship.get(OVERRIDE_TYPE).toString();
-				boolean deleteUnconnectedConcepts = false;
-				if(relationship.get(DELETE_UNCONNECTED_CONCEPTS) != null) {
-					deleteUnconnectedConcepts = Boolean.parseBoolean(relationship.get(DELETE_UNCONNECTED_CONCEPTS).toString());
-				}
-				boolean removeNode = false;
-				if(relationship.get(REMOVE_NODE) != null) {
-					removeNode = Boolean.parseBoolean(relationship.get(REMOVE_NODE).toString());
-				}
-				if(type.equalsIgnoreCase(UPSTREAM)) {
-					if(!deletedRels.contains(instanceObjectURI + subject + baseRelationshipURI)) {
-						overrideRDFRelationship(engine, instanceSubjectURI, subject, instanceObjectURI, object, baseRelationshipURI, false, deleteUnconnectedConcepts, removeNode, formEng, auditLogTableName, user);
-						deletedRels.add(instanceObjectURI + subject + baseRelationshipURI);
-					}
-				} else if(type.equalsIgnoreCase(DOWNSTREAM)){
-					if(!deletedRels.contains(instanceSubjectURI + object + baseRelationshipURI)) {
-						overrideRDFRelationship(engine, instanceSubjectURI, subject, instanceObjectURI, object, baseRelationshipURI, true, deleteUnconnectedConcepts, removeNode, formEng, auditLogTableName, user);
-						deletedRels.add(instanceSubjectURI + object + baseRelationshipURI);
-					}
-				} else {
-					throw new IllegalArgumentException("Need to define relationship as either: " + UPSTREAM + " or " + DOWNSTREAM);
-				}
-			}
-			
+
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, RDF.TYPE, subject, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceObjectURI, RDF.TYPE, object, true});
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceSubjectURI, relationBaseURI, instanceObjectURI, true});
@@ -294,42 +344,33 @@ public final class FormBuilder {
 			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.LABEL, instanceRel, false});
 		}
 		
-		String nodeType;
-		String nodeValue;
-		String instanceConceptURI;
-		String propertyValue;
-		String propertyURI;
-
-		//Save nodes and properties of nodes
+		//for adding concepts and properties of nodes
 		for(int i = 0; i < nodes.size(); i++) {
-			Map<String, Object> node = nodes.get(i);
-			nodeType = node.get("conceptName").toString();
-			nodeValue = Utility.cleanString(node.get("conceptValue").toString(), true);
+			Map<String, Object> concept = nodes.get(i);
+			conceptType = concept.get("conceptName").toString();
+			conceptValue = Utility.cleanString(concept.get("conceptValue").toString(), true);
 
-			boolean override = false;
-			if(node.get(OVERRIDE) != null) {
-				override = Boolean.parseBoolean(node.get(OVERRIDE).toString());
-			}
-
-			instanceConceptURI = baseURI + "/Concept/" + Utility.getInstanceName(nodeType) + "/" + nodeValue;
-			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDF.TYPE, nodeType, true});
-			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDFS.LABEL, nodeValue, false});
-
-			if(!instanceConceptURI.contains("Form")) {
-				System.out.println("not form.");
-			}
-			
-			if(node.containsKey("properties")) {
-				List<HashMap<String, Object>> properties = (List<HashMap<String, Object>>)node.get("properties");
+			instanceConceptURI = baseURI + "/Concept/" + Utility.getInstanceName(conceptType) + "/" + conceptValue;
+			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDF.TYPE, conceptType, true});
+			engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, RDFS.LABEL, conceptValue, false});
+			if(concept.containsKey("properties")) {
+				List<HashMap<String, Object>> properties = (List<HashMap<String, Object>>) concept.get("properties");
 
 				for(int j = 0; j < properties.size(); j++) {
 					Map<String, Object> property = properties.get(j);
-					propertyValue = Utility.cleanString(property.get("propertyValue").toString(), false);
+					propertyValue = property.get("propertyValue");
+					if(propertyValue instanceof String) {
+						// check if string val is a date
+						SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+						try {
+							dateFormat.setLenient(true);
+							propertyValue= (Date) dateFormat.parse(((String) propertyValue).trim());
+						} catch (ParseException e) {
+							propertyValue = propertyValue.toString();
+						}
+					}
 					propertyURI = property.get("propertyName").toString();
 
-					if(override) {
-						removeRDFNodeProp(engine, instanceConceptURI, propertyURI, formEng, auditLogTableName, user);
-					}
 					engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
 					// add audit log statement
 					Calendar cal = Calendar.getInstance();
@@ -340,26 +381,26 @@ public final class FormBuilder {
 			}
 		}
 	}
-
-	private static void removeRDFNodeProp(IEngine engine, String instanceConceptURI, String propertyURI, IEngine formEng, String auditLogTableName, String user) {
-		String getOldNodePropValuesQuery = "SELECT DISTINCT ?propVal WHERE { BIND(<" + instanceConceptURI + "> AS ?instance) {?instance <" + propertyURI + "> ?propVal} }";
-
-		List<Object> propVals = new ArrayList<Object>();
-		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, getOldNodePropValuesQuery);
-		String[] names = wrapper.getVariables();
-		while(wrapper.hasNext()) {
-			ISelectStatement ss = wrapper.next();
-			propVals.add(ss.getVar(names[0]));
-		}
-
-		for(Object propertyValue : propVals) {
-			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
-			// add audit log statement
-			Calendar cal = Calendar.getInstance();
-			String currTime = DATE_DF.format(cal.getTime());
-			addAuditLog(formEng, auditLogTableName, user, REMOVE, instanceConceptURI, "", "", propertyURI, propertyValue + "", currTime);
-		}
-	}
+	
+//	private static void removeRDFNodeProp(IEngine engine, String instanceConceptURI, String propertyURI, IEngine formEng, String auditLogTableName, String user) {
+//		String getOldNodePropValuesQuery = "SELECT DISTINCT ?propVal WHERE { BIND(<" + instanceConceptURI + "> AS ?instance) {?instance <" + propertyURI + "> ?propVal} }";
+//
+//		List<Object> propVals = new ArrayList<Object>();
+//		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, getOldNodePropValuesQuery);
+//		String[] names = wrapper.getVariables();
+//		while(wrapper.hasNext()) {
+//			ISelectStatement ss = wrapper.next();
+//			propVals.add(ss.getVar(names[0]));
+//		}
+//
+//		for(Object propertyValue : propVals) {
+//			engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
+//			// add audit log statement
+//			Calendar cal = Calendar.getInstance();
+//			String currTime = DATE_DF.format(cal.getTime());
+//			addAuditLog(formEng, auditLogTableName, user, REMOVE, instanceConceptURI, "", "", propertyURI, propertyValue + "", currTime);
+//		}
+//	}
 	
 	/**
 	 * Deletes the relationship and relationship properties that exist between an instance and all other instances of a specified type
@@ -377,11 +418,11 @@ public final class FormBuilder {
 	 */
 	private static void overrideRDFRelationship(IEngine engine, String instanceSubjectURI, String subjectTypeURI, String instanceObjectURI, String objectTypeURI, String baseRelationshipURI, boolean deleteDownstream, boolean deleteUnconnectedConcepts, boolean removeNode, IEngine formEng, String auditLogTableName, String user) {
 		StringBuilder query = new StringBuilder("SELECT DISTINCT ?SUB ?PRED ?OBJ ?LABEL ?PROP ?VAL WHERE { ");
-		if(deleteDownstream) {
+//		if(deleteDownstream) {
 			query.append("BIND(<" + instanceSubjectURI + "> AS ?SUB) ");
-		} else {
+//		} else {
 			query.append("BIND(<" + instanceObjectURI + "> AS ?OBJ) ");
-		}
+//		}
 		query.append("{?SUB <").append(RDF.TYPE).append("> <" + subjectTypeURI + ">} ");
 		query.append("{?OBJ <").append(RDF.TYPE).append("> <" + objectTypeURI + ">} ");
 		query.append("{ ");
