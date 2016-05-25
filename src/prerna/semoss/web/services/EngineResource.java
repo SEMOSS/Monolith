@@ -1101,7 +1101,7 @@ public class EngineResource {
 			String type;
 			if(form.get("dataFrameType") != null && (type = form.get("dataFrameType").get(0)) != null) {
 				if(type.equalsIgnoreCase("H2")) {
-					datatype = "TinkerH2Frame";
+					datatype = "H2Frame";
 				}
 			}
 			insight = new Insight(this.coreEngine, datatype, PlaySheetRDFMapBasedEnum.getSheetName("Grid")); // TODO: this needs to be an enum or grabbed from rdf map somehow
