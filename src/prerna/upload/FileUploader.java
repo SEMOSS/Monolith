@@ -217,7 +217,7 @@ public class FileUploader extends Uploader{
 					if(fieldName.equals("file")) {
 						Date date = new Date();
 						String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-						value = filePath + "\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")) + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
+						value = filePath + "\\\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")) + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
 						file = new File(value);
 						writeFile(fi, file);
 						System.out.println( "Saved Filename: " + fileName + "  to "+ file);
@@ -227,7 +227,7 @@ public class FileUploader extends Uploader{
 				System.err.println("Writing input string into file...");
 				Date date = new Date();
 				String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-				value = filePath + "\\FileString_" + modifiedDate;
+				value = filePath + "\\\\FileString_" + modifiedDate;
 				file = new File(value);
 				writeFile(fi, file);
 				System.out.println( "Created new file...");
