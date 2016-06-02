@@ -462,6 +462,10 @@ public class NameServer {
 		String filterDataStr = form.getFirst("filterData");
 		Gson gson = new Gson();
 		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
+		if(filterData.containsKey("index_name")) {
+			filterData.put("name", filterData.get("index_name"));
+			filterData.remove("index_name");
+		}
 		
 		//If security is enabled, remove the engines in the filters that aren't accessible - if none in filters, add all accessible engines to filter list
 		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
