@@ -28,6 +28,7 @@ import prerna.ds.TableDataFrameFactory;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.poi.main.helper.CSVFileHelper;
+import prerna.poi.main.helper.ImportApiHelper;
 import prerna.poi.main.helper.XLFileHelper;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
@@ -37,6 +38,7 @@ import prerna.web.services.util.WebUtility;
 public class FileUploader extends Uploader{
 
 	private static final String CSV_FILE_KEY = "CSV";
+	private static String api = "";
 
 	/**
 	 * Create a data frame based on a file
@@ -122,68 +124,90 @@ public class FileUploader extends Uploader{
 	@POST
 	@Path("determineDataTypesForFile")
 	public Response determineDataTypesForFile(@Context HttpServletRequest request) {
+
 		try {
 			List<FileItem> fileItems = processRequest(request);
 			// collect all of the data input on the form
-			
+
 			Hashtable<String, String> inputData = getInputData(fileItems);
-			String fileLoc = inputData.get("file");
-			
 			Map<String, Object> retObj = new HashMap<String, Object>();
-			String uniqueStorageId = FileStore.getInstance().put(fileLoc);
-			retObj.put("uniqueFileKey", uniqueStorageId);
-			
+
 			Map<String, Map<String, String>> headerTypeMap = new Hashtable<String, Map<String, String>>();
 
-			if(fileLoc.endsWith(".xlsx") || fileLoc.endsWith(".xlsm")) {
-				XLFileHelper helper = new XLFileHelper();
-				helper.parse(fileLoc);
-				
-				String[] sheets = helper.getTables();
-				for(int i = 0; i < sheets.length; i++)
-				{
-					String sheetName = sheets[i];
-					String[] types = helper.predictRowTypes(sheetName);
-					String[] headers = helper.getHeaders(sheetName);
+			boolean webExtract = (inputData.get("file") == null);
+			if(webExtract){//Provision for extracted data via import.io
+				api = inputData.get("api");
+				ImportApiHelper helper = new ImportApiHelper();
+				helper.setApi(api);
+				helper.parse();				
+
+				String [] headers = helper.getHeaders();
+				String [] types = helper.predictTypes();
+
+				Map<String, String> headerTypes = new LinkedHashMap<String, String>();
+				for(int j = 0; j < headers.length; j++) {
+					headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
+				}
+				headerTypeMap.put(CSV_FILE_KEY, headerTypes);
+
+			}
+			else{
+
+				String fileLoc = inputData.get("file");
+				String uniqueStorageId = FileStore.getInstance().put(fileLoc);
+				retObj.put("uniqueFileKey", uniqueStorageId);
+				if(fileLoc.endsWith(".xlsx") || fileLoc.endsWith(".xlsm")) {
+					XLFileHelper helper = new XLFileHelper();
+					helper.parse(fileLoc);
+
+					String[] sheets = helper.getTables();
+					for(int i = 0; i < sheets.length; i++)
+					{
+						String sheetName = sheets[i];
+						String[] types = helper.predictRowTypes(sheetName);
+						String[] headers = helper.getHeaders(sheetName);
+
+						String [] cleanHeaders = new String[headers.length];
+						for(int x = 0; x < headers.length; x++) {
+							cleanHeaders[i] = Utility.cleanVariableString(headers[i]);
+						}
+						
+						Map<String, String> headerTypes = new LinkedHashMap<String, String>();
+						for(int j = 0; j < cleanHeaders.length; j++) {
+							headerTypes.put(cleanHeaders[j], Utility.getCleanDataType(types[j]));
+						}
+						headerTypeMap.put(sheetName, headerTypes);
+					}
+				} else {
+					String delimiter = inputData.get("delimiter");
+					// generate tinker frame from 
+					if(inputData.get("delimiter") == null || inputData.get("delimiter").isEmpty()) {
+						delimiter = "\t";
+					}
+
+					CSVFileHelper helper = new CSVFileHelper();
+					helper.setDelimiter(delimiter.charAt(0));
+					helper.parse(fileLoc);
+
+					String [] headers = helper.getHeaders();
 					String [] cleanHeaders = new String[headers.length];
-					for(int x = 0; x < headers.length; x++) {
+					for(int i = 0; i < headers.length; i++) {
 						cleanHeaders[i] = Utility.cleanVariableString(headers[i]);
 					}
-					
+					String [] types = helper.predictTypes();
+
 					Map<String, String> headerTypes = new LinkedHashMap<String, String>();
 					for(int j = 0; j < cleanHeaders.length; j++) {
 						headerTypes.put(cleanHeaders[j], Utility.getCleanDataType(types[j]));
 					}
-					headerTypeMap.put(sheetName, headerTypes);
+					headerTypeMap.put(CSV_FILE_KEY, headerTypes);
 				}
-			} else {
-				String delimiter = inputData.get("delimiter");
-				// generate tinker frame from 
-				if(inputData.get("delimiter") == null || inputData.get("delimiter").isEmpty()) {
-					delimiter = "\t";
-				}
-				
-				CSVFileHelper helper = new CSVFileHelper();
-				helper.setDelimiter(delimiter.charAt(0));
-				helper.parse(fileLoc);
-				
-				String [] headers = helper.getHeaders();
-				String [] cleanHeaders = new String[headers.length];
-				for(int i = 0; i < headers.length; i++) {
-					cleanHeaders[i] = Utility.cleanVariableString(headers[i]);
-				}
-				
-				String [] types = helper.predictTypes();
-				
-				Map<String, String> headerTypes = new LinkedHashMap<String, String>();
-				for(int j = 0; j < cleanHeaders.length; j++) {
-					headerTypes.put(cleanHeaders[j], Utility.getCleanDataType(types[j]));
-				}
-				headerTypeMap.put(CSV_FILE_KEY, headerTypes);
 			}
+
 			retObj.put("headerData", headerTypeMap);
-			
+
 			return Response.status(200).entity(WebUtility.getSO(retObj)).build();
+
 		} catch(Exception e) {
 			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
