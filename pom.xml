@@ -26,6 +26,27 @@
 					<failOnMissingWebXml>false</failOnMissingWebXml>
 				</configuration>
 			</plugin>
+			
+			<!-- FOR CREATING FAT JAR -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>2.3</version>
+				<executions>
+				  <execution>
+					<phase>package</phase>
+					<goals>
+					  <goal>shade</goal>
+					</goals>
+					<configuration>
+					  <transformers>
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+					  </transformers>
+					</configuration>
+				  </execution>
+				</executions>
+			</plugin>
+			
 		</plugins>
 	</build>
 	<repositories>
@@ -1930,5 +1951,64 @@
 	        </exclusion>
       </exclusions>
 	</dependency>
+	
+	<!-- SPARK DEPENDENCIES -->
+	<!-- http://mvnrepository.com/artifact/org.apache.spark/spark-core_2.10 -->
+	<dependency>
+	    <groupId>org.apache.spark</groupId>
+	    <artifactId>spark-core_2.10</artifactId>
+	    <version>1.4.0</version>
+	</dependency>
+	  <!-- http://mvnrepository.com/artifact/org.apache.spark/spark-sql_2.10 -->
+	<dependency>
+	    <groupId>org.apache.spark</groupId>
+	    <artifactId>spark-sql_2.10</artifactId>
+	    <version>1.4.0</version>
+	</dependency>
+	  <!-- http://mvnrepository.com/artifact/org.apache.spark/spark-streaming_2.10 -->
+	<dependency>
+	    <groupId>org.apache.spark</groupId>
+	    <artifactId>spark-streaming_2.10</artifactId>
+	    <version>1.4.0</version>
+	</dependency>
+	  <!-- http://mvnrepository.com/artifact/org.apache.spark/spark-mllib_2.10 -->
+	<dependency>
+	    <groupId>org.apache.spark</groupId>
+	    <artifactId>spark-mllib_2.10</artifactId>
+	    <version>1.4.0</version>
+	</dependency>
+	  <!-- http://mvnrepository.com/artifact/org.apache.spark/spark-hive_2.10 -->
+	<dependency>
+	    <groupId>org.apache.spark</groupId>
+	    <artifactId>spark-hive_2.10</artifactId>
+	    <version>1.4.0</version>
+	</dependency>
+	<!-- http://mvnrepository.com/artifact/org.scala-lang/scala-library -->
+	<dependency>
+	    <groupId>org.scala-lang</groupId>
+	    <artifactId>scala-library</artifactId> 
+	    <version>2.10.3</version> 
+	</dependency>
+	<!-- http://mvnrepository.com/artifact/com.databricks/spark-csv_2.10 -->
+	<dependency>
+	    <groupId>com.databricks</groupId>
+	    <artifactId>spark-csv_2.10</artifactId>
+	    <version>1.4.0</version>
+	</dependency>
+	
+	<!-- http://mvnrepository.com/artifact/org.apache.hadoop/hadoop-hdfs -->
+	<dependency>
+	    <groupId>org.apache.hadoop</groupId>
+	    <artifactId>hadoop-hdfs</artifactId>
+	    <version>2.6.0</version>
+	</dependency>
+	
+	<!-- http://mvnrepository.com/artifact/org.apache.hadoop/hadoop-client -->
+	<dependency>
+	    <groupId>org.apache.hadoop</groupId>
+	    <artifactId>hadoop-client</artifactId>
+	    <version>2.6.0</version>
+	</dependency>
+	
 	</dependencies>
 </project>
