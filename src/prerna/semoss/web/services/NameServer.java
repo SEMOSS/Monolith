@@ -998,6 +998,8 @@ public class NameServer {
 				dataFrameType = "H2Frame";
 			}
 			existingInsight = new Insight(null, dataFrameType, "Grid");
+			// set the user id into the insight
+			existingInsight.setUserID( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
 			InsightStore.getInstance().put(existingInsight);
 		}
 
