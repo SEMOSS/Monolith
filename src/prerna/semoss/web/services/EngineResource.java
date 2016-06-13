@@ -819,6 +819,8 @@ public class EngineResource {
 		else {
 			//Get the Insight, grab its ID
 			Insight insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
+			// set the user id into the insight
+			insightObj.setUserID( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
 			Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 			params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
 			insightObj.setParamHash(params);
