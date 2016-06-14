@@ -211,12 +211,19 @@ public class NameServer {
 
 	// gets a particular insight
 	@GET
-	@Path("tags")
+	@Path("central/context/getInsight")
 	@Produces("application/xml")
-	public StreamingOutput getInsight(@QueryParam("insight") String insight) {
+	public StreamingOutput getInsight(@QueryParam("insight") String uniqueId) {
 		// returns the insight
 		// typically is a JSON of the insight
-		return null;
+		SolrDocumentList results = new SolrDocumentList();
+		try {
+			results = SolrIndexEngine.getInstance().getInsight(uniqueId);
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
+			e1.printStackTrace();
+			return WebUtility.getSO("Error executing solr query");
+		}		
+		return WebUtility.getSO(results);
 	}
 
 	// gets a particular insight
