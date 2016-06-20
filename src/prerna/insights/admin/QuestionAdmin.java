@@ -61,7 +61,6 @@ import com.google.gson.reflect.TypeToken;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.cache.CacheFactory;
 import prerna.cache.InsightCache;
-import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.QuestionAdministrator;
@@ -110,7 +109,7 @@ public class QuestionAdmin {
 		String newInsightID = "";
 		if(isNonDbInsight) {
 			//TODO: assume person will not have parameters
-			newInsightID = addInsightTinkerCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
+			newInsightID = addInsightDMCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
 			Map<String, Object> retMap = new HashMap<String, Object>();
 			retMap.put("newInsightID", newInsightID);
 			if (newInsightID != null) {
@@ -131,7 +130,7 @@ public class QuestionAdmin {
 		}		
 	}
 	
-	private String addInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
+	private String addInsightDMCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
 		String uniqueID = UUID.randomUUID().toString();
 		insight.setDatabaseID(uniqueID);
 		insight.setInsightName(insightName);
@@ -158,6 +157,8 @@ public class QuestionAdmin {
 		Set<String> engines = new HashSet<String>();
 		engines.add(Constants.LOCAL_MASTER_DB_NAME);
 		solrInsights.put(SolrIndexEngine.ENGINES, engines);
+		solrInsights.put(SolrIndexEngine.DATAMAKER_NAME, insight.getDataMakerName());
+		
 		//TODO: need to add users
 		solrInsights.put(SolrIndexEngine.USER_ID, "default");
 		
@@ -225,6 +226,7 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(newInsightID));
+		solrInsights.put(SolrIndexEngine.DATAMAKER_NAME, insight.getDataMakerName());
 
 		Set<String> engines = new HashSet<String>();
 		for(DataMakerComponent dmc : dmcList) {
@@ -270,7 +272,7 @@ public class QuestionAdmin {
 		boolean isNonDbInsight = insight.isNonDbInsight();
 		if(isNonDbInsight) {
 			//TODO: assume person will not have parameters
-			editInsightTinkerCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
+			editInsightDMCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
 		} else {
 			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 			editInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
@@ -279,7 +281,7 @@ public class QuestionAdmin {
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 
-	private void editInsightTinkerCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
+	private void editInsightDMCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
 		String uniqueID = insight.getDatabaseID();
 		
 		// delete existing cache
@@ -363,6 +365,7 @@ public class QuestionAdmin {
 		solrModifyInsights.put(SolrIndexEngine.LAYOUT, layout);
 		solrModifyInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
 		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
+
 		//TODO: need to add users
 		solrModifyInsights.put(SolrIndexEngine.USER_ID, "default");
 		Set<String> engines = new HashSet<String>();
@@ -480,6 +483,7 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(newInsightID));
+		solrInsights.put(SolrIndexEngine.DATAMAKER_NAME, dmName);
 
 		Set<String> engines = new HashSet<String>();
 		for(DataMakerComponent newDmc : dmcList) {
