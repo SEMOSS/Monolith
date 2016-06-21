@@ -70,6 +70,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.jsoup.Jsoup;
 import org.openrdf.repository.RepositoryException;
@@ -216,7 +217,7 @@ public class NameServer {
 	public StreamingOutput getInsight(@QueryParam("insight") String uniqueId) {
 		// returns the insight
 		// typically is a JSON of the insight
-		SolrDocumentList results = new SolrDocumentList();
+		SolrDocument results = null;
 		try {
 			results = SolrIndexEngine.getInstance().getInsight(uniqueId);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
