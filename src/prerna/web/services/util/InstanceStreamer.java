@@ -119,21 +119,26 @@ public class InstanceStreamer {
 		ArrayList<Object> results = new ArrayList<Object>();
 
 		// get first index of term
-		int firstIndex = findFirstTerm(searchTerm, 0, size-1);  
+		int firstIndex = findFirstTerm(searchTerm, 0, size-1);
+		
+		// look for searchTerm with spaces replaced with underscores
+		if (firstIndex == -1) {
+			firstIndex = findFirstTerm(searchTerm.replaceAll(" ", "_"), 0, size-1);
+		}
 
 		// if result found: move left and right from firstIndex to find more 
 		if (firstIndex != -1) {
 			results.add(list.get(firstIndex).toString()); // add first value
 			for (int i = firstIndex-1; i >= 0; i--) {     // add all relevant values to the left
 				String value = list.get(i).toString().toLowerCase();
-				if (value.contains(searchTerm)) {
+				if (value.contains(searchTerm) || value.contains(searchTerm.replaceAll(" ", "_"))) { // check for searchTerm with and without underscores
 					results.add(list.get(i).toString());
 				}
 				else break;
 			}
 			for (int i = firstIndex+1; i < size; i++) {   // add all relevant values to the right
 				String value = list.get(i).toString().toLowerCase();
-				if (value.contains(searchTerm)) {
+				if (value.contains(searchTerm) || value.contains(searchTerm.replaceAll(" ", "_"))) { // check for searchTerm with and without underscores
 					results.add(list.get(i).toString());
 				}
 				else break;
