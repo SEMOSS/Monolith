@@ -37,89 +37,15 @@ import prerna.web.services.util.WebUtility;
 
 public class FileUploader extends Uploader{
 
+	/*
+	 * Moving a file onto the BE cannot be performed through PKQL
+	 * Thus, we still expose "drag and drop" of a file through a rest call
+	 * However, this is only used to push the file to the BE server, the actual
+	 * processing of the file to create/add to a data frame occurs through PKQL
+	 */
+	
 	private static final String CSV_FILE_KEY = "CSV";
 	private static String api = "";
-
-	/**
-	 * Create a data frame based on a file
-	 * @param request
-	 * @return
-	 */
-	//TODO: change to generateTableFromText
-	@POST
-	@Path("generateTableDataframe")
-	public Response generateTableFromFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		try {
-			String uniqueFileKey = form.getFirst("uniqueFileKey");
-			String delimiter = form.getFirst("delimiter");
-			String dataFrameType = form.getFirst("dataFrameType");
-			String dataTypeMapStr = form.getFirst("headerData");
-			String mainColumnStr = form.getFirst("mainColumn");
-			
-			Gson gson = new Gson();
-			Map<String, Map<String, String>> dataTypeMap = gson.fromJson(dataTypeMapStr, new TypeToken<Map<String, Map<String, String>>>() {}.getType());
-			
-			// process the data types to be accurate
-			if(dataTypeMap != null && !dataTypeMap.isEmpty()) {
-				for(String sheet : dataTypeMap.keySet()) {
-					Map<String, String> headerTypes = dataTypeMap.get(sheet);
-					Map<String, String> newHeaderTypes = new Hashtable<String, String>();
-					for(String header : headerTypes.keySet()) {
-						newHeaderTypes.put(header, Utility.getRawDataType(headerTypes.get(header)));
-					}
-					// override existing with new
-					dataTypeMap.put(sheet, newHeaderTypes);
-				}
-			}
-			
-			String fileName = FileStore.getInstance().get(uniqueFileKey);
-			// generate tinker frame from 
-			if(delimiter == null || delimiter.isEmpty()) {
-				delimiter = "\t";
-			}
-			if(dataFrameType == null || dataFrameType.isEmpty()) {
-				dataFrameType = "H2";
-			}
-			
-			Map<String, String> mainCol = new HashMap<String, String>();
-			if(mainColumnStr != null) {
-				mainCol = gson.fromJson(mainColumnStr, new TypeToken<Map<String, String>>() {}.getType());
-			}
-		
-			IDataMaker table = TableDataFrameFactory.generateDataFrameFromFile(fileName, delimiter, dataFrameType, dataTypeMap, mainCol);
-			String dataFrame;
-			if(dataFrameType.equalsIgnoreCase("H2")) {
-				dataFrame = "H2Frame";
-			} else {
-				dataFrame = "TinkerFrame";
-			}
-		
-			String insightId = generateInsight(table, dataFrame);
-			Map<String, String> retObj = new HashMap<String, String>();
-			retObj.put("insightID", insightId);
-			
-			deleteFilesFromServer(new String[]{fileName});
-			
-			return Response.status(200).entity(WebUtility.getSO(retObj)).build();
-		} catch(Exception e) {
-			e.printStackTrace();
-			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Error processing new data");
-			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
-		}
-	}
-	
-	private String generateInsight(IDataMaker dm, String dataMakerName) {
-		Insight in = new Insight(null, dataMakerName, "Grid");
-		DataMakerComponent dmc = new DataMakerComponent(""); //dmc currently doesn't have a location since it is not saved yet
-		Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
-		dmcList.add(dmc);
-		in.setDataMakerComponents(dmcList);
-		in.setDataMaker(dm);
-		in.setIsNonDbInsight(true);
-		String insightId = InsightStore.getInstance().put(in);
-		return insightId;
-	}
 	
 	@POST
 	@Path("determineDataTypesForFile")
@@ -127,8 +53,8 @@ public class FileUploader extends Uploader{
 
 		try {
 			List<FileItem> fileItems = processRequest(request);
+			
 			// collect all of the data input on the form
-
 			Hashtable<String, String> inputData = getInputData(fileItems);
 			Map<String, Object> retObj = new HashMap<String, Object>();
 
@@ -217,6 +143,9 @@ public class FileUploader extends Uploader{
 	}
 	
 	@Override
+	/**
+	 * Extract the data to generate the file being passed from the user to the BE server
+	 */
 	protected Hashtable<String, String> getInputData(List<FileItem> fileItems) 
 	{
 		// Process the uploaded file items
@@ -269,4 +198,93 @@ public class FileUploader extends Uploader{
 	}
 	
 
+	
+	////////////////////////// THE BELOW TEXT IS NO LONGER USED /////////////////////////////////////
+	/*
+	 * Used to be used back when "drag and drop" file was done through a rest call
+	 * This functionality has been moved to PKQL so this is never no longer invoked
+	 */
+	
+	
+	/**
+	 * Create a data frame based on a file
+	 * @param request
+	 * @return
+	 */
+	//TODO: change to generateTableFromText
+	@POST
+	@Path("generateTableDataframe")
+	public Response generateTableFromFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		try {
+			String uniqueFileKey = form.getFirst("uniqueFileKey");
+			String delimiter = form.getFirst("delimiter");
+			String dataFrameType = form.getFirst("dataFrameType");
+			String dataTypeMapStr = form.getFirst("headerData");
+			String mainColumnStr = form.getFirst("mainColumn");
+			
+			Gson gson = new Gson();
+			Map<String, Map<String, String>> dataTypeMap = gson.fromJson(dataTypeMapStr, new TypeToken<Map<String, Map<String, String>>>() {}.getType());
+			
+			// process the data types to be accurate
+			if(dataTypeMap != null && !dataTypeMap.isEmpty()) {
+				for(String sheet : dataTypeMap.keySet()) {
+					Map<String, String> headerTypes = dataTypeMap.get(sheet);
+					Map<String, String> newHeaderTypes = new Hashtable<String, String>();
+					for(String header : headerTypes.keySet()) {
+						newHeaderTypes.put(header, Utility.getRawDataType(headerTypes.get(header)));
+					}
+					// override existing with new
+					dataTypeMap.put(sheet, newHeaderTypes);
+				}
+			}
+			
+			String fileName = FileStore.getInstance().get(uniqueFileKey);
+			// generate tinker frame from 
+			if(delimiter == null || delimiter.isEmpty()) {
+				delimiter = "\t";
+			}
+			if(dataFrameType == null || dataFrameType.isEmpty()) {
+				dataFrameType = "H2";
+			}
+			
+			Map<String, String> mainCol = new HashMap<String, String>();
+			if(mainColumnStr != null) {
+				mainCol = gson.fromJson(mainColumnStr, new TypeToken<Map<String, String>>() {}.getType());
+			}
+		
+			IDataMaker table = TableDataFrameFactory.generateDataFrameFromFile(fileName, delimiter, dataFrameType, dataTypeMap, mainCol);
+			String dataFrame;
+			if(dataFrameType.equalsIgnoreCase("H2")) {
+				dataFrame = "H2Frame";
+			} else {
+				dataFrame = "TinkerFrame";
+			}
+		
+			String insightId = generateInsight(table, dataFrame);
+			Map<String, String> retObj = new HashMap<String, String>();
+			retObj.put("insightID", insightId);
+			
+			deleteFilesFromServer(new String[]{fileName});
+			
+			return Response.status(200).entity(WebUtility.getSO(retObj)).build();
+		} catch(Exception e) {
+			e.printStackTrace();
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Error processing new data");
+			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+		}
+	}
+	
+	private String generateInsight(IDataMaker dm, String dataMakerName) {
+		Insight in = new Insight(null, dataMakerName, "Grid");
+		DataMakerComponent dmc = new DataMakerComponent(""); //dmc currently doesn't have a location since it is not saved yet
+		Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
+		dmcList.add(dmc);
+		in.setDataMakerComponents(dmcList);
+		in.setDataMaker(dm);
+		in.setIsNonDbInsight(true);
+		String insightId = InsightStore.getInstance().put(in);
+		return insightId;
+	}
+	
 }
