@@ -423,8 +423,15 @@ public class QuestionAdmin {
 		String query = form.getFirst("query");
 		String uiOptions = form.getFirst("uiOptions");
 		boolean isDbQuery = true;
+		
+		// TODO: need to fix the UI around this
+		// when adding a single query insight, the user doesn't specify this
+		// but it should be specified
+		// the user doesn't need to specify it when the output type is a custom playsheet
 		String dmName = form.getFirst("dmName");
-		if(dmName == null || dmName.isEmpty()) {
+		// need to perform a check if it is empty AND if layout isn't a custom query
+		// currently just saying if layout doesn't start with "prerna."
+		if(dmName == null || dmName.isEmpty() && !layout.startsWith("prerna.")) {
 			dmName = "TinkerFrame";
 		} 
 		
