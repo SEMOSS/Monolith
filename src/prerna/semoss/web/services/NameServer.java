@@ -351,7 +351,7 @@ public class NameServer {
 	@Path("/uploadFile")
 	public Uploader uploadFile(@Context HttpServletRequest request) {
 		Uploader upload = new FileUploader();
-		String filePath = context.getInitParameter("file-upload");
+		String filePath = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR) + "\\" + DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER);
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
