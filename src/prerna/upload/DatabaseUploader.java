@@ -839,6 +839,116 @@ public class DatabaseUploader extends Uploader {
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
 	
+	
+	
+	@POST
+	@Path("/flat/upload")
+	@Produces("application/json")
+	/**
+	 * The process flow for loading a flat file based on drag/drop
+	 * Since the user confirms what type of datatypes they want for each column
+	 * The file has already been loaded onto the server
+	 * @param form					Form object containing all the information regarding the load
+	 * @param request
+	 * @return
+	 */
+	public Response uploadFlatFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+
+		Gson gson = new Gson();
+		System.out.println(form);
+		// time to run the import
+		ImportDataProcessor importer = new ImportDataProcessor();
+		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
+
+		// figure out what type of import we need to do based on parameters selected
+		String methodString = form.getFirst("importMethod") + "";
+		ImportDataProcessor.IMPORT_METHOD importMethod = 
+				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
+						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
+										: null;
+
+		if(importMethod == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Import method \'" + methodString + "\' is not supported");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		}
+
+		//call the right process method with correct parameters
+		String dbName = "";
+		if(form.getFirst("dbName") != null && !form.getFirst("dbName").isEmpty()) {
+			dbName = form.getFirst("dbName");
+		} else if(form.getFirst("addDBname") != null && !form.getFirst("addDBname").isEmpty()) {
+			dbName = form.getFirst("addDBname");
+		} else {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "No database name was entered");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		}
+		dbName = cleanSpaces(dbName);
+
+		//Add engine owner for permissions
+		if(this.securityEnabled) {
+			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+				addEngineOwner(dbName, ((User) user).getId());
+			} else {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Please log in to upload data.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
+			}
+		}
+		
+		// can only load flat files as RDBMS
+		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDBMS;
+
+		String uploadFiles = "";
+		String file = "";
+		if(form.getFirst("file") != null && !form.getFirst("file").toString().isEmpty()) {
+			file = form.getFirst("file").toString();
+			uploadFiles = uploadFiles.concat(file);
+		}
+		
+		try {
+			if(methodString.equals("Create new database engine")) {
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.FLAT_LOAD, uploadFiles, 
+						form.getFirst("customBaseURI")+"", dbName,"","", "","", storeType, null, false, autoLoad);
+				loadEngineIntoSession(request, dbName);
+			} else {
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.FLAT_LOAD, uploadFiles, 
+						form.getFirst("customBaseURI")+"", "","", "","", dbName, storeType, null, false, autoLoad);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch (RepositoryException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch (SailException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(Exception e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} finally {
+			if(!file.isEmpty()) {
+				deleteFilesFromServer(file.split(";"));
+			}
+		}
+
+		String outputText = "Flat database loading was a success.";
+		return Response.status(200).entity(gson.toJson(outputText)).build();
+	}
+	
+	
 	@POST
 	@Path("/rdbms/getMetadata")
 	@Produces("application/json")
