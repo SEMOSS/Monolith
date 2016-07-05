@@ -44,7 +44,7 @@ public class FileUploader extends Uploader{
 	 * processing of the file to create/add to a data frame occurs through PKQL
 	 */
 	
-	private static final String CSV_FILE_KEY = "CSV";
+	public static final String CSV_FILE_KEY = "CSV";
 	private static String api = "";
 	
 	@POST
@@ -127,6 +127,7 @@ public class FileUploader extends Uploader{
 						headerTypes.put(cleanHeaders[j], Utility.getCleanDataType(types[j]));
 					}
 					headerTypeMap.put(CSV_FILE_KEY, headerTypes);
+					retObj.put("delimiter", delimiter);
 				}
 			}
 
