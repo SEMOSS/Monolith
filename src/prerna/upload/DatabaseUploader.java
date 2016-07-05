@@ -52,6 +52,7 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.util.sql.SQLQueryUtil;
+import prerna.web.services.util.WebUtility;
 
 public class DatabaseUploader extends Uploader {
 	
@@ -156,31 +157,46 @@ public class DatabaseUploader extends Uploader {
 	@POST
 	@Path("/csv/uploadFile")
 	@Produces("application/json")
-	public Response uploadFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response uploadFile(@Context HttpServletRequest request) {
 		
 		Gson gson = new Gson();
 		
 		//Upload the file and get the data types
-		FileUploader fileUploader = new FileUploader();
-		Map<String, Object> retObj = (Map)fileUploader.determineDataTypesForFile(request);
-		
-		//if we get a flag from the front end to create meta model then create it
-		String generateMetaModel = form.get("autoGenerateMetaModel").toString();
-		if(generateMetaModel.equals("true")) {
-			//get the file location
-			String fileLocation = retObj.get("uniqueFileKey").toString();
-			fileLocation = FileStore.getInstance().get(fileLocation);
+		Map<String, Object> retObj;
+		try {
+			List<FileItem> fileItems = processRequest(request);
 			
-			//get the header data and delimiter
-			Map<String, Map<String, String>> headerTypeMap = (Map)retObj.get("headerTypeMap");
-			String delimiter = retObj.get("delimiter").toString();
-			
-			//predict the meta model
-			MetaModelPredictor predictor = new MetaModelPredictor(fileLocation, headerTypeMap, delimiter);
-			predictor.predictMetaModel();
-			retObj.put("metaModel", predictor.getMetaModelData());
-			//store results in return object
+			// collect all of the data input on the form
+			Hashtable<String, String> inputData = getInputData(fileItems);
+			retObj = FileUploader.generateDataTypes(inputData);
+
+		 
+			//if we get a flag from the front end to create meta model then create it
+			String generateMetaModel = inputData.get("autogenerateMetaModel").toString();
+			if(generateMetaModel.equals("true")) {
+				//get the file location
+				String fileLocation = retObj.get("uniqueFileKey").toString();
+				fileLocation = FileStore.getInstance().get(fileLocation);
+				
+				//get the header data and delimiter
+				Map<String, Map<String, String>> headerTypeMap = (Map)retObj.get("headerData");
+				String delimiter = retObj.get("delimiter").toString();
+				
+				//predict the meta model
+				MetaModelPredictor predictor = new MetaModelPredictor(fileLocation, headerTypeMap, delimiter);
+				predictor.predictMetaModel();
+				retObj.put("metaModel", predictor.getMetaModelData());
+				//store results in return object
+			}
+		} catch(Exception e) {
+			e.printStackTrace();
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Error processing new data");
+			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 		}
+		
+		//in this case build a metamodel from a prop file
+
 		return Response.status(200).entity(gson.toJson(retObj)).build();
 	}
 	
