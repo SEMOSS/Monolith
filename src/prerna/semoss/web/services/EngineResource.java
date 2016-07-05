@@ -74,10 +74,8 @@ import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
-import prerna.engine.impl.rdf.RDFFileSesameEngine;
 import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
 import prerna.nameserver.ConnectedConcepts;
-import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
@@ -175,45 +173,46 @@ public class EngineResource {
 			errorHash.put("Class", className);
 			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
-
-		//hard code playsheet attributes since no insight exists for this
-		String sparql = "SELECT ?s ?p ?o WHERE {?s ?p ?o} LIMIT 1";
-		String playSheetName = "GDMGraph";
-		String dataMakerName = "GraphDataModel";
-		String title = "Metamodel";
-		String id = coreEngine.getEngineName() + "-Metamodel";
-		AbstractEngine eng = ((AbstractEngine)coreEngine).getBaseDataEngine();
-		eng.setEngineName(id);
-		eng.setBaseData((RDFFileSesameEngine) eng);
-		Hashtable<String, String> filterHash = new Hashtable<String, String>();
-		filterHash.put("http://semoss.org/ontologies/Relation", "http://semoss.org/ontologies/Relation");
-		eng.setBaseHash(filterHash);
-
-		Object obj = null;
-		try
-		{
-			DataMakerComponent dmc = new DataMakerComponent(eng, sparql);
-			GraphDataModel gdm = (GraphDataModel) Utility.getDataMaker(this.coreEngine, dataMakerName);
-			//			GraphPlaySheet playSheet= (GraphPlaySheet) Utility.preparePlaySheet(eng, sparql, playSheetName, title, id);
-			gdm.setSubclassCreate(true);
-			gdm.setOverlay(false);
-			gdm.processDataMakerComponent(dmc);
-			//			playSheet.setDataMaker(gdm);
-			obj = gdm.getDataMakerOutput();
-			
-			//TODO: this is really bad.. 
-			//undo the setting of the eng to get gdm to run
-			eng.setBaseData(null);
-			eng.setBaseHash(null);
-		} catch (Exception ex) { 
-			ex.printStackTrace();
-			Hashtable<String, String> errorHash = new Hashtable<String, String>();
-			errorHash.put("Message", "Error processing query.");
-			errorHash.put("Class", className);
-			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
-		}
-
-		return Response.status(200).entity(WebUtility.getSO(obj)).build();
+		
+		return Response.status(200).entity(WebUtility.getSO(this.coreEngine.getMetamodel())).build();
+		
+//		//hard code playsheet attributes since no insight exists for this
+//		String sparql = "SELECT ?s ?p ?o WHERE {?s ?p ?o} LIMIT 1";
+//		String playSheetName = "GDMGraph";
+//		String dataMakerName = "GraphDataModel";
+//		String title = "Metamodel";
+//		String id = coreEngine.getEngineName() + "-Metamodel";
+//		AbstractEngine eng = ((AbstractEngine)coreEngine).getBaseDataEngine();
+//		eng.setEngineName(id);
+//		eng.setBaseData((RDFFileSesameEngine) eng);
+//		Hashtable<String, String> filterHash = new Hashtable<String, String>();
+//		filterHash.put("http://semoss.org/ontologies/Relation", "http://semoss.org/ontologies/Relation");
+//		eng.setBaseHash(filterHash);
+//
+//		Object obj = null;
+//		try
+//		{
+//			DataMakerComponent dmc = new DataMakerComponent(eng, sparql);
+//			GraphDataModel gdm = (GraphDataModel) Utility.getDataMaker(this.coreEngine, dataMakerName);
+//			//			GraphPlaySheet playSheet= (GraphPlaySheet) Utility.preparePlaySheet(eng, sparql, playSheetName, title, id);
+//			gdm.setSubclassCreate(true);
+//			gdm.setOverlay(false);
+//			gdm.processDataMakerComponent(dmc);
+//			//			playSheet.setDataMaker(gdm);
+//			obj = gdm.getDataMakerOutput();
+//			
+//			//TODO: this is really bad.. 
+//			//undo the setting of the eng to get gdm to run
+//			eng.setBaseData(null);
+//			eng.setBaseHash(null);
+//		} catch (Exception ex) { 
+//			ex.printStackTrace();
+//			Hashtable<String, String> errorHash = new Hashtable<String, String>();
+//			errorHash.put("Message", "Error processing query.");
+//			errorHash.put("Class", className);
+//			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
+//		}
+//		return Response.status(200).entity(WebUtility.getSO(obj)).build();
 	}
 
 
@@ -1602,16 +1601,32 @@ public class EngineResource {
 	public Response getConceptProperties(@QueryParam("nodeUri") String nodeUri, @Context HttpServletRequest request)
 	{
 		logger.info("Getting properties for node : " + nodeUri);
-		if(!nodeUri.contains("http://")){
-			nodeUri = Constants.DISPLAY_URI + Utility.cleanString(nodeUri, true);
-		}
-		List<String> uriProps = this.coreEngine.getProperties4Concept(nodeUri, false);
+		List<String> uriProps = this.coreEngine.getProperties4Concept2(nodeUri, true);
+		
+		// TODO: this layout should not be necessary anymore
+		// should just send the FE a list of hte conceputal node names and that is it
+		// no need to send the URI
 		Map<String, String> propMap = new HashMap<String, String>();
-		// need to go through each one and translate
-		for(String uriProp : uriProps){
-			String logicalName = this.coreEngine.getTransformedNodeName(uriProp, true);
-			propMap.put(logicalName, Utility.getInstanceName(logicalName));
+		if(!uriProps.isEmpty()) {
+			for(String uriProp : uriProps) {
+				propMap.put(uriProp, Utility.getInstanceName(uriProp));
+			}
 		}
+		
+		// THIS IS FOR LEGACY OWL VERSIONS WHICH DO NOT HAVE CONCEPTUAL NODES
+		// TODO: this bifurcation should be removed once all OWLS are in new version
+		else {
+			if(!nodeUri.contains("http://")){
+				nodeUri = Constants.DISPLAY_URI + Utility.cleanString(nodeUri, true);
+			}
+			uriProps = this.coreEngine.getProperties4Concept(nodeUri, true);
+			// need to go through each one and translate
+			for(String uriProp : uriProps){
+				String logicalName = this.coreEngine.getTransformedNodeName(uriProp, true);
+				propMap.put(logicalName, Utility.getInstanceName(logicalName));
+			}
+		}
+		
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("props", propMap);
 		retMap.put("myPhysicalName", Utility.getInstanceName(this.coreEngine.getTransformedNodeName(nodeUri, true)));
