@@ -329,11 +329,24 @@ public class FileUploader extends Uploader{
 		Map<String, Map<String, String>> headerTypeMap = new Hashtable<String, Map<String, String>>();
 
 		boolean webExtract = (inputData.get("file") == null);
+		String keyvalue = "";
 		if(webExtract){//Provision for extracted data via import.io
-			api = inputData.get("api");
-			ImportApiHelper helper = new ImportApiHelper();
-			helper.setApi(api);
-			helper.parse();
+			WebAPIHelper helper = null;
+			if(inputData.get("api") != null){
+				keyvalue = inputData.get("api");
+				helper = new ImportApiHelper();
+			}else if(inputData.get("itemSearch") != null){
+				keyvalue = inputData.get("itemSearch");
+				helper = new AmazonApiHelper();
+				((AmazonApiHelper) helper).setOperationType("ItemSearch");
+			}else if(inputData.get("itemLookup") != null){
+				keyvalue = inputData.get("itemLookup");
+				helper = new AmazonApiHelper();
+				((AmazonApiHelper) helper).setOperationType("ItemLookup");
+			}
+			
+			helper.setApiParam(keyvalue);
+			helper.parse();	
 						
 
 			String [] headers = helper.getHeaders();
