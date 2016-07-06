@@ -595,7 +595,7 @@ public class DatabaseUploader extends Uploader {
 			storeType = ImportDataProcessor.DB_TYPE.RDBMS;
 			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
 			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
-				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase());
+				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType);
 			}
 			allowDuplicates = false;//ToDo: need UI portion of this
 		}
