@@ -37,6 +37,7 @@ import org.openrdf.sail.SailException;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.algorithm.api.IMetaData.DATA_TYPES;
 import prerna.algorithm.learning.unsupervised.recommender.DataStructureFromCSV;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
@@ -162,31 +163,63 @@ public class DatabaseUploader extends Uploader {
 		Gson gson = new Gson();
 		
 		//Upload the file and get the data types
+		List<Map<String, Object>> returnObj = new ArrayList<>(2);
 		Map<String, Object> retObj;
 		try {
+			
+			//process request
 			List<FileItem> fileItems = processRequest(request);
 			
 			// collect all of the data input on the form
 			Hashtable<String, String> inputData = getInputData(fileItems);
-			retObj = FileUploader.generateDataTypes(inputData);
-
-		 
-			//if we get a flag from the front end to create meta model then create it
-			String generateMetaModel = inputData.get("autogenerateMetaModel").toString();
-			if(generateMetaModel.equals("true")) {
-				//get the file location
-				String fileLocation = retObj.get("uniqueFileKey").toString();
-				fileLocation = FileStore.getInstance().get(fileLocation);
-				
-				//get the header data and delimiter
-				Map<String, Map<String, String>> headerTypeMap = (Map)retObj.get("headerData");
-				String delimiter = retObj.get("delimiter").toString();
-				
-				//predict the meta model
-				MetaModelPredictor predictor = new MetaModelPredictor(fileLocation, headerTypeMap, delimiter);
-				predictor.predictMetaModel();
-				retObj.put("metaModel", predictor.getMetaModelData());
-				//store results in return object
+			
+			//generate and collect the data types
+//			Map<String, Object> dataTypes = FileUploader.generateDataTypes(inputData);
+			List<Map<String, Object>> dataTypesList = FileUploader.generateDataTypesMultiFile(inputData);
+			for(Map<String, Object> dataTypes : dataTypesList) {
+				retObj = new HashMap<>();
+				Map<String, Map<String, String>> headerTypeMap = (Map)dataTypes.get("headerData");
+				Map<String, String> headerTypes = headerTypeMap.get("CSV");
+			 
+				//determine the allowableDataTypes
+				Map<String, List<String>> allowableDataTypes = new HashMap<>();
+				for(String header : headerTypes.keySet()) {
+					List<String> dataTypeList = new ArrayList<>(2);
+					dataTypeList.add("STRING");
+						
+					String type = headerTypes.get(header);
+					if(!type.equals("STRING")) {
+						if(type.equals("DOUBLE")) {
+							dataTypeList.add("NUMBER");
+						}
+						else {
+							dataTypeList.add(type);
+						}
+					}
+					allowableDataTypes.put(header, dataTypeList);
+				}
+					
+				retObj.put("allowable", allowableDataTypes);
+					
+				//if we get a flag from the front end to create meta model then create it
+				String generateMetaModel = inputData.get("autogenerateMetaModel").toString();
+				if(generateMetaModel.equals("true")) {
+					//get the file location
+					String fileLocation = dataTypes.get("uniqueFileKey").toString();
+					fileLocation = FileStore.getInstance().get(fileLocation);
+					String fileName = fileLocation.substring(fileLocation.lastIndexOf("\\") + 1);
+					retObj.put("fileName", fileName);
+					
+					//get the header data and delimiter
+					String delimiter = dataTypes.get("delimiter").toString();
+					
+					//predict the meta model
+					MetaModelPredictor predictor = new MetaModelPredictor(fileLocation, headerTypeMap, delimiter);
+					predictor.predictMetaModel();
+					retObj.put("metaModel", predictor.getMetaModelData());
+					//store results in return object
+				}
+				returnObj.add(retObj);
 			}
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -195,9 +228,7 @@ public class DatabaseUploader extends Uploader {
 			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 		}
 		
-		//in this case build a metamodel from a prop file
-
-		return Response.status(200).entity(gson.toJson(retObj)).build();
+		return Response.status(200).entity(gson.toJson(returnObj)).build();
 	}
 	
 	//New call which uses different payload from current csv upload
