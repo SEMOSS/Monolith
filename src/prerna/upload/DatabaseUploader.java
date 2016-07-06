@@ -217,7 +217,7 @@ public class DatabaseUploader extends Uploader {
 					//predict the meta model
 					MetaModelPredictor predictor = new MetaModelPredictor(fileLocation, headerTypeMap, delimiter);
 					predictor.predictMetaModel();
-					Map<String, List<Map<String, String>>> metaModel = predictor.getMetaModelData();
+					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
 					retObj.putAll(metaModel);
 					//store results in return object
 				}
