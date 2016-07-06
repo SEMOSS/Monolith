@@ -29,8 +29,10 @@ import prerna.cache.FileStore;
 import prerna.ds.TableDataFrameFactory;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.poi.main.helper.AmazonApiHelper;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.ImportApiHelper;
+import prerna.poi.main.helper.WebAPIHelper;
 import prerna.poi.main.helper.XLFileHelper;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
@@ -47,7 +49,7 @@ public class FileUploader extends Uploader{
 	 */
 	
 	public static final String CSV_FILE_KEY = "CSV";
-	private static String api = "";
+	//private static String api = "";
 	
 	@POST
 	@Path("determineDataTypesForFile")
@@ -226,11 +228,25 @@ public class FileUploader extends Uploader{
 		Map<String, Map<String, String>> headerTypeMap = new Hashtable<String, Map<String, String>>();
 
 		boolean webExtract = (inputData.get("file") == null);
+		String keyvalue = "";
+		
 		if(webExtract){//Provision for extracted data via import.io
-			api = inputData.get("api");
-			ImportApiHelper helper = new ImportApiHelper();
-			helper.setApi(api);
-			helper.parse();
+			WebAPIHelper helper = null;
+			if(inputData.get("api") != null){
+				keyvalue = inputData.get("api");
+				helper = new ImportApiHelper();
+			}else if(inputData.get("itemSearch") != null){
+				keyvalue = inputData.get("itemSearch");
+				helper = new AmazonApiHelper();
+				((AmazonApiHelper) helper).setOperationType("ItemSearch");
+			}else if(inputData.get("itemLookup") != null){
+				keyvalue = inputData.get("itemLookup");
+				helper = new AmazonApiHelper();
+				((AmazonApiHelper) helper).setOperationType("ItemLookup");
+			}
+			
+			helper.setApiParam(keyvalue);
+			helper.parse();	
 						
 
 			String [] headers = helper.getHeaders();
@@ -239,7 +255,7 @@ public class FileUploader extends Uploader{
 			Map<String, String> headerTypes = new LinkedHashMap<String, String>();
 			for(int j = 0; j < headers.length; j++) {
 				headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
-			}
+}
 			headerTypeMap.put(CSV_FILE_KEY, headerTypes);
 
 		}
