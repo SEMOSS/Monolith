@@ -3,6 +3,7 @@ package prerna.upload;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -213,6 +214,12 @@ public class FileUploader extends Uploader{
 		return insightId;
 	}
 	
+	/**
+	 * 
+	 * @param inputData
+	 * @return
+	 * @throws IOException
+	 */
 	public static Map<String, Object> generateDataTypes(Map<String, String> inputData) throws IOException {
 		Map<String, Object> retObj = new HashMap<String, Object>();
 
@@ -294,4 +301,51 @@ public class FileUploader extends Uploader{
 		return retObj;
 	}
 	
+	/**
+	 * 
+	 * @param inputData
+	 * @return
+	 * @throws IOException
+	 */
+	public static List<Map<String, Object>> generateDataTypesMultiFile(Map<String, String> inputData) throws IOException {
+		List<Map<String, Object>> retObj = new ArrayList<>(2);
+
+		Map<String, Map<String, String>> headerTypeMap = new Hashtable<String, Map<String, String>>();
+
+		boolean webExtract = (inputData.get("file") == null);
+		if(webExtract){//Provision for extracted data via import.io
+			api = inputData.get("api");
+			ImportApiHelper helper = new ImportApiHelper();
+			helper.setApi(api);
+			helper.parse();
+						
+
+			String [] headers = helper.getHeaders();
+			String [] types = helper.predictTypes();
+
+			Map<String, String> headerTypes = new LinkedHashMap<String, String>();
+			for(int j = 0; j < headers.length; j++) {
+				headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
+			}
+			headerTypeMap.put(CSV_FILE_KEY, headerTypes);
+
+		}
+		else{
+			String[] fileLoc = inputData.get("file").split(";");
+			String[] delimiters = inputData.get("delimiter").split(";");
+			for(int i = 0; i < fileLoc.length; i++) {
+				Map<String, String> inData = new HashMap<>();
+				inData.putAll(inputData);
+				inData.put("file", fileLoc[i]);
+				if(delimiters != null && delimiters.length > i) {
+					inData.put("delimiter", delimiters[i]);
+				} else {
+					inData.put("delimiter", null);
+				}
+				Map<String, Object> nextData = generateDataTypes(inData);
+				retObj.add(nextData);
+			}
+		}
+		return retObj;
+	}
 }
