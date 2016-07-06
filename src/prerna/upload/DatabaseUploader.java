@@ -171,6 +171,7 @@ public class DatabaseUploader extends Uploader {
 			List<FileItem> fileItems = processRequest(request);
 			
 			// collect all of the data input on the form
+//			FileUploader uploader = new FileUploader();
 			Hashtable<String, String> inputData = getInputData(fileItems);
 			
 			//generate and collect the data types
@@ -216,7 +217,8 @@ public class DatabaseUploader extends Uploader {
 					//predict the meta model
 					MetaModelPredictor predictor = new MetaModelPredictor(fileLocation, headerTypeMap, delimiter);
 					predictor.predictMetaModel();
-					retObj.put("metaModel", predictor.getMetaModelData());
+					Map<String, List<Map<String, String>>> metaModel = predictor.getMetaModelData();
+					retObj.putAll(metaModel);
 					//store results in return object
 				}
 				returnObj.add(retObj);
@@ -1395,5 +1397,4 @@ public class DatabaseUploader extends Uploader {
 		}
 		return s.replaceAll(" ", "_");
 	}
-	
 }
