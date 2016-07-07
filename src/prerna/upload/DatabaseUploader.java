@@ -237,7 +237,7 @@ public class DatabaseUploader extends Uploader {
 	@POST
 	@Path("/csv/processUpload")
 	@Produces("application/json")
-	public Response processFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response processFile(@Context HttpServletRequest request) {
 		List<FileItem> fileItems = processRequest(request);
 		Hashtable<String, String> inputData = getInputData(fileItems);
 		
