@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.Reader;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -202,14 +203,20 @@ public class DatabaseUploader extends Uploader {
 					
 				retObj.put("allowable", allowableDataTypes);
 					
+				String fileLocation = dataTypes.get("uniqueFileKey").toString();
+				fileLocation = FileStore.getInstance().get(fileLocation);
+				String fileName = fileLocation.substring(fileLocation.lastIndexOf("\\") + 1);
+				retObj.put("fileLocation", fileLocation);
+				retObj.put("fileName", fileName);
 				//if we get a flag from the front end to create meta model then create it
-				String generateMetaModel = inputData.get("autogenerateMetaModel").toString();
-				if(generateMetaModel.equals("true")) {
+				String generateMetaModel = inputData.get("generateMetaModel").toString();
+				if(generateMetaModel.equals("auto")) {
 					//get the file location
-					String fileLocation = dataTypes.get("uniqueFileKey").toString();
-					fileLocation = FileStore.getInstance().get(fileLocation);
-					String fileName = fileLocation.substring(fileLocation.lastIndexOf("\\") + 1);
-					retObj.put("fileName", fileName);
+//					String fileLocation = dataTypes.get("uniqueFileKey").toString();
+//					fileLocation = FileStore.getInstance().get(fileLocation);
+//					String fileName = fileLocation.substring(fileLocation.lastIndexOf("\\") + 1);
+//					retObj.put("fileLocation", fileLocation);
+//					retObj.put("fileName", fileName);
 					
 					//get the header data and delimiter
 					String delimiter = dataTypes.get("delimiter").toString();
@@ -220,10 +227,14 @@ public class DatabaseUploader extends Uploader {
 					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
 					retObj.putAll(metaModel);
 					//store results in return object
+				} else if(generateMetaModel.equals("prop")) {
+					
+				} else if(generateMetaModel.equals("table")) {
+					
 				}
 				returnObj.add(retObj);
 			}
-		} catch(Exception e) {
+		} catch(Exception e) { 
 			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "Error processing new data");
@@ -237,23 +248,23 @@ public class DatabaseUploader extends Uploader {
 	@POST
 	@Path("/csv/processUpload")
 	@Produces("application/json")
-	public Response processFile(@Context HttpServletRequest request) {
-		List<FileItem> fileItems = processRequest(request);
-		Hashtable<String, String> inputData = getInputData(fileItems);
+	public Response processFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+//		List<FileItem> fileItems = processRequest(request);
+//		Hashtable<String, String> inputData = getInputData(fileItems);
 		
 		Gson gson = new Gson();
 
 		//cleanedFiles - stringified CSV file returned from OpenRefine
 		//If OpenRefine-returned CSV string exists, user went through OpenRefine - write returned data to file first
-		Object obj = inputData.get("cleanedFiles");
+		Object obj = form.get("cleanedFiles");
 
 		///////////////////////////////////////////////////////////
 		//Grab the Data base name
-		String dbName = "";
-		if(inputData.get("dbName") != null && !inputData.get("dbName").isEmpty()) {
-			dbName = inputData.get("dbName");
-		} else if(inputData.get("addDBname") != null && !inputData.get("addDBname").isEmpty()) {
-			dbName = inputData.get("addDBname");
+		String dbName;
+		if((dbName = form.getFirst("dbName")) != null && dbName.isEmpty()) {
+
+		} else if((dbName = form.getFirst("addDBname")) != null && !dbName.isEmpty()) {
+
 		} else {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "No database name was entered");
@@ -263,23 +274,25 @@ public class DatabaseUploader extends Uploader {
 		
 		/////////////////////////////////////////////////////////////
 		//Something to do with open refine?
-		if(obj != null) {
-			String cleanedFileName = processOpenRefine(dbName, (String) obj);
-			if(cleanedFileName.startsWith("Error")) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
-				return Response.status(400).entity(gson.toJson(errorHash)).build();
-			}
-			inputData.put("fileLocation", cleanedFileName);
-		}
+//		if(obj != null) {
+//			String cleanedFileName = processOpenRefine(dbName, (String) obj);
+//			if(cleanedFileName.startsWith("Error")) {
+//				Map<String, String> errorHash = new HashMap<String, String>();
+//				errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
+//				return Response.status(400).entity(gson.toJson(errorHash)).build();
+//			}
+//			form.put("fileLocation", cleanedFileName);
+//		}
 		
 		
-		List<String> allFileData = gson.fromJson(inputData.get("fileInfoArray"), List.class);
+		List<String> allFileData = gson.fromJson(form.getFirst("fileInfoArray"), List.class);
 		int size = allFileData.size();
 		
 		Hashtable<String, String>[] propHashArr = new Hashtable[size];
 		String[] propFileArr = new String[size];
-		String[] fileNames = inputData.get("filename").split(";");
+		
+		
+		String[] fileNames = gson.fromJson(form.getFirst("filename"), String[].class);
 		boolean allEmpty = true;
 		for(int i = 0; i < size; i++) {
 			Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
@@ -344,7 +357,7 @@ public class DatabaseUploader extends Uploader {
 		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
 
 		// figure out what type of import we need to do based on parameters
-		String methodString = inputData.get("dbImportOption");
+		String methodString = form.getFirst("dbImportOption");
 		ImportDataProcessor.IMPORT_METHOD importMethod = 
 				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
 						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
@@ -370,11 +383,11 @@ public class DatabaseUploader extends Uploader {
 		
 		SQLQueryUtil.DB_TYPE rdbmsType = SQLQueryUtil.DB_TYPE.H2_DB;
 		boolean allowDuplicates = false;
-		String dataOutputType = inputData.get("dataOutputType");
+		String dataOutputType = form.getFirst("dataOutputType");
 		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
 		if(dataOutputType.equalsIgnoreCase("RDBMS")){
 			storeType = ImportDataProcessor.DB_TYPE.RDBMS;
-			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
+			String rdbmsDataOutputType = form.getFirst("rdbmsOutputType");
 			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
 				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase());
 			}
@@ -382,18 +395,30 @@ public class DatabaseUploader extends Uploader {
 		}
 		
 		String mapFile = "";
-		if(inputData.get("mapFile") != null) {
-			mapFile = inputData.get("mapFile");
+		if(form.getFirst("mapFile") != null) {
+			mapFile = form.getFirst("mapFile");
 		}
 		String questionFile = "";
-		if(inputData.get("questionFile") != null) {
-			questionFile = inputData.get("questionFile");
+		if(form.get("questionFile") != null) {
+			questionFile = form.getFirst("questionFile");
 		}
+		String[] files = null;
 		try {
+			
+			files = gson.fromJson(form.getFirst("fileLocations"), String[].class);
+			String allFiles = "";
+			for(int i = 0; i < files.length; i++) {
+				if(i == 0) {
+					allFiles += files[i];
+				} else {
+					allFiles += ";"+files[i];
+				}
+			}
+			
 			if(importMethod == ImportDataProcessor.IMPORT_METHOD.CREATE_NEW) {
 				// force fitting the RDBMS here
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("fileLocation")+"", 
-						inputData.get("designateBaseUri"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates, autoLoad);
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, allFiles, 
+						form.getFirst("designateBaseUri"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates, autoLoad);
 				loadEngineIntoSession(request, dbName);
 			} else { // add to existing or modify
 				IEngine dbEngine = (IEngine) DIHelper.getInstance().getLocalProp(dbName);
@@ -402,8 +427,8 @@ public class DatabaseUploader extends Uploader {
 					storeType = ImportDataProcessor.DB_TYPE.RDBMS;
 					rdbmsType = rdbmsEngine.getDbType();
 				}
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("fileLocation")+"", 
-						inputData.get("designateBaseUri"), "","","","", dbName, storeType, rdbmsType, allowDuplicates, autoLoad);
+				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, allFiles, 
+						form.getFirst("designateBaseUri"), "","","","", dbName, storeType, rdbmsType, allowDuplicates, autoLoad);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -426,7 +451,7 @@ public class DatabaseUploader extends Uploader {
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
-			deleteFilesFromServer(inputData.get("file").toString().split(";"));
+			deleteFilesFromServer(files);
 			if(!mapFile.isEmpty()) {
 				deleteFilesFromServer(new String[]{mapFile});
 			}
