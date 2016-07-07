@@ -292,7 +292,7 @@ public class DatabaseUploader extends Uploader {
 		String[] propFileArr = new String[size];
 		
 		
-		String[] fileNames = gson.fromJson(form.getFirst("filename"), String[].class);
+		String[] fileNames = gson.fromJson(form.getFirst("fileName"), String[].class);
 		boolean allEmpty = true;
 		for(int i = 0; i < size; i++) {
 			Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
