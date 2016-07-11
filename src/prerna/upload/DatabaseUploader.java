@@ -16,6 +16,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -47,7 +48,7 @@ import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
-import prerna.poi.main.MetaModelPredictor;
+import prerna.poi.main.MetaModelCreator;
 import prerna.rdf.main.ImportRDBMSProcessor;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
@@ -172,19 +173,18 @@ public class DatabaseUploader extends Uploader {
 			List<FileItem> fileItems = processRequest(request);
 			
 			// collect all of the data input on the form
-//			FileUploader uploader = new FileUploader();
 			Hashtable<String, String> inputData = getInputData(fileItems);
 			
 			//generate and collect the data types
 //			Map<String, Object> dataTypes = FileUploader.generateDataTypes(inputData);
-			List<Map<String, Object>> dataTypesList = FileUploader.generateDataTypesMultiFile(inputData);
+			List<Map<String, Object>> dataTypesList = Uploader.generateDataTypesMultiFile(inputData);
 			for(Map<String, Object> dataTypes : dataTypesList) {
 				retObj = new HashMap<>();
 				Map<String, Map<String, String>> headerTypeMap = (Map)dataTypes.get("headerData");
 				Map<String, String> headerTypes = headerTypeMap.get("CSV");
 			 
 				//determine the allowableDataTypes
-				Map<String, List<String>> allowableDataTypes = new HashMap<>();
+				Map<String, List<String>> allowableDataTypes = new LinkedHashMap<>();
 				for(String header : headerTypes.keySet()) {
 					List<String> dataTypeList = new ArrayList<>(2);
 					dataTypeList.add("STRING");
@@ -208,29 +208,36 @@ public class DatabaseUploader extends Uploader {
 				String fileName = fileLocation.substring(fileLocation.lastIndexOf("\\") + 1);
 				retObj.put("fileLocation", fileLocation);
 				retObj.put("fileName", fileName);
+				
+				
+				//get the header data and delimiter
+				String delimiter = dataTypes.get("delimiter").toString();
+				
+				
 				//if we get a flag from the front end to create meta model then create it
 				String generateMetaModel = inputData.get("generateMetaModel").toString();
 				if(generateMetaModel.equals("auto")) {
-					//get the file location
-//					String fileLocation = dataTypes.get("uniqueFileKey").toString();
-//					fileLocation = FileStore.getInstance().get(fileLocation);
-//					String fileName = fileLocation.substring(fileLocation.lastIndexOf("\\") + 1);
-//					retObj.put("fileLocation", fileLocation);
-//					retObj.put("fileName", fileName);
 					
-					//get the header data and delimiter
-					String delimiter = dataTypes.get("delimiter").toString();
+					MetaModelCreator predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.AUTO);
+					predictor.constructMetaModel();
 					
-					//predict the meta model
-					MetaModelPredictor predictor = new MetaModelPredictor(fileLocation, headerTypeMap, delimiter);
-					predictor.predictMetaModel();
 					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
 					retObj.putAll(metaModel);
-					//store results in return object
 				} else if(generateMetaModel.equals("prop")) {
+					//turn prop file into meta data
+					MetaModelCreator predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.PROP);
+					String propFile = inputData.get("propFile");
+					predictor.addPropFile(propFile);
+					predictor.constructMetaModel();
+					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
+					retObj.putAll(metaModel);
 					
 				} else if(generateMetaModel.equals("table")) {
-					
+					//return metamodel with one column as main column/primary key
+					MetaModelCreator predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.TABLE);
+					predictor.constructMetaModel();
+					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
+					retObj.putAll(metaModel);
 				}
 				returnObj.add(retObj);
 			}
@@ -261,7 +268,7 @@ public class DatabaseUploader extends Uploader {
 		///////////////////////////////////////////////////////////
 		//Grab the Data base name
 		String dbName;
-		if((dbName = form.getFirst("dbName")) != null && dbName.isEmpty()) {
+		if((dbName = form.getFirst("dbName")) != null && !dbName.isEmpty()) {
 
 		} else if((dbName = form.getFirst("addDBname")) != null && !dbName.isEmpty()) {
 
@@ -482,8 +489,7 @@ public class DatabaseUploader extends Uploader {
 		String outputText = "CSV Loading was a success.";
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
-	
-	
+
 	@POST
 	@Path("/csv/upload")
 	@Produces("application/json")
