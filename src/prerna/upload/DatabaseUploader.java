@@ -165,8 +165,10 @@ public class DatabaseUploader extends Uploader {
 		Gson gson = new Gson();
 		
 		//Upload the file and get the data types
-		List<Map<String, Object>> returnObj = new ArrayList<>(2);
-		Map<String, Object> retObj;
+		List<Map<String, Object>> metaModelData = new ArrayList<>(2);
+		Map<String, Object> returnObj = new HashMap<>(2);
+		Map<String, Object> fileMetaModelData;
+		
 		try {
 			
 			//process request
@@ -177,9 +179,15 @@ public class DatabaseUploader extends Uploader {
 			
 			//generate and collect the data types
 //			Map<String, Object> dataTypes = FileUploader.generateDataTypes(inputData);
-			List<Map<String, Object>> dataTypesList = Uploader.generateDataTypesMultiFile(inputData);
+			Map<String, Object> returnData = Uploader.generateDataTypesMultiFile(inputData);
+			List<Map<String, Object>> dataTypesList = (List<Map<String, Object>>)returnData.get("metaModelData");
+			if(returnData.containsKey("questionFile")){
+				returnObj.put("questionFile", returnData.get("questionFile"));
+			}
+			
+			
 			for(Map<String, Object> dataTypes : dataTypesList) {
-				retObj = new HashMap<>();
+				fileMetaModelData = new HashMap<>();
 				Map<String, Map<String, String>> headerTypeMap = (Map)dataTypes.get("headerData");
 				Map<String, String> headerTypes = headerTypeMap.get("CSV");
 			 
@@ -201,13 +209,13 @@ public class DatabaseUploader extends Uploader {
 					allowableDataTypes.put(header, dataTypeList);
 				}
 					
-				retObj.put("allowable", allowableDataTypes);
+				fileMetaModelData.put("allowable", allowableDataTypes);
 					
 				String fileLocation = dataTypes.get("uniqueFileKey").toString();
 				fileLocation = FileStore.getInstance().get(fileLocation);
 				String fileName = fileLocation.substring(fileLocation.lastIndexOf("\\") + 1);
-				retObj.put("fileLocation", fileLocation);
-				retObj.put("fileName", fileName);
+				fileMetaModelData.put("fileLocation", fileLocation);
+				fileMetaModelData.put("fileName", fileName);
 				
 				
 				//get the header data and delimiter
@@ -216,38 +224,46 @@ public class DatabaseUploader extends Uploader {
 				
 				//if we get a flag from the front end to create meta model then create it
 				String generateMetaModel = inputData.get("generateMetaModel").toString();
+				MetaModelCreator predictor;
 				if(generateMetaModel.equals("auto")) {
 					
-					MetaModelCreator predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.AUTO);
+					predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.AUTO);
 					predictor.constructMetaModel();
 					
 					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
-					retObj.putAll(metaModel);
+					fileMetaModelData.putAll(metaModel);
 				} else if(generateMetaModel.equals("prop")) {
 					//turn prop file into meta data
-					MetaModelCreator predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.PROP);
+					predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.PROP);
 					String propFile = inputData.get("propFile");
 					predictor.addPropFile(propFile);
 					predictor.constructMetaModel();
 					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
-					retObj.putAll(metaModel);
+					fileMetaModelData.putAll(metaModel);
 					
 				} else if(generateMetaModel.equals("table")) {
 					//return metamodel with one column as main column/primary key
-					MetaModelCreator predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.TABLE);
+					predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.TABLE);
 					predictor.constructMetaModel();
 					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
-					retObj.putAll(metaModel);
+					fileMetaModelData.putAll(metaModel);
+				} else {
+					predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, null);
+					
 				}
-				returnObj.add(retObj);
+				int start = predictor.getStartRow();
+				int end = predictor.getEndRow();
+				fileMetaModelData.put("startCount", start);
+				fileMetaModelData.put("endCount", end);
+				metaModelData.add(fileMetaModelData);
 			}
 		} catch(Exception e) { 
 			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Error processing new data");
+			errorMap.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 		}
-		
+		returnObj.put("metaModelData", metaModelData);
 		return Response.status(200).entity(gson.toJson(returnObj)).build();
 	}
 	
@@ -1177,7 +1193,6 @@ public class DatabaseUploader extends Uploader {
 		String outputText = "NLP Loading was a success.";
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
-	
 	
 	
 	@POST

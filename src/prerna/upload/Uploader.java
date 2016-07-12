@@ -289,9 +289,11 @@ public abstract class Uploader extends HttpServlet {
 	 * @return
 	 * @throws IOException
 	 */
-	protected static List<Map<String, Object>> generateDataTypesMultiFile(Map<String, String> inputData) throws IOException {
+	protected static Map<String, Object> generateDataTypesMultiFile(Map<String, String> inputData) throws IOException {
+		Map<String, Object> returnData = new HashMap<>(2);
 		List<Map<String, Object>> retObj = new ArrayList<>(2);
-
+		returnData.put("metaModelData", retObj);
+		
 		Map<String, Map<String, String>> headerTypeMap = new Hashtable<String, Map<String, String>>();
 
 		boolean webExtract = (inputData.get("file") == null);
@@ -328,6 +330,10 @@ public abstract class Uploader extends HttpServlet {
 		else{
 			String[] fileLoc = inputData.get("file").split(";");
 			String[] delimiters = inputData.get("delimiter").split(";");
+			String questionFile = inputData.get("questionFile");
+			if(questionFile != null && !questionFile.isEmpty()) {
+				returnData.put("questionFile", questionFile);
+			}
 			for(int i = 0; i < fileLoc.length; i++) {
 				Map<String, String> inData = new HashMap<>();
 				inData.putAll(inputData);
@@ -341,7 +347,7 @@ public abstract class Uploader extends HttpServlet {
 				retObj.add(nextData);
 			}
 		}
-		return retObj;
+		return returnData;
 	}
 
 }
