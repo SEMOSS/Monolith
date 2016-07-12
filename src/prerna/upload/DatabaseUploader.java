@@ -418,11 +418,11 @@ public class DatabaseUploader extends Uploader {
 		}
 		
 		String mapFile = "";
-		if(form.getFirst("mapFile") != null && !form.getFirst("mapFile").isEmpty()) {
+		if(form.getFirst("mapFile") != null) {
 			mapFile = form.getFirst("mapFile");
 		}
 		String questionFile = "";
-		if(form.get("questionFile") != null && !form.getFirst("questionFile").isEmpty()) {
+		if(form.get("questionFile") != null) {
 			questionFile = form.getFirst("questionFile");
 		}
 		String[] files = null;
