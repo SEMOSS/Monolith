@@ -276,6 +276,7 @@ public abstract class Uploader extends HttpServlet {
 				}
 				headerTypeMap.put(CSV_FILE_KEY, headerTypes);
 				retObj.put("delimiter", delimiter);
+				helper.clear();
 			}
 		}
 
