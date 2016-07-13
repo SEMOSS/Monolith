@@ -1,15 +1,10 @@
 package prerna.upload;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.Reader;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -19,11 +14,8 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
-import java.util.StringTokenizer;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -33,22 +25,18 @@ import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.FileUtils;
-import org.openrdf.repository.RepositoryException;
-import org.openrdf.sail.SailException;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import prerna.algorithm.api.IMetaData.DATA_TYPES;
 import prerna.algorithm.learning.unsupervised.recommender.DataStructureFromCSV;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.cache.FileStore;
-import prerna.engine.api.IEngine;
-import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
 import prerna.poi.main.MetaModelCreator;
+import prerna.poi.main.helper.ImportOptions;
 import prerna.rdf.main.ImportRDBMSProcessor;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
@@ -63,50 +51,50 @@ public class DatabaseUploader extends Uploader {
 	// such that we dont send a success before those processes are complete
 	boolean autoLoad = false;
 	
-	protected void loadEngineIntoSession(HttpServletRequest request, String engineName) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
-		Properties prop = new Properties();
-		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-		String fileName = baseFolder + "/db/"  +  engineName + ".smss";
-		FileInputStream fileIn = null;
-		try {
-			fileIn = new FileInputStream(fileName);
-			prop.load(fileIn);			
-			Utility.loadWebEngine(fileName, prop);
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				if(fileIn != null) {
-					fileIn.close();
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		HttpSession session = request.getSession();
-		String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
-		StringTokenizer tokens = new StringTokenizer(engineNames, ";");
-		ArrayList<Hashtable<String, String>> engines = new ArrayList<Hashtable<String, String>>();
-		while(tokens.hasMoreTokens())
-		{
-			// this would do some check to see
-			String nextEngine = tokens.nextToken();
-			System.out.println(" >>> " + nextEngine);
-			IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(nextEngine);
-			boolean hidden = (engine.getProperty(Constants.HIDDEN_DATABASE) != null && Boolean.parseBoolean(engine.getProperty(Constants.HIDDEN_DATABASE)));
-			if(!hidden) {
-				Hashtable<String, String> engineHash = new Hashtable<String, String> ();
-				engineHash.put("name", nextEngine);
-				engineHash.put("type", engine.getEngineType() + "");
-				engines.add(engineHash);
-			}
-			// set this guy into the session of our user
-			session.setAttribute(nextEngine, engine);
-			// and over
-		}			
-		session.setAttribute(Constants.ENGINES, engines);
-	}
+//	protected void loadEngineIntoSession(HttpServletRequest request, String engineName) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
+//		Properties prop = new Properties();
+//		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
+//		String fileName = baseFolder + "/db/"  +  engineName + ".smss";
+//		FileInputStream fileIn = null;
+//		try {
+//			fileIn = new FileInputStream(fileName);
+//			prop.load(fileIn);			
+//			Utility.loadWebEngine(fileName, prop);
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		} finally {
+//			try {
+//				if(fileIn != null) {
+//					fileIn.close();
+//				}
+//			} catch (IOException e) {
+//				e.printStackTrace();
+//			}
+//		}
+//		
+//		HttpSession session = request.getSession();
+//		String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
+//		StringTokenizer tokens = new StringTokenizer(engineNames, ";");
+//		ArrayList<Hashtable<String, String>> engines = new ArrayList<Hashtable<String, String>>();
+//		while(tokens.hasMoreTokens())
+//		{
+//			// this would do some check to see
+//			String nextEngine = tokens.nextToken();
+//			System.out.println(" >>> " + nextEngine);
+//			IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(nextEngine);
+//			boolean hidden = (engine.getProperty(Constants.HIDDEN_DATABASE) != null && Boolean.parseBoolean(engine.getProperty(Constants.HIDDEN_DATABASE)));
+//			if(!hidden) {
+//				Hashtable<String, String> engineHash = new Hashtable<String, String> ();
+//				engineHash.put("name", nextEngine);
+//				engineHash.put("type", engine.getEngineType() + "");
+//				engines.add(engineHash);
+//			}
+//			// set this guy into the session of our user
+//			session.setAttribute(nextEngine, engine);
+//			// and over
+//		}			
+//		session.setAttribute(Constants.ENGINES, engines);
+//	}
 
 	
 	@POST
@@ -157,11 +145,170 @@ public class DatabaseUploader extends Uploader {
 		return Response.status(200).entity(outputText).build();
 	}
 	
+	
+	///////////////////////////////////////////// SET DEFAULT OPTIONS ///////////////////////////////////////////////
+	
+	/*
+	 * We currently have two options for this... which are exactly the same
+	 * but one takes in a hashtable and the other a multivalued map
+	 * 
+	 * -> hashtable is used when the file is passed in the existing call
+	 * -> multivalued map is used when the file already exists on the server
+	 * 		and we need to perform the data load
+	 * 
+	 * Sets basically all the default options except the files to upload!!!
+	 * -> this is because NLP can load in files, or websites, etc. so that messes
+	 * 		up the generic flow :/
+	 * 
+	 */
+	
+	/**
+	 * Does the following for the passed in ImportOptions object
+	 * 1) Sets the Import Method
+	 * 2) Sets the Database Name
+	 * 3) Sets the Database Type
+	 * 		If RDBMS Type
+	 * 		3a) Sets the RDBMS driver type
+	 * 		3b) Sets the boolean to allow duplicates or not
+	 * 4) Sets the default question file
+	 * @param options					ImportOptions object used to load files
+	 * @param inputData					The input data map containing the user values
+	 * @throws IOException
+	 */
+	private void setDefaultOptions(ImportOptions options, Map<String, String> inputData) throws IOException{
+		options.setBaseFolder(DIHelper.getInstance().getProperty("BaseFolder"));
+		options.setAutoLoad(autoLoad);
+		
+		// figure out what type of import we need to do based on parameters selected
+		String methodString = inputData.get("importMethod");
+		ImportOptions.IMPORT_METHOD importMethod = 
+				methodString.equals("Create new database engine") ? ImportOptions.IMPORT_METHOD.CREATE_NEW
+						: methodString.equals("addEngine") ? ImportOptions.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("modifyEngine") ? ImportOptions.IMPORT_METHOD.OVERRIDE
+										: null;
+		if(importMethod == null) {
+			String errorMessage = "Import method \'" + methodString + "\' is not supported";
+			throw new IOException(errorMessage);
+		}
+		options.setImportMethod(importMethod);
+		
+		// get the db name
+		String dbName = inputData.get("dbName");
+		if(dbName == null || dbName.trim().isEmpty()) {
+			String errorMessage = "Database name \'" + dbName + "\' is invalid";
+			throw new IOException(errorMessage);
+		}
+		options.setDbName(cleanSpaces(dbName));
+		
+		// determine the db type
+		String dbType = inputData.get("dataOutputType");
+		if(dbType.equalsIgnoreCase("RDBMS")) {
+			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
+			
+			// if rdbms, also get the rdbms driver type
+			String rdbmsDriverType = inputData.get("rdbmsOutputType");
+			if(rdbmsDriverType == null || rdbmsDriverType.isEmpty()) {
+				// default to h2
+				options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.H2_DB);
+			} else {
+				options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.valueOf(rdbmsDriverType.toUpperCase()));
+			}
+			
+			// if rdbms, also need to know if user wants duplicates or not in table
+			// TODO: need to expose this to the user on the UI
+			boolean allowDuplicates = false;
+			options.setAllowDuplicates(allowDuplicates);
+			
+		} else {
+			// default to RDF db type
+			options.setDbType(ImportOptions.DB_TYPE.RDF);
+		}
+		
+		// get the question file is present
+		String questionFile = inputData.get("questionFile");
+		if(questionFile != null && !questionFile.trim().isEmpty()) {
+			options.setQuestionFile(questionFile);
+		}
+	}
+	
+	/**
+	 * Does the following for the passed in ImportOptions object
+	 * 1) Sets the Import Method
+	 * 2) Sets the Database Name
+	 * 3) Sets the Database Type
+	 * 		If RDBMS Type
+	 * 		3a) Sets the RDBMS driver type
+	 * 		3b) Sets the boolean to allow duplicates or not
+	 * 4) Sets the default question file
+	 * @param options					ImportOptions object used to load files
+	 * @param inputData					The input data map containing the user values
+	 * @throws IOException
+	 */
+	private void setDefaultOptions(ImportOptions options, MultivaluedMap<String, String> form) throws IOException{
+		options.setBaseFolder(DIHelper.getInstance().getProperty("BaseFolder"));
+		options.setAutoLoad(autoLoad);
+		
+		// figure out what type of import we need to do based on parameters selected
+		String methodString = form.getFirst("importMethod");
+		ImportOptions.IMPORT_METHOD importMethod = 
+				methodString.equals("Create new database engine") ? ImportOptions.IMPORT_METHOD.CREATE_NEW
+						: methodString.equals("addEngine") ? ImportOptions.IMPORT_METHOD.ADD_TO_EXISTING
+								: methodString.equals("modifyEngine") ? ImportOptions.IMPORT_METHOD.OVERRIDE
+										: null;
+		if(importMethod == null) {
+			String errorMessage = "Import method \'" + methodString + "\' is not supported";
+			throw new IOException(errorMessage);
+		}
+		options.setImportMethod(importMethod);
+		
+		// get the db name
+		String dbName = form.getFirst("dbName");
+		if(dbName == null || dbName.trim().isEmpty()) {
+			String errorMessage = "Database name \'" + dbName + "\' is invalid";
+			throw new IOException(errorMessage);
+		}
+		options.setDbName(cleanSpaces(dbName));
+		
+		// determine the db type
+		String dbType = form.getFirst("dataOutputType");
+		if(dbType != null) {
+			if(dbType.equalsIgnoreCase("RDBMS")) {
+				options.setDbType(ImportOptions.DB_TYPE.RDBMS);
+				
+				// if rdbms, also get the rdbms driver type
+				String rdbmsDriverType = form.getFirst("rdbmsOutputType");
+				if(rdbmsDriverType == null || rdbmsDriverType.isEmpty()) {
+					// default to h2
+					options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.H2_DB);
+				} else {
+					options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.valueOf(rdbmsDriverType.toUpperCase()));
+				}
+				
+				// if rdbms, also need to know if user wants duplicates or not in table
+				// TODO: need to expose this to the user on the UI
+				boolean allowDuplicates = false;
+				options.setAllowDuplicates(allowDuplicates);
+				
+			} else {
+				// default to RDF db type
+				options.setDbType(ImportOptions.DB_TYPE.RDF);
+			}
+		}
+		
+		// get the question file is present
+		String questionFile = form.getFirst("questionFile");
+		if(questionFile != null && !questionFile.trim().isEmpty()) {
+			options.setQuestionFile(questionFile);
+		}
+	}
+	
+	///////////////////////////////////////////// END SET DEFAULT OPTIONS ///////////////////////////////////////////////
+
+	
 	@POST
 	@Path("/csv/uploadFile")
 	@Produces("application/json")
-	public Response uploadFile(@Context HttpServletRequest request) {
-		
+	public Response uploadFileAndPredictMetamodel(@Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		
 		//Upload the file and get the data types
@@ -170,7 +317,6 @@ public class DatabaseUploader extends Uploader {
 		Map<String, Object> fileMetaModelData;
 		
 		try {
-			
 			//process request
 			List<FileItem> fileItems = processRequest(request);
 			
@@ -179,12 +325,11 @@ public class DatabaseUploader extends Uploader {
 			
 			//generate and collect the data types
 //			Map<String, Object> dataTypes = FileUploader.generateDataTypes(inputData);
-			Map<String, Object> returnData = Uploader.generateDataTypesMultiFile(inputData);
+			Map<String, Object> returnData = generateDataTypesMultiFile(inputData);
 			List<Map<String, Object>> dataTypesList = (List<Map<String, Object>>)returnData.get("metaModelData");
 			if(returnData.containsKey("questionFile")){
 				returnObj.put("questionFile", returnData.get("questionFile"));
 			}
-			
 			
 			for(Map<String, Object> dataTypes : dataTypesList) {
 				fileMetaModelData = new HashMap<>();
@@ -267,203 +412,125 @@ public class DatabaseUploader extends Uploader {
 		return Response.status(200).entity(gson.toJson(returnObj)).build();
 	}
 	
-	//New call which uses different payload from current csv upload
 	@POST
 	@Path("/csv/processUpload")
 	@Produces("application/json")
 	public Response processFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-//		List<FileItem> fileItems = processRequest(request);
-//		Hashtable<String, String> inputData = getInputData(fileItems);
-		
 		Gson gson = new Gson();
-
-		//cleanedFiles - stringified CSV file returned from OpenRefine
-		//If OpenRefine-returned CSV string exists, user went through OpenRefine - write returned data to file first
-		Object obj = form.get("cleanedFiles");
-
-		///////////////////////////////////////////////////////////
-		//Grab the Data base name
-		String dbName;
-		if((dbName = form.getFirst("dbName")) != null && !dbName.isEmpty()) {
-
-		} else if((dbName = form.getFirst("addDBname")) != null && !dbName.isEmpty()) {
-
-		} else {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "No database name was entered");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-		dbName = cleanSpaces(dbName);
+		System.out.println(form);
 		
-		/////////////////////////////////////////////////////////////
-		//Something to do with open refine?
-//		if(obj != null) {
-//			String cleanedFileName = processOpenRefine(dbName, (String) obj);
-//			if(cleanedFileName.startsWith("Error")) {
-//				Map<String, String> errorHash = new HashMap<String, String>();
-//				errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
-//				return Response.status(400).entity(gson.toJson(errorHash)).build();
-//			}
-//			form.put("fileLocation", cleanedFileName);
-//		}
-		
-		
-		List<String> allFileData = gson.fromJson(form.getFirst("fileInfoArray"), List.class);
-		int size = allFileData.size();
-		
-		Hashtable<String, String>[] propHashArr = new Hashtable[size];
-		String[] propFileArr = new String[size];
-		
-		
-		String[] fileNames = gson.fromJson(form.getFirst("fileName"), String[].class);
-		boolean allEmpty = true;
-		for(int i = 0; i < size; i++) {
-			Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
+		ImportOptions options = null;
+		String[] propFileArr = null;
+		try {
+			options = new ImportOptions();
+			// set the default options passed from user
+			setDefaultOptions(options, form);
+			// can only load flat files as RDBMS
+			options.setImportType(ImportOptions.IMPORT_TYPE.CSV);
 			
-			CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
-
-			List<String> rel = gson.fromJson(itemForFile.get("rowsRelationship"), List.class);
-			List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
-			List<String> displayNames = gson.fromJson(itemForFile.get("itemDisplayName"), List.class);
-
-			if((rel != null &&!rel.isEmpty()) || (prop != null && !prop.isEmpty()) ) {
-				allEmpty = false;
+			// open refine logic
+			Object obj = form.get("cleanedFiles");
+			if(obj != null) {
+				String cleanedFileName = processOpenRefine(options.getDbName(), (String) obj);
+				if(cleanedFileName.startsWith("Error")) {
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
+				form.putSingle("file", cleanedFileName);
 			}
 			
-			if(rel != null) {
-				for(String str : rel) {
-					// subject and object keys link to array list for concatenations, while the predicate is always a string
-					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-					if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
-					{
-						propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
-					}
-				}
-			}
-
-			if(prop != null) {
-				for(String str : prop) {
-					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-					if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
-					{
-						propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
-					}
-				}
-			}
 			
-			if(displayNames != null) {
-				for(String str : displayNames) {
-					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-					if(!((String) mRow.get("selectedNode").toString()).isEmpty() && !((String) mRow.get("selectedProperty").toString()).isEmpty() && !((String) mRow.get("selectedDisplayName").toString()).isEmpty())
-					{
-						propWriter.addDisplayName((ArrayList<String>) mRow.get("selectedNode"), (ArrayList<String>) mRow.get("selectedProperty"), (ArrayList<String>) mRow.get("selectedDisplayName"));
-					}
-				}
-			}
-
-			String headersList = itemForFile.get("allHeaders"); 
-			Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
-			ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
-
-			propWriter.columnTypes(headers);
-			propHashArr[i] = propWriter.getPropHash(itemForFile.get("csvStartLineCount"), itemForFile.get("csvEndLineCount")); 
-			propFileArr[i] = propWriter.getPropFile();
-		}
-		if(allEmpty) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "No metamodel has been specified.\n Please specify a metamodel in order to determine how to load this data.");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-	
-		ImportDataProcessor importer = new ImportDataProcessor();
-		importer.setPropHashArr(propHashArr);
-		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
-
-		// figure out what type of import we need to do based on parameters
-		String methodString = form.getFirst("dbImportOption");
-		ImportDataProcessor.IMPORT_METHOD importMethod = 
-				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
-										: null;
-		if(importMethod == null) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Import method \'" + methodString + "\' is not supported");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-		
-		//Add engine owner for permissions
-		if(this.securityEnabled) {
-			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-				addEngineOwner(dbName, ((User) user).getId());
-			} else {
+			// set the files
+			String files = form.getFirst("file");
+			if(files == null || files.trim().isEmpty()) {
 				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Please log in to upload data.");
+				errorHash.put("errorMessage", "No files have been identified to upload");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
-		}
-		
-		SQLQueryUtil.DB_TYPE rdbmsType = SQLQueryUtil.DB_TYPE.H2_DB;
-		boolean allowDuplicates = false;
-		String dataOutputType = form.getFirst("dataOutputType");
-		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
-		if(dataOutputType.equalsIgnoreCase("RDBMS")){
-			storeType = ImportDataProcessor.DB_TYPE.RDBMS;
-			String rdbmsDataOutputType = form.getFirst("rdbmsOutputType");
-			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
-				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase());
-			}
-			allowDuplicates = false;//ToDo: need UI portion of this
-		}
-		
-		String mapFile = "";
-		if(form.getFirst("mapFile") != null) {
-			mapFile = form.getFirst("mapFile");
-		}
-		String questionFile = "";
-		if(form.get("questionFile") != null) {
-			questionFile = form.getFirst("questionFile");
-		}
-		String[] files = null;
-		try {
+			options.setFileLocation(files);
 			
-			files = gson.fromJson(form.getFirst("fileLocations"), String[].class);
-			String allFiles = "";
-			for(int i = 0; i < files.length; i++) {
-				if(i == 0) {
-					allFiles += files[i];
+			
+			////////////////////// begin logic to process metamodel for csv flat table //////////////////////
+			List<String> allFileData = gson.fromJson(form.getFirst("fileInfoArray"), List.class);
+			int size = allFileData.size();
+			
+			Hashtable<String, String>[] propHashArr = new Hashtable[size];
+			propFileArr = new String[size];
+			
+			boolean allEmpty = true;
+			for(int i = 0; i < size; i++) {
+				Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
+				
+				CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
+
+				List<String> rel = gson.fromJson(itemForFile.get("rowsRelationship"), List.class);
+				List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
+				List<String> displayNames = gson.fromJson(itemForFile.get("itemDisplayName"), List.class);
+
+				if((rel != null &&!rel.isEmpty()) || (prop != null && !prop.isEmpty()) ) {
+					allEmpty = false;
+				}
+				if(rel != null) {
+					for(String str : rel) {
+						// subject and object keys link to array list for concatenations, while the predicate is always a string
+						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+						if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
+						{
+							propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+						}
+					}
+				}
+				if(prop != null) {
+					for(String str : prop) {
+						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+						if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
+						{
+							propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+						}
+					}
+				}
+				if(displayNames != null) {
+					for(String str : displayNames) {
+						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+						if(!((String) mRow.get("selectedNode").toString()).isEmpty() && !((String) mRow.get("selectedProperty").toString()).isEmpty() && !((String) mRow.get("selectedDisplayName").toString()).isEmpty())
+						{
+							propWriter.addDisplayName((ArrayList<String>) mRow.get("selectedNode"), (ArrayList<String>) mRow.get("selectedProperty"), (ArrayList<String>) mRow.get("selectedDisplayName"));
+						}
+					}
+				}
+				String headersList = itemForFile.get("allHeaders"); 
+				Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
+				ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
+				propWriter.columnTypes(headers);
+				propHashArr[i] = propWriter.getPropHash(itemForFile.get("csvStartLineCount"), itemForFile.get("csvEndLineCount")); 
+				propFileArr[i] = propWriter.getPropFile();
+			}
+			if(allEmpty) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "No metamodel has been specified.\n Please specify a metamodel in order to determine how to load this data.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
+			}
+			// set it in the options
+			options.setMetamodelArray(propHashArr);
+			////////////////////// end logic to process metamodel for csv flat table //////////////////////
+
+			// add engine owner for permissions
+			if(this.securityEnabled) {
+				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getDbName(), ((User) user).getId());
 				} else {
-					allFiles += ";"+files[i];
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Please log in to upload data.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
 				}
 			}
 			
-			if(importMethod == ImportDataProcessor.IMPORT_METHOD.CREATE_NEW) {
-				// force fitting the RDBMS here
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, allFiles, 
-						form.getFirst("designateBaseUri"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates, autoLoad);
-				loadEngineIntoSession(request, dbName);
-			} else { // add to existing or modify
-				IEngine dbEngine = (IEngine) DIHelper.getInstance().getLocalProp(dbName);
-				if (dbEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
-					RDBMSNativeEngine rdbmsEngine = (RDBMSNativeEngine) dbEngine;
-					storeType = ImportDataProcessor.DB_TYPE.RDBMS;
-					rdbmsType = rdbmsEngine.getDbType();
-				}
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, allFiles, 
-						form.getFirst("designateBaseUri"), "","","","", dbName, storeType, rdbmsType, allowDuplicates, autoLoad);
-			}
+			// run the import
+			ImportDataProcessor importer = new ImportDataProcessor();
+			importer.runProcessor(options);
 		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (RepositoryException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (SailException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
@@ -474,11 +541,13 @@ public class DatabaseUploader extends Uploader {
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
-			deleteFilesFromServer(files);
-			if(!mapFile.isEmpty()) {
-				deleteFilesFromServer(new String[]{mapFile});
+			// we can't really use the options object for this :/
+			String files = form.getFirst("file");
+			if(files != null && !files.isEmpty()) {
+				deleteFilesFromServer(files.split(";"));
 			}
-			if(!questionFile.isEmpty()) {
+			String questionFile = form.getFirst("questionFile");
+			if(questionFile != null && !questionFile.isEmpty()) {
 				deleteFilesFromServer(new String[]{questionFile});
 			}
 		}
@@ -487,12 +556,16 @@ public class DatabaseUploader extends Uploader {
 			Date currDate = Calendar.getInstance().getTime();
 			SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmssZ");
 			String dateName = sdf.format(currDate);
-			for(int i = 0; i < size; i++) {
+			
+			String dbName = options.getDbName();
+			String[] fileNames = options.getFileLocations().split(";");
+			for(int i = 0; i < propFileArr.length; i++) {
+				String fileName = new File(fileNames[i]).getName().replace(".csv", "");
 				FileUtils.writeStringToFile(new File(
 						DIHelper.getInstance().getProperty("BaseFolder")
 						.concat(File.separator).concat("db").concat(File.separator)
 						.concat(Utility.cleanString(dbName, true).toString()).concat(File.separator)
-						.concat(dbName.toString()).concat("_").concat(fileNames[i].replace(".csv", ""))
+						.concat(dbName.toString()).concat("_").concat(fileName)
 						.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
 			}
 		} catch (IOException e) {
@@ -511,389 +584,119 @@ public class DatabaseUploader extends Uploader {
 	@Produces("application/json")
 	public Response uploadCSVFile(@Context HttpServletRequest request)
 	{
-		List<FileItem> fileItems = processRequest(request);
-		Hashtable<String, String> inputData = getInputData(fileItems);
-		
 		Gson gson = new Gson();
+		List<FileItem> fileItems = processRequest(request);
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = getInputData(fileItems);
+		System.out.println(inputData);
 
-		//cleanedFiles - stringified CSV file returned from OpenRefine
-		//If OpenRefine-returned CSV string exists, user went through OpenRefine - write returned data to file first
-		Object obj = inputData.get("cleanedFiles");
-
-		String dbName = "";
-		if(inputData.get("dbName") != null && !inputData.get("dbName").isEmpty()) {
-			dbName = inputData.get("dbName");
-		} else if(inputData.get("addDBname") != null && !inputData.get("addDBname").isEmpty()) {
-			dbName = inputData.get("addDBname");
-		} else {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "No database name was entered");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-		dbName = cleanSpaces(dbName);
-		
-		if(obj != null) {
-			String cleanedFileName = processOpenRefine(dbName, (String) obj);
-			if(cleanedFileName.startsWith("Error")) {
+		ImportOptions options = null;
+		String[] propFileArr = null;
+		try {
+			// load as many default options as possible
+			options = new ImportOptions();
+			// now just load the rest as usual
+			setDefaultOptions(options, inputData);
+			// set the import type
+			options.setImportType(ImportOptions.IMPORT_TYPE.CSV);
+			
+			// open refine logic
+			Object obj = inputData.get("cleanedFiles");
+			if(obj != null) {
+				String cleanedFileName = processOpenRefine(options.getDbName(), (String) obj);
+				if(cleanedFileName.startsWith("Error")) {
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
+				inputData.put("file", cleanedFileName);
+			}
+			
+			// only default options not set are the files
+			String files = inputData.get("file");
+			if(files == null || files.trim().isEmpty()) {
 				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
+				errorHash.put("errorMessage", "No files have been identified to upload");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
-			inputData.put("file", cleanedFileName);
-		}
-		
-		List<String> allFileData = gson.fromJson(inputData.get("fileInfoArray"), List.class);
-		int size = allFileData.size();
-		
-		Hashtable<String, String>[] propHashArr = new Hashtable[size];
-		String[] propFileArr = new String[size];
-		String[] fileNames = inputData.get("filename").split(";");
-		boolean allEmpty = true;
-		for(int i = 0; i < size; i++) {
-			Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
+			options.setFileLocation(files);
 			
-			CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
-
-			List<String> rel = gson.fromJson(itemForFile.get("rowsRelationship"), List.class);
-			List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
-			List<String> displayNames = gson.fromJson(itemForFile.get("itemDisplayName"), List.class);
-
-			if((rel != null &&!rel.isEmpty()) || (prop != null && !prop.isEmpty()) ) {
-				allEmpty = false;
-			}
+			////////////////////// begin logic to process metamodel for excel flat table //////////////////////
+			List<String> allFileData = gson.fromJson(inputData.get("fileInfoArray"), List.class);
+			int size = allFileData.size();
 			
-			if(rel != null) {
-				for(String str : rel) {
-					// subject and object keys link to array list for concatenations, while the predicate is always a string
-					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-					if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
-					{
-						propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
-					}
-				}
-			}
-
-			if(prop != null) {
-				for(String str : prop) {
-					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-					if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
-					{
-						propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
-					}
-				}
-			}
-			
-			if(displayNames != null) {
-				for(String str : displayNames) {
-					Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-					if(!((String) mRow.get("selectedNode").toString()).isEmpty() && !((String) mRow.get("selectedProperty").toString()).isEmpty() && !((String) mRow.get("selectedDisplayName").toString()).isEmpty())
-					{
-						propWriter.addDisplayName((ArrayList<String>) mRow.get("selectedNode"), (ArrayList<String>) mRow.get("selectedProperty"), (ArrayList<String>) mRow.get("selectedDisplayName"));
-					}
-				}
-			}
-
-			String headersList = itemForFile.get("allHeaders"); 
-			Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
-			ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
-
-			propWriter.columnTypes(headers);
-			propHashArr[i] = propWriter.getPropHash(itemForFile.get("csvStartLineCount"), itemForFile.get("csvEndLineCount")); 
-			propFileArr[i] = propWriter.getPropFile();
-		}
-		if(allEmpty) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "No metamodel has been specified.\n Please specify a metamodel in order to determine how to load this data.");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-	
-		ImportDataProcessor importer = new ImportDataProcessor();
-		importer.setPropHashArr(propHashArr);
-		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
-
-		// figure out what type of import we need to do based on parameters
-		String methodString = inputData.get("dbImportOption");
-		ImportDataProcessor.IMPORT_METHOD importMethod = 
-				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
-										: null;
-		if(importMethod == null) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Import method \'" + methodString + "\' is not supported");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-		
-		//Add engine owner for permissions
-		if(this.securityEnabled) {
-			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-				addEngineOwner(dbName, ((User) user).getId());
-			} else {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Please log in to upload data.");
-				return Response.status(400).entity(gson.toJson(errorHash)).build();
-			}
-		}
-		
-		SQLQueryUtil.DB_TYPE rdbmsType = SQLQueryUtil.DB_TYPE.H2_DB;
-		boolean allowDuplicates = false;
-		String dataOutputType = inputData.get("dataOutputType");
-		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
-		if(dataOutputType.equalsIgnoreCase("RDBMS")){
-			storeType = ImportDataProcessor.DB_TYPE.RDBMS;
-			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
-			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
-				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType);
-			}
-			allowDuplicates = false;//ToDo: need UI portion of this
-		}
-		
-		String mapFile = "";
-		if(inputData.get("mapFile") != null) {
-			mapFile = inputData.get("mapFile");
-		}
-		String questionFile = "";
-		if(inputData.get("questionFile") != null) {
-			questionFile = inputData.get("questionFile");
-		}
-		try {
-			if(importMethod == ImportDataProcessor.IMPORT_METHOD.CREATE_NEW) {
-				// force fitting the RDBMS here
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates, autoLoad);
-				loadEngineIntoSession(request, dbName);
-			} else { // add to existing or modify
-				IEngine dbEngine = (IEngine) DIHelper.getInstance().getLocalProp(dbName);
-				if (dbEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
-					RDBMSNativeEngine rdbmsEngine = (RDBMSNativeEngine) dbEngine;
-					storeType = ImportDataProcessor.DB_TYPE.RDBMS;
-					rdbmsType = rdbmsEngine.getDbType();
-				}
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.CSV, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), "","","","", dbName, storeType, rdbmsType, allowDuplicates, autoLoad);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (RepositoryException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (SailException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch(Exception e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} finally {
-			deleteFilesFromServer(inputData.get("file").toString().split(";"));
-			if(!mapFile.isEmpty()) {
-				deleteFilesFromServer(new String[]{mapFile});
-			}
-			if(!questionFile.isEmpty()) {
-				deleteFilesFromServer(new String[]{questionFile});
-			}
-		}
-
-		try {
-			Date currDate = Calendar.getInstance().getTime();
-			SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmssZ");
-			String dateName = sdf.format(currDate);
+			Hashtable<String, String>[] propHashArr = new Hashtable[size];
+			propFileArr = new String[size];
+			boolean allEmpty = true;
 			for(int i = 0; i < size; i++) {
-				FileUtils.writeStringToFile(new File(
-						DIHelper.getInstance().getProperty("BaseFolder")
-						.concat(File.separator).concat("db").concat(File.separator)
-						.concat(Utility.cleanString(dbName, true).toString()).concat(File.separator)
-						.concat(dbName.toString()).concat("_").concat(fileNames[i].replace(".csv", ""))
-						.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Failure to write CSV Prop File based on user-defined metamodel.");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} 
-
-		String outputText = "CSV Loading was a success.";
-		return Response.status(200).entity(gson.toJson(outputText)).build();
-	}
-	
-	@POST
-	@Path("/excelTable/upload")
-	@Produces("application/json")
-	public Response uploadExcelReaderFile(@Context HttpServletRequest request)
-	{
-		//TODO: need to add rdbms version of this code
-		List<FileItem> fileItems = processRequest(request);
-		Hashtable<String, String> inputData = getInputData(fileItems);
-		
-		Gson gson = new Gson();
-
-		//cleanedFiles - stringfield ExcelReader file returned from OpenRefine
-		//If OpenRefine-returned ExcelReader string exists, user went through OpenRefine - write returned data to file first
-		Object obj = inputData.get("cleanedFiles");
-
-		String dbName = "";
-		if(inputData.get("dbName") != null && !inputData.get("dbName").isEmpty()) {
-			dbName = inputData.get("dbName");
-		} else if(inputData.get("addDBname") != null && !inputData.get("addDBname").isEmpty()) {
-			dbName = inputData.get("addDBname");
-		} else {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "No database name was entered");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-		dbName = cleanSpaces(dbName);
-
-		if(obj != null) {
-			String cleanedFileName = processOpenRefine(dbName, (String) obj);
-			if(cleanedFileName.startsWith("Error")) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
-				return Response.status(400).entity(gson.toJson(errorHash)).build();
-			}
-			inputData.put("file", cleanedFileName);
-		}
-		
-		List<String> allFileData = gson.fromJson(inputData.get("fileInfoArray"), List.class);
-		int size = allFileData.size();
-		
-		Hashtable<String, String>[] propHashArr = new Hashtable[size];
-		String[] propFileArr = new String[size];
-		String[] fileNames = inputData.get("filename").split(";");
-		boolean allEmpty = true;
-		for(int i = 0; i < size; i++) {
-			Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
-			ExcelPropFileBuilder propWriter = new ExcelPropFileBuilder();
-
-			Hashtable<String, String> allSheetInfo = gson.fromJson(itemForFile.get("sheetInfo"), Hashtable.class);
-			for(String sheet : allSheetInfo.keySet()) {
-				Hashtable<String, String> sheetInfo = gson.fromJson(allSheetInfo.get(sheet), Hashtable.class);
-				
-				List<String> rel = gson.fromJson(sheetInfo.get("rowsRelationship"), List.class);
-				List<String> prop = gson.fromJson(sheetInfo.get("rowsProperty"), List.class);
+				Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
+				CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
+				List<String> rel = gson.fromJson(itemForFile.get("rowsRelationship"), List.class);
+				List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
+				List<String> displayNames = gson.fromJson(itemForFile.get("itemDisplayName"), List.class);
 				if((rel != null &&!rel.isEmpty()) || (prop != null && !prop.isEmpty()) ) {
 					allEmpty = false;
 				}
-				
 				if(rel != null) {
 					for(String str : rel) {
 						// subject and object keys link to array list for concatenations, while the predicate is always a string
 						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
 						if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
 						{
-							propWriter.addRelationship(sheet, (ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+							propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
 						}
 					}
 				}
-	
 				if(prop != null) {
 					for(String str : prop) {
 						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
 						if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
 						{
-							propWriter.addProperty(sheet, (ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+							propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
 						}
 					}
 				}
-				
-				propWriter.addStartRow(sheet, sheetInfo.get("startLine"));
-				propWriter.addStartRow(sheet, sheetInfo.get("endLine"));
+				if(displayNames != null) {
+					for(String str : displayNames) {
+						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+						if(!((String) mRow.get("selectedNode").toString()).isEmpty() && !((String) mRow.get("selectedProperty").toString()).isEmpty() && !((String) mRow.get("selectedDisplayName").toString()).isEmpty())
+						{
+							propWriter.addDisplayName((ArrayList<String>) mRow.get("selectedNode"), (ArrayList<String>) mRow.get("selectedProperty"), (ArrayList<String>) mRow.get("selectedDisplayName"));
+						}
+					}
+				}
+				String headersList = itemForFile.get("allHeaders"); 
+				Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
+				ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
+				propWriter.columnTypes(headers);
+				propHashArr[i] = propWriter.getPropHash(itemForFile.get("csvStartLineCount"), itemForFile.get("csvEndLineCount")); 
+				propFileArr[i] = propWriter.getPropFile();
 			}
-			propHashArr[i] = propWriter.getPropHash(); 
-			propFileArr[i] = propWriter.getPropFile();
-		}
-		if(allEmpty) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "No metamodel has been specified. \nPlease specify a metamodel in order to determine how to load this data.");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-		
-		ImportDataProcessor importer = new ImportDataProcessor();
-		importer.setPropHashArr(propHashArr);
-		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
-
-		// figure out what type of import we need to do based on parameters
-		String methodString = inputData.get("dbImportOption");
-		ImportDataProcessor.IMPORT_METHOD importMethod = 
-				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
-										: null;
-		if(importMethod == null) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Import method \'" + methodString + "\' is not supported");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-		
-		//Add engine owner for permissions
-		if(this.securityEnabled) {
-			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-				addEngineOwner(dbName, ((User) user).getId());
-			} else {
+			if(allEmpty) {
 				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Please log in to upload data.");
+				errorHash.put("errorMessage", "No metamodel has been specified.\n Please specify a metamodel in order to determine how to load this data.");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
-		}
-		
-		SQLQueryUtil.DB_TYPE rdbmsType = SQLQueryUtil.DB_TYPE.H2_DB;
-		boolean allowDuplicates = false;
-		String dataOutputType = inputData.get("dataOutputType");
-		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
-		if(dataOutputType.equalsIgnoreCase("RDBMS")){
-			storeType = ImportDataProcessor.DB_TYPE.RDBMS;
-			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
-			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
-				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase());
-			}
-			allowDuplicates = false;//ToDo: need UI portion of this
-		}
-		
-		String mapFile = "";
-		if(inputData.get("mapFile") != null) {
-			mapFile = inputData.get("mapFile");
-		}
-		String questionFile = "";
-		if(inputData.get("questionFile") != null) {
-			questionFile = inputData.get("questionFile");
-		}
-		try {
-			if(methodString.equals("Create new database engine")) {
-				// force fitting the RDBMS here
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates, autoLoad);
-				loadEngineIntoSession(request, dbName);
-			} else { // add to existing or modify
-				IEngine dbEngine = (IEngine) DIHelper.getInstance().getLocalProp(dbName);
-				if (dbEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS) {
-					RDBMSNativeEngine rdbmsEngine = (RDBMSNativeEngine) dbEngine;
-					storeType = ImportDataProcessor.DB_TYPE.RDBMS;
-					rdbmsType = rdbmsEngine.getDbType();
+			// set it in the options
+			options.setMetamodelArray(propHashArr);
+			////////////////////// end logic to process metamodel for excel flat table //////////////////////
+			
+			// add engine owner for permissions
+			if(this.securityEnabled) {
+				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getDbName(), ((User) user).getId());
+				} else {
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Please log in to upload data.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
 				}
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL, inputData.get("file")+"", 
-						inputData.get("designateBaseUri"), mapFile,"", questionFile,"", dbName, storeType, rdbmsType, allowDuplicates, autoLoad);
 			}
+
+			// run the processor
+			ImportDataProcessor importer = new ImportDataProcessor();
+			importer.runProcessor(options);
 		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (RepositoryException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (SailException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
@@ -905,24 +708,27 @@ public class DatabaseUploader extends Uploader {
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
 			deleteFilesFromServer(inputData.get("file").toString().split(";"));
-			if(!mapFile.isEmpty()) {
-				deleteFilesFromServer(new String[]{mapFile});
-			}
-			if(!questionFile.isEmpty()) {
+			String questionFile = inputData.get("questionFile");
+			if(questionFile != null && !questionFile.isEmpty()) {
 				deleteFilesFromServer(new String[]{questionFile});
-			}
+			}				
 		}
 
+		// need to write out the property files
 		try {
 			Date currDate = Calendar.getInstance().getTime();
 			SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmssZ");
 			String dateName = sdf.format(currDate);
-			for(int i = 0; i < size; i++) {
+			
+			String dbName = options.getDbName();
+			String[] fileNames = options.getFileLocations().split(";");
+			for(int i = 0; i < propFileArr.length; i++) {
+				String fileName = new File(fileNames[i]).getName().replace(".xls*", "");
 				FileUtils.writeStringToFile(new File(
 						DIHelper.getInstance().getProperty("BaseFolder")
 						.concat(File.separator).concat("db").concat(File.separator)
-						.concat(Utility.cleanString(dbName, true).toString()).concat(File.separator)
-						.concat(dbName.toString()).concat("_").concat(fileNames[i].replace(".xls*", ""))
+						.concat(dbName).concat(File.separator).concat(dbName).concat("_")
+						.concat(fileName)
 						.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
 			}
 		} catch (IOException e) {
@@ -937,101 +743,120 @@ public class DatabaseUploader extends Uploader {
 	}
 	
 	@POST
-	@Path("/excel/upload")
+	@Path("/excelTable/upload")
 	@Produces("application/json")
-	public Response uploadExcelFile(@Context HttpServletRequest request) 
+	public Response uploadExcelTableFile(@Context HttpServletRequest request)
 	{
+		Gson gson = new Gson();
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
-
-		Gson gson = new Gson();
-
 		System.out.println(inputData);
-		// time to run the import
-		ImportDataProcessor importer = new ImportDataProcessor();
-		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
 
-		// figure out what type of import we need to do based on parameters
-		// selected
-		String methodString = inputData.get("importMethod") + "";
-		ImportDataProcessor.IMPORT_METHOD importMethod = 
-				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
-										: null;
-		if(importMethod == null) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Import method \'" + methodString + "\' is not supported");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-		
-		String dbName = "";
-		if(inputData.get("dbName") != null && !inputData.get("dbName").isEmpty()) {
-			dbName = inputData.get("dbName");
-		} else if(inputData.get("addDBname") != null && !inputData.get("addDBname").isEmpty()) {
-			dbName = inputData.get("addDBname");
-		} else {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "No database name was entered");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-		dbName = cleanSpaces(dbName);
-
-		//Add engine owner for permissions
-		if(this.securityEnabled) {
-			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-				addEngineOwner(dbName, ((User) user).getId());
-			} else {
+		ImportOptions options = null;
+		String[] propFileArr = null;
+		try {
+			// load as many default options as possible
+			options = new ImportOptions();
+			// now just load the rest as usual
+			setDefaultOptions(options, inputData);
+			// set the import type
+			options.setImportType(ImportOptions.IMPORT_TYPE.EXCEL);
+			
+			// open refine logic
+			Object obj = inputData.get("cleanedFiles");
+			if(obj != null) {
+				String cleanedFileName = processOpenRefine(options.getDbName(), (String) obj);
+				if(cleanedFileName.startsWith("Error")) {
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
+				inputData.put("file", cleanedFileName);
+			}
+			
+			// only default options not set are the files
+			String files = inputData.get("file");
+			if(files == null || files.trim().isEmpty()) {
 				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Please log in to upload data.");
+				errorHash.put("errorMessage", "No files have been identified to upload");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
-		}
+			options.setFileLocation(files);
+			
+			////////////////////// begin logic to process metamodel for excel flat table rdf //////////////////////
+			List<String> allFileData = gson.fromJson(inputData.get("fileInfoArray"), List.class);
+			int size = allFileData.size();
+			
+			Hashtable<String, String>[] propHashArr = new Hashtable[size];
+			propFileArr = new String[size];
+			boolean allEmpty = true;
+			for(int i = 0; i < size; i++) {
+				Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
+				ExcelPropFileBuilder propWriter = new ExcelPropFileBuilder();
+
+				Hashtable<String, String> allSheetInfo = gson.fromJson(itemForFile.get("sheetInfo"), Hashtable.class);
+				for(String sheet : allSheetInfo.keySet()) {
+					Hashtable<String, String> sheetInfo = gson.fromJson(allSheetInfo.get(sheet), Hashtable.class);
+					
+					List<String> rel = gson.fromJson(sheetInfo.get("rowsRelationship"), List.class);
+					List<String> prop = gson.fromJson(sheetInfo.get("rowsProperty"), List.class);
+					if((rel != null &&!rel.isEmpty()) || (prop != null && !prop.isEmpty()) ) {
+						allEmpty = false;
+					}
+					
+					if(rel != null) {
+						for(String str : rel) {
+							// subject and object keys link to array list for concatenations, while the predicate is always a string
+							Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+							if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
+							{
+								propWriter.addRelationship(sheet, (ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
+							}
+						}
+					}
 		
-		SQLQueryUtil.DB_TYPE rdbmsType = SQLQueryUtil.DB_TYPE.H2_DB;
-		boolean allowDuplicates = false;
-		String dataOutputType = inputData.get("dataOutputType");
-		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
-		if(dataOutputType.equalsIgnoreCase("RDBMS")){
-			storeType = ImportDataProcessor.DB_TYPE.RDBMS;
-			String rdbmsDataOutputType = inputData.get("rdbmsOutputType");
-			if(rdbmsDataOutputType!=null && rdbmsDataOutputType.length()>0){//If RDBMS it really shouldnt be anyway...
-				rdbmsType = SQLQueryUtil.DB_TYPE.valueOf(rdbmsDataOutputType.toUpperCase());
+					if(prop != null) {
+						for(String str : prop) {
+							Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
+							if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
+							{
+								propWriter.addProperty(sheet, (ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
+							}
+						}
+					}
+					
+					propWriter.addStartRow(sheet, sheetInfo.get("startLine"));
+					propWriter.addStartRow(sheet, sheetInfo.get("endLine"));
+				}
+				propHashArr[i] = propWriter.getPropHash(); 
+				propFileArr[i] = propWriter.getPropFile();
 			}
-			allowDuplicates = false;//ToDo: need UI portion of this
-		}
-		
-		String mapFile = "";
-		if(inputData.get("mapFile") != null) {
-			mapFile = inputData.get("mapFile");
-		}
-		String questionFile = "";
-		if(inputData.get("questionFile") != null) {
-			questionFile = inputData.get("questionFile");
-		}
-		
-		try {
-			if(methodString.equals("Create new database engine")) {
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
-						inputData.get("customBaseURI"), dbName, mapFile,"", questionFile,"", storeType, rdbmsType, allowDuplicates, autoLoad);
-				loadEngineIntoSession(request, dbName);
-			} else {
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.EXCEL_POI, inputData.get("file")+"", 
-						inputData.get("customBaseURI"), "", mapFile,"", questionFile, dbName, storeType, rdbmsType, allowDuplicates, autoLoad);
+			if(allEmpty) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "No metamodel has been specified. \nPlease specify a metamodel in order to determine how to load this data.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
+			// set it in the options
+			options.setMetamodelArray(propHashArr);
+			////////////////////// end logic to process metamodel for excel flat table rdf //////////////////////
+			
+			// add engine owner for permissions
+			if(this.securityEnabled) {
+				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getDbName(), ((User) user).getId());
+				} else {
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Please log in to upload data.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
+			}
+
+			// run the processor
+			ImportDataProcessor importer = new ImportDataProcessor();
+			importer.runProcessor(options);
 		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (RepositoryException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (SailException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
@@ -1043,12 +868,99 @@ public class DatabaseUploader extends Uploader {
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
 			deleteFilesFromServer(inputData.get("file").toString().split(";"));
-			if(!mapFile.isEmpty()) {
-				deleteFilesFromServer(new String[]{mapFile});
-			}
-			if(!questionFile.isEmpty()) {
+			String questionFile = inputData.get("questionFile");
+			if(questionFile != null && !questionFile.isEmpty()) {
 				deleteFilesFromServer(new String[]{questionFile});
+			}				
+		}
+
+		// need to write out the property files
+		try {
+			Date currDate = Calendar.getInstance().getTime();
+			SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmssZ");
+			String dateName = sdf.format(currDate);
+			
+			String dbName = options.getDbName();
+			String[] fileNames = options.getFileLocations().split(";");
+			for(int i = 0; i < propFileArr.length; i++) {
+				FileUtils.writeStringToFile(new File(
+						DIHelper.getInstance().getProperty("BaseFolder")
+						.concat(File.separator).concat("db").concat(File.separator)
+						.concat(dbName).concat(File.separator).concat(dbName).concat("_")
+						.concat(fileNames[i].replace(".xls*", ""))
+						.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Failure to write Excel Prop File based on user-defined metamodel.");
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		}
+		
+		String outputText = "Excel Loading was a success.";
+		return Response.status(200).entity(gson.toJson(outputText)).build();
+	}
+	
+	@POST
+	@Path("/excel/upload")
+	@Produces("application/json")
+	public Response uploadExcelFile(@Context HttpServletRequest request) 
+	{
+		List<FileItem> fileItems = processRequest(request);
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = getInputData(fileItems);
+		System.out.println(inputData);
+
+		Gson gson = new Gson();
+		ImportOptions options = null;
+		try {
+			// load as many default options as possible
+			options = new ImportOptions();
+			// now just load the rest as usual
+			setDefaultOptions(options, inputData);
+			// set the import type
+			options.setImportType(ImportOptions.IMPORT_TYPE.EXCEL_POI);
+						
+			// only default options not set are the files
+			String files = inputData.get("file");
+			if(files == null || files.trim().isEmpty()) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "No files have been identified to upload");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
+			}
+			options.setFileLocation(files);
+			
+			// add engine owner for permissions
+			if(this.securityEnabled) {
+				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getDbName(), ((User) user).getId());
+				} else {
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Please log in to upload data.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
+			}
+
+			// run the processor
+			ImportDataProcessor importer = new ImportDataProcessor();
+			importer.runProcessor(options);
+		} catch (IOException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(Exception e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} finally {
+			deleteFilesFromServer(inputData.get("file").toString().split(";"));
+			String questionFile = inputData.get("questionFile");
+			if(questionFile != null && !questionFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{questionFile});
+			}				
 		}
 
 		String outputText = "Excel Loading was a success.";
@@ -1062,116 +974,80 @@ public class DatabaseUploader extends Uploader {
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
+		System.out.println(inputData);
 
 		Gson gson = new Gson();
-		System.out.println(inputData);
-		// time to run the import
-		ImportDataProcessor importer = new ImportDataProcessor();
-		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
-
-		// figure out what type of import we need to do based on parameters
-		// selected
-		String methodString = inputData.get("importMethod") + "";
-		ImportDataProcessor.IMPORT_METHOD importMethod = 
-				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
-										: null;
-
-		if(importMethod == null) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Import method \'" + methodString + "\' is not supported");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-
-		//call the right process method with correct parameters
-		String dbName = "";
-		if(inputData.get("dbName") != null && !inputData.get("dbName").isEmpty()) {
-			dbName = inputData.get("dbName");
-		} else if(inputData.get("addDBname") != null && !inputData.get("addDBname").isEmpty()) {
-			dbName = inputData.get("addDBname");
-		} else {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "No database name was entered");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-		dbName = cleanSpaces(dbName);
-
-		//Add engine owner for permissions
-		if(this.securityEnabled) {
-			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-				addEngineOwner(dbName, ((User) user).getId());
-			} else {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Please log in to upload data.");
-				return Response.status(400).entity(gson.toJson(errorHash)).build();
-			}
-		}
-		
-		// can only store as RDF
-		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDF;
-
-		
+		// we need to keep track of which NLP items loaded are files verses websites
+		// we need this so we can delete files after upload is done
 		String uploadFiles = "";
 		String file = "";
-		if(inputData.get("file") != null && !inputData.get("file").toString().isEmpty()) {
-			file = inputData.get("file").toString();
-			uploadFiles = uploadFiles.concat(file);
-		}
-		if(inputData.get("nlptext") != null && !inputData.get("nlptext").toString().isEmpty()) {
-			String inputText = filePath + System.getProperty("file.separator") + "Text_Input.txt";
-			PrintWriter writer = null;
-			try {
-				writer = new PrintWriter(inputText);
-				writer.write(inputData.get("nlptext").toString());
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-			} finally {
-				if(writer != null) {
-					writer.close();
+		ImportOptions options = null;
+		try {
+			options = new ImportOptions();
+			// set the default options
+			setDefaultOptions(options, inputData);
+			// can only store as RDF
+			options.setDbType(ImportOptions.DB_TYPE.RDF);
+			// set the type to be nlp
+			options.setImportType(ImportOptions.IMPORT_TYPE.NLP);
+			
+			// only default options not set are the files
+			if(inputData.get("file") != null && !inputData.get("file").toString().isEmpty()) {
+				file = inputData.get("file").toString();
+				uploadFiles = uploadFiles.concat(file);
+			}
+			if(inputData.get("nlptext") != null && !inputData.get("nlptext").toString().isEmpty()) {
+				String inputText = filePath + System.getProperty("file.separator") + "Text_Input.txt";
+				PrintWriter writer = null;
+				try {
+					writer = new PrintWriter(inputText);
+					writer.write(inputData.get("nlptext").toString());
+				} catch (FileNotFoundException e) {
+					e.printStackTrace();
+				} finally {
+					if(writer != null) {
+						writer.close();
+					}
+				}
+				if(uploadFiles.isEmpty()) {
+					uploadFiles = uploadFiles.concat(inputText);
+					file = file.concat(inputText);
+				} else {
+					uploadFiles = uploadFiles.concat(";").concat(inputText);
+					file = file.concat(":").concat(inputText);
 				}
 			}
-			if(uploadFiles.isEmpty()) {
-				uploadFiles = uploadFiles.concat(inputText);
-				file = file.concat(inputText);
-			} else {
-				uploadFiles = uploadFiles.concat(";").concat(inputText);
-				file = file.concat(":").concat(inputText);
+			if(inputData.get("nlphttpurl") != null && !inputData.get("nlphttpurl").toString().isEmpty()) {
+				if(uploadFiles.isEmpty()) {
+					uploadFiles = uploadFiles.concat(inputData.get("nlphttpurl").toString());
+				} else {
+					uploadFiles = uploadFiles.concat(";").concat(inputData.get("nlphttpurl").toString());
+				}
 			}
-		}
-		if(inputData.get("nlphttpurl") != null && !inputData.get("nlphttpurl").toString().isEmpty()) {
-			if(uploadFiles.isEmpty()) {
-				uploadFiles = uploadFiles.concat(inputData.get("nlphttpurl").toString());
-			} else {
-				uploadFiles = uploadFiles.concat(";").concat(inputData.get("nlphttpurl").toString());
+			// set the files
+			if(uploadFiles.trim().isEmpty()) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "No files have been identified to upload");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
-		}
-		
-		String questionFile = "";
-		if(inputData.get("questionFile") != null) {
-			questionFile = inputData.get("questionFile");
-		}
-		try {
-			if(methodString.equals("Create new database engine")) {
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
-						inputData.get("customBaseURI")+"", dbName,"","", questionFile,"", storeType, null, false, autoLoad);
-				loadEngineIntoSession(request, dbName);
-			} else {
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.NLP, uploadFiles, 
-						inputData.get("customBaseURI")+"", "","", questionFile,"", dbName, storeType, null, false, autoLoad);
+			options.setFileLocation(uploadFiles);
+			
+			// add engine owner for permissions
+			if(this.securityEnabled) {
+				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getDbName(), ((User) user).getId());
+				} else {
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Please log in to upload data.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
 			}
+
+			// run the importer
+			ImportDataProcessor importer = new ImportDataProcessor();
+			importer.runProcessor(options);
 		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (RepositoryException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (SailException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
@@ -1182,10 +1058,11 @@ public class DatabaseUploader extends Uploader {
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
-			if(!file.isEmpty()) {
+			if(file != null && !file.isEmpty()) {
 				deleteFilesFromServer(file.split(";"));
 			}
-			if(!questionFile.isEmpty()) {
+			String questionFile = inputData.get("questionFile");
+			if(questionFile != null && !questionFile.isEmpty()) {
 				deleteFilesFromServer(new String[]{questionFile});
 			}
 		}
@@ -1193,7 +1070,6 @@ public class DatabaseUploader extends Uploader {
 		String outputText = "NLP Loading was a success.";
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
-	
 	
 	@POST
 	@Path("/flat/upload")
@@ -1207,82 +1083,42 @@ public class DatabaseUploader extends Uploader {
 	 * @return
 	 */
 	public Response uploadFlatFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-
 		Gson gson = new Gson();
 		System.out.println(form);
-		// time to run the import
-		ImportDataProcessor importer = new ImportDataProcessor();
-		importer.setBaseDirectory(DIHelper.getInstance().getProperty("BaseFolder"));
+		
+		ImportOptions options = null;
+		try {
+			options = new ImportOptions();
+			setDefaultOptions(options, form);
 
-		// figure out what type of import we need to do based on parameters selected
-		String methodString = form.getFirst("importMethod") + "";
-		ImportDataProcessor.IMPORT_METHOD importMethod = 
-				methodString.equals("Create new database engine") ? ImportDataProcessor.IMPORT_METHOD.CREATE_NEW
-						: methodString.equals("addEngine") ? ImportDataProcessor.IMPORT_METHOD.ADD_TO_EXISTING
-								: methodString.equals("modifyEngine") ? ImportDataProcessor.IMPORT_METHOD.OVERRIDE
-										: null;
-
-		if(importMethod == null) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Import method \'" + methodString + "\' is not supported");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-
-		//call the right process method with correct parameters
-		String dbName = "";
-		if(form.getFirst("dbName") != null && !form.getFirst("dbName").isEmpty()) {
-			dbName = form.getFirst("dbName");
-		} else if(form.getFirst("addDBname") != null && !form.getFirst("addDBname").isEmpty()) {
-			dbName = form.getFirst("addDBname");
-		} else {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "No database name was entered");
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		}
-		dbName = cleanSpaces(dbName);
-
-		//Add engine owner for permissions
-		if(this.securityEnabled) {
-			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-				addEngineOwner(dbName, ((User) user).getId());
-			} else {
+			// can only load flat files as RDBMS
+			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
+			options.setImportType(ImportOptions.IMPORT_TYPE.CSV_FLAT_LOAD);
+			
+			// set the files
+			String files = form.getFirst("file");
+			if(files == null || files.trim().isEmpty()) {
 				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Please log in to upload data.");
+				errorHash.put("errorMessage", "No files have been identified to upload");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
-		}
-		
-		// can only load flat files as RDBMS
-		ImportDataProcessor.DB_TYPE storeType = ImportDataProcessor.DB_TYPE.RDBMS;
+			options.setFileLocation(files);
 
-		String uploadFiles = "";
-		String file = "";
-		if(form.getFirst("file") != null && !form.getFirst("file").toString().isEmpty()) {
-			file = form.getFirst("file").toString();
-			uploadFiles = uploadFiles.concat(file);
-		}
-		
-		try {
-			if(methodString.equals("Create new database engine")) {
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.FLAT_LOAD, uploadFiles, 
-						form.getFirst("customBaseURI")+"", dbName,"","", "","", storeType, null, false, autoLoad);
-				loadEngineIntoSession(request, dbName);
-			} else {
-				importer.runProcessor(importMethod, ImportDataProcessor.IMPORT_TYPE.FLAT_LOAD, uploadFiles, 
-						form.getFirst("customBaseURI")+"", "","", "","", dbName, storeType, null, false, autoLoad);
+			// add engine owner for permissions
+			if(this.securityEnabled) {
+				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getDbName(), ((User) user).getId());
+				} else {
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Please log in to upload data.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
 			}
+			
+			ImportDataProcessor importer = new ImportDataProcessor();
+			importer.runProcessor(options);
 		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (RepositoryException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch (SailException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
@@ -1293,15 +1129,20 @@ public class DatabaseUploader extends Uploader {
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
-			if(!file.isEmpty()) {
-				deleteFilesFromServer(file.split(";"));
+			// we can't really use the options object for this :/
+			String files = form.getFirst("file");
+			if(files != null && !files.isEmpty()) {
+				deleteFilesFromServer(files.split(";"));
+			}
+			String questionFile = form.getFirst("questionFile");
+			if(questionFile != null && !questionFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{questionFile});
 			}
 		}
 
 		String outputText = "Flat database loading was a success.";
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
-	
 	
 	@POST
 	@Path("/rdbms/getMetadata")
@@ -1436,8 +1277,8 @@ public class DatabaseUploader extends Uploader {
 		masterDB.addEngineAndOwner(engine, userId);
 	}
 	
-	//TODO: this cleaning will not be necessary once insights are shifted to RDBMS
 	private String cleanSpaces(String s) {
+		s = s.trim();
 		while (s.contains("  ")){
 			s = s.replace("  ", " ");
 		}
