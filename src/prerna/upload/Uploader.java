@@ -53,6 +53,7 @@ import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
 import prerna.cache.FileStore;
+import prerna.cache.ICache;
 import prerna.poi.main.helper.AmazonApiHelper;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.ImportApiHelper;
@@ -71,12 +72,12 @@ public abstract class Uploader extends HttpServlet {
 	protected String filePath;
 	protected String tempFilePath = "";
 	protected boolean securityEnabled;
-	
+
 	public static final String CSV_FILE_KEY = "CSV";
 	// we will control the adding of the engine into local master and solr
 	// such that we dont send a success before those processes are complete
 	boolean autoLoad = false;
-	
+
 	public void setFilePath(String filePath){
 		this.filePath = filePath;
 	}
@@ -84,7 +85,7 @@ public abstract class Uploader extends HttpServlet {
 	public void setTempFilePath(String tempFilePath){
 		this.tempFilePath = tempFilePath;
 	}
-	
+
 	public void setSecurityEnabled(boolean securityEnabled) {
 		this.securityEnabled = securityEnabled;
 	}
@@ -96,20 +97,11 @@ public abstract class Uploader extends HttpServlet {
 			e.printStackTrace();
 		}
 	}
-	
+
 	protected void deleteFilesFromServer(String[] files) {
 		for(String file : files) {
-			java.nio.file.Path deleteFilePath = Paths.get(file);
-			try {
-			    Files.delete(deleteFilePath);
-			} catch (NoSuchFileException x) {
-			    System.err.format("%s: no such" + " file or directory%n", filePath);
-			} catch (DirectoryNotEmptyException x) {
-			    System.err.format("%s not empty%n", filePath);
-			} catch (IOException x) {
-			    // File permission problems are caught here.
-			    System.err.println(x);
-			}
+			File f = new File(file);
+			ICache.deleteFile(f);
 		}
 	}
 
@@ -126,7 +118,7 @@ public abstract class Uploader extends HttpServlet {
 			ServletFileUpload upload = new ServletFileUpload(factory);
 			// maximum file size to be uploaded.
 			upload.setSizeMax(maxFileSize);
-			
+
 			// Parse the request to get file items
 			fileItems = upload.parseRequest(request);
 		} catch (FileUploadException e) {
@@ -136,7 +128,7 @@ public abstract class Uploader extends HttpServlet {
 		}
 		return fileItems;
 	}
-	
+
 	protected Hashtable<String, String> getInputData(List<FileItem> fileItems) 
 	{
 		// Process the uploaded file items
@@ -181,7 +173,7 @@ public abstract class Uploader extends HttpServlet {
 
 		return inputData;
 	}
-	
+
 	/**
 	 * 
 	 * @param inputData
@@ -195,7 +187,7 @@ public abstract class Uploader extends HttpServlet {
 
 		boolean webExtract = (inputData.get("file") == null);
 		String keyvalue = "";
-		
+
 		if(webExtract){//Provision for extracted data via import.io
 			WebAPIHelper helper = null;
 			if(inputData.get("api") != null){
@@ -210,10 +202,10 @@ public abstract class Uploader extends HttpServlet {
 				helper = new AmazonApiHelper();
 				((AmazonApiHelper) helper).setOperationType("ItemLookup");
 			}
-			
+
 			helper.setApiParam(keyvalue);
 			helper.parse();	
-						
+
 
 			String [] headers = helper.getHeaders();
 			String [] types = helper.predictTypes();
@@ -221,7 +213,7 @@ public abstract class Uploader extends HttpServlet {
 			Map<String, String> headerTypes = new LinkedHashMap<String, String>();
 			for(int j = 0; j < headers.length; j++) {
 				headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
-}
+			}
 			headerTypeMap.put(CSV_FILE_KEY, headerTypes);
 
 		}
@@ -245,7 +237,7 @@ public abstract class Uploader extends HttpServlet {
 					for(int x = 0; x < headers.length; x++) {
 						cleanHeaders[i] = Utility.cleanVariableString(headers[i]);
 					}
-					
+
 					Map<String, String> headerTypes = new LinkedHashMap<String, String>();
 					for(int j = 0; j < cleanHeaders.length; j++) {
 						headerTypes.put(cleanHeaders[j], Utility.getCleanDataType(types[j]));
@@ -264,15 +256,11 @@ public abstract class Uploader extends HttpServlet {
 				helper.parse(fileLoc);
 
 				String [] headers = helper.getHeaders();
-				String [] cleanHeaders = new String[headers.length];
-				for(int i = 0; i < headers.length; i++) {
-					cleanHeaders[i] = Utility.cleanVariableString(headers[i]);
-				}
 				String [] types = helper.predictTypes();
 
 				Map<String, String> headerTypes = new LinkedHashMap<String, String>();
-				for(int j = 0; j < cleanHeaders.length; j++) {
-					headerTypes.put(cleanHeaders[j], Utility.getCleanDataType(types[j]));
+				for(int j = 0; j < headers.length; j++) {
+					headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
 				}
 				headerTypeMap.put(CSV_FILE_KEY, headerTypes);
 				retObj.put("delimiter", delimiter);
@@ -283,7 +271,7 @@ public abstract class Uploader extends HttpServlet {
 		retObj.put("headerData", headerTypeMap);
 		return retObj;
 	}
-	
+
 	/**
 	 * 
 	 * @param inputData
@@ -294,7 +282,7 @@ public abstract class Uploader extends HttpServlet {
 		Map<String, Object> returnData = new HashMap<>(2);
 		List<Map<String, Object>> retObj = new ArrayList<>(2);
 		returnData.put("metaModelData", retObj);
-		
+
 		Map<String, Map<String, String>> headerTypeMap = new Hashtable<String, Map<String, String>>();
 
 		boolean webExtract = (inputData.get("file") == null);
@@ -313,10 +301,10 @@ public abstract class Uploader extends HttpServlet {
 				helper = new AmazonApiHelper();
 				((AmazonApiHelper) helper).setOperationType("ItemLookup");
 			}
-			
+
 			helper.setApiParam(keyvalue);
 			helper.parse();	
-						
+
 
 			String [] headers = helper.getHeaders();
 			String [] types = helper.predictTypes();
