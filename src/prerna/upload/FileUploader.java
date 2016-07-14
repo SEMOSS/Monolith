@@ -1,14 +1,11 @@
 package prerna.upload;
 
 import java.io.File;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
@@ -29,11 +26,6 @@ import prerna.cache.FileStore;
 import prerna.ds.TableDataFrameFactory;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.poi.main.helper.AmazonApiHelper;
-import prerna.poi.main.helper.CSVFileHelper;
-import prerna.poi.main.helper.ImportApiHelper;
-import prerna.poi.main.helper.WebAPIHelper;
-import prerna.poi.main.helper.XLFileHelper;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.util.Utility;
@@ -60,7 +52,7 @@ public class FileUploader extends Uploader{
 			
 			// collect all of the data input on the form
 			Hashtable<String, String> inputData = getInputData(fileItems);
-			Map<String, Object> retObj = FileUploader.generateDataTypes(inputData);
+			Map<String, Object> retObj = generateDataTypes(inputData);
 			return Response.status(200).entity(WebUtility.getSO(retObj)).build();
 
 		} catch(Exception e) {
