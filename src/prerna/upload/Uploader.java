@@ -29,10 +29,6 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.DirectoryNotEmptyException;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -54,6 +50,7 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
 import prerna.cache.FileStore;
 import prerna.cache.ICache;
+import prerna.poi.main.HeadersException;
 import prerna.poi.main.helper.AmazonApiHelper;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.ImportApiHelper;
@@ -173,7 +170,28 @@ public abstract class Uploader extends HttpServlet {
 
 		return inputData;
 	}
-
+	
+	/**
+	 * Method used to determine if there are errors in a csv file headers
+	 * @param files				The list of files in the headers
+	 * @return					boolean true if no issues
+	 * @throws IOException 
+	 * 							
+	 */
+	public boolean checkHeaders(String[] files) throws IOException {
+		// iterate through the files
+		for(String file : files) {
+			CSVFileHelper helper = new CSVFileHelper();
+			helper.parse(file);
+			String[] headers = helper.getHeaders();
+			
+			// if there is an issue, it will throw the IOException
+			HeadersException.getInstance().compareHeaders(new File(file).getName(), headers);
+		}
+		
+		return true;
+	}
+	
 	/**
 	 * 
 	 * @param inputData
