@@ -221,6 +221,7 @@ public class DatabaseUploader extends Uploader {
 		Map<String, Object> returnObj = new HashMap<>(2);
 		Map<String, Object> fileMetaModelData;
 
+		String[] fileLoc = null;
 		try {
 			//process request
 			List<FileItem> fileItems = processRequest(request);
@@ -228,6 +229,9 @@ public class DatabaseUploader extends Uploader {
 			// collect all of the data input on the form
 			Hashtable<String, String> inputData = getInputData(fileItems);
 
+			fileLoc = inputData.get("file").split(";");
+			checkHeaders(fileLoc);
+			
 			//generate and collect the data types
 			Map<String, Object> returnData = generateDataTypesMultiFile(inputData);
 			List<Map<String, Object>> dataTypesList = (List<Map<String, Object>>)returnData.get("metaModelData");
@@ -308,6 +312,11 @@ public class DatabaseUploader extends Uploader {
 			}
 		} catch(Exception e) { 
 			e.printStackTrace();
+			
+			// need to delete the files from the server
+			if(fileLoc != null) {
+				deleteFilesFromServer(fileLoc);
+			}
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
