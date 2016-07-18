@@ -160,7 +160,7 @@ public class DataframeResource {
 		String pkqlCmd = form.getFirst("expression");
 		props.put(PKQLTransformation.EXPRESSION, pkqlCmd);
 		pkql.setProperties(props);
-		PKQLRunner runner = new PKQLRunner();
+		PKQLRunner runner = insight.getPKQLRunner();
 		pkql.setRunner(runner);
 		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
 		list.add(pkql);
@@ -170,7 +170,6 @@ public class DataframeResource {
 //		}
 		
 		insight.processPostTransformation(list);
-		insight.setPkqlRunner(runner);
 		Map resultHash = insight.getPKQLData(true);
 
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
