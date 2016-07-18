@@ -14,6 +14,7 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
@@ -220,19 +221,21 @@ public class DatabaseUploader extends Uploader {
 		List<Map<String, Object>> metaModelData = new ArrayList<>(2);
 		Map<String, Object> returnObj = new HashMap<>(2);
 		Map<String, Object> fileMetaModelData;
+		List<Map<String, String>> messages = new Vector<Map<String, String>>();
 
-		String[] fileLoc = null;
 		try {
 			//process request
 			List<FileItem> fileItems = processRequest(request);
-
 			// collect all of the data input on the form
 			Hashtable<String, String> inputData = getInputData(fileItems);
 
-			fileLoc = inputData.get("file").split(";");
-			checkHeaders(fileLoc);
-			
-			//generate and collect the data types
+			// TODO: need to fix this
+			// such a convoluted and unnecessarily complicated data object...
+			// no need to store this for every single file... i dont get it
+			// could have significantly reduced both the memory and no need for an additional method
+			// by getting the data types for each file separately....
+
+			// generate and collect the data types
 			Map<String, Object> returnData = generateDataTypesMultiFile(inputData);
 			List<Map<String, Object>> dataTypesList = (List<Map<String, Object>>)returnData.get("metaModelData");
 			if(returnData.containsKey("questionFile")){
@@ -241,7 +244,18 @@ public class DatabaseUploader extends Uploader {
 
 			for(Map<String, Object> dataTypes : dataTypesList) {
 				fileMetaModelData = new HashMap<>();
+				
+				// all of the nested maps
 				Map<String, Map<String, String>> headerTypeMap = (Map)dataTypes.get("headerData");
+				
+				// okay, lets at least get the messages
+				if(dataTypes.containsKey(CSV_HELPER_MESSAGE)) {
+					Map<String, String> messageInfo = new Hashtable<String, String>();
+					messageInfo.put("text", (String) dataTypes.get(CSV_HELPER_MESSAGE));
+					messageInfo.put("type", "alert");
+					messages.add(messageInfo);
+				}
+				
 				Map<String, String> headerTypes = headerTypeMap.get("CSV");
 
 				//determine the allowableDataTypes
@@ -313,13 +327,14 @@ public class DatabaseUploader extends Uploader {
 		} catch(Exception e) { 
 			e.printStackTrace();
 			
-			// need to delete the files from the server
-			if(fileLoc != null) {
-				deleteFilesFromServer(fileLoc);
-			}
+			// grab the error thrown and send it to the FE
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+		}
+		
+		if(!messages.isEmpty()) {
+			returnObj.put("messages", messages);
 		}
 		returnObj.put("metaModelData", metaModelData);
 		return Response.status(200).entity(gson.toJson(returnObj)).build();

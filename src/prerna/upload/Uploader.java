@@ -71,6 +71,8 @@ public abstract class Uploader extends HttpServlet {
 	protected boolean securityEnabled;
 
 	public static final String CSV_FILE_KEY = "CSV";
+	public static final String CSV_HELPER_MESSAGE = "HTML_RESPONSE";
+	
 	// we will control the adding of the engine into local master and solr
 	// such that we dont send a success before those processes are complete
 	boolean autoLoad = false;
@@ -282,6 +284,12 @@ public abstract class Uploader extends HttpServlet {
 				}
 				headerTypeMap.put(CSV_FILE_KEY, headerTypes);
 				retObj.put("delimiter", delimiter);
+				
+				String htmlMessage = helper.getHTMLBasedHeaderChanges();
+				if(htmlMessage != null) {
+					retObj.put(CSV_HELPER_MESSAGE, htmlMessage);
+				}
+				
 				helper.clear();
 			}
 		}
