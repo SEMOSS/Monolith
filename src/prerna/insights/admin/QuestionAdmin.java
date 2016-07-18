@@ -67,12 +67,14 @@ import prerna.engine.impl.QuestionAdministrator;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
+import prerna.sablecc.PKQLRunner;
 import prerna.solr.SolrDocumentExportWriter;
 import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.FilterTransformation;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
+import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -102,6 +104,7 @@ public class QuestionAdmin {
 		String insightID = form.getFirst("insightID");
 		String uiOptions = form.getFirst("uiOptions");
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
+		List<String> pkqlsToAdd = gson.fromJson(form.getFirst("pkqlsToAdd"), List.class);
 
 		Insight insight = InsightStore.getInstance().get(insightID);
 		boolean isNonDbInsight = insight.isNonDbInsight();
@@ -119,6 +122,21 @@ public class QuestionAdmin {
 			}
 		} else {
 			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
+			
+			//If saving with params, FE passes a user.input PKQL that needs to be added/saved - better way to do this?
+			if(pkqlsToAdd != null && !pkqlsToAdd.isEmpty()) {
+				PKQLRunner runner = insight.getPKQLRunner();
+				DataMakerComponent dmc = insight.getDataMakerComponents().get(insight.getDataMakerComponents().size() - 1);
+				for(String pkqlCmd : pkqlsToAdd) {
+					PKQLTransformation pkqlToAdd = new PKQLTransformation();
+					Map<String, Object> props = new HashMap<String, Object>();
+					props.put(PKQLTransformation.EXPRESSION, pkqlCmd);
+					pkqlToAdd.setProperties(props);
+					pkqlToAdd.setRunner(runner);
+					
+					dmc.addPostTrans(pkqlToAdd, 0);
+				}
+			}
 			newInsightID = addInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
 			Map<String, Object> retMap = new HashMap<String, Object>();
 			retMap.put("newInsightID", newInsightID);
