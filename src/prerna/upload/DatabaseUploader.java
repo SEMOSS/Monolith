@@ -32,10 +32,10 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
-import prerna.cache.FileStore;
 import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
 import prerna.poi.main.MetaModelCreator;
+import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.ImportOptions;
 import prerna.rdf.main.ImportRDBMSProcessor;
 import prerna.ui.components.ImportDataProcessor;
@@ -216,55 +216,86 @@ public class DatabaseUploader extends Uploader {
 	@Produces("application/json")
 	public Response uploadFileAndPredictMetamodel(@Context HttpServletRequest request) {
 		Gson gson = new Gson();
-
-		//Upload the file and get the data types
-		List<Map<String, Object>> metaModelData = new ArrayList<>(2);
+		
+		//process request
+		List<FileItem> fileItems = processRequest(request);
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = getInputData(fileItems);
+		
+		// objects to store data
+		// master object to send to FE
 		Map<String, Object> returnObj = new HashMap<>(2);
-		Map<String, Object> fileMetaModelData;
+		// this will store the MM info for all the files
+		List<Map<String, Object>> metaModelData = new Vector<>(2);
+		// this will store the header modification messages to send to the FE
 		List<Map<String, String>> messages = new Vector<Map<String, String>>();
-
+		
 		try {
-			//process request
-			List<FileItem> fileItems = processRequest(request);
-			// collect all of the data input on the form
-			Hashtable<String, String> inputData = getInputData(fileItems);
 
-			// TODO: need to fix this
-			// such a convoluted and unnecessarily complicated data object...
-			// no need to store this for every single file... i dont get it
-			// could have significantly reduced both the memory and no need for an additional method
-			// by getting the data types for each file separately....
-
-			// generate and collect the data types
-			Map<String, Object> returnData = generateDataTypesMultiFile(inputData);
-			List<Map<String, Object>> dataTypesList = (List<Map<String, Object>>)returnData.get("metaModelData");
-			if(returnData.containsKey("questionFile")){
-				returnObj.put("questionFile", returnData.get("questionFile"));
-			}
-
-			for(Map<String, Object> dataTypes : dataTypesList) {
-				fileMetaModelData = new HashMap<>();
+			String[] files = inputData.get("file").split(";");
+			for(String fileLoc : files) {
+				// this is the MM info for one of the files within the metaModelData list
+				Map<String, Object> fileMetaModelData = new HashMap<String, Object>();
 				
-				// all of the nested maps
-				Map<String, Map<String, String>> headerTypeMap = (Map)dataTypes.get("headerData");
+				// store the file location on server so FE can send that back into actual upload routine
+				fileMetaModelData.put("fileLocation", fileLoc);
+
+				CSVFileHelper helper = new CSVFileHelper();
+				//TODO: should enable any kind of single char delimited file
+				// have FE pass this info
+				helper.setDelimiter(',');
+				helper.parse(fileLoc);
 				
-				// okay, lets at least get the messages
-				if(dataTypes.containsKey(CSV_HELPER_MESSAGE)) {
-					Map<String, String> messageInfo = new Hashtable<String, String>();
-					messageInfo.put("text", (String) dataTypes.get(CSV_HELPER_MESSAGE));
-					messageInfo.put("type", "alert");
-					messages.add(messageInfo);
+				// store messages when the csv file helper automatically modifies the column headers
+				String headerChangeMessage = helper.getHTMLBasedHeaderChanges();
+				if(headerChangeMessage != null) {
+					Map<String, String> headerMessage = new Hashtable<String, String>();
+					headerMessage.put("text", headerChangeMessage);
+					headerMessage.put("type", "alert");
+					messages.add(headerMessage);
 				}
+
+				//if we get a flag from the front end to create meta model then create it
+				String generateMetaModel = inputData.get("generateMetaModel").toString();
+				MetaModelCreator predictor;
+				if(generateMetaModel.equals("auto")) {
+					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.AUTO);
+					predictor.constructMetaModel();
+					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
+					fileMetaModelData.putAll(metaModel);
+				} else if(generateMetaModel.equals("prop")) {
+					//turn prop file into meta data
+					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.PROP);
+					String propFile = inputData.get("propFile");
+					predictor.addPropFile(propFile);
+					predictor.constructMetaModel();
+					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
+					fileMetaModelData.putAll(metaModel);
+
+				} else if(generateMetaModel.equals("table")) {
+					//return metamodel with one column as main column/primary key
+					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.TABLE);
+					predictor.constructMetaModel();
+					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
+					fileMetaModelData.putAll(metaModel);
+				} else {
+					predictor = new MetaModelCreator(helper, null);
+				}
+				int start = predictor.getStartRow();
+				int end = predictor.getEndRow();
+				fileMetaModelData.put("startCount", start);
+				fileMetaModelData.put("endCount", end);
+				metaModelData.add(fileMetaModelData);
 				
-				Map<String, String> headerTypes = headerTypeMap.get("CSV");
 
 				//determine the allowableDataTypes
+				Map<String, String> dataTypeMap = predictor.getDataTypeMap();
 				Map<String, List<String>> allowableDataTypes = new LinkedHashMap<>();
-				for(String header : headerTypes.keySet()) {
+				for(String header : dataTypeMap.keySet()) {
 					List<String> dataTypeList = new ArrayList<>(2);
 					dataTypeList.add("STRING");
 
-					String type = headerTypes.get(header);
+					String type = dataTypeMap.get(header);
 					if(!type.equals("STRING")) {
 						if(type.equals("DOUBLE")) {
 							dataTypeList.add("NUMBER");
@@ -275,54 +306,8 @@ public class DatabaseUploader extends Uploader {
 					}
 					allowableDataTypes.put(header, dataTypeList);
 				}
-
 				fileMetaModelData.put("allowable", allowableDataTypes);
-
-				String fileLocation = dataTypes.get("uniqueFileKey").toString();
-				fileLocation = FileStore.getInstance().get(fileLocation);
-				String fileName = fileLocation.substring(fileLocation.lastIndexOf("\\") + 1);
-				fileMetaModelData.put("fileLocation", fileLocation);
-				fileMetaModelData.put("fileName", fileName);
-
-
-				//get the header data and delimiter
-				String delimiter = dataTypes.get("delimiter").toString();
-
-
-				//if we get a flag from the front end to create meta model then create it
-				String generateMetaModel = inputData.get("generateMetaModel").toString();
-				MetaModelCreator predictor;
-				if(generateMetaModel.equals("auto")) {
-
-					predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.AUTO);
-					predictor.constructMetaModel();
-
-					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
-					fileMetaModelData.putAll(metaModel);
-				} else if(generateMetaModel.equals("prop")) {
-					//turn prop file into meta data
-					predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.PROP);
-					String propFile = inputData.get("propFile");
-					predictor.addPropFile(propFile);
-					predictor.constructMetaModel();
-					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
-					fileMetaModelData.putAll(metaModel);
-
-				} else if(generateMetaModel.equals("table")) {
-					//return metamodel with one column as main column/primary key
-					predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, MetaModelCreator.CreatorMode.TABLE);
-					predictor.constructMetaModel();
-					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
-					fileMetaModelData.putAll(metaModel);
-				} else {
-					predictor = new MetaModelCreator(fileLocation, headerTypeMap, delimiter, null);
-
-				}
-				int start = predictor.getStartRow();
-				int end = predictor.getEndRow();
-				fileMetaModelData.put("startCount", start);
-				fileMetaModelData.put("endCount", end);
-				metaModelData.add(fileMetaModelData);
+				
 			}
 		} catch(Exception e) { 
 			e.printStackTrace();
@@ -333,10 +318,19 @@ public class DatabaseUploader extends Uploader {
 			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 		}
 		
+		// store the info
+		returnObj.put("metaModelData", metaModelData);
+
+		// add error messages if present		
 		if(!messages.isEmpty()) {
 			returnObj.put("messages", messages);
 		}
-		returnObj.put("metaModelData", metaModelData);
+		
+		// add question file location on server is present
+		if(inputData.containsKey("questionFile")){
+			returnObj.put("questionFile", returnObj.get("questionFile"));
+		}
+		
 		return Response.status(200).entity(gson.toJson(returnObj)).build();
 	}
 
