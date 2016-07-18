@@ -30,7 +30,6 @@ package prerna.upload;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -236,8 +235,7 @@ public abstract class Uploader extends HttpServlet {
 			}
 			headerTypeMap.put(CSV_FILE_KEY, headerTypes);
 
-		}
-		else{
+		} else {
 
 			String fileLoc = inputData.get("file");
 			String uniqueStorageId = FileStore.getInstance().put(fileLoc);
@@ -297,72 +295,4 @@ public abstract class Uploader extends HttpServlet {
 		retObj.put("headerData", headerTypeMap);
 		return retObj;
 	}
-
-	/**
-	 * 
-	 * @param inputData
-	 * @return
-	 * @throws IOException
-	 */
-	protected static Map<String, Object> generateDataTypesMultiFile(Map<String, String> inputData) throws IOException {
-		Map<String, Object> returnData = new HashMap<>(2);
-		List<Map<String, Object>> retObj = new ArrayList<>(2);
-		returnData.put("metaModelData", retObj);
-
-		Map<String, Map<String, String>> headerTypeMap = new Hashtable<String, Map<String, String>>();
-
-		boolean webExtract = (inputData.get("file") == null);
-		String keyvalue = "";
-		if(webExtract){//Provision for extracted data via import.io
-			WebAPIHelper helper = null;
-			if(inputData.get("api") != null){
-				keyvalue = inputData.get("api");
-				helper = new ImportApiHelper();
-			}else if(inputData.get("itemSearch") != null){
-				keyvalue = inputData.get("itemSearch");
-				helper = new AmazonApiHelper();
-				((AmazonApiHelper) helper).setOperationType("ItemSearch");
-			}else if(inputData.get("itemLookup") != null){
-				keyvalue = inputData.get("itemLookup");
-				helper = new AmazonApiHelper();
-				((AmazonApiHelper) helper).setOperationType("ItemLookup");
-			}
-
-			helper.setApiParam(keyvalue);
-			helper.parse();	
-
-
-			String [] headers = helper.getHeaders();
-			String [] types = helper.predictTypes();
-
-			Map<String, String> headerTypes = new LinkedHashMap<String, String>();
-			for(int j = 0; j < headers.length; j++) {
-				headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
-			}
-			headerTypeMap.put(CSV_FILE_KEY, headerTypes);
-
-		}
-		else{
-			String[] fileLoc = inputData.get("file").split(";");
-			String[] delimiters = inputData.get("delimiter").split(";");
-			String questionFile = inputData.get("questionFile");
-			if(questionFile != null && !questionFile.isEmpty()) {
-				returnData.put("questionFile", questionFile);
-			}
-			for(int i = 0; i < fileLoc.length; i++) {
-				Map<String, String> inData = new HashMap<>();
-				inData.putAll(inputData);
-				inData.put("file", fileLoc[i]);
-				if(delimiters != null && delimiters.length > i) {
-					inData.put("delimiter", delimiters[i]);
-				} else {
-					inData.put("delimiter", null);
-				}
-				Map<String, Object> nextData = generateDataTypes(inData);
-				retObj.add(nextData);
-			}
-		}
-		return returnData;
-	}
-
 }
