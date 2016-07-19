@@ -233,18 +233,24 @@ public class DatabaseUploader extends Uploader {
 		try {
 
 			String[] files = inputData.get("file").split(";");
-			for(String fileLoc : files) {
+			String props = inputData.get("propFile");
+			String[] propFiles = null;
+			if(props != null && !props.isEmpty()) {
+				propFiles = props.split(";");
+			}
+			for(int i = 0; i < files.length; i++) {
+//			for(String fileLoc : files) {
 				// this is the MM info for one of the files within the metaModelData list
 				Map<String, Object> fileMetaModelData = new HashMap<String, Object>();
 				
 				// store the file location on server so FE can send that back into actual upload routine
-				fileMetaModelData.put("fileLocation", fileLoc);
+				fileMetaModelData.put("fileLocation", files[i]);
 
 				CSVFileHelper helper = new CSVFileHelper();
 				//TODO: should enable any kind of single char delimited file
 				// have FE pass this info
 				helper.setDelimiter(',');
-				helper.parse(fileLoc);
+				helper.parse(files[i]);
 				
 				// store messages when the csv file helper automatically modifies the column headers
 				String headerChangeMessage = helper.getHTMLBasedHeaderChanges();
@@ -266,8 +272,7 @@ public class DatabaseUploader extends Uploader {
 				} else if(generateMetaModel.equals("prop")) {
 					//turn prop file into meta data
 					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.PROP);
-					String propFile = inputData.get("propFile");
-					predictor.addPropFile(propFile);
+					predictor.addPropFile(propFiles[i]);
 					predictor.constructMetaModel();
 					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
 					fileMetaModelData.putAll(metaModel);
