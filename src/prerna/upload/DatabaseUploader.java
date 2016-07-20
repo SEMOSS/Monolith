@@ -245,7 +245,14 @@ public class DatabaseUploader extends Uploader {
 				
 				// store the file location on server so FE can send that back into actual upload routine
 				fileMetaModelData.put("fileLocation", files[i]);
-
+				String file = files[i].substring(files[i].lastIndexOf("\\") + 1, files[i].lastIndexOf("."));
+				try {
+					file = file.substring(0, file.length() - 24); //taking out the date added onto the original file name
+				} catch(Exception e) {
+					file = files[i].substring(files[i].lastIndexOf("\\") + 1, files[i].lastIndexOf(".")); //just in case that fails, this shouldnt because if its a filename it should have a "."
+				}
+				fileMetaModelData.put("fileName", file);
+				
 				CSVFileHelper helper = new CSVFileHelper();
 				//TODO: should enable any kind of single char delimited file
 				// have FE pass this info
