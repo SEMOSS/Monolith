@@ -875,6 +875,13 @@ public class DatabaseUploader extends Uploader {
 			}
 			options.setFileLocation(files);
 
+			List<Map<String, String[]>> headerData = null;
+			String headerDataStr = form.getFirst("headerData");
+			if(headerDataStr != null) {
+				headerData = gson.fromJson(headerDataStr, new TypeToken<List<Map<String, String[]>>>() {}.getType());
+				options.setDataTypeMap(headerData);
+			}
+			
 			// add engine owner for permissions
 			if(this.securityEnabled) {
 				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
