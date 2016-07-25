@@ -353,7 +353,6 @@ public class DatabaseUploader extends Uploader {
 		List<Map<String, Object>> metaModelData = new Vector<>(2);
 		
 		try {
-
 			String[] files = inputData.get("file").split(";");
 			String props = inputData.get("propFile");
 			String[] propFiles = null;
@@ -380,10 +379,6 @@ public class DatabaseUploader extends Uploader {
 				helper.setDelimiter(',');
 				helper.parse(files[i]);
 				
-				// store messages when the csv file helper automatically modifies the column headers
-				Map<String, String> fileHeaderMods = helper.getChangedHeaders();
-				fileMetaModelData.put("headerModifications", fileHeaderMods);
-
 				//if we get a flag from the front end to create meta model then create it
 				String generateMetaModel = inputData.get("generateMetaModel").toString();
 				MetaModelCreator predictor;
@@ -425,6 +420,10 @@ public class DatabaseUploader extends Uploader {
 					fileMetaModelData.put("startCount", start);
 					fileMetaModelData.put("endCount", end);
 //				}
+					
+				// store auto modified header names
+				Map<String, String> fileHeaderMods = helper.getChangedHeaders();
+				fileMetaModelData.put("headerModifications", fileHeaderMods);
 				
 				// add the info to the metamodel data to send
 				metaModelData.add(fileMetaModelData);
@@ -744,10 +743,27 @@ public class DatabaseUploader extends Uploader {
 				XLFileHelper helper = new XLFileHelper();
 				helper.parse(files[i]);
 				
-				// store messages when the csv file helper automatically modifies the column headers
+				// store the suggested data types
+				String[] sheetNames = helper.getTables();
+				Map<String, Map<String, String>> dataTypes = new Hashtable<String, Map<String, String>>();
+				for(String sheetName : sheetNames) {
+					Map<String, String> sheetDataMap = new Hashtable<String, String>();
+					String[] columnHeaders = helper.getHeaders(sheetName);
+					String[] predicatedDataTypes = helper.predictRowTypes(sheetName);
+					
+					int size = columnHeaders.length;
+					for(int colIdx = 0; colIdx < size; colIdx++) {
+						sheetDataMap.put(columnHeaders[colIdx], Utility.getCleanDataType(predicatedDataTypes[colIdx]));
+					}
+					
+					dataTypes.put(sheetName, sheetDataMap);
+				}
+				fileMetaModelData.put("dataTypes", dataTypes);
+				
+				// store auto modified header names
 				Map<String, Map<String, String>> fileHeaderMods = helper.getChangedHeaders();
 				fileMetaModelData.put("headerModifications", fileHeaderMods);
-
+				
 				// add the info to the metamodel data to send
 				metaModelData.add(fileMetaModelData);
 			}
