@@ -241,13 +241,15 @@ public class DatabaseUploader extends Uploader {
 				String[] userHeaders = userDefinedHeadersMap.get(fileName);
 				
 				// now we need to check all of these headers
-				for(String userHeader : userHeaders) {
+				// now we need to check all of these headers
+				for(int colIdx = 0; colIdx < userHeaders.length; colIdx++) {
+					String userHeader = userHeaders[colIdx];
 					Map<String, String> badHeaderMap = new Hashtable<String, String>();
 					if(headerChecker.isIllegalHeader(userHeader)) {
 						badHeaderMap.put(userHeader, "This header name is a reserved word");
 					} else if(headerChecker.containsIllegalCharacter(userHeader)) {
 						badHeaderMap.put(userHeader, "Header names cannot contain +%@;");
-					} else if(headerChecker.isDuplicated(userHeader, userHeaders)) {
+					} else if(headerChecker.isDuplicated(userHeader, userHeaders, colIdx)) {
 						badHeaderMap.put(userHeader, "Cannot have duplicate header names");
 					}
 					
@@ -492,7 +494,6 @@ public class DatabaseUploader extends Uploader {
 				form.putSingle("file", cleanedFileName);
 			}
 
-
 			// set the files
 			String files = form.getFirst("file");
 			if(files == null || files.trim().isEmpty()) {
@@ -501,7 +502,6 @@ public class DatabaseUploader extends Uploader {
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
 			options.setFileLocation(files);
-
 
 			////////////////////// begin logic to process metamodel for csv flat table //////////////////////
 			List<String> allFileData = gson.fromJson(form.getFirst("fileInfoArray"), List.class);
