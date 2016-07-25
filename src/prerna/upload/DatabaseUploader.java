@@ -288,13 +288,14 @@ public class DatabaseUploader extends Uploader {
 					String[] userHeaders = excelWorkbook.get(sheetName);
 
 					// now we need to check all of these headers
-					for(String userHeader : userHeaders) {
+					for(int colIdx = 0; colIdx < userHeaders.length; colIdx++) {
+						String userHeader = userHeaders[colIdx];
 						Map<String, String> badHeaderMap = new Hashtable<String, String>();
 						if(headerChecker.isIllegalHeader(userHeader)) {
 							badHeaderMap.put(userHeader, "This header name is a reserved word");
 						} else if(headerChecker.containsIllegalCharacter(userHeader)) {
 							badHeaderMap.put(userHeader, "Header names cannot contain +%@;");
-						} else if(headerChecker.isDuplicated(userHeader, userHeaders)) {
+						} else if(headerChecker.isDuplicated(userHeader, userHeaders, colIdx)) {
 							badHeaderMap.put(userHeader, "Cannot have duplicate header names");
 						}
 						
@@ -318,7 +319,7 @@ public class DatabaseUploader extends Uploader {
 				}
 				
 				// now store the invalid headers map inside the list
-				// even if it is empty, we need to store it since the FE does this based on indicies
+				// even if it is empty, we need to store it since the FE does this based on indices
 				invalidHeadersList.add(invalidHeadersMap);
 			}
 			return Response.status(200).entity(WebUtility.getSO(invalidHeadersList)).build();
@@ -329,11 +330,13 @@ public class DatabaseUploader extends Uploader {
 	
 	///////////////////////////////////////////// END CHECK HEADERS ////////////////////////////////////////////////////////
 
+	
+	////////////////////////////////////////////// START CSV UPLOADING //////////////////////////////////////////////////////////
 
 	@POST
 	@Path("/csv/uploadFile")
 	@Produces("application/json")
-	public Response uploadFileAndPredictMetamodel(@Context HttpServletRequest request) {
+	public Response uploadCsvFileAndPredictMetamodel(@Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		
 		//process request
@@ -346,8 +349,6 @@ public class DatabaseUploader extends Uploader {
 		Map<String, Object> returnObj = new HashMap<>(2);
 		// this will store the MM info for all the files
 		List<Map<String, Object>> metaModelData = new Vector<>(2);
-		// this will store the header modification messages to send to the FE
-		List<Map<String, String>> messages = new Vector<Map<String, String>>();
 		
 		try {
 
@@ -378,13 +379,8 @@ public class DatabaseUploader extends Uploader {
 				helper.parse(files[i]);
 				
 				// store messages when the csv file helper automatically modifies the column headers
-				String headerChangeMessage = helper.getHTMLBasedHeaderChanges();
-				if(headerChangeMessage != null) {
-					Map<String, String> headerMessage = new Hashtable<String, String>();
-					headerMessage.put("text", headerChangeMessage);
-					headerMessage.put("type", "alert");
-					messages.add(headerMessage);
-				}
+				Map<String, String> fileHeaderMods = helper.getChangedHeaders();
+				fileMetaModelData.put("headerModifications", fileHeaderMods);
 
 				//if we get a flag from the front end to create meta model then create it
 				String generateMetaModel = inputData.get("generateMetaModel").toString();
@@ -402,40 +398,51 @@ public class DatabaseUploader extends Uploader {
 					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
 					fileMetaModelData.putAll(metaModel);
 
-				} else if(generateMetaModel.equals("table")) {
-					//return metamodel with one column as main column/primary key
-					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.TABLE);
-					predictor.constructMetaModel();
-					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
-					fileMetaModelData.putAll(metaModel);
-				} else {
+				} 
+				// flat table now doesn't generate a metamodel
+				// just put all the data types
+//				else if(generateMetaModel.equals("table")) {
+//					//return metamodel with one column as main column/primary key
+//					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.TABLE);
+//					predictor.constructMetaModel();
+//					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
+//					fileMetaModelData.putAll(metaModel);
+//				} 
+				else {
 					predictor = new MetaModelCreator(helper, null);
+					fileMetaModelData.put("dataTypes", predictor.getDataTypeMap());
 				}
-				int start = predictor.getStartRow();
-				int end = predictor.getEndRow();
-				fileMetaModelData.put("startCount", start);
-				fileMetaModelData.put("endCount", end);
-				metaModelData.add(fileMetaModelData);
 				
-				//determine the allowableDataTypes
-				Map<String, String> dataTypeMap = predictor.getDataTypeMap();
-				Map<String, List<String>> allowableDataTypes = new LinkedHashMap<>();
-				for(String header : dataTypeMap.keySet()) {
-					List<String> dataTypeList = new ArrayList<>(2);
-					dataTypeList.add("STRING");
-
-					String type = dataTypeMap.get(header);
-					if(!type.equals("STRING")) {
-						if(type.equals("DOUBLE")) {
-							dataTypeList.add("NUMBER");
+				//TODO: NEED TO BETTER CONSOLIDATE ALL THIS STUFF
+				if(generateMetaModel.equals("auto") || generateMetaModel.equals("prop")) {
+					// if we have a metamodel, do the following options
+					int start = predictor.getStartRow();
+					int end = predictor.getEndRow();
+					fileMetaModelData.put("startCount", start);
+					fileMetaModelData.put("endCount", end);
+					metaModelData.add(fileMetaModelData);
+					
+					// determine the allowableDataTypes
+					Map<String, String> dataTypeMap = predictor.getDataTypeMap();
+					Map<String, List<String>> allowableDataTypes = new LinkedHashMap<>();
+					for(String header : dataTypeMap.keySet()) {
+						List<String> dataTypeList = new ArrayList<>(2);
+						dataTypeList.add("STRING");
+	
+						String type = dataTypeMap.get(header);
+						if(!type.equals("STRING")) {
+							if(type.equals("DOUBLE")) {
+								dataTypeList.add("NUMBER");
+							}
+							else {
+								dataTypeList.add(type);
+							}
 						}
-						else {
-							dataTypeList.add(type);
-						}
+						allowableDataTypes.put(header, dataTypeList);
 					}
-					allowableDataTypes.put(header, dataTypeList);
+					fileMetaModelData.put("allowable", allowableDataTypes);
 				}
-				fileMetaModelData.put("allowable", allowableDataTypes);
+				
 			}
 		} catch(Exception e) { 
 			e.printStackTrace();
@@ -448,11 +455,6 @@ public class DatabaseUploader extends Uploader {
 		
 		// store the info
 		returnObj.put("metaModelData", metaModelData);
-
-		// add error messages if present		
-		if(!messages.isEmpty()) {
-			returnObj.put("messages", messages);
-		}
 		
 		// add question file location on server is present
 		if(inputData.containsKey("questionFile")){
@@ -628,11 +630,97 @@ public class DatabaseUploader extends Uploader {
 		String outputText = "CSV Loading was a success.";
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
+	
+	@POST
+	@Path("/flat/upload")
+	@Produces("application/json")
+	/**
+	 * The process flow for loading a flat file based on drag/drop
+	 * Since the user confirms what type of datatypes they want for each column
+	 * The file has already been loaded onto the server
+	 * @param form					Form object containing all the information regarding the load
+	 * @param request
+	 * @return
+	 */
+	public Response uploadFlatCsvFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		Gson gson = new Gson();
+		System.out.println(form);
+
+		ImportOptions options = null;
+		try {
+			options = new ImportOptions();
+			setDefaultOptions(options, form);
+
+			// can only load flat files as RDBMS
+			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
+			options.setImportType(ImportOptions.IMPORT_TYPE.CSV_FLAT_LOAD);
+
+			// set the files
+			String files = form.getFirst("file");
+			if(files == null || files.trim().isEmpty()) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "No files have been identified to upload");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
+			}
+			options.setFileLocation(files);
+
+			List<Map<String, String[]>> headerData = null;
+			String headerDataStr = form.getFirst("headerData");
+			if(headerDataStr != null) {
+				headerData = gson.fromJson(headerDataStr, new TypeToken<List<Map<String, String[]>>>() {}.getType());
+				options.setCsvDataTypeMap(headerData);
+			}
+			
+			// add engine owner for permissions
+			if(this.securityEnabled) {
+				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getDbName(), ((User) user).getId());
+				} else {
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Please log in to upload data.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
+			}
+
+			ImportDataProcessor importer = new ImportDataProcessor();
+			importer.runProcessor(options);
+		} catch (IOException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(Exception e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} finally {
+			// we can't really use the options object for this :/
+			String files = form.getFirst("file");
+			if(files != null && !files.isEmpty()) {
+				deleteFilesFromServer(files.split(";"));
+			}
+			String questionFile = form.getFirst("questionFile");
+			if(questionFile != null && !questionFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{questionFile});
+			}
+		}
+
+		String outputText = "Flat database loading was a success.";
+		return Response.status(200).entity(gson.toJson(outputText)).build();
+	}
+	
+	////////////////////////////////////////////// END CSV UPLOADING //////////////////////////////////////////////////////////
+	
+	////////////////////////////////////////////// START EXCEL UPLOADING //////////////////////////////////////////////////////////
 
 	@POST
-	@Path("/excelTable/upload")
+	//TODO: this path should be excel/upload
+	//TODO: cannot make this change without changing the path below
+	@Path("/excel/uploadTable")
 	@Produces("application/json")
-	public Response uploadExcelTableFile(@Context HttpServletRequest request)
+	public Response uploadExcelFile(@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		List<FileItem> fileItems = processRequest(request);
@@ -789,9 +877,11 @@ public class DatabaseUploader extends Uploader {
 	}
 
 	@POST
+	//TODO: this path should be excel/uploadPOIT
+	//TODO: cannot make this change without changing the path above
 	@Path("/excel/upload")
 	@Produces("application/json")
-	public Response uploadExcelFile(@Context HttpServletRequest request) 
+	public Response uploadExcelPOIFormat(@Context HttpServletRequest request) 
 	{
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
@@ -853,7 +943,90 @@ public class DatabaseUploader extends Uploader {
 		String outputText = "Excel Loading was a success.";
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
+	
+	@POST
+	@Path("/excel/flat")
+	@Produces("application/json")
+	/**
+	 * The process flow for loading a flat file based on drag/drop
+	 * Since the user confirms what type of datatypes they want for each column
+	 * The file has already been loaded onto the server
+	 * @param form					Form object containing all the information regarding the load
+	 * @param request
+	 * @return
+	 */
+	public Response uploadFlatExcelFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		Gson gson = new Gson();
+		System.out.println(form);
 
+		ImportOptions options = null;
+		try {
+			options = new ImportOptions();
+			setDefaultOptions(options, form);
+
+			// can only load flat files as RDBMS
+			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
+			options.setImportType(ImportOptions.IMPORT_TYPE.EXCEL_FLAT_UPLOAD);
+
+			// set the files
+			String files = form.getFirst("file");
+			if(files == null || files.trim().isEmpty()) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "No files have been identified to upload");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
+			}
+			options.setFileLocation(files);
+
+			List<Map<String, Map<String, String[]>>> headerData = null;
+			String headerDataStr = form.getFirst("headerData");
+			if(headerDataStr != null) {
+				headerData = gson.fromJson(headerDataStr, new TypeToken<List<Map<String, Map<String, String[]>>>>() {}.getType());
+				options.setExcelDataTypeMap(headerData);
+			}
+			
+			// add engine owner for permissions
+			if(this.securityEnabled) {
+				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getDbName(), ((User) user).getId());
+				} else {
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Please log in to upload data.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
+			}
+
+			ImportDataProcessor importer = new ImportDataProcessor();
+			importer.runProcessor(options);
+		} catch (IOException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(Exception e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} finally {
+			// we can't really use the options object for this :/
+			String files = form.getFirst("file");
+			if(files != null && !files.isEmpty()) {
+				deleteFilesFromServer(files.split(";"));
+			}
+			String questionFile = form.getFirst("questionFile");
+			if(questionFile != null && !questionFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{questionFile});
+			}
+		}
+
+		String outputText = "Flat database loading was a success.";
+		return Response.status(200).entity(gson.toJson(outputText)).build();
+	}
+	
+	////////////////////////////////////////////// END EXCEL UPLOADING //////////////////////////////////////////////////////////
+
+	
 	@POST
 	@Path("/nlp/upload")
 	@Produces("application/json")
@@ -955,166 +1128,6 @@ public class DatabaseUploader extends Uploader {
 		}
 
 		String outputText = "NLP Loading was a success.";
-		return Response.status(200).entity(gson.toJson(outputText)).build();
-	}
-
-	@POST
-	@Path("/flat/upload")
-	@Produces("application/json")
-	/**
-	 * The process flow for loading a flat file based on drag/drop
-	 * Since the user confirms what type of datatypes they want for each column
-	 * The file has already been loaded onto the server
-	 * @param form					Form object containing all the information regarding the load
-	 * @param request
-	 * @return
-	 */
-	public Response uploadFlatCsvFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		Gson gson = new Gson();
-		System.out.println(form);
-
-		ImportOptions options = null;
-		try {
-			options = new ImportOptions();
-			setDefaultOptions(options, form);
-
-			// can only load flat files as RDBMS
-			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
-			options.setImportType(ImportOptions.IMPORT_TYPE.CSV_FLAT_LOAD);
-
-			// set the files
-			String files = form.getFirst("file");
-			if(files == null || files.trim().isEmpty()) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "No files have been identified to upload");
-				return Response.status(400).entity(gson.toJson(errorHash)).build();
-			}
-			options.setFileLocation(files);
-
-			List<Map<String, String[]>> headerData = null;
-			String headerDataStr = form.getFirst("headerData");
-			if(headerDataStr != null) {
-				headerData = gson.fromJson(headerDataStr, new TypeToken<List<Map<String, String[]>>>() {}.getType());
-				options.setCsvDataTypeMap(headerData);
-			}
-			
-			// add engine owner for permissions
-			if(this.securityEnabled) {
-				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getDbName(), ((User) user).getId());
-				} else {
-					Map<String, String> errorHash = new HashMap<String, String>();
-					errorHash.put("errorMessage", "Please log in to upload data.");
-					return Response.status(400).entity(gson.toJson(errorHash)).build();
-				}
-			}
-
-			ImportDataProcessor importer = new ImportDataProcessor();
-			importer.runProcessor(options);
-		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch(Exception e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} finally {
-			// we can't really use the options object for this :/
-			String files = form.getFirst("file");
-			if(files != null && !files.isEmpty()) {
-				deleteFilesFromServer(files.split(";"));
-			}
-			String questionFile = form.getFirst("questionFile");
-			if(questionFile != null && !questionFile.isEmpty()) {
-				deleteFilesFromServer(new String[]{questionFile});
-			}
-		}
-
-		String outputText = "Flat database loading was a success.";
-		return Response.status(200).entity(gson.toJson(outputText)).build();
-	}
-	
-	@POST
-	@Path("/excel/flat")
-	@Produces("application/json")
-	/**
-	 * The process flow for loading a flat file based on drag/drop
-	 * Since the user confirms what type of datatypes they want for each column
-	 * The file has already been loaded onto the server
-	 * @param form					Form object containing all the information regarding the load
-	 * @param request
-	 * @return
-	 */
-	public Response uploadFlatExcelFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		Gson gson = new Gson();
-		System.out.println(form);
-
-		ImportOptions options = null;
-		try {
-			options = new ImportOptions();
-			setDefaultOptions(options, form);
-
-			// can only load flat files as RDBMS
-			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
-			options.setImportType(ImportOptions.IMPORT_TYPE.EXCEL_FLAT_UPLOAD);
-
-			// set the files
-			String files = form.getFirst("file");
-			if(files == null || files.trim().isEmpty()) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "No files have been identified to upload");
-				return Response.status(400).entity(gson.toJson(errorHash)).build();
-			}
-			options.setFileLocation(files);
-
-			List<Map<String, Map<String, String[]>>> headerData = null;
-			String headerDataStr = form.getFirst("headerData");
-			if(headerDataStr != null) {
-				headerData = gson.fromJson(headerDataStr, new TypeToken<List<Map<String, Map<String, String[]>>>>() {}.getType());
-				options.setExcelDataTypeMap(headerData);
-			}
-			
-			// add engine owner for permissions
-			if(this.securityEnabled) {
-				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getDbName(), ((User) user).getId());
-				} else {
-					Map<String, String> errorHash = new HashMap<String, String>();
-					errorHash.put("errorMessage", "Please log in to upload data.");
-					return Response.status(400).entity(gson.toJson(errorHash)).build();
-				}
-			}
-
-			ImportDataProcessor importer = new ImportDataProcessor();
-			importer.runProcessor(options);
-		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch(Exception e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} finally {
-			// we can't really use the options object for this :/
-			String files = form.getFirst("file");
-			if(files != null && !files.isEmpty()) {
-				deleteFilesFromServer(files.split(";"));
-			}
-			String questionFile = form.getFirst("questionFile");
-			if(questionFile != null && !questionFile.isEmpty()) {
-				deleteFilesFromServer(new String[]{questionFile});
-			}
-		}
-
-		String outputText = "Flat database loading was a success.";
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
 
