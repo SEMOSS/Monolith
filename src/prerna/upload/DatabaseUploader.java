@@ -34,6 +34,7 @@ import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
+import prerna.poi.main.HeadersException;
 import prerna.poi.main.MetaModelCreator;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.ImportOptions;
@@ -210,6 +211,124 @@ public class DatabaseUploader extends Uploader {
 
 	///////////////////////////////////////////// END SET DEFAULT OPTIONS ///////////////////////////////////////////////
 
+	///////////////////////////////////////////// CHECK HEADERS ////////////////////////////////////////////////////////
+	
+	@POST
+	@Path("/headerCheck")
+	@Produces("application/json")
+	public Response checkUserDefinedHeaders(MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
+		
+		// this will let me know if I should expect the csv data type map or the excel
+		// data type map
+		// this is really annoying... 
+		// TODO: really should consider consolidating the formats it will make csv format look dumb 
+		// since its a useless additional key but then I wouldn't need to have the bifurcation in 
+		// formats here and bifurcation in formats in the ImportOptions object as well
+		String type = form.getFirst("uploadType").toUpperCase();
+		
+		// grab the checker
+		HeadersException headerChecker = HeadersException.getInstance();
+
+		if(type.equals("CSV")) {
+			Map<String, Map<String, String>> invalidHeadersMap = new Hashtable<String, Map<String, String>>();
+			
+			// the key is for each file name
+			// the list are the headers inside that file
+			Map<String, String[]> userDefinedHeadersMap = gson.fromJson(form.getFirst("userHeaders"), new TypeToken<Map<String, String[]>>() {}.getType());
+			
+			for(String fileName : userDefinedHeadersMap.keySet()) {
+				String[] userHeaders = userDefinedHeadersMap.get(fileName);
+				
+				// now we need to check all of these headers
+				for(String userHeader : userHeaders) {
+					Map<String, String> badHeaderMap = new Hashtable<String, String>();
+					if(headerChecker.isIllegalHeader(userHeader)) {
+						badHeaderMap.put(userHeader, "This header name is a reserved word");
+					} else if(headerChecker.containsIllegalCharacter(userHeader)) {
+						badHeaderMap.put(userHeader, "Header names cannot contain +%@;");
+					} else if(headerChecker.isDuplicated(userHeader, userHeaders)) {
+						badHeaderMap.put(userHeader, "Cannot have duplicate header names");
+					}
+					
+					// map is filled in only if the header is bad
+					if(!badHeaderMap.isEmpty()) {
+						// need to make sure we do not override existing bad headers stored
+						// within the map
+						Map<String, String> invalidHeadersForFile = null;
+						if(invalidHeadersMap.containsKey(fileName)) {
+							invalidHeadersForFile = invalidHeadersMap.get(fileName);
+						} else {
+							invalidHeadersForFile = new Hashtable<String, String>();
+						}
+						
+						// now add in the bad header for the file map
+						invalidHeadersForFile.putAll(badHeaderMap);
+						// now store it in the overall object
+						invalidHeadersMap.put(fileName, invalidHeadersForFile);
+					}
+				}
+			}
+			return Response.status(200).entity(WebUtility.getSO(invalidHeadersMap)).build();
+
+		} else if(type.equals("EXCEL")) {
+			List<Map<String, Map<String, String>>> invalidHeadersList = new Vector<Map<String, Map<String, String>>>();
+			
+			// each entry (outer map object) in the list if a workbook
+			// each key in that map object is the sheetName for that given workbook
+			// the list are the headers inside that sheet
+			List<Map<String, String[]>> userDefinedHeadersMap = gson.fromJson(form.getFirst("userHeaders"), new TypeToken<List<Map<String, Map<String, String[]>>>>() {}.getType());
+			
+			// iterate through each workbook
+			for(Map<String, String[]> excelWorkbook : userDefinedHeadersMap) {
+				Map<String, Map<String, String>> invalidHeadersMap = new Hashtable<String, Map<String, String>>();
+				
+				for(String sheetName : excelWorkbook.keySet()) {
+					// grab all the headers for the given sheet
+					String[] userHeaders = excelWorkbook.get(sheetName);
+
+					// now we need to check all of these headers
+					for(String userHeader : userHeaders) {
+						Map<String, String> badHeaderMap = new Hashtable<String, String>();
+						if(headerChecker.isIllegalHeader(userHeader)) {
+							badHeaderMap.put(userHeader, "This header name is a reserved word");
+						} else if(headerChecker.containsIllegalCharacter(userHeader)) {
+							badHeaderMap.put(userHeader, "Header names cannot contain +%@;");
+						} else if(headerChecker.isDuplicated(userHeader, userHeaders)) {
+							badHeaderMap.put(userHeader, "Cannot have duplicate header names");
+						}
+						
+						// map is filled in only if the header is bad
+						if(!badHeaderMap.isEmpty()) {
+							// need to make sure we do not override existing bad headers stored
+							// within the map
+							Map<String, String> invalidHeadersForSheet = null;
+							if(invalidHeadersMap.containsKey(sheetName)) {
+								invalidHeadersForSheet = invalidHeadersMap.get(sheetName);
+							} else {
+								invalidHeadersForSheet = new Hashtable<String, String>();
+							}
+							
+							// now add in the bad header for the file map
+							invalidHeadersForSheet.putAll(badHeaderMap);
+							// now store it in the overall object
+							invalidHeadersMap.put(sheetName, invalidHeadersForSheet);
+						}
+					}
+				}
+				
+				// now store the invalid headers map inside the list
+				// even if it is empty, we need to store it since the FE does this based on indicies
+				invalidHeadersList.add(invalidHeadersMap);
+			}
+			return Response.status(200).entity(WebUtility.getSO(invalidHeadersList)).build();
+		} else {
+			return Response.status(400).entity("Format does not conform to checking headers").build();
+		}
+	}
+	
+	///////////////////////////////////////////// END CHECK HEADERS ////////////////////////////////////////////////////////
+
 
 	@POST
 	@Path("/csv/uploadFile")
@@ -239,7 +358,6 @@ public class DatabaseUploader extends Uploader {
 				propFiles = props.split(";");
 			}
 			for(int i = 0; i < files.length; i++) {
-//			for(String fileLoc : files) {
 				// this is the MM info for one of the files within the metaModelData list
 				Map<String, Object> fileMetaModelData = new HashMap<String, Object>();
 				
@@ -254,7 +372,7 @@ public class DatabaseUploader extends Uploader {
 				fileMetaModelData.put("fileName", file);
 				
 				CSVFileHelper helper = new CSVFileHelper();
-				//TODO: should enable any kind of single char delimited file
+				// TODO: should enable any kind of single char delimited file
 				// have FE pass this info
 				helper.setDelimiter(',');
 				helper.parse(files[i]);
@@ -299,7 +417,6 @@ public class DatabaseUploader extends Uploader {
 				fileMetaModelData.put("endCount", end);
 				metaModelData.add(fileMetaModelData);
 				
-
 				//determine the allowableDataTypes
 				Map<String, String> dataTypeMap = predictor.getDataTypeMap();
 				Map<String, List<String>> allowableDataTypes = new LinkedHashMap<>();
