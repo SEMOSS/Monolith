@@ -403,13 +403,14 @@ public class DatabaseUploader extends Uploader {
 				} 
 				// flat table now doesn't generate a metamodel
 				// just put all the data types
-//				else if(generateMetaModel.equals("table")) {
+				else if(generateMetaModel.equals("table")) {
+					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.TABLE);
 //					//return metamodel with one column as main column/primary key
 //					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.TABLE);
 //					predictor.constructMetaModel();
 //					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
 //					fileMetaModelData.putAll(metaModel);
-//				} 
+				} 
 				else {
 					predictor = new MetaModelCreator(helper, null);
 				}
