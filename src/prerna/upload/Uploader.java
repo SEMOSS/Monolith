@@ -285,10 +285,10 @@ public abstract class Uploader extends HttpServlet {
 				headerTypeMap.put(CSV_FILE_KEY, headerTypes);
 				retObj.put("delimiter", delimiter);
 				
-				String htmlMessage = helper.getHTMLBasedHeaderChanges();
-				if(htmlMessage != null) {
-					retObj.put(CSV_HELPER_MESSAGE, htmlMessage);
-				}
+//				String htmlMessage = helper.getHTMLBasedHeaderChanges();
+//				if(htmlMessage != null) {
+//					retObj.put(CSV_HELPER_MESSAGE, htmlMessage);
+//				}
 				
 				helper.clear();
 			}
