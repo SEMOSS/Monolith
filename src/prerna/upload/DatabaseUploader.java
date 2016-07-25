@@ -38,6 +38,7 @@ import prerna.poi.main.HeadersException;
 import prerna.poi.main.MetaModelCreator;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.ImportOptions;
+import prerna.poi.main.helper.XLFileHelper;
 import prerna.rdf.main.ImportRDBMSProcessor;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
@@ -422,7 +423,6 @@ public class DatabaseUploader extends Uploader {
 					int end = predictor.getEndRow();
 					fileMetaModelData.put("startCount", start);
 					fileMetaModelData.put("endCount", end);
-					metaModelData.add(fileMetaModelData);
 					
 					// determine the allowableDataTypes
 					Map<String, String> dataTypeMap = predictor.getDataTypeMap();
@@ -445,6 +445,8 @@ public class DatabaseUploader extends Uploader {
 					fileMetaModelData.put("allowable", allowableDataTypes);
 				}
 				
+				// add the info to the metamodel data to send
+				metaModelData.add(fileMetaModelData);
 			}
 		} catch(Exception e) { 
 			e.printStackTrace();
@@ -716,11 +718,68 @@ public class DatabaseUploader extends Uploader {
 	////////////////////////////////////////////// START EXCEL UPLOADING //////////////////////////////////////////////////////////
 
 	@POST
-	//TODO: this path should be excel/upload
-	//TODO: cannot make this change without changing the path below
-	@Path("/excel/uploadTable")
+	@Path("/excel/uploadFile")
 	@Produces("application/json")
-	public Response uploadExcelFile(@Context HttpServletRequest request)
+	public Response uploadExcelFile(@Context HttpServletRequest request) {
+		Gson gson = new Gson();
+		
+		//process request
+		List<FileItem> fileItems = processRequest(request);
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = getInputData(fileItems);
+		
+		// objects to store data
+		// master object to send to FE
+		Map<String, Object> returnObj = new HashMap<>(2);
+		// this will store the MM info for all the files
+		List<Map<String, Object>> metaModelData = new Vector<>(2);
+		
+		try {
+			String[] files = inputData.get("file").split(";");
+			for(int i = 0; i < files.length; i++) {
+				// this is the MM info for one of the files within the metaModelData list
+				Map<String, Object> fileMetaModelData = new HashMap<String, Object>();
+				
+				// store the file location on server so FE can send that back into actual upload routine
+				fileMetaModelData.put("fileLocation", files[i]);
+				String file = files[i].substring(files[i].lastIndexOf("\\") + 1, files[i].lastIndexOf("."));
+				try {
+					file = file.substring(0, file.length() - 24); //taking out the date added onto the original file name
+				} catch(Exception e) {
+					file = files[i].substring(files[i].lastIndexOf("\\") + 1, files[i].lastIndexOf(".")); //just in case that fails, this shouldnt because if its a filename it should have a "."
+				}
+				fileMetaModelData.put("fileName", file);
+				
+				XLFileHelper helper = new XLFileHelper();
+				helper.parse(files[i]);
+				
+				// store messages when the csv file helper automatically modifies the column headers
+				Map<String, Map<String, String>> fileHeaderMods = helper.getChangedHeaders();
+				fileMetaModelData.put("headerModifications", fileHeaderMods);
+
+				// add the info to the metamodel data to send
+				metaModelData.add(fileMetaModelData);
+			}
+		} catch(Exception e) { 
+			e.printStackTrace();
+			
+			// grab the error thrown and send it to the FE
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+		}
+		
+		// store the info
+		returnObj.put("metaModelData", metaModelData);
+		
+		return Response.status(200).entity(gson.toJson(returnObj)).build();
+	}
+	
+	
+	@POST
+	@Path("/excel/processUpload")
+	@Produces("application/json")
+	public Response processExcelFile(@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
 		List<FileItem> fileItems = processRequest(request);
@@ -877,7 +936,7 @@ public class DatabaseUploader extends Uploader {
 	}
 
 	@POST
-	//TODO: this path should be excel/uploadPOIT
+	//TODO: this path should be excel/uploadPOI
 	//TODO: cannot make this change without changing the path above
 	@Path("/excel/upload")
 	@Produces("application/json")
