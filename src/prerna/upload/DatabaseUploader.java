@@ -11,7 +11,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
@@ -413,36 +412,17 @@ public class DatabaseUploader extends Uploader {
 //				} 
 				else {
 					predictor = new MetaModelCreator(helper, null);
-					fileMetaModelData.put("dataTypes", predictor.getDataTypeMap());
 				}
+				fileMetaModelData.put("dataTypes", predictor.getDataTypeMap());
 				
-				//TODO: NEED TO BETTER CONSOLIDATE ALL THIS STUFF
+				// TODO: do we really need to still pass in start and end count?
 //				if(generateMetaModel.equals("auto") || generateMetaModel.equals("prop")) {
+					// this is all metamodel stuff that we use when we are creating the prop file
 					// if we have a metamodel, do the following options
 					int start = predictor.getStartRow();
 					int end = predictor.getEndRow();
 					fileMetaModelData.put("startCount", start);
 					fileMetaModelData.put("endCount", end);
-					
-					// determine the allowableDataTypes
-					Map<String, String> dataTypeMap = predictor.getDataTypeMap();
-					Map<String, List<String>> allowableDataTypes = new LinkedHashMap<>();
-					for(String header : dataTypeMap.keySet()) {
-						List<String> dataTypeList = new ArrayList<>(2);
-						dataTypeList.add("STRING");
-	
-						String type = dataTypeMap.get(header);
-						if(!type.equals("STRING")) {
-							if(type.equals("DOUBLE")) {
-								dataTypeList.add("NUMBER");
-							}
-							else {
-								dataTypeList.add(type);
-							}
-						}
-						allowableDataTypes.put(header, dataTypeList);
-					}
-					fileMetaModelData.put("allowable", allowableDataTypes);
 //				}
 				
 				// add the info to the metamodel data to send
@@ -634,7 +614,7 @@ public class DatabaseUploader extends Uploader {
 	}
 	
 	@POST
-	@Path("/flat/upload")
+	@Path("/csv/flat")
 	@Produces("application/json")
 	/**
 	 * The process flow for loading a flat file based on drag/drop
@@ -666,11 +646,21 @@ public class DatabaseUploader extends Uploader {
 			}
 			options.setFileLocation(files);
 
-			List<Map<String, String[]>> headerData = null;
-			String headerDataStr = form.getFirst("headerData");
-			if(headerDataStr != null) {
-				headerData = gson.fromJson(headerDataStr, new TypeToken<List<Map<String, String[]>>>() {}.getType());
-				options.setCsvDataTypeMap(headerData);
+			// see if user also manually changed some the headers
+			String newHeadersStr = form.getFirst("newHeaders");
+			if(newHeadersStr != null) {
+				Map<String, Map<String, String>> newHeaders = 
+						gson.fromJson(newHeadersStr, new TypeToken<Map<String, Map<String, String>>>() {}.getType());
+				options.setCsvNewHeaders(newHeaders);
+			}
+			
+			// this should always be present now since we dont want to predict types twice on the BE
+			// get the data types and set them in the options
+			String headerDataTypesStr = form.getFirst("headerData");
+			if(headerDataTypesStr != null) {
+				List<Map<String, String[]>> headerDataTypes = 
+						gson.fromJson(headerDataTypesStr, new TypeToken<List<Map<String, String[]>>>() {}.getType());
+				options.setCsvDataTypeMap(headerDataTypes);
 			}
 			
 			// add engine owner for permissions
@@ -1036,11 +1026,21 @@ public class DatabaseUploader extends Uploader {
 			}
 			options.setFileLocation(files);
 
-			List<Map<String, Map<String, String[]>>> headerData = null;
-			String headerDataStr = form.getFirst("headerData");
-			if(headerDataStr != null) {
-				headerData = gson.fromJson(headerDataStr, new TypeToken<List<Map<String, Map<String, String[]>>>>() {}.getType());
-				options.setExcelDataTypeMap(headerData);
+			// see if user also manually changed some the headers
+			String newHeadersStr = form.getFirst("newHeaders");
+			if(newHeadersStr != null) {
+				List<Map<String, Map<String, String>>> newHeaders = 
+						gson.fromJson(newHeadersStr, new TypeToken<List<Map<String, Map<String, String>>>>() {}.getType());
+				options.setExcelNewHeaders(newHeaders);
+			}
+			
+			// this should always be present now since we dont want to predict types twice on the BE
+			// get the data types and set them in the options
+			String headerDataTypesStr = form.getFirst("headerData");
+			if(headerDataTypesStr != null) {
+				List<Map<String, Map<String, String[]>>> headerDataTypes = 
+						gson.fromJson(headerDataTypesStr, new TypeToken<List<Map<String, Map<String, String[]>>>>() {}.getType());
+				options.setExcelDataTypeMap(headerDataTypes);
 			}
 			
 			// add engine owner for permissions
