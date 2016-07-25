@@ -32,6 +32,7 @@ import com.google.gson.reflect.TypeToken;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
+import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
 import prerna.ds.H2.H2Frame;
 import prerna.engine.api.IEngine;
@@ -472,6 +473,10 @@ public class DataframeResource {
 		}
 		else if (maker instanceof GraphDataModel){
 			return Response.status(200).entity(WebUtility.getSO(((GraphDataModel)maker).getDataMakerOutput())).build();
+		} else if(maker instanceof H2Frame) {
+			//convert to tinker then return
+			TinkerFrame tframe = TableDataFrameFactory.convertToTinkerFrame((H2Frame)maker);
+			return Response.status(200).entity(WebUtility.getSO(tframe.getGraphOutput())).build();
 		}
 		else
 			return Response.status(400).entity(WebUtility.getSO("Illegal data maker type ")).build();
