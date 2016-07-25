@@ -103,7 +103,7 @@ public class DatabaseUploader extends Uploader {
 			String errorMessage = "Database name \'" + dbName + "\' is invalid";
 			throw new IOException(errorMessage);
 		}
-		options.setDbName(cleanSpaces(dbName));
+		options.setDbName(makeAlphaNumeric(dbName));
 
 		// determine the db type
 		String dbType = inputData.get("dataOutputType");
@@ -172,7 +172,7 @@ public class DatabaseUploader extends Uploader {
 			String errorMessage = "Database name \'" + dbName + "\' is invalid";
 			throw new IOException(errorMessage);
 		}
-		options.setDbName(cleanSpaces(dbName));
+		options.setDbName(makeAlphaNumeric(dbName));
 
 		// determine the db type
 		// do not need this when we do add to existing
@@ -319,7 +319,6 @@ public class DatabaseUploader extends Uploader {
 					allowableDataTypes.put(header, dataTypeList);
 				}
 				fileMetaModelData.put("allowable", allowableDataTypes);
-				
 			}
 		} catch(Exception e) { 
 			e.printStackTrace();
@@ -853,7 +852,7 @@ public class DatabaseUploader extends Uploader {
 	 * @param request
 	 * @return
 	 */
-	public Response uploadFlatFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response uploadFlatCsvFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		System.out.println(form);
 
@@ -879,7 +878,87 @@ public class DatabaseUploader extends Uploader {
 			String headerDataStr = form.getFirst("headerData");
 			if(headerDataStr != null) {
 				headerData = gson.fromJson(headerDataStr, new TypeToken<List<Map<String, String[]>>>() {}.getType());
-				options.setDataTypeMap(headerData);
+				options.setCsvDataTypeMap(headerData);
+			}
+			
+			// add engine owner for permissions
+			if(this.securityEnabled) {
+				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getDbName(), ((User) user).getId());
+				} else {
+					Map<String, String> errorHash = new HashMap<String, String>();
+					errorHash.put("errorMessage", "Please log in to upload data.");
+					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
+			}
+
+			ImportDataProcessor importer = new ImportDataProcessor();
+			importer.runProcessor(options);
+		} catch (IOException e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} catch(Exception e) {
+			e.printStackTrace();
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", e.getMessage());
+			return Response.status(400).entity(gson.toJson(errorHash)).build();
+		} finally {
+			// we can't really use the options object for this :/
+			String files = form.getFirst("file");
+			if(files != null && !files.isEmpty()) {
+				deleteFilesFromServer(files.split(";"));
+			}
+			String questionFile = form.getFirst("questionFile");
+			if(questionFile != null && !questionFile.isEmpty()) {
+				deleteFilesFromServer(new String[]{questionFile});
+			}
+		}
+
+		String outputText = "Flat database loading was a success.";
+		return Response.status(200).entity(gson.toJson(outputText)).build();
+	}
+	
+	@POST
+	@Path("/excel/flat")
+	@Produces("application/json")
+	/**
+	 * The process flow for loading a flat file based on drag/drop
+	 * Since the user confirms what type of datatypes they want for each column
+	 * The file has already been loaded onto the server
+	 * @param form					Form object containing all the information regarding the load
+	 * @param request
+	 * @return
+	 */
+	public Response uploadFlatExcelFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		Gson gson = new Gson();
+		System.out.println(form);
+
+		ImportOptions options = null;
+		try {
+			options = new ImportOptions();
+			setDefaultOptions(options, form);
+
+			// can only load flat files as RDBMS
+			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
+			options.setImportType(ImportOptions.IMPORT_TYPE.EXCEL_FLAT_UPLOAD);
+
+			// set the files
+			String files = form.getFirst("file");
+			if(files == null || files.trim().isEmpty()) {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "No files have been identified to upload");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
+			}
+			options.setFileLocation(files);
+
+			List<Map<String, Map<String, String[]>>> headerData = null;
+			String headerDataStr = form.getFirst("headerData");
+			if(headerDataStr != null) {
+				headerData = gson.fromJson(headerDataStr, new TypeToken<List<Map<String, Map<String, String[]>>>>() {}.getType());
+				options.setExcelDataTypeMap(headerData);
 			}
 			
 			// add engine owner for permissions
@@ -983,7 +1062,7 @@ public class DatabaseUploader extends Uploader {
 		}
 		metamodel.put("relationships", nodeRelationships);
 
-		boolean success = importer.addNewRDBMS(options.get("driver"), options.get("hostname"), options.get("port"), options.get("username"), options.get("password"), options.get("schema"), cleanSpaces(databaseOptions.get("databaseName")), metamodel);
+		boolean success = importer.addNewRDBMS(options.get("driver"), options.get("hostname"), options.get("port"), options.get("username"), options.get("password"), options.get("schema"), makeAlphaNumeric(databaseOptions.get("databaseName")), metamodel);
 
 		ret.put("success", success);
 		if(success) {
@@ -1055,12 +1134,14 @@ public class DatabaseUploader extends Uploader {
 		masterDB.addEngineAndOwner(engine, userId);
 	}
 
-	private String cleanSpaces(String s) {
+	private String makeAlphaNumeric(String s) {
 		s = s.trim();
-		while (s.contains("  ")){
-			s = s.replace("  ", " ");
+		s = s.replaceAll(" ", "_");
+		s = s.replaceAll("[^a-zA-Z0-9\\_]", "");
+		while(s.contains("__")){
+			s = s.replace("__", "_");
 		}
-		return s.replaceAll(" ", "_");
+		return s;
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////	
