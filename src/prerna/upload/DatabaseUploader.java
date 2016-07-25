@@ -417,7 +417,7 @@ public class DatabaseUploader extends Uploader {
 				}
 				
 				//TODO: NEED TO BETTER CONSOLIDATE ALL THIS STUFF
-				if(generateMetaModel.equals("auto") || generateMetaModel.equals("prop")) {
+//				if(generateMetaModel.equals("auto") || generateMetaModel.equals("prop")) {
 					// if we have a metamodel, do the following options
 					int start = predictor.getStartRow();
 					int end = predictor.getEndRow();
@@ -443,7 +443,7 @@ public class DatabaseUploader extends Uploader {
 						allowableDataTypes.put(header, dataTypeList);
 					}
 					fileMetaModelData.put("allowable", allowableDataTypes);
-				}
+//				}
 				
 				// add the info to the metamodel data to send
 				metaModelData.add(fileMetaModelData);
