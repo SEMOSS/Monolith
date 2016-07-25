@@ -131,7 +131,11 @@ public class DataframeResource {
 			Object[] returnFilterModel = ((ITableDataFrame)table).getFilterModel();
 			retMap.put("unfilteredValues", returnFilterModel[0]);
 			retMap.put("filteredValues", returnFilterModel[1]);
-			retMap.put("dataTypeValues", returnFilterModel[2]);
+			
+			//tinker doesn't return the data types, need to add that to tinker 
+			if(returnFilterModel.length == 3) {
+				retMap.put("dataTypeValues", returnFilterModel[2]);
+			}
 			
 			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 		} 
