@@ -279,7 +279,7 @@ public class DatabaseUploader extends Uploader {
 			// each entry (outer map object) in the list if a workbook
 			// each key in that map object is the sheetName for that given workbook
 			// the list are the headers inside that sheet
-			List<Map<String, String[]>> userDefinedHeadersMap = gson.fromJson(form.getFirst("userHeaders"), new TypeToken<List<Map<String, Map<String, String[]>>>>() {}.getType());
+			List<Map<String, String[]>> userDefinedHeadersMap = gson.fromJson(form.getFirst("userHeaders"), new TypeToken<List<Map<String, String[]>>>() {}.getType());
 			
 			// iterate through each workbook
 			for(Map<String, String[]> excelWorkbook : userDefinedHeadersMap) {
