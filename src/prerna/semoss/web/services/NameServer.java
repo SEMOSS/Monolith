@@ -958,7 +958,7 @@ public class NameServer {
 		System.out.println("Came into this point.. " + insightID);
 
 		Insight existingInsight = null;
-		if (insightID != null && !insightID.isEmpty() && !insightID.equals("new")) {
+		if (insightID != null && !insightID.isEmpty() && !insightID.startsWith("new")) {
 			existingInsight = InsightStore.getInstance().get(insightID);
 			if (existingInsight == null) {				
 				Map<String, String> errorHash = new HashMap<String, String>();
@@ -999,7 +999,7 @@ public class NameServer {
 				}
 			}
 		}
-		else
+		else if(insightID.equals("new"))
 		{
 			// get the data frame type and set it from the FE
 			if(dataFrameType == null) {
@@ -1010,7 +1010,13 @@ public class NameServer {
 			existingInsight.setUserID( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
 			InsightStore.getInstance().put(existingInsight);
 		}
-
+		else if(insightID.equals("newDashboard")) {
+			// get the data frame type and set it from the FE
+			existingInsight = new Insight(null, "Dashboard", "Dashboard");
+			// set the user id into the insight
+			existingInsight.setUserID( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
+			InsightStore.getInstance().put(existingInsight);
+		}
 		
 		DataframeResource dfr = new DataframeResource();
 		dfr.insight = existingInsight;
