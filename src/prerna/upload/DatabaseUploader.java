@@ -11,6 +11,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
@@ -747,7 +748,7 @@ public class DatabaseUploader extends Uploader {
 				String[] sheetNames = helper.getTables();
 				Map<String, Map<String, String>> dataTypes = new Hashtable<String, Map<String, String>>();
 				for(String sheetName : sheetNames) {
-					Map<String, String> sheetDataMap = new Hashtable<String, String>();
+					Map<String, String> sheetDataMap = new LinkedHashMap<String, String>();
 					String[] columnHeaders = helper.getHeaders(sheetName);
 					String[] predicatedDataTypes = helper.predictRowTypes(sheetName);
 					
@@ -1047,7 +1048,7 @@ public class DatabaseUploader extends Uploader {
 			String newHeadersStr = form.getFirst("newHeaders");
 			if(newHeadersStr != null) {
 				List<Map<String, Map<String, String>>> newHeaders = 
-						gson.fromJson(newHeadersStr, new TypeToken<List<Map<String, Map<String, String>>>>() {}.getType());
+						gson.fromJson(newHeadersStr, new TypeToken<List<Map<String, LinkedHashMap<String, String>>>>() {}.getType());
 				options.setExcelNewHeaders(newHeaders);
 			}
 			
@@ -1056,7 +1057,7 @@ public class DatabaseUploader extends Uploader {
 			String headerDataTypesStr = form.getFirst("headerData");
 			if(headerDataTypesStr != null) {
 				List<Map<String, Map<String, String[]>>> headerDataTypes = 
-						gson.fromJson(headerDataTypesStr, new TypeToken<List<Map<String, Map<String, String[]>>>>() {}.getType());
+						gson.fromJson(headerDataTypesStr, new TypeToken<List<Map<String, LinkedHashMap<String, String[]>>>>() {}.getType());
 				options.setExcelDataTypeMap(headerDataTypes);
 			}
 			
