@@ -97,6 +97,7 @@ import prerna.nameserver.DeleteFromMasterDB;
 import prerna.nameserver.INameServer;
 import prerna.nameserver.MasterDatabaseQueries;
 import prerna.nameserver.NameServerProcessor;
+import prerna.om.Dashboard;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -1015,7 +1016,9 @@ public class NameServer {
 			existingInsight = new Insight(null, "Dashboard", "Dashboard");
 			// set the user id into the insight
 			existingInsight.setUserID( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
-			InsightStore.getInstance().put(existingInsight);
+			Dashboard dashboard = (Dashboard)existingInsight.getDataMaker();
+			String insightid = InsightStore.getInstance().put(existingInsight);
+			dashboard.setInsightID(insightid);
 		}
 		
 		DataframeResource dfr = new DataframeResource();
