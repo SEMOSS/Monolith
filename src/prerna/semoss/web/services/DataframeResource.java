@@ -121,27 +121,23 @@ public class DataframeResource {
 	@GET
 	@Path("/getFilterModel")
 	@Produces("application/json")
-	public Response getFilterModel(@Context HttpServletRequest request)
-	{	
+	public Response getFilterModel(@Context HttpServletRequest request) {
 		IDataMaker table = insight.getDataMaker();
 //		String colName = form.getFirst("col");
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
 		if(table instanceof ITableDataFrame) {
-			Object[] returnFilterModel = ((ITableDataFrame)table).getFilterModel();
-			retMap.put("unfilteredValues", returnFilterModel[0]);
-			retMap.put("filteredValues", returnFilterModel[1]);
-			
-			//tinker doesn't return the data types, need to add that to tinker 
-			if(returnFilterModel.length == 3) {
-				retMap.put("dataTypeValues", returnFilterModel[2]);
-			}
+			Object[] filterModel = null;
+			filterModel = ((ITableDataFrame)table).getFilterModel();
+			retMap.put("unfilteredValues", filterModel[0]);
+			retMap.put("filteredValues", filterModel[1]);
+			retMap.put("minMax", filterModel[2]);
 			
 			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 		} 
 		
 		else {
-			return Response.status(200).entity(WebUtility.getSO("Data Maker not instance of ITableDataFrame.  Cannot grab filter model from Data Maker.")).build();
+			return Response.status(400).entity(WebUtility.getSO("Data Maker not instance of ITableDataFrame.  Cannot grab filter model from Data Maker.")).build();
 		}
 		
 	}
