@@ -649,6 +649,9 @@ public class DatabaseUploader extends Uploader {
 
 			// see if user also manually changed some the headers
 			String newHeadersStr = form.getFirst("newHeaders");
+			System.out.println("new headers is " + newHeadersStr);
+			if(newHeadersStr != null && newHeadersStr.equalsIgnoreCase("undefined"))
+				newHeadersStr = null;
 			if(newHeadersStr != null) {
 				Map<String, Map<String, String>> newHeaders = 
 						gson.fromJson(newHeadersStr, new TypeToken<Map<String, Map<String, String>>>() {}.getType());
