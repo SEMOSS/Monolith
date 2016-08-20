@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.insights.admin;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -34,6 +35,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Properties;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -62,6 +64,7 @@ import prerna.om.Insight;
 import prerna.solr.SolrIndexEngine;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class DBAdminResource {
@@ -284,9 +287,33 @@ public class DBAdminResource {
 	
   	private AbstractEngine getEngine(String engineName, HttpServletRequest request){
 		HttpSession session = request.getSession();
-		AbstractEngine engine = (AbstractEngine)session.getAttribute(engineName);
+		AbstractEngine engine = null;
+		if(session.getAttribute(engineName) instanceof IEngine)
+			engine = (AbstractEngine)session.getAttribute(engineName);
+		else
+			engine = (AbstractEngine)loadEngine(engineName);
 		return engine;
   	}
+  	
+	private IEngine loadEngine(String db)
+	{
+		IEngine engine = null;
+		String engineFile = DIHelper.getInstance().getCoreProp().getProperty(db + "_" + Constants.STORE);
+		System.out.println("Engine File.. " + engineFile);
+		try {
+			Properties prop = new Properties();
+			FileInputStream fileIn = new FileInputStream(engineFile);
+			prop.load(fileIn);
+			engine = Utility.loadWebEngine(engineFile, prop);
+			System.out.println("Loaded the engine.. !!!!! " + db);
+			//addEngine(request, api, db);
+		}catch(Exception ex)
+		{
+			ex.printStackTrace();
+		}
+		return engine;
+	}
+
   	
   	public void setSecurityEnabled(boolean securityEnabled) {
   		this.securityEnabled = securityEnabled;
