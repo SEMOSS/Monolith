@@ -27,6 +27,9 @@
  *******************************************************************************/
 package prerna.web.conf;
 
+import it.unimi.dsi.util.Properties;
+
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -43,9 +46,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 import prerna.auth.User;
-import prerna.auth.UserPermissionsMasterDB;
 import prerna.auth.User.LOGIN_TYPES;
-import prerna.engine.api.IEngine;
+import prerna.auth.UserPermissionsMasterDB;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 
@@ -93,13 +95,23 @@ public class UserDBFilter implements Filter {
 			{
 				// this would do some check to see
 				String engineName = tokens.nextToken();
-				IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(engineName);
-				boolean hidden = (engine.getProperty(Constants.HIDDEN_DATABASE) != null && Boolean.parseBoolean(engine.getProperty(Constants.HIDDEN_DATABASE)));
+				//IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(engineName);
+				String propFile = DIHelper.getInstance().getCoreProp().getProperty(engineName + "_" + Constants.STORE);
+				Properties engine = null;
+				try
+				{
+					engine = new Properties();
+					engine.load(new File(propFile));
+				}catch(Exception ex)
+				{
+					
+				}
+				boolean hidden = (engine.getProperty(Constants.HIDDEN_DATABASE) != null && Boolean.parseBoolean((String)engine.getProperty(Constants.HIDDEN_DATABASE)));
 				if(!hidden) {
 					if(!securityEnabled || (securityEnabled && userEngines.contains(engineName))) {
 						Hashtable<String, String> engineHash = new Hashtable<String, String>();
 						engineHash.put("name", engineName);
-						engineHash.put("type", engine.getEngineType() + "");
+						engineHash.put("type", engine.getProperty(Constants.ENGINE_TYPE) + "");
 						engines.add(engineHash);
 					}
 				}

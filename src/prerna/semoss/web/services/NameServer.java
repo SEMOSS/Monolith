@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -42,6 +43,7 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.TreeMap;
 import java.util.Vector;
 
@@ -73,12 +75,10 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.jsoup.Jsoup;
+import org.openrdf.model.vocabulary.OWL;
+import org.openrdf.model.vocabulary.RDF;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
-
-import com.google.gson.Gson;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
@@ -100,6 +100,8 @@ import prerna.nameserver.NameServerProcessor;
 import prerna.om.Dashboard;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.SEMOSSEdge;
+import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
@@ -114,6 +116,11 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
+
+import com.google.gson.Gson;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
+import com.hp.hpl.jena.vocabulary.RDFS;
 
 @Path("/engine")
 public class NameServer {
@@ -139,24 +146,58 @@ public class NameServer {
 		// otherwise grab local engine
 		System.out.println(" Getting DB... " + db);
 		HttpSession session = request.getSession();
+		if(api != null && api.equalsIgnoreCase("undefined")) // why do we send this shit ?
+			api = null;
 		IEngine engine = null;
 		if (api != null) {
 			String remoteEngineKey = api + ":" + db;
 			engine = (IEngine) session.getAttribute(remoteEngineKey);
-			if (engine == null)
+			if (engine == null && session.getAttribute(db) instanceof IEngine)
 				engine = (IEngine) session.getAttribute(db);
-			if (engine == null) {
+			if (engine == null && !api.equalsIgnoreCase("null")) { // this is a legit API
 				addEngine(request, api, db);
 				engine = (IEngine) session.getAttribute(remoteEngineKey);
 			}
-		} else {
-			engine = (IEngine) session.getAttribute(db);
+			else if(engine == null){ // this is when the api is null.. need to understand how
+				engine = loadEngine(db);
+				session.setAttribute(remoteEngineKey, engine);
+			}
+		}
+		else
+		{
+			String remoteEngineKey = db;
+			if(session.getAttribute(remoteEngineKey) instanceof IEngine)
+				engine = (IEngine) session.getAttribute(remoteEngineKey);			
+			else
+			{
+				engine = loadEngine(db);
+				session.setAttribute(remoteEngineKey, engine);				
+			}
 		}
 		if (engine == null)
 			throw new IOException("The engine " + db + " at " + api + " cannot be found");
 		EngineResource res = new EngineResource();
 		res.setEngine(engine);
 		return res;
+	}
+	
+	private IEngine loadEngine(String db)
+	{
+		IEngine engine = null;
+		String engineFile = DIHelper.getInstance().getCoreProp().getProperty(db + "_" + Constants.STORE);
+		System.out.println("Engine File.. " + engineFile);
+		try {
+			Properties prop = new Properties();
+			FileInputStream fileIn = new FileInputStream(engineFile);
+			prop.load(fileIn);
+			engine = Utility.loadWebEngine(engineFile, prop);
+			System.out.println("Loaded the engine.. !!!!! " + db);
+			//addEngine(request, api, db);
+		}catch(Exception ex)
+		{
+			ex.printStackTrace();
+		}
+		return engine;
 	}
 
 	@Path("s-{engine}")
@@ -652,7 +693,7 @@ public class NameServer {
 		// create it
 		if (localMasterDbName == null) {
 			// this call is not local, need to get the API to run queries
-			ns = new NameServerProcessor();
+			ns = new NameServerProcessor(); // <-- Really I have to fucking start it up again.. just in case ? I just performed an expensive op
 			results = ns.searchConnectedConcepts(conceptURI);
 		} else {
 			// this call is local, grab the engine from DIHelper
@@ -664,6 +705,440 @@ public class NameServer {
 		return WebUtility.getSO(results.getData());
 	}
 	
+	@POST
+	@Path("central/context/getConnectedConcepts2")
+	@Produces("application/json")
+	public StreamingOutput getConnectedConcepts2(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String conceptURI = form.getFirst("conceptURI");
+		conceptURI = "http://semoss.org/ontologies/Concept/" + conceptURI;
+		
+		/**
+		 * Gets it as
+		 * 
+		 * EngineName -> Upstream - [ array of nodes and their physical]
+		 * 			  -> Downstream - [ array of nodes and their physical]
+		 */
+		
+		logger.info("CENTRALLY have registered selected URIs as ::: " + conceptURI.toString());
+		IEngine masterDB = (IEngine) DIHelper.getInstance().getLocalProp(Constants.LOCAL_MASTER_DB_NAME);
+
+		// this is the final Hash
+		Hashtable <String, Hashtable> engineHash = new Hashtable <String, Hashtable>();
+		
+		String upstreamQuery = "SELECT DISTINCT ?someEngine ?fromConcept ?fromLogical WHERE {"
+				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}"
+				+ "{?toConceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}"
+				+ "{?conceptComposite <" + RDF.TYPE + "> ?fromConcept}"
+				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/logical> ?fromLogical}"
+				+ "{?toConceptComposite <http://semoss.org/ontologies/Relation/logical> <" + conceptURI + ">}" // change this back to logical
+				+ "{?toConceptComposite ?someRel ?conceptComposite}"
+				//+ "{?someRel <" + RDFS.subPropertyOf + "> <http://semoss.org/ontologies/Relation>}"
+				+ "{?conceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?toConceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?fromConcept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?toConcept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "FILTER(?fromConcept != <http://semoss.org/ontologies/Concept> "
+				+ "&& ?toConcept != <http://semoss.org/ontologies/Concept>"
+				+ "&& ?someRel != <http://semoss.org/ontologies/Relation>"
+				+ "&& ?toConcept != ?someEngine"
+				+ "&& ?fromLogical != <" + conceptURI + ">"
+				+")}";
+
+		
+		// all concepts with no database
+		/*
+		String upstreamQuery = "SELECT DISTINCT ?someEngine ?fromConcept ?physical WHERE {"
+				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}"
+				+ "{?toConceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}"
+				+ "{?conceptComposite <" + RDF.TYPE + "> ?fromConcept}" 
+				+ "{?toConceptComposite <"+ RDF.TYPE + "> <" + conceptURI + ">}" // this needs to change from type to logical
+				+ "{?toConceptComposite ?someRel ?conceptComposite}"
+				//+ "{?someRel <" + RDFS.subPropertyOf + "> <http://semoss.org/ontologies/Relation>}"
+				+ "{<" + conceptURI + "> <http://semoss.org/ontologies/Relation/conceptual> ?physical}"				
+				+ "{?conceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?toConceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?fromConcept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?toConcept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "FILTER(?fromConcept != <http://semoss.org/ontologies/Concept> "
+				+ "&& ?toConcept != <http://semoss.org/ontologies/Concept>"
+				+ "&& ?someRel != <http://semoss.org/ontologies/Relation>"
+				+ "&& ?toConcept != ?someEngine"
+				+ "&& ?fromConcept != <" + conceptURI + ">"
+				+ ")}";
+
+		*/
+
+		engineHash = assimilateNodes(conceptURI, upstreamQuery, masterDB, engineHash, "Upstream");
+		
+		String downstreamQuery = "SELECT DISTINCT ?someEngine ?fromConcept ?fromLogical WHERE {"
+				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}"
+				+ "{?toConceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}"
+				+ "{?conceptComposite <" + RDF.TYPE + "> ?fromConcept}"
+				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/logical> ?fromLogical}"
+				+ "{?toConceptComposite <http://semoss.org/ontologies/Relation/logical> <" + conceptURI + ">}" // logical
+				+ "{?conceptComposite ?someRel ?toConceptComposite}"
+				+ "{?someRel <" + RDFS.subPropertyOf + "> <http://semoss.org/ontologies/Relation>}"
+				+ "{?conceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?toConceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?fromConcept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?toConcept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "FILTER(?fromConcept != <http://semoss.org/ontologies/Concept> "
+				+ "&& ?toConcept != <http://semoss.org/ontologies/Concept>"
+				+ "&& ?someRel != <http://semoss.org/ontologies/Relation>"
+				+ "&& ?toConcept != ?someEngine)}";
+
+		
+		// all concepts with no database
+		/*String downstreamQuery = "SELECT DISTINCT ?someEngine ?fromConcept ?physical WHERE {"
+				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}"
+				+ "{?toConceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}"
+				+ "{?conceptComposite <" + RDF.TYPE + "> ?fromConcept}"
+				+ "{?toConceptComposite <"+ RDF.TYPE + "> <" + conceptURI + ">}"
+				+ "{?conceptComposite ?someRel ?toConceptComposite}"
+				//+ "{?someRel <" + RDFS.subPropertyOf + "> <http://semoss.org/ontologies/Relation>}"
+				+ "{<" + conceptURI + "> <http://semoss.org/ontologies/Relation/conceptual> ?physical}"				
+				+ "{?conceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?toConceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?fromConcept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?toConcept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "FILTER(?fromConcept != <http://semoss.org/ontologies/Concept> "
+				+ "&& ?toConcept != <http://semoss.org/ontologies/Concept>"
+				+ "&& ?someRel != <http://semoss.org/ontologies/Relation>"
+				+ "&& ?toConcept != ?someEngine"
+				+ "&& ?fromConcept != <" + conceptURI + ">"
+				+ ")}";
+		 	*/
+		
+		engineHash = assimilateNodes(conceptURI,downstreamQuery, masterDB, engineHash, "Downstream");		
+		
+		return WebUtility.getSO(engineHash);
+	}
+	
+	private Hashtable assimilateNodes(String equivalentConcept, String query, IEngine engine, Hashtable <String, Hashtable> engineHash, String streamKey)
+	{
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query);
+		String [] vars = wrapper.getDisplayVariables();
+		while(wrapper.hasNext())
+		{
+			// first one is engine
+			ISelectStatement stmt = wrapper.next();
+			String engineName = stmt.getVar(vars[0]) + ""; // this is the engine
+			String engineInstance = Utility.getInstanceName(engineName); //  engine instance name
+			String concept = stmt.getRawVar(vars[1]) + ""; // this is the physical
+			String physicalName = Utility.getInstanceName(concept, IEngine.ENGINE_TYPE.RDBMS); // instance name for physical
+			String logicalConcept = stmt.getRawVar(vars[2]) + ""; // this is the logical
+			String logicalName = Utility.getInstanceName(logicalConcept); // this is the logical
+			
+			Hashtable <String, Object>thisEngineHash = null;
+			if(engineHash.containsKey(engineName))
+				thisEngineHash = engineHash.get(engineName);
+			else
+				thisEngineHash = new Hashtable <String, Object>();
+			
+			
+			Vector <String> streamList = null;
+			
+			if(thisEngineHash.containsKey(streamKey))
+				streamList = (Vector<String>)thisEngineHash.get(streamKey);
+			else
+				streamList = new Vector<String>();
+			
+			if(!thisEngineHash.containsKey("size"))
+				thisEngineHash.put("size", 3);
+			
+			if(!thisEngineHash.containsKey("EquivalentConcept"))
+				thisEngineHash.put("EquivalentConcept", equivalentConcept); // set it to be the main one
+			// add this guy to the stream
+			streamList.add(logicalName); // physical name
+			streamList.add("http://semoss.org/ontologies/DisplayName/" + logicalName); // logical name for this one
+			streamList.add(concept); // logical name for this one
+			
+			// add the stream now
+			thisEngineHash.put(streamKey, streamList);
+			engineHash.put(engineInstance, thisEngineHash);
+		}
+		
+		return engineHash;
+	}
+
+	@POST
+	@Path("central/context/conceptProperties")
+	@Produces("application/json")
+	public Response getConceptProperties(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+	{
+		String conceptURI = form.getFirst("conceptURI");
+		conceptURI = "http://semoss.org/ontologies/Concept/" + conceptURI;
+		logger.info("Getting properties for node : " + conceptURI);
+
+		String engineString = "{?conceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}";
+		
+		
+		String propQuery = "SELECT DISTINCT ?engine ?conceptProp ?concept ?propLogical ?conceptLogical WHERE "
+				+ "{"
+				+ "{?conceptComposite <" + RDF.TYPE + "> ?concept}"
+				+ "{?conceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/logical> <"+conceptURI + ">}"
+				+ "{?conceptComposite <" + OWL.DATATYPEPROPERTY + "> ?propComposite}"
+				+ "{?propComposite <" + RDF.TYPE + "> ?conceptProp}"
+				+ "{?propComposite <http://semoss.org/ontologies/Relation/logical> ?propLogical}"
+				+ "{?propComposite <http://semoss.org/ontologies/Relation/presentin> ?engine}"
+				+ "FILTER(?concept != <http://semoss.org/ontologies/Concept> "
+				+ " && ?concept != <" + RDFS.Class + "> "
+				+ " && ?concept != <" + RDFS.Resource + "> "
+				//+ "FILTER(
+				+" && ?conceptProp != <http://www.w3.org/2000/01/rdf-schema#Resource>"
+				+")"
+				+ "}";
+
+
+		/*String propQuery = "SELECT DISTINCT ?engine ?conceptProp  WHERE {"
+				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/logical> <" + conceptURI + ">}"
+				+ "{?conceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?concept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?conceptComposite <" + OWL.DATATYPEPROPERTY + "> ?propComposite}"
+				+ "{?propComposite <http://semoss.org/ontologies/Relation/presentin> ?engine}"
+				+ "{?propComposite <" + RDF.TYPE + "> ?conceptProp}"
+				+ "FILTER(?concept != <http://semoss.org/ontologies/Concept>"
+				+ "&&"
+				+ "?conceptProp != <http://www.w3.org/2000/01/rdf-schema#Resource>"
+				+ ")"
+				+"}";
+		*/
+		Hashtable <String, Hashtable<String, String>> returnHash = new Hashtable <String, Hashtable<String, String>>();
+		
+		//"SELECT DISTINCT ?engine ?conceptProp ?concept ?propLogical ?conceptLogical
+		
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper((IEngine)DIHelper.getInstance().getLocalProp(Constants.LOCAL_MASTER_DB_NAME), propQuery);
+		String [] vars = wrapper.getDisplayVariables();
+		while(wrapper.hasNext())
+		{
+			ISelectStatement stmt = wrapper.next();
+			String engineURI = stmt.getRawVar(vars[0]) + "";
+			String engineName = Utility.getInstanceName(engineURI);
+			String prop = stmt.getRawVar(vars[1]) + ""; // << this is physical
+			String propLogical = stmt.getRawVar(vars[3])+ "";
+			
+			Hashtable <String, String> propHash = new Hashtable <String, String>();
+			if(returnHash.containsKey(engineName))
+				propHash = returnHash.get(engineName);
+			
+			// need to find what the engine type for this engine is
+			// and then suggest what to do
+			String type = DIHelper.getInstance().getCoreProp().getProperty(engineName + "_" + Constants.TYPE);
+
+			String propInstance = null;
+			propInstance = Utility.getInstanceName(propLogical); // interestingly it is giving movie csv everytime
+			propHash.put(propInstance, propLogical);
+			returnHash.put(engineName, propHash);
+		}
+		return Response.status(200).entity(WebUtility.getSO(returnHash)).build();
+	}
+
+	
+	@GET
+	@Path("central/context/metamodel")
+	@Produces("application/json")
+	public Response getMetamodel(@QueryParam("engineName") String engineName)
+	{
+		// this needs to be moved to the name server
+		// and this needs to be based on local master database
+		// need this to be a simple OWL data
+		// I dont know if it is worth it to load the engine at this point ?
+		// or should I just load it ?
+		// need to get local master and pump out the metamodel
+		
+		Hashtable <String, Hashtable> edgeAndVertex = new Hashtable<String, Hashtable>();
+		
+		IEngine engine = (IEngine)DIHelper.getInstance().getLocalProp(Constants.LOCAL_MASTER_DB_NAME);
+		
+		String engineString = "{?conceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}";
+
+		if(engineName != null)
+			engineString = "{?conceptComposite <http://semoss.org/ontologies/Relation/presentin> <http://semoss.org/ontologies/meta/engine/" + engineName + ">}";
+
+
+		String vertexQuery = "SELECT DISTINCT ?concept (COALESCE(?prop, ?noprop) as ?conceptProp) (COALESCE(?propLogical, ?noprop) as ?propLogicalF) ?conceptLogical WHERE "
+				+ "{BIND(<http://semoss.org/ontologies/Relation/contains/noprop> AS ?noprop)"
+				+ engineString
+				//+ "{?conceptComposite <http://semoss.org/ontologies/Relation/presentin> <http://semoss.org/ontologies/meta/engine/" + engineName + ">}"
+				+ "{?conceptComposite <" + RDF.TYPE + "> ?concept}"
+				+ "{?conceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/logical> ?conceptLogical}"
+				+ "OPTIONAL{"
+				+ "{?conceptComposite <" + OWL.DATATYPEPROPERTY + "> ?propComposite}"
+				+ "{?propComposite <" + RDF.TYPE + "> ?prop}"
+				+ "{?propComposite <http://semoss.org/ontologies/Relation/logical> ?propLogical}"
+				+ "}"
+				+ "FILTER(?concept != <http://semoss.org/ontologies/Concept> "
+				+ " && ?concept != <" + RDFS.Class + "> "
+				+ " && ?concept != <" + RDFS.Resource + "> "
+				//+ "FILTER(
+				//+" && ?conceptProp != <http://www.w3.org/2000/01/rdf-schema#Resource>"
+				+")"
+				+ "}";
+
+		
+		
+		/*String vertexQuery = "SELECT DISTINCT ?concept (COALESCE(?prop, ?noprop) as ?conceptProp) WHERE {BIND(<http://semoss.org/ontologies/Relation/contains/noprop> AS ?noprop)"
+				+ engineString
+				+ "{?conceptComposite <" + RDF.TYPE + "> ?concept}"
+				+ "{?conceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?concept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "OPTIONAL{"
+				+ "{?conceptComposite <" + OWL.DATATYPEPROPERTY + "> ?propComposite}"
+				+ "{?propComposite <" + RDF.TYPE + "> ?prop}"
+				+ "}"
+				+ "FILTER(?concept != <http://semoss.org/ontologies/Concept>"
+				//+ "FILTER(
+				//+"?conceptProp != <http://www.w3.org/2000/01/rdf-schema#Resource>
+				+")"
+				+"}";
+		*/
+		
+		makeVertices(engine, vertexQuery, edgeAndVertex);
+		
+		if(engineName != null)
+			engineString =  "{?conceptComposite <http://semoss.org/ontologies/Relation/presentin> <http://semoss.org/ontologies/meta/engine/" + engineName + ">}"
+					+ "{?toConceptComposite <http://semoss.org/ontologies/Relation/presentin> <http://semoss.org/ontologies/meta/engine/" + engineName + ">}";
+		else
+			engineString =  "{?conceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}"
+					+ "{?toConceptComposite <http://semoss.org/ontologies/Relation/presentin> ?someEngine}";
+		
+		// all concepts with no database
+		/*
+		String edgeQuery = "SELECT DISTINCT ?fromConcept ?someRel ?toConcept WHERE {"
+				+ engineString
+				+ "{?conceptComposite <" + RDF.TYPE + "> ?fromConcept}"
+				+ "{?toConceptComposite <"+ RDF.TYPE + "> ?toConcept}"
+				+ "{?conceptComposite ?someRel ?toConceptComposite}"
+				+ "{?someRel <" + RDFS.subPropertyOf + "> <http://semoss.org/ontologies/Relation>}"
+				+ "{?conceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?toConceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?fromConcept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?toConcept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "FILTER(?fromConcept != <http://semoss.org/ontologies/Concept> "
+				+ "&& ?toConcept != <http://semoss.org/ontologies/Concept>"
+				+ "&& ?someRel != <http://semoss.org/ontologies/Relation>)}";
+		*/
+	
+		String edgeQuery = "SELECT DISTINCT ?fromConcept ?someRel ?toConcept ?fromLogical ?toLogical WHERE {"
+				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/presentin> <http://semoss.org/ontologies/meta/engine/" + engineName + ">}"
+				+ "{?toConceptComposite <http://semoss.org/ontologies/Relation/presentin> <http://semoss.org/ontologies/meta/engine/" + engineName + ">}"
+				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/logical> ?fromLogical}"
+				+ "{?toConceptComposite <http://semoss.org/ontologies/Relation/logical> ?toLogical}"
+				+ "{?conceptComposite <" + RDF.TYPE + "> ?fromConcept}"
+				+ "{?toConceptComposite <"+ RDF.TYPE + "> ?toConcept}"
+				+ "{?conceptComposite ?someRel ?toConceptComposite}"
+				+ "{?conceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "{?toConceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
+				+ "FILTER(?fromConcept != <http://semoss.org/ontologies/Concept> "
+				+ "&& ?toConcept != <http://semoss.org/ontologies/Concept>"
+				+ "&& ?fromConcept != ?toConcept"
+				+ "&& ?fromConcept != <" + RDFS.Class + "> "
+				+ "&& ?toConcept != <" + RDFS.Class + "> "
+				+ "&& ?fromConcept != <" + RDFS.Resource + "> "
+				+ "&& ?toConcept != <" + RDFS.Resource + "> "
+				+ "&& ?someRel != <http://semoss.org/ontologies/Relation>"
+				+ "&& ?someRel != <" + RDFS.subClassOf + ">)}";
+
+		// make the edges
+		makeEdges(engine, edgeQuery, edgeAndVertex);
+		// get everything linked to a keyword
+		// so I dont have a logical concept
+		// I cant do this
+		
+		Object [] vertArray = (Object[])edgeAndVertex.get("nodes").values().toArray();
+		Object [] edgeArray = (Object[])edgeAndVertex.get("edges").values().toArray();
+		Hashtable finalArray = new Hashtable();
+		finalArray.put("nodes", vertArray);
+		finalArray.put("edges", edgeArray);
+
+		
+		return Response.status(200).entity(WebUtility.getSO(finalArray)).build();
+	}
+	
+	private void makeVertices(IEngine engine, String query, Hashtable <String, Hashtable>edgesAndVertices)
+	{		
+		System.out.println("Executing Query.. ");
+		System.out.println(query);
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query);
+		Hashtable nodes = new Hashtable();
+		if(edgesAndVertices.containsKey("nodes"))
+			nodes = (Hashtable)edgesAndVertices.get("nodes");
+		while(wrapper.hasNext())
+		{
+			//?concept (COALESCE(?prop, ?noprop) as ?conceptProp) (COALESCE(?propLogical, ?noprop) as ?propLogicalF) ?conceptLogical 
+					
+			ISelectStatement stmt = wrapper.next();
+			String concept = stmt.getRawVar("concept") + "";
+			String prop = stmt.getRawVar("conceptProp") + "";
+			String logicalProp = stmt.getRawVar("propLogicalF") + "";
+			String logicalConcept = stmt.getRawVar("conceptLogical") + ""; // <<-- this is the URI he is looking for
+			
+			
+			String physicalName = Utility.getInstanceName(logicalConcept); // << changing this to get it based on actual name - this is wrong I think
+			String propName = Utility.getInstanceName(logicalProp);
+
+			SEMOSSVertex thisVert = null;
+			if(nodes.containsKey(logicalConcept)) // stupid
+				thisVert = (SEMOSSVertex)nodes.get(logicalConcept); // <<- this should be logical not physical
+			else
+			{
+				thisVert = new SEMOSSVertex(logicalConcept);
+				thisVert.propHash.put("PhysicalName", physicalName);
+				thisVert.propHash.put("LOGICAL", logicalConcept);
+			}
+			if(!prop.equalsIgnoreCase("http://semoss.org/ontologies/Relation/contains/noprop") && !prop.equalsIgnoreCase("http://www.w3.org/2000/01/rdf-schema#Resource"))
+			{
+				thisVert.setProperty(prop, propName);
+				thisVert.propHash.put(propName, propName); // << Seems like this is the one that gets picked up
+				Hashtable <String, String> propUriHash = (Hashtable<String, String>) thisVert.propHash.get("propUriHash");
+				Hashtable <String, String> logHash = new Hashtable<String, String>();
+  				if(thisVert.propHash.containsKey("propLogHash"))
+  					logHash = (Hashtable <String, String>)thisVert.propHash.get("propLogHash");
+					
+				logHash.put(propName+"_PHYSICAL", prop);
+				propUriHash.put(propName,  logicalProp);
+				//propUriHash.put(propName,  logicalProp);
+				thisVert.propHash.put("propLogHash", logHash);
+			}
+			nodes.put(logicalConcept, thisVert);
+			System.out.println("Made a vertex....  " + concept);
+		}
+		edgesAndVertices.put("nodes", nodes);
+	}
+	
+	
+	private void makeEdges(IEngine engine, String query, Hashtable <String, Hashtable> edgesAndVertices)
+	{	
+		Hashtable nodes = new Hashtable();
+		Hashtable edges = new Hashtable();
+		if(edgesAndVertices.containsKey("nodes"))
+			nodes = (Hashtable)edgesAndVertices.get("nodes");
+		
+		if(edgesAndVertices.containsKey("edges"))
+			edges = (Hashtable)edgesAndVertices.get("edges");
+		
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(engine, query);
+		while(wrapper.hasNext())
+		{
+			ISelectStatement stmt = wrapper.next();
+			String fromConcept = stmt.getRawVar("fromLogical") + "";
+			String toConcept = stmt.getRawVar("toLogical") + "";
+			String relName = stmt.getRawVar("someRel") + "";
+			
+			SEMOSSVertex outVertex = (SEMOSSVertex)nodes.get(fromConcept);
+			SEMOSSVertex inVertex = (SEMOSSVertex)nodes.get(toConcept);
+			
+			if(outVertex != null && inVertex != null) // there is only so much inferencing one can filter
+			{
+				SEMOSSEdge edge = new SEMOSSEdge(outVertex, inVertex, relName);
+				edges.put(relName, edge);
+			}
+		}
+		edgesAndVertices.put("edges", edges);
+	}
+
 	
 	@POST
 	@Path("central/context/getAllConcepts")
@@ -672,20 +1147,83 @@ public class NameServer {
 		String localMasterDbName = form.getFirst("localMasterDbName");
 		IEngine masterDB = (IEngine) DIHelper.getInstance().getLocalProp(localMasterDbName);
 		
+		// woah.. ok this is what is in the data structure
+		// 	Database Name <> Key is the logical name <> Physical and the name of physical
+		// engine <> <Concept Hash>
+		// Concept Hash looks like this
+		// Concept URI <> Physical Hash
+		// Physical Hash looks like
+		// Physical <> and the name
+		// physical is just the instance name
+
 		Map<String, Map<String, Map<String, String>>> retMap = new TreeMap<String, Map<String, Map<String, String>>>();
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(masterDB, MasterDatabaseQueries.GET_ALL_KEYWORDS_AND_ENGINES2);
+		String [] names = wrapper.getDisplayVariables();
+		while(wrapper.hasNext())
+		{
+			// this actually has three things within it
+			// engineName
+			// concept name - This will end up being physical
+			// Logical Name - this is the concept name really
+			ISelectStatement iss = wrapper.next();
+			
+			String engine = iss.getVar(names[0]) + "";
+			String conceptURI = iss.getRawVar(names[1]) + ""; // logical name
+			String physicalURI = iss.getRawVar(names[2]) + ""; // physical name
+			
+			System.out.println(engine + "<>" + conceptURI + "<>" + physicalURI);
+			
+			String instanceName = Utility.getInstanceName(conceptURI);
+			// ok now comes the magic
+			// step one do I have this engine
+			Map<String, Map<String,String>> conceptMap = null;
+			
+			if(retMap.containsKey(engine))
+				conceptMap = retMap.get(engine);
+			else
+				conceptMap = new TreeMap<String, Map<String, String>>();
+			
+			// not sure if I should check to see if this concept is there oh wait I should
+			
+			Map <String, String> physical = null;
+			if(conceptMap.containsKey(instanceName))
+				physical = conceptMap.get(instanceName);
+			else
+				physical = new TreeMap<String, String>();
+			
+			
+			// now the phhysical
+			physical.put("physicalName", instanceName);
+
+			// put the physical back
+			conceptMap.put(physicalURI, physical);
+			retMap.put(engine, conceptMap);
+			
+			
+		}
 		
-		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(masterDB, MasterDatabaseQueries.GET_ALL_KEYWORDS_AND_ENGINES);
+		
+/*		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(masterDB, MasterDatabaseQueries.GET_ALL_KEYWORDS_AND_ENGINES);
+		// gets engines and the keywords
 		String[] names = wrapper.getDisplayVariables();
 		while(wrapper.hasNext()) {
 			ISelectStatement ss = wrapper.next();
 			String engine = ss.getVar(names[0]) + "";
+			// this is the hypernym
 			String keywordURI = ss.getRawVar(names[1]) + "";
+			// this is the actual concept
+			// what the F is this..
+			// why do I need to do this
+			// and not just get the concept ?
 			String conceptURI = keywordURI.replace("Keyword/", "");
 			
+			// I need some way to have the owl specific stuff
+			// I thought this is sitting in local master is it not ?
 			IEngine eng = (IEngine) DIHelper.getInstance().getLocalProp(engine);
 			String returnURI = eng.getTransformedNodeName(conceptURI, true);
 			
-//			String instanceName = conceptURI.replaceAll(".*/Concept/", "");
+//			String instanceName = conceptURI.replaceAll(".Concept/", "");
+			// instance name is the last piece
 			String instanceName = Utility.getInstanceName(returnURI);
 			
 			Map<String, Map<String, String>> conceptSet = null;
@@ -716,6 +1254,7 @@ public class NameServer {
 			conceptSet.put(returnURI, nodeMap);
 			retMap.put(engine, conceptSet);
 		}
+		*/
 		
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
