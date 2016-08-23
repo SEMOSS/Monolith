@@ -1,6 +1,7 @@
 package prerna.semoss.web.services;
 
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,11 +37,15 @@ import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
 import prerna.ds.H2.H2Frame;
 import prerna.engine.api.IEngine;
+import prerna.engine.api.IScriptReactor;
 import prerna.equation.EquationSolver;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
+import prerna.sablecc.AbstractReactor;
+import prerna.sablecc.ColAddReactor;
+import prerna.sablecc.ColSplitReactor;
 import prerna.sablecc.PKQLRunner;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
@@ -53,19 +58,19 @@ import prerna.web.services.util.WebUtility;
 
 
 public class DataframeResource {
-	
+
 	@Context
 	ServletContext context;
-	
+
 	Logger logger = Logger.getLogger(DataframeResource.class.getName());
 	Insight insight = null;
-	
+
 	@Path("/analytics")
 	public Object runEngineAnalytics(){
 		AnalyticsResource analytics = new AnalyticsResource();
 		return analytics;
 	}
-	
+
 	@POST
 	@Path("/clear")
 	@Produces("application/json")
@@ -78,15 +83,15 @@ public class DataframeResource {
 			eng = (IEngine) DIHelper.getInstance().getLocalProp(engName);
 		}
 		String layoutName = insight.getOutput();
-		
+
 		this.insight = new Insight(eng, dmName, layoutName);
 		this.insight.getDataMaker(); // need to instatiate datamaker so next call doesn't try to get it from cache
 		this.insight.setInsightID(id);
 		InsightStore.getInstance().put(id, insight);
-				
+
 		return Response.status(200).entity(WebUtility.getSO("Insight " + id + " has been cleared")).build();
 	}
-	
+
 	/**
 	 * Retrieve top executed insights.
 	 * 
@@ -100,7 +105,7 @@ public class DataframeResource {
 	@Path("bic")
 	@Produces("application/json")
 	public Response runBIC(@Context HttpServletRequest request) {
-		
+
 		System.out.println("Failed.. after here.. ");
 		String insights = "Mysterious";
 		System.out.println("Running basic checks.. ");
@@ -114,16 +119,16 @@ public class DataframeResource {
 			insights = pb.runBIC();
 		}
 		insights = "Pattern Selected..  " + insights + " !! ";
-		
+
 		return Response.status(200).entity(WebUtility.getSO(insights)).build();
 	}
-	
+
 	@GET
 	@Path("/getFilterModel")
 	@Produces("application/json")
 	public Response getFilterModel(@Context HttpServletRequest request) {
 		IDataMaker table = insight.getDataMaker();
-//		String colName = form.getFirst("col");
+		//		String colName = form.getFirst("col");
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
 		if(table instanceof ITableDataFrame) {
@@ -132,16 +137,16 @@ public class DataframeResource {
 			retMap.put("unfilteredValues", filterModel[0]);
 			retMap.put("filteredValues", filterModel[1]);
 			retMap.put("minMax", filterModel[2]);
-			
+
 			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 		} 
-		
+
 		else {
 			return Response.status(400).entity(WebUtility.getSO("Data Maker not instance of ITableDataFrame.  Cannot grab filter model from Data Maker.")).build();
 		}
-		
+
 	}
-	
+
 	@POST
 	@Path("/openBackDoor")
 	@Produces("application/json")
@@ -155,7 +160,7 @@ public class DataframeResource {
 	@Path("/applyCalc")
 	@Produces("application/json")
 	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
-		
+
 		PKQLTransformation pkql = new PKQLTransformation();
 		Map<String, Object> props = new HashMap<String, Object>();
 		String pkqlCmd = form.getFirst("expression");
@@ -165,11 +170,11 @@ public class DataframeResource {
 		pkql.setRunner(runner);
 		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
 		list.add(pkql);
-		
-//		if(pkqlCmd.contains("data.maker("){
-//			
-//		}
-		
+
+		//		if(pkqlCmd.contains("data.maker("){
+		//			
+		//		}
+
 		insight.processPostTransformation(list);
 		insight.syncPkqlRunnerAndFrame(runner);
 		Map resultHash = insight.getPKQLData(true);
@@ -220,7 +225,7 @@ public class DataframeResource {
 			errorHash.put("Message", "Unable to create chart it data with current data maker");
 			return WebUtility.getSO(errorHash);
 		}
-		
+
 		// need to create type hash... its the way chartit wants the data..
 		logger.info("creating type hash...");
 		for( SEMOSSVertex vert : nodeHash.values()){
@@ -231,7 +236,7 @@ public class DataframeResource {
 			typeVert.add(vert);
 			typeHash.put(type, typeVert);
 		}
-		
+
 		Hashtable retHash = new Hashtable();
 		retHash.put("Nodes", typeHash);
 		return WebUtility.getSO(retHash);
@@ -244,7 +249,7 @@ public class DataframeResource {
 		Gson gson = new Gson();
 		List<String> processes = gson.fromJson(form.getFirst("processes"), List.class);
 		String insightID = this.insight.getInsightID();
-		
+
 		if(processes.isEmpty()) {
 			Map<String, Object> retMap = new HashMap<String, Object>();
 			retMap.put("insightID", insightID);
@@ -275,7 +280,7 @@ public class DataframeResource {
 
 		//Grab the filter model from the form data
 		Map<String, Map<String, Object>> filterModel = gson.fromJson(form.getFirst("filterValues"), new TypeToken<Map<String, Map<String, Object>>>() {}.getType());
-		
+
 		//If the filter model has information, filter the tree
 		if(filterModel != null && filterModel.keySet().size() > 0) {
 			TableDataFrameUtilities.filterTableData(mainTree, filterModel);
@@ -291,16 +296,16 @@ public class DataframeResource {
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
 		Object[] returnFilterModel = ((ITableDataFrame)mainTree).getFilterModel();
-//		((BTreeDataFrame)mainTree).printTree();
+		//		((BTreeDataFrame)mainTree).printTree();
 		retMap.put("unfilteredValues", returnFilterModel[0]);
 		retMap.put("filteredValues", returnFilterModel[1]);
-		
+
 		// update any derived columns that this graph is using
 		this.insight.recalcDerivedColumns();
-		
+
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
-	
+
 	@GET
 	@Path("/unfilterColumns")
 	@Produces("application/json")
@@ -346,7 +351,7 @@ public class DataframeResource {
 		Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
 		String concept = null;
 		String orderDirection = null;
-		
+
 		Map<String, Object> options = new HashMap<String, Object>();
 		if(sortModel != null && !sortModel.isEmpty()) {
 			concept = sortModel.get("colId");
@@ -369,7 +374,7 @@ public class DataframeResource {
 
 		List<Object[]> table = new Vector<Object[]>();
 		List<String> selectors = gson.fromJson(form.getFirst("selectors"), new TypeToken<List<String>>() {}.getType());
-		
+
 		if(selectors.isEmpty()) {
 			options.put(TinkerFrame.SELECTORS, Arrays.asList(dm.getColumnHeaders()));
 			returnData.put("headers", dm.getColumnHeaders());
@@ -378,12 +383,12 @@ public class DataframeResource {
 			returnData.put("headers", selectors);
 		}
 		options.put(TinkerFrame.DE_DUP, true);
-		
+
 		Iterator<Object[]> it = dm.iterator(true, options);
 		while(it.hasNext()) {
 			table.add(it.next());
 		}
-		
+
 		returnData.put("data", table);
 
 		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
@@ -399,7 +404,7 @@ public class DataframeResource {
 	{
 		String expString = form.getFirst("expressionString");
 		String colName = form.getFirst("columnName");
-		
+
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
 
@@ -410,13 +415,13 @@ public class DataframeResource {
 			retMap.put("errorMessage", e);
 			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
 		}
-		
+
 		String returnMsg = solver.crunch(colName);
-		
+
 		retMap.put("status", returnMsg);
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
-	
+
 	@GET
 	@Path("/getTableHeaders")
 	@Produces("application/json")
@@ -428,12 +433,12 @@ public class DataframeResource {
 		retMap.put("tableHeaders", table.getTableHeaderObjects());
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
-	
+
 	@GET
 	@Path("/recipe")
 	@Produces("application/json")
 	public Response getRecipe() {
-		
+
 		Map<String, Object> retMap = new HashMap<String, Object>();		
 		retMap.put("recipe", insight.getRecipe());
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
@@ -544,8 +549,8 @@ public class DataframeResource {
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
 		// FE now uses getNextTable call to get the information back
-//		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();
-//		retMap.put("tableData", TableDataFrameUtilities.getTableData(table));
+		//		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();
+		//		retMap.put("tableData", TableDataFrameUtilities.getTableData(table));
 		retMap.put("mathMap", functionMap);
 		retMap.put("insightID", insight.getInsightID());
 		retMap.put("stepID", mathTrans.getId());
@@ -602,17 +607,57 @@ public class DataframeResource {
 		boolean hasDuplicates = comboSet.size() != numRows;
 		return Response.status(200).entity(WebUtility.getSO(hasDuplicates)).build();
 	}
-	
 
-    //for handling playsheet specific tool calls
-    @POST
-    @Path("do-{method}")
+
+	//for handling playsheet specific tool calls
+	@POST
+	@Path("do-{method}")
 	@Produces("application/json")
-    public Response doMethod(@PathParam("method") String method, MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-    {    	
-    	Gson gson = new Gson();
+	public Response doMethod(@PathParam("method") String method, MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+	{    	
+		Gson gson = new Gson();
 		Hashtable<String, Object> hash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-    	Object ret = this.insight.getPlaySheet().doMethod(method, hash);
-        return Response.status(200).entity(WebUtility.getSO(ret)).build();
-    }
+		Object ret = this.insight.getPlaySheet().doMethod(method, hash);
+		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+	}
+
+	/**
+	 * Method used to get the list of all available PKQL
+	 * commands with their structure as JSON 
+	 * @param 
+	 * @return
+	 */
+	@POST
+	@Path("/predictPKQL")
+	@Produces("application/json")
+	public Response getPredictedPKQLs(@Context HttpServletRequest request){
+
+		//fetch info from reactors - AbstractReactor
+		//as a trial/starting point - using ColAddReactor
+		System.out.println("Fetching list of all PKQL commands with their defined structure");
+
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		List<HashMap<String, Object>> pkqlMapList = new ArrayList<HashMap<String, Object>>();
+		IScriptReactor thisReactor = null;
+
+		//get the datamaker for current insight, and fetch all the reactors for it
+		Map<String, String> reactors = this.insight.getDataMaker().getScriptReactors();
+
+		//collect pkqlmetadata for the list of reactors
+		for(String reactor: reactors.keySet()){
+			String reactorName = reactors.get(reactor);
+			try {
+				thisReactor = (IScriptReactor)Class.forName(reactorName).newInstance();
+				if(((AbstractReactor) thisReactor).getPKQLMetaData() != null)
+					pkqlMapList.add(((AbstractReactor) thisReactor).getPKQLMetaData());
+			} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+				System.out.println("Exception in instantiating " +reactorName);
+				e.printStackTrace();
+			}				
+		}
+
+		retMap.put("pkqls", pkqlMapList);
+
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
 }
