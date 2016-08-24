@@ -627,7 +627,7 @@ public class DataframeResource {
 	 * @param 
 	 * @return
 	 */
-	@POST
+	@GET
 	@Path("/predictPKQL")
 	@Produces("application/json")
 	public Response getPredictedPKQLs(@Context HttpServletRequest request){
