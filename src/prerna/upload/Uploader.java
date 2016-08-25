@@ -153,7 +153,7 @@ public abstract class Uploader extends HttpServlet {
 						fileName = fileName.replace(";", "");
 						Date date = new Date();
 						String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-						value = filePath + "\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")) + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
+						value = filePath + "\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
 						file = new File(value);
 						writeFile(fi, file);
 						System.out.println( "Saved Filename: " + fileName + "  to "+ file);

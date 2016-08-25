@@ -40,9 +40,6 @@ public class FileUploader extends Uploader{
 	 * processing of the file to create/add to a data frame occurs through PKQL
 	 */
 	
-	
-	//private static String api = "";
-	
 	@POST
 	@Path("determineDataTypesForFile")
 	public Response determineDataTypesForFile(@Context HttpServletRequest request) {
@@ -93,7 +90,7 @@ public class FileUploader extends Uploader{
 						fileName = fileName.replace(";", "");
 						Date date = new Date();
 						String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-						value = filePath + "\\\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")) + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
+						value = filePath + "\\\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")).replace(" ", "") + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
 						file = new File(value);
 						writeFile(fi, file);
 						System.out.println( "Saved Filename: " + fileName + "  to "+ file);
@@ -205,7 +202,7 @@ public class FileUploader extends Uploader{
 		dmcList.add(dmc);
 		in.setDataMakerComponents(dmcList);
 		in.setDataMaker(dm);
-		in.setIsNonDbInsight(true);
+		in.setIsDbInsight(false);
 		String insightId = InsightStore.getInstance().put(in);
 		return insightId;
 	}
