@@ -61,12 +61,16 @@ import com.google.gson.reflect.TypeToken;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.cache.CacheFactory;
 import prerna.cache.InsightCache;
+import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.QuestionAdministrator;
+import prerna.nameserver.MasterDBHelper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
+import prerna.poi.main.InsightFilesToDatabaseReader;
+import prerna.poi.main.RDBMSEngineCreationHelper;
 import prerna.sablecc.PKQLRunner;
 import prerna.solr.SolrDocumentExportWriter;
 import prerna.solr.SolrIndexEngine;
@@ -76,6 +80,7 @@ import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -107,20 +112,70 @@ public class QuestionAdmin {
 		List<String> pkqlsToAdd = gson.fromJson(form.getFirst("pkqlsToAdd"), List.class);
 
 		Insight insight = InsightStore.getInstance().get(insightID);
-		boolean isNonDbInsight = insight.isNonDbInsight();
+		boolean isNonDbInsight = !insight.isDbInsight();
 		
 		String newInsightID = "";
 		if(isNonDbInsight) {
-			//TODO: assume person will not have parameters
-			newInsightID = addInsightDMCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
-			Map<String, Object> retMap = new HashMap<String, Object>();
-			retMap.put("newInsightID", newInsightID);
-			if (newInsightID != null) {
-				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-			} else {
-				return Response.status(500).entity(WebUtility.getSO("Error adding insight")).build();
+			// we need to create a full db now
+			// do it based on the csv file name and the date
+			
+			// TODO: right now, we make an assumption that we are only using one csv file
+			String fileLocation = insight.getFilesUsedInInsight().get(0);
+			String origFileName = Utility.getOriginalFileName(fileLocation).replace(".csv", "");
+			// right now, we need the engine to be a valid pkql id (alphanumeric + underscore values only)
+			// clean table name does just that
+			origFileName = RDBMSEngineCreationHelper.cleanTableName(origFileName);
+			
+			List<String> engines = MasterDBHelper.getAllEngines((IEngine)DIHelper.getInstance().getLocalProp(Constants.LOCAL_MASTER_DB_NAME));
+			int counter = 1;
+			String engineName = origFileName;
+			while(engines.contains(engineName)) {
+				engineName = origFileName + "_" + counter;
+				counter++;
 			}
-		} else {
+			
+			InsightFilesToDatabaseReader creator = new InsightFilesToDatabaseReader();
+			creator.processInsightFiles(insight, engineName);
+			
+			// we also need to update the receipe to now query from the new db instead of from the file
+			DataMakerComponent firstComp = insight.getDataMakerComponents().get(0);			
+			// first we need to confirm that the first thing is a pkql transformation
+			List<ISEMOSSTransformation> postTrans = firstComp.getPostTrans();
+			
+			for(int transIdx = 0; transIdx < postTrans.size(); transIdx++) {
+				ISEMOSSTransformation firstTrans = postTrans.get(transIdx);
+				if(!(firstTrans instanceof PKQLTransformation)) {
+					continue;
+				}
+				
+				// okay, so its a pkql transformation so we can now do the check
+				
+				PKQLTransformation pkqlTrans = (PKQLTransformation) firstTrans;
+				List<String> listPkqlRun = pkqlTrans.getPkql();
+				for(int pkqlIdx = 0; pkqlIdx < listPkqlRun.size(); pkqlIdx++) {
+					String pkqlExp = listPkqlRun.get(pkqlIdx);
+					pkqlExp = pkqlExp.replace(" ", "");
+					
+					// ugh, the bad string manipulation check :(
+					if(pkqlExp.startsWith("data.import(api:csvFile.query")) {
+						// we update the prop in the pkql transformation to be the engine load instead of csv file upload
+						Map<String, Object> props = pkqlTrans.getProperties();
+						props.put(PKQLTransformation.EXPRESSION, "data.import(api:" + engineName + ".query());");
+					}
+				}
+			}
+			
+			//TODO: assume person will not have parameters
+//			newInsightID = addInsightDMCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
+//			Map<String, Object> retMap = new HashMap<String, Object>();
+//			retMap.put("newInsightID", newInsightID);
+//			if (newInsightID != null) {
+//				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+//			} else {
+//				return Response.status(500).entity(WebUtility.getSO("Error adding insight")).build();
+//			}
+//		} else {
+		}
 			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 			
 			//If saving with params, FE passes a user.input PKQL that needs to be added/saved - better way to do this?
@@ -145,7 +200,7 @@ public class QuestionAdmin {
 			} else {
 				return Response.status(500).entity(WebUtility.getSO("Error adding insight")).build();
 			}
-		}		
+//		}		
 	}
 	
 	private String addInsightDMCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
@@ -155,7 +210,7 @@ public class QuestionAdmin {
 		insight.setOutput(layout);
 		insight.setDataTableAlign(dataTableAlign);
 		insight.setUiOptions(uiOptions);
-		insight.setIsNonDbInsight(true);
+		insight.setIsDbInsight(true);
 		
 		String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).cacheInsight(insight);
 
@@ -287,7 +342,7 @@ public class QuestionAdmin {
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		
 		Insight insight = InsightStore.getInstance().get(insightID);
-		boolean isNonDbInsight = insight.isNonDbInsight();
+		boolean isNonDbInsight = !insight.isDbInsight();
 		if(isNonDbInsight) {
 			//TODO: assume person will not have parameters
 			editInsightDMCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
@@ -311,7 +366,7 @@ public class QuestionAdmin {
 		insight.setOutput(layout);
 		insight.setDataTableAlign(dataTableAlign);
 		insight.setUiOptions(uiOptions);
-		insight.setIsNonDbInsight(true);
+		insight.setIsDbInsight(false);
 
 		// save new cache
 		String saveFileLocation = inCache.cacheInsight(insight);
