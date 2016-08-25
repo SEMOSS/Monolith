@@ -300,16 +300,24 @@ public class DBAdminResource {
 		IEngine engine = null;
 		String engineFile = DIHelper.getInstance().getCoreProp().getProperty(db + "_" + Constants.STORE);
 		System.out.println("Engine File.. " + engineFile);
+		FileInputStream fileIn = null;
 		try {
 			Properties prop = new Properties();
-			FileInputStream fileIn = new FileInputStream(engineFile);
+			fileIn = new FileInputStream(engineFile);
 			prop.load(fileIn);
 			engine = Utility.loadWebEngine(engineFile, prop);
 			System.out.println("Loaded the engine.. !!!!! " + db);
 			//addEngine(request, api, db);
-		}catch(Exception ex)
-		{
+		} catch(Exception ex) {
 			ex.printStackTrace();
+		} finally {
+			if(fileIn != null) {
+				try {
+					fileIn.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 		return engine;
 	}
