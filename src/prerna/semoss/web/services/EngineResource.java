@@ -601,7 +601,7 @@ public class EngineResource {
 		// typically is a JSON of the insight
 		System.out.println("Insight is " + insight);
 		Insight in = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
-		if(in.isNonDbInsight()) {
+		if(in.isDbInsight()) {
 			// data is not from engine
 			// send back empties since cannot have parameters in these questions
 			Hashtable outputHash = new Hashtable<String, Hashtable>();
@@ -824,39 +824,39 @@ public class EngineResource {
 			params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
 			insightObj.setParamHash(params);
 
-			if(insightObj.isNonDbInsight()) {
-				String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getVizData(insightObj);
-				if(vizData != null) {
-					// insight has been cached, send it to the FE with a new insight id
-					String id = InsightStore.getInstance().put(insightObj);
-					Map<String, Object> uploaded = gson.fromJson(vizData, new TypeToken<Map<String, Object>>() {}.getType());
-					uploaded.put("insightID", id);
-
-					tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), id, session.getId());
-					return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
-				} 
-				//				Should we just get the cached DM if the Viz has been deleted and send that to the FE?
-				//				
-				//				ITableDataFrame dataFrame = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getDMCache(insightObj);
-				//				if(dataFrame != null) {
-				//					insightObj.setDataMaker(dataFrame);
-				//					String id = InsightStore.getInstance().put(insightObj);
-				//					InsightCreateRunner run = new InsightCreateRunner(insightObj);
-				//					Map<String, Object> obj = run.runWeb();
-				//					obj.put("insightID", id);
-				//					
-				//					// cahce json for future
-				//					CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
-				//					
-				//					return Response.status(200).entity(WebUtility.getSO(obj)).build();
-				//				}
-				else {
-					Hashtable<String, String> errorHash = new Hashtable<String, String>();
-					errorHash.put("Message", "Error getting data for saved insight via csv.");
-					errorHash.put("Class", className);
-					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-				}
-			}
+//			if(!insightObj.isDbInsight()) {
+//				String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getVizData(insightObj);
+//				if(vizData != null) {
+//					// insight has been cached, send it to the FE with a new insight id
+//					String id = InsightStore.getInstance().put(insightObj);
+//					Map<String, Object> uploaded = gson.fromJson(vizData, new TypeToken<Map<String, Object>>() {}.getType());
+//					uploaded.put("insightID", id);
+//
+//					tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), id, session.getId());
+//					return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
+//				} 
+//				//				Should we just get the cached DM if the Viz has been deleted and send that to the FE?
+//				//				
+//				//				ITableDataFrame dataFrame = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getDMCache(insightObj);
+//				//				if(dataFrame != null) {
+//				//					insightObj.setDataMaker(dataFrame);
+//				//					String id = InsightStore.getInstance().put(insightObj);
+//				//					InsightCreateRunner run = new InsightCreateRunner(insightObj);
+//				//					Map<String, Object> obj = run.runWeb();
+//				//					obj.put("insightID", id);
+//				//					
+//				//					// cahce json for future
+//				//					CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
+//				//					
+//				//					return Response.status(200).entity(WebUtility.getSO(obj)).build();
+//				//				}
+//				else {
+//					Hashtable<String, String> errorHash = new Hashtable<String, String>();
+//					errorHash.put("Message", "Error getting data for saved insight via csv.");
+//					errorHash.put("Class", className);
+//					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				}
+//			}
 
 			// check if the insight has already been cached
 			System.out.println("Params is " + params);
