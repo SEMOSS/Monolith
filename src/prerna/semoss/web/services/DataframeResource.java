@@ -36,6 +36,7 @@ import prerna.ds.Probablaster;
 import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
 import prerna.ds.H2.H2Frame;
+import prerna.ds.nativeframe.NativeFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IScriptReactor;
 import prerna.equation.EquationSolver;
@@ -186,6 +187,9 @@ public class DataframeResource {
 	@Produces("application/json")
 	public Response dropInsight(@Context HttpServletRequest request){
 		String insightID = insight.getInsightID();
+		if(insight.isJoined()){
+			insight.unJoin();
+		}
 		logger.info("Dropping insight with id ::: " + insightID);
 		boolean success = InsightStore.getInstance().remove(insightID);
 		InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
@@ -193,6 +197,9 @@ public class DataframeResource {
 			H2Frame frame = (H2Frame)insight.getDataMaker();
 			frame.closeRRunner();
 			frame.dropTable();
+		} else if(insight.getDataMaker() instanceof NativeFrame) {
+			NativeFrame frame = (NativeFrame) insight.getDataMaker();
+			frame.close();
 		}
 
 		if(success) {
