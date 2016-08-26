@@ -601,7 +601,7 @@ public class EngineResource {
 		// typically is a JSON of the insight
 		System.out.println("Insight is " + insight);
 		Insight in = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
-		if(in.isDbInsight()) {
+		if(!in.isDbInsight()) {
 			// data is not from engine
 			// send back empties since cannot have parameters in these questions
 			Hashtable outputHash = new Hashtable<String, Hashtable>();
