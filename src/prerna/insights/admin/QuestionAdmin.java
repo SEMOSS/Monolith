@@ -66,6 +66,7 @@ import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.QuestionAdministrator;
 import prerna.nameserver.MasterDBHelper;
+import prerna.om.Dashboard;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
@@ -181,7 +182,12 @@ public class QuestionAdmin {
 			//If saving with params, FE passes a user.input PKQL that needs to be added/saved - better way to do this?
 			if(pkqlsToAdd != null && !pkqlsToAdd.isEmpty()) {
 				PKQLRunner runner = insight.getPKQLRunner();
-				DataMakerComponent dmc = insight.getDataMakerComponents().get(insight.getDataMakerComponents().size() - 1);
+				DataMakerComponent dmc;
+				if(insight.getDataMaker() instanceof Dashboard) {
+					dmc = insight.getDashboardDataMakerComponent();
+				} else {
+					dmc = insight.getDataMakerComponents().get(insight.getDataMakerComponents().size() - 1);
+				}
 				for(String pkqlCmd : pkqlsToAdd) {
 					PKQLTransformation pkqlToAdd = new PKQLTransformation();
 					Map<String, Object> props = new HashMap<String, Object>();
@@ -282,6 +288,15 @@ public class QuestionAdmin {
 			//reset the post trans on the last component if the filter model has been flushed to it
 			//we don't want the insight itself to change at all through this process
 			lastComponent.setPostTrans(oldPostTrans);
+		} else if(dm instanceof Dashboard) {
+			dmcList = new ArrayList<>();
+			Dashboard dash = (Dashboard)dm;
+			DataMakerComponent lastComponent = insight.getDashboardDataMakerComponent();
+			dmcList.add(lastComponent);
+			List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
+			List<ISEMOSSTransformation> oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
+
+			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 		}
 		else {
 			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
@@ -749,6 +764,7 @@ public class QuestionAdmin {
 	 * @param params					A list of SEMOSSParams to store the parameters with the correct options
 	 */
 	private List<SEMOSSParam> buildParameterList(Insight insight, Vector<Map<String, String>> paramMapList) {
+		if(insight.getDataMaker() instanceof Dashboard) return new Vector<SEMOSSParam>();
 		Map<String, Object> metamodelData = insight.getInsightMetaModel();
 //		IMetaData metaData = insight.getMetaData();
 		List<SEMOSSParam> params = new Vector<SEMOSSParam>();
