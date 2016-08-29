@@ -80,10 +80,14 @@ import org.openrdf.model.vocabulary.RDF;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
 
+import com.google.gson.Gson;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
+import com.hp.hpl.jena.vocabulary.RDFS;
+
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.cache.CacheFactory;
-import prerna.cache.InsightCache;
 import prerna.ds.BTreeDataFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
@@ -105,7 +109,6 @@ import prerna.om.SEMOSSVertex;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
-import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.helpers.InsightCreateRunner;
 import prerna.upload.DatabaseUploader;
@@ -116,11 +119,6 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
-
-import com.google.gson.Gson;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
-import com.hp.hpl.jena.vocabulary.RDFS;
 
 @Path("/engine")
 public class NameServer {
@@ -732,7 +730,7 @@ public class NameServer {
 				+ "{?conceptComposite <http://semoss.org/ontologies/Relation/logical> ?fromLogical}"
 				+ "{?toConceptComposite <http://semoss.org/ontologies/Relation/logical> <" + conceptURI + ">}" // change this back to logical
 				+ "{?toConceptComposite ?someRel ?conceptComposite}"
-				//+ "{?someRel <" + RDFS.subPropertyOf + "> <http://semoss.org/ontologies/Relation>}"
+				+ "{?someRel <" + RDFS.subPropertyOf + "> <http://semoss.org/ontologies/Relation>}"
 				+ "{?conceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
 				+ "{?toConceptComposite <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
 				+ "{?fromConcept <" + RDFS.subClassOf + "> <http://semoss.org/ontologies/Concept>}"
