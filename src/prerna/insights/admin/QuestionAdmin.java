@@ -40,7 +40,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -136,7 +135,7 @@ public class QuestionAdmin {
 			}
 			
 			InsightFilesToDatabaseReader creator = new InsightFilesToDatabaseReader();
-			creator.processInsightFiles(insight, engineName);
+			IEngine newEngine = creator.processInsightFiles(insight, engineName);
 			
 			// we also need to update the receipe to now query from the new db instead of from the file
 			DataMakerComponent firstComp = insight.getDataMakerComponents().get(0);			
@@ -164,6 +163,13 @@ public class QuestionAdmin {
 						props.put(PKQLTransformation.EXPRESSION, "data.import(api:" + engineName + ".query());");
 					}
 				}
+			}
+			
+			// ASSUMPTION!!!
+			// if the core engine is null
+			// it means they want to save this insight into the newly created engine
+			if(this.coreEngine == null) {
+				this.coreEngine = (AbstractEngine) newEngine;
 			}
 			
 			//TODO: assume person will not have parameters
@@ -209,59 +215,59 @@ public class QuestionAdmin {
 //		}		
 	}
 	
-	private String addInsightDMCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
-		String uniqueID = UUID.randomUUID().toString();
-		insight.setDatabaseID(uniqueID);
-		insight.setInsightName(insightName);
-		insight.setOutput(layout);
-		insight.setDataTableAlign(dataTableAlign);
-		insight.setUiOptions(uiOptions);
-		insight.setIsDbInsight(true);
-		
-		String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).cacheInsight(insight);
-
-		Map<String, Object> solrInsights = new HashMap<>();
-		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
-		Date date = new Date();
-		String currDate = dateFormat.format(date);
-		solrInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
-		solrInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
-		solrInsights.put(SolrIndexEngine.TAGS, perspective);
-		solrInsights.put(SolrIndexEngine.LAYOUT, layout);
-		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
-		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
-		solrInsights.put(SolrIndexEngine.CORE_ENGINE, Constants.LOCAL_MASTER_DB_NAME);
-		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, uniqueID);
-		solrInsights.put(SolrIndexEngine.NON_DB_INSIGHT, true);
-		Set<String> engines = new HashSet<String>();
-		engines.add(Constants.LOCAL_MASTER_DB_NAME);
-		solrInsights.put(SolrIndexEngine.ENGINES, engines);
-		solrInsights.put(SolrIndexEngine.DATAMAKER_NAME, insight.getDataMakerName());
-		
-		//TODO: need to add users
-		solrInsights.put(SolrIndexEngine.USER_ID, "default");
-		
-		try {
-			SolrIndexEngine.getInstance().addInsight(uniqueID, solrInsights);
-			saveFileLocation = saveFileLocation + "_Solr.txt";
-			File solrFile = new File(saveFileLocation);
-			SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
-			writer.writeSolrDocument(uniqueID, solrInsights);
-			writer.closeExport();
-			return uniqueID;
-		} catch (KeyManagementException e) {
-			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		} catch (KeyStoreException e) {
-			e.printStackTrace();
-		} catch (SolrServerException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
+//	private String addInsightDMCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
+//		String uniqueID = UUID.randomUUID().toString();
+//		insight.setDatabaseID(uniqueID);
+//		insight.setInsightName(insightName);
+//		insight.setOutput(layout);
+//		insight.setDataTableAlign(dataTableAlign);
+//		insight.setUiOptions(uiOptions);
+//		insight.setIsDbInsight(true);
+//		
+//		String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).cacheInsight(insight);
+//
+//		Map<String, Object> solrInsights = new HashMap<>();
+//		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
+//		Date date = new Date();
+//		String currDate = dateFormat.format(date);
+//		solrInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
+//		solrInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
+//		solrInsights.put(SolrIndexEngine.TAGS, perspective);
+//		solrInsights.put(SolrIndexEngine.LAYOUT, layout);
+//		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
+//		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
+//		solrInsights.put(SolrIndexEngine.CORE_ENGINE, Constants.LOCAL_MASTER_DB_NAME);
+//		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, uniqueID);
+//		solrInsights.put(SolrIndexEngine.NON_DB_INSIGHT, true);
+//		Set<String> engines = new HashSet<String>();
+//		engines.add(Constants.LOCAL_MASTER_DB_NAME);
+//		solrInsights.put(SolrIndexEngine.ENGINES, engines);
+//		solrInsights.put(SolrIndexEngine.DATAMAKER_NAME, insight.getDataMakerName());
+//		
+//		//TODO: need to add users
+//		solrInsights.put(SolrIndexEngine.USER_ID, "default");
+//		
+//		try {
+//			SolrIndexEngine.getInstance().addInsight(uniqueID, solrInsights);
+//			saveFileLocation = saveFileLocation + "_Solr.txt";
+//			File solrFile = new File(saveFileLocation);
+//			SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
+//			writer.writeSolrDocument(uniqueID, solrInsights);
+//			writer.closeExport();
+//			return uniqueID;
+//		} catch (KeyManagementException e) {
+//			e.printStackTrace();
+//		} catch (NoSuchAlgorithmException e) {
+//			e.printStackTrace();
+//		} catch (KeyStoreException e) {
+//			e.printStackTrace();
+//		} catch (SolrServerException e) {
+//			e.printStackTrace();
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//		return null;
+//	}
 
 	private String addInsightFromDb(Insight insight, String insightName, String perspective, String order, String layout, String uiOptions, Map<String, String> dataTableAlign, Vector<Map<String, String>> paramMapList) {
 		//TODO: currently not exposed through UI

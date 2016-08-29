@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -43,7 +42,6 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.TreeMap;
 import java.util.Vector;
 
@@ -179,23 +177,8 @@ public class NameServer {
 		return res;
 	}
 	
-	private IEngine loadEngine(String db)
-	{
-		IEngine engine = null;
-		String engineFile = DIHelper.getInstance().getCoreProp().getProperty(db + "_" + Constants.STORE);
-		System.out.println("Engine File.. " + engineFile);
-		try {
-			Properties prop = new Properties();
-			FileInputStream fileIn = new FileInputStream(engineFile);
-			prop.load(fileIn);
-			engine = Utility.loadWebEngine(engineFile, prop);
-			System.out.println("Loaded the engine.. !!!!! " + db);
-			//addEngine(request, api, db);
-		}catch(Exception ex)
-		{
-			ex.printStackTrace();
-		}
-		return engine;
+	private IEngine loadEngine(String db){
+		return Utility.getEngine(db);
 	}
 
 	@Path("s-{engine}")
