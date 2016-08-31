@@ -1,5 +1,6 @@
 package prerna.semoss.web.services;
 
+import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,8 +45,10 @@ import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
+import prerna.poi.main.InsightFilesToDatabaseReader;
 import prerna.sablecc.AbstractReactor;
 import prerna.sablecc.PKQLRunner;
+import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
@@ -685,5 +688,87 @@ public class DataframeResource {
 		
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
+	
+	@POST
+	@Path("/saveFilesInInsightAsDb")
+	@Produces("application/json")
+	public Response saveFilesUsedInInsightIntoDb(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		// we need to create a full db now
+		// do it based on the csv file name and the date
+					
+		String engineName = form.getFirst("engineName");
+		
+		InsightFilesToDatabaseReader creator = new InsightFilesToDatabaseReader();
+		try {
+			creator.processInsightFiles(insight, engineName);
+		} catch (IOException e) {
+			e.printStackTrace();
+			Map<String, String> errorMap = new HashMap<String, String>();
+			String errorMessage = "Data loading was not successful";
+			if(e.getMessage() != null && !e.getMessage().isEmpty()) {
+				errorMessage = e.getMessage();
+			}
+			errorMap.put("errorMessage", errorMessage);
+			return Response.status(200).entity(WebUtility.getSO(errorMap)).build();
+		}
+		
+		// we also need to update the recipe to now query from the new db instead of from the file
+		DataMakerComponent firstComp = insight.getDataMakerComponents().get(0);			
+		// first we need to confirm that the first thing is a pkql transformation
+		List<ISEMOSSTransformation> postTrans = firstComp.getPostTrans();
+		
+		for(int transIdx = 0; transIdx < postTrans.size(); transIdx++) {
+			ISEMOSSTransformation firstTrans = postTrans.get(transIdx);
+			if(!(firstTrans instanceof PKQLTransformation)) {
+				continue;
+			}
+			
+			// okay, so its a pkql transformation so we can now do the check
+			
+			PKQLTransformation pkqlTrans = (PKQLTransformation) firstTrans;
+			// since expression may contain multiple pkql statements
+			// need to look at each and consolidate appropriately as to not lose
+			// any statements
+			List<String> listPkqlRun = pkqlTrans.getPkql();
+			
+			// keep track of all statements
+			// only used if updatePkqlExpression boolean becomes true
+			List<String> newPkqlRun = new Vector<String>();
+			boolean updatePkqlExpression = false;
+			
+			for(int pkqlIdx = 0; pkqlIdx < listPkqlRun.size(); pkqlIdx++) {
+				String pkqlExp = listPkqlRun.get(pkqlIdx);
+				pkqlExp = pkqlExp.replace(" ", "");
+				
+				// ugh, the bad string manipulation check :(
+				if(pkqlExp.startsWith("data.import(api:csvFile.query")) {
+					// we update the prop in the pkql transformation to be the engine load instead of csv file upload
+					updatePkqlExpression = true;
+					newPkqlRun.add("data.import(api:" + engineName + ".query());");
+				} else {
+					newPkqlRun.add(pkqlExp);
+				}
+			}
+			
+			if(updatePkqlExpression) {
+				// create an individual string containing the pkql
+				StringBuilder newPkqlExp = new StringBuilder();
+				for(String pkql : newPkqlRun) {
+					newPkqlExp.append(pkql);
+				}
+				Map<String, Object> props = pkqlTrans.getProperties();
+				props.put(PKQLTransformation.EXPRESSION, "data.import(api:" + engineName + ".query());");
+				// update the parsed pkqls so the next time this insight instance is used it is not 
+				// still assuming it is a nonDbInsight
+				pkqlTrans.setPkql(newPkqlRun);
+			}
+		}
+		
+		insight.getFilesUsedInInsight().clear();
+		
+		String outputText = "Data Loading was a success.";
+		return Response.status(200).entity(WebUtility.getSO(outputText)).build();
+	}
+	
 	
 }
