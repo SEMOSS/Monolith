@@ -45,8 +45,6 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
 import prerna.sablecc.AbstractReactor;
-import prerna.sablecc.ColAddReactor;
-import prerna.sablecc.ColSplitReactor;
 import prerna.sablecc.PKQLRunner;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
@@ -667,4 +665,25 @@ public class DataframeResource {
 
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
+	
+	
+	@GET
+	@Path("/isDbInsight")
+	@Produces("application/json")
+	public Response isDbInsight(@Context HttpServletRequest request){
+		/*
+		 * This method is used to determine if the insight has data that has been inserted
+		 * into the frame that does not currently sit in a full-fledged database.
+		 * An example of this is when an insight contains data that was added via a csv file.
+		 * 
+		 * We refer to these insights as nonDbInsights even if they contain data that
+		 * does contain some information from full dbs
+		 */
+		
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		retMap.put("isDbInsight", insight.isDbInsight());
+		
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+	}
+	
 }
