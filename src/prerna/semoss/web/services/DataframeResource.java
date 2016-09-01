@@ -47,6 +47,7 @@ import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
 import prerna.poi.main.InsightFilesToDatabaseReader;
 import prerna.sablecc.AbstractReactor;
+import prerna.sablecc.ColSplitReactor;
 import prerna.sablecc.PKQLRunner;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
@@ -635,23 +636,58 @@ public class DataframeResource {
 	 * @param 
 	 * @return
 	 */
-	@GET
+	@POST
 	@Path("/predictPKQL")
 	@Produces("application/json")
-	public Response getPredictedPKQLs(@Context HttpServletRequest request){
+	public Response getPredictedPKQLs(@QueryParam("selectedPKQL") String selectedPKQL, @Context HttpServletRequest request){
 
 		//fetch info from reactors - AbstractReactor
 		//as a trial/starting point - using ColAddReactor
-		System.out.println("Fetching list of all PKQL commands with their defined structure");
+		//System.out.println("Fetching list of all PKQL commands with their defined structure");
 
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		List<HashMap<String, Object>> pkqlMapList = new ArrayList<HashMap<String, Object>>();
-		IScriptReactor thisReactor = null;
+		ITableDataFrame dm = (ITableDataFrame) insight.getDataMaker();
+		Map<String, Object> options = new HashMap<String, Object>();
+		List<Object[]> table = new Vector<Object[]>();
+		
+		Map<String, Object> returnMap = new HashMap<String, Object>();
+		//List<HashMap<String, Object>> pkqlMapList = new ArrayList<HashMap<String, Object>>();
+		Map<String, Object> pkqlMap = new HashMap<String, Object>();
+		AbstractReactor thisReactor = null;
+		
+		switch(selectedPKQL){
+		case "Split_a_column_by_delimiter": thisReactor = new ColSplitReactor();
+											pkqlMap = thisReactor.getPKQLMetaData();
+											List<HashMap<String, Object>> input = (List<HashMap<String, Object>>) pkqlMap.get("input");
+											
+											for(int i=0; i<input.size(); i++){
+												Set<String> inputSet = input.get(i).keySet();
+												for(String key: inputSet){
+													if(key.equals("values")){
+														Object values = input.get(i).get(key);
+														Map<String, Object> valuesMap = new HashMap<String, Object>();
+														valuesMap.put("headers", dm.getColumnHeaders());
+														options.put(TinkerFrame.SELECTORS, Arrays.asList(dm.getColumnHeaders()));
+														options.put(TinkerFrame.DE_DUP, true);
+														Iterator<Object[]> it = dm.iterator(true, options);
+														while(it.hasNext()) {
+															table.add(it.next());
+														}
+
+														valuesMap.put("data", table);
+														
+														input.get(i).put(key, valuesMap);
+														pkqlMap.put("input", input);
+													}
+												}
+											}break;
+		 default:break;
+											
+		}
 
 		//get the datamaker for current insight, and fetch all the reactors for it
-		Map<String, String> reactors = this.insight.getDataMaker().getScriptReactors();
+		//Map<String, String> reactors = this.insight.getDataMaker().getScriptReactors();
 
-		//collect pkqlmetadata for the list of reactors
+/*		//collect pkqlmetadata for the list of reactors
 		for(String reactor: reactors.keySet()){
 			String reactorName = reactors.get(reactor);
 			try {
@@ -662,11 +698,21 @@ public class DataframeResource {
 				System.out.println("Exception in instantiating " +reactorName);
 				e.printStackTrace();
 			}				
-		}
+		}*/
 
-		retMap.put("pkqls", pkqlMapList);
+		//retMap.put("pkqls", pkqlMapList);
+		//////////////////////////////////////////////////////////////////////////////////////
+		
 
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+			
+		
+		
+
+		
+		//////////////////////
+		returnMap.put("pkql", pkqlMap);
+
+		return Response.status(200).entity(WebUtility.getSO(returnMap)).build();
 	}
 	
 	
