@@ -48,6 +48,7 @@ import prerna.om.SEMOSSVertex;
 import prerna.poi.main.InsightFilesToDatabaseReader;
 import prerna.sablecc.AbstractReactor;
 import prerna.sablecc.ColAddReactor;
+import prerna.sablecc.ColFilterReactor;
 import prerna.sablecc.ColSplitReactor;
 import prerna.sablecc.PKQLRunner;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
@@ -686,6 +687,23 @@ public class DataframeResource {
 										 }
 									 }
 								 }break;
+								 
+		case "Filter data in a column": thisReactor = new ColFilterReactor();
+										pkqlMap = thisReactor.getPKQLMetaData();
+										input = (List<HashMap<String, Object>>) pkqlMap.get("input");
+		
+										for(int i=0; i<input.size(); i++){
+											Set<String> inputSet = input.get(i).keySet();
+											for(String key: inputSet){
+												if(key.equals("values")){
+													Map<String, Object> valuesMap = new HashMap<String, Object>();					
+													Object[] filterColumn = dm.getFilterModel();
+													valuesMap.put("unfilteredValues", filterColumn[0]);																			
+													input.get(i).put(key, valuesMap);
+													pkqlMap.put("input", input);
+												}
+											}
+										}break;
 		 default:break;
 											
 		}
