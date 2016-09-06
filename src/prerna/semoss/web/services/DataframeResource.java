@@ -51,13 +51,14 @@ import prerna.sablecc.ColAddReactor;
 import prerna.sablecc.ColFilterReactor;
 import prerna.sablecc.ColSplitReactor;
 import prerna.sablecc.PKQLRunner;
-import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
+import prerna.sablecc.meta.FilePkqlMetadata;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.Utility;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
 
@@ -712,42 +713,6 @@ public class DataframeResource {
 		return Response.status(200).entity(WebUtility.getSO(returnMap)).build();
 	}
 	
-	/**
-	 * Method used to get the list of all available PKQL
-	 * @param 
-	 * @return
-	 */
-	@GET
-	@Path("/allPKQLs")
-	@Produces("application/json")
-	public Response getListOfAllPKQLs(@Context HttpServletRequest request){
-
-		//fetch info from reactors - AbstractReactor
-		System.out.println("Fetching list of all PKQL commands");
-
-		Map<String, Object> returnMap = new HashMap<String, Object>();
-		List pkqls = new ArrayList();
-		IScriptReactor thisReactor = null;	
-
-		//get the datamaker for current insight, and fetch all the reactors for it
-		Map<String, String> reactors = this.insight.getDataMaker().getScriptReactors();
-
-		for(String reactor: reactors.keySet()){
-			String reactorName = reactors.get(reactor);
-			try {
-				thisReactor = (IScriptReactor)Class.forName(reactorName).newInstance();
-				if(((AbstractReactor) thisReactor).getPKQLMetaData() != null)
-					pkqls.add(((AbstractReactor) thisReactor).getPKQL());
-			} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-				System.out.println("Exception in instantiating " +reactorName);
-				e.printStackTrace();
-			}				
-		}
-		returnMap.put("pkql", pkqls);
-		return Response.status(200).entity(WebUtility.getSO(returnMap)).build();
-	}
-	
-	
 	@GET
 	@Path("/isDbInsight")
 	@Produces("application/json")
@@ -775,10 +740,10 @@ public class DataframeResource {
 		// do it based on the csv file name and the date
 					
 		String engineName = form.getFirst("engineName");
-		
+		IEngine createdEng = null;
 		InsightFilesToDatabaseReader creator = new InsightFilesToDatabaseReader();
 		try {
-			creator.processInsightFiles(insight, engineName);
+			createdEng = creator.processInsightFiles(insight, engineName);
 		} catch (IOException e) {
 			e.printStackTrace();
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -790,20 +755,25 @@ public class DataframeResource {
 			return Response.status(200).entity(WebUtility.getSO(errorMap)).build();
 		}
 		
-		// we also need to update the recipe to now query from the new db instead of from the file
-		DataMakerComponent firstComp = insight.getDataMakerComponents().get(0);			
-		// first we need to confirm that the first thing is a pkql transformation
-		List<ISEMOSSTransformation> postTrans = firstComp.getPostTrans();
+		List<FilePkqlMetadata> filesMetadata = insight.getFilesMetadata();
 		
-		for(int transIdx = 0; transIdx < postTrans.size(); transIdx++) {
-			ISEMOSSTransformation firstTrans = postTrans.get(transIdx);
-			if(!(firstTrans instanceof PKQLTransformation)) {
-				continue;
-			}
+		// need to align each file to the table that was created from it
+		Set<String> newTables = creator.getNewTables();
+		Map<String, List<String>> newTablesAndCols = new Hashtable<String, List<String>>();
+		for(String newTable : newTables) {
+			List<String> props = createdEng.getProperties4Concept2(newTable, true);
+			newTablesAndCols.put(newTable, props);
+		}
+		
+		// need to update the recipe now
+		for(FilePkqlMetadata fileMeta : filesMetadata) {
 			
-			// okay, so its a pkql transformation so we can now do the check
+			// this is the pkql string we need to update
+			String pkqlStrToFind = fileMeta.getPkqlStr();
 			
-			PKQLTransformation pkqlTrans = (PKQLTransformation) firstTrans;
+			// this is the transformation that invoked the file load
+			// need to update its pkql recipe
+			PKQLTransformation pkqlTrans = fileMeta.getInvokingPkqlTransformation();
 			// since expression may contain multiple pkql statements
 			// need to look at each and consolidate appropriately as to not lose
 			// any statements
@@ -812,37 +782,63 @@ public class DataframeResource {
 			// keep track of all statements
 			// only used if updatePkqlExpression boolean becomes true
 			List<String> newPkqlRun = new Vector<String>();
-			boolean updatePkqlExpression = false;
 			
+			// need to iterate through and update the correct pkql
 			for(int pkqlIdx = 0; pkqlIdx < listPkqlRun.size(); pkqlIdx++) {
 				String pkqlExp = listPkqlRun.get(pkqlIdx);
-				pkqlExp = pkqlExp.replace(" ", "");
-				
-				// ugh, the bad string manipulation check :(
-				if(pkqlExp.startsWith("data.import(api:csvFile.query")) {
-					// we update the prop in the pkql transformation to be the engine load instead of csv file upload
-					updatePkqlExpression = true;
-					newPkqlRun.add("data.import(api:" + engineName + ".query());");
+				// we store the API Reactor string
+				// but this will definitely be stored within a data.import
+				if(pkqlExp.contains(pkqlStrToFind)) {
+
+					// find the new table that was created from this file
+					List<String> selectorsToMatch = fileMeta.getSelectors();
+					String tableToUse = null;
+					TABLE_LOOP : for(String newTable : newTablesAndCols.keySet()) {
+						List<String> selectors = newTablesAndCols.get(newTable);
+
+						// need to see if all selectors match
+						FILE_LOOP : for(String selectorInFile : selectorsToMatch) {
+							for(String selectorInTable : selectors) {
+
+								// we found a match, we are good
+								if(selectorInFile.equalsIgnoreCase(Utility.getInstanceName(selectorInTable))) {
+									continue FILE_LOOP;
+								}
+							}
+							// if we hit this point, then there was a selector
+							// in selectorsToMatch that wasn't found in the tableSelectors
+							// lets look at next table
+							continue TABLE_LOOP;
+							
+						} // end file loop
+						
+						// if we hit this point, then everything matched!
+						tableToUse = newTable;
+						break TABLE_LOOP;
+					}
+
+					newPkqlRun.add(fileMeta.generatePkqlOnEngine(engineName, tableToUse));
 				} else {
 					newPkqlRun.add(pkqlExp);
 				}
 			}
-			
-			if(updatePkqlExpression) {
-				// create an individual string containing the pkql
-				StringBuilder newPkqlExp = new StringBuilder();
-				for(String pkql : newPkqlRun) {
-					newPkqlExp.append(pkql);
-				}
-				Map<String, Object> props = pkqlTrans.getProperties();
-				props.put(PKQLTransformation.EXPRESSION, "data.import(api:" + engineName + ".query());");
-				// update the parsed pkqls so the next time this insight instance is used it is not 
-				// still assuming it is a nonDbInsight
-				pkqlTrans.setPkql(newPkqlRun);
+
+			// now setting the expression in the prop to store the string combination
+			// of all the pkqls with the swap we made
+			// create an individual string containing the pkql
+			StringBuilder newPkqlExp = new StringBuilder();
+			for(String pkql : newPkqlRun) {
+				newPkqlExp.append(pkql);
 			}
+			Map<String, Object> props = pkqlTrans.getProperties();
+			props.put(PKQLTransformation.EXPRESSION, newPkqlExp);
+			// update the parsed pkqls so the next time this insight instance is used it is not 
+			// still assuming it is a nonDbInsight
+			pkqlTrans.setPkql(newPkqlRun);
 		}
-		
-		insight.getFilesUsedInInsight().clear();
+
+		// clear the files since they are now loaded into the engine
+		filesMetadata.clear();
 		
 		String outputText = "Data Loading was a success.";
 		return Response.status(200).entity(WebUtility.getSO(outputText)).build();
