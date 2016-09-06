@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.insights.admin;
 
-import java.io.File;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -50,7 +49,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
 
@@ -59,7 +57,6 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.cache.CacheFactory;
-import prerna.cache.InsightCache;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.QuestionAdministrator;
@@ -68,7 +65,6 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
 import prerna.sablecc.PKQLRunner;
-import prerna.solr.SolrDocumentExportWriter;
 import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.FilterTransformation;
@@ -358,76 +354,76 @@ public class QuestionAdmin {
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		
 		Insight insight = InsightStore.getInstance().get(insightID);
-		boolean isNonDbInsight = !insight.isDbInsight();
-		if(isNonDbInsight) {
-			//TODO: assume person will not have parameters
-			editInsightDMCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
-		} else {
+//		boolean isNonDbInsight = !insight.isDbInsight();
+//		if(isNonDbInsight) {
+//			//TODO: assume person will not have parameters
+//			editInsightDMCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
+//		} else {
 			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 			editInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
-		}
+//		}
 		
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 
-	private void editInsightDMCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
-		String uniqueID = insight.getDatabaseID();
-		
-		// delete existing cache
-		// do this before overriding with new insight metadata
-		InsightCache inCache = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE);
-		inCache.deleteCacheFiles(insight);
-		
-		insight.setInsightName(insightName);
-		insight.setOutput(layout);
-		insight.setDataTableAlign(dataTableAlign);
-		insight.setUiOptions(uiOptions);
-		insight.setIsDbInsight(false);
-
-		// save new cache
-		String saveFileLocation = inCache.cacheInsight(insight);
-
-		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
-		Date date = new Date();
-		String currDate = dateFormat.format(date);
-		Map<String, Object> solrModifyInsights = new HashMap<>();
-		solrModifyInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
-		solrModifyInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
-		solrModifyInsights.put(SolrIndexEngine.TAGS, perspective);
-		solrModifyInsights.put(SolrIndexEngine.LAYOUT, layout);
-		solrModifyInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
-		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE, Constants.LOCAL_MASTER_DB_NAME);
-		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE_ID, uniqueID);
-		solrModifyInsights.put(SolrIndexEngine.NON_DB_INSIGHT, true);
-		Set<String> engines = new HashSet<String>();
-		engines.add(Constants.LOCAL_MASTER_DB_NAME);
-		solrModifyInsights.put(SolrIndexEngine.ENGINES, engines);
-		//TODO: need to add users
-		solrModifyInsights.put(SolrIndexEngine.USER_ID, "default");
-
-		try {
-			solrModifyInsights = SolrIndexEngine.getInstance().modifyInsight(uniqueID, solrModifyInsights);
-			saveFileLocation = saveFileLocation + "_Solr.txt";
-			File solrFile = new File(saveFileLocation);
-			if(solrFile.exists()) {
-				FileUtils.forceDelete(solrFile);
-			}
-			SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
-			writer.writeSolrDocument(uniqueID, solrModifyInsights);
-			writer.closeExport();
-		} catch (KeyManagementException e) {
-			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		} catch (KeyStoreException e) {
-			e.printStackTrace();
-		} catch (SolrServerException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-	}
+//	private void editInsightDMCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
+//		String uniqueID = insight.getDatabaseID();
+//		
+//		// delete existing cache
+//		// do this before overriding with new insight metadata
+//		InsightCache inCache = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE);
+//		inCache.deleteCacheFiles(insight);
+//		
+//		insight.setInsightName(insightName);
+//		insight.setOutput(layout);
+//		insight.setDataTableAlign(dataTableAlign);
+//		insight.setUiOptions(uiOptions);
+//		insight.setIsDbInsight(false);
+//
+//		// save new cache
+//		String saveFileLocation = inCache.cacheInsight(insight);
+//
+//		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
+//		Date date = new Date();
+//		String currDate = dateFormat.format(date);
+//		Map<String, Object> solrModifyInsights = new HashMap<>();
+//		solrModifyInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
+//		solrModifyInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
+//		solrModifyInsights.put(SolrIndexEngine.TAGS, perspective);
+//		solrModifyInsights.put(SolrIndexEngine.LAYOUT, layout);
+//		solrModifyInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
+//		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE, Constants.LOCAL_MASTER_DB_NAME);
+//		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE_ID, uniqueID);
+//		solrModifyInsights.put(SolrIndexEngine.NON_DB_INSIGHT, true);
+//		Set<String> engines = new HashSet<String>();
+//		engines.add(Constants.LOCAL_MASTER_DB_NAME);
+//		solrModifyInsights.put(SolrIndexEngine.ENGINES, engines);
+//		//TODO: need to add users
+//		solrModifyInsights.put(SolrIndexEngine.USER_ID, "default");
+//
+//		try {
+//			solrModifyInsights = SolrIndexEngine.getInstance().modifyInsight(uniqueID, solrModifyInsights);
+//			saveFileLocation = saveFileLocation + "_Solr.txt";
+//			File solrFile = new File(saveFileLocation);
+//			if(solrFile.exists()) {
+//				FileUtils.forceDelete(solrFile);
+//			}
+//			SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
+//			writer.writeSolrDocument(uniqueID, solrModifyInsights);
+//			writer.closeExport();
+//		} catch (KeyManagementException e) {
+//			e.printStackTrace();
+//		} catch (NoSuchAlgorithmException e) {
+//			e.printStackTrace();
+//		} catch (KeyStoreException e) {
+//			e.printStackTrace();
+//		} catch (SolrServerException e) {
+//			e.printStackTrace();
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//		
+//	}
 
 	private void editInsightFromDb(Insight insight, String insightName, String perspective, String order, String layout, String uiOptions, Map<String, String> dataTableAlign, Vector<Map<String, String>> paramMapList) {
 		//TODO: currently not exposed through UI
