@@ -274,17 +274,22 @@ public class QuestionAdmin {
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
 		if(dm instanceof ITableDataFrame) {
 			//add list of new filter transformations to the last component
+			List<ISEMOSSTransformation> oldPostTrans = null;
+			if(dmcList.size() > 0) {
 			DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
 			List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
-			List<ISEMOSSTransformation> oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
+			oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
 			List<FilterTransformation> trans2add = flushFilterModel2Transformations((ITableDataFrame) dm);
 			newPostTrans.addAll(trans2add);
-
+			}
 			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
 			//reset the post trans on the last component if the filter model has been flushed to it
 			//we don't want the insight itself to change at all through this process
-			lastComponent.setPostTrans(oldPostTrans);
+			if(dmcList.size() > 0) {
+				DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
+				lastComponent.setPostTrans(oldPostTrans);
+			}
 		} else if(dm instanceof Dashboard) {
 			dmcList = new ArrayList<>();
 			Dashboard dash = (Dashboard)dm;
@@ -316,6 +321,10 @@ public class QuestionAdmin {
 		Set<String> engines = new HashSet<String>();
 		for(DataMakerComponent dmc : dmcList) {
 			engines.add(dmc.getEngine().getEngineName());
+		}
+		
+		if(engines.isEmpty()) {
+			engines.add(engineName);
 		}
 		solrInsights.put(SolrIndexEngine.ENGINES, engines);
 
