@@ -2,11 +2,11 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.semoss</groupId>
-	<artifactId>Monolith</artifactId>
+	<artifactId>Monolith_Dev</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>war</packaging>
-	<name>Monolith</name>
-	<description>SEMOSS Monolith</description>
+	<name>Monolith_Dev</name>
+	<description>SEMOSS Monolith_Dev</description>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
 		<plugins>
@@ -2014,6 +2014,13 @@
 	    <artifactId>hadoop-client</artifactId>
 	    <version>2.6.0</version>
 	</dependency>
+	
+	<!-- __https://mvnrepository.com/artifact/org.javassist/javassist -->
+	<dependency>
+	    <groupId>org.javassist</groupId>
+	    <artifactId>javassist</artifactId>
+	    <version>3.20.0-GA</version>
+	</dependency> 
 	
 	</dependencies>
 </project>
