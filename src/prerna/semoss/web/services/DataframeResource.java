@@ -50,6 +50,7 @@ import prerna.sablecc.AbstractReactor;
 import prerna.sablecc.ColAddReactor;
 import prerna.sablecc.ColFilterReactor;
 import prerna.sablecc.ColSplitReactor;
+import prerna.sablecc.ColUnfilterReactor;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc.meta.FilePkqlMetadata;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
@@ -653,6 +654,7 @@ public class DataframeResource {
 											pkqlMap = thisReactor.getPKQLMetaData();
 											input = (List<HashMap<String, Object>>) pkqlMap.get("input");
 											
+											LOOP:
 											for(int i=0; i<input.size(); i++){
 												Set<String> inputSet = input.get(i).keySet();
 												for(String key: inputSet){
@@ -670,6 +672,7 @@ public class DataframeResource {
 														valuesMap.put("data", data);														
 														input.get(i).put(key, valuesMap);
 														pkqlMap.put("input", input);
+														break LOOP;
 													}
 												}
 											}break;
@@ -678,6 +681,7 @@ public class DataframeResource {
 								 pkqlMap = thisReactor.getPKQLMetaData();
 								 input = (List<HashMap<String, Object>>) pkqlMap.get("input");
 		
+								 LOOP:
 								 for(int i=0; i<input.size(); i++){
 									 Set<String> inputSet = input.get(i).keySet();
 									 for(String key: inputSet){
@@ -685,6 +689,7 @@ public class DataframeResource {
 											 Map<String, Object> valuesMap = new HashMap<String, Object>();					
 											 input.get(i).put(key, valuesMap);//sending empty values for add new col pkql
 											 pkqlMap.put("input", input);
+											 break LOOP;
 										 }
 									 }
 								 }break;
@@ -693,18 +698,39 @@ public class DataframeResource {
 										pkqlMap = thisReactor.getPKQLMetaData();
 										input = (List<HashMap<String, Object>>) pkqlMap.get("input");
 		
+										LOOP:
 										for(int i=0; i<input.size(); i++){
 											Set<String> inputSet = input.get(i).keySet();
 											for(String key: inputSet){
 												if(key.equals("values")){
 													Map<String, Object> valuesMap = new HashMap<String, Object>();					
 													Object[] filterColumn = dm.getFilterModel();
+													valuesMap.put("headers", dm.getColumnHeaders());
 													valuesMap.put("unfilteredValues", filterColumn[0]);																			
 													input.get(i).put(key, valuesMap);
 													pkqlMap.put("input", input);
+													break LOOP;
 												}
 											}
 										}break;
+										
+		case "Unfilter data in a column": thisReactor = new ColUnfilterReactor();
+										  pkqlMap = thisReactor.getPKQLMetaData();
+										  input = (List<HashMap<String, Object>>) pkqlMap.get("input");
+
+										  LOOP:
+										  for(int i=0; i<input.size(); i++){
+											  Set<String> inputSet = input.get(i).keySet();
+											  for(String key: inputSet){
+												  if(key.equals("values")){
+													  Map<String, Object> valuesMap = new HashMap<String, Object>();
+													  valuesMap.put("headers", dm.getColumnHeaders());																	
+													  input.get(i).put(key, valuesMap);
+													  pkqlMap.put("input", input);
+													  break LOOP;
+												  }
+											  }
+										  }break;
 		 default:break;
 											
 		}
