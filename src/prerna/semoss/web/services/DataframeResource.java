@@ -739,6 +739,41 @@ public class DataframeResource {
 		return Response.status(200).entity(WebUtility.getSO(returnMap)).build();
 	}
 	
+	/**
+	 * Method used to get the list of all available PKQL
+	 * @param 
+	 * @return
+	 */
+	@GET
+	@Path("/allPKQLs")
+	@Produces("application/json")
+	public Response getListOfAllPKQLs(@Context HttpServletRequest request){
+
+		//fetch info from reactors - AbstractReactor
+		System.out.println("Fetching list of all PKQL commands");
+
+		Map<String, Object> returnMap = new HashMap<String, Object>();
+		List pkqls = new ArrayList();
+		IScriptReactor thisReactor = null;	
+
+		//get the datamaker for current insight, and fetch all the reactors for it
+		Map<String, String> reactors = this.insight.getDataMaker().getScriptReactors();
+
+		for(String reactor: reactors.keySet()){
+			String reactorName = reactors.get(reactor);
+			try {
+				thisReactor = (IScriptReactor)Class.forName(reactorName).newInstance();
+				if(((AbstractReactor) thisReactor).getPKQLMetaData() != null)
+					pkqls.add(((AbstractReactor) thisReactor).getPKQL());
+			} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+				System.out.println("Exception in instantiating " +reactorName);
+				e.printStackTrace();
+			}				
+		}
+		returnMap.put("pkql", pkqls);
+		return Response.status(200).entity(WebUtility.getSO(returnMap)).build();
+	}
+	
 	@GET
 	@Path("/isDbInsight")
 	@Produces("application/json")
