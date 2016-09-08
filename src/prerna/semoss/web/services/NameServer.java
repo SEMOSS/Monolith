@@ -1500,22 +1500,22 @@ public class NameServer {
 //							dmcList.add(dmc);
 //							existingInsight.setDataMakerComponents(dmcList);
 //						} else {
-//							// otherwise, grab the serialization if it is there
-//							dm = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getDMCache(existingInsight);
+							// otherwise, grab the serialization if it is there
+						IDataMaker dm = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getDMCache(existingInsight);
 //						}
-//						
-//						if(dm != null) {
-//							// this means the serialization was good and pushing it into the insight object
-//							existingInsight.setDataMaker(dm);
-//						} else {
-							// this means the serialization has never occurred
-							// could be because hasn't happened, or could be because it is not a tinker frame
+						
+						if(dm != null) {
+							// this means the serialization was good and pushing it into the insight object
+							existingInsight.setDataMaker(dm);
+						} else {
+//							 this means the serialization has never occurred
+//							 could be because hasn't happened, or could be because it is not a tinker frame
 							InsightCreateRunner run = new InsightCreateRunner(existingInsight);
 							Map<String, Object> webData = run.runWeb();
 							// try to serialize
 							// this will do nothing if not a tinker frame
 							CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(existingInsight, webData);
-//						}
+						}
 					}
 				}
 			}
