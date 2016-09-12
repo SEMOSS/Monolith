@@ -360,6 +360,10 @@ public class DataframeResource {
 	{
 		ITableDataFrame dm = (ITableDataFrame) insight.getDataMaker();
 
+		if(startRow == null)
+			startRow = 0;
+		if(endRow == null)
+			endRow = 500;
 		Gson gson = new Gson();
 		Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
 		String concept = null;
@@ -398,13 +402,14 @@ public class DataframeResource {
 		options.put(TinkerFrame.DE_DUP, true);
 
 		Iterator<Object[]> it = dm.iterator(true, options);
-		while(it.hasNext()) {
-			table.add(it.next());
-		}
+		//while(it.hasNext()) {
+		//	table.add(it.next());
+		//}
 
-		returnData.put("data", table);
+		//returnData.put("data", table);
 
-		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+		//return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+		return Response.status(200).entity(WebUtility.getSO(insight.getInsightID(), dm.getColumnHeaders(), it)).build();
 	}
 
 	@POST

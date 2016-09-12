@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.util.Iterator;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.StreamingOutput;
@@ -71,4 +72,49 @@ public class WebUtility {
         return null;
 		
 	}
+	
+	public static StreamingOutput getSO(String insightId, String [] headers, Iterator iterator)
+	{
+        if(iterator != null)
+        {
+               Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
+               try {
+                     return new StreamingOutput() {
+                         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+                        	 boolean firstTime = true;
+                        		 
+                             try(
+                          		   PrintStream ps = new PrintStream(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
+                                )
+                                {
+                            	 String headerStr ="{\"headers\": "; 
+                        		 ps.print(headerStr);
+                        		 String headerOutput = gson.toJson(headers);
+                        		 ps.print(headerOutput);
+                        		 
+                        		 ps.flush();
+
+                        		 ps.print(", \"data\": [");
+                        		 ps.flush();
+                        		 while(iterator.hasNext())
+                        		 {
+                        			 Object obj = iterator.next();
+                            		 ps.print(gson.toJson(obj));
+                            		 if(iterator.hasNext())
+                            			 ps.print(", ");                            		 
+                            		 ps.flush();
+                        		 }
+                        		 byte[] insight = new String("] , \"insightID\": \"" + insightId + "\" }").getBytes("UTF8");
+                        		 ps.write(insight, 0 , insight.length);
+                        		 ps.flush();
+                             }
+                          }};
+               } catch (Exception e) {
+                     logger.error("Failed to write object to stream");
+               }      
+        }
+        return null;
+		
+	}
+
 }
