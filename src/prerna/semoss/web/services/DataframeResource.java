@@ -498,7 +498,7 @@ public class DataframeResource {
 			return Response.status(200).entity(WebUtility.getSO(((GraphDataModel)maker).getDataMakerOutput())).build();
 		} else if(maker instanceof H2Frame) {
 			//convert to tinker then return
-			TinkerFrame tframe = TableDataFrameFactory.convertToTinkerFrame((H2Frame)maker);
+			TinkerFrame tframe = TableDataFrameFactory.convertToTinkerFrameForGraph((H2Frame)maker);
 			return Response.status(200).entity(WebUtility.getSO(tframe.getGraphOutput())).build();
 		}
 		else
