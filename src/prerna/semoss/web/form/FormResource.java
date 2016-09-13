@@ -22,7 +22,7 @@ import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/form")
@@ -33,7 +33,7 @@ public class FormResource {
 	private IEngine formBuilderEng;
 	
 	public FormResource() {
-		this.formBuilderEng = (IEngine) DIHelper.getInstance().getLocalProp(FORM_BUILDER_ENGINE_NAME);
+		this.formBuilderEng = Utility.getEngine(FORM_BUILDER_ENGINE_NAME);
 	}
 	
 	
