@@ -2,11 +2,11 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.semoss</groupId>
-	<artifactId>Monolith_Dev</artifactId>
+	<artifactId>Monolith</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>war</packaging>
-	<name>Monolith_Dev</name>
-	<description>SEMOSS Monolith_Dev</description>
+	<name>Monolith</name>
+	<description>SEMOSS Monolith</description>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
 		<plugins>
@@ -2022,5 +2022,15 @@
 	    <version>3.20.0-GA</version>
 	</dependency> 
 	
+	<dependency>
+		<groupId>org.twitter4j</groupId>
+		<artifactId>twitter4j-core</artifactId>
+		<version>4.0.4</version>
+	</dependency>
+	<dependency>
+    	<groupId>org.owasp.esapi</groupId>
+    	<artifactId>esapi</artifactId>
+    	<version>2.1.0.1</version>
+	</dependency>
 	</dependencies>
 </project>
