@@ -639,9 +639,9 @@ public class DataframeResource {
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 
-	/**
+/*	*//**
 	 * Method used to get the structure for a specific PKQL command 
-	 */
+	 *//*
 	@GET
 	@Path("/predictPKQL")
 	@Produces("application/json")
@@ -665,9 +665,9 @@ public class DataframeResource {
 												for(String key: inputSet){
 													if(key.equals("values")){
 														Map<String, Object> valuesMap = new HashMap<String, Object>();
-														Map<String, Object> options = new HashMap<String, Object>();
-														List<Object[]> data = new Vector<Object[]>();
 														valuesMap.put("headers", dm.getColumnHeaders());
+														Map<String, Object> options = new HashMap<String, Object>();
+														List<Object[]> data = new Vector<Object[]>();														
 														options.put(TinkerFrame.SELECTORS, Arrays.asList(dm.getColumnHeaders()));
 														options.put(TinkerFrame.DE_DUP, true);//no duplicates
 														Iterator<Object[]> it = dm.iterator(true, options);
@@ -744,11 +744,11 @@ public class DataframeResource {
 		return Response.status(200).entity(WebUtility.getSO(returnMap)).build();
 	}
 	
-	/**
+	*//**
 	 * Method used to get the list of all available PKQL
 	 * @param 
 	 * @return
-	 */
+	 *//*
 	@GET
 	@Path("/allPKQLs")
 	@Produces("application/json")
@@ -777,7 +777,7 @@ public class DataframeResource {
 		}
 		returnMap.put("pkql", pkqls);
 		return Response.status(200).entity(WebUtility.getSO(returnMap)).build();
-	}
+	}*/
 	
 	@GET
 	@Path("/isDbInsight")
