@@ -120,15 +120,18 @@ public class DBAdminResource {
 		else if(enginesString!=null){
 			Vector<String> engines = gson.fromJson(enginesString, Vector.class);
 			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+			ArrayList<String> ownedEngines = permissions.getUserOwnedEngines(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
 			for(String engineString: engines){
 				IEngine engine = getEngine(engineString, request);
-				deleteEngine(engine, request);
 				if(this.securityEnabled) {
-					if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
+					if(ownedEngines.contains(engineString)) {
+						deleteEngine(engine, request);
 						permissions.deleteEngine(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), engineString);
 					} else {
-						return Response.status(400).entity("Please log in to delete databases.").build();
+						return Response.status(400).entity("You do not have access to delete this database.").build();
 					}
+				} else {
+					deleteEngine(engine, request);
 				}
 			}
 		}
