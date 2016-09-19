@@ -178,9 +178,6 @@ public class DataframeResource {
 		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
 		list.add(pkql);
 
-		//		if(pkqlCmd.contains("data.maker("){
-		//			
-		//		}
 
 		insight.processPostTransformation(list);
 		insight.syncPkqlRunnerAndFrame(runner);
