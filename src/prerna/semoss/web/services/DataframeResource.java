@@ -2,7 +2,6 @@ package prerna.semoss.web.services;
 
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,18 +38,12 @@ import prerna.ds.TinkerFrame;
 import prerna.ds.H2.H2Frame;
 import prerna.ds.nativeframe.NativeFrame;
 import prerna.engine.api.IEngine;
-import prerna.engine.api.IScriptReactor;
 import prerna.equation.EquationSolver;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSVertex;
 import prerna.poi.main.InsightFilesToDatabaseReader;
-import prerna.sablecc.AbstractReactor;
-import prerna.sablecc.ColAddReactor;
-import prerna.sablecc.ColFilterReactor;
-import prerna.sablecc.ColSplitReactor;
-import prerna.sablecc.ColUnfilterReactor;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc.meta.FilePkqlMetadata;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
@@ -178,10 +171,13 @@ public class DataframeResource {
 		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
 		list.add(pkql);
 
-
-		insight.processPostTransformation(list);
-		insight.syncPkqlRunnerAndFrame(runner);
-		Map resultHash = insight.getPKQLData(true);
+		Map resultHash = null;
+		//synchronize applyCalc calls for each insight to prevent interference during calculation
+		synchronized(insight) {
+			insight.processPostTransformation(list);
+			insight.syncPkqlRunnerAndFrame(runner);
+			resultHash = insight.getPKQLData(true);
+		}
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
 	}
 
