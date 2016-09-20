@@ -1240,20 +1240,17 @@ public class DatabaseUploader extends Uploader {
 	@Path("/rdbms/connect")
 	@Produces("application/json")
 	public Response connectExistingRDBMS(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-
 		Gson gson = new Gson();
-		HashMap<String, Object> ret = new HashMap<String, Object>();
-		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
-		HashMap<String, Object> metamodel = new HashMap<String, Object>();
-		HashMap<String, ArrayList<String>> nodesAndProps = new HashMap<String, ArrayList<String>>();
-		ArrayList<String[]> nodeRelationships = new ArrayList<String[]>();
-
+		HashMap<String, Object> ret = new HashMap<String, Object>(1);
+		ImportDataProcessor importer = new ImportDataProcessor();
+		HashMap<String, Object> metamodel = new HashMap<String, Object>(2);
 		HashMap<String, Object> details = gson.fromJson(form.getFirst("details"), new TypeToken<HashMap<String, Object>>() {}.getType());		
-		HashMap<String, String> options = gson.fromJson(gson.toJson(details.get("options")), new TypeToken<HashMap<String, Object>>() {}.getType());
 		HashMap<String, String> metamodelData = gson.fromJson(gson.toJson(details.get("metamodelData")), new TypeToken<HashMap<String, Object>>() {}.getType());
-		HashMap<String, String> databaseOptions = gson.fromJson(gson.toJson(details.get("databaseOptions")), new TypeToken<HashMap<String, String>>() {}.getType());
-
 		ArrayList<Object> nodes = gson.fromJson(gson.toJson(metamodelData.get("nodes")), new TypeToken<ArrayList<Object>>() {}.getType());
+		ArrayList<Object> relationships = gson.fromJson(gson.toJson(metamodelData.get("relationships")), new TypeToken<ArrayList<Object>>() {}.getType());
+		HashMap<String, ArrayList<String>> nodesAndProps = new HashMap<String, ArrayList<String>>(nodes.size());
+		ArrayList<String[]> nodeRelationships = new ArrayList<String[]>(relationships.size());
+
 		for(Object o: nodes) {
 			ArrayList<String> props = new ArrayList<String>();
 			HashMap<String, Object> nodeHash = gson.fromJson(gson.toJson(o), new TypeToken<HashMap<String, Object>>() {}.getType());
@@ -1265,21 +1262,52 @@ public class DatabaseUploader extends Uploader {
 		}
 		metamodel.put("nodes", nodesAndProps);
 
-		ArrayList<Object> relationships = gson.fromJson(gson.toJson(metamodelData.get("relationships")), new TypeToken<ArrayList<Object>>() {}.getType());
 		for(Object o: relationships) {
 			HashMap<String, String> relationship = gson.fromJson(gson.toJson(o), new TypeToken<HashMap<String, String>>() {}.getType());
 			nodeRelationships.add(new String[] { relationship.get("sub"), relationship.get("pred"), relationship.get("obj") });
 		}
 		metamodel.put("relationships", nodeRelationships);
+		
+		HashMap<String, String> databaseOptions = gson.fromJson(gson.toJson(details.get("databaseOptions")), new TypeToken<HashMap<String, String>>() {}.getType());
+		HashMap<String, String> options = gson.fromJson(gson.toJson(details.get("options")), new TypeToken<HashMap<String, Object>>() {}.getType());
+		options.put("dbName", makeAlphaNumeric(databaseOptions.get("databaseName")));
+		ImportOptions importOptions = setupImportOptionsForExternalConnection(options, metamodel);
 
-		boolean success = importer.addNewRDBMS(options.get("driver"), options.get("hostname"), options.get("port"), options.get("username"), options.get("password"), options.get("schema"), makeAlphaNumeric(databaseOptions.get("databaseName")), metamodel);
-
+		boolean success = true;
+		try {
+			importer.runProcessor(importOptions);
+		} catch (Exception e) {
+			success = false;
+			e.printStackTrace();
+		}
+		
 		ret.put("success", success);
 		if(success) {
 			return Response.status(200).entity(gson.toJson(ret)).build();
 		} else {
 			return Response.status(400).entity(gson.toJson(ret)).build();
 		}
+	}
+	
+	// TODO: refactor this into setDefaultOptions
+	private ImportOptions setupImportOptionsForExternalConnection(HashMap<String, String> options, HashMap<String, Object> externalMetamodel) {
+		ImportOptions importOptions = new ImportOptions();
+		importOptions.setBaseFolder(DIHelper.getInstance().getProperty("BaseFolder"));
+		importOptions.setDbType(ImportOptions.DB_TYPE.RDBMS);
+		importOptions.setImportMethod(ImportOptions.IMPORT_METHOD.CONNECT_TO_EXISTING_RDBMS);
+		importOptions.setImportType(ImportOptions.IMPORT_TYPE.EXTERNAL_RDBMS);
+		importOptions.setAutoLoad(autoLoad);
+		importOptions.setAllowDuplicates(true);
+		importOptions.setDbName(options.get("dbName"));
+		importOptions.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.valueOf(options.get("driver")));
+		importOptions.setHost(options.get("hostname"));
+		importOptions.setPort(options.get("port"));
+		importOptions.setSchema(options.get("schema"));
+		importOptions.setUsername(options.get("username"));
+		importOptions.setPassword(options.get("password"));
+		importOptions.setExternalMetamodel(externalMetamodel);
+		
+		return importOptions;
 	}
 
 	@POST
@@ -1289,12 +1317,12 @@ public class DatabaseUploader extends Uploader {
 
 		Gson gson = new Gson();
 		String driver = gson.fromJson(form.getFirst("driver"), String.class);
-		String hostname = gson.fromJson(form.getFirst("hostname"), String.class);
+		String hostname = form.getFirst("hostname");
 		String port = gson.fromJson(form.getFirst("port"), String.class);
 		String username = gson.fromJson(form.getFirst("username"), String.class);
 		String password = gson.fromJson(form.getFirst("password"), String.class);
 		String schema = gson.fromJson(form.getFirst("schema"), String.class);
-		String connectionURL = gson.fromJson(form.getFirst("connectionURL"), String.class);
+//		String connectionURL = gson.fromJson(form.getFirst("connectionURL"), String.class);
 
 		HashMap<String, Object> ret = new HashMap<String, Object>();
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
