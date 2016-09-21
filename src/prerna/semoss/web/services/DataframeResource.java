@@ -379,18 +379,19 @@ public class DataframeResource {
 			options.put(TinkerFrame.LIMIT, endRow);
 		}
 
-		Map<String, Object> returnData = new HashMap<String, Object>();
-		returnData.put("insightID", insight.getInsightID());
+//		Map<String, Object> returnData = new HashMap<String, Object>();
+//		returnData.put("insightID", insight.getInsightID());
 
-		List<Object[]> table = new Vector<Object[]>();
+//		List<Object[]> table = new Vector<Object[]>();
 		List<String> selectors = gson.fromJson(form.getFirst("selectors"), new TypeToken<List<String>>() {}.getType());
 
 		if(selectors.isEmpty()) {
 			options.put(TinkerFrame.SELECTORS, Arrays.asList(dm.getColumnHeaders()));
-			returnData.put("headers", dm.getColumnHeaders());
+//			returnData.put("headers", dm.getColumnHeaders());
+			selectors = Arrays.asList(dm.getColumnHeaders());
 		} else {
 			options.put(TinkerFrame.SELECTORS, selectors);
-			returnData.put("headers", selectors);
+//			returnData.put("headers", selectors);
 		}
 		options.put(TinkerFrame.DE_DUP, true);
 
@@ -401,8 +402,8 @@ public class DataframeResource {
 
 		//returnData.put("data", table);
 
-		//return Response.status(200).entity(WebUtility.getSO(returnData)).build();
-		return Response.status(200).entity(WebUtility.getSO(insight.getInsightID(), dm.getColumnHeaders(), it)).build();
+//		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+		return Response.status(200).entity(WebUtility.getSO(insight.getInsightID(), selectors.toArray(new String[]{}), it)).build();
 	}
 
 	@POST
