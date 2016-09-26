@@ -78,15 +78,19 @@ public class DataframeResource {
 		String id = insight.getInsightID();
 		String dmName = insight.getDataMakerName();
 		String engName = insight.getEngineName();
+		String rdbmsId = insight.getRdbmsId();
+		
 		IEngine eng = null;
 		if(engName != null){
-			eng = (IEngine) DIHelper.getInstance().getLocalProp(engName);
+			eng = Utility.getEngine(engName);//(IEngine) DIHelper.getInstance().getLocalProp(engName);
 		}
 		String layoutName = insight.getOutput();
 
 		this.insight = new Insight(eng, dmName, layoutName);
 		this.insight.getDataMaker(); // need to instatiate datamaker so next call doesn't try to get it from cache
 		this.insight.setInsightID(id);
+		this.insight.setRdbmsId(rdbmsId);
+		
 		InsightStore.getInstance().put(id, insight);
 
 		return Response.status(200).entity(WebUtility.getSO("Insight " + id + " has been cleared")).build();
