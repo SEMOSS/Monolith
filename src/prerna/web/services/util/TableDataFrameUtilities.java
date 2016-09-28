@@ -147,7 +147,7 @@ public final class TableDataFrameUtilities {
 			columnMap.put(columnHeaders[i], i);
 		}
 		
-		Iterator<Object[]> iterator = table.iterator(false);
+		Iterator<Object[]> iterator = table.iterator();
 		int numRows = table.getNumRows();
 		Set<String> comboSet = new HashSet<String>(numRows);
 		int rowCount = 1;
