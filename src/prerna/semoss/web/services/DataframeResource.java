@@ -2,6 +2,7 @@ package prerna.semoss.web.services;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,6 +40,7 @@ import prerna.ds.H2.H2Frame;
 import prerna.ds.nativeframe.NativeFrame;
 import prerna.engine.api.IEngine;
 import prerna.equation.EquationSolver;
+import prerna.om.Dashboard;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -79,6 +81,8 @@ public class DataframeResource {
 		String dmName = insight.getDataMakerName();
 		String engName = insight.getEngineName();
 		String rdbmsId = insight.getRdbmsId();
+		Insight parentInsight = insight.getParentInsight();
+		int dataId = insight.getDataMaker().getDataId();
 		
 		IEngine eng = null;
 		if(engName != null){
@@ -90,6 +94,17 @@ public class DataframeResource {
 		this.insight.getDataMaker(); // need to instatiate datamaker so next call doesn't try to get it from cache
 		this.insight.setInsightID(id);
 		this.insight.setRdbmsId(rdbmsId);
+		this.insight.setParentInsight(parentInsight);
+		if(this.insight.isJoined()) {
+			Dashboard dashboard = (Dashboard)parentInsight.getDataMaker();
+			List<Insight> insights = new ArrayList<>(1);
+			insights.add(this.insight);
+			dashboard.addInsights(insights);
+		}
+		
+		while(dataId >= insight.getDataMaker().getDataId()) {
+			this.insight.getDataMaker().updateDataId();
+		}
 		
 		InsightStore.getInstance().put(id, insight);
 
@@ -190,19 +205,23 @@ public class DataframeResource {
 	@Produces("application/json")
 	public Response dropInsight(@Context HttpServletRequest request){
 		String insightID = insight.getInsightID();
-		if(insight.isJoined()){
-			insight.unJoin();
-		}
+//		if(insight.isJoined()){
+//			insight.unJoin();
+//		}
 		logger.info("Dropping insight with id ::: " + insightID);
 		boolean success = InsightStore.getInstance().remove(insightID);
 		InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
-		if(insight.getDataMaker() instanceof H2Frame) {
-			H2Frame frame = (H2Frame)insight.getDataMaker();
+		IDataMaker dm = insight.getDataMaker();
+		if(dm instanceof H2Frame) {
+			H2Frame frame = (H2Frame)dm;
 			frame.closeRRunner();
 			frame.dropTable();
-		} else if(insight.getDataMaker() instanceof NativeFrame) {
-			NativeFrame frame = (NativeFrame) insight.getDataMaker();
+		} else if(dm instanceof NativeFrame) {
+			NativeFrame frame = (NativeFrame) dm;
 			frame.close();
+		} else if(dm instanceof Dashboard) {
+			Dashboard dashboard = (Dashboard)dm;
+			dashboard.dropDashboard();
 		}
 
 		if(success) {
