@@ -93,7 +93,10 @@ public class DataframeResource {
 		this.insight = new Insight(eng, dmName, layoutName);
 		this.insight.getDataMaker(); // need to instatiate datamaker so next call doesn't try to get it from cache
 		this.insight.setInsightID(id);
-		this.insight.setRdbmsId(rdbmsId);
+		if(rdbmsId != null) {
+			this.insight.setRdbmsId(rdbmsId);
+		}
+		
 		this.insight.setParentInsight(parentInsight);
 		if(this.insight.isJoined()) {
 			Dashboard dashboard = (Dashboard)parentInsight.getDataMaker();
