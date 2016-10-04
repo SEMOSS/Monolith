@@ -53,7 +53,6 @@ import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.MathTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.TableDataFrameUtilities;
 import prerna.web.services.util.WebUtility;
@@ -219,6 +218,9 @@ public class DataframeResource {
 			H2Frame frame = (H2Frame)dm;
 			frame.closeRRunner();
 			frame.dropTable();
+			if(!frame.isInMem()) {
+				frame.dropOnDiskTemporalSchema();
+			}
 		} else if(dm instanceof NativeFrame) {
 			NativeFrame frame = (NativeFrame) dm;
 			frame.close();
