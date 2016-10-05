@@ -1273,6 +1273,18 @@ public class DatabaseUploader extends Uploader {
 		options.put("dbName", makeAlphaNumeric(databaseOptions.get("databaseName")));
 		ImportOptions importOptions = setupImportOptionsForExternalConnection(options, metamodel);
 
+		// add engine owner for permissions
+		if(this.securityEnabled) {
+			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+				addEngineOwner(options.get("dbName") + "", ((User) user).getId());
+			} else {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Please log in to upload data.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
+			}
+		}
+		
 		boolean success = true;
 		try {
 			importer.runProcessor(importOptions);
