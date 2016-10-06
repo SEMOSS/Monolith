@@ -37,7 +37,6 @@ import prerna.ds.Probablaster;
 import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
 import prerna.ds.H2.H2Frame;
-import prerna.ds.nativeframe.NativeFrame;
 import prerna.engine.api.IEngine;
 import prerna.equation.EquationSolver;
 import prerna.om.Dashboard;
@@ -221,13 +220,16 @@ public class DataframeResource {
 			if(!frame.isInMem()) {
 				frame.dropOnDiskTemporalSchema();
 			}
-		} else if(dm instanceof NativeFrame) {
-			NativeFrame frame = (NativeFrame) dm;
-			frame.close();
 		} else if(dm instanceof Dashboard) {
 			Dashboard dashboard = (Dashboard)dm;
 			dashboard.dropDashboard();
-		}
+		} 
+		// native frame just holds a QueryStruct on an engine
+		// nothing to do
+//		else if(dm instanceof NativeFrame) {
+//			NativeFrame frame = (NativeFrame) dm;
+//			frame.close();
+//		} 
 
 		if(success) {
 			logger.info("Succesfully dropped insight " + insightID);
