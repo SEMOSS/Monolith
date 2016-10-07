@@ -32,6 +32,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
+import prerna.ds.AbstractTableDataFrame;
 import prerna.ds.BTreeDataFrame;
 import prerna.ds.Probablaster;
 import prerna.ds.TableDataFrameFactory;
@@ -400,13 +401,13 @@ public class DataframeResource {
 				if(orderDirection == null || orderDirection.isEmpty()) {
 					orderDirection = "asc";
 				}
-				options.put(TinkerFrame.SORT_BY, concept);
-				options.put(TinkerFrame.SORT_BY_DIRECTION, orderDirection);
+				options.put(AbstractTableDataFrame.SORT_BY, concept);
+				options.put(AbstractTableDataFrame.SORT_BY_DIRECTION, orderDirection);
 			}
 		}
 		if(startRow >= 0 && endRow > startRow) {
-			options.put(TinkerFrame.OFFSET, startRow);
-			options.put(TinkerFrame.LIMIT, endRow);
+			options.put(AbstractTableDataFrame.OFFSET, startRow);
+			options.put(AbstractTableDataFrame.LIMIT, endRow);
 		}
 
 //		Map<String, Object> returnData = new HashMap<String, Object>();
@@ -416,14 +417,14 @@ public class DataframeResource {
 		List<String> selectors = gson.fromJson(form.getFirst("selectors"), new TypeToken<List<String>>() {}.getType());
 
 		if(selectors.isEmpty()) {
-			options.put(TinkerFrame.SELECTORS, Arrays.asList(dm.getColumnHeaders()));
+			options.put(AbstractTableDataFrame.SELECTORS, Arrays.asList(dm.getColumnHeaders()));
 //			returnData.put("headers", dm.getColumnHeaders());
 			selectors = Arrays.asList(dm.getColumnHeaders());
 		} else {
-			options.put(TinkerFrame.SELECTORS, selectors);
+			options.put(AbstractTableDataFrame.SELECTORS, selectors);
 //			returnData.put("headers", selectors);
 		}
-		options.put(TinkerFrame.DE_DUP, true);
+		options.put(AbstractTableDataFrame.DE_DUP, true);
 
 		Iterator<Object[]> it = dm.iterator(options);
 		//while(it.hasNext()) {
