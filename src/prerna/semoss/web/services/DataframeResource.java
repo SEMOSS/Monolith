@@ -38,6 +38,7 @@ import prerna.ds.Probablaster;
 import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
 import prerna.ds.H2.H2Frame;
+import prerna.ds.nativeframe.NativeFrame;
 import prerna.engine.api.IEngine;
 import prerna.equation.EquationSolver;
 import prerna.om.Dashboard;
@@ -524,6 +525,12 @@ public class DataframeResource {
 		} else if(maker instanceof H2Frame) {
 			//convert to tinker then return
 			TinkerFrame tframe = TableDataFrameFactory.convertToTinkerFrameForGraph((H2Frame)maker);
+			return Response.status(200).entity(WebUtility.getSO(tframe.getGraphOutput())).build();
+		} 
+		
+		else if(maker instanceof NativeFrame) {
+			H2Frame frame = TableDataFrameFactory.convertToH2FrameFromNativeFrame((NativeFrame)maker);
+			TinkerFrame tframe = TableDataFrameFactory.convertToTinkerFrameForGraph((H2Frame)frame);
 			return Response.status(200).entity(WebUtility.getSO(tframe.getGraphOutput())).build();
 		}
 		else
