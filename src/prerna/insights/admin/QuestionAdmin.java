@@ -276,11 +276,13 @@ public class QuestionAdmin {
 			//add list of new filter transformations to the last component
 			List<ISEMOSSTransformation> oldPostTrans = null;
 			if(dmcList.size() > 0) {
-			DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
-			List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
-			oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
-			List<FilterTransformation> trans2add = flushFilterModel2Transformations((ITableDataFrame) dm);
-			newPostTrans.addAll(trans2add);
+				DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
+				List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
+				oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
+				List<FilterTransformation> trans2add = flushFilterModel2Transformations((ITableDataFrame) dm);
+				if(trans2add != null) {
+					newPostTrans.addAll(trans2add);
+				}
 			}
 			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
@@ -837,21 +839,24 @@ public class QuestionAdmin {
 	 * Creates a list of filter transformations based on the filter model
 	 */
 	private List<FilterTransformation> flushFilterModel2Transformations(ITableDataFrame table) {
+		List<FilterTransformation> transformationList = null;
+
 		Map<String, Object[]> filterModel = table.getFilterTransformationValues();
-		Set<String> columns = filterModel.keySet();
-		List<FilterTransformation> transformationList = new ArrayList<>(columns.size());
-		for(String column : columns) {
-		
-			FilterTransformation filterTrans = new FilterTransformation();
-			filterTrans.setTransformationType(false);
-			Map<String, Object> selectedOptions = new HashMap<String, Object>();
-			selectedOptions.put(FilterTransformation.COLUMN_HEADER_KEY, column);
-			selectedOptions.put(FilterTransformation.VALUES_KEY, filterModel.get(column));
-			filterTrans.setProperties(selectedOptions);
-		
-			transformationList.add(filterTrans);
+		if(filterModel != null) {
+			Set<String> columns = filterModel.keySet();
+			transformationList = new ArrayList<>(columns.size());
+			for(String column : columns) {
+			
+				FilterTransformation filterTrans = new FilterTransformation();
+				filterTrans.setTransformationType(false);
+				Map<String, Object> selectedOptions = new HashMap<String, Object>();
+				selectedOptions.put(FilterTransformation.COLUMN_HEADER_KEY, column);
+				selectedOptions.put(FilterTransformation.VALUES_KEY, filterModel.get(column));
+				filterTrans.setProperties(selectedOptions);
+			
+				transformationList.add(filterTrans);
+			}
 		}
-		
 		return transformationList;
 
 	}
