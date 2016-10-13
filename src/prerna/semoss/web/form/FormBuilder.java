@@ -86,6 +86,7 @@ public final class FormBuilder {
 		String idsString = createIdString(formIds);
 		String deleteQuery = "DELETE FROM " + formName + " WHERE ID IN " + idsString;
 		formBuilderEng.removeData(deleteQuery);
+		formBuilderEng.commit();
 	}
 
 	private static String createIdString(String... ids){
@@ -125,6 +126,7 @@ public final class FormBuilder {
 		//create new table to store values for form name
 		String createFormTable = "CREATE TABLE " + formStorage + " (ID INT, USER_ID VARCHAR(225), DATE_ADDED TIMESTAMP, DATA CLOB)";
 		formBuilderEng.insertData(createFormTable);
+		formBuilderEng.commit();
 	}
 
 	public static void saveFormData(IEngine formBuilderEng, String formTableName, String userId, String formData) {
@@ -143,6 +145,7 @@ public final class FormBuilder {
 		String insertSql = "INSERT INTO " + formTableName + " (ID, USER_ID, DATE_ADDED, DATA) VALUES("
 				+ "'" + lastIdNum + "', '" + RDBMSEngineCreationHelper.escapeForSQLStatement(userId) + "', '" + currTime + "', '" + RDBMSEngineCreationHelper.escapeForSQLStatement(formData) + "')";
 		formBuilderEng.insertData(insertSql);
+		formBuilderEng.commit();
 	}
 
 	/**
@@ -211,6 +214,7 @@ public final class FormBuilder {
 		}
 
 		//commit information to db
+		formEng.commit();
 		engine.commit();
 	}
 	

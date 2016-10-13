@@ -836,12 +836,14 @@ public class DataframeResource {
 	public Response saveFilesUsedInInsightIntoDb(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		// we need to create a full db now
 		// do it based on the csv file name and the date
-					
+		logger.info("Start loading files in insight into database");
+		
 		String engineName = form.getFirst("engineName");
 		IEngine createdEng = null;
 		InsightFilesToDatabaseReader creator = new InsightFilesToDatabaseReader();
 		try {
 			createdEng = creator.processInsightFiles(insight, engineName);
+			logger.info("Done loading files in insight into database");
 		} catch (IOException e) {
 			e.printStackTrace();
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -852,7 +854,9 @@ public class DataframeResource {
 			errorMap.put("errorMessage", errorMessage);
 			return Response.status(200).entity(WebUtility.getSO(errorMap)).build();
 		}
-		
+
+		logger.info("Start modifying PKQL to query of new engine");
+
 		List<FilePkqlMetadata> filesMetadata = insight.getFilesMetadata();
 		
 		// need to align each file to the table that was created from it
@@ -934,6 +938,8 @@ public class DataframeResource {
 			// still assuming it is a nonDbInsight
 			pkqlTrans.setPkql(newPkqlRun);
 		}
+
+		logger.info("Done modifying PKQL to query of new engine");
 
 		// clear the files since they are now loaded into the engine
 		filesMetadata.clear();
