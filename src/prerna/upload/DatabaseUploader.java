@@ -428,6 +428,9 @@ public class DatabaseUploader extends Uploader {
 				
 				// add the info to the metamodel data to send
 				metaModelData.add(fileMetaModelData);
+				
+				// need to clsoe the helper
+				helper.clear();
 			}
 		} catch(Exception e) { 
 			e.printStackTrace();
