@@ -408,7 +408,7 @@ public class DataframeResource {
 		}
 		if(startRow >= 0 && endRow > startRow) {
 			options.put(AbstractTableDataFrame.OFFSET, startRow);
-			options.put(AbstractTableDataFrame.LIMIT, endRow);
+			options.put(AbstractTableDataFrame.LIMIT, (endRow - startRow));
 		}
 
 //		Map<String, Object> returnData = new HashMap<String, Object>();
