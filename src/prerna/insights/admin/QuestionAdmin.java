@@ -197,6 +197,7 @@ public class QuestionAdmin {
 			}
 			newInsightID = addInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
 			insight.setRdbmsId(newInsightID);
+			insight.setMainEngine(this.coreEngine);
 			Map<String, Object> retMap = new HashMap<String, Object>();
 //			retMap.put("newInsightID", newInsightID);
 			retMap.put("core_engine", this.coreEngine.getEngineName());
