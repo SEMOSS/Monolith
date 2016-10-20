@@ -197,7 +197,10 @@ public class QuestionAdmin {
 			}
 			newInsightID = addInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
 			Map<String, Object> retMap = new HashMap<String, Object>();
-			retMap.put("newInsightID", newInsightID);
+//			retMap.put("newInsightID", newInsightID);
+			retMap.put("core_engine", this.coreEngine.getEngineName());
+			retMap.put("core_engine_id", newInsightID);
+			retMap.put("insightName", insightName);
 			if (newInsightID != null) {
 				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 			} else {
