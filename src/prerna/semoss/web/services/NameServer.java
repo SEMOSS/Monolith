@@ -103,6 +103,7 @@ import prerna.om.Dashboard;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.sablecc.PKQLRunner;
 import prerna.sablecc.services.DatabasePkqlService;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
@@ -1627,5 +1628,34 @@ public class NameServer {
 		
 		return WebUtility.getSO(ret);
 	}
+	
+	@POST
+	@Path("runPkql")
+	@Produces("application/json")
+	public StreamingOutput runPkql(MultivaluedMap<String, String> form ) {
+		/*
+		 * This is only used for calls that do not require us to hold state
+		 * Import to note that pkql that run in here should not touch a data farme
+		 */
+		String expression = form.getFirst("expression");
+		PKQLRunner runner = new PKQLRunner();
+		runner.runPKQL(expression);
+		
+		Map<String, Object> resultHash = new HashMap<String, Object>();
+		
+		// this is technically the only piece of information the FE needs
+		// but to keep the return consistent for them
+		// i am sending back the information in the same weird ordering
+		Map<String, Object> pkqlDataHash = new HashMap<String, Object>();
+		pkqlDataHash.put("pkqlData", runner.getResults());
+		
+		Object[] insightArr = new Object[1];
+		insightArr[0] = pkqlDataHash;
+		
+		resultHash.put("insights", insightArr);
+		
+		return WebUtility.getSO(resultHash);
+	}
+
 	
 }
