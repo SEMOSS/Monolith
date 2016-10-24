@@ -1702,45 +1702,6 @@ public class NameServer {
 		}
 	   
 
-	   @GET
-	   @Path("/trigger")
-	   @Produces("application/xml")
-	   public String trigger(@Context HttpServletRequest request) {
-		   System.out.println("Dropped in here >>>>>> 2" + "trigger");
-		   HttpSession session = request.getSession();
-		   final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
-
-		   if(myResponse != null) {
-			   System.out.println("Is the response done..  ? " + myResponse.isDone());
-			   myResponse.resume("Hello2222");
-			   myResponse.resume("Hola again");
-			   System.out.println("MyResponse is not null");
-			   /*
-			   Thread t = new Thread()
-			      {
-			         @Override
-			         public void run()
-			         {
-			            try
-			            {
-			            	System.out.println("Came into thread ");
-			               Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
-			               //jaxrs.
-			               Thread.sleep(1000);
-			               myResponse.resume(jaxrs);
-			            }
-			            catch (Exception e)
-			            {
-			               e.printStackTrace();
-			            }
-			         }
-			      };
-			      t.start();*/
-		   }
-	       //Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
-		   //myResponse.resume(jaxrs);
-		      return "Returned.. ";
-	      }   
 	
 	@POST
 	@Path("runPkql")
