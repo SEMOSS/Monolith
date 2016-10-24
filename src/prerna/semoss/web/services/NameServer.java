@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.Vector;
+import java.util.concurrent.Executor;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -56,6 +57,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -77,11 +79,6 @@ import org.openrdf.model.vocabulary.OWL;
 import org.openrdf.model.vocabulary.RDF;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFParseException;
-
-import com.google.gson.Gson;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
-import com.hp.hpl.jena.vocabulary.RDFS;
 
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
@@ -105,6 +102,7 @@ import prerna.om.InsightStore;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc.services.DatabasePkqlService;
+import prerna.semoss.web.services.test.InMemoryHash;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
@@ -116,7 +114,16 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
+import prerna.web.services.util.ResponseHashSingleton;
+import prerna.web.services.util.SemossExecutorSingleton;
+import prerna.web.services.util.SemossThread;
 import prerna.web.services.util.WebUtility;
+
+import com.google.gson.Gson;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
+import com.hp.hpl.jena.vocabulary.RDFS;
+import com.sun.jersey.spi.inject.Inject;
 
 @Path("/engine")
 public class NameServer {
@@ -127,6 +134,9 @@ public class NameServer {
 	String output = "";
 	Hashtable helpHash = null;
 
+	@Inject
+	Executor executor;
+	
 	// gets the engine resource necessary for all engine calls
 	@Path("e-{engine}")
 	public Object getLocalDatabase(@PathParam("engine") String db, @QueryParam("api") String api,
@@ -1628,6 +1638,109 @@ public class NameServer {
 		
 		return WebUtility.getSO(ret);
 	}
+	   @GET
+	   @Path("/comet")
+	   @Produces("text/plain")
+	   public String cometTry(@Context HttpServletRequest request) {
+		   // I need to create a job id
+		   // then I need to start the thread with this job id
+		   // I need to keep the response in the response hash with this job id.. so when I have 
+		   SemossExecutorSingleton threader = SemossExecutorSingleton.getInstance();
+		   SemossThread newThread = new SemossThread(); 
+		   //newThread.setResponse(response);
+		   String jId = threader.execute(newThread);
+		   //ResponseHashSingleton.setResponse(jId, response);	
+		   ResponseHashSingleton.setThread(jId, newThread);	
+		   //request.getSession(true).setAttribute("JOB_ID", jId);
+		   return jId; // store this in session so the user doesn't need to provide this
+      }   
+	   
+	   @GET
+	   @Path("/joutput")
+	   @Produces("text/plain")
+	   public String getJobOutput(@QueryParam("jobId") String jobId, @Context HttpServletRequest request){
+			
+		   		String output = "Job Longer Available";
+			   //AsyncResponse myResponse = (AsyncResponse)ResponseHashSingleton.getResponseforJobId(jobId);
+			   if(ResponseHashSingleton.getThread(jobId) != null)
+			   {
+				   SemossThread thread = (SemossThread)ResponseHashSingleton.getThread(jobId);
+				   output = thread.getOutput() + "";
+			   }			   
+/*			   if(myResponse != null ) {
+				   System.out.println("Respons Done ? " + myResponse.isDone());
+				   System.out.println("Respons suspended ? " + myResponse.isSuspended());
+				   System.out.println("Is the response done..  ? " + myResponse.isDone());
+				   myResponse.resume("Hello2222");
+				   myResponse.resume("Hola again");
+				   System.out.println("MyResponse is not null");
+			   }
+*/			
+			return output;
+		}
+
+	   @GET
+	   @Path("/jkill")
+	   @Produces("application/xml")
+	   public void killJob(@QueryParam("jobId") String jobId, @Context HttpServletRequest request){
+			
+			   //AsyncResponse myResponse = (AsyncResponse)ResponseHashSingleton.getResponseforJobId(jobId);
+			   SemossThread thread = (SemossThread)ResponseHashSingleton.getThread(jobId);
+			   thread.setComplete(true);
+			   ResponseHashSingleton.removeThread(jobId);
+			   
+/*			   if(myResponse != null ) {
+				   System.out.println("Respons Done ? " + myResponse.isDone());
+				   System.out.println("Respons suspended ? " + myResponse.isSuspended());
+				   System.out.println("Is the response done..  ? " + myResponse.isDone());
+				   myResponse.resume("Hello2222");
+				   myResponse.resume("Hola again");
+				   System.out.println("MyResponse is not null");
+			   }
+*/			
+			//return thread.getOutput() + "";
+		}
+	   
+
+	   @GET
+	   @Path("/trigger")
+	   @Produces("application/xml")
+	   public String trigger(@Context HttpServletRequest request) {
+		   System.out.println("Dropped in here >>>>>> 2" + "trigger");
+		   HttpSession session = request.getSession();
+		   final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
+
+		   if(myResponse != null) {
+			   System.out.println("Is the response done..  ? " + myResponse.isDone());
+			   myResponse.resume("Hello2222");
+			   myResponse.resume("Hola again");
+			   System.out.println("MyResponse is not null");
+			   /*
+			   Thread t = new Thread()
+			      {
+			         @Override
+			         public void run()
+			         {
+			            try
+			            {
+			            	System.out.println("Came into thread ");
+			               Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
+			               //jaxrs.
+			               Thread.sleep(1000);
+			               myResponse.resume(jaxrs);
+			            }
+			            catch (Exception e)
+			            {
+			               e.printStackTrace();
+			            }
+			         }
+			      };
+			      t.start();*/
+		   }
+	       //Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
+		   //myResponse.resume(jaxrs);
+		      return "Returned.. ";
+	      }   
 	
 	@POST
 	@Path("runPkql")
