@@ -1223,12 +1223,12 @@ public class DatabaseUploader extends Uploader {
 		HashMap<String, ArrayList<String>> ret = new HashMap<String, ArrayList<String>>();
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
 
-		String driver = gson.fromJson(form.getFirst("driver"), String.class);
-		String hostname = gson.fromJson(form.getFirst("hostname"), String.class);
-		String port = gson.fromJson(form.getFirst("port"), String.class);
-		String username = gson.fromJson(form.getFirst("username"), String.class);
-		String password = gson.fromJson(form.getFirst("password"), String.class);
-		String schema = gson.fromJson(form.getFirst("schema"), String.class);
+		String driver = form.getFirst("driver");
+		String hostname = form.getFirst("hostname");
+		String port = form.getFirst("port");
+		String username = form.getFirst("username");
+		String password = form.getFirst("password");
+		String schema = form.getFirst("schema");
 		String connectionURL = gson.fromJson(form.getFirst("connectionURL"), String.class);
 
 		//		if(connectionURL != null && !connectionURL.isEmpty()) {
@@ -1331,12 +1331,12 @@ public class DatabaseUploader extends Uploader {
 	public Response testExistingRDBMSConnection(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 
 		Gson gson = new Gson();
-		String driver = gson.fromJson(form.getFirst("driver"), String.class);
+		String driver = form.getFirst("driver");
 		String hostname = form.getFirst("hostname");
-		String port = gson.fromJson(form.getFirst("port"), String.class);
-		String username = gson.fromJson(form.getFirst("username"), String.class);
-		String password = gson.fromJson(form.getFirst("password"), String.class);
-		String schema = gson.fromJson(form.getFirst("schema"), String.class);
+		String port = form.getFirst("port");
+		String username = form.getFirst("username");
+		String password = form.getFirst("password");
+		String schema = form.getFirst("schema");
 //		String connectionURL = gson.fromJson(form.getFirst("connectionURL"), String.class);
 
 		HashMap<String, Object> ret = new HashMap<String, Object>();
