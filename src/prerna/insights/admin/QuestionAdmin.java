@@ -101,6 +101,7 @@ public class QuestionAdmin {
 		String uiOptions = form.getFirst("uiOptions");
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		List<String> pkqlsToAdd = gson.fromJson(form.getFirst("pkqlsToAdd"), List.class);
+		List<String> saveRecipe = gson.fromJson(form.getFirst("saveRecipe"), List.class); //this is the recipe we want to save the insight as
 
 		Insight insight = InsightStore.getInstance().get(insightID);
 //		boolean isNonDbInsight = !insight.isDbInsight();
@@ -195,7 +196,32 @@ public class QuestionAdmin {
 					dmc.addPostTrans(pkqlToAdd, 0);
 				}
 			}
-			newInsightID = addInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
+			
+			//if the saveRecipe is passed, it means save the insight with this recipe
+			if(saveRecipe != null && !saveRecipe.isEmpty()) {
+				
+				//get a copy of the insight without the dmc components and insight id
+				Insight insightCopy = insight.emptyCopyForSave();
+				DataMakerComponent dmc = insightCopy.getLastComponent();
+				PKQLRunner runner = insight.getPKQLRunner();
+				
+				//add the pkqls in the copy
+				for(String recipePkql : saveRecipe) {
+					PKQLTransformation newPkql = new PKQLTransformation();
+					Map<String, Object> props = new HashMap<String, Object>();
+					props.put(PKQLTransformation.EXPRESSION, recipePkql);
+					newPkql.setProperties(props);
+					newPkql.setRunner(runner);
+					dmc.addPostTrans(newPkql);
+				}
+				
+				//save
+				newInsightID = addInsightFromDb(insightCopy, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
+			} else {
+				newInsightID = addInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
+			}
+			
+			
 			insight.setRdbmsId(newInsightID);
 			insight.setMainEngine(this.coreEngine);
 			Map<String, Object> retMap = new HashMap<String, Object>();
