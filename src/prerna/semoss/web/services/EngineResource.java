@@ -884,12 +884,14 @@ public class EngineResource {
 					if(!(insightObj.getDataMaker() instanceof Dashboard)) {
 						String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
 
-						saveFileLocation = saveFileLocation + "_Solr.txt";
-						File solrFile = new File(saveFileLocation);
-						String solrId = SolrIndexEngine.getSolrIdFromInsightEngineId(insightObj.getEngineName(), insightObj.getRdbmsId());
-						SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
-						writer.writeSolrDocument(SolrIndexEngine.getInstance().getInsight(solrId));
-						writer.closeExport();
+						if(saveFileLocation != null) {
+							saveFileLocation = saveFileLocation + "_Solr.txt";
+							File solrFile = new File(saveFileLocation);
+							String solrId = SolrIndexEngine.getSolrIdFromInsightEngineId(insightObj.getEngineName(), insightObj.getRdbmsId());
+							SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
+							writer.writeSolrDocument(SolrIndexEngine.getInstance().getInsight(solrId));
+							writer.closeExport();
+						}
 					}
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
