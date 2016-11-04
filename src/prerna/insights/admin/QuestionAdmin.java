@@ -197,30 +197,8 @@ public class QuestionAdmin {
 				}
 			}
 			
-			//if the saveRecipe is passed, it means save the insight with this recipe
-			if(saveRecipe != null && !saveRecipe.isEmpty()) {
-				
-				//get a copy of the insight without the dmc components and insight id
-				Insight insightCopy = insight.emptyCopyForSave();
-				DataMakerComponent dmc = insightCopy.getLastComponent();
-				PKQLRunner runner = insight.getPKQLRunner();
-				
-				//add the pkqls in the copy
-				for(String recipePkql : saveRecipe) {
-					PKQLTransformation newPkql = new PKQLTransformation();
-					Map<String, Object> props = new HashMap<String, Object>();
-					props.put(PKQLTransformation.EXPRESSION, recipePkql);
-					newPkql.setProperties(props);
-					newPkql.setRunner(runner);
-					dmc.addPostTrans(newPkql);
-				}
-				
-				//save
-				newInsightID = addInsightFromDb(insightCopy, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
-			} else {
-				newInsightID = addInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
-			}
-			
+			Insight insightToSave = getInsightToSave(insight, saveRecipe);
+			newInsightID = addInsightFromDb(insightToSave, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
 			
 			insight.setRdbmsId(newInsightID);
 			insight.setMainEngine(this.coreEngine);
@@ -394,6 +372,7 @@ public class QuestionAdmin {
 		String layout = form.getFirst("layout");
 		String uiOptions = form.getFirst("uiOptions");
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
+		List<String> saveRecipe = gson.fromJson(form.getFirst("saveRecipe"), List.class);
 		
 		Insight insight = InsightStore.getInstance().get(insightID);
 //		boolean isNonDbInsight = !insight.isDbInsight();
@@ -401,13 +380,39 @@ public class QuestionAdmin {
 //			//TODO: assume person will not have parameters
 //			editInsightDMCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
 //		} else {
-			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
-			editInsightFromDb(insight, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
+		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
+		Insight insightToEdit = getInsightToSave(insight, saveRecipe);
+		editInsightFromDb(insightToEdit, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
 //		}
 		
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 
+	
+	private Insight getInsightToSave(Insight insight, List<String> saveRecipe) {
+		//if the saveRecipe is passed, it means save the insight with this recipe
+		if(saveRecipe != null && !saveRecipe.isEmpty()) {
+			
+			//get a copy of the insight without the dmc components and insight id
+			Insight insightCopy = insight.emptyCopyForSave();
+			DataMakerComponent dmc = insightCopy.getLastComponent();
+			PKQLRunner runner = insight.getPKQLRunner();
+			
+			//add the pkqls in the copy
+			for(String recipePkql : saveRecipe) {
+				PKQLTransformation newPkql = new PKQLTransformation();
+				Map<String, Object> props = new HashMap<String, Object>();
+				props.put(PKQLTransformation.EXPRESSION, recipePkql);
+				newPkql.setProperties(props);
+				newPkql.setRunner(runner);
+				dmc.addPostTrans(newPkql);
+			}
+			
+			return insightCopy;
+		} else {
+			return insight;
+		}
+	}
 //	private void editInsightDMCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
 //		String uniqueID = insight.getDatabaseID();
 //		
