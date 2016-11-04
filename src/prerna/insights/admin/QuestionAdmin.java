@@ -301,16 +301,18 @@ public class QuestionAdmin {
 				DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
 				lastComponent.setPostTrans(oldPostTrans);
 			}
-		} else if(dm instanceof Dashboard) {
-			dmcList = new ArrayList<>();
-			Dashboard dash = (Dashboard)dm;
-			DataMakerComponent lastComponent = insight.getDashboardDataMakerComponent();
-			dmcList.add(lastComponent);
-			List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
-			List<ISEMOSSTransformation> oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
-
-			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
-		}
+		} 
+		
+//		else if(dm instanceof Dashboard) {
+//			dmcList = new ArrayList<>();
+//			Dashboard dash = (Dashboard)dm;
+//			DataMakerComponent lastComponent = insight.getDashboardDataMakerComponent();
+//			dmcList.add(lastComponent);
+//			List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
+//			List<ISEMOSSTransformation> oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
+//
+//			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
+//		}
 		else {
 			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 		}
