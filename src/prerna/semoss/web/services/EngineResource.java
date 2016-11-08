@@ -879,20 +879,20 @@ public class EngineResource {
 					InsightCreateRunner run = new InsightCreateRunner(insightObj);
 					obj = run.runWeb();
 
-					//Don't cache dashboards for now...too many issues with that
-					//need to resolve updating insight ID for dashboards, as well as old insight IDs of insights stored in varMap
-					if(!(insightObj.getDataMaker() instanceof Dashboard)) {
-						String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
-
-						if(saveFileLocation != null) {
-							saveFileLocation = saveFileLocation + "_Solr.txt";
-							File solrFile = new File(saveFileLocation);
-							String solrId = SolrIndexEngine.getSolrIdFromInsightEngineId(insightObj.getEngineName(), insightObj.getRdbmsId());
-							SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
-							writer.writeSolrDocument(SolrIndexEngine.getInstance().getInsight(solrId));
-							writer.closeExport();
-						}
-					}
+//					//Don't cache dashboards for now...too many issues with that
+//					//need to resolve updating insight ID for dashboards, as well as old insight IDs of insights stored in varMap
+//					if(!(insightObj.getDataMaker() instanceof Dashboard)) {
+//						String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
+//
+//						if(saveFileLocation != null) {
+//							saveFileLocation = saveFileLocation + "_Solr.txt";
+//							File solrFile = new File(saveFileLocation);
+//							String solrId = SolrIndexEngine.getSolrIdFromInsightEngineId(insightObj.getEngineName(), insightObj.getRdbmsId());
+//							SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
+//							writer.writeSolrDocument(SolrIndexEngine.getInstance().getInsight(solrId));
+//							writer.closeExport();
+//						}
+//					}
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
