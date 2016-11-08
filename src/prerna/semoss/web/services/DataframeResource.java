@@ -775,7 +775,7 @@ public class DataframeResource {
 		filesMetadata.clear();
 		
 		// we will return the new insight recipe after the PKQL has been modified
-		return Response.status(200).entity(WebUtility.getSO(this.insight.getRecipe())).build();
+		return Response.status(200).entity(WebUtility.getSO(this.insight.getPkqlRecipe())).build();
 	}
 	
 	
