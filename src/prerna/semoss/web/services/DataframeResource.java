@@ -697,6 +697,8 @@ public class DataframeResource {
 			newTablesAndCols.put(newTable, props);
 		}
 		
+		Map<String, List<String>> csvFileMods = new Hashtable<String, List<String>>();
+		
 		// need to update the recipe now
 		for(FilePkqlMetadata fileMeta : filesMetadata) {
 			
@@ -750,6 +752,9 @@ public class DataframeResource {
 					}
 
 					newPkqlRun.add(fileMeta.generatePkqlOnEngine(engineName, tableToUse));
+					
+					// also need to send the info to the FE to create the correct pkql for parameters
+					csvFileMods.put(tableToUse, fileMeta.getSelectors());
 				} else {
 					newPkqlRun.add(pkqlExp);
 				}
@@ -774,8 +779,12 @@ public class DataframeResource {
 		// clear the files since they are now loaded into the engine
 		filesMetadata.clear();
 		
+		Map<String, Object> retMap = new Hashtable<String, Object>();
+		retMap.put("recipe", this.insight.getPkqlRecipe());
+		retMap.put("csvFileMods", csvFileMods);
+		
 		// we will return the new insight recipe after the PKQL has been modified
-		return Response.status(200).entity(WebUtility.getSO(this.insight.getPkqlRecipe())).build();
+		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 	
 	
