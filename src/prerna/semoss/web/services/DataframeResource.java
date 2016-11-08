@@ -1,7 +1,6 @@
 package prerna.semoss.web.services;
 
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -40,7 +39,6 @@ import prerna.ds.TinkerFrame;
 import prerna.ds.h2.H2Frame;
 import prerna.ds.nativeframe.NativeFrame;
 import prerna.engine.api.IEngine;
-import prerna.equation.EquationSolver;
 import prerna.om.Dashboard;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
@@ -438,34 +436,6 @@ public class DataframeResource {
 		return Response.status(200).entity(WebUtility.getSO(insight.getInsightID(), selectors.toArray(new String[]{}), it)).build();
 	}
 
-	@POST
-	@Path("/derivedColumn")
-	@Produces("application/json")
-	public Response derivedColumn(MultivaluedMap<String, String> form,
-			@QueryParam("expressionString") String expressionString,
-			@QueryParam("columnName") String columnName,
-			@Context HttpServletRequest request)
-	{
-		String expString = form.getFirst("expressionString");
-		String colName = form.getFirst("columnName");
-
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();
-
-		// return new column
-		EquationSolver solver;
-		try { solver = new EquationSolver(mainTree, expString); } 
-		catch (ParseException e) {
-			retMap.put("errorMessage", e);
-			return Response.status(400).entity(WebUtility.getSO(retMap)).build();
-		}
-
-		String returnMsg = solver.crunch(colName);
-
-		retMap.put("status", returnMsg);
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-	}
-
 	@GET
 	@Path("/getTableHeaders")
 	@Produces("application/json")
@@ -671,146 +641,6 @@ public class DataframeResource {
 		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 
-/*	*//**
-	 * Method used to get the structure for a specific PKQL command 
-	 *//*
-	@GET
-	@Path("/predictPKQL")
-	@Produces("application/json")
-	public Response getPredictedPKQLs(@QueryParam("selectedPKQL") String selectedPKQL, @Context HttpServletRequest request){
-
-		ITableDataFrame dm = (ITableDataFrame) insight.getDataMaker();
-		
-		Map<String, Object> returnMap = new HashMap<String, Object>();
-		Map<String, Object> pkqlMap = new HashMap<String, Object>();
-		AbstractReactor thisReactor = null;
-		List<HashMap<String, Object>> input;
-		
-		switch(selectedPKQL){
-		case "Split a column by delimiter": thisReactor = new ColSplitReactor();
-											pkqlMap = thisReactor.getPKQLMetaData();
-											input = (List<HashMap<String, Object>>) pkqlMap.get("input");
-											
-											LOOP:
-											for(int i=0; i<input.size(); i++){
-												Set<String> inputSet = input.get(i).keySet();
-												for(String key: inputSet){
-													if(key.equals("values")){
-														Map<String, Object> valuesMap = new HashMap<String, Object>();
-														valuesMap.put("headers", dm.getColumnHeaders());
-														Map<String, Object> options = new HashMap<String, Object>();
-														List<Object[]> data = new Vector<Object[]>();														
-														options.put(TinkerFrame.SELECTORS, Arrays.asList(dm.getColumnHeaders()));
-														options.put(TinkerFrame.DE_DUP, true);//no duplicates
-														Iterator<Object[]> it = dm.iterator(true, options);
-														while(it.hasNext()) {
-															data.add(it.next());
-														}
-														valuesMap.put("data", data);														
-														input.get(i).put(key, valuesMap);
-														pkqlMap.put("input", input);
-														break LOOP;
-													}
-												}
-											}break;
-											
-		case "Add a new column": thisReactor = new ColAddReactor();
-								 pkqlMap = thisReactor.getPKQLMetaData();
-								 input = (List<HashMap<String, Object>>) pkqlMap.get("input");
-		
-								 LOOP:
-								 for(int i=0; i<input.size(); i++){
-									 Set<String> inputSet = input.get(i).keySet();
-									 for(String key: inputSet){
-										 if(key.equals("values")){
-											 Map<String, Object> valuesMap = new HashMap<String, Object>();					
-											 input.get(i).put(key, valuesMap);//sending empty values for add new col pkql
-											 pkqlMap.put("input", input);
-											 break LOOP;
-										 }
-									 }
-								 }break;
-								 
-		case "Filter data in a column": thisReactor = new ColFilterReactor();
-										pkqlMap = thisReactor.getPKQLMetaData();
-										input = (List<HashMap<String, Object>>) pkqlMap.get("input");
-		
-										LOOP:
-										for(int i=0; i<input.size(); i++){
-											Set<String> inputSet = input.get(i).keySet();
-											for(String key: inputSet){
-												if(key.equals("values")){
-													Map<String, Object> valuesMap = new HashMap<String, Object>();					
-													Object[] filterColumn = dm.getFilterModel();
-													valuesMap.put("headers", dm.getColumnHeaders());
-													valuesMap.put("unfilteredValues", filterColumn[0]);																			
-													input.get(i).put(key, valuesMap);
-													pkqlMap.put("input", input);
-													break LOOP;
-												}
-											}
-										}break;
-										
-		case "Unfilter data in a column": thisReactor = new ColUnfilterReactor();
-										  pkqlMap = thisReactor.getPKQLMetaData();
-										  input = (List<HashMap<String, Object>>) pkqlMap.get("input");
-
-										  LOOP:
-										  for(int i=0; i<input.size(); i++){
-											  Set<String> inputSet = input.get(i).keySet();
-											  for(String key: inputSet){
-												  if(key.equals("values")){
-													  Map<String, Object> valuesMap = new HashMap<String, Object>();
-													  valuesMap.put("headers", dm.getColumnHeaders());																	
-													  input.get(i).put(key, valuesMap);
-													  pkqlMap.put("input", input);
-													  break LOOP;
-												  }
-											  }
-										  }break;
-		 default:break;
-											
-		}
-		returnMap.put("pkql", pkqlMap);
-
-		return Response.status(200).entity(WebUtility.getSO(returnMap)).build();
-	}
-	
-	*//**
-	 * Method used to get the list of all available PKQL
-	 * @param 
-	 * @return
-	 *//*
-	@GET
-	@Path("/allPKQLs")
-	@Produces("application/json")
-	public Response getListOfAllPKQLs(@Context HttpServletRequest request){
-
-		//fetch info from reactors - AbstractReactor
-		System.out.println("Fetching list of all PKQL commands");
-
-		Map<String, Object> returnMap = new HashMap<String, Object>();
-		List pkqls = new ArrayList();
-		IScriptReactor thisReactor = null;	
-
-		//get the datamaker for current insight, and fetch all the reactors for it
-		Map<String, String> reactors = this.insight.getDataMaker().getScriptReactors();
-
-		for(String reactor: reactors.keySet()){
-			String reactorName = reactors.get(reactor);
-			try {
-				thisReactor = (IScriptReactor)Class.forName(reactorName).newInstance();
-				if(((AbstractReactor) thisReactor).getPKQLMetaData() != null)
-					pkqls.add(((AbstractReactor) thisReactor).getPKQL());
-			} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-				System.out.println("Exception in instantiating " +reactorName);
-				e.printStackTrace();
-			}				
-		}
-		returnMap.put("pkql", pkqls);
-		return Response.status(200).entity(WebUtility.getSO(returnMap)).build();
-	}*/
-	
 	@GET
 	@Path("/isDbInsight")
 	@Produces("application/json")
@@ -944,8 +774,8 @@ public class DataframeResource {
 		// clear the files since they are now loaded into the engine
 		filesMetadata.clear();
 		
-		String outputText = "Data Loading was a success.";
-		return Response.status(200).entity(WebUtility.getSO(outputText)).build();
+		// we will return the new insight recipe after the PKQL has been modified
+		return Response.status(200).entity(WebUtility.getSO(this.insight.getRecipe())).build();
 	}
 	
 	
