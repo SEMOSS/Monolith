@@ -861,7 +861,8 @@ public class EngineResource {
 
 			// check if the insight has already been cached
 			System.out.println("Params is " + params);
-			String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getVizData(insightObj);
+//			String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getVizData(insightObj);
+			String vizData = null;
 
 			Object obj = null;
 			if(vizData != null) {
