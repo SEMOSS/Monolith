@@ -697,7 +697,13 @@ public class DataframeResource {
 			newTablesAndCols.put(newTable, props);
 		}
 		
-		Map<String, List<String>> csvFileMods = new Hashtable<String, List<String>>();
+		
+		// if we loaded a file
+		// it has a prim key as a header
+		// will need to modify the header to be that of the table so the FE
+		// can properly create pkqls using the insight metamodel
+		ITableDataFrame dataframe = (ITableDataFrame) this.insight.getDataMaker();
+		Map<String, Set<String>> edgeHash = dataframe.getEdgeHash();
 		
 		// need to update the recipe now
 		for(FilePkqlMetadata fileMeta : filesMetadata) {
@@ -717,6 +723,9 @@ public class DataframeResource {
 			// only used if updatePkqlExpression boolean becomes true
 			List<String> newPkqlRun = new Vector<String>();
 			
+			// this is the list of headers that were uploaded into the frame
+			List<String> selectorsToMatch = fileMeta.getSelectors();
+			
 			// need to iterate through and update the correct pkql
 			for(int pkqlIdx = 0; pkqlIdx < listPkqlRun.size(); pkqlIdx++) {
 				String pkqlExp = listPkqlRun.get(pkqlIdx);
@@ -725,9 +734,9 @@ public class DataframeResource {
 				if(pkqlExp.contains(pkqlStrToFind)) {
 
 					// find the new table that was created from this file
-					List<String> selectorsToMatch = fileMeta.getSelectors();
 					String tableToUse = null;
 					TABLE_LOOP : for(String newTable : newTablesAndCols.keySet()) {
+						// get the list of columns for the table that exists in the engine
 						List<String> selectors = newTablesAndCols.get(newTable);
 
 						// need to see if all selectors match
@@ -748,13 +757,35 @@ public class DataframeResource {
 						
 						// if we hit this point, then everything matched!
 						tableToUse = newTable;
+						
+						// lets update the prim key name from its currently random name
+						// to the name of the table
+						UPDATE_PRIM_KEY_LOOP : for(String parentName : edgeHash.keySet()) {
+							Set<String> children = edgeHash.get(parentName);
+							
+							// if the set contains all the names of the file
+							// it is the one we want to modify
+							if(children.containsAll(selectorsToMatch)) {
+								dataframe.modifyColumnName(parentName, tableToUse);
+								
+								// need to also add the engine name for each of the nodes
+								// do this for the main node
+								// and for each of the children nodes
+								dataframe.addEngineForColumnName(tableToUse, engineName);
+								for(String child : children) {
+									dataframe.addEngineForColumnName(child, engineName);
+								}
+								
+								break UPDATE_PRIM_KEY_LOOP;
+							}
+						}
+						
 						break TABLE_LOOP;
 					}
 
+					// this will update the pkql query to run
 					newPkqlRun.add(fileMeta.generatePkqlOnEngine(engineName, tableToUse));
 					
-					// also need to send the info to the FE to create the correct pkql for parameters
-					csvFileMods.put(tableToUse, fileMeta.getSelectors());
 				} else {
 					newPkqlRun.add(pkqlExp);
 				}
@@ -779,12 +810,8 @@ public class DataframeResource {
 		// clear the files since they are now loaded into the engine
 		filesMetadata.clear();
 		
-		Map<String, Object> retMap = new Hashtable<String, Object>();
-		retMap.put("recipe", this.insight.getPkqlRecipe());
-		retMap.put("csvFileMods", csvFileMods);
-		
 		// we will return the new insight recipe after the PKQL has been modified
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		return Response.status(200).entity(WebUtility.getSO(this.insight.getPkqlRecipe())).build();
 	}
 	
 	
