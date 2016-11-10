@@ -479,7 +479,7 @@ public class QuestionAdmin {
 		boolean isDbQuery = true;
 
 		// delete existing cache folder for insight if present
-		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteCacheFolder(insight);
+		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteInsightCache(insight);
 		
 		String engineName = coreEngine.getEngineName();
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
@@ -674,7 +674,7 @@ public class QuestionAdmin {
 		} 
 		
 		Insight existingIn = coreEngine.getInsight(insightID).get(0);
-		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteCacheFolder(existingIn);
+		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteInsightCache(existingIn);
 		
 		List<DataMakerComponent> dmcList = null;
 		List<SEMOSSParam> params = null;
