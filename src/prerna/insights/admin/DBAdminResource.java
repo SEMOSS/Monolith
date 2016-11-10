@@ -341,7 +341,7 @@ public class DBAdminResource {
 		in.setRdbmsId(insightID);
 		in.setInsightName(questionName);
 		
-		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteCacheFolder(in);
+		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteInsightCache(in);
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 }
