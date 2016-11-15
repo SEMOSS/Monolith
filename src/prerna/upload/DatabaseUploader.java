@@ -99,6 +99,13 @@ public class DatabaseUploader extends Uploader {
 		}
 		options.setImportMethod(importMethod);
 
+		if(inputData.containsKey("customBaseURI")) {
+			String baseUri = inputData.get("customBaseURI").trim();
+			if(!baseUri.isEmpty()) {
+				options.setBaseUrl(baseUri);
+			}
+		}
+		
 		// get the db name
 		String dbName = inputData.get("dbName");
 		if(dbName == null || dbName.trim().isEmpty()) {
@@ -168,6 +175,14 @@ public class DatabaseUploader extends Uploader {
 		}
 		options.setImportMethod(importMethod);
 
+		String baseUri = form.getFirst("customBaseURI");
+		if(baseUri != null) {
+			baseUri = baseUri.trim();
+			if(!baseUri.isEmpty()) {
+				options.setBaseUrl(baseUri);
+			}
+		}
+		
 		// get the db name
 		String dbName = form.getFirst("dbName");
 		if(dbName == null || dbName.trim().isEmpty()) {
