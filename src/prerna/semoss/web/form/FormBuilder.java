@@ -22,7 +22,6 @@ import org.h2.jdbc.JdbcClob;
 import org.openrdf.model.vocabulary.RDF;
 import org.openrdf.model.vocabulary.RDFS;
 
-import prerna.algorithm.api.ITableDataFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
@@ -115,9 +114,12 @@ public final class FormBuilder {
 		formStorage = RDBMSEngineCreationHelper.escapeForSQLStatement(formStorage);
 		formLocation = RDBMSEngineCreationHelper.escapeForSQLStatement(formLocation);
 		// make sure table name doesn't exist
-		ITableDataFrame f2 = WrapperManager.getInstance().getSWrapper(formBuilderEng, "select count(*) from information_schema.tables where table_name = '" + formStorage + "'").getTableDataFrame(); 
-		if((Double)f2.getData().get(0)[0] != 0 ) {
-			throw new IOException("Form name already exists. Please modify the form name.");
+		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, "select count(*) from information_schema.tables where table_name = '" + formStorage + "'");
+		if(wrapper.hasNext() ){
+			Object[] data = wrapper.next().getValues();
+			if( (int) data[0] != 0) {
+				throw new IOException("Form name already exists. Please modify the form name.");
+			}
 		}
 
 		//add form location into formbuilder db
