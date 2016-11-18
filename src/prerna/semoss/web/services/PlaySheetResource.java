@@ -89,8 +89,8 @@ public class PlaySheetResource {
 		List<String> downNodeTypes = gson.fromJson(form.getFirst("downNodeTypes"), List.class);
 		List<String> upNodeList = gson.fromJson(form.getFirst("upNode"), List.class);
 		
-		downNodeTypes = Utility.getTransformedNodeNamesList(coreEngine, downNodeTypes, false);
-		upNodeList = Utility.getTransformedNodeNamesList(coreEngine, upNodeList, false);
+//		downNodeTypes = Utility.getTransformedNodeNamesList(coreEngine, downNodeTypes, false);
+//		upNodeList = Utility.getTransformedNodeNamesList(coreEngine, upNodeList, false);
 		
 		logger.info("Processing downstream traversal for node instance " + upNodeList.toString() + " to types " + downNodeTypes.toString());
 		
@@ -123,7 +123,8 @@ public class PlaySheetResource {
 				//rdbmsEngine.traverseOutputQuery(fromType, toType, false, fromInstances)
 				String fromType = upNodeList.get(0);
 				String className = Utility.getClassName(fromType); // gets you everything but the instance
-				String classUri = coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + className, false);
+//				String classUri = coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + className, false);
+				String classUri = "http://semoss.org/ontolgoies/Concept/" + className;
 				sparql = rdbmsEngine.traverseOutputQuery(classUri, downNodeTypes.get(0), false, upNodeList);
 			}
 		}
@@ -163,8 +164,8 @@ public class PlaySheetResource {
 		List<String> upNodeTypes = gson.fromJson(form.getFirst("upNodeTypes"), List.class); // this is a type
 		List<String> downNodeList = gson.fromJson(form.getFirst("downNode"), List.class); // this is an instance
 		
-		upNodeTypes = Utility.getTransformedNodeNamesList(coreEngine, upNodeTypes, false);
-		downNodeList = Utility.getTransformedNodeNamesList(coreEngine, downNodeList, false);
+//		upNodeTypes = Utility.getTransformedNodeNamesList(coreEngine, upNodeTypes, false);
+//		downNodeList = Utility.getTransformedNodeNamesList(coreEngine, downNodeList, false);
 		
 		logger.info("Processing upstream traversal for node instances " + downNodeList.toString());
 		
@@ -200,7 +201,8 @@ public class PlaySheetResource {
 				//rdbmsEngine.traverseOutputQuery(fromType, toType, false, fromInstances)
 				String fromType = downNodeList.get(0);
 				String className = Utility.getClassName(fromType); // gets you everything but the instance
-				String classUri = coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + className, false);
+//				String classUri = coreEngine.getTransformedNodeName(Constants.DISPLAY_URI + className, false);
+				String classUri = "http://semoss.org/ontolgoies/Concept/" + className;
 				sparql = rdbmsEngine.traverseOutputQuery(classUri, upNodeTypes.get(0), false, downNodeList);
 			}
 		}

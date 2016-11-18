@@ -71,7 +71,6 @@ import prerna.ui.components.playsheets.datamakers.FilterTransformation;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
-import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -817,9 +816,10 @@ public class QuestionAdmin {
 		if(paramMapList != null && !paramMapList.isEmpty()) {
 			for(Map<String, String> paramMap : paramMapList) {
 				String paramName = paramMap.get("name");
-				String logicalParamURI = Constants.DISPLAY_URI + paramName;
+				String logicalParamURI = "http://semoss.org/ontologies/Concept/" + paramName;
 //				String logicalParamURI = paramMap.get("value");
-				String paramURI = this.coreEngine.getTransformedNodeName(logicalParamURI, false);
+//				String paramURI = this.coreEngine.getTransformedNodeName(logicalParamURI, false);
+				String paramURI = logicalParamURI;
 				
 				// get the paramParent if it is a property
 				String paramParent = null;
@@ -851,7 +851,8 @@ public class QuestionAdmin {
 					p.setName(paramName);
 					p.setType(paramURI);
 					if(paramParent != null) {
-						String paramParentURI = this.coreEngine.getTransformedNodeName(paramParent, false);
+//						String paramParentURI = this.coreEngine.getTransformedNodeName(paramParent, false);
+						String paramParentURI = paramParent;
 						// if it is a property, we need to define a unique query which pulls up values for the property based on the parent
 						String query = "SELECT DISTINCT ?entity WHERE { {?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <" + paramParentURI + "> } "
 								+ "{ ?x <" + paramURI + "> ?entity} }";
