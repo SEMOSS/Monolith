@@ -27,9 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -56,9 +53,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
-import org.openrdf.model.vocabulary.RDFS;
 
-import com.bigdata.rdf.model.BigdataURI;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -66,7 +61,6 @@ import com.google.gson.reflect.TypeToken;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
-import prerna.cache.CacheFactory;
 import prerna.ds.QueryStruct;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
@@ -74,67 +68,31 @@ import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
-import prerna.engine.impl.rdf.SesameJenaUpdateWrapper;
-import prerna.nameserver.ConnectedConcepts;
-import prerna.om.Dashboard;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.wrappers.WrapperManager;
-import prerna.rdf.query.builder.IQueryBuilder;
-import prerna.rdf.query.builder.QueryBuilderData;
-import prerna.rdf.query.builder.QueryBuilderHelper;
-import prerna.rdf.query.util.SEMOSSQuery;
 import prerna.rdf.util.RDFJSONConverter;
 import prerna.semoss.web.form.FormBuilder;
-import prerna.solr.SolrDocumentExportWriter;
-import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.JoinTransformation;
 import prerna.ui.helpers.InsightCreateRunner;
-import prerna.ui.main.listener.impl.SPARQLExecuteFilterBaseFunction;
-import prerna.ui.main.listener.impl.SPARQLExecuteFilterNoBaseFunction;
-import prerna.util.ArrayUtilityMethods;
 import prerna.util.Constants;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.web.services.util.InMemoryHash;
-import prerna.web.services.util.InstanceStreamer;
 import prerna.web.services.util.WebUtility;
 
 public class EngineResource {
 
-
+	private static final Logger logger = Logger.getLogger(EngineResource.class.getName());
 
 	// gets everything specific to an engine
 	// essentially this is a wrapper over the engine
-	IEngine coreEngine = null;
-	byte[] output ;
-	Logger logger = Logger.getLogger(EngineResource.class.getName());
-	Hashtable<String, SEMOSSQuery> vizHash = new Hashtable<String, SEMOSSQuery>();
-	// to send class name if error occurs
-	String className = this.getClass().getName();
+	private IEngine coreEngine = null;
 
-
-	public static void main(String[] args) {
-
-		Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
-		Map<String, Object> testMap = new HashMap<String, Object>();
-		Map<String, Object> innerMap = new HashMap<String, Object>();
-		innerMap.put("object1", "value1");
-		innerMap.put("object2", "value2");
-
-		String bytes = gson.toJson(innerMap);
-
-		testMap.put("object", "value");
-		testMap.put("innerMap", bytes);
-
-		String s = gson.toJson(testMap);
-		Map<String, Object> newMap = gson.fromJson(s, new TypeToken<Map<String, Object>>() {}.getType());
-
-	}
 	public void setEngine(IEngine coreEngine)
 	{
 		System.out.println("Setting core engine to " + coreEngine);
@@ -158,354 +116,7 @@ public class EngineResource {
 	}
 
 	/**
-	 * Gets all edges and nodes from owl file to display as metamodel
-	 * Sets the owl in a GraphPlaySheet and sets subclasscreate to create the metamodel
-	 * @param request
-	 * @return same payload as GraphPlaySheet. Returns nodes and edges and all playsheet data (id, title, playsheet name)
-	 */
-	@GET
-	@Path("metamodel")
-	@Produces("application/json")
-	public Response getMetamodel(@Context HttpServletRequest request)
-	{
-		if(coreEngine == null) {
-			Hashtable<String, String> errorHash = new Hashtable<String, String>();
-			errorHash.put("Message", "No engine defined.");
-			errorHash.put("Class", className);
-			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-		}
-
-		return Response.status(200).entity(WebUtility.getSO(this.coreEngine.getMetamodel())).build();
-
-		//		//hard code playsheet attributes since no insight exists for this
-		//		String sparql = "SELECT ?s ?p ?o WHERE {?s ?p ?o} LIMIT 1";
-		//		String playSheetName = "GDMGraph";
-		//		String dataMakerName = "GraphDataModel";
-		//		String title = "Metamodel";
-		//		String id = coreEngine.getEngineName() + "-Metamodel";
-		//		AbstractEngine eng = ((AbstractEngine)coreEngine).getBaseDataEngine();
-		//		eng.setEngineName(id);
-		//		eng.setBaseData((RDFFileSesameEngine) eng);
-		//		Hashtable<String, String> filterHash = new Hashtable<String, String>();
-		//		filterHash.put("http://semoss.org/ontologies/Relation", "http://semoss.org/ontologies/Relation");
-		//		eng.setBaseHash(filterHash);
-		//
-		//		Object obj = null;
-		//		try
-		//		{
-		//			DataMakerComponent dmc = new DataMakerComponent(eng, sparql);
-		//			GraphDataModel gdm = (GraphDataModel) Utility.getDataMaker(this.coreEngine, dataMakerName);
-		//			//			GraphPlaySheet playSheet= (GraphPlaySheet) Utility.preparePlaySheet(eng, sparql, playSheetName, title, id);
-		//			gdm.setSubclassCreate(true);
-		//			gdm.setOverlay(false);
-		//			gdm.processDataMakerComponent(dmc);
-		//			//			playSheet.setDataMaker(gdm);
-		//			obj = gdm.getDataMakerOutput();
-		//			
-		//			//TODO: this is really bad.. 
-		//			//undo the setting of the eng to get gdm to run
-		//			eng.setBaseData(null);
-		//			eng.setBaseHash(null);
-		//		} catch (Exception ex) { 
-		//			ex.printStackTrace();
-		//			Hashtable<String, String> errorHash = new Hashtable<String, String>();
-		//			errorHash.put("Message", "Error processing query.");
-		//			errorHash.put("Class", className);
-		//			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
-		//		}
-		//		return Response.status(200).entity(WebUtility.getSO(obj)).build();
-	}
-
-
-	//gets all node types connected to a given node type
-	@GET
-	@Path("neighbors")
-	@Produces("application/json")
-	public Response getNeighbors(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
-	{
-		String dataType = type;
-		if(!dataType.contains("http://")){
-			dataType = Constants.DISPLAY_URI + Utility.cleanString(type, true);
-		}
-
-		String physicalNodeType = coreEngine.getTransformedNodeName(dataType, false);
-		IEngine baseDb = ((AbstractEngine) coreEngine).getBaseDataEngine();
-
-		String upQuery = "SELECT DISTINCT ?rel (COALESCE(?display, ?node) AS ?Display) WHERE { BIND(<" + physicalNodeType + "> AS ?start) {?rel <" + RDFS.SUBPROPERTYOF + "> <http://semoss.org/ontologies/Relation>} "
-				+ "{?node ?rel ?start} OPTIONAL{?node <http://semoss.org/ontologies/DisplayName> ?display } }";
-		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(baseDb, upQuery);
-		String[] names = wrapper.getDisplayVariables();
-
-		Map<String, Map<String, Map<String, String>>> upResultsMap = new Hashtable<String, Map<String, Map<String, String>>>();
-		while(wrapper.hasNext()) {
-			ISelectStatement ss = wrapper.next();
-			String relUri = ss.getRawVar(names[0]) + "";
-			// ignore base relation
-			if(relUri.equals("http://semoss.org/ontologies/Relation")) {
-				continue;
-			}
-
-			String nodeUri = ss.getRawVar(names[1]) + "";
-			//			String node = nodeUri.replaceAll(".*/Concept/", "");
-			String node = Utility.getInstanceName(coreEngine.getTransformedNodeName(nodeUri, true));
-			String parent = null;
-			if(node.contains("/")) {
-				// this is for properties that are also concepts
-				String propName = node.substring(0, node.lastIndexOf("/"));
-				String conceptName = node.substring(node.lastIndexOf("/") + 1, node.length());
-				if(!propName.equals(conceptName)) {
-					parent = conceptName;
-					node = propName;
-				} else {
-					node = conceptName;
-				}
-			}
-
-			nodeUri = this.coreEngine.getTransformedNodeName(nodeUri, true);
-
-			Map<String, Map<String, String>> mainNodeMap;
-			if(upResultsMap.containsKey(relUri)) {
-				mainNodeMap = upResultsMap.get(relUri);
-			} else {
-				mainNodeMap = new Hashtable<String, Map<String, String>>();
-				upResultsMap.put(relUri, mainNodeMap);
-			}
-			Map<String, String> nodeMap = new Hashtable<String, String>();
-			nodeMap.put("physicalName", node);
-			if(parent != null) {
-				nodeMap.put("parent", parent);
-			}
-			mainNodeMap.put(nodeUri, nodeMap);
-		}
-
-		String downQuery = "SELECT DISTINCT ?rel (COALESCE(?display, ?node) AS ?Display) WHERE { BIND(<" + physicalNodeType + "> AS ?start) {?rel <" + RDFS.SUBPROPERTYOF + "> <http://semoss.org/ontologies/Relation>}"
-				+ " {?start ?rel ?node} OPTIONAL{?node <http://semoss.org/ontologies/DisplayName> ?display } }";
-		wrapper = WrapperManager.getInstance().getSWrapper(baseDb, downQuery);
-		names = wrapper.getDisplayVariables();
-
-		Map<String, Map<String, Map<String, String>>> downResultsMap = new Hashtable<String, Map<String, Map<String, String>>>();
-		while(wrapper.hasNext()) {
-			ISelectStatement ss = wrapper.next();
-			String relUri = ss.getRawVar(names[0]) + "";
-			// ignore base relation
-			if(relUri.equals("http://semoss.org/ontologies/Relation")) {
-				continue;
-			}
-
-			String nodeUri = ss.getRawVar(names[1]) + "";
-			String node = Utility.getInstanceName(coreEngine.getTransformedNodeName(nodeUri, true));
-			//			String node = nodeUri.replaceAll(".*/Concept/", "");
-			String parent = null;
-			if(node.contains("/")) {
-				// this is for properties that are also concepts
-				String propName = node.substring(0, node.lastIndexOf("/"));
-				String conceptName = node.substring(node.lastIndexOf("/") + 1, node.length());
-				if(!propName.equals(conceptName)) {
-					parent = conceptName;
-					node = propName;
-				} else {
-					node = conceptName;
-				}
-			}
-
-			nodeUri = this.coreEngine.getTransformedNodeName(nodeUri, true);
-
-			Map<String, Map<String, String>> mainNodeMap;
-			if(downResultsMap.containsKey(relUri)) {
-				mainNodeMap = downResultsMap.get(relUri);
-			} else {
-				mainNodeMap = new Hashtable<String, Map<String, String>>();
-				downResultsMap.put(relUri, mainNodeMap);
-			}
-
-			Map<String, String> nodeMap = new Hashtable<String, String>();
-			nodeMap.put("physicalName", node);
-			if(parent != null) {
-				nodeMap.put("parent", parent);
-			}
-			mainNodeMap.put(nodeUri, nodeMap);
-		}
-
-
-		Map<String, Object> relMap = new Hashtable<String, Object>();
-		relMap.put("upstream", upResultsMap);
-		relMap.put("downstream", downResultsMap);
-
-		ConnectedConcepts combineResults = new ConnectedConcepts();
-
-		//		String name = physicalNodeType.replaceAll(".*/Concept/", "");
-		String name = Utility.getInstanceName(dataType);
-		String parent = null;
-		if(name.contains("/")) {
-			// this is for properties that are also concepts
-			String propName = name.substring(0, name.lastIndexOf("/"));
-			String conceptName = name.substring(name.lastIndexOf("/") + 1, name.length());
-			if(!conceptName.equals(propName)) {
-				name = propName;
-				parent = conceptName;
-			} else {
-				name = conceptName;
-			}
-		}
-
-		combineResults.addData(coreEngine.getEngineName(), dataType, name, parent, relMap);
-		combineResults.addSimilarity(coreEngine.getEngineName(), dataType, 1);
-
-
-		// CANNOT USE BELOW SINCE FE EXPECTS INFORMATION IN FORMAT COMPATABLE WITH GOING THROUGH LOCAL MASTER
-		//		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
-		//		if(coreEngine instanceof AbstractEngine){
-		//			Vector<String> downNodes = ((AbstractEngine) coreEngine).getToNeighbors(type, 0);
-		//			finalTypes.put("downstream", downNodes);
-		//			Vector<String> upNodes = ((AbstractEngine) coreEngine).getFromNeighbors(type, 0);
-		//			finalTypes.put("upstream", upNodes);
-		//		} 
-		return Response.status(200).entity(WebUtility.getSO(combineResults.getData())).build();
-	}
-
-	//	//gets all node types connected to a given node type along with the verbs connecting the given types
-	//	@GET
-	//	@Path("neighbors/verbs")
-	//	@Produces("application/json")
-	//	public Response getNeighborsWithVerbs(@QueryParam("nodeType") String type, @Context HttpServletRequest request)
-	//	{
-	//		Hashtable<String, Hashtable<String, Vector<String>>> finalTypes = new Hashtable<String, Hashtable<String, Vector<String>>>();
-	//		if(coreEngine instanceof AbstractEngine){
-	//			Hashtable<String, Vector<String>> downNodes = ((AbstractEngine) coreEngine).getToNeighborsWithVerbs(type, 0);
-	//			finalTypes.put("downstream", downNodes);
-	//			Hashtable<String, Vector<String>> upNodes = ((AbstractEngine) coreEngine).getFromNeighborsWithVerbs(type, 0);
-	//			finalTypes.put("upstream", upNodes);
-	//		}
-	//		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
-	//	}
-
-	//gets all node types connected to a specific node instance
-	@POST
-	@Path("neighbors/instance")
-	@Produces("application/json")
-	//	@Consumes(MediaType.APPLICATION_JSON)
-	public Response getNeighborsInstance(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-	{
-		Gson gson = new Gson();
-		List<String> uriArray = gson.fromJson(form.getFirst("node"), List.class); // comes in with the uri that was first selected i.e. the instance
-		uriArray = Utility.getTransformedNodeNamesList(coreEngine, uriArray, false);
-
-		boolean isRDF = (coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || 
-				coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE);
-
-
-		Hashtable<String, Vector<String>> finalTypes = new Hashtable<String, Vector<String>>();
-
-		if(isRDF)
-		{
-			if(coreEngine instanceof AbstractEngine){
-				AbstractEngine engine = (AbstractEngine) coreEngine;
-
-				//create bindings string
-				String bindingsString = "";
-				for(String uri : uriArray){
-					bindingsString = bindingsString + "(<" + uri + ">)";
-				}
-				logger.info("bindings string = " + bindingsString); 
-				// gets a clean read on the type instead of predicting it based on URI
-				// In the case of RDBMS we can just assume it
-
-				String uniqueTypesQuery = "SELECT DISTINCT ?entity WHERE { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?entity}   FILTER NOT EXISTS { { ?subject <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?subtype} {?subtype <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?entity} }} BINDINGS ?subject {"+bindingsString+"}";
-
-				//get node types
-				Vector<String> types = Utility.getVectorOfReturn(uniqueTypesQuery, coreEngine, true);
-
-				//DOWNSTREAM PROCESSING
-				//get node types connected to this type
-				Vector<String> downNodeTypes = new Vector<String>();
-				for(String type : types){
-					downNodeTypes.addAll(engine.getToNeighbors(type, 0));
-				}
-
-				// this query needs to change for RDBMS based on the traverse query
-				//for each available type, ensure each type has at least one instance connected to original node
-				String downAskQuery = "ASK { "
-						+ "{?connectedNode a <@NODE_TYPE@>} "
-						+ "{?node ?rel ?connectedNode}"
-						+ "} BINDINGS ?node {"+bindingsString+"}" ;
-				Vector<String> validDownTypes = new Vector<String>();
-				for (String connectedType : downNodeTypes){
-					String filledDownAskQuery = downAskQuery.replace("@NODE_TYPE@", connectedType);
-					logger.info("Checking type " + connectedType + " with query " + filledDownAskQuery);
-					if((boolean) engine.execQuery(filledDownAskQuery))	
-						validDownTypes.add(connectedType);
-				}
-				validDownTypes = (Vector<String>) Utility.getTransformedNodeNamesList(coreEngine, validDownTypes, true);
-				finalTypes.put("downstream", validDownTypes);
-
-				//UPSTREAM PROCESSING
-				//get node types connected to this type
-				Vector<String> upNodeTypes = new Vector<String>();
-				for(String type : types){
-					upNodeTypes.addAll(engine.getFromNeighbors(type, 0));
-				}
-
-				//for each available type, ensure each type has at least one instance connected to original node
-				String upAskQuery = "ASK { "
-						+ "{?connectedNode a <@NODE_TYPE@>} "
-						+ "{?connectedNode ?rel ?node}"
-						+ "} BINDINGS ?node {"+bindingsString+"}" ;
-				Vector<String> validUpTypes = new Vector<String>();
-				for (String connectedType : upNodeTypes){
-					String filledUpAskQuery = upAskQuery.replace("@NODE_TYPE@", connectedType);
-					logger.info("Checking type " + connectedType + " with query " + filledUpAskQuery);
-					if((boolean) engine.execQuery(filledUpAskQuery))
-						validUpTypes.add(connectedType);
-				}
-				validUpTypes = (Vector<String>) Utility.getTransformedNodeNamesList(coreEngine, validUpTypes, true);
-				finalTypes.put("upstream", validUpTypes);
-			}
-		}
-		else if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
-		{
-			// get the type.. see how easy it is on RDBMS.. let me show this
-			// do the camel casing
-			// almost never will I have more than one
-			// but as a good developer.. I will collect all the classes
-			Vector <String> types = new Vector<String>();
-
-			for(int inputIndex =0;inputIndex < uriArray.size();inputIndex++)
-			{
-				String uri = uriArray.get(inputIndex);
-				String className = Utility.getQualifiedClassName(uri); // gets you everything but the instance
-				String modClassName = Utility.getInstanceName(className); // since it gets me the last one , this is really the className
-
-				if(!types.contains(className))
-					types.add(className);
-			}
-
-			// ok now get the types
-			Vector <String> validUpTypes = new Vector<String>();
-			Vector <String> validDownTypes = new Vector<String>();
-			for(int typeIndex = 0;typeIndex < types.size();typeIndex++)
-			{
-				// get the to neighbors
-				validDownTypes.addAll((coreEngine.getToNeighbors(types.get(typeIndex), 0)));
-				validUpTypes.addAll((coreEngine.getFromNeighbors(types.get(typeIndex), 0)));			
-			}
-
-			// no check for data yet.. will get to it later
-
-			validUpTypes = (Vector<String>) Utility.getTransformedNodeNamesList(coreEngine, validUpTypes, true);
-			validDownTypes = (Vector<String>) Utility.getTransformedNodeNamesList(coreEngine, validDownTypes, true);
-
-			finalTypes.put("upstream", validUpTypes);
-			finalTypes.put("downstream", validDownTypes);
-
-			// and action..
-
-		}		
-		return Response.status(200).entity(WebUtility.getSO(finalTypes)).build();
-	}
-
-	/**
 	 * Gets all the insights for a given perspective, instance, type, or tag (in that order) in the given engine
-	 * 
 	 * @param type is the URI of a perspective (e.g. http://semoss.org/ontologies/Concept/Director)
 	 * @param instance is the URI of an instance (e.g. http://semoss.org/ontologies/Concept/Director/Ang_Lee)
 	 * @param tag currently isn't used--will be used to tag insights (TODO)
@@ -586,6 +197,43 @@ public class EngineResource {
 		// if the tag is empty, this will give back all the tags in the engines
 		return null;
 	}
+	
+	// gets a particular insight
+	// not sure if I should keep it as it is or turn this into a post because of the query
+	@POST
+	@Path("querys")
+	@Produces("application/json")
+	public Response queryDataSelect(MultivaluedMap<String, String> form)
+	{
+		// returns the insight
+		// based on the current ID get the data
+		// typically is a JSON of the insight
+		// this will also cache it
+		Gson gson = new Gson();
+		String query = form.getFirst("query");
+		String[] paramBind = gson.fromJson(form.getFirst("paramBind"), new TypeToken<String[]>() {}.getType());
+		String[] paramValue = gson.fromJson(form.getFirst("paramValue"), new TypeToken<String[]>() {}.getType());
+		//do the query binding server side isntead of on the front end.
+		if(paramBind.length > 0 && paramValue.length > 0 && (paramBind.length == paramValue.length)){
+			for(int i = 0; i < paramBind.length && query.contains(paramBind[i]); i++){
+//				String paramValueStr = coreEngine.getTransformedNodeName(paramValue[i], false);
+				String paramValueStr = paramValue[i];
+				if(coreEngine.getEngineType() == ENGINE_TYPE.RDBMS){
+					String paramValueTable = Utility.getInstanceName(paramValueStr);
+					String paramValueCol = Utility.getClassName(paramValueStr);
+
+					//very risky business going on right now.... will not work on other bindings
+					if(paramValueCol != null) query = query.replaceFirst(paramBind[i], paramValueCol);
+					if(paramValueTable != null) query = query.replaceFirst(paramBind[i], paramValueTable);
+
+				} else {
+					query = query.replaceFirst(paramBind[i], paramValueStr);
+				}
+			}
+		}
+		System.out.println(query);
+		return Response.status(200).entity(WebUtility.getSO(RDFJSONConverter.getSelectAsJSON(query, coreEngine))).build();
+	}	
 
 	/**
 	 * Uses the title of an insight to get the Insight object as well as the options and params
@@ -633,36 +281,12 @@ public class EngineResource {
 				Set<Object> uniqueVals = new HashSet<Object>(vals);
 				optionsHash.put(param.getName(), uniqueVals);			
 			}
-			//				// do the logic to get the stuff
-			//				String query = param.getQuery();
-			//				// do a bifurcation based on the engine
-			//				if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SESAME || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.JENA || coreEngine.getEngineType() == IEngine.ENGINE_TYPE.SEMOSS_SESAME_REMOTE)
-			//					optionsHash.put(param.getName(), coreEngine.getParamValues(param.getName(), param.getType(), in.getId(), query));
-			//				else if(coreEngine.getEngineType() == IEngine.ENGINE_TYPE.RDBMS)
-			//				{
-			//					String type = param.getType();
-			//					type = type.substring(type.lastIndexOf(":") + 1);
-			//					optionsHash.put(param.getName(), coreEngine.getParamValues(param.getName(), type, in.getId(), query));
-			//				}
-			//			}
 			else {
 				optionsHash.put(param.getName(), "");
 			}
 			paramsHash.put(param.getName(), param);
 		}
 
-
-		// OLD LOGIC
-		// get the sparql parameters now
-		/*Hashtable paramHash = Utility.getParamTypeHash(in.getSparql());
-		Iterator <String> keys = paramHash.keySet().iterator();
-		Hashtable newHash = new Hashtable();
-		while(keys.hasNext())
-		{
-			String paramName = keys.next();
-			String paramType = paramHash.get(paramName) + "";
-			newHash.put(paramName, coreEngine.getParamValues(paramName, paramType, in.getId()));
-		}*/
 		outputHash.put("options", optionsHash);
 		outputHash.put("params", paramsHash);
 
@@ -718,40 +342,6 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 	}
 
-	@GET
-	@Path("getValuesOfType")
-	@Produces("application/json")
-	public Response getListOfValues(@QueryParam("nodeUri") String nodeUri, @QueryParam("parentUri") String parentUri)
-	{
-		Vector<Object> retList = null;
-		if(this.coreEngine.getEngineType().equals(ENGINE_TYPE.RDBMS)) {
-			String type = Utility.getInstanceName(nodeUri);
-			if(parentUri == null || parentUri.isEmpty()) {
-				// the nodeUri is a concept
-				retList = this.coreEngine.getEntityOfType(type);
-			} else {
-				String parent = Utility.getInstanceName(parentUri);
-				type += ":" + parent;
-				retList = this.coreEngine.getEntityOfType(type);
-			}
-		} else {
-			// it is a sparql query
-			if(parentUri == null || parentUri.isEmpty()) {
-				// the nodeUri is a concept
-				retList = this.coreEngine.getEntityOfType(nodeUri);
-			} else {
-				// the nodeUri is a property
-				// need to get all property values that pertain to a concept
-				String query = "SELECT DISTINCT ?ENTITY WHERE {?P <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ," +
-						parentUri + ">} {?P <" + nodeUri + "> ?ENTITY} }";
-				// getCleanSelect is not on interface, but only on abstract engine
-				retList = ((AbstractEngine) this.coreEngine).getCleanSelect(query);
-			}
-		}
-
-		return Response.status(200).entity(WebUtility.getSO(retList)).build();
-	}
-
 	/**
 	 * Executes a particular insight or runs a custom query on the specified playsheet
 	 * To run custom query: must pass playsheet and sparql
@@ -803,7 +393,7 @@ public class EngineResource {
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
 					errorHash.put("Message", "Error occured processing question.");
-					errorHash.put("Class", className);
+					errorHash.put("Class", this.getClass().getName());
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
 
@@ -812,7 +402,7 @@ public class EngineResource {
 			else{
 				Hashtable<String, String> errorHash = new Hashtable<String, String>();
 				errorHash.put("Message", "No question defined.");
-				errorHash.put("Class", className);
+				errorHash.put("Class", this.getClass().getName());
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			}
 		}
@@ -822,46 +412,46 @@ public class EngineResource {
 			// set the user id into the insight
 			insightObj.setUserID( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
 			Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
-			params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
+			//			params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
 			insightObj.setParamHash(params);
 
-//			if(!insightObj.isDbInsight()) {
-//				String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getVizData(insightObj);
-//				if(vizData != null) {
-//					// insight has been cached, send it to the FE with a new insight id
-//					String id = InsightStore.getInstance().put(insightObj);
-//					Map<String, Object> uploaded = gson.fromJson(vizData, new TypeToken<Map<String, Object>>() {}.getType());
-//					uploaded.put("insightID", id);
-//
-//					tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), id, session.getId());
-//					return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
-//				} 
-//				//				Should we just get the cached DM if the Viz has been deleted and send that to the FE?
-//				//				
-//				//				ITableDataFrame dataFrame = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getDMCache(insightObj);
-//				//				if(dataFrame != null) {
-//				//					insightObj.setDataMaker(dataFrame);
-//				//					String id = InsightStore.getInstance().put(insightObj);
-//				//					InsightCreateRunner run = new InsightCreateRunner(insightObj);
-//				//					Map<String, Object> obj = run.runWeb();
-//				//					obj.put("insightID", id);
-//				//					
-//				//					// cahce json for future
-//				//					CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
-//				//					
-//				//					return Response.status(200).entity(WebUtility.getSO(obj)).build();
-//				//				}
-//				else {
-//					Hashtable<String, String> errorHash = new Hashtable<String, String>();
-//					errorHash.put("Message", "Error getting data for saved insight via csv.");
-//					errorHash.put("Class", className);
-//					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-//				}
-//			}
+			//			if(!insightObj.isDbInsight()) {
+			//				String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getVizData(insightObj);
+			//				if(vizData != null) {
+			//					// insight has been cached, send it to the FE with a new insight id
+			//					String id = InsightStore.getInstance().put(insightObj);
+			//					Map<String, Object> uploaded = gson.fromJson(vizData, new TypeToken<Map<String, Object>>() {}.getType());
+			//					uploaded.put("insightID", id);
+			//
+			//					tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), id, session.getId());
+			//					return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
+			//				} 
+			//				//				Should we just get the cached DM if the Viz has been deleted and send that to the FE?
+			//				//				
+			//				//				ITableDataFrame dataFrame = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getDMCache(insightObj);
+			//				//				if(dataFrame != null) {
+			//				//					insightObj.setDataMaker(dataFrame);
+			//				//					String id = InsightStore.getInstance().put(insightObj);
+			//				//					InsightCreateRunner run = new InsightCreateRunner(insightObj);
+			//				//					Map<String, Object> obj = run.runWeb();
+			//				//					obj.put("insightID", id);
+			//				//					
+			//				//					// cahce json for future
+			//				//					CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
+			//				//					
+			//				//					return Response.status(200).entity(WebUtility.getSO(obj)).build();
+			//				//				}
+			//				else {
+			//					Hashtable<String, String> errorHash = new Hashtable<String, String>();
+			//					errorHash.put("Message", "Error getting data for saved insight via csv.");
+			//					errorHash.put("Class", className);
+			//					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			//				}
+			//			}
 
 			// check if the insight has already been cached
 			System.out.println("Params is " + params);
-//			String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getVizData(insightObj);
+			//			String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getVizData(insightObj);
 			String vizData = null;
 
 			Object obj = null;
@@ -880,25 +470,25 @@ public class EngineResource {
 					InsightCreateRunner run = new InsightCreateRunner(insightObj);
 					obj = run.runWeb();
 
-//					//Don't cache dashboards for now...too many issues with that
-//					//need to resolve updating insight ID for dashboards, as well as old insight IDs of insights stored in varMap
-//					if(!(insightObj.getDataMaker() instanceof Dashboard)) {
-//						String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
-//
-//						if(saveFileLocation != null) {
-//							saveFileLocation = saveFileLocation + "_Solr.txt";
-//							File solrFile = new File(saveFileLocation);
-//							String solrId = SolrIndexEngine.getSolrIdFromInsightEngineId(insightObj.getEngineName(), insightObj.getRdbmsId());
-//							SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
-//							writer.writeSolrDocument(SolrIndexEngine.getInstance().getInsight(solrId));
-//							writer.closeExport();
-//						}
-//					}
+					//					//Don't cache dashboards for now...too many issues with that
+					//					//need to resolve updating insight ID for dashboards, as well as old insight IDs of insights stored in varMap
+					//					if(!(insightObj.getDataMaker() instanceof Dashboard)) {
+					//						String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
+					//
+					//						if(saveFileLocation != null) {
+					//							saveFileLocation = saveFileLocation + "_Solr.txt";
+					//							File solrFile = new File(saveFileLocation);
+					//							String solrId = SolrIndexEngine.getSolrIdFromInsightEngineId(insightObj.getEngineName(), insightObj.getRdbmsId());
+					//							SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
+					//							writer.writeSolrDocument(SolrIndexEngine.getInstance().getInsight(solrId));
+					//							writer.closeExport();
+					//						}
+					//					}
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
 					errorHash.put("Message", "Error occured processing question.");
-					errorHash.put("Class", className);
+					errorHash.put("Class", this.getClass().getName());
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
 
@@ -909,159 +499,16 @@ public class EngineResource {
 		}
 	}
 
-	// executes a particular insight
-	@GET
-	@Path("outputs")
-	@Produces("application/json")
-	public StreamingOutput listOutputs()
-	{
-		// pulls the list of outputs and gives it back
-		return null;
-	}	
-
-	// gets a particular insight
-	// not sure if I should keep it as it is or turn this into a post because of the query
-	@POST
-	@Path("querys")
-	@Produces("application/json")
-	public Response queryDataSelect(MultivaluedMap<String, String> form)
-	{
-		// returns the insight
-		// based on the current ID get the data
-		// typically is a JSON of the insight
-		// this will also cache it
-		Gson gson = new Gson();
-		String query = form.getFirst("query");
-		String[] paramBind = gson.fromJson(form.getFirst("paramBind"), new TypeToken<String[]>() {}.getType());
-		String[] paramValue = gson.fromJson(form.getFirst("paramValue"), new TypeToken<String[]>() {}.getType());
-		//do the query binding server side isntead of on the front end.
-		if(paramBind.length > 0 && paramValue.length > 0 && (paramBind.length == paramValue.length)){
-			for(int i = 0; i < paramBind.length && query.contains(paramBind[i]); i++){
-				String paramValueStr = coreEngine.getTransformedNodeName(paramValue[i], false);
-				if(coreEngine.getEngineType() == ENGINE_TYPE.RDBMS){
-					String paramValueTable = Utility.getInstanceName(paramValueStr);
-					String paramValueCol = Utility.getClassName(paramValueStr);
-
-					//very risky business going on right now.... will not work on other bindings
-					if(paramValueCol != null) query = query.replaceFirst(paramBind[i], paramValueCol);
-					if(paramValueTable != null) query = query.replaceFirst(paramBind[i], paramValueTable);
-
-				} else {
-					query = query.replaceFirst(paramBind[i], paramValueStr);
-				}
-			}
-		}
-		System.out.println(query);
-		return Response.status(200).entity(WebUtility.getSO(RDFJSONConverter.getSelectAsJSON(query, coreEngine))).build();
-	}	
-
-	// runs a query against the engine while filtering out everything included in baseHash
-	@POST
-	@Path("querys/filter/noBase")
-	@Produces("application/json")
-	public Response queryDataSelectWithoutBase(MultivaluedMap<String, String> form)
-	{
-		// create and set the filter class
-		// send the query
-		SPARQLExecuteFilterNoBaseFunction filterFunction = new SPARQLExecuteFilterNoBaseFunction();
-		filterFunction.setEngine(coreEngine);
-		if(coreEngine instanceof AbstractEngine)
-			filterFunction.setFilterHash(((AbstractEngine)coreEngine).getBaseHash());
-		System.out.println(form.getFirst("query"));
-		return Response.status(200).entity(WebUtility.getSO(filterFunction.process(form.getFirst("query")+""))).build();
-	}	
-
-	// runs a query against the engine while filtering out everything included in baseHash
-	@POST
-	@Path("querys/filter/onlyBase")
-	@Produces("application/json")
-	public Response queryDataSelectOnlyBase(MultivaluedMap<String, String> form)
-	{
-		// create and set the filter class
-		// send the query
-		SPARQLExecuteFilterBaseFunction filterFunction = new SPARQLExecuteFilterBaseFunction();
-		filterFunction.setEngine(coreEngine);
-		if(coreEngine instanceof AbstractEngine)
-			filterFunction.setFilterHash(((AbstractEngine)coreEngine).getBaseHash());
-		System.out.println(form.getFirst("query"));
-
-		return Response.status(200).entity(WebUtility.getSO(filterFunction.process(form.getFirst("query")+""))).build();
-	}	
-
-	// gets a particular insight
-	// not sure if I should keep it as it is or turn this into a post because of the query
-	@GET
-	@Path("queryc")
-	@Produces("application/json")
-	public StreamingOutput queryDataConstruct(@QueryParam("query") String query)
-	{
-		// returns the insight
-		// based on the current ID get the data
-		// typically is a JSON of the insight
-		// this will also cache it
-		// now should I assume the dude is always trying to get a graph
-		// need discussion with the team
-		return null;
-	}	
-
-	@POST
-	@Path("update")
-	@Produces("application/json")
-	public Response insertData2DB(MultivaluedMap<String, String> form)
-	{
-		// returns the insight
-		// based on the current ID get the data
-		// typically is a JSON of the insight
-		// this will also cache it
-		SesameJenaUpdateWrapper wrapper = new SesameJenaUpdateWrapper();
-		wrapper.setEngine(coreEngine);
-		wrapper.setQuery(form.getFirst("query")+"");
-		boolean success = wrapper.execute();
-		if(success) {
-			return Response.status(200).entity(WebUtility.getSO("success")).build();
-		} else {
-			Hashtable<String, String> errorHash = new Hashtable<String, String>();
-			errorHash.put("Message", "Error processing query.");
-			errorHash.put("Class", className);
-			return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
-		}
-	}	
-
-	// gets all numeric properties associated with a specific node type
-	@GET
-	@Path("properties/node/type/numeric")
-	@Produces("application/json")
-	public Response getNumericNodeProperties(
-			@QueryParam("nodeType")  String nodeUri)
-	{
-		String nodePropQuery = "SELECT DISTINCT ?entity WHERE {{?source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@NODE_TYPE_URI@>} {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Relation/Contains>} {?source ?entity ?prop } FILTER(ISNUMERIC(?prop))}";
-
-		//fill the query
-		String query = nodePropQuery.replace("@NODE_TYPE_URI@", nodeUri);
-		logger.info("Running node property query " + query);
-		return Response.status(200).entity(WebUtility.getSO(Utility.getVectorOfReturn(query, coreEngine, true))).build();
-	}	
-
-	// gets all numeric edge properties for a specific edge type
-	@GET
-	@Path("properties/edge/type/numeric")
-	@Produces("application/json")
-	public Response getNumericEdgeProperties(
-			@QueryParam("source")  String sourceTypeUri,
-			@QueryParam("target")  String targetTypeUri,
-			@QueryParam("verb")  String verbTypeUri)
-	{
-		String edgePropQuery = "SELECT DISTINCT ?entity WHERE {{?source <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@SOURCE_TYPE@>} {?target <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <@TARGET_TYPE@>} {?verb <http://www.w3.org/2000/01/rdf-schema#subPropertyOf> <@VERB_TYPE@>}{?source ?verb ?target;} {?entity <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://semoss.org/ontologies/Relation/Contains>} {?verb ?entity ?prop } FILTER(ISNUMERIC(?prop))}";
-
-		//fill the query
-		String query = edgePropQuery.replace("@SOURCE_TYPE@", sourceTypeUri).replace("@TARGET_TYPE@", targetTypeUri).replace("@VERB_TYPE@", verbTypeUri);
-		logger.info("Running edge property query " + query);
-		return Response.status(200).entity(WebUtility.getSO(Utility.getVectorOfReturn(query, coreEngine, true))).build();
-	}
-
 	@POST
 	@Path("/addData")
 	@Produces("application/json")
+	@Deprecated
+	/**
+	 * THIS IS THE OLD WAY OF ADDING DATA ONTO THE DATAFRAME!!!!
+	 * SADLY, FORMS IS NOT PUSHED INTO PKQL SO THEY USE THIS TO GET THE DATA
+	 * WILL DELETE THIS ONCE THEY SHIFT OVER!!!!
+	 * @return
+	 */
 	public Response addData(MultivaluedMap<String, String> form, 
 			@QueryParam("existingConcept") String currConcept, 
 			@QueryParam("joinConcept") String equivConcept, 
@@ -1162,306 +609,6 @@ public class EngineResource {
 	}
 
 	@POST
-	@Path("customFilterOptions")
-	@Produces("application/json")
-	public Response getCustomFilterOptions(MultivaluedMap<String, String> form, 
-			@QueryParam("existingConcept") String currConcept, 
-			@QueryParam("joinType") String joinType,
-			@QueryParam("insightID") String insightID,
-			//@QueryParam("reset") boolean reset,
-			@Context HttpServletRequest request)
-	{
-
-		// first check if existingConcept exists in infiniteScroller
-		// if reset 
-
-		Gson gson = new Gson();
-		Map<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Map<String, Object>>() {}.getType());
-		QueryBuilderData data = new QueryBuilderData(dataHash);
-
-		boolean outer = false;
-		boolean inner = false;
-		if(joinType.equals("outer")) {
-			outer = true;
-		} else if(joinType.equals("inner")) {
-			inner = true;
-		}
-
-		IQueryBuilder builder = this.coreEngine.getQueryBuilder();
-		Insight existingInsight = null;
-		if(insightID != null && !insightID.isEmpty() && !outer) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			Map<String, String> errorHash = new HashMap<String, String>();
-			if(existingInsight == null) {
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-
-			// need to add bindings for query if not outer join
-			ITableDataFrame existingData = (ITableDataFrame) existingInsight.getDataMaker();
-			if(existingData == null) {
-				errorHash.put("errorMessage", "Dataframe not found within insight");
-				return Response.status(400).entity(errorHash).build();
-			}
-
-			if(currConcept != null && !currConcept.isEmpty()) {
-				List<Object> filteringValues = Arrays.asList(existingData.getUniqueRawValues(currConcept));
-				//				HttpSession session = request.getSession();
-				//				if(session.getAttribute(tableID) == null) {
-				//					session.setAttribute(tableID, InfiniteScrollerFactory.getInfiniteScroller(existingData));
-				//				}
-				//				
-				//				InfiniteScroller scroller = (InfiniteScroller)session.getAttribute(tableID);
-				//				List<HashMap<String, String>> filteringValues = scroller.getNextUniqueValues(currConcept);
-				//								
-				Map<String, List<Object>> stringMap = new HashMap<String, List<Object>>();
-				stringMap.put(currConcept, filteringValues);
-				data.setFilterData(stringMap);
-			} else {
-				errorHash.put("errorMessage", "Cannot perform filtering when current concept to filter on is not defined");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-		}
-
-		builder.setBuilderData(data);
-		builder.buildQuery();
-		String query = builder.getQuery();
-
-		System.out.println(query);
-
-		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
-		String[] newNames = wrap.getVariables();
-		int index = 0;
-		if(newNames.length > 1) {
-			int currIndexexistingConcept = 0;
-
-			currIndexexistingConcept = ArrayUtilityMethods.arrayContainsValueAtIndexIgnoreCase(newNames, currConcept);
-			if(currIndexexistingConcept == 0) {
-				index = 1;
-			}
-		} 
-
-		// creating new list of values from query
-		Set<Object> retList = new HashSet<Object>();
-		while (wrap.hasNext()) {
-			ISelectStatement iss = wrap.next();
-			Object value = iss.getRawVar(newNames[index]);
-			if(inner && value.toString().isEmpty()) {
-				continue; // don't add empty values as a possibility
-			}
-			if(value instanceof BigdataURI) {
-				retList.add( ((BigdataURI)value).stringValue());
-			} else {
-				retList.add(iss.getVar(newNames[index]));
-			}
-		}
-
-		return Response.status(200).entity(WebUtility.getSO(retList)).build();
-	}
-
-	// author: jason
-	@POST
-	@Path("searchColumn")
-	@Produces("application/json")
-	public Response searchColumn(MultivaluedMap<String, String> form,
-			@QueryParam("existingConcept") String currConcept,
-			@QueryParam("joinConcept") String equivConcept, 
-			@QueryParam("columnHeader") String newConcept,
-			@QueryParam("joinType") String joinType, 
-			@QueryParam("insightID") String insightID, 
-			@QueryParam("searchTerm") String searchTerm, 
-			@QueryParam("limit") String limit, 
-			@QueryParam("offset") String offset,
-			@Context HttpServletRequest request) {
-
-		equivConcept = Utility.getInstanceName(equivConcept);
-		newConcept = Utility.getInstanceName(newConcept);
-		HttpSession session = request.getSession();
-		// check if a result set has been cached
-		if (session.getAttribute(InstanceStreamer.KEY) != null) {
-			InstanceStreamer stream = (InstanceStreamer) session.getAttribute(InstanceStreamer.KEY);
-			String ID = stream.getID();
-			// check if appropriate set has been cached
-			if (ID != null && ID.equals(Utility.getInstanceName(newConcept)) && !newConcept.equals("")) {
-				logger.info("Fetching cached results for ID: "+stream.getID());
-				if (!searchTerm.equals("") && searchTerm != null) {
-
-					logger.info("Searching cached results for searchTerm: "+searchTerm);
-					ArrayList<Object> results = stream.search(searchTerm);
-					stream = new InstanceStreamer(results);
-					logger.info(Integer.toString(stream.getSize())+" results found.");
-				}
-
-				logger.info("Returning items "+offset+" through "+Integer.toString(Integer.parseInt(offset) + Integer.parseInt(limit))+".");
-				ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
-				Map<String, Object> returnData = new HashMap<String, Object>();
-				returnData.put("data", uniqueResults);
-				returnData.put("size", stream.getSize());
-				return Response.status(200).entity(WebUtility.getSO(returnData)).build();
-			}
-		}
-
-		Gson gson = new Gson();
-		//		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-		//		QueryBuilderData data = new QueryBuilderData(dataHash);
-		//		data.setVarReturnOrder(newConcept, 0);
-		//		data.setLimitReturnToVarsList(true);
-		//		QueryBuilderHelper.parsePath(data, this.coreEngine);
-		//		QueryStruct qs = data.getQueryStruct(true);
-
-		QueryStruct qs = gson.fromJson(form.getFirst("QueryData"), new QueryStruct().getClass());
-
-		// Very simply, here is the logic:
-		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
-		// 2. Else, we get the insight from session (if the insight isn't in session, we are done--throw an error)
-		// 2. a. If its not an outer join, add a filter transformation with all instances from other column in order to speed up join
-		// 2. b. Add join transformation since we know a tree already exists and we will have to join to it
-		// 3. Process the component
-
-		// get the insight if an id has been passed
-		Insight insight = null;
-		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, qs);
-
-		ISEMOSSTransformation joinTrans = null;
-		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
-		if(insightID == null || insightID.isEmpty()) {
-			insight = new Insight(this.coreEngine, "TinkerFrame", PlaySheetRDFMapBasedEnum.getSheetName("Grid")); // TODO: this needs to be an enum or grabbed from rdf map somehow
-		} 
-
-		// 2. Else, we get the insight from session (if the insight isn't in session, we are done--throw an error)
-		else {
-			insight = InsightStore.getInstance().get(insightID);
-			if(insight == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			}
-
-			// 2. b. Add join transformation since we know a tree already exists and we will have to join to it
-			joinTrans = new JoinTransformation();
-			Map<String, Object> selectedOptions = new HashMap<String, Object>();
-			selectedOptions.put(JoinTransformation.COLUMN_ONE_KEY, currConcept);
-			selectedOptions.put(JoinTransformation.COLUMN_TWO_KEY, equivConcept);
-			selectedOptions.put(JoinTransformation.JOIN_TYPE, joinType);
-			joinTrans.setProperties(selectedOptions);
-			//			dmc.addPostTrans(joinTrans);
-			dmc.addPreTrans(joinTrans);
-		}
-
-		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();
-		table.processPreTransformations(dmc, dmc.getPreTrans());
-		String query = dmc.fillQuery();
-
-		System.out.println("FINAL SEARCH COLUMN QUERY ::: " + query);
-
-		ISelectWrapper wrap = WrapperManager.getInstance().getSWrapper(this.coreEngine, query);
-		String[] displayNames = wrap.getDisplayVariables();
-
-		// creating new list of values from query
-		ArrayList<Object> retList = new ArrayList<Object>();
-		while (wrap.hasNext()) {
-			ISelectStatement iss = wrap.next();
-			Object value = iss.getVar(displayNames[0]);
-			//			if (value instanceof BigdataURI) {
-			//				retList.add(((BigdataURI) value).stringValue());
-			//			} else {
-			retList.add(value);//retList.add(iss.getVar(newNames[index]));
-			//			}
-		}
-
-		// put everything into InstanceStreamer object
-		InstanceStreamer stream = new InstanceStreamer(retList);
-		logger.info("Creating InstanceStreamer object with ID: "+newConcept);
-		//String ID = Utility.getInstanceName(columnHeader) + Integer.toString(stream.getSize());
-		stream.setID(Utility.getInstanceName(newConcept));
-
-		// set InstanceStreamer object
-		session.setAttribute(InstanceStreamer.KEY, stream);
-		logger.info("Searching column for searchTerm: "+searchTerm);
-		if (!searchTerm.equals("") && searchTerm != null) {
-			ArrayList<Object> results = stream.search(searchTerm);
-			stream = new InstanceStreamer(results);
-			logger.info(Integer.toString(stream.getSize())+" results found.");
-		}
-
-		logger.info("Returning items "+offset+" through "+Integer.toString(Integer.parseInt(offset) + Integer.parseInt(limit))+".");
-		ArrayList<Object>  uniqueResults = stream.getUnique(Integer.parseInt(offset), (Integer.parseInt(offset) + Integer.parseInt(limit)));
-
-		Map<String, Object> returnData = new HashMap<String, Object>();
-		returnData.put("data", uniqueResults);
-		returnData.put("size", stream.getSize());
-		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
-	}
-
-
-	@POST
-	@Path("clearCache")
-	@Produces("application/json")
-	public Response clearCache(@Context HttpServletRequest request) {
-
-		HttpSession session = request.getSession();
-
-		if (session.getAttribute(InstanceStreamer.KEY) != null) {
-			InstanceStreamer stream = (InstanceStreamer) session.getAttribute(InstanceStreamer.KEY);
-			stream.setID(null);
-		}
-
-		Map<String, Object> returnData = new HashMap<String, Object>();
-		returnData.put("success", "yes");
-
-		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
-	}
-
-	// author: jason
-	@POST
-	@Path("loadAllFromCache")
-	@Produces("application/json")
-	public Response loadAllFromCache(
-			@QueryParam("searchTerm") String searchTerm, 
-			@Context HttpServletRequest request) {
-
-		HttpSession session = request.getSession();
-
-		if (session.getAttribute(InstanceStreamer.KEY) != null) {
-			InstanceStreamer stream = (InstanceStreamer) session.getAttribute(InstanceStreamer.KEY);
-
-			if (!searchTerm.equals("") && searchTerm != null) {
-				logger.info("Searching column for searchTerm: "+searchTerm);
-				ArrayList<Object> results = stream.search(searchTerm);
-				stream = new InstanceStreamer(results);
-				logger.info(Integer.toString(stream.getSize())+" results found.");
-			}
-
-			ArrayList<Object> cachedList = stream.getList();
-
-			Map<String, Object> returnData = new HashMap<String, Object>();
-			returnData.put("data", cachedList);
-			return Response.status(200).entity(WebUtility.getSO(returnData)).build();
-		}
-		else {
-			return Response.status(400).entity(WebUtility.getSO("Could not find cache")).build();
-		}
-	}
-
-	@GET
-	@Path("customVizPathProperties")
-	@Produces("application/json")
-	public Response getPathProperties(@QueryParam("QueryData") String pathObject, @Context HttpServletRequest request)
-	{
-		logger.info("Getting properties for path");
-		Gson gson = new Gson();
-		Hashtable<String, Object> dataHash = gson.fromJson(pathObject, Hashtable.class);
-		QueryBuilderData data = new QueryBuilderData(dataHash);
-		Object obj = QueryBuilderHelper.getPropsFromPath(this.coreEngine, data);
-
-		//		SPARQLQueryTableBuilder tableViz = new SPARQLQueryTableBuilder();
-		//		tableViz.setJSONDataHash(dataHash);
-		//		tableViz.setEngine(coreEngine);
-		//		Object obj = tableViz.getPropsFromPath();
-		return Response.status(200).entity(WebUtility.getSO(obj)).build();
-	}	
-
-	@POST
 	@Path("/commitFormData")
 	@Produces("application/json")
 	public Response commitFormData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
@@ -1496,20 +643,33 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(gson.toJson(auditInfo))).build();
 	}
 
-	@Path("/generateInsights")
-	public Object runAutoGeneratedInsights(){
-		AutoGeneratedInsights AutoGeneratedInsights = new AutoGeneratedInsights(this.coreEngine);
 
-		return AutoGeneratedInsights;
+
+
+	public static void main(String[] args) {
+
+		Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
+		Map<String, Object> testMap = new HashMap<String, Object>();
+		Map<String, Object> innerMap = new HashMap<String, Object>();
+		innerMap.put("object1", "value1");
+		innerMap.put("object2", "value2");
+
+		String bytes = gson.toJson(innerMap);
+
+		testMap.put("object", "value");
+		testMap.put("innerMap", bytes);
+
+		String s = gson.toJson(testMap);
+		Map<String, Object> newMap = gson.fromJson(s, new TypeToken<Map<String, Object>>() {}.getType());
 	}
 
-	@Path("/explore")
-	public Object generateQuery(@Context HttpServletRequest request)
-	{
-		ExploreQuery exploreQuery = new ExploreQuery(this.coreEngine);
 
-		return exploreQuery;
-	}
+	// TESTING FOR JOB-ID THREADS
+	// TESTING FOR JOB-ID THREADS
+	// TESTING FOR JOB-ID THREADS
+	// TESTING FOR JOB-ID THREADS
+	// TESTING FOR JOB-ID THREADS
+	// TESTING FOR JOB-ID THREADS
 
 	// test
 	@GET
@@ -1588,59 +748,5 @@ public class EngineResource {
 		//myResponse.resume(jaxrs);
 		return "Returned.. ";
 	}  
-
-	//	@POST
-	//	@Path("/publishToFeed")
-	//	@Produces("application/xml")
-	//	public Response publishInsight(@QueryParam("visibility") String visibility, @QueryParam("insight") String insight, @Context HttpServletRequest request) {
-	//		boolean success = false;
-	//		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
-	//		Insight insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
-	//
-	//		NameServerProcessor ns = new NameServerProcessor();
-	//		success = ns.publishInsightToFeed(userId, insightObj, visibility);
-	//
-	//		return success ? Response.status(200).entity(WebUtility.getSO(success)).build() : Response.status(400).entity(WebUtility.getSO(success)).build();
-	//	}
-
-	@GET
-	@Path("conceptProperties")
-	@Produces("application/json")
-	public Response getConceptProperties(@QueryParam("nodeUri") String nodeUri, @Context HttpServletRequest request)
-	{
-		logger.info("Getting properties for node : " + nodeUri);
-		List<String> uriProps = this.coreEngine.getProperties4Concept2(nodeUri, true);
-
-		// TODO: this layout should not be necessary anymore
-		// should just send the FE a list of hte conceputal node names and that is it
-		// no need to send the URI
-		Map<String, String> propMap = new HashMap<String, String>();
-		if(!uriProps.isEmpty()) {
-			for(String uriProp : uriProps) {
-				propMap.put(uriProp, Utility.getInstanceName(uriProp));
-			}
-		}
-
-		// THIS IS FOR LEGACY OWL VERSIONS WHICH DO NOT HAVE CONCEPTUAL NODES
-		// TODO: this bifurcation should be removed once all OWLS are in new version
-		else {
-			if(!nodeUri.contains("http://")){
-				nodeUri = Constants.DISPLAY_URI + Utility.cleanString(nodeUri, true);
-			}
-			uriProps = this.coreEngine.getProperties4Concept(nodeUri, true);
-			// need to go through each one and translate
-			for(String uriProp : uriProps){
-				String logicalName = this.coreEngine.getTransformedNodeName(uriProp, true);
-				propMap.put(logicalName, Utility.getInstanceName(logicalName));
-			}
-		}
-
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		retMap.put("props", propMap);
-		retMap.put("myPhysicalName", Utility.getInstanceName(this.coreEngine.getTransformedNodeName(nodeUri, true)));
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-	}
-
-
 
 }

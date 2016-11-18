@@ -32,8 +32,6 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.AbstractTableDataFrame;
-import prerna.ds.BTreeDataFrame;
-import prerna.ds.Probablaster;
 import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
 import prerna.ds.h2.H2Frame;
@@ -110,37 +108,6 @@ public class DataframeResource {
 		InsightStore.getInstance().put(id, insight);
 
 		return Response.status(200).entity(WebUtility.getSO("Insight " + id + " has been cleared")).build();
-	}
-
-	/**
-	 * Retrieve top executed insights.
-	 * 
-	 * @param engine	Optional, engine to restrict query to
-	 * @param limit		Optional, number of top insights to retrieve, default is 6
-	 * @param request	HttpServletRequest object
-	 * 
-	 * @return			Top insights and total execution count for all to be used for normalization of popularity
-	 */
-	@GET
-	@Path("bic")
-	@Produces("application/json")
-	public Response runBIC(@Context HttpServletRequest request) {
-
-		System.out.println("Failed.. after here.. ");
-		String insights = "Mysterious";
-		System.out.println("Running basic checks.. ");
-		IDataMaker maker = insight.getDataMaker();
-		if(maker instanceof TinkerFrame)
-		{
-			System.out.println("Hit the second bogie.. ");
-			BTreeDataFrame daFrame = (BTreeDataFrame)maker;
-			Probablaster pb = new Probablaster();
-			pb.setDataFrame(daFrame);
-			insights = pb.runBIC();
-		}
-		insights = "Pattern Selected..  " + insights + " !! ";
-
-		return Response.status(200).entity(WebUtility.getSO(insights)).build();
 	}
 
 	@GET
@@ -693,7 +660,7 @@ public class DataframeResource {
 		Set<String> newTables = creator.getNewTables();
 		Map<String, List<String>> newTablesAndCols = new Hashtable<String, List<String>>();
 		for(String newTable : newTables) {
-			List<String> props = createdEng.getProperties4Concept2(newTable, true);
+			List<String> props = createdEng.getProperties4Concept(newTable, true);
 			newTablesAndCols.put(newTable, props);
 		}
 		
