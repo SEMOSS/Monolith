@@ -36,7 +36,6 @@ import javax.ws.rs.core.Application;
 import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.AuthorizationResource;
 import prerna.semoss.web.services.NameServer;
-import prerna.semoss.web.services.SocialResource;
 import prerna.semoss.web.services.UserResource;
 
 public class MonolithApplication extends Application {
@@ -46,7 +45,6 @@ public class MonolithApplication extends Application {
       singletons.add(new UserResource());
       singletons.add(new NameServer());
       singletons.add(new AuthorizationResource());
-      singletons.add(new SocialResource());
       singletons.add(new FormResource());
    }
 
