@@ -301,7 +301,7 @@ public final class FormBuilder {
 						// check if string val is a date
 						SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 							try {
-								dateFormat.setLenient(true);
+								dateFormat.setLenient(false);
 								propertyValue= (Date) dateFormat.parse(((String) propertyValue).trim());
 							} catch (ParseException e) {
 								propertyValue = propertyValue.toString();
