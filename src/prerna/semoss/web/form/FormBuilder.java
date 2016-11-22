@@ -28,7 +28,6 @@ import prerna.engine.api.ISelectWrapper;
 import prerna.poi.main.RDBMSEngineCreationHelper;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Utility;
 
 public final class FormBuilder {
@@ -165,7 +164,7 @@ public final class FormBuilder {
 		}
 		
 		String auditLogTableName = RDBMSEngineCreationHelper.escapeForSQLStatement(RDBMSEngineCreationHelper.cleanTableName(engine.getEngineName())).toUpperCase() + FormResource.AUDIT_FORM_SUFFIX;
-		IEngine formEng = (IEngine) DIHelper.getInstance().getLocalProp(FormResource.FORM_BUILDER_ENGINE_NAME);
+		IEngine formEng = Utility.getEngine(FormResource.FORM_BUILDER_ENGINE_NAME);
 		// create audit table if doesn't exist
 		String checkTableQuery = "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='" + auditLogTableName + "'";
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formEng, checkTableQuery);
@@ -1293,7 +1292,7 @@ public final class FormBuilder {
 	public static Map<String, Object> getAuditDataForEngine(String engineName) {
 		Map<String, Object> retMap = new Hashtable<String, Object>();
 		String auditLogTableName = RDBMSEngineCreationHelper.escapeForSQLStatement(RDBMSEngineCreationHelper.cleanTableName(engineName)).toUpperCase() + FormResource.AUDIT_FORM_SUFFIX;
-		IEngine formEng = (IEngine) DIHelper.getInstance().getLocalProp(FormResource.FORM_BUILDER_ENGINE_NAME);
+		IEngine formEng = Utility.getEngine(FormResource.FORM_BUILDER_ENGINE_NAME);
 		
 		String query = "SELECT * FROM " + auditLogTableName;
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formEng, query);
