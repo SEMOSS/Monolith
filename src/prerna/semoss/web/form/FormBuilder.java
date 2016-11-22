@@ -310,6 +310,11 @@ public final class FormBuilder {
 					propertyURI = property.get("propertyName").toString();
 
 					engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
+					// ugh... we need to push forms
+					// values being passed are not properly keeping track of things that have underscores and things that don't
+					// just going to try both versions
+					engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{instanceConceptURI, propertyURI, Utility.cleanString(propertyValue.toString(), true, false, true), false});
+
 					// add audit log statement
 					Calendar cal = Calendar.getInstance();
 					String currTime = DATE_DF.format(cal.getTime());
