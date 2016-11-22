@@ -597,9 +597,10 @@ public class EngineResource {
 		//get the last added column
 		ITableDataFrame df = (ITableDataFrame) insight.getDataMaker();
 		String[] headerList = df.getColumnHeaders();
-		String lastAddedColumn = headerList[headerList.length - 1];
-
-		retMap.put("logicalName", lastAddedColumn);
+		if(headerList != null) {
+			String lastAddedColumn = headerList[headerList.length - 1];
+			retMap.put("logicalName", lastAddedColumn);
+		}
 		if(joinTrans==null) {
 			retMap.put("stepID", dmc.getId());
 		} else {
