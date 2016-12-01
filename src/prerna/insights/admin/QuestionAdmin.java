@@ -101,174 +101,58 @@ public class QuestionAdmin {
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		List<String> pkqlsToAdd = gson.fromJson(form.getFirst("pkqlsToAdd"), List.class);
 		List<String> saveRecipe = gson.fromJson(form.getFirst("saveRecipe"), List.class); //this is the recipe we want to save the insight as
+		String image = form.getFirst("image");
 
 		Insight insight = InsightStore.getInstance().get(insightID);
-//		boolean isNonDbInsight = !insight.isDbInsight();
-//		
 		String newInsightID = "";
-//		if(isNonDbInsight) {
-//			// we need to create a full db now
-//			// do it based on the csv file name and the date
-//			
-//			// TODO: right now, we make an assumption that we are only using one csv file
-//			String fileLocation = insight.getFilesUsedInInsight().get(0);
-//			String origFileName = Utility.getOriginalFileName(fileLocation).replace(".csv", "");
-//			// right now, we need the engine to be a valid pkql id (alphanumeric + underscore values only)
-//			// clean table name does just that
-//			origFileName = RDBMSEngineCreationHelper.cleanTableName(origFileName);
-//			
-//			List<String> engines = MasterDBHelper.getAllEngines((IEngine)DIHelper.getInstance().getLocalProp(Constants.LOCAL_MASTER_DB_NAME));
-//			int counter = 1;
-//			String engineName = origFileName;
-//			while(engines.contains(engineName)) {
-//				engineName = origFileName + "_" + counter;
-//				counter++;
-//			}
-//			
-//			InsightFilesToDatabaseReader creator = new InsightFilesToDatabaseReader();
-//			IEngine newEngine = creator.processInsightFiles(insight, engineName);
-//			
-//			// we also need to update the receipe to now query from the new db instead of from the file
-//			DataMakerComponent firstComp = insight.getDataMakerComponents().get(0);			
-//			// first we need to confirm that the first thing is a pkql transformation
-//			List<ISEMOSSTransformation> postTrans = firstComp.getPostTrans();
-//			
-//			for(int transIdx = 0; transIdx < postTrans.size(); transIdx++) {
-//				ISEMOSSTransformation firstTrans = postTrans.get(transIdx);
-//				if(!(firstTrans instanceof PKQLTransformation)) {
-//					continue;
-//				}
-//				
-//				// okay, so its a pkql transformation so we can now do the check
-//				
-//				PKQLTransformation pkqlTrans = (PKQLTransformation) firstTrans;
-//				List<String> listPkqlRun = pkqlTrans.getPkql();
-//				for(int pkqlIdx = 0; pkqlIdx < listPkqlRun.size(); pkqlIdx++) {
-//					String pkqlExp = listPkqlRun.get(pkqlIdx);
-//					pkqlExp = pkqlExp.replace(" ", "");
-//					
-//					// ugh, the bad string manipulation check :(
-//					if(pkqlExp.startsWith("data.import(api:csvFile.query")) {
-//						// we update the prop in the pkql transformation to be the engine load instead of csv file upload
-//						Map<String, Object> props = pkqlTrans.getProperties();
-//						props.put(PKQLTransformation.EXPRESSION, "data.import(api:" + engineName + ".query());");
-//					}
-//				}
-//			}
-//			
-//			// ASSUMPTION!!!
-//			// if the core engine is null
-//			// it means they want to save this insight into the newly created engine
-//			if(this.coreEngine == null) {
-//				this.coreEngine = (AbstractEngine) newEngine;
-//			}
-//			
-//			//TODO: assume person will not have parameters
-////			newInsightID = addInsightDMCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
-////			Map<String, Object> retMap = new HashMap<String, Object>();
-////			retMap.put("newInsightID", newInsightID);
-////			if (newInsightID != null) {
-////				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-////			} else {
-////				return Response.status(500).entity(WebUtility.getSO("Error adding insight")).build();
-////			}
-////		} else {
-//		}
-			Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
-			
-			//If saving with params, FE passes a user.input PKQL that needs to be added/saved - better way to do this?
-			if(pkqlsToAdd != null && !pkqlsToAdd.isEmpty()) {
-				PKQLRunner runner = insight.getPKQLRunner();
-				DataMakerComponent dmc;
-				if(insight.getDataMaker() instanceof Dashboard) {
-					dmc = insight.getDashboardDataMakerComponent();
-				} else {
-					dmc = insight.getDataMakerComponents().get(insight.getDataMakerComponents().size() - 1);
-				}
-				for(String pkqlCmd : pkqlsToAdd) {
-					PKQLTransformation pkqlToAdd = new PKQLTransformation();
-					Map<String, Object> props = new HashMap<String, Object>();
-					props.put(PKQLTransformation.EXPRESSION, pkqlCmd);
-					pkqlToAdd.setProperties(props);
-					pkqlToAdd.setRunner(runner);
-					
-					dmc.addPostTrans(pkqlToAdd, 0);
-				}
-			}
-			
-			Insight insightToSave = getInsightToSave(insight, saveRecipe);
-			newInsightID = addInsightFromDb(insightToSave, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
-			
-			insight.setRdbmsId(newInsightID);
-			insight.setMainEngine(this.coreEngine);
-			Map<String, Object> retMap = new HashMap<String, Object>();
-//			retMap.put("newInsightID", newInsightID);
-			retMap.put("core_engine", this.coreEngine.getEngineName());
-			retMap.put("core_engine_id", newInsightID);
-			retMap.put("insightName", insightName);
-			if (newInsightID != null) {
-				return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
+
+		//If saving with params, FE passes a user.input PKQL that needs to be added/saved - better way to do this?
+		if(pkqlsToAdd != null && !pkqlsToAdd.isEmpty()) {
+			PKQLRunner runner = insight.getPKQLRunner();
+			DataMakerComponent dmc;
+			if(insight.getDataMaker() instanceof Dashboard) {
+				dmc = insight.getDashboardDataMakerComponent();
 			} else {
-				return Response.status(500).entity(WebUtility.getSO("Error adding insight")).build();
+				dmc = insight.getDataMakerComponents().get(insight.getDataMakerComponents().size() - 1);
 			}
-//		}		
+			for(String pkqlCmd : pkqlsToAdd) {
+				PKQLTransformation pkqlToAdd = new PKQLTransformation();
+				Map<String, Object> props = new HashMap<String, Object>();
+				props.put(PKQLTransformation.EXPRESSION, pkqlCmd);
+				pkqlToAdd.setProperties(props);
+				pkqlToAdd.setRunner(runner);
+
+				dmc.addPostTrans(pkqlToAdd, 0);
+			}
+		}
+
+		Insight insightToSave = getInsightToSave(insight, saveRecipe);
+		newInsightID = addInsightFromDb(insightToSave, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList, image);
+
+		insight.setRdbmsId(newInsightID);
+		insight.setMainEngine(this.coreEngine);
+		Map<String, Object> retMap = new HashMap<String, Object>();
+		//			retMap.put("newInsightID", newInsightID);
+		retMap.put("core_engine", this.coreEngine.getEngineName());
+		retMap.put("core_engine_id", newInsightID);
+		retMap.put("insightName", insightName);
+		if (newInsightID != null) {
+			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		} else {
+			return Response.status(500).entity(WebUtility.getSO("Error adding insight")).build();
+		}
 	}
 	
-//	private String addInsightDMCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
-//		String uniqueID = UUID.randomUUID().toString();
-//		insight.setDatabaseID(uniqueID);
-//		insight.setInsightName(insightName);
-//		insight.setOutput(layout);
-//		insight.setDataTableAlign(dataTableAlign);
-//		insight.setUiOptions(uiOptions);
-//		insight.setIsDbInsight(true);
-//		
-//		String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).cacheInsight(insight);
-//
-//		Map<String, Object> solrInsights = new HashMap<>();
-//		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
-//		Date date = new Date();
-//		String currDate = dateFormat.format(date);
-//		solrInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
-//		solrInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
-//		solrInsights.put(SolrIndexEngine.TAGS, perspective);
-//		solrInsights.put(SolrIndexEngine.LAYOUT, layout);
-//		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
-//		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
-//		solrInsights.put(SolrIndexEngine.CORE_ENGINE, Constants.LOCAL_MASTER_DB_NAME);
-//		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, uniqueID);
-//		solrInsights.put(SolrIndexEngine.NON_DB_INSIGHT, true);
-//		Set<String> engines = new HashSet<String>();
-//		engines.add(Constants.LOCAL_MASTER_DB_NAME);
-//		solrInsights.put(SolrIndexEngine.ENGINES, engines);
-//		solrInsights.put(SolrIndexEngine.DATAMAKER_NAME, insight.getDataMakerName());
-//		
-//		//TODO: need to add users
-//		solrInsights.put(SolrIndexEngine.USER_ID, "default");
-//		
-//		try {
-//			SolrIndexEngine.getInstance().addInsight(uniqueID, solrInsights);
-//			saveFileLocation = saveFileLocation + "_Solr.txt";
-//			File solrFile = new File(saveFileLocation);
-//			SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
-//			writer.writeSolrDocument(uniqueID, solrInsights);
-//			writer.closeExport();
-//			return uniqueID;
-//		} catch (KeyManagementException e) {
-//			e.printStackTrace();
-//		} catch (NoSuchAlgorithmException e) {
-//			e.printStackTrace();
-//		} catch (KeyStoreException e) {
-//			e.printStackTrace();
-//		} catch (SolrServerException e) {
-//			e.printStackTrace();
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//		return null;
-//	}
-
-	private String addInsightFromDb(Insight insight, String insightName, String perspective, String order, String layout, String uiOptions, Map<String, String> dataTableAlign, Vector<Map<String, String>> paramMapList) {
+	private String addInsightFromDb(Insight insight, 
+			String insightName, 
+			String perspective, 
+			String order, 
+			String layout, 
+			String uiOptions, 
+			Map<String, String> dataTableAlign, 
+			Vector<Map<String, String>> paramMapList,
+			String image) {
 		//TODO: currently not exposed through UI
 		boolean isDbQuery = true;
 		
@@ -329,7 +213,8 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(newInsightID));
 		solrInsights.put(SolrIndexEngine.DATAMAKER_NAME, insight.getDataMakerName());
-
+		solrInsights.put(SolrIndexEngine.IMAGE, image);
+		
 		Set<String> engines = new HashSet<String>();
 		for(DataMakerComponent dmc : dmcList) {
 			engines.add(dmc.getEngine().getEngineName());
@@ -374,106 +259,25 @@ public class QuestionAdmin {
 		String uiOptions = form.getFirst("uiOptions");
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		List<String> saveRecipe = gson.fromJson(form.getFirst("saveRecipe"), List.class);
-		
+		String image = form.getFirst("image");
+
 		Insight insight = InsightStore.getInstance().get(insightID);
-//		boolean isNonDbInsight = !insight.isDbInsight();
-//		if(isNonDbInsight) {
-//			//TODO: assume person will not have parameters
-//			editInsightDMCache(insight, insightName, perspective, layout, dataTableAlign, uiOptions);
-//		} else {
 		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 		Insight insightToEdit = getInsightToSave(insight, saveRecipe);
-		editInsightFromDb(insightToEdit, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList);
-//		}
+		editInsightFromDb(insightToEdit, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList, image);
 		
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
 
-	
-	private Insight getInsightToSave(Insight insight, List<String> saveRecipe) {
-		//if the saveRecipe is passed, it means save the insight with this recipe
-		if(saveRecipe != null && !saveRecipe.isEmpty()) {
-			
-			//get a copy of the insight without the dmc components and insight id
-			Insight insightCopy = insight.emptyCopyForSave();
-			DataMakerComponent dmc = insightCopy.getLastComponent();
-			PKQLRunner runner = insight.getPKQLRunner();
-			
-			//add the pkqls in the copy
-			for(String recipePkql : saveRecipe) {
-				PKQLTransformation newPkql = new PKQLTransformation();
-				Map<String, Object> props = new HashMap<String, Object>();
-				props.put(PKQLTransformation.EXPRESSION, recipePkql);
-				newPkql.setProperties(props);
-				newPkql.setRunner(runner);
-				dmc.addPostTrans(newPkql);
-			}
-			
-			return insightCopy;
-		} else {
-			return insight;
-		}
-	}
-//	private void editInsightDMCache(Insight insight, String insightName, String perspective, String layout, Map<String, String> dataTableAlign, String uiOptions) {
-//		String uniqueID = insight.getDatabaseID();
-//		
-//		// delete existing cache
-//		// do this before overriding with new insight metadata
-//		InsightCache inCache = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE);
-//		inCache.deleteCacheFiles(insight);
-//		
-//		insight.setInsightName(insightName);
-//		insight.setOutput(layout);
-//		insight.setDataTableAlign(dataTableAlign);
-//		insight.setUiOptions(uiOptions);
-//		insight.setIsDbInsight(false);
-//
-//		// save new cache
-//		String saveFileLocation = inCache.cacheInsight(insight);
-//
-//		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
-//		Date date = new Date();
-//		String currDate = dateFormat.format(date);
-//		Map<String, Object> solrModifyInsights = new HashMap<>();
-//		solrModifyInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
-//		solrModifyInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
-//		solrModifyInsights.put(SolrIndexEngine.TAGS, perspective);
-//		solrModifyInsights.put(SolrIndexEngine.LAYOUT, layout);
-//		solrModifyInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
-//		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE, Constants.LOCAL_MASTER_DB_NAME);
-//		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE_ID, uniqueID);
-//		solrModifyInsights.put(SolrIndexEngine.NON_DB_INSIGHT, true);
-//		Set<String> engines = new HashSet<String>();
-//		engines.add(Constants.LOCAL_MASTER_DB_NAME);
-//		solrModifyInsights.put(SolrIndexEngine.ENGINES, engines);
-//		//TODO: need to add users
-//		solrModifyInsights.put(SolrIndexEngine.USER_ID, "default");
-//
-//		try {
-//			solrModifyInsights = SolrIndexEngine.getInstance().modifyInsight(uniqueID, solrModifyInsights);
-//			saveFileLocation = saveFileLocation + "_Solr.txt";
-//			File solrFile = new File(saveFileLocation);
-//			if(solrFile.exists()) {
-//				FileUtils.forceDelete(solrFile);
-//			}
-//			SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
-//			writer.writeSolrDocument(uniqueID, solrModifyInsights);
-//			writer.closeExport();
-//		} catch (KeyManagementException e) {
-//			e.printStackTrace();
-//		} catch (NoSuchAlgorithmException e) {
-//			e.printStackTrace();
-//		} catch (KeyStoreException e) {
-//			e.printStackTrace();
-//		} catch (SolrServerException e) {
-//			e.printStackTrace();
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//		
-//	}
-
-	private void editInsightFromDb(Insight insight, String insightName, String perspective, String order, String layout, String uiOptions, Map<String, String> dataTableAlign, Vector<Map<String, String>> paramMapList) {
+	private void editInsightFromDb(Insight insight, 
+			String insightName, 
+			String perspective, 
+			String order, 
+			String layout, 
+			String uiOptions, 
+			Map<String, String> dataTableAlign, 
+			Vector<Map<String, String>> paramMapList,
+			String image) {
 		//TODO: currently not exposed through UI
 		boolean isDbQuery = true;
 
@@ -498,6 +302,7 @@ public class QuestionAdmin {
 		solrModifyInsights.put(SolrIndexEngine.LAYOUT, layout);
 		solrModifyInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
 		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
+		solrModifyInsights.put(SolrIndexEngine.IMAGE, image);
 
 		//TODO: need to add users
 		solrModifyInsights.put(SolrIndexEngine.USER_ID, "default");
@@ -512,6 +317,31 @@ public class QuestionAdmin {
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
 				| IOException e) {
 			e.printStackTrace();
+		}
+	}
+	
+	private Insight getInsightToSave(Insight insight, List<String> saveRecipe) {
+		//if the saveRecipe is passed, it means save the insight with this recipe
+		if(saveRecipe != null && !saveRecipe.isEmpty()) {
+			
+			//get a copy of the insight without the dmc components and insight id
+			Insight insightCopy = insight.emptyCopyForSave();
+			DataMakerComponent dmc = insightCopy.getLastComponent();
+			PKQLRunner runner = insight.getPKQLRunner();
+			
+			//add the pkqls in the copy
+			for(String recipePkql : saveRecipe) {
+				PKQLTransformation newPkql = new PKQLTransformation();
+				Map<String, Object> props = new HashMap<String, Object>();
+				props.put(PKQLTransformation.EXPRESSION, recipePkql);
+				newPkql.setProperties(props);
+				newPkql.setRunner(runner);
+				dmc.addPostTrans(newPkql);
+			}
+			
+			return insightCopy;
+		} else {
+			return insight;
 		}
 	}
 
@@ -592,18 +422,6 @@ public class QuestionAdmin {
 			Insight existingIn = coreEngine.getInsight(insightID).get(0);
 			dmcList = existingIn.getDataMakerComponents();
 			params = existingIn.getInsightParameters();
-			
-//			dmName =  form.getFirst("dmName");
-//			String insightMakeup = form.getFirst("insightMakeup");
-//			Insight in = new Insight(coreEngine, dmName, layout);
-//			InMemorySesameEngine myEng = buildMakeupEngine(insightMakeup);
-//			if(myEng == null){
-//				Map<String, String> errorHash = new HashMap<String, String>();
-//				errorHash.put("errorMessage", "Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
-//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-//			}
-//			dmcList = in.digestNTriples(myEng);
-//			params = getParamsFromDmcList(dmcList);
 		}
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 
@@ -900,86 +718,4 @@ public class QuestionAdmin {
 
 	}
 	
-//	private InMemorySesameEngine buildMakeupEngine(String insightMakeup){
-//		RepositoryConnection rc = null;
-//		boolean correctMakeup = true;
-//		try {
-//			Repository myRepository = new SailRepository(new ForwardChainingRDFSInferencer(new MemoryStore()));
-//			myRepository.initialize();
-//			rc = myRepository.getConnection();
-//			rc.add(IOUtils.toInputStream(insightMakeup) , "semoss.org", RDFFormat.NTRIPLES);
-//		} catch(RuntimeException e) {
-//			e.printStackTrace();
-//			correctMakeup = false;
-//		} catch (RDFParseException e) {
-//			e.printStackTrace();
-//			correctMakeup = false;
-//		} catch (RepositoryException e) {
-//			e.printStackTrace();
-//			correctMakeup = false;
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//			correctMakeup = false;
-//		}
-//		
-//		if(!correctMakeup) {
-//			LOGGER.error("Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
-//			return null;
-//		}
-//		
-//		// set the rc in the in-memory engine
-//		InMemorySesameEngine myEng = new InMemorySesameEngine();
-//		myEng.setRepositoryConnection(rc);
-//		return myEng;
-//	}
-	
-//	/**
-//	 * This method uses the dmc list to determine which paramters need to be added to the rdbms
-//	 * The logic is simple : 
-//	 * 	Any filter transformation without a list of values set needs to be stored as param
-//	 * 
-//	 * @param dmcList
-//	 * @return
-//	 */
-//	private List<SEMOSSParam> getParamsFromDmcList(List<DataMakerComponent> dmcList){
-//		List<SEMOSSParam> params = new Vector<SEMOSSParam>();
-//		for (DataMakerComponent dmc : dmcList){
-//			List<ISEMOSSTransformation> fullTrans = new Vector<ISEMOSSTransformation>();
-//			fullTrans.addAll(dmc.getPreTrans());
-//			fullTrans.addAll(dmc.getPostTrans());
-//			for(ISEMOSSTransformation trans : fullTrans){
-//				if(trans instanceof FilterTransformation){
-//					if(!trans.getProperties().containsKey(FilterTransformation.VALUES_KEY)){
-//						SEMOSSParam p = new SEMOSSParam();
-//						params.add(p);
-//						p.setName(trans.getProperties().get(FilterTransformation.COLUMN_HEADER_KEY) + "");
-//						LOGGER.info("adding new param with name : " + p.getName());
-//						
-//						// type needs to be gotten from the query or the metamodel data
-//						String query = dmc.getQuery();
-//						if(query!=null){
-//							LOGGER.info("getting param type from query : " + query);
-//							Map<String, String> paramMap = Utility.getParams(query);
-//							for(String key : paramMap.keySet()){
-//								LOGGER.info("checking param : " + key);
-//								// this key should be label-type
-//								String[] parts = key.split("-");
-//								LOGGER.info("does param type : " + parts[0] + " match with param name?");
-//								if(parts[0].equals(p.getName())){
-//									LOGGER.info("yep... setting type to  " + parts [1]);
-//									p.setType(parts[1]);
-//								}
-//							}
-//						}
-//						else {
-//							Map<String, Object> mm = dmc.getMetamodelData();
-//							LOGGER.info("getting param type from metamodel data : " + mm.toString());
-//						}
-//					}
-//				}
-//			}
-//		}
-//		return params;
-//	}
-
 }
