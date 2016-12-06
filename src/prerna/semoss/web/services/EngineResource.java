@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -48,6 +49,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -80,8 +82,10 @@ import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.JoinTransformation;
 import prerna.ui.helpers.InsightCreateRunner;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
+import prerna.util.ZipDatabase;
 import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.WebUtility;
 
@@ -643,10 +647,25 @@ public class EngineResource {
 
 		return Response.status(200).entity(WebUtility.getSO(gson.toJson(auditInfo))).build();
 	}
-
-
-
-
+	
+	@GET
+	@Path("/exportDatabase")
+	@Produces("application/zip")
+	public Response exportDatabase(@Context HttpServletRequest request) {
+		HttpSession session = request.getSession();
+		session.removeAttribute(coreEngine.getEngineName());
+		DIHelper.getInstance().removeLocalProperty(coreEngine.getEngineName());
+		coreEngine.closeDB();
+		File zip = ZipDatabase.zipEngine(coreEngine.getEngineName());
+		
+		Response resp = Response.ok(zip)
+				.header("x-filename", zip.getName())
+				.header("content-type", "application/zip")
+				.header("Content-Disposition", "attachment; filename=\"" + zip.getName() + "\"" ).build();
+		
+		return resp;
+	}
+	
 	public static void main(String[] args) {
 
 		Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
