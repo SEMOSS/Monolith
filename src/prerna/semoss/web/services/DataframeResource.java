@@ -440,7 +440,7 @@ public class DataframeResource {
 			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 		}
 
-		List<Object[]> table = mainTree.getRawData();
+		List<Object[]> table = mainTree.getData();
 		String[] headers = mainTree.getColumnHeaders();
 		Map<String, Object> returnData = new HashMap<String, Object>();
 		returnData.put("data", table);
