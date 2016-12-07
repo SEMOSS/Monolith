@@ -79,6 +79,7 @@ import com.google.gson.reflect.TypeToken;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.cache.CacheFactory;
+import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.insights.admin.DBAdminResource;
@@ -572,7 +573,8 @@ public class NameServer {
 		String parentConceptualName = form.getFirst("parentConcept");
 		// TODO: yell at FE
 		// ugh, FE, why do you send parent as the string "undefined"
-		if(parentConceptualName.equals("undefined")) {
+		// ugh, BE, how to tell FE that the prim key that is generated for metamodel view is fake
+		if(parentConceptualName == null || parentConceptualName.equals("undefined") || parentConceptualName.startsWith(TinkerFrame.PRIM_KEY)) {
 			parentConceptualName = null;
 		}
 		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
