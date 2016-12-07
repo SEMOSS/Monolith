@@ -43,16 +43,13 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 
@@ -66,6 +63,7 @@ import prerna.auth.UserPermissionsMasterDB;
 import prerna.ds.QueryStruct;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
+import prerna.engine.api.IRawSelectWrapper;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.AbstractEngine;
@@ -74,9 +72,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.wrappers.WrapperManager;
-import prerna.rdf.util.RDFJSONConverter;
 import prerna.semoss.web.form.FormBuilder;
-import prerna.ui.components.api.IPlaySheet;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.JoinTransformation;
@@ -91,7 +87,7 @@ import prerna.web.services.util.WebUtility;
 
 public class EngineResource {
 
-	private static final Logger logger = Logger.getLogger(EngineResource.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(EngineResource.class.getName());
 
 	// gets everything specific to an engine
 	// essentially this is a wrapper over the engine
@@ -99,24 +95,8 @@ public class EngineResource {
 
 	public void setEngine(IEngine coreEngine)
 	{
-		System.out.println("Setting core engine to " + coreEngine);
+		LOGGER.info("Setting core engine to " + coreEngine);
 		this.coreEngine = coreEngine;
-	}
-
-	// All playsheet specific manipulations will go through this
-	@Path("p-{insightID}")
-	public Object uploadFile(@PathParam("insightID") String insightID) {
-		//	public Object uploadFile(@PathParam("playSheetID") String playSheetID) {
-
-		PlaySheetResource psr = new PlaySheetResource();
-		// get the playsheet from session
-		//		IPlaySheet playSheet = QuestionPlaySheetStore.getInstance().get(playSheetID);
-		Insight in = InsightStore.getInstance().get(insightID);
-		IPlaySheet playSheet = InsightStore.getInstance().get(insightID).getPlaySheet();
-		psr.setInsight(in);
-		psr.setPlaySheet(playSheet);
-		psr.setEngine(coreEngine);
-		return psr;
 	}
 
 	/**
@@ -155,26 +135,6 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(resultInsightObjects)).build();
 	}
 
-	// gets all the insights for a given type and tag in all the engines
-	// both tag and type are optional
-	@GET
-	@Path("pinsights")
-	@Produces("application/json")
-	public Response getPInsights(@Context HttpServletRequest request)
-	{
-		// if the type is null then send all the insights else only that
-		Vector perspectives = null;
-		Hashtable retP = new Hashtable();
-		perspectives = coreEngine.getPerspectives();
-		for(int pIndex = 0;pIndex < perspectives.size();pIndex++)
-		{
-			Vector insights = coreEngine.getInsights(perspectives.elementAt(pIndex)+"");
-			if(insights != null)
-				retP.put(perspectives.elementAt(pIndex), insights);
-		}
-		return Response.status(200).entity(WebUtility.getSO(retP)).build();
-	}
-
 	/**
 	 * Gets a list of perspectives for the given engine
 	 * @param request
@@ -192,16 +152,6 @@ public class EngineResource {
 		return Response.status(200).entity(WebUtility.getSO(hashtable)).build();
 	}
 
-	// gets all the tags for a given insight across all the engines
-	@GET
-	@Path("tags")
-	@Produces("application/json")
-	public StreamingOutput getTags(@QueryParam("insight") String insight, @Context HttpServletRequest request)
-	{
-		// if the tag is empty, this will give back all the tags in the engines
-		return null;
-	}
-	
 	// gets a particular insight
 	// not sure if I should keep it as it is or turn this into a post because of the query
 	@POST
@@ -236,7 +186,15 @@ public class EngineResource {
 			}
 		}
 		System.out.println(query);
-		return Response.status(200).entity(WebUtility.getSO(RDFJSONConverter.getSelectAsJSON(query, coreEngine))).build();
+		
+		// flush data out
+		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(coreEngine, query);
+		List<Object[]> data = new Vector<Object[]>();
+		while(wrapper.hasNext()) {
+			data.add(wrapper.next().getRawValues());
+		}
+		
+		return Response.status(200).entity(WebUtility.getSO(data)).build();
 	}	
 
 	/**
@@ -416,58 +374,23 @@ public class EngineResource {
 			// set the user id into the insight
 			insightObj.setUserID( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
 			Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
-			//			params = Utility.getTransformedNodeNamesMap(coreEngine, params, false);
 			insightObj.setParamHash(params);
-
-			//			if(!insightObj.isDbInsight()) {
-			//				String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getVizData(insightObj);
-			//				if(vizData != null) {
-			//					// insight has been cached, send it to the FE with a new insight id
-			//					String id = InsightStore.getInstance().put(insightObj);
-			//					Map<String, Object> uploaded = gson.fromJson(vizData, new TypeToken<Map<String, Object>>() {}.getType());
-			//					uploaded.put("insightID", id);
-			//
-			//					tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), id, session.getId());
-			//					return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
-			//				} 
-			//				//				Should we just get the cached DM if the Viz has been deleted and send that to the FE?
-			//				//				
-			//				//				ITableDataFrame dataFrame = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).getDMCache(insightObj);
-			//				//				if(dataFrame != null) {
-			//				//					insightObj.setDataMaker(dataFrame);
-			//				//					String id = InsightStore.getInstance().put(insightObj);
-			//				//					InsightCreateRunner run = new InsightCreateRunner(insightObj);
-			//				//					Map<String, Object> obj = run.runWeb();
-			//				//					obj.put("insightID", id);
-			//				//					
-			//				//					// cahce json for future
-			//				//					CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
-			//				//					
-			//				//					return Response.status(200).entity(WebUtility.getSO(obj)).build();
-			//				//				}
-			//				else {
-			//					Hashtable<String, String> errorHash = new Hashtable<String, String>();
-			//					errorHash.put("Message", "Error getting data for saved insight via csv.");
-			//					errorHash.put("Class", className);
-			//					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			//				}
-			//			}
 
 			// check if the insight has already been cached
 			System.out.println("Params is " + params);
-			//			String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getVizData(insightObj);
-			String vizData = null;
+//			String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getVizData(insightObj);
+//			String vizData = null;
 
 			Object obj = null;
-			if(vizData != null) {
-				// insight has been cached, send it to the FE with a new insight id
-				String id = InsightStore.getInstance().put(insightObj);
-				Map<String, Object> uploaded = gson.fromJson(vizData, new TypeToken<Map<String, Object>>() {}.getType());
-				uploaded.put("insightID", id);
-
-				tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), id, session.getId());
-				return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
-			} else {
+//			if(vizData != null) {
+//				// insight has been cached, send it to the FE with a new insight id
+//				String id = InsightStore.getInstance().put(insightObj);
+//				Map<String, Object> uploaded = gson.fromJson(vizData, new TypeToken<Map<String, Object>>() {}.getType());
+//				uploaded.put("insightID", id);
+//
+//				tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), id, session.getId());
+//				return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
+//			} else {
 				// insight visualization data has not been cached, run the insight
 				try {
 					InsightStore.getInstance().put(insightObj);
@@ -497,7 +420,7 @@ public class EngineResource {
 				}
 
 				tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), insightObj.getInsightID(), session.getId());
-			}
+//			}
 
 			return Response.status(200).entity(WebUtility.getSO(obj)).build();
 		}
