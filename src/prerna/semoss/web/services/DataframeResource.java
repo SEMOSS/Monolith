@@ -310,6 +310,30 @@ public class DataframeResource {
 			return Response.status(400).entity(WebUtility.getSO("Illegal data maker type ")).build();
 	}
 
+	@POST
+	@Path("getVizTable")
+	@Produces("application/json")
+	public Response getExploreTable(
+			//@QueryParam("start") int start,
+			//@QueryParam("end") int end,
+			@Context HttpServletRequest request)
+	{
+		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();		
+		if(mainTree == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Dataframe not found within insight");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+
+		List<Object[]> table = mainTree.getData();
+		String[] headers = mainTree.getColumnHeaders();
+		Map<String, Object> returnData = new HashMap<String, Object>();
+		returnData.put("data", table);
+		returnData.put("headers", headers);
+		returnData.put("insightID", insight.getInsightID());
+		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
+	}
+
 	/**
 	 * If its a tinker, parse the meta graph to get metamodel
 	 * Otherwise go through the components and either 1. parse QueryBuilderData or 2. parse query
