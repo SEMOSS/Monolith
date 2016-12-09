@@ -369,82 +369,94 @@ public class DatabaseUploader extends Uploader {
 		List<Map<String, Object>> metaModelData = new Vector<>(2);
 		
 		try {
+			//if we get a flag from the front end to create meta model then create it
+			String generateMetaModel = inputData.get("generateMetaModel").toString();
+			
+			// get the files
 			String[] files = inputData.get("file").split(";");
+			// get the property files if necessary
 			String props = inputData.get("propFile");
 			String[] propFiles = null;
 			if(props != null && !props.isEmpty()) {
 				propFiles = props.split(";");
 			}
+			
+			// do validation on the property files
+			if("prop".equals(generateMetaModel)) {
+				if(props == null) {
+					throw new IOException("No prop file has been selected. Please select a prop file for the file");
+				}
+				if(propFiles.length != files.length) {
+					throw new IOException("No prop file has been selected. Please select a prop file for the file");
+				}
+			}
+			
+			
 			for(int i = 0; i < files.length; i++) {
 				// this is the MM info for one of the files within the metaModelData list
 				Map<String, Object> fileMetaModelData = new HashMap<String, Object>();
 				
 				// store the file location on server so FE can send that back into actual upload routine
-				fileMetaModelData.put("fileLocation", files[i]);
-				String file = files[i].substring(files[i].lastIndexOf("\\") + 1, files[i].lastIndexOf("."));
+				String filePath = files[i];
+				String file = filePath.substring(filePath.lastIndexOf("\\") + 1, filePath.lastIndexOf("."));
 				try {
 					file = file.substring(0, file.length() - 24); //taking out the date added onto the original file name
 				} catch(Exception e) {
-					file = files[i].substring(files[i].lastIndexOf("\\") + 1, files[i].lastIndexOf(".")); //just in case that fails, this shouldnt because if its a filename it should have a "."
+					//just in case that fails, this shouldnt because if its a filename it should have a "."
+					file = filePath.substring(filePath.lastIndexOf("\\") + 1, filePath.lastIndexOf(".")); 
 				}
+				
+				// store file path and file name to send to FE
+				fileMetaModelData.put("fileLocation", filePath);
 				fileMetaModelData.put("fileName", file);
 				
 				CSVFileHelper helper = new CSVFileHelper();
 				// TODO: should enable any kind of single char delimited file
 				// have FE pass this info
 				helper.setDelimiter(',');
-				helper.parse(files[i]);
+				helper.parse(filePath);
 				
-				//if we get a flag from the front end to create meta model then create it
-				String generateMetaModel = inputData.get("generateMetaModel").toString();
 				MetaModelCreator predictor;
 				if(generateMetaModel.equals("auto")) {
 					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.AUTO);
 					predictor.constructMetaModel();
+					
 					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
 					fileMetaModelData.putAll(metaModel);
+				
 				} else if(generateMetaModel.equals("prop")) {
+					if(propFiles[i] == null) {
+						throw new IOException("No prop file has been selected for file " + file);
+					}
 					//turn prop file into meta data
-					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.PROP);
-					predictor.addPropFile(propFiles[i]);
+					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.PROP, propFiles[i]);
 					predictor.constructMetaModel();
+					
 					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
 					fileMetaModelData.putAll(metaModel);
-
-				} 
-				// flat table now doesn't generate a metamodel
-				// just put all the data types
-				else if(generateMetaModel.equals("table")) {
-					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.TABLE);
-//					//return metamodel with one column as main column/primary key
-//					predictor = new MetaModelCreator(helper, MetaModelCreator.CreatorMode.TABLE);
-//					predictor.constructMetaModel();
-//					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
-//					fileMetaModelData.putAll(metaModel);
-				} 
+				}
+				
 				else {
+					// user is creating their own
 					predictor = new MetaModelCreator(helper, null);
 				}
+				
+				int start = predictor.getStartRow();
+				int end = predictor.getEndRow();
+				Map<String, String> additionalInfo = predictor.getAdditionalInfo();
+
+				// add in other information relevant to FE
+				fileMetaModelData.put("startCount", start);
+				fileMetaModelData.put("endCount", end);
 				fileMetaModelData.put("dataTypes", predictor.getDataTypeMap());
-				
-				// TODO: do we really need to still pass in start and end count?
-//				if(generateMetaModel.equals("auto") || generateMetaModel.equals("prop")) {
-					// this is all metamodel stuff that we use when we are creating the prop file
-					// if we have a metamodel, do the following options
-					int start = predictor.getStartRow();
-					int end = predictor.getEndRow();
-					fileMetaModelData.put("startCount", start);
-					fileMetaModelData.put("endCount", end);
-//				}
-					
+				fileMetaModelData.put("additionalInfo", additionalInfo);
 				// store auto modified header names
-				Map<String, String> fileHeaderMods = helper.getChangedHeaders();
-				fileMetaModelData.put("headerModifications", fileHeaderMods);
+				fileMetaModelData.put("headerModifications", helper.getChangedHeaders());
 				
-				// add the info to the metamodel data to send
+				// store this in a list
 				metaModelData.add(fileMetaModelData);
 				
-				// need to clsoe the helper
+				// need to close the helper
 				helper.clear();
 			}
 		} catch(Exception e) { 
@@ -519,11 +531,12 @@ public class DatabaseUploader extends Uploader {
 
 				List<String> rel = gson.fromJson(itemForFile.get("rowsRelationship"), List.class);
 				List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
-				List<String> displayNames = gson.fromJson(itemForFile.get("itemDisplayName"), List.class);
-
+				
+				// add a check that something is coming back from the FE
 				if((rel != null &&!rel.isEmpty()) || (prop != null && !prop.isEmpty()) ) {
 					allEmpty = false;
 				}
+				
 				if(rel != null) {
 					for(String str : rel) {
 						// subject and object keys link to array list for concatenations, while the predicate is always a string
@@ -543,22 +556,19 @@ public class DatabaseUploader extends Uploader {
 						}
 					}
 				}
-				if(displayNames != null) {
-					for(String str : displayNames) {
-						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-						if(!((String) mRow.get("selectedNode").toString()).isEmpty() && !((String) mRow.get("selectedProperty").toString()).isEmpty() && !((String) mRow.get("selectedDisplayName").toString()).isEmpty())
-						{
-							propWriter.addDisplayName((ArrayList<String>) mRow.get("selectedNode"), (ArrayList<String>) mRow.get("selectedProperty"), (ArrayList<String>) mRow.get("selectedDisplayName"));
-						}
-					}
-				}
-				String headersList = itemForFile.get("allHeaders"); 
-				Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
+				
+				// add column data types
+				Hashtable<String, Object> headerHash = gson.fromJson(itemForFile.get("allHeaders"), Hashtable.class);
 				ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
 				propWriter.columnTypes(headers);
-				propHashArr[i] = propWriter.getPropHash(itemForFile.get("csvStartLineCount"), itemForFile.get("csvEndLineCount")); 
+				
+				// add additional info and start/end rows
+				Map<String, String> additionalMods = gson.fromJson(itemForFile.get("additionalInfo"), Map.class);
+				propHashArr[i] = propWriter.getPropHash(itemForFile.get("csvStartLineCount"), itemForFile.get("csvEndLineCount"), additionalMods); 
 				propFileArr[i] = propWriter.getPropFile();
 			}
+			
+			// if no meta data specified, send an error
 			if(allEmpty) {
 				Map<String, String> errorHash = new HashMap<String, String>();
 				errorHash.put("errorMessage", "No metamodel has been specified.\n Please specify a metamodel in order to determine how to load this data.");
