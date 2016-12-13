@@ -42,6 +42,7 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Vector;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -566,16 +567,33 @@ public class NameServer {
 	@Produces("application/json")
 	public Response getAllLogicalNamesFromConceptual(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
-		String conceptualName = form.getFirst("conceptURI");
+		Gson gson = new Gson();
+		List<String> conceptualName = gson.fromJson(form.getFirst("conceptURI"), new TypeToken<List<String>>() {}.getType());
 		if(conceptualName == null || conceptualName.isEmpty()) {
 			return Response.status(200).entity(WebUtility.getSO("")).build();
 		}
-		String parentConceptualName = form.getFirst("parentConcept");
-		// TODO: yell at FE
-		// ugh, FE, why do you send parent as the string "undefined"
-		// ugh, BE, how to tell FE that the prim key that is generated for metamodel view is fake
-		if(parentConceptualName == null || parentConceptualName.equals("undefined") || parentConceptualName.startsWith(TinkerFrame.PRIM_KEY)) {
-			parentConceptualName = null;
+		int size = conceptualName.size();
+
+		List<String> parentConceptualName = gson.fromJson(form.getFirst("parentConcept"), new TypeToken<List<String>>() {}.getType());
+		if(parentConceptualName != null) {
+			// TODO: yell at FE
+			// ugh, FE, why do you send parent as the string "undefined"
+			// ugh, BE, how to tell FE that the prim key that is generated for metamodel view is fake
+			List<String> cleanParentConceptualName = new Vector<String>();
+			for(int i = 0; i < size; i++) {
+				String val = parentConceptualName.get(i);
+				if(val == null) {
+					cleanParentConceptualName.add(null);
+				} else if(val.equals("undefined") || val.startsWith(TinkerFrame.PRIM_KEY) || val.isEmpty()) {
+					cleanParentConceptualName.add(null);
+				} else {
+					cleanParentConceptualName.add(val);
+				}
+			}
+			
+			// override reference to parent conceptual name
+			// can just keep it as null when we pass back the info to the FE
+			parentConceptualName = cleanParentConceptualName;
 		}
 		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
 	}
