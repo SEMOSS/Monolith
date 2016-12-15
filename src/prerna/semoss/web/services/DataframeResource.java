@@ -529,8 +529,11 @@ public class DataframeResource {
 							for(String selectorInTable : selectors) {
 
 								// we found a match, we are good
-								if(selectorInFile.equalsIgnoreCase(Utility.getInstanceName(selectorInTable))) {
+								// format of selector in table is http://semoss.org/ontologies/Relation/Contains/Rotten_Tomatoes_Audience/MOVIECSV
+								if(selectorInFile.equalsIgnoreCase(Utility.getClassName(selectorInTable))) {
 									continue FILE_LOOP;
+								} else {
+									break FILE_LOOP;
 								}
 							}
 							// if we hit this point, then there was a selector
