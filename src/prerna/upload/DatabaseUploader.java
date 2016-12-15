@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -1260,6 +1261,31 @@ public class DatabaseUploader extends Uploader {
 		//			importer.setConnectionURL(connectionURL);
 		//		}
 		ret = importer.getAllFields(driver, hostname, port, username, password, schema);
+
+		return Response.status(200).entity(gson.toJson(ret)).build();
+	}
+	
+	@POST
+	@Path("/rdbms/getMetadata2")
+	@Produces("application/json")
+	public Response getExistingRDBMSMetadata2(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+
+		Gson gson = new Gson();
+		HashMap<String, Object> ret = new HashMap<String, Object>();
+		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
+
+		String driver = form.getFirst("driver");
+		String hostname = form.getFirst("hostname");
+		String port = form.getFirst("port");
+		String username = form.getFirst("username");
+		String password = form.getFirst("password");
+		String schema = form.getFirst("schema");
+
+		try {
+			ret = importer.getSchemaDetails(driver, hostname, port, username, password, schema);
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
 
 		return Response.status(200).entity(gson.toJson(ret)).build();
 	}
