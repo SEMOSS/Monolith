@@ -110,9 +110,9 @@ public class QuestionAdmin {
 		//If saving with params, FE passes a user.input PKQL that needs to be added/saved - better way to do this?
 		if(pkqlsToAdd != null && !pkqlsToAdd.isEmpty()) {
 			PKQLRunner runner = insight.getPKQLRunner();
-			DataMakerComponent dmc;
+			DataMakerComponent dmc = null;
 			if(insight.getDataMaker() instanceof Dashboard) {
-				dmc = insight.getDashboardDataMakerComponent();
+//				dmc = insight.getDashboardDataMakerComponent();
 			} else {
 				dmc = insight.getDataMakerComponents().get(insight.getDataMakerComponents().size() - 1);
 			}
