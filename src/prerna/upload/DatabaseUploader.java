@@ -5,7 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -213,6 +212,9 @@ public class DatabaseUploader extends Uploader {
 				boolean allowDuplicates = false;
 				options.setAllowDuplicates(allowDuplicates);
 
+			} else if(dbType.equalsIgnoreCase("Tinker")) {
+				// load as a tinker engine
+				options.setDbType(ImportOptions.DB_TYPE.TINKER);
 			} else {
 				// default to RDF db type
 				options.setDbType(ImportOptions.DB_TYPE.RDF);
@@ -1271,7 +1273,6 @@ public class DatabaseUploader extends Uploader {
 	public Response getExistingRDBMSMetadata2(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 
 		Gson gson = new Gson();
-		HashMap<String, Object> ret = new HashMap<String, Object>();
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
 
 		String driver = form.getFirst("driver");
@@ -1281,10 +1282,17 @@ public class DatabaseUploader extends Uploader {
 		String password = form.getFirst("password");
 		String schema = form.getFirst("schema");
 
+		Map<String, Object>	ret = new HashMap<String, Object>();
 		try {
 			ret = importer.getSchemaDetails(driver, hostname, port, username, password, schema);
-		} catch (SQLException e) {
+		} catch(Exception e) {
 			e.printStackTrace();
+			if(e.getMessage() != null) {
+				ret.put("errorMessage", e.getMessage());
+			} else {
+				ret.put("errorMessage", "Unexpected error determining metadata");
+			}
+			return Response.status(400).entity(gson.toJson(ret)).build();
 		}
 
 		return Response.status(200).entity(gson.toJson(ret)).build();
