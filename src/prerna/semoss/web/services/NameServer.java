@@ -559,7 +559,7 @@ public class NameServer {
 		if(conceptLogicalNames == null || conceptLogicalNames.isEmpty()) {
 			return Response.status(200).entity(WebUtility.getSO("")).build();
 		}
-		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getConceptProperties(conceptLogicalNames))).build();
+		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getConceptProperties(conceptLogicalNames, null))).build();
 	}
 
 	@POST
