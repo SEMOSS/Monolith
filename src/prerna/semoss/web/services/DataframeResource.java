@@ -43,6 +43,7 @@ import prerna.om.InsightStore;
 import prerna.poi.main.InsightFilesToDatabaseReader;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc.meta.FilePkqlMetadata;
+import prerna.sablecc2.PKSLRunner;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
@@ -156,6 +157,30 @@ public class DataframeResource {
 		synchronized(insight) {
 			insight.processPostTransformation(list);
 			insight.syncPkqlRunnerAndFrame(runner);
+			resultHash = insight.getPKQLData(true);
+		}
+		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
+	}
+	
+	@POST
+	@Path("/runPksl")
+	@Produces("application/json")
+	public Response runPksl(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
+		PKQLTransformation pksl = new PKQLTransformation();
+		Map<String, Object> props = new HashMap<String, Object>();
+		String pkqlCmd = form.getFirst("expression");
+		props.put(PKQLTransformation.EXPRESSION, pkqlCmd);
+		pksl.setProperties(props);
+		PKSLRunner runner = insight.getPKSLRunner();
+		pksl.setRunner(runner);
+		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
+		list.add(pksl);
+
+		Map resultHash = null;
+		//synchronize applyCalc calls for each insight to prevent interference during calculation
+		synchronized(insight) {
+			insight.processPostTransformation(list);
+			insight.syncPkslRunnerAndFrame(runner);
 			resultHash = insight.getPKQLData(true);
 		}
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
