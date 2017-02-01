@@ -599,7 +599,15 @@ public class DataframeResource {
 		filesMetadata.clear();
 		
 		// we will return the new insight recipe after the PKQL has been modified
-		return Response.status(200).entity(WebUtility.getSO(this.insight.getPkqlRecipe())).build();
+		//TODO command
+		ArrayList list = new ArrayList();
+		String[] pkqlRecipe = this.insight.getPkqlRecipe();
+		for(String command: pkqlRecipe) {
+			Map<String, Object> retMap = new HashMap<String, Object>();
+			retMap.put("command", command);
+			list.add(retMap);
+		}
+		return Response.status(200).entity(WebUtility.getSO(list)).build();
 	}
 	
 	
