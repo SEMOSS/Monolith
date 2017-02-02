@@ -96,6 +96,7 @@ public class UserResource
 	private final HttpTransport TRANSPORT = new NetHttpTransport();
 	private final JacksonFactory JSON_FACTORY = new JacksonFactory();
 	private final Gson GSON = new Gson();
+	private UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 	
 	private final String GOOGLE_CLIENT_SECRET = "***REMOVED***";	
 	
@@ -190,13 +191,17 @@ public class UserResource
 			if(picture != null && !picture.isEmpty()) {
 				ret.put("picture", picture);
 				newUser = new User(gplusId, name, User.LOGIN_TYPES.google, email, picture);
-				request.getSession().setAttribute(Constants.SESSION_USER, newUser);
 			} else {
 				newUser = new User(gplusId, name, User.LOGIN_TYPES.google, email);
-				request.getSession().setAttribute(Constants.SESSION_USER, newUser);
 			}
 			
 			addUser(newUser);
+			
+			if(permissions.isUserAdmin(gplusId)) {
+				newUser.setAdmin(true);
+			}
+			
+			request.getSession().setAttribute(Constants.SESSION_USER, newUser);
 			
 			// Store the token in the session for later use.
 			request.getSession().setAttribute("token", tokenResponse.toString());
@@ -312,10 +317,8 @@ public class UserResource
 			String picture = me.getPicture().getUrl();
 			ret.put("picture", picture);
 			newUser = new User(id, name, User.LOGIN_TYPES.facebook, email, picture);
-			request.getSession().setAttribute(Constants.SESSION_USER, newUser);
 		} else {
 			newUser = new User(id, name, User.LOGIN_TYPES.facebook, email);
-			request.getSession().setAttribute(Constants.SESSION_USER, newUser);
 		}
 		
 		ret.put("token", accessToken);
@@ -324,6 +327,12 @@ public class UserResource
 		ret.put("email", email);
 		
 		addUser(newUser);
+		
+		if(permissions.isUserAdmin(id)) {
+			newUser.setAdmin(true);
+		}
+		
+		request.getSession().setAttribute(Constants.SESSION_USER, newUser);
 		
 		// Store the token in the session for later use.
 		request.getSession().setAttribute("token", accessToken);
@@ -378,8 +387,7 @@ public class UserResource
 	 * @param email		Email address of user retrieved from Identity Provider
 	 */
 	private void addUser(User newUser) {
-		UserPermissionsMasterDB master = new UserPermissionsMasterDB();
-		master.addUser(newUser);
+		permissions.addUser(newUser);
 	}
 
 	@GET
