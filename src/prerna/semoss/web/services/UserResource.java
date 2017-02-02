@@ -389,6 +389,38 @@ public class UserResource
 	private void addUser(User newUser) {
 		permissions.addUser(newUser);
 	}
+	
+	@GET
+	@Path("isLoggedIn")
+	public Response isUserLoggedIn(@Context HttpServletRequest request) {
+		if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+			if(!user.getId().equals(Constants.ANONYMOUS_USER_ID)) {
+				return Response.status(200).entity(WebUtility.getSO(true)).build();
+			}
+		}
+		
+		return Response.status(200).entity(WebUtility.getSO(false)).build();
+	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("userInfo")
+	public Response getLoggedInUserInfo(@Context HttpServletRequest request) {
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+		
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(user.getPicture() != null) {
+			String picture = user.getPicture();
+			ret.put("picture", picture);
+		}
+		
+		ret.put("id", user.getId());
+		ret.put("name", user.getName());
+		ret.put("email", user.getEmail());
+		
+		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+	}
 
 	@GET
 	@Produces("text/plain")
