@@ -333,6 +333,12 @@ public class NameServer {
 		return upload;
 	}
 	
+	////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////// START SOLR /////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
+	
 	/**
 	 * Complete user search based on string input
 	 * @return
@@ -352,6 +358,60 @@ public class NameServer {
 	}
 	
 	/**
+	 * Complete user search based on string input
+	 * @return
+	 */
+	@POST
+	@Path("central/context/modifyInsightTags")
+	@Produces("application/json")
+	public StreamingOutput modifyInsightTags(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String solrId = form.getFirst("id");
+		String tagsStr = form.getFirst("tags");
+		
+		Gson gson = new Gson();
+		List<String> tags = gson.fromJson(tagsStr, new TypeToken<List<String>>() {}.getType());
+		
+		Map<String, Object> fieldsToModify = new HashMap<String, Object>();
+		fieldsToModify.put(SolrIndexEngine.TAGS, tags);
+		fieldsToModify.put(SolrIndexEngine.INDEXED_TAGS, tags);
+		
+		return WebUtility.getSO(modifyInsight(solrId, fieldsToModify));
+	}
+	
+	/**
+	 * Complete user search based on string input
+	 * @return
+	 */
+	@POST
+	@Path("central/context/modifyInsightImage")
+	@Produces("application/json")
+	public StreamingOutput modifyInsightImage(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String solrId = form.getFirst("id");
+		String imageStr = form.getFirst("image");
+		
+		Map<String, Object> fieldsToModify = new HashMap<String, Object>();
+		fieldsToModify.put(SolrIndexEngine.IMAGE, imageStr);
+		
+		return WebUtility.getSO(modifyInsight(solrId, fieldsToModify));
+	}
+	
+	private String modifyInsight(String solrId, Map<String, Object> fieldsToModify) {
+		String returnMessage = null;
+		try {
+			SolrIndexEngine.getInstance().modifyInsight(solrId, fieldsToModify);
+			returnMessage = "success";
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
+				| IOException e) {
+			e.printStackTrace();
+			returnMessage = e.getMessage();
+			if(returnMessage == null || returnMessage.isEmpty()) {
+				returnMessage = "Unknown error with modifying tags";
+			}
+		}
+		return returnMessage;
+	}
+	
+	/**
 	 * Search based on a string input 
 	 * @param form - information passes in from the front end
 	 * @return a string version of the results attained from the query search
@@ -364,9 +424,13 @@ public class NameServer {
 		String searchString = form.getFirst("searchString");
 		logger.info("Searching based on input: " + searchString);
 		
+		//sort field
+		String sortField = form.getFirst("sortField");
+		logger.info("Sorting field: " + sortField);
+
 		//sort (based on relevance, asc, desc)
-		String sortString = form.getFirst("sortString");
-		logger.info("Sorting by: " + sortString);
+		String sortOrdering = form.getFirst("sortOrdering");
+		logger.info("Sorting order: " + sortOrdering);
 		
 		//offset for call
 		String offset = form.getFirst("offset");
@@ -419,7 +483,7 @@ public class NameServer {
 		
 		Map<String, Object> results = null;
 		try {
-			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortString, offsetInt, limitInt, filterData);
+			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortField, sortOrdering, offsetInt, limitInt, filterData);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
 			e1.printStackTrace();
 			return WebUtility.getSO("Error executing solr query");
@@ -443,9 +507,7 @@ public class NameServer {
 		List<String> facetList = new ArrayList<>();
 		facetList.add(SolrIndexEngine.CORE_ENGINE);
 		facetList.add(SolrIndexEngine.LAYOUT);
-		facetList.add(SolrIndexEngine.PARAMS);
 		facetList.add(SolrIndexEngine.TAGS);
-		facetList.add(SolrIndexEngine.ALGORITHMS);
 
 		Map<String, Map<String, Long>> facetFieldMap = null;
 		try {
@@ -536,6 +598,12 @@ public class NameServer {
 
 		return WebUtility.getSO(groupFieldMap);
 	}
+	
+	////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////// END SOLR //////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
 
 	@POST
 	@Path("central/context/getConnectedConcepts2")
@@ -651,9 +719,7 @@ public class NameServer {
 		List<String> facetList = new ArrayList<>();
 		facetList.add(SolrIndexEngine.CORE_ENGINE);
 		facetList.add(SolrIndexEngine.LAYOUT);
-		facetList.add(SolrIndexEngine.PARAMS);
 		facetList.add(SolrIndexEngine.TAGS);
-		facetList.add(SolrIndexEngine.ALGORITHMS);
 		queryBuilder.setFacetField(facetList);
 		
 		// offset for call

@@ -28,6 +28,10 @@
 package prerna.semoss.web.services;
 
 import java.io.File;
+import java.io.IOException;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -52,6 +56,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import org.apache.log4j.Logger;
+import org.apache.solr.client.solrj.SolrServerException;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -73,6 +78,7 @@ import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.form.FormBuilder;
+import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.JoinTransformation;
@@ -418,8 +424,16 @@ public class EngineResource {
 					errorHash.put("Class", this.getClass().getName());
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
-
+				
+				// update security db user tracker
 				tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), insightObj.getInsightID(), session.getId());
+				// update global solr tracker
+				try {
+					SolrIndexEngine.getInstance().updateViewedInsight(coreEngine.getEngineName() + "_" + insight);
+				} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
+						| IOException e) {
+					e.printStackTrace();
+				}
 //			}
 
 			return Response.status(200).entity(WebUtility.getSO(obj)).build();

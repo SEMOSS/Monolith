@@ -212,7 +212,6 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(newInsightID));
-		solrInsights.put(SolrIndexEngine.DATAMAKER_NAME, insight.getDataMakerName());
 		solrInsights.put(SolrIndexEngine.IMAGE, image);
 		
 		Set<String> engines = new HashSet<String>();
@@ -441,7 +440,6 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(newInsightID));
-		solrInsights.put(SolrIndexEngine.DATAMAKER_NAME, dmName);
 
 		Set<String> engines = new HashSet<String>();
 		for(DataMakerComponent newDmc : dmcList) {
