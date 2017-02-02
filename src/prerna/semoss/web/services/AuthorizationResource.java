@@ -331,4 +331,39 @@ public class AuthorizationResource
 		
 		return Response.status(200).entity(WebUtility.getSO(true)).build();
 	}
+	
+	//Seed and RLS Permissions
+	
+	@POST
+	@Produces("application/json")
+	@Path("saveSeed")
+	public void saveSeed(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		String RLSValue = null;
+		String RLSJavaCode = null;
+		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		
+		permissions.createSeed(form.getFirst("seedName"), Integer.parseInt(form.getFirst("databaseID")), form.getFirst("tableName"), form.getFirst("columnName"), RLSValue, RLSJavaCode, userId);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("deleteSeed")
+	public void deleteSeed(@Context HttpServletRequest request, @QueryParam("seedId") int seedId) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		
+		permissions.deleteSeed(seedId, userId);
+	}
+	
+	@GET
+//	@Produces("application/json")
+	@Path("getseeds")
+	public void getseedpermissions(@Context HttpServletRequest request) {
+		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		
+		permissions.getMetamodelSeedsForUser(userId);
+	}
+	
 }

@@ -113,6 +113,7 @@ public class NameServer {
 	
 	private static final Logger logger = Logger.getLogger(NameServer.class.getName());
 	private Hashtable<String, String> helpHash = null;
+	UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 
 	// gets the engine resource necessary for all engine calls
 	@Path("e-{engine}")
@@ -462,7 +463,7 @@ public class NameServer {
 			if(user!= null) {
 				userId = user.getId();
 			}
-			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+			
 			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
 			ArrayList<String> filterEngines = new ArrayList<String>();
 			if(filterData.get("core_engine") != null) {
@@ -570,7 +571,7 @@ public class NameServer {
 			if(user!= null) {
 				userId = user.getId();
 			}
-			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+			
 			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
 			ArrayList<String> filterEngines = new ArrayList<String>();
 			if(filterData.get("core_engine") != null) {
@@ -669,11 +670,26 @@ public class NameServer {
 	@GET
 	@Path("central/context/metamodel")
 	@Produces("application/json")
-	public Response getMetamodel(@QueryParam("engineName") String engineName) {
+	public Response getMetamodel(@Context HttpServletRequest request, @QueryParam("engineName") String engineName) {
 		if(engineName == null || engineName.isEmpty()) {
 			return Response.status(200).entity(WebUtility.getSO("")).build();
 		}
-		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getMetamodel(engineName))).build();
+		
+		
+		Map<String, Object[]> ret = new HashMap<String, Object[]>();
+		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
+			String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+			HashMap<String, ArrayList<String>> metamodelFilter = new HashMap<String, ArrayList<String>>();
+			if(permissions.getMetamodelSeedsForUser(userId).get(engineName) != null) {
+				metamodelFilter = permissions.getMetamodelSeedsForUser(userId).get(engineName);
+			}
+			
+			ret = DatabasePkqlService.getMetamodelSecure(engineName, metamodelFilter);
+		} else {
+			ret = DatabasePkqlService.getMetamodel(engineName);
+		}
+		
+		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 	}
 	
 	@POST
