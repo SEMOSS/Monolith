@@ -90,7 +90,6 @@ public class QuestionAdmin {
 	@Produces("application/json")
 	public Response addInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		LOGGER.info("Adding question from action with following details:::: " + form.toString());
-		Gson gson = new Gson();
 		String perspective = form.getFirst("perspective");
 		String order = form.getFirst("order");
 		String insightName = form.getFirst("insightName");
@@ -98,11 +97,20 @@ public class QuestionAdmin {
 		String layout = form.getFirst("layout");
 		String insightID = form.getFirst("insightID");
 		String uiOptions = form.getFirst("uiOptions");
+		String image = form.getFirst("image");
+		String tagsString = form.getFirst("tags");
+
+		Gson gson = new Gson();
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		List<String> pkqlsToAdd = gson.fromJson(form.getFirst("pkqlsToAdd"), List.class);
 		List<String> saveRecipe = gson.fromJson(form.getFirst("saveRecipe"), List.class); //this is the recipe we want to save the insight as
-		String image = form.getFirst("image");
-
+		
+		List<String> tags = new Vector<String>();
+		if(tagsString != null && !tagsString.isEmpty()) {
+			tags = gson.fromJson(tagsString, List.class);
+		}
+		tags.add(perspective.replace("-Perspective", ""));
+		
 		Insight insight = InsightStore.getInstance().get(insightID);
 		String newInsightID = "";
 		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
@@ -128,7 +136,17 @@ public class QuestionAdmin {
 		}
 
 		Insight insightToSave = getInsightToSave(insight, saveRecipe);
-		newInsightID = addInsightFromDb(insightToSave, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList, image);
+		newInsightID = addInsightFromDb(insightToSave, 
+										insightName, 
+										perspective, 
+										order, 
+										layout, 
+										description,
+										uiOptions, 
+										tags, 
+										dataTableAlign, 
+										paramMapList, 
+										image);
 
 		insight.setRdbmsId(newInsightID);
 		insight.setMainEngine(this.coreEngine);
@@ -148,12 +166,13 @@ public class QuestionAdmin {
 			String insightName, 
 			String perspective, 
 			String order, 
-			String layout, 
-			String uiOptions, 
+			String layout,
+			String description,
+			String uiOptions,
+			List<String> tags,
 			Map<String, String> dataTableAlign, 
 			Vector<Map<String, String>> paramMapList,
 			String image) {
-		//TODO: currently not exposed through UI
 		boolean isDbQuery = true;
 		
 		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
@@ -206,11 +225,13 @@ public class QuestionAdmin {
 		String currDate = dateFormat.format(date);
 		solrInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
 		solrInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
-		solrInsights.put(SolrIndexEngine.TAGS, perspective);
+		solrInsights.put(SolrIndexEngine.TAGS, tags);
 		solrInsights.put(SolrIndexEngine.LAYOUT, layout);
 		solrInsights.put(SolrIndexEngine.CREATED_ON, currDate);
 		solrInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
+		solrInsights.put(SolrIndexEngine.LAST_VIEWED_ON, currDate);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
+		solrInsights.put(SolrIndexEngine.DESCRIPTION, description);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(newInsightID));
 		solrInsights.put(SolrIndexEngine.IMAGE, image);
 		
@@ -249,21 +270,39 @@ public class QuestionAdmin {
 	@Produces("application/json")
 	public Response editInsight(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		LOGGER.info("Editing question from action with following details:::: " + form.toString());
-		Gson gson = new Gson();
 		String insightID = form.getFirst("insightID");
 		String perspective = form.getFirst("perspective");
 		String order = form.getFirst("order");
 		String insightName = form.getFirst("insightName");
 		String layout = form.getFirst("layout");
+		String description = form.getFirst("description");
+		String image = form.getFirst("image");
 		String uiOptions = form.getFirst("uiOptions");
+		String tagsString = form.getFirst("tags");
+
+		Gson gson = new Gson();
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		List<String> saveRecipe = gson.fromJson(form.getFirst("saveRecipe"), List.class);
-		String image = form.getFirst("image");
-
+		List<String> tags = new Vector<String>();
+		if(tagsString != null && !tagsString.isEmpty()) {
+			tags = gson.fromJson(tagsString, List.class);
+		}
+		tags.add(perspective.replace("-Perspective", ""));
+		
 		Insight insight = InsightStore.getInstance().get(insightID);
 		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 		Insight insightToEdit = getInsightToSave(insight, saveRecipe);
-		editInsightFromDb(insightToEdit, insightName, perspective, order, layout, uiOptions, dataTableAlign, paramMapList, image);
+		editInsightFromDb(insightToEdit, 
+							insightName, 
+							perspective, 
+							order, 
+							layout,
+							description,
+							uiOptions, 
+							tags,
+							dataTableAlign, 
+							paramMapList, 
+							image);
 		
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
@@ -272,8 +311,10 @@ public class QuestionAdmin {
 			String insightName, 
 			String perspective, 
 			String order, 
-			String layout, 
-			String uiOptions, 
+			String layout,
+			String description,
+			String uiOptions,
+			List<String> tags,
 			Map<String, String> dataTableAlign, 
 			Vector<Map<String, String>> paramMapList,
 			String image) {
@@ -297,9 +338,11 @@ public class QuestionAdmin {
 		Map<String, Object> solrModifyInsights = new HashMap<>();
 		solrModifyInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
 		solrModifyInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
-		solrModifyInsights.put(SolrIndexEngine.TAGS, perspective);
+		solrModifyInsights.put(SolrIndexEngine.TAGS, tags);
+		solrModifyInsights.put(SolrIndexEngine.DESCRIPTION, description);
 		solrModifyInsights.put(SolrIndexEngine.LAYOUT, layout);
 		solrModifyInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
+		solrModifyInsights.put(SolrIndexEngine.LAST_VIEWED_ON, currDate);
 		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
 		solrModifyInsights.put(SolrIndexEngine.IMAGE, image);
 
