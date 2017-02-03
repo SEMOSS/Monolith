@@ -359,60 +359,6 @@ public class NameServer {
 	}
 	
 	/**
-	 * Complete user search based on string input
-	 * @return
-	 */
-	@POST
-	@Path("central/context/modifyInsightTags")
-	@Produces("application/json")
-	public StreamingOutput modifyInsightTags(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String solrId = form.getFirst("id");
-		String tagsStr = form.getFirst("tags");
-		
-		Gson gson = new Gson();
-		List<String> tags = gson.fromJson(tagsStr, new TypeToken<List<String>>() {}.getType());
-		
-		Map<String, Object> fieldsToModify = new HashMap<String, Object>();
-		fieldsToModify.put(SolrIndexEngine.TAGS, tags);
-		fieldsToModify.put(SolrIndexEngine.INDEXED_TAGS, tags);
-		
-		return WebUtility.getSO(modifyInsight(solrId, fieldsToModify));
-	}
-	
-	/**
-	 * Complete user search based on string input
-	 * @return
-	 */
-	@POST
-	@Path("central/context/modifyInsightImage")
-	@Produces("application/json")
-	public StreamingOutput modifyInsightImage(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String solrId = form.getFirst("id");
-		String imageStr = form.getFirst("image");
-		
-		Map<String, Object> fieldsToModify = new HashMap<String, Object>();
-		fieldsToModify.put(SolrIndexEngine.IMAGE, imageStr);
-		
-		return WebUtility.getSO(modifyInsight(solrId, fieldsToModify));
-	}
-	
-	private String modifyInsight(String solrId, Map<String, Object> fieldsToModify) {
-		String returnMessage = null;
-		try {
-			SolrIndexEngine.getInstance().modifyInsight(solrId, fieldsToModify);
-			returnMessage = "success";
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
-				| IOException e) {
-			e.printStackTrace();
-			returnMessage = e.getMessage();
-			if(returnMessage == null || returnMessage.isEmpty()) {
-				returnMessage = "Unknown error with modifying tags";
-			}
-		}
-		return returnMessage;
-	}
-	
-	/**
 	 * Search based on a string input 
 	 * @param form - information passes in from the front end
 	 * @return a string version of the results attained from the query search
