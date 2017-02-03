@@ -27,14 +27,17 @@
  *******************************************************************************/
 package prerna.insights.admin;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Vector;
 
@@ -47,11 +50,14 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.common.SolrDocumentList;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
@@ -61,6 +67,7 @@ import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.QuestionAdministrator;
 import prerna.nameserver.DeleteFromMasterDB;
 import prerna.om.Insight;
+import prerna.solr.SolrDocumentExportWriter;
 import prerna.solr.SolrIndexEngine;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -69,64 +76,70 @@ import prerna.web.services.util.WebUtility;
 
 public class DBAdminResource {
 
-	final static int MAX_CHAR = 100;
-	Logger logger = Logger.getLogger(DBAdminResource.class.getName());
-	boolean securityEnabled;
+	private static final Logger LOGGER = Logger.getLogger(DBAdminResource.class.getName());
+	private static final int MAX_CHAR = 100;
+	private boolean securityEnabled;
+
+	public void setSecurityEnabled(boolean securityEnabled) {
+		this.securityEnabled = securityEnabled;
+	}
 
 	@POST
 	@Path("/delete")
 	@Produces("application/json")
-	public Object delete(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-	{
+	public Object delete(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Gson gson = new Gson();
-		
+
 		String enginesString = form.getFirst("engines");
 		String perspectivesString = form.getFirst("perspectives");
 		String questionsString = form.getFirst("insightIds");
-		
+
 		List<String> questionIds = null;
-		if (questionsString!=null){
+		if (questionsString != null) {
 			questionIds = gson.fromJson(questionsString, List.class);
 			AbstractEngine engine = getEngine(enginesString, request);
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
-			try{
+			try {
 				questionAdmin.removeQuestion(questionIds.toArray(new String[questionIds.size()]));
 				questionIds = SolrIndexEngine.getSolrIdFromInsightEngineId(engine.getEngineName(), questionIds);
-			}catch (RuntimeException e){
-				//reload question xml from file if it errored
-				//otherwise xml gets corrupted
+			} catch (RuntimeException e) {
+				// reload question xml from file if it errored
+				// otherwise xml gets corrupted
 				System.out.println("caught exception while deleting questions.................");
 				e.printStackTrace();
-				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
+				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0,
+						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR))).build();
 			}
-		}
-		else if (perspectivesString!=null){
+		} else if (perspectivesString != null) {
 			AbstractEngine engine = getEngine(enginesString, request);
 			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
-			try{
+			try {
 				Vector<String> perspectives = gson.fromJson(perspectivesString, Vector.class);
 				questionIds = questionAdmin.removePerspective(perspectives.toArray(new String[perspectives.size()]));
 				questionIds = SolrIndexEngine.getSolrIdFromInsightEngineId(engine.getEngineName(), questionIds);
 
-			}catch (RuntimeException e){
-				//reload question xml from file if it errored
-				//otherwise xml gets corrupted
+			} catch (RuntimeException e) {
+				// reload question xml from file if it errored
+				// otherwise xml gets corrupted
 				System.out.println("caught exception while deleting perspectives.................");
 				e.printStackTrace();
-				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
+				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0,
+						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR))).build();
 			}
-			
-		}
-		else if(enginesString!=null){
+
+		} else if (enginesString != null) {
 			Vector<String> engines = gson.fromJson(enginesString, Vector.class);
 			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
-			ArrayList<String> ownedEngines = permissions.getUserOwnedEngines(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
-			for(String engineString: engines){
+			ArrayList<String> ownedEngines = permissions
+					.getUserOwnedEngines(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+			for (String engineString : engines) {
 				IEngine engine = getEngine(engineString, request);
-				if(this.securityEnabled) {
-					if(ownedEngines.contains(engineString)) {
+				if (this.securityEnabled) {
+					if (ownedEngines.contains(engineString)) {
 						deleteEngine(engine, request);
-						permissions.deleteEngine(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), engineString);
+						permissions.deleteEngine(
+								((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(),
+								engineString);
 					} else {
 						return Response.status(400).entity("You do not have access to delete this database.").build();
 					}
@@ -135,12 +148,12 @@ public class DBAdminResource {
 				}
 			}
 		}
-		
-		if(questionIds != null) {
+
+		if (questionIds != null) {
 			SolrIndexEngine solrE;
 			try {
 				solrE = SolrIndexEngine.getInstance();
-				if(solrE.serverActive()) {
+				if (solrE.serverActive()) {
 					solrE.removeInsight(questionIds);
 				}
 			} catch (SolrServerException e) {
@@ -155,13 +168,13 @@ public class DBAdminResource {
 				e.printStackTrace();
 			}
 		}
-  		return Response.status(200).entity(WebUtility.getSO("success")).build();
+		return Response.status(200).entity(WebUtility.getSO("success")).build();
 	}
-  	
-  	@POST
+
+	@POST
 	@Path("reorderPerspective")
 	@Produces("application/json")
-  	public Response reorderPerspective(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
+	public Response reorderPerspective(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		String perspective = form.getFirst("perspective");
 		String enginesString = form.getFirst("engine");
@@ -170,169 +183,83 @@ public class DBAdminResource {
 
 		AbstractEngine engine = getEngine(enginesString, request);
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
-		try{
+		try {
 			questionAdmin.reorderPerspective(perspective, questionIds);
-		} catch(RuntimeException e){
+		} catch (RuntimeException e) {
 
 			System.out.println("caught exception while reordering.................");
 			e.printStackTrace();
-			return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0, (e.toString().length() < MAX_CHAR)?e.toString().length():MAX_CHAR))).build();
+			return Response.status(500).entity(WebUtility.getSO(
+					e.toString().substring(0, (e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR)))
+					.build();
 		}
 
-		
-  		return Response.status(200).entity(WebUtility.getSO("Success")).build();
-  	}
+		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+	}
 
 	@Path("insight-{engine}")
-	public Object insight(@PathParam("engine") String engineString, @Context HttpServletRequest request)
-	{
-//		String enginesString = form.getFirst("engine");
+	public Object insight(@PathParam("engine") String engineString, @Context HttpServletRequest request) {
 		AbstractEngine engine = getEngine(engineString, request);
 		QuestionAdmin admin = new QuestionAdmin(engine);
 		return admin;
 	}
-	
-	public boolean deleteEngine(IEngine coreEngine, HttpServletRequest request)
-	{
+
+	private boolean deleteEngine(IEngine coreEngine, HttpServletRequest request) {
 		String engineName = coreEngine.getEngineName();
 		coreEngine.deleteDB();
-//		System.out.println("closing " + engineName);
-//		coreEngine.closeDB();
-//		System.out.println("db closed");
-//		System.out.println("deleting folder");
-//		String baseFolder = DIHelper.getInstance().getProperty("BaseFolder");
-//		String insightLoc = baseFolder + "/" + coreEngine.getProperty(Constants.INSIGHTS);
-//		System.out.println("insight file is  " + insightLoc);
-//		File insightFile = new File(insightLoc);
-//		File engineFolder = new File(insightFile.getParent());
-//		String folderName = engineFolder.getName();
-//		try {
-//			System.out.println("checking folder " + folderName + " against db " + engineName);//this check is to ensure we are deleting the right folder
-//			if(folderName.equals(engineName))
-//			{
-//				System.out.println("folder getting deleted is " + engineFolder.getAbsolutePath());
-//				FileUtils.deleteDirectory(engineFolder);
-//			}
-//			else{
-//				logger.error("Cannot delete database folder as folder name does not line up with engine name");
-//				//try deleting each file individually
-//				System.out.println("Deleting insight file " + insightLoc);
-//				insightFile.delete();
-//
-//				String ontoLoc = baseFolder + "/" + coreEngine.getProperty(Constants.ONTOLOGY);
-//				if(ontoLoc != null){
-//					System.out.println("Deleting onto file " + ontoLoc);
-//					File ontoFile = new File(ontoLoc);
-//					ontoFile.delete();
-//				}
-//
-//				String owlLoc = baseFolder + "/" + coreEngine.getProperty(Constants.OWL);
-//				if(owlLoc != null){
-//					System.out.println("Deleting owl file " + owlLoc);
-//					File owlFile = new File(owlLoc);
-//					owlFile.delete();
-//				}
-//
-//				String jnlLoc = baseFolder + "/" + coreEngine.getProperty("com.bigdata.journal.AbstractJournal.file");
-//				if(jnlLoc != null){
-//					System.out.println("Deleting jnl file " + jnlLoc);
-//					File jnlFile = new File(jnlLoc);
-//					jnlFile.delete();
-//				}
-//			}
-//			String smss = coreEngine.getSMSS();
-//			System.out.println("Deleting smss " + smss);
-//			File smssFile = new File(smss);
-//			smssFile.delete();
-//			
-			//remove from session
-			HttpSession session = request.getSession();
-			ArrayList<Hashtable<String,String>> engines = (ArrayList<Hashtable<String,String>>)session.getAttribute(Constants.ENGINES);
-			for(Hashtable<String, String> engine : engines){
-				String engName = engine.get("name");
-				if(engName.equals(engineName)){
-					engines.remove(engine);
-					System.out.println("Removed from engines");
-					session.setAttribute(Constants.ENGINES, engines);
-					break;//
-				}
-			}
-			session.removeAttribute(engineName);
-			
-			//remove from dihelper... this is absurd
-			String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
-			engineNames = engineNames.replace(";" + engineName, "");
-			DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engineNames);
-			
-			DeleteFromMasterDB remover = new DeleteFromMasterDB(Constants.LOCAL_MASTER_DB_NAME);
-			remover.deleteEngine(engineName);
-			
-			SolrIndexEngine solrE;
-			try {
-				solrE = SolrIndexEngine.getInstance();
-				if(solrE.serverActive()) {
-					solrE.deleteEngine(engineName);
-				}
-			} catch (KeyManagementException e) {
-				e.printStackTrace();
-			} catch (NoSuchAlgorithmException e) {
-				e.printStackTrace();
-			} catch (KeyStoreException e) {
-				e.printStackTrace();
-			}
-			
-			return true;
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//			return false;
-//		}	
-	}
-	
-  	private AbstractEngine getEngine(String engineName, HttpServletRequest request){
+		// remove from session
 		HttpSession session = request.getSession();
-		AbstractEngine engine = null;
-		if(session.getAttribute(engineName) instanceof IEngine)
-			engine = (AbstractEngine)session.getAttribute(engineName);
-		else
-			engine = (AbstractEngine)loadEngine(engineName);
-		return engine;
-  	}
-  	
-	private IEngine loadEngine(String db)
-	{
-		IEngine engine = null;
-		String engineFile = DIHelper.getInstance().getCoreProp().getProperty(db + "_" + Constants.STORE);
-		System.out.println("Engine File.. " + engineFile);
-		FileInputStream fileIn = null;
-		try {
-			Properties prop = new Properties();
-			fileIn = new FileInputStream(engineFile);
-			prop.load(fileIn);
-			engine = Utility.loadWebEngine(engineFile, prop);
-			System.out.println("Loaded the engine.. !!!!! " + db);
-			//addEngine(request, api, db);
-		} catch(Exception ex) {
-			ex.printStackTrace();
-		} finally {
-			if(fileIn != null) {
-				try {
-					fileIn.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+		ArrayList<Hashtable<String, String>> engines = (ArrayList<Hashtable<String, String>>) session
+				.getAttribute(Constants.ENGINES);
+		for (Hashtable<String, String> engine : engines) {
+			String engName = engine.get("name");
+			if (engName.equals(engineName)) {
+				engines.remove(engine);
+				System.out.println("Removed from engines");
+				session.setAttribute(Constants.ENGINES, engines);
+				break;//
 			}
 		}
+		session.removeAttribute(engineName);
+
+		// remove from dihelper... this is absurd
+		String engineNames = (String) DIHelper.getInstance().getLocalProp(Constants.ENGINES);
+		engineNames = engineNames.replace(";" + engineName, "");
+		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engineNames);
+
+		DeleteFromMasterDB remover = new DeleteFromMasterDB(Constants.LOCAL_MASTER_DB_NAME);
+		remover.deleteEngine(engineName);
+
+		SolrIndexEngine solrE;
+		try {
+			solrE = SolrIndexEngine.getInstance();
+			if (solrE.serverActive()) {
+				solrE.deleteEngine(engineName);
+			}
+		} catch (KeyManagementException e) {
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		} catch (KeyStoreException e) {
+			e.printStackTrace();
+		}
+
+		return true;
+	}
+
+	private AbstractEngine getEngine(String engineName, HttpServletRequest request) {
+		HttpSession session = request.getSession();
+		AbstractEngine engine = null;
+		if (session.getAttribute(engineName) instanceof IEngine)
+			engine = (AbstractEngine) session.getAttribute(engineName);
+		else
+			engine = (AbstractEngine) Utility.getEngine(engineName);
 		return engine;
 	}
 
-  	
-  	public void setSecurityEnabled(boolean securityEnabled) {
-  		this.securityEnabled = securityEnabled;
-  	}
-  	
 	@POST
-	@Path ("/deleteCache")
-	@Produces ("application/json")
+	@Path("/deleteCache")
+	@Produces("application/json")
 	public Response deleteDbCache(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String dbName = form.getFirst("engine");
 		String insightID = form.getFirst("insightID");
@@ -340,8 +267,152 @@ public class DBAdminResource {
 		Insight in = new Insight(getEngine(dbName, request), "", "");
 		in.setRdbmsId(insightID);
 		in.setInsightName(questionName);
-		
+
 		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteInsightCache(in);
 		return Response.status(200).entity(WebUtility.getSO("Success")).build();
 	}
+
+	////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////// START SOLR
+	//////////////////////////////////////////////////////////////////////////////////// /////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * Modify the insight tags
+	 * 
+	 * @return
+	 */
+	@POST
+	@Path("modifyInsightTags")
+	@Produces("application/json")
+	public StreamingOutput modifyInsightTags(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String solrId = form.getFirst("id");
+		String tagsStr = form.getFirst("tags");
+
+		Gson gson = new Gson();
+		List<String> tags = gson.fromJson(tagsStr, new TypeToken<List<String>>() {
+		}.getType());
+
+		Map<String, Object> fieldsToModify = new HashMap<String, Object>();
+		fieldsToModify.put(SolrIndexEngine.TAGS, tags);
+		fieldsToModify.put(SolrIndexEngine.INDEXED_TAGS, tags);
+
+		return WebUtility.getSO(modifyInsight(solrId, fieldsToModify));
+	}
+
+	/**
+	 * Modify the insight image
+	 * 
+	 * @return
+	 */
+	@POST
+	@Path("modifyInsightImage")
+	@Produces("application/json")
+	public StreamingOutput modifyInsightImage(MultivaluedMap<String, String> form,
+			@Context HttpServletRequest request) {
+		String solrId = form.getFirst("id");
+		String imageStr = form.getFirst("image");
+
+		Map<String, Object> fieldsToModify = new HashMap<String, Object>();
+		fieldsToModify.put(SolrIndexEngine.IMAGE, imageStr);
+
+		return WebUtility.getSO(modifyInsight(solrId, fieldsToModify));
+	}
+
+	private String modifyInsight(String solrId, Map<String, Object> fieldsToModify) {
+		String returnMessage = null;
+		try {
+			SolrIndexEngine.getInstance().modifyInsight(solrId, fieldsToModify);
+			returnMessage = "success";
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
+				| IOException e) {
+			e.printStackTrace();
+			returnMessage = e.getMessage();
+			if (returnMessage == null || returnMessage.isEmpty()) {
+				returnMessage = "Unknown error with modifying tags";
+			}
+		}
+		return returnMessage;
+	}
+
+	@POST
+	@Path("exportDbSolrText")
+	@Produces("application/json")
+	public StreamingOutput exportDbSolrInfo(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String engineName = form.getFirst("engineName");
+		LOGGER.info("Starting to export solr documents for engine : " + engineName);
+		// grab the smss file to determine where we should export this file
+		String smssFile = (String)DIHelper.getInstance().getCoreProp().getProperty(engineName + "_" + Constants.STORE);
+		// create this text file in the same location as the insight_database
+		// actual process to load
+		FileInputStream fis = null;
+		String message = "success";
+		try {
+			Properties daProp = new Properties();
+			fis = new FileInputStream(smssFile);
+			daProp.load(fis);
+			
+			// if there is already a text file that we need to update
+			// get the existing file from the smss
+			String solrTextFile = null;
+			String smssUpdateValue = null;
+			boolean overrideExistingSolrFile = false;
+			if(daProp.containsKey(Constants.SOLR_EXPORT)) {
+				overrideExistingSolrFile = true;
+				solrTextFile = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) 
+						+ "/" + daProp.getProperty(Constants.SOLR_EXPORT);
+			} else {
+				// get the location of the insight rdbms and modify it for a new file
+				smssUpdateValue = daProp.getProperty(Constants.RDBMS_INSIGHTS);
+				// get ride of the file name to get the extension
+				smssUpdateValue = smssUpdateValue.substring(0, smssUpdateValue.lastIndexOf("/")+1);
+				// add a new extension
+				smssUpdateValue = smssUpdateValue + engineName + "_Solr.txt";
+
+				solrTextFile = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) 
+						+ "/" + smssUpdateValue;
+			}
+			File solrFile = new File(solrTextFile);
+			if(solrFile.exists()) {
+				solrFile.delete();
+			}
+			
+			SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
+			SolrDocumentList docs = SolrIndexEngine.getInstance().getEngineInsights(engineName);
+			LOGGER.info("Found " + docs.getNumFound() + " documents to export");
+			writer.writeSolrDocument(docs);
+			writer.closeExport();
+			
+			// update the smss to know this solr text file exists
+			if(!overrideExistingSolrFile) {
+				Utility.updateSMSSFile(smssFile, Constants.SOLR_EXPORT, smssUpdateValue);
+			}
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | 
+				IOException | SolrServerException e) {
+			e.printStackTrace();
+			message = e.getMessage();
+			if(message == null || message.isEmpty()) {
+				message = "Unknown error occured while exporting solr information";
+			}
+		} finally {
+			if(fis != null) {
+				try {
+					fis.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		
+		return WebUtility.getSO(message);
+	}
+
+	////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////// END SOLR
+	//////////////////////////////////////////////////////////////////////////////////// //////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
 }
