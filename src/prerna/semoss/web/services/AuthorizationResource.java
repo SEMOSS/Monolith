@@ -329,16 +329,16 @@ public class AuthorizationResource
 		String RLSJavaCode = null;
 		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		permissions.createSeed(form.getFirst("seedName"), Integer.parseInt(form.getFirst("databaseID")), form.getFirst("tableName"), form.getFirst("columnName"), RLSValue, RLSJavaCode, userId);
+		permissions.createSeed(form.getFirst("seedName"), form.getFirst("databaseName"), form.getFirst("tableName"), form.getFirst("columnName"), RLSValue, RLSJavaCode, userId);
 	}
 	
 	@POST
 	@Produces("application/json")
 	@Path("/admin/deleteSeed")
-	public void deleteSeed(@Context HttpServletRequest request, @QueryParam("seedId") int seedId) {
+	public void deleteSeed(@Context HttpServletRequest request, @QueryParam("seedName") String seedName) {
 		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		permissions.deleteSeed(seedId, userId);
+		permissions.deleteSeed(seedName, userId);
 	}
 	
 	@GET
@@ -353,18 +353,18 @@ public class AuthorizationResource
 	@POST
 	@Produces("application/json")
 	@Path("/admin/addSeedForUser")
-	public Response addSeedForUser(@Context HttpServletRequest request, @QueryParam("seedId") String seedId, @QueryParam("userId") String userId) {
+	public Response addSeedForUser(@Context HttpServletRequest request, @QueryParam("seedName") String seedName, @QueryParam("userId") String userId) {
 		String loggedInUser = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		return Response.status(200).entity(WebUtility.getSO(permissions.addUserToSeed(userId, seedId, loggedInUser))).build();
+		return Response.status(200).entity(WebUtility.getSO(permissions.addUserToSeed(userId, seedName, loggedInUser))).build();
 	}
 	
 	@POST
 	@Produces("application/json")
 	@Path("/admin/deleteSeedForUser")
-	public Response deleteSeedForUser(@Context HttpServletRequest request, @QueryParam("seedId") String seedId, @QueryParam("userId") String userId) {
+	public Response deleteSeedForUser(@Context HttpServletRequest request, @QueryParam("seedName") String seedName, @QueryParam("userId") String userId) {
 		String loggedInUser = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		return Response.status(200).entity(WebUtility.getSO(permissions.deleteUserFromSeed(userId, seedId, loggedInUser))).build();
+		return Response.status(200).entity(WebUtility.getSO(permissions.deleteUserFromSeed(userId, seedName, loggedInUser))).build();
 	}
 }
