@@ -60,6 +60,7 @@ public class AuthorizationResource
 {
 	@Context ServletContext context;
 	String output = "";
+	UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 	
 	@GET
 	@Produces("application/json")
@@ -76,7 +77,6 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("dbAdminEngines")
 	public StreamingOutput getDBAdminEngines(@Context HttpServletRequest request) throws IOException {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		Hashtable<String, ArrayList<Hashtable<String, String>>> ret = new Hashtable<String, ArrayList<Hashtable<String, String>>>();
 		ArrayList<Hashtable<String, String>> allEngines = new ArrayList<Hashtable<String, String>>((ArrayList<Hashtable<String, String>>)request.getSession().getAttribute(Constants.ENGINES));
 		
@@ -104,7 +104,6 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("getEngineAccessRequests")
 	public Response getEngineAccessRequestsForUser(@Context HttpServletRequest request) throws IOException {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		Hashtable<String, ArrayList<Hashtable<String, Object>>> ret = new Hashtable<String, ArrayList<Hashtable<String, Object>>>();
 		ArrayList<Hashtable<String, Object>> requests = new ArrayList<Hashtable<String,Object>>();
 		Hashtable<String, Object> requestdetails;
@@ -135,7 +134,6 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("getEngineAccessRequestsByUser")
 	public StreamingOutput getEngineAccessRequestsByUser(@Context HttpServletRequest request) throws IOException {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		ArrayList<String> enginesRequested = new ArrayList<String>();
 		
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
@@ -150,7 +148,6 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("addEngineAccessRequest")
 	public Response addEngineAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		HashMap<String, Object> ret = new HashMap<String, Object>();
 		String engineName = form.getFirst("engine");
 		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
@@ -180,7 +177,6 @@ public class AuthorizationResource
 		ArrayList<String> enginePermissions = new ArrayList<String>();
 		enginePermissions.add(EnginePermission.READ_ONLY.getPermission());
 		
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		boolean success = permissions.processEngineAccessRequest(requestId, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), enginePermissions.toArray(new String[enginePermissions.size()]));
 		
 		ret.put("success", success);
@@ -191,7 +187,6 @@ public class AuthorizationResource
 	@Produces("application/json")//DONE
 	@Path("getGroups")
 	public StreamingOutput getGroupsAndMembers(@Context HttpServletRequest request) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		StringMap<ArrayList<StringMap<String>>> ret = permissions.getGroupsAndMembersForUser(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
 		
 		return WebUtility.getSO(ret);
@@ -201,7 +196,6 @@ public class AuthorizationResource
 	@Produces("application/json")//DONE
 	@Path("getOwnedDatabases")
 	public StreamingOutput getOwnedDatabases(@Context HttpServletRequest request) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		ArrayList<String> engines = permissions.getUserOwnedEngines(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
 		
 		return WebUtility.getSO(engines);
@@ -211,7 +205,6 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("getAllPermissionsForDatabase")//DONE
 	public StreamingOutput getAllPermissionsForDatabase(@Context HttpServletRequest request, @QueryParam("database") String engineName) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		HashMap<String, ArrayList<StringMap<String>>> ret = new HashMap<String, ArrayList<StringMap<String>>>();
 		ret = permissions.getAllPermissionsGrantedByEngine(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), engineName.trim());
 		
@@ -222,7 +215,6 @@ public class AuthorizationResource
 	@Produces("application/json")//DONE
 	@Path("searchForUser")
 	public StreamingOutput searchForUser(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		ArrayList<StringMap<String>> ret = permissions.searchForUser(searchTerm.trim());
 		
 		return WebUtility.getSO(ret);
@@ -232,7 +224,6 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("getAllDatabasesAndPermissions")//DONE
 	public StreamingOutput getAllDatabasesAndPermissions(@Context HttpServletRequest request) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		ArrayList<StringMap<String>> ret = permissions.getAllEnginesAndPermissionsForUser(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
 		
 		return WebUtility.getSO(ret);
@@ -242,7 +233,6 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("addGroup")
 	public Response addNewGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		Gson gson = new Gson();
 		ArrayList<String> users = gson.fromJson(form.getFirst("users"), ArrayList.class);
 		Boolean success = permissions.addGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), form.getFirst("groupName").trim(), users);
@@ -258,7 +248,6 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("removeGroup")
 	public Response removeGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		String groupName = form.getFirst("groupName").trim();
 		Boolean success = permissions.removeGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName);
 		
@@ -273,7 +262,6 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("editGroup")
 	public Response editGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		Gson gson = new Gson();
 		
 		String groupName = form.getFirst("groupName").trim();
@@ -295,7 +283,6 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("savePermissions")
 	public Response savePermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		Gson gson = new Gson();
 		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
@@ -336,9 +323,8 @@ public class AuthorizationResource
 	
 	@POST
 	@Produces("application/json")
-	@Path("saveSeed")
+	@Path("/admin/saveSeed")
 	public void saveSeed(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		String RLSValue = null;
 		String RLSJavaCode = null;
 		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
@@ -348,22 +334,37 @@ public class AuthorizationResource
 	
 	@POST
 	@Produces("application/json")
-	@Path("deleteSeed")
+	@Path("/admin/deleteSeed")
 	public void deleteSeed(@Context HttpServletRequest request, @QueryParam("seedId") int seedId) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
 		permissions.deleteSeed(seedId, userId);
 	}
 	
 	@GET
-//	@Produces("application/json")
-	@Path("getseeds")
-	public void getseedpermissions(@Context HttpServletRequest request) {
-		UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+	@Produces("application/json")
+	@Path("/admin/getAllSeeds")
+	public Response getAllSeeds(@Context HttpServletRequest request) {
 		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		permissions.getMetamodelSeedsForUser(userId);
+		return Response.status(200).entity(WebUtility.getSO(permissions.getMetamodelSeedsOwnedByUser(userId))).build();
 	}
 	
+	@POST
+	@Produces("application/json")
+	@Path("/admin/addSeedForUser")
+	public Response addSeedForUser(@Context HttpServletRequest request, @QueryParam("seedId") String seedId, @QueryParam("userId") String userId) {
+		String loggedInUser = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		
+		return Response.status(200).entity(WebUtility.getSO(permissions.addUserToSeed(userId, seedId, loggedInUser))).build();
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("/admin/deleteSeedForUser")
+	public Response deleteSeedForUser(@Context HttpServletRequest request, @QueryParam("seedId") String seedId, @QueryParam("userId") String userId) {
+		String loggedInUser = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		
+		return Response.status(200).entity(WebUtility.getSO(permissions.deleteUserFromSeed(userId, seedId, loggedInUser))).build();
+	}
 }
