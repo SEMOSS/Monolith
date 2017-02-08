@@ -35,6 +35,7 @@ import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
 import prerna.ds.h2.H2Frame;
 import prerna.ds.nativeframe.NativeFrame;
+import prerna.ds.r.RDataTable;
 import prerna.engine.api.IEngine;
 import prerna.om.Dashboard;
 import prerna.om.GraphDataModel;
@@ -205,10 +206,18 @@ public class DataframeResource {
 			if(!frame.isInMem()) {
 				frame.dropOnDiskTemporalSchema();
 			}
+		} else if(dm instanceof RDataTable) {
+			RDataTable frame = (RDataTable)dm;
+			frame.closeConnection();
 		} else if(dm instanceof Dashboard) {
 			Dashboard dashboard = (Dashboard)dm;
 			dashboard.dropDashboard();
-		} 
+		}
+		
+		// also see if other variables in runner that need to be dropped
+		PKQLRunner runner = insight.getPKQLRunner();
+		runner.cleanUp();
+		
 		// native frame just holds a QueryStruct on an engine
 		// nothing to do
 //		else if(dm instanceof NativeFrame) {
