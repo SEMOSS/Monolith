@@ -347,7 +347,14 @@ public class AuthorizationResource
 	public Response getAllSeeds(@Context HttpServletRequest request) {
 		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		return Response.status(200).entity(WebUtility.getSO(permissions.getMetamodelSeedsOwnedByUser(userId))).build();
+		return Response.status(200).entity(WebUtility.getSO(permissions.getMetamodelSeedsForUser(userId, true))).build();
+	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("/admin/getAllSeedsForUser")
+	public Response getAllSeedsForUser(@Context HttpServletRequest request, @QueryParam("userId") String userId) {
+		return Response.status(200).entity(WebUtility.getSO(permissions.getMetamodelSeedsForUser(userId, false))).build();
 	}
 	
 	@POST
