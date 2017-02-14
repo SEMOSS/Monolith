@@ -33,6 +33,8 @@ import prerna.algorithm.api.ITableDataFrame;
 import prerna.ds.AbstractTableDataFrame;
 import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
+import prerna.ds.gexf.IGexfIterator;
+import prerna.ds.gexf.RdbmsGexfIterator;
 import prerna.ds.h2.H2Frame;
 import prerna.ds.nativeframe.NativeFrame;
 import prerna.ds.r.RDataTable;
@@ -342,6 +344,38 @@ public class DataframeResource {
 		}
 		else
 			return Response.status(400).entity(WebUtility.getSO("Illegal data maker type ")).build();
+	}
+	
+	@POST
+	@Path("/getGexf")
+	@Produces("application/json")
+	public Response getGexf(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
+	{
+		ITableDataFrame table = null;
+		try {
+			table = (ITableDataFrame) insight.getDataMaker();
+		} catch(ClassCastException e) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Insight data maker could not be cast to a table data frame.");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+		if(table == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Could not find insight data maker.");
+			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+		}
+
+		String nodes = form.getFirst("nodes");
+		String edges = form.getFirst("edges");
+		Gson gson = new Gson();
+		Map<String, String> alias = gson.fromJson(form.getFirst("aslias"), new TypeToken<Map<String, String>>() {}.getType());
+
+		IGexfIterator gexf = null;
+		if(table instanceof H2Frame) {
+			gexf = new RdbmsGexfIterator((H2Frame) table, nodes, edges, alias);
+		}
+		
+		return Response.status(200).entity(WebUtility.getSO(insight.getInsightID(), gexf)).build();
 	}
 
 	@POST
