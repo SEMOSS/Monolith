@@ -367,9 +367,15 @@ public class DataframeResource {
 
 		String nodes = form.getFirst("nodes");
 		String edges = form.getFirst("edges");
-		Gson gson = new Gson();
-		Map<String, String> alias = gson.fromJson(form.getFirst("aslias"), new TypeToken<Map<String, String>>() {}.getType());
-
+		String aliasStr = form.getFirst("alias");
+		Map<String, String> alias = null;
+		if(aliasStr != null && !aliasStr.trim().isEmpty()) {
+			Gson gson = new Gson();
+			alias = gson.fromJson(form.getFirst("aslias"), new TypeToken<Map<String, String>>() {}.getType());
+		} else {
+			alias = new HashMap<String, String>();
+		}
+		
 		IGexfIterator gexf = null;
 		if(table instanceof H2Frame) {
 			gexf = new RdbmsGexfIterator((H2Frame) table, nodes, edges, alias);
