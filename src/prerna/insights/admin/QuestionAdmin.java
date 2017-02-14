@@ -150,6 +150,7 @@ public class QuestionAdmin {
 
 		insight.setRdbmsId(newInsightID);
 		insight.setMainEngine(this.coreEngine);
+		insight.setInsightName(insightName);
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		//			retMap.put("newInsightID", newInsightID);
 		retMap.put("core_engine", this.coreEngine.getEngineName());
@@ -290,6 +291,7 @@ public class QuestionAdmin {
 		tags.add(perspective.replace("-Perspective", ""));
 		
 		Insight insight = InsightStore.getInstance().get(insightID);
+		insight.setInsightName(insightName);
 		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
 		Insight insightToEdit = getInsightToSave(insight, saveRecipe);
 		editInsightFromDb(insightToEdit, 
