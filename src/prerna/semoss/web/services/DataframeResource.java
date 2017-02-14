@@ -556,7 +556,10 @@ public class DataframeResource {
 			newTablesAndCols.put(newTable, props);
 		}
 		
-		
+		// this will be used to keep track of the old parent to the new parent
+		// this is needed so the FE can properly create parameters
+		Map<String, String> parentMap = new HashMap<String, String>();
+
 		// if we loaded a file
 		// it has a prim key as a header
 		// will need to modify the header to be that of the table so the FE
@@ -629,6 +632,7 @@ public class DataframeResource {
 							// it is the one we want to modify
 							if(children.containsAll(selectorsToMatch)) {
 								dataframe.modifyColumnName(parentName, tableToUse);
+								parentMap.put(parentName, tableToUse);
 								
 								// need to also add the engine name for each of the nodes
 								// do this for the main node
@@ -673,15 +677,19 @@ public class DataframeResource {
 		filesMetadata.clear();
 		
 		// we will return the new insight recipe after the PKQL has been modified
-		//TODO command
-		ArrayList list = new ArrayList();
+		Map<String, Object> retData = new HashMap<String, Object>();
+		
+		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
 		String[] pkqlRecipe = this.insight.getPkqlRecipe();
 		for(String command: pkqlRecipe) {
 			Map<String, Object> retMap = new HashMap<String, Object>();
 			retMap.put("command", command);
 			list.add(retMap);
 		}
-		return Response.status(200).entity(WebUtility.getSO(list)).build();
+		
+		retData.put("parentMap", parentMap);
+		retData.put("recipe", list);
+		return Response.status(200).entity(WebUtility.getSO(retData)).build();
 	}
 	
 	
