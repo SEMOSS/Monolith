@@ -52,6 +52,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
@@ -73,6 +74,7 @@ import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightsConverter;
+import prerna.insights.admin.DBAdminResource;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
@@ -590,10 +592,22 @@ public class EngineResource {
 	@Produces("application/zip")
 	public Response exportDatabase(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession();
-		session.removeAttribute(coreEngine.getEngineName());
-		DIHelper.getInstance().removeLocalProperty(coreEngine.getEngineName());
+		String engineName = coreEngine.getEngineName();
+		
+		// we want to start exporting the solr documents as well
+		// since we want to move away from using the rdbms insights for that
+		DBAdminResource dbAdmin = new DBAdminResource();
+		MultivaluedMap<String, String> form = new MultivaluedHashMap<String, String>();
+		form.putSingle("engineName", engineName);
+		dbAdmin.exportDbSolrInfo(form , request);
+		
+		// close the engine so we can export it
+		session.removeAttribute(engineName);
+		DIHelper.getInstance().removeLocalProperty(engineName);
 		coreEngine.closeDB();
-		File zip = ZipDatabase.zipEngine(coreEngine.getEngineName());
+		
+		LOGGER.info("Attending to export engine = " + engineName);
+		File zip = ZipDatabase.zipEngine(engineName);
 		
 		Response resp = Response.ok(zip)
 				.header("x-filename", zip.getName())
