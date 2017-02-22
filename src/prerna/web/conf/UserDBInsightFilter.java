@@ -42,6 +42,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import com.google.gson.internal.StringMap;
+
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.util.Constants;
@@ -57,7 +59,8 @@ public class UserDBInsightFilter implements Filter {
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		
 		if(securityEnabled) {
-			String requestURI = ((HttpServletRequest) arg0).getRequestURI();
+			HttpServletRequest request = (HttpServletRequest) arg0;
+			String requestURI = request.getRequestURI();
 			if(requestURI.contains(engineAPIPath)) {
 				String requestPathWithEngine = requestURI.substring(requestURI.indexOf(engineAPIPath) + engineAPIPath.length()); 
 				String engineName = requestPathWithEngine.substring(0, requestPathWithEngine.indexOf("/"));
@@ -70,10 +73,14 @@ public class UserDBInsightFilter implements Filter {
 				UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 				HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
 				if(!engineName.equals(Constants.LOCAL_MASTER_DB_NAME) && !userEngines.contains(engineName)) {
-					HttpServletResponse response = (HttpServletResponse) arg1;
-					response.addHeader("userId", userId);
-					response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-					return;
+					StringMap<ArrayList<String>> insightPermissions = permissions.getInsightPermissionsForUser(userId);
+					
+					if(!insightPermissions.containsKey(engineName)) {
+						HttpServletResponse response = (HttpServletResponse) arg1;
+						response.addHeader("userId", userId);
+						response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+						return;
+					}
 				}
 			}
 		}
