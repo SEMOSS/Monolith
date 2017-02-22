@@ -400,18 +400,21 @@ public class NameServer {
 		String filterDataStr = form.getFirst("filterData");
 		Gson gson = new Gson();
 		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
+		Map<String, Object> results = null;
 		
 		//If security is enabled, remove the engines in the filters that aren't accessible - if none in filters, add all accessible engines to filter list
-		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
+		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
+		ArrayList<String> filterEngines = new ArrayList<String>();
+		String userId = "";
+		
+		if(securityEnabled) {
 			HttpSession session = request.getSession(true);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			String userId = "";
 			if(user!= null) {
 				userId = user.getId();
 			}
 			
 			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
-			ArrayList<String> filterEngines = new ArrayList<String>();
 			if(filterData.get("core_engine") != null) {
 				filterEngines.addAll(filterData.get("core_engine"));
 			}
@@ -428,12 +431,45 @@ public class NameServer {
 			}
 		}
 		
-		Map<String, Object> results = null;
 		try {
 			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortField, sortOrdering, offsetInt, limitInt, filterData);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
 			e1.printStackTrace();
 			return WebUtility.getSO("Error executing solr query");
+		}
+		
+		if(securityEnabled) {
+			//Get the results based on just insight-level permissions
+			Map<String, Object> results2 = new HashMap<String, Object>();
+			ArrayList<String> insightIDs = new ArrayList<String>();
+			StringMap<ArrayList<String>> userInsights = permissions.getInsightPermissionsForUser(userId);
+			for(String engineName : userInsights.keySet()) {
+				if(!filterEngines.contains(engineName)) {
+					insightIDs.addAll(userInsights.get(engineName));
+				}
+			}
+			
+			if(!insightIDs.isEmpty()) {
+				filterData.clear();
+				filterData.put("id", insightIDs);
+				
+				try {
+					results2 = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortField, sortOrdering, offsetInt, limitInt, filterData);
+				} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
+					e1.printStackTrace();
+					return WebUtility.getSO("Error executing solr query");
+				}
+				
+				SolrDocumentList resultsFromDBSearch = (SolrDocumentList) results.get("queryResponse");
+				for(SolrDocument doc : ((SolrDocumentList)results2.get("queryResponse"))) {
+					if(resultsFromDBSearch.contains(doc)) {
+						continue;
+					}
+					resultsFromDBSearch.add(doc);
+				}
+				System.out.println(results2);
+				results.put("queryResponse", resultsFromDBSearch);
+			}
 		}
 		
 		return WebUtility.getSO(results);
