@@ -319,6 +319,31 @@ public class AuthorizationResource
 		return Response.status(200).entity(WebUtility.getSO(true)).build();
 	}
 	
+	@GET
+	@Produces("application/json")
+	@Path("getInsightPermissions")
+	public Response getInsightPermissions(@Context HttpServletRequest request, @QueryParam("database") String databaseName, @QueryParam("insight") String insightId) {
+		return Response.status(200).entity(WebUtility.getSO(permissions.getUserPermissionsForInsight(databaseName, insightId))).build();
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("saveInsightPermissions")
+	public Response saveInsightPermissions(@Context HttpServletRequest request, @QueryParam("userId") String userId, @QueryParam("database") String databaseName, @QueryParam("insight") String insightId) {
+		String loggedInUser = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		
+		return Response.status(200).entity(WebUtility.getSO(permissions.addInsightPermissionsForUser(loggedInUser, userId, databaseName, insightId))).build();
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("removeInsightPermissions")
+	public Response removeInsightPermissions(@Context HttpServletRequest request, @QueryParam("userId") String userId, @QueryParam("database") String databaseName, @QueryParam("insight") String insightId) {
+		String loggedInUser = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		
+		return Response.status(200).entity(WebUtility.getSO(permissions.removeInsightPermissionsForUser(loggedInUser, userId, databaseName, insightId))).build();
+	}
+	
 	//Seed and RLS Permissions
 	
 	@POST
@@ -373,5 +398,18 @@ public class AuthorizationResource
 		String loggedInUser = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
 		return Response.status(200).entity(WebUtility.getSO(permissions.deleteUserFromSeed(userId, seedName, loggedInUser))).build();
+	}
+	
+	@GET
+	@Path("/admin/isAdminUser")
+	public Response isAdminUser(@Context HttpServletRequest request) {
+		if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+			if(!user.getId().equals(Constants.ANONYMOUS_USER_ID) && permissions.isUserAdmin(user.getId())) {
+				return Response.status(200).entity(WebUtility.getSO(true)).build();
+			}
+		}
+		
+		return Response.status(200).entity(WebUtility.getSO(false)).build();
 	}
 }
