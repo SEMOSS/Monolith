@@ -52,7 +52,10 @@ public class QueryResultHash {
 	
 	public String addObject(IRemoteQueryable maObject)
 	{
-		String key = DIHelper.getInstance().getProperty("ENGINE_GUID") + runner;
+		String prefix = DIHelper.getInstance().getProperty("ENGINE_GUID");
+		if(prefix == null)
+			prefix = "QueryNo";
+		String key = prefix + runner;
 		maObject.setRemoteID(key);
 		objHash.put(key, maObject);
 		runner++;
