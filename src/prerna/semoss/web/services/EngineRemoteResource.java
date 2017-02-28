@@ -183,7 +183,7 @@ public class EngineRemoteResource {
 	
 	@POST
 	@Path("getInsightDefinition")
-	@Produces("application/xml")
+	@Produces("application/text")
 	public String getInsightDefinition() {
 		// TODO Auto-generated method stub
 		System.out.println("ENgine is " + coreEngine);
@@ -226,6 +226,36 @@ public class EngineRemoteResource {
 		return WebUtility.getSO(retValue);
 	}
 
+	@POST
+	@Path("getDisplayVariables")
+	@Produces("application/json")
+	public StreamingOutput getDisplayVariables(@FormParam("id") String id)
+	{
+		String [] retValue = null;
+		System.out.println("Got the id " + id);
+		if(id != null)
+		{
+			Object wrapper = QueryResultHash.getInstance().getObject(id);
+
+			System.out.println("Got the object as well" + wrapper);
+//			if(wrapper instanceof SesameJenaConstructWrapper)
+//				retValue = ((SesameJenaConstructWrapper)wrapper).hasNext();
+//			else if(wrapper instanceof SesameJenaSelectWrapper)
+//				retValue = ((SesameJenaSelectWrapper)wrapper).hasNext();
+//			if(wrapper instanceof SesameJenaSelectCheater)
+//				retValue = ((SesameJenaSelectCheater)wrapper).hasNext();
+
+			if(wrapper instanceof SesameSelectWrapper)
+			{
+				System.out.println(" Select.... ");
+				retValue = ((SesameSelectWrapper)wrapper).getDisplayVariables();
+				//return new TupleStreamingOutput(((SesameSelectWrapper)(wrapper)).tqr);
+			}
+		}		
+		return WebUtility.getSO(retValue);
+	}
+
+	
 	@POST
 	@Path("next")
 	@Produces("application/json")
