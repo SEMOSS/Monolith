@@ -9,7 +9,13 @@ import javax.servlet.http.HttpSessionListener;
 
 import prerna.auth.User;
 import prerna.auth.User.LOGIN_TYPES;
+import prerna.ds.h2.H2Frame;
+import prerna.ds.r.RDataTable;
+import prerna.om.Dashboard;
+import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.sablecc.PKQLRunner;
+import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.util.Constants;
 
 @WebListener
@@ -31,6 +37,26 @@ public class UserSessionLoader implements HttpSessionListener {
 		if(insightIDs != null) {
 			Set<String> copy = new HashSet<String>(insightIDs);
 			for(String id : copy) {
+				Insight in = inStore.get(id);
+				IDataMaker dm = in.getDataMaker();
+				if(dm instanceof H2Frame) {
+					H2Frame frame = (H2Frame)dm;
+					frame.closeRRunner();
+					frame.dropTable();
+					if(!frame.isInMem()) {
+						frame.dropOnDiskTemporalSchema();
+					}
+				} else if(dm instanceof RDataTable) {
+					RDataTable frame = (RDataTable)dm;
+					frame.closeConnection();
+				} else if(dm instanceof Dashboard) {
+					Dashboard dashboard = (Dashboard)dm;
+					dashboard.dropDashboard();
+				}
+				// also see if other variables in runner that need to be dropped
+				PKQLRunner runner = in.getPKQLRunner();
+				runner.cleanUp();
+				
 				inStore.remove(id);
 				inStore.removeFromSessionHash(sessionID, id);
 			}
