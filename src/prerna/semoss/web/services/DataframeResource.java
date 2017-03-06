@@ -14,6 +14,7 @@ import java.util.Vector;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -27,6 +28,7 @@ import javax.ws.rs.core.Response;
 import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
+import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
@@ -50,6 +52,8 @@ import prerna.sablecc2.PKSLRunner;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -692,5 +696,43 @@ public class DataframeResource {
 		return Response.status(200).entity(WebUtility.getSO(retData)).build();
 	}
 	
-	
+	@GET
+	@Path("/teamShareInfo")
+	@Produces("application/json")
+	public Response getTeamShareInsightId(@Context HttpServletRequest request, @QueryParam("insight") String insight, @QueryParam("teamId") String teamId) {
+		StringMap retData = new StringMap<String>();
+		String insightId = null;
+		StringMap<StringMap<String>> teamShareMaps;
+		
+		//Get the existing team share mappings, if they exist
+		if(request.getSession().getAttribute("teamShareMaps") != null) {
+			teamShareMaps = (StringMap<StringMap<String>>) request.getSession().getAttribute("teamShareMaps");
+		} else {
+			teamShareMaps = new StringMap<StringMap<String>>();
+		}
+		
+		if(teamShareMaps.containsKey(teamId)) {
+			//If the teamId exists and an insight was passed in, check to make sure the insight matches the one in the map and set the insightId
+			//If the teamId exists and no insight was passed in, just grab the dynamic insightId and set it
+			if((insight != null && !insight.isEmpty() && teamShareMaps.get(teamId).get("insight").equals(insight)) || insight == null) {
+				insightId = teamShareMaps.get(teamId).get("insightId");
+			}
+		} else {
+			StringMap<String> newTeamShareMap = new StringMap<String>();
+			newTeamShareMap.put("insightId", this.insight.getInsightID());
+			
+			//The teamId doesn't exist so add a new one, include the insight rdbms id if one was passed in
+			if(insight != null && !insight.isEmpty()) {
+				newTeamShareMap.put("insight", insight);
+			} else {
+				newTeamShareMap.put("insight", "");
+			}
+			
+			teamShareMaps.put(teamId, newTeamShareMap);
+		}
+		request.getSession().setAttribute("teamShareMaps", teamShareMaps);
+		
+		retData.put("insightId", insightId);
+		return Response.status(200).entity(WebUtility.getSO(retData)).build();
+	}
 }
