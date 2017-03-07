@@ -354,6 +354,12 @@ public class AuthorizationResource
 		String RLSJavaCode = null;
 		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
+		if(form.getFirst("rlsValue") != null) {
+			RLSValue = form.getFirst("rlsValue");
+		} else if(form.getFirst("rlsCustomPredicate") != null) {
+			RLSValue = form.getFirst("rlsCustomPredicate");
+		}
+		
 		permissions.createSeed(form.getFirst("seedName"), form.getFirst("databaseName"), form.getFirst("tableName"), form.getFirst("columnName"), RLSValue, RLSJavaCode, userId);
 	}
 	
