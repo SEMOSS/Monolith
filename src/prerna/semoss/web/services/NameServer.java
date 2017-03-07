@@ -439,6 +439,10 @@ public class NameServer {
 		}
 		
 		if(securityEnabled) {
+			if(filterEngines.size() == 0) {
+				results = new HashMap<String, Object>();
+			}
+			
 			//Get the results based on just insight-level permissions
 			Map<String, Object> results2 = new HashMap<String, Object>();
 			ArrayList<String> insightIDs = new ArrayList<String>();

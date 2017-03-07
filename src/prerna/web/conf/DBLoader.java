@@ -75,6 +75,9 @@ public class DBLoader implements ServletContextListener {
 		String engines = "";
 		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engines);
 		loadEngines();
+		
+		//Set whether or not security is enabled in DIHelper to be used in PKQL processing
+		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, arg0.getServletContext().getInitParameter(Constants.SECURITY_ENABLED));
 	}
 	
 	public void loadEngines() {
