@@ -55,6 +55,7 @@ import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -721,13 +722,13 @@ public class DataframeResource {
 		StringMap retData = new StringMap<String>();
 		String insightId = null;
 		StringMap<StringMap<String>> teamShareMaps;
-	
+		
 		//Get the existing team share mappings, if they exist
-		if(request.getSession().getAttribute("teamShareMaps") != null) {
-			teamShareMaps = (StringMap<StringMap<String>>) request.getSession().getAttribute("teamShareMaps");
+		if(DIHelper.getInstance().getLocalProp("teamShareMaps") != null) {
+			teamShareMaps = (StringMap<StringMap<String>>) DIHelper.getInstance().getLocalProp("teamShareMaps");
 		} else {
 			teamShareMaps = new StringMap<StringMap<String>>();
-}
+		}
 		
 		if(teamShareMaps.containsKey(teamId)) {
 			//If the teamId exists and an insight was passed in, check to make sure the insight matches the one in the map and set the insightId
@@ -748,7 +749,7 @@ public class DataframeResource {
 			
 			teamShareMaps.put(teamId, newTeamShareMap);
 		}
-		request.getSession().setAttribute("teamShareMaps", teamShareMaps);
+		DIHelper.getInstance().setLocalProperty("teamShareMaps", teamShareMaps);
 		
 		retData.put("insightId", insightId);
 		return Response.status(200).entity(WebUtility.getSO(retData)).build();
