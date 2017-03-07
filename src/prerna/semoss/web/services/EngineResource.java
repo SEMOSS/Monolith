@@ -330,7 +330,12 @@ public class EngineResource {
 		String insight = form.getFirst("insight");
 		UserPermissionsMasterDB tracker = new UserPermissionsMasterDB();
 		HttpSession session = request.getSession();
-
+		User user = ((User) session.getAttribute(Constants.SESSION_USER));
+		String userId = "";
+		if(user!= null) {
+			userId = user.getId();
+		}
+		
 		// executes the output and gives the data
 		// executes the create runner
 		// once complete, it would plug the output into the session
@@ -382,8 +387,20 @@ public class EngineResource {
 			// if the insight is a read only insight
 			// we store it and do not remove it since we can just send it back faster
 			// and there is no chance of it affecting the output return
-			Insight insightObj = InsightStore.getInstance().getReadOnlyInsight(this.coreEngine.getEngineName(), insight);
+			String inEngine = this.coreEngine.getEngineName();
+			Insight insightObj = InsightStore.getInstance().findInsightInStore(inEngine, insight);
+			boolean genNewInsight = true;
 			if(insightObj != null) {
+				List<String[]> readInsights = tracker.getUserReadOnlyInsights(userId);
+				READ_INSIGHTS_LOOP : for(String[] engineIdCombo : readInsights) {
+					if(engineIdCombo[0].equals(inEngine) && engineIdCombo[1].equals(insight)) {
+						genNewInsight = false;
+						break READ_INSIGHTS_LOOP;
+					}
+				}
+			}
+			
+			if(!genNewInsight) {
 				obj = insightObj.getWebData();
 			} else {
 				//Get the Insight, grab its ID
@@ -410,7 +427,7 @@ public class EngineResource {
 			}
 			
 			// update security db user tracker
-			tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), insightObj.getInsightID(), session.getId());
+			tracker.trackInsightExecution(userId, coreEngine.getEngineName(), insightObj.getInsightID(), session.getId());
 			// update global solr tracker
 			try {
 				SolrIndexEngine.getInstance().updateViewedInsight(coreEngine.getEngineName() + "_" + insight);
