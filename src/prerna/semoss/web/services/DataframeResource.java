@@ -32,6 +32,8 @@ import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.algorithm.api.ITableDataFrame;
+import prerna.auth.User;
+import prerna.auth.UserPermissionsMasterDB;
 import prerna.ds.AbstractTableDataFrame;
 import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
@@ -53,7 +55,6 @@ import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -196,48 +197,65 @@ public class DataframeResource {
 	@POST
 	@Path("/drop")
 	@Produces("application/json")
-	public Response dropInsight(@Context HttpServletRequest request){
+	public Response dropInsight(@Context HttpServletRequest request) {
 		String insightID = insight.getInsightID();
-//		if(insight.isJoined()){
-//			insight.unJoin();
-//		}
-		logger.info("Dropping insight with id ::: " + insightID);
-		boolean success = InsightStore.getInstance().remove(insightID);
-		InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
-		IDataMaker dm = insight.getDataMaker();
-		if(dm instanceof H2Frame) {
-			H2Frame frame = (H2Frame)dm;
-			frame.closeRRunner();
-			frame.dropTable();
-			if(!frame.isInMem()) {
-				frame.dropOnDiskTemporalSchema();
+
+		boolean remove = true;
+		String inEngine = insight.getEngineName();
+		String inRdbmsId = insight.getRdbmsId();
+		
+		if(inEngine != null && inRdbmsId != null) {
+			HttpSession session = request.getSession();
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			String userId = "";
+			if(user!= null) {
+				userId = user.getId();
 			}
-		} else if(dm instanceof RDataTable) {
-			RDataTable frame = (RDataTable)dm;
-			frame.closeConnection();
-		} else if(dm instanceof Dashboard) {
-			Dashboard dashboard = (Dashboard)dm;
-			dashboard.dropDashboard();
+			
+			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+			List<String[]> readInsights = permissions.getUserReadOnlyInsights(userId);
+			READ_INSIGHTS_LOOP : for(String[] engineIdCombo : readInsights) {
+				if(engineIdCombo[0].equals(inEngine) && engineIdCombo[1].equals(inRdbmsId)) {
+					remove = false;
+					break READ_INSIGHTS_LOOP;
+				}
+			}
 		}
 		
-		// also see if other variables in runner that need to be dropped
-		PKQLRunner runner = insight.getPKQLRunner();
-		runner.cleanUp();
-		
-		// native frame just holds a QueryStruct on an engine
-		// nothing to do
-//		else if(dm instanceof NativeFrame) {
-//			NativeFrame frame = (NativeFrame) dm;
-//			frame.close();
-//		} 
-
-		if(success) {
-			logger.info("Succesfully dropped insight " + insightID);
-			return Response.status(200).entity(WebUtility.getSO("Succesfully dropped insight " + insightID)).build();
+		if(remove) {
+			logger.info("Dropping insight with id ::: " + insightID);
+			boolean success = InsightStore.getInstance().remove(insightID);
+			InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
+			IDataMaker dm = insight.getDataMaker();
+			if(dm instanceof H2Frame) {
+				H2Frame frame = (H2Frame)dm;
+				frame.closeRRunner();
+				frame.dropTable();
+				if(!frame.isInMem()) {
+					frame.dropOnDiskTemporalSchema();
+				}
+			} else if(dm instanceof RDataTable) {
+				RDataTable frame = (RDataTable)dm;
+				frame.closeConnection();
+			} else if(dm instanceof Dashboard) {
+				Dashboard dashboard = (Dashboard)dm;
+				dashboard.dropDashboard();
+			}
+			
+			// also see if other variables in runner that need to be dropped
+			PKQLRunner runner = insight.getPKQLRunner();
+			runner.cleanUp();
+			
+			if(success) {
+				logger.info("Succesfully dropped insight " + insightID);
+				return Response.status(200).entity(WebUtility.getSO("Succesfully dropped insight " + insightID)).build();
+			} else {
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Could not remove data.");
+				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			}
 		} else {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Could not remove data.");
-			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			return Response.status(200).entity(WebUtility.getSO("Insight is a read and no need to drop insight " + insightID)).build();
 		}
 	}
 
@@ -703,13 +721,13 @@ public class DataframeResource {
 		StringMap retData = new StringMap<String>();
 		String insightId = null;
 		StringMap<StringMap<String>> teamShareMaps;
-		
+	
 		//Get the existing team share mappings, if they exist
 		if(request.getSession().getAttribute("teamShareMaps") != null) {
 			teamShareMaps = (StringMap<StringMap<String>>) request.getSession().getAttribute("teamShareMaps");
 		} else {
 			teamShareMaps = new StringMap<StringMap<String>>();
-		}
+}
 		
 		if(teamShareMaps.containsKey(teamId)) {
 			//If the teamId exists and an insight was passed in, check to make sure the insight matches the one in the map and set the insightId
