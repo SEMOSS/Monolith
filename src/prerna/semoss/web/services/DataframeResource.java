@@ -201,7 +201,7 @@ public class DataframeResource {
 	public Response dropInsight(@Context HttpServletRequest request) {
 		String insightID = insight.getInsightID();
 
-		boolean remove = true;
+		boolean isReadOnlyInsight = false;
 		String inEngine = insight.getEngineName();
 		String inRdbmsId = insight.getRdbmsId();
 		
@@ -214,16 +214,10 @@ public class DataframeResource {
 			}
 			
 			UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
-			List<String[]> readInsights = permissions.getUserReadOnlyInsights(userId);
-			READ_INSIGHTS_LOOP : for(String[] engineIdCombo : readInsights) {
-				if(engineIdCombo[0].equals(inEngine) && engineIdCombo[1].equals(inRdbmsId)) {
-					remove = false;
-					break READ_INSIGHTS_LOOP;
-				}
-			}
+			isReadOnlyInsight = permissions.isUserReadOnlyInsights(userId, inEngine, inRdbmsId);
 		}
 		
-		if(remove) {
+		if(!isReadOnlyInsight) {
 			logger.info("Dropping insight with id ::: " + insightID);
 			boolean success = InsightStore.getInstance().remove(insightID);
 			InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
