@@ -377,48 +377,29 @@ public class EngineResource {
 			}
 		}
 		else {
-			//Get the Insight, grab its ID
-			Insight insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
-			// set the user id into the insight
-			insightObj.setUserID( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
-			Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
-			insightObj.setParamHash(params);
-
-			// check if the insight has already been cached
-			System.out.println("Params is " + params);
-//			String vizData = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getVizData(insightObj);
-//			String vizData = null;
-
 			Object obj = null;
-//			if(vizData != null) {
-//				// insight has been cached, send it to the FE with a new insight id
-//				String id = InsightStore.getInstance().put(insightObj);
-//				Map<String, Object> uploaded = gson.fromJson(vizData, new TypeToken<Map<String, Object>>() {}.getType());
-//				uploaded.put("insightID", id);
-//
-//				tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), id, session.getId());
-//				return Response.status(200).entity(WebUtility.getSO(uploaded)).build();
-//			} else {
-				// insight visualization data has not been cached, run the insight
+			
+			// if the insight is a read only insight
+			// we store it and do not remove it since we can just send it back faster
+			// and there is no chance of it affecting the output return
+			Insight insightObj = InsightStore.getInstance().getReadOnlyInsight(this.coreEngine.getEngineName(), insight);
+			if(insightObj != null) {
+				obj = insightObj.getWebData();
+			} else {
+				//Get the Insight, grab its ID
+				insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
+				// set the user id into the insight
+				insightObj.setUserID( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
+				Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+				insightObj.setParamHash(params);
+	
+				// check if the insight has already been cached
+				System.out.println("Params is " + params);
+	
 				try {
 					InsightStore.getInstance().put(insightObj);
 					InsightCreateRunner run = new InsightCreateRunner(insightObj);
 					obj = run.runWeb();
-
-					//					//Don't cache dashboards for now...too many issues with that
-					//					//need to resolve updating insight ID for dashboards, as well as old insight IDs of insights stored in varMap
-					//					if(!(insightObj.getDataMaker() instanceof Dashboard)) {
-					//						String saveFileLocation = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(insightObj, (Map<String, Object>) obj);
-					//
-					//						if(saveFileLocation != null) {
-					//							saveFileLocation = saveFileLocation + "_Solr.txt";
-					//							File solrFile = new File(saveFileLocation);
-					//							String solrId = SolrIndexEngine.getSolrIdFromInsightEngineId(insightObj.getEngineName(), insightObj.getRdbmsId());
-					//							SolrDocumentExportWriter writer = new SolrDocumentExportWriter(solrFile);
-					//							writer.writeSolrDocument(SolrIndexEngine.getInstance().getInsight(solrId));
-					//							writer.closeExport();
-					//						}
-					//					}
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
@@ -426,17 +407,17 @@ public class EngineResource {
 					errorHash.put("Class", this.getClass().getName());
 					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
 				}
-				
-				// update security db user tracker
-				tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), insightObj.getInsightID(), session.getId());
-				// update global solr tracker
-				try {
-					SolrIndexEngine.getInstance().updateViewedInsight(coreEngine.getEngineName() + "_" + insight);
-				} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
-						| IOException e) {
-					e.printStackTrace();
-				}
-//			}
+			}
+			
+			// update security db user tracker
+			tracker.trackInsightExecution(((User)session.getAttribute(Constants.SESSION_USER)).getId(), coreEngine.getEngineName(), insightObj.getInsightID(), session.getId());
+			// update global solr tracker
+			try {
+				SolrIndexEngine.getInstance().updateViewedInsight(coreEngine.getEngineName() + "_" + insight);
+			} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
+					| IOException e) {
+				e.printStackTrace();
+			}
 
 			return Response.status(200).entity(WebUtility.getSO(obj)).build();
 		}
