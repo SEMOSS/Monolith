@@ -389,18 +389,13 @@ public class EngineResource {
 			// and there is no chance of it affecting the output return
 			String inEngine = this.coreEngine.getEngineName();
 			Insight insightObj = InsightStore.getInstance().findInsightInStore(inEngine, insight);
-			boolean genNewInsight = true;
+			boolean isReadOnlyInsight = false;
 			if(insightObj != null) {
-				List<String[]> readInsights = tracker.getUserReadOnlyInsights(userId);
-				READ_INSIGHTS_LOOP : for(String[] engineIdCombo : readInsights) {
-					if(engineIdCombo[0].equals(inEngine) && engineIdCombo[1].equals(insight)) {
-						genNewInsight = false;
-						break READ_INSIGHTS_LOOP;
-					}
-				}
+				UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+				isReadOnlyInsight = permissions.isUserReadOnlyInsights(userId, inEngine, insight);
 			}
 			
-			if(!genNewInsight) {
+			if(isReadOnlyInsight) {
 				obj = insightObj.getWebData();
 			} else {
 				//Get the Insight, grab its ID
