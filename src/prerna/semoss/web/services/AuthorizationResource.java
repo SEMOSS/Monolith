@@ -53,6 +53,7 @@ import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.auth.EnginePermission;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
 
 @Path("/authorization")
@@ -417,5 +418,59 @@ public class AuthorizationResource
 		}
 		
 		return Response.status(200).entity(WebUtility.getSO(false)).build();
+	}
+	
+	@GET
+	@Path("/startTeamSession")
+	@Produces("application/json")
+	public Response startTeamSession(@Context HttpServletRequest request, @QueryParam("insightId") String insightId, @QueryParam("teamId") String teamId) {
+		StringMap retData = new StringMap<String>();
+		StringMap<StringMap<String>> teamShareMaps = new StringMap<StringMap<String>>();
+		
+		//Get the existing team share mappings, if they exist
+		if(DIHelper.getInstance().getLocalProp("teamShareMaps") != null) {
+			teamShareMaps = (StringMap<StringMap<String>>) DIHelper.getInstance().getLocalProp("teamShareMaps");
+		}
+		
+		if(teamShareMaps.containsKey(teamId)) {
+			retData.put("success", false);
+			return Response.status(400).entity(WebUtility.getSO(retData)).build();
+		} else {
+			StringMap<String> newTeamShareMap = new StringMap<String>();
+			newTeamShareMap.put("insightId", insightId);
+			newTeamShareMap.put("owner", ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+			teamShareMaps.put(teamId, newTeamShareMap);
+		}
+		DIHelper.getInstance().setLocalProperty("teamShareMaps", teamShareMaps);
+		
+		retData.put("success", true);
+		return Response.status(200).entity(WebUtility.getSO(retData)).build();
+	}
+	
+	@GET
+	@Path("/endTeamSession")
+	@Produces("application/json")
+	public Response endTeamSession(@Context HttpServletRequest request, @QueryParam("teamId") String teamId) {
+		StringMap retData = new StringMap<String>();
+		String loggedInUser = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+		StringMap<StringMap<String>> teamShareMaps = new StringMap<StringMap<String>>();
+		
+		//Get the existing team share mappings, if they exist
+		if(DIHelper.getInstance().getLocalProp("teamShareMaps") != null) {
+			teamShareMaps = (StringMap<StringMap<String>>) DIHelper.getInstance().getLocalProp("teamShareMaps");
+		}
+		
+		//If the map doesn't exist, or the teamId isn't in the map, or the logged in user isn't the owner of the team session, don't do anything
+		if(teamShareMaps == null || !teamShareMaps.containsKey(teamId) || !teamShareMaps.get(teamId).get("owner").equals(loggedInUser)) {
+			retData.put("success", false);
+			return Response.status(400).entity(WebUtility.getSO(retData)).build();
+		}
+		
+		//Remove the team session information and replace the map in DIHelper
+		teamShareMaps.remove(teamId);
+		DIHelper.getInstance().setLocalProperty("teamShareMaps", teamShareMaps);
+		
+		retData.put("success", true);
+		return Response.status(200).entity(WebUtility.getSO(retData)).build();
 	}
 }
