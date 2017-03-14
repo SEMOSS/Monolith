@@ -185,12 +185,15 @@ public class DataframeResource {
 		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
 		list.add(pksl);
 
-		Map resultHash = null;
+		Object resultHash = null;
 		//synchronize applyCalc calls for each insight to prevent interference during calculation
 		synchronized(insight) {
 			insight.processPostTransformation(list);
 			insight.syncPkslRunnerAndFrame(runner);
-			resultHash = insight.getPKQLData(true);
+			resultHash = insight.getPKSLData(true);
+			if(resultHash == null) {
+				resultHash = "complete";
+			}
 		}
 		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
 	}
