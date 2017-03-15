@@ -106,7 +106,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 				deleteAllRDFConnectionsToConcept(uriBindingList);
 				removeRDFNodeAndAllProps(uriBindingList);
 			} else if(deleteConcept.containsKey("properties")) {
-				List<HashMap<String, Object>> properties = (List<HashMap<String, Object>>) deleteConcept.get("properties");
+				List<Map<String, Object>> properties = (List<Map<String, Object>>) deleteConcept.get("properties");
 
 				for(int j = 0; j < properties.size(); j++) {
 					Map<String, Object> property = properties.get(j);
@@ -166,6 +166,34 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.SUBPROPERTYOF, relationBaseURI, true});
 			this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDF.TYPE, RDF.PROPERTY, true});
 			this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.LABEL, instanceRel, false});
+			
+			
+			// add relationship properties
+			if(relationship.containsKey("properties")) {
+				List<Map<String, Object>> properties = (List<Map<String, Object>>) relationship.get("properties");
+				for(int j = 0; j < properties.size(); j++) {
+					Map<String, Object> property = properties.get(j);
+					propertyValue = property.get("propertyValue");
+					if(propertyValue instanceof String) {
+						// check if string val is a date
+						SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+						try {
+							dateFormat.setLenient(true);
+							propertyValue= (Date) dateFormat.parse(((String) propertyValue).trim());
+						} catch (ParseException e) {
+							propertyValue = propertyValue.toString();
+						}
+					}
+					propertyURI = property.get("propertyName").toString();
+	
+					this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, propertyURI, propertyValue, false});
+					// add audit log statement
+					cal = Calendar.getInstance();
+					currTime = DATE_DF.format(cal.getTime());
+					addAuditLog(ADD, "", instanceRelationshipURI, "", propertyURI, propertyValue + "", currTime);
+					this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{propertyURI, RDF.TYPE, propertyBaseURI, true});
+				}
+			}
 		}
 		
 		//for adding concepts and properties of nodes
