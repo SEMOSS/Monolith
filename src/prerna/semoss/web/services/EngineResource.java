@@ -79,7 +79,9 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.semoss.web.form.AbstractFormBuilder;
 import prerna.semoss.web.form.FormBuilder;
+import prerna.semoss.web.form.FormFactory;
 import prerna.solr.SolrIndexEngine;
 import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
@@ -554,7 +556,16 @@ public class EngineResource {
 		try {
 			String formData = form.getFirst("formData");
 			Map<String, Object> engineHash = gson.fromJson(formData, new TypeToken<Map<String, Object>>() {}.getType());
-			FormBuilder.commitFormData(this.coreEngine, engineHash);
+			// new way is having specific form builder class for each type of engine
+			AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(this.coreEngine);
+			if(formbuilder != null) {
+				//TODO: need to build this out for RDBMS engines!!!
+				formbuilder.commitFormData(engineHash);
+			} else {
+				// old way is super messy since it has both implementations of inserting
+				// into both rdbms and rdf.. super annoying to go through
+				FormBuilder.commitFormData(this.coreEngine, engineHash);
+			}
 		} catch(Exception e) {
 			e.printStackTrace();
 			return Response.status(400).entity(WebUtility.getSO(gson.toJson(e.getMessage()))).build();
