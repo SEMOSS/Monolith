@@ -34,6 +34,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.Iterator;
 
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
@@ -56,7 +57,7 @@ public class WebUtility {
 	{
 		if(vec != null)
 		{
-			Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
+			Gson gson = getDefaultGson();
 			try {
 				final byte[] output2 = gson.toJson(vec).getBytes("UTF8");///Need to encode for special characters//
 				return new StreamingOutput() {
@@ -68,9 +69,46 @@ public class WebUtility {
 						}
 					}};
 			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
 				logger.error("Failed to write object to stream");
 			}      
 		}
+		
+		return null;
+	}
+	
+	public static Response getResponse(Object vec) {
+		if(vec != null) {
+			Gson gson = getDefaultGson();
+			try {
+				final byte[] output2 = gson.toJson(vec).getBytes("UTF8");
+				int length = output2.length;
+				return Response.status(200).entity(WebUtility.getSO(output2)).header("Content-Length", length).build();
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
+			return Response.status(200).entity(WebUtility.getSO(vec)).build();
+		}
+		
+		return null;
+	}
+	
+	public static StreamingOutput getSO(byte[] output2)
+	{
+		try {
+			return new StreamingOutput() {
+				public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+					try(
+							PrintStream ps = new PrintStream(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
+							){
+						ps.write(output2, 0 , output2.length);
+					}
+				}};
+		} catch (Exception e) {
+			e.printStackTrace();
+			logger.error("Failed to write object to stream");
+		}      
+		
 		return null;
 	}
 
@@ -78,7 +116,7 @@ public class WebUtility {
 	{
 		if(iterator != null)
 		{
-			Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
+			Gson gson = getDefaultGson();
 			try {
 				return new StreamingOutput() {
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
@@ -120,7 +158,7 @@ public class WebUtility {
 	public static StreamingOutput getSO(String insightId, IGexfIterator gexf) {
 		if(gexf != null) {
 			try {
-				Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
+				Gson gson = getDefaultGson();
 				return new StreamingOutput() {
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
 						try(
@@ -180,5 +218,10 @@ public class WebUtility {
 			}      
 		}
 		return null;
+	}
+
+	private static Gson getDefaultGson() {
+		Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
+		return gson;
 	}
 }
