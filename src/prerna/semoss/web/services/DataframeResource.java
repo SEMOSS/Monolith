@@ -168,7 +168,8 @@ public class DataframeResource {
 			insight.syncPkqlRunnerAndFrame(runner);
 			resultHash = insight.getPKQLData(true);
 		}
-		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
+		
+		return WebUtility.getResponse(resultHash);
 	}
 	
 	@POST
