@@ -59,13 +59,13 @@ public class WebUtility {
 		{
 			Gson gson = getDefaultGson();
 			try {
-				final byte[] output2 = gson.toJson(vec).getBytes("UTF8");///Need to encode for special characters//
+				final byte[] output = gson.toJson(vec).replace("NaN", "\"NaN\"").getBytes("UTF8");
 				return new StreamingOutput() {
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
 						try(
 								PrintStream ps = new PrintStream(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
 								){
-							ps.write(output2, 0 , output2.length);
+							ps.write(output, 0 , output.length);
 						}
 					}};
 			} catch (UnsupportedEncodingException e) {
@@ -81,9 +81,9 @@ public class WebUtility {
 		if(vec != null) {
 			Gson gson = getDefaultGson();
 			try {
-				final byte[] output2 = gson.toJson(vec).getBytes("UTF8");
-				int length = output2.length;
-				return Response.status(200).entity(WebUtility.getSO(output2)).header("Content-Length", length).build();
+				final byte[] output = gson.toJson(vec).replace("NaN", "\"NaN\"").getBytes("UTF8");
+				int length = output.length;
+				return Response.status(200).entity(WebUtility.getSO(output)).header("Content-Length", length).build();
 			} catch (UnsupportedEncodingException e) {
 				e.printStackTrace();
 			}
