@@ -59,7 +59,7 @@ public class WebUtility {
 		{
 			Gson gson = getDefaultGson();
 			try {
-				final byte[] output = gson.toJson(vec).replace("NaN", "\"NaN\"").getBytes("UTF8");
+				final byte[] output = gson.toJson(vec).getBytes("UTF8");
 				return new StreamingOutput() {
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
 						try(
@@ -81,7 +81,7 @@ public class WebUtility {
 		if(vec != null) {
 			Gson gson = getDefaultGson();
 			try {
-				final byte[] output = gson.toJson(vec).replace("NaN", "\"NaN\"").getBytes("UTF8");
+				final byte[] output = gson.toJson(vec).getBytes("UTF8");
 				int length = output.length;
 				return Response.status(200).entity(WebUtility.getSO(output)).header("Content-Length", length).build();
 			} catch (UnsupportedEncodingException e) {
