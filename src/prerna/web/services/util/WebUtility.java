@@ -41,6 +41,10 @@ import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+import com.google.gson.stream.JsonWriter;
 
 import prerna.ds.gexf.IGexfIterator;
 
@@ -221,7 +225,37 @@ public class WebUtility {
 	}
 
 	private static Gson getDefaultGson() {
-		Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
+		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().registerTypeAdapter(Double.class, new NumberAdaptor()).create();
 		return gson;
+	}
+}
+
+/**
+ * Generation of new NumberAdaptor to not send NaN/Infinity to the FE
+ * since they are invalid JSON values
+ */
+class NumberAdaptor extends TypeAdapter<Double>{
+
+	@Override 
+	public Double read(JsonReader in) throws IOException {
+		if (in.peek() == JsonToken.NULL) {
+			in.nextNull();
+			return null;
+		}
+		return in.nextDouble();
+	}
+
+	@Override 
+	public void write(JsonWriter out, Double value) throws IOException {
+		if (value == null) {
+			out.nullValue();
+			return;
+		}
+		double doubleValue = value.doubleValue();
+		if(Double.isNaN(doubleValue) || Double.isInfinite(doubleValue)) {
+			out.nullValue();
+		} else {
+			out.value(value);
+		}
 	}
 }
