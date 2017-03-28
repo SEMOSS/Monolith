@@ -81,7 +81,7 @@ public class WebUtility {
 		return null;
 	}
 	
-	public static Response getResponse(Object vec) {
+	public static Response getResponse(Object vec, int status) {
 		if(vec != null) {
 			Gson gson = getDefaultGson();
 			try {
