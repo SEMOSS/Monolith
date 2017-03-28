@@ -837,38 +837,38 @@ public class NameServer {
 				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
 				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			} else if(!existingInsight.hasInstantiatedDataMaker()) {
-				synchronized(existingInsight) {
-					if(!existingInsight.hasInstantiatedDataMaker()) {
-//						IDataMaker dm = null;
-//						// check if the insight is from a csv
-//						if(!existingInsight.isDbInsight()) {
-//							// it better end up being created here since it must be serialized as a tinker
-//							InsightCache inCache = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE);
-//							dm = inCache.getDMCache(existingInsight);
-//							DataMakerComponent dmc = new DataMakerComponent(inCache.getDMFilePath(existingInsight));
-//							
-//							Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
-//							dmcList.add(dmc);
-//							existingInsight.setDataMakerComponents(dmcList);
+//				synchronized(existingInsight) {
+//					if(!existingInsight.hasInstantiatedDataMaker()) {
+////						IDataMaker dm = null;
+////						// check if the insight is from a csv
+////						if(!existingInsight.isDbInsight()) {
+////							// it better end up being created here since it must be serialized as a tinker
+////							InsightCache inCache = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE);
+////							dm = inCache.getDMCache(existingInsight);
+////							DataMakerComponent dmc = new DataMakerComponent(inCache.getDMFilePath(existingInsight));
+////							
+////							Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
+////							dmcList.add(dmc);
+////							existingInsight.setDataMakerComponents(dmcList);
+////						} else {
+//							// otherwise, grab the serialization if it is there
+//						IDataMaker dm = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getDMCache(existingInsight);
+////						}
+//						
+//						if(dm != null) {
+//							// this means the serialization was good and pushing it into the insight object
+//							existingInsight.setDataMaker(dm);
 //						} else {
-							// otherwise, grab the serialization if it is there
-						IDataMaker dm = CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getDMCache(existingInsight);
+////							 this means the serialization has never occurred
+////							 could be because hasn't happened, or could be because it is not a tinker frame
+//							InsightCreateRunner run = new InsightCreateRunner(existingInsight);
+//							Map<String, Object> webData = run.runWeb();
+//							// try to serialize
+//							// this will do nothing if not a tinker frame
+//							CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(existingInsight, webData);
 //						}
-						
-						if(dm != null) {
-							// this means the serialization was good and pushing it into the insight object
-							existingInsight.setDataMaker(dm);
-						} else {
-//							 this means the serialization has never occurred
-//							 could be because hasn't happened, or could be because it is not a tinker frame
-							InsightCreateRunner run = new InsightCreateRunner(existingInsight);
-							Map<String, Object> webData = run.runWeb();
-							// try to serialize
-							// this will do nothing if not a tinker frame
-							CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(existingInsight, webData);
-						}
-					}
-				}
+//					}
+//				}
 			}
 		}
 		else if(insightID.equals("new"))
