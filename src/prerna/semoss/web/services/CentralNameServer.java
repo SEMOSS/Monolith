@@ -84,7 +84,8 @@ public class CentralNameServer {
 		if(centralApi!=null){
 			Hashtable params = new Hashtable();
 			params.put("selectedURI", selectedUris);
-			return Response.status(200).entity(WebUtility.getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params))).build();
+//			return Response.status(200).entity(WebUtility.getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params))).build();
+			return WebUtility.getResponse(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params), 200);
 		}
 		else {
 			NameServer ns = new NameServer();

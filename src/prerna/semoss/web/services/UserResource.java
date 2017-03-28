@@ -148,14 +148,16 @@ public class UserResource
 		String tokenData = (String) request.getSession().getAttribute("token");
 		if (tokenData != null) {
 			ret.put("error", "User is already connected.");
-			return Response.status(200).entity(WebUtility.getSO(ret)).build();
+//			return Response.status(200).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 200);
 		}
 		// Ensure that this is no request forgery going on, and that the user
 		// sending us this connect request is the user that was supposed to.
 		if (request.getParameter("state") != null && request.getSession().getAttribute("state") != null && 
 				!request.getParameter("state").equals(request.getSession().getAttribute("state"))) {
 			ret.put("error", "Invalid state parameter.");
-			return Response.status(400).entity(WebUtility.getSO(ret)).build();
+//			return Response.status(400).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 400);
 		}
 
 		GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
@@ -180,7 +182,8 @@ public class UserResource
 			String picture = userinfo.getPicture();
 			
 			if(!checkWhitelistForEmail(email)) {
-				return Response.status(401).entity(WebUtility.getSO("Not permitted to log in. Please contact administrator.")).build();
+//				return Response.status(401).entity(WebUtility.getSO("Not permitted to log in. Please contact administrator.")).build();
+				return WebUtility.getResponse("Not permitted to log in. Please contact administrator", 401);
 			}
 			
 			ret.put("token", tokenResponse.getAccessToken());
@@ -208,15 +211,18 @@ public class UserResource
 		} catch (TokenResponseException e) {
 			ret.put("success", "false");
 			ret.put("error", "Failed to upgrade the auth code: " + e.getMessage());
-			return Response.status(400).entity(WebUtility.getSO(ret)).build();
+//			return Response.status(400).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 400);
 		} catch (IOException e) {
 			ret.put("success", "false");
 			ret.put("error", "Failed to read the token data from google: " + e.getMessage());
-			return Response.status(404).entity(WebUtility.getSO(ret)).build();
+//			return Response.status(404).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 404);
 		}
 		
 		ret.put("success", "true");
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	/**
@@ -233,13 +239,15 @@ public class UserResource
 		if (tokenData == null) {
 			ret.put("success", "false");
 			ret.put("error", "User is not connected.");
-			return Response.status(200).entity(WebUtility.getSO(ret)).build();
+//			return Response.status(200).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 200);
 		}
 
 		request.getSession().invalidate();
 
 		ret.put("success", "true");
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	/**
@@ -289,7 +297,8 @@ public class UserResource
 			    		if(k.get("error") != null) {
 			    			ret.put("success", "false");
 			    			ret.put("error", h.get("error").toString());
-			    			return Response.status(400).entity(WebUtility.getSO(ret)).build();
+//			    			return Response.status(400).entity(WebUtility.getSO(ret)).build();
+			    			return WebUtility.getResponse(ret, 400);
 			    		}
 		            }
 		        }
@@ -309,7 +318,8 @@ public class UserResource
 		String name = me.getName();
 		
 		if(!checkWhitelistForEmail(email)) {
-			return Response.status(401).entity(WebUtility.getSO("Not permitted to log in. Please contact administrator.")).build();
+//			return Response.status(401).entity(WebUtility.getSO("Not permitted to log in. Please contact administrator.")).build();
+			return WebUtility.getResponse("Not permitted to log in.  Please contact administrator.", 401);
 		}
 		
 		User newUser;
@@ -338,7 +348,8 @@ public class UserResource
 		request.getSession().setAttribute("token", accessToken);
 		
 		ret.put("success", "true");
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	/**
@@ -355,13 +366,15 @@ public class UserResource
 		if (tokenData == null) {
 			ret.put("success", "false");
 			ret.put("error", "User is not connected.");
-			return Response.status(400).entity(WebUtility.getSO(ret)).build();
+//			return Response.status(400).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 400);
 		}
 		
 		request.getSession().invalidate();
 		
 		ret.put("success", "true");
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	private boolean checkWhitelistForEmail(String email) {
@@ -396,11 +409,13 @@ public class UserResource
 		if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			if(!user.getId().equals(Constants.ANONYMOUS_USER_ID)) {
-				return Response.status(200).entity(WebUtility.getSO(true)).build();
+//				return Response.status(200).entity(WebUtility.getSO(true)).build();
+				return WebUtility.getResponse(true, 200);
 			}
 		}
 		
-		return Response.status(200).entity(WebUtility.getSO(false)).build();
+//		return Response.status(200).entity(WebUtility.getSO(false)).build();
+		return WebUtility.getResponse(false, 200);
 	}
 	
 	@GET
@@ -419,7 +434,8 @@ public class UserResource
 		ret.put("name", user.getName());
 		ret.put("email", user.getEmail());
 		
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		return WebUtility.getResponse(ret, 200);
 	}
 
 	@GET

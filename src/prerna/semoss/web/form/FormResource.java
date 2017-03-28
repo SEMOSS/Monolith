@@ -54,7 +54,8 @@ public class FormResource {
 			formsList.add(formMap);
 		}
 		
-		return Response.status(200).entity(WebUtility.getSO(formsList)).build();
+//		return Response.status(200).entity(WebUtility.getSO(formsList)).build();
+		return WebUtility.getResponse(formsList, 200);
 	}
 
 	@POST
@@ -68,10 +69,12 @@ public class FormResource {
 		try {
 			FormBuilder.saveForm(formBuilderEng, formName, formLocation);
 		} catch (IOException e) {
-			return Response.status(400).entity(WebUtility.getSO(e.getMessage())).build();
+//			return Response.status(400).entity(WebUtility.getSO(e.getMessage())).build();
+			return WebUtility.getResponse(e.getMessage(), 400);
 		}
 
-		return Response.status(200).entity(WebUtility.getSO("saved successfully")).build();
+//		return Response.status(200).entity(WebUtility.getSO("saved successfully")).build();
+		return WebUtility.getResponse("saved successfully", 200);
 	}
 	
 	@POST
@@ -87,10 +90,12 @@ public class FormResource {
 			FormBuilder.saveFormData(formBuilderEng, formTableName, userId, formData);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(400).entity(WebUtility.getSO("error saving data")).build();
+//			return Response.status(400).entity(WebUtility.getSO("error saving data")).build();
+			return WebUtility.getResponse("error saving data", 400);
 		}
 
-		return Response.status(200).entity(WebUtility.getSO("success")).build();
+//		return Response.status(200).entity(WebUtility.getSO("success")).build();
+		return WebUtility.getResponse("success", 200);
 	}
 	
 	@POST
@@ -105,10 +110,13 @@ public class FormResource {
 			results = FormBuilder.getStagingData(formBuilderEng, formTableName);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(400).entity(WebUtility.getSO("error retrieving data")).build();
+//			return Response.status(400).entity(WebUtility.getSO("error retrieving data")).build();
+			return WebUtility.getResponse("error retrieving data", 400);
+			
 		}
 
-		return Response.status(200).entity(WebUtility.getSO((results))).build();
+//		return Response.status(200).entity(WebUtility.getSO((results))).build();
+		return WebUtility.getResponse(results, 200);
 	}
 	
 	@POST
@@ -123,10 +131,12 @@ public class FormResource {
 			FormBuilder.deleteFromStaggingArea(formBuilderEng, formName, formIds);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(400).entity(WebUtility.getSO("error deleting staging data")).build();
+//			return Response.status(400).entity(WebUtility.getSO("error deleting staging data")).build();
+			return WebUtility.getResponse("error deleting staging data", 400);
 		}
 
-		return Response.status(200).entity(WebUtility.getSO("success")).build();
+//		return Response.status(200).entity(WebUtility.getSO("success")).build();
+		return WebUtility.getResponse("success", 200);
 	}
 	
 	@POST
@@ -144,7 +154,8 @@ public class FormResource {
 		deleteQuery = "DROP TABLE " + formName;
 		formBuilderEng.removeData(deleteQuery);
 		
-		return Response.status(200).entity(WebUtility.getSO("success")).build();
+//		return Response.status(200).entity(WebUtility.getSO("success")).build();
+		return WebUtility.getResponse("success", 200);
 	}
 	
 	private String getFormTableFromName(String formName) {
