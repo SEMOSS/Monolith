@@ -290,7 +290,8 @@ public class DatabaseUploader extends Uploader {
 					}
 				}
 			}
-			return Response.status(200).entity(WebUtility.getSO(invalidHeadersMap)).build();
+//			return Response.status(200).entity(WebUtility.getSO(invalidHeadersMap)).build();
+			return WebUtility.getResponse(invalidHeadersMap, 200);
 
 		} else if(type.equals("EXCEL")) {
 			List<Map<String, Map<String, String>>> invalidHeadersList = new Vector<Map<String, Map<String, String>>>();
@@ -343,9 +344,11 @@ public class DatabaseUploader extends Uploader {
 				// even if it is empty, we need to store it since the FE does this based on indices
 				invalidHeadersList.add(invalidHeadersMap);
 			}
-			return Response.status(200).entity(WebUtility.getSO(invalidHeadersList)).build();
+//			return Response.status(200).entity(WebUtility.getSO(invalidHeadersList)).build();
+			return WebUtility.getResponse(invalidHeadersList, 200);
 		} else {
-			return Response.status(400).entity("Format does not conform to checking headers").build();
+//			return Response.status(400).entity("Format does not conform to checking headers").build();
+			return WebUtility.getResponse("Format does not conform to checking headers", 400);
 		}
 	}
 	
@@ -468,7 +471,8 @@ public class DatabaseUploader extends Uploader {
 			// grab the error thrown and send it to the FE
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+//			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+			return WebUtility.getResponse(errorMap, 400);
 		}
 		
 		// store the info
@@ -808,7 +812,8 @@ public class DatabaseUploader extends Uploader {
 			// grab the error thrown and send it to the FE
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+//			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+			return WebUtility.getResponse(errorMap, 400);
 		}
 		
 		// store the info

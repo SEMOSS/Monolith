@@ -50,13 +50,15 @@ public class FileUploader extends Uploader{
 			// collect all of the data input on the form
 			Hashtable<String, String> inputData = getInputData(fileItems);
 			Map<String, Object> retObj = generateDataTypes(inputData);
-			return Response.status(200).entity(WebUtility.getSO(retObj)).build();
+//			return Response.status(200).entity(WebUtility.getSO(retObj)).build();
+			return WebUtility.getResponse(retObj, 200);
 
 		} catch(Exception e) {
 			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "Error processing new data");
-			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+//			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
 	
@@ -186,12 +188,14 @@ public class FileUploader extends Uploader{
 			
 			deleteFilesFromServer(new String[]{fileName});
 			
-			return Response.status(200).entity(WebUtility.getSO(retObj)).build();
+//			return Response.status(200).entity(WebUtility.getSO(retObj)).build();
+			return WebUtility.getResponse(retObj, 200);
 		} catch(Exception e) {
 			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "Error processing new data");
-			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+//			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
 	

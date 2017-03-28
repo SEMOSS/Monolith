@@ -142,7 +142,8 @@ public class EngineResource {
 		if(resultInsights!=null && !resultInsights.isEmpty())
 			resultInsightObjects = ((AbstractEngine)coreEngine).getInsight(resultInsights.toArray(new String[resultInsights.size()]));
 
-		return Response.status(200).entity(WebUtility.getSO(resultInsightObjects)).build();
+//		return Response.status(200).entity(WebUtility.getSO(resultInsightObjects)).build();
+		return WebUtility.getResponse(resultInsightObjects, 200);
 	}
 
 	/**
@@ -159,7 +160,8 @@ public class EngineResource {
 		Hashtable<String, Vector<String>> hashtable = new Hashtable<String, Vector<String>>(); 
 		Vector<String> perspectivesVector = coreEngine.getPerspectives();
 		hashtable.put("perspectives", perspectivesVector);
-		return Response.status(200).entity(WebUtility.getSO(hashtable)).build();
+//		return Response.status(200).entity(WebUtility.getSO(hashtable)).build();
+		return WebUtility.getResponse(hashtable, 200);
 	}
 
 	// gets a particular insight
@@ -204,7 +206,8 @@ public class EngineResource {
 			data.add(wrapper.next().getRawValues());
 		}
 		
-		return Response.status(200).entity(WebUtility.getSO(data)).build();
+//		return Response.status(200).entity(WebUtility.getSO(data)).build();
+		return WebUtility.getResponse(data, 200);
 	}	
 
 	/**
@@ -231,7 +234,8 @@ public class EngineResource {
 			Hashtable paramsHash = new Hashtable();
 			outputHash.put("options", optionsHash);
 			outputHash.put("params", paramsHash);
-			return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
+//			return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
+			return WebUtility.getResponse(outputHash, 200);
 		}
 		System.out.println("Insight is " + in);
 		System.out.println(in.getOutput());
@@ -262,7 +266,8 @@ public class EngineResource {
 		outputHash.put("options", optionsHash);
 		outputHash.put("params", paramsHash);
 
-		return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
+//		return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
+		return WebUtility.getResponse(outputHash, 200);
 	}
 
 
@@ -311,7 +316,8 @@ public class EngineResource {
 		retMap.put("parameters", in.getInsightParameters());
 		retMap.put("dataTableAlign", in.getDataTableAlign());
 
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+//		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		return WebUtility.getResponse(retMap, 200);
 	}
 
 	/**
@@ -371,16 +377,19 @@ public class EngineResource {
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
 					errorHash.put("Message", "Error occured processing question.");
 					errorHash.put("Class", this.getClass().getName());
-					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
+//					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
+					return WebUtility.getResponse(errorHash, 500);
 				}
 
-				return Response.status(200).entity(WebUtility.getSO(obj)).build();
+//				return Response.status(200).entity(WebUtility.getSO(obj)).build();
+				return WebUtility.getResponse(obj, 200);
 			}
 			else{
 				Hashtable<String, String> errorHash = new Hashtable<String, String>();
 				errorHash.put("Message", "No question defined.");
 				errorHash.put("Class", this.getClass().getName());
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 		}
 		else {
@@ -419,7 +428,8 @@ public class EngineResource {
 					Hashtable<String, String> errorHash = new Hashtable<String, String>();
 					errorHash.put("Message", "Error occured processing question.");
 					errorHash.put("Class", this.getClass().getName());
-					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
+//					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
+					return WebUtility.getResponse(errorHash, 500);
 				}
 			}
 			
@@ -433,7 +443,8 @@ public class EngineResource {
 				e.printStackTrace();
 			}
 
-			return Response.status(200).entity(WebUtility.getSO(obj)).build();
+//			return Response.status(200).entity(WebUtility.getSO(obj)).build();
+			return WebUtility.getResponse(obj, 200);
 		}
 	}
 
@@ -510,7 +521,8 @@ public class EngineResource {
 			if(insight == null) {
 				Map<String, String> errorHash = new HashMap<String, String>();
 				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 
 			// 2. b. Add join transformation since we know a tree already exists and we will have to join to it
@@ -544,7 +556,8 @@ public class EngineResource {
 		} else {
 			retMap.put("stepID", joinTrans.getId());
 		}
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+//		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		return WebUtility.getResponse(retMap, 200);
 	}
 
 	@POST
@@ -568,10 +581,12 @@ public class EngineResource {
 			}
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(400).entity(WebUtility.getSO(gson.toJson(e.getMessage()))).build();
+//			return Response.status(400).entity(WebUtility.getSO(gson.toJson(e.getMessage()))).build();
+			return WebUtility.getResponse(gson.toJson(e.getMessage()), 400);
 		}
 
-		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
+//		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
+		return WebUtility.getResponse("success", 200);
 	}
 
 	@POST
@@ -585,10 +600,12 @@ public class EngineResource {
 			auditInfo = FormBuilder.getAuditDataForEngine(this.coreEngine.getEngineName());
 		} catch(Exception e) {
 			e.printStackTrace();
-			return Response.status(400).entity(WebUtility.getSO(gson.toJson(e.getMessage()))).build();
+//			return Response.status(400).entity(WebUtility.getSO(gson.toJson(e.getMessage()))).build();
+			return WebUtility.getResponse(gson.toJson(e.getMessage()), 400);
 		}
 
-		return Response.status(200).entity(WebUtility.getSO(gson.toJson(auditInfo))).build();
+//		return Response.status(200).entity(WebUtility.getSO(gson.toJson(auditInfo))).build();
+		return WebUtility.getResponse(gson.toJson(auditInfo), 200);
 	}
 	
 	@GET
