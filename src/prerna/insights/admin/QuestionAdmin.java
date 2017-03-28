@@ -157,9 +157,11 @@ public class QuestionAdmin {
 		retMap.put("core_engine_id", newInsightID);
 		retMap.put("insightName", insightName);
 		if (newInsightID != null) {
-			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+//			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+			return WebUtility.getResponse(retMap, 200);
 		} else {
-			return Response.status(500).entity(WebUtility.getSO("Error adding insight")).build();
+//			return Response.status(500).entity(WebUtility.getSO("Error adding insight")).build();
+			return WebUtility.getResponse("Error adding insight", 500);
 		}
 	}
 	
@@ -306,7 +308,8 @@ public class QuestionAdmin {
 							paramMapList, 
 							image);
 		
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+//		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+		return WebUtility.getResponse("Success", 200);
 	}
 
 	private void editInsightFromDb(Insight insight, 
@@ -412,7 +415,8 @@ public class QuestionAdmin {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+//		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+		return WebUtility.getResponse("Success", 200);
 	}
 	
 	@POST
@@ -508,7 +512,8 @@ public class QuestionAdmin {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}		
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+//		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+		return WebUtility.getResponse("success", 200);
 	}
 	
 	@POST
@@ -616,7 +621,8 @@ public class QuestionAdmin {
 			e.printStackTrace();
 		}		
 		
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+//		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+		return WebUtility.getResponse("Success", 200);
 	}
 	
 	private List<SEMOSSParam> generateSEMOSSParamObjects(

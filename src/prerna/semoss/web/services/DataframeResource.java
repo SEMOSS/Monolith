@@ -739,6 +739,7 @@ public class DataframeResource {
 		
 		retData.put("parentMap", parentMap);
 		retData.put("recipe", list);
-		return Response.status(200).entity(WebUtility.getSO(retData)).build();
+//		return Response.status(200).entity(WebUtility.getSO(retData)).build();
+		return WebUtility.getResponse(retData, 200);
 	}
 }

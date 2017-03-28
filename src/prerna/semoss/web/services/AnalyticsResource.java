@@ -80,7 +80,8 @@ public class AnalyticsResource {
 		}
 		algorithmList.toArray();
 		
-		return Response.status(200).entity(WebUtility.getSO(algorithmList)).build();
+//		return Response.status(200).entity(WebUtility.getSO(algorithmList)).build();
+		return WebUtility.getResponse(algorithmList, 200);
 	}
 	
 	//TODO: need all of these algorithms to be transformations
@@ -98,7 +99,8 @@ public class AnalyticsResource {
 			if(existingInsight == null) {
 				Map<String, String> errorHash = new HashMap<String, String>();
 				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 		}
 		
@@ -153,11 +155,13 @@ public class AnalyticsResource {
 					numClusters = Integer.parseInt(configParameters.get(0));
 				} catch(NumberFormatException e) {
 					errorHash.put("errorMessage", "Invalid input for 'Number of Clusers': " + configParameters.get(0));
-					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+					return WebUtility.getResponse(errorHash, 400);
 				}
 				if(numClusters <= 1) {
 					errorHash.put("errorMessage", "Number of clusters must be larger than 2");
-					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+					return WebUtility.getResponse(errorHash, 400);
 				}
 				selectedOptions.put(AbstractClusteringRoutine.INSTANCE_INDEX_KEY, instanceIndex); 
 				selectedOptions.put(AbstractClusteringRoutine.NUM_CLUSTERS_KEY, numClusters); 
@@ -191,7 +195,8 @@ public class AnalyticsResource {
 				}
 			} catch(NumberFormatException e) {
 				errorHash.put("errorMessage", "Invalid input for 'Number of Rules': " + configParameters.get(0));
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 			try {
 				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(3) != null && !configParameters.get(3).isEmpty()) {
@@ -199,7 +204,8 @@ public class AnalyticsResource {
 				}
 			} catch(NumberFormatException e) {
 				errorHash.put("errorMessage", "Invalid input for 'Confidence Value (%)': " + configParameters.get(3));
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 			try {
 				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
@@ -207,7 +213,8 @@ public class AnalyticsResource {
 				}
 			} catch(NumberFormatException e) {
 				errorHash.put("errorMessage", "Invalid input for 'Minimum Support (%)': " + configParameters.get(1));
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 			try {
 				if (configParameters != null && !configParameters.isEmpty() && configParameters.get(2) != null && !configParameters.get(2).isEmpty()) {
@@ -215,15 +222,18 @@ public class AnalyticsResource {
 				}
 			} catch(NumberFormatException e) {
 				errorHash.put("errorMessage", "Invalid input for 'Maximum Support (%)': " + configParameters.get(2));
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 			if(numRules == null || confPer == null || minSupport == null || maxSupport == null) {
 				errorHash.put("errorMessage", "Not all parameters are being set for Association Learning Algorithm");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 			if(minSupport > maxSupport) {
 				errorHash.put("errorMessage", "Minimum Support value must be lower than Maximum Support Value");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 			
 			selectedOptions.put(WekaAprioriAlgorithm.NUM_RULES, numRules); 
@@ -250,13 +260,15 @@ public class AnalyticsResource {
 					k = Integer.parseInt(configParameters.get(0));
 				} catch(NumberFormatException e) {
 					errorHash.put("errorMessage", "Invalid input for 'K-Value': " + configParameters.get(0));
-					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//					return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+					return WebUtility.getResponse(errorHash, 400);
 				}
 			} 
 			
 			if(k == null) {
 				errorHash.put("errorMessage", "No 'K-Value' defined.");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 			
 			selectedOptions.put(LOF.INSTANCE_INDEX, instanceIndex); 
@@ -274,7 +286,8 @@ public class AnalyticsResource {
 						numSubsetSize = Integer.parseInt(configParameters.get(0));
 					} catch(NumberFormatException e) {
 						errorHash.put("errorMessage", "Invalid input for 'Subset Size': " + configParameters.get(0));
-						return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//						return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+						return WebUtility.getResponse(errorHash, 400);
 					}
 				}
 				if(configParameters.get(1) != null && !configParameters.get(1).isEmpty()) {
@@ -282,18 +295,21 @@ public class AnalyticsResource {
 						numIterations = Integer.parseInt(configParameters.get(1));
 					} catch(NumberFormatException e) {
 						errorHash.put("errorMessage", "Invalid input for 'Number of Runs': " + configParameters.get(1));
-						return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//						return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+						return WebUtility.getResponse(errorHash, 400);
 					}
 				}
 			}
 			
 			if(numSubsetSize == null) {
 				errorHash.put("errorMessage", "No 'Subset Size' defined.");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 			if(numIterations == null) {
 				errorHash.put("errorMessage", "No 'Number of Runs' defined.");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 			
 			selectedOptions.put(FastOutlierDetection.INSTANCE_INDEX, instanceIndex); 
@@ -339,7 +355,8 @@ public class AnalyticsResource {
 		} else {
 			String errorMessage = "Selected algorithm does not exist";
 			LOGGER.info("Selected algorithm does not exist...");
-			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
+//			return Response.status(400).entity(WebUtility.getSO(errorMessage)).build();
+			return WebUtility.getResponse(errorMessage, 400);
 		}
 		
 		Map retMap = new Hashtable();
@@ -357,7 +374,8 @@ public class AnalyticsResource {
 				ex.printStackTrace();
 				dataFrame.setColumnsToSkip(new ArrayList<String>());
 				errorHash.put("errorMessage", ex.getMessage());
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 		} else {
 			List<ISEMOSSTransformation> postTrans = new Vector<ISEMOSSTransformation>();
@@ -373,7 +391,8 @@ public class AnalyticsResource {
 				ex.printStackTrace();
 				dataFrame.setColumnsToSkip(new ArrayList<String>());
 				errorHash.put("errorMessage", ex.getMessage());
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			}
 		}
 		
@@ -381,7 +400,8 @@ public class AnalyticsResource {
 		// get data should return everything even if some parameters not used in algorithm
 		dataFrame.setColumnsToSkip(new ArrayList<String>());
 		
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+//		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		return WebUtility.getResponse(retMap, 200);
 	}
 	
 //	@POST
