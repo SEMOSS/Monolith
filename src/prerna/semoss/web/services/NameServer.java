@@ -612,9 +612,11 @@ public class NameServer {
 		Gson gson = new Gson();
 		List<String> conceptLogicalNames = gson.fromJson(form.getFirst("conceptURI"), new TypeToken<List<String>>() {}.getType());
 		if(conceptLogicalNames == null || conceptLogicalNames.isEmpty()) {
-			return Response.status(200).entity(WebUtility.getSO("")).build();
+//			return Response.status(200).entity(WebUtility.getSO("")).build();
+			return WebUtility.getResponse("", 200);
 		}
-		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getConceptProperties(conceptLogicalNames, null))).build();
+//		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getConceptProperties(conceptLogicalNames, null))).build();
+		return WebUtility.getResponse(DatabasePkqlService.getConceptProperties(conceptLogicalNames, null), 200);
 	}
 
 	@POST
@@ -625,7 +627,8 @@ public class NameServer {
 		Gson gson = new Gson();
 		List<String> conceptualName = gson.fromJson(form.getFirst("conceptURI"), new TypeToken<List<String>>() {}.getType());
 		if(conceptualName == null || conceptualName.isEmpty()) {
-			return Response.status(200).entity(WebUtility.getSO("")).build();
+//			return Response.status(200).entity(WebUtility.getSO("")).build();
+			return WebUtility.getResponse("", 200);
 		}
 		int size = conceptualName.size();
 
@@ -650,7 +653,8 @@ public class NameServer {
 			// can just keep it as null when we pass back the info to the FE
 			parentConceptualName = cleanParentConceptualName;
 		}
-		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
+//		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
+		return WebUtility.getResponse(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName), 200);
 	}
 	
 	@GET
@@ -658,7 +662,8 @@ public class NameServer {
 	@Produces("application/json")
 	public Response getMetamodel(@Context HttpServletRequest request, @QueryParam("engineName") String engineName) {
 		if(engineName == null || engineName.isEmpty()) {
-			return Response.status(200).entity(WebUtility.getSO("")).build();
+//			return Response.status(200).entity(WebUtility.getSO("")).build();
+			return WebUtility.getResponse("", 200);
 		}
 		
 		
@@ -675,7 +680,8 @@ public class NameServer {
 			ret = DatabasePkqlService.getMetamodel(engineName);
 		}
 		
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	@POST
@@ -760,7 +766,8 @@ public class NameServer {
 		if (results == null) {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "No related insights found!");
-			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			return WebUtility.getResponse(errorHash, 400);
 		}
 		// query for facet results
 		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, facetList);
@@ -769,7 +776,8 @@ public class NameServer {
 		retMap.put(SolrIndexEngine.NUM_FOUND, results.getNumFound());
 		retMap.put("results", results);
 		retMap.put("facet", facetCount);
-		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+//		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+		return WebUtility.getResponse(retMap, 200);
 	}
 
 	private StreamingOutput getSOHTML() {
@@ -835,7 +843,8 @@ public class NameServer {
 			if (existingInsight == null) {				
 				Map<String, String> errorHash = new HashMap<String, String>();
 				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+				return WebUtility.getResponse(errorHash, 400);
 			} else if(!existingInsight.hasInstantiatedDataMaker()) {
 //				synchronized(existingInsight) {
 //					if(!existingInsight.hasInstantiatedDataMaker()) {

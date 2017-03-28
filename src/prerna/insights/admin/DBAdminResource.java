@@ -107,8 +107,10 @@ public class DBAdminResource {
 				// otherwise xml gets corrupted
 				System.out.println("caught exception while deleting questions.................");
 				e.printStackTrace();
-				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0,
-						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR))).build();
+//				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0,
+//						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR))).build();
+				return WebUtility.getResponse(e.toString().substring(0,
+						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR), 500);
 			}
 		} else if (perspectivesString != null) {
 			AbstractEngine engine = getEngine(enginesString, request);
@@ -123,8 +125,11 @@ public class DBAdminResource {
 				// otherwise xml gets corrupted
 				System.out.println("caught exception while deleting perspectives.................");
 				e.printStackTrace();
-				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0,
-						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR))).build();
+//				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0,
+//						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR))).build();
+				
+				return WebUtility.getResponse(e.toString().substring(0,
+						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR), 500);
 			}
 
 		} else if (enginesString != null) {
@@ -141,7 +146,8 @@ public class DBAdminResource {
 								((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(),
 								engineString);
 					} else {
-						return Response.status(400).entity("You do not have access to delete this database.").build();
+//						return Response.status(400).entity("You do not have access to delete this database.").build();
+						return WebUtility.getResponse("You do not have access to delete this database.", 400);
 					}
 				} else {
 					deleteEngine(engine, request);
@@ -168,7 +174,8 @@ public class DBAdminResource {
 				e.printStackTrace();
 			}
 		}
-		return Response.status(200).entity(WebUtility.getSO("success")).build();
+//		return Response.status(200).entity(WebUtility.getSO("success")).build();
+		return WebUtility.getResponse("success", 200);
 	}
 
 	@POST
@@ -189,12 +196,17 @@ public class DBAdminResource {
 
 			System.out.println("caught exception while reordering.................");
 			e.printStackTrace();
-			return Response.status(500).entity(WebUtility.getSO(
-					e.toString().substring(0, (e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR)))
-					.build();
+			
+			String errorMessage = e.toString().substring(0, (e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR);
+//			return Response.status(500).entity(WebUtility.getSO(
+//					e.toString().substring(0, (e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR)))
+//					.build();
+			
+			return WebUtility.getResponse(errorMessage, 500);
 		}
 
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+//		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+		return WebUtility.getResponse("success", 200);
 	}
 
 	@Path("insight-{engine}")
@@ -269,7 +281,8 @@ public class DBAdminResource {
 		in.setInsightName(questionName);
 
 		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteInsightCache(in);
-		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+//		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+		return WebUtility.getResponse("success", 200);
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////
@@ -300,6 +313,7 @@ public class DBAdminResource {
 		fieldsToModify.put(SolrIndexEngine.INDEXED_TAGS, tags);
 
 		return WebUtility.getSO(modifyInsight(solrId, fieldsToModify));
+		
 	}
 
 	/**

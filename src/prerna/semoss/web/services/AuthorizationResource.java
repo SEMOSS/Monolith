@@ -128,7 +128,8 @@ public class AuthorizationResource
 		}
 		
 		ret.put("requests", requests);
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	@GET
@@ -165,7 +166,8 @@ public class AuthorizationResource
 		
 		ret.put("success", success);
 		ret.put("error", error);
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	@POST
@@ -181,7 +183,8 @@ public class AuthorizationResource
 		boolean success = permissions.processEngineAccessRequest(requestId, ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), enginePermissions.toArray(new String[enginePermissions.size()]));
 		
 		ret.put("success", success);
-		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	@GET
@@ -239,9 +242,11 @@ public class AuthorizationResource
 		Boolean success = permissions.addGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), form.getFirst("groupName").trim(), users);
 		
 		if(success) {
-			return Response.status(200).entity(WebUtility.getSO(success)).build();
+//			return Response.status(200).entity(WebUtility.getSO(success)).build();
+			return WebUtility.getResponse(success, 200);
 		} else {
-			return Response.status(400).entity(WebUtility.getSO(success)).build();
+//			return Response.status(400).entity(WebUtility.getSO(success)).build();
+			return WebUtility.getResponse(success, 200);
 		}
 	}
 	
@@ -253,9 +258,11 @@ public class AuthorizationResource
 		Boolean success = permissions.removeGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName);
 		
 		if(success) {
-			return Response.status(200).entity(WebUtility.getSO(success)).build();
+//			return Response.status(200).entity(WebUtility.getSO(success)).build();
+			return WebUtility.getResponse(success, 200);
 		} else {
-			return Response.status(400).entity(WebUtility.getSO(success)).build();
+//			return Response.status(400).entity(WebUtility.getSO(success)).build();
+			return WebUtility.getResponse(success, 400);
 		}
 	}
 	
@@ -277,7 +284,8 @@ public class AuthorizationResource
 			permissions.removeUserFromGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName, remove);
 		}
 		
-		return Response.status(200).entity(WebUtility.getSO(true)).build();
+//		return Response.status(200).entity(WebUtility.getSO(true)).build();
+		return WebUtility.getResponse(true, 200);
 	}
 	
 	@POST
@@ -317,14 +325,16 @@ public class AuthorizationResource
 		}
 		
 		
-		return Response.status(200).entity(WebUtility.getSO(true)).build();
+//		return Response.status(200).entity(WebUtility.getSO(true)).build();
+		return WebUtility.getResponse(true, 200);
 	}
 	
 	@GET
 	@Produces("application/json")
 	@Path("getInsightPermissions")
 	public Response getInsightPermissions(@Context HttpServletRequest request, @QueryParam("database") String databaseName, @QueryParam("insight") String insightId) {
-		return Response.status(200).entity(WebUtility.getSO(permissions.getUserPermissionsForInsight(databaseName, insightId))).build();
+//		return Response.status(200).entity(WebUtility.getSO(permissions.getUserPermissionsForInsight(databaseName, insightId))).build();
+		return WebUtility.getResponse(permissions.getUserPermissionsForInsight(databaseName, insightId), 200);
 	}
 	
 	@POST
@@ -333,7 +343,8 @@ public class AuthorizationResource
 	public Response saveInsightPermissions(@Context HttpServletRequest request, @QueryParam("userId") String userId, @QueryParam("database") String databaseName, @QueryParam("insight") String insightId) {
 		String loggedInUser = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		return Response.status(200).entity(WebUtility.getSO(permissions.addInsightPermissionsForUser(loggedInUser, userId, databaseName, insightId))).build();
+//		return Response.status(200).entity(WebUtility.getSO(permissions.addInsightPermissionsForUser(loggedInUser, userId, databaseName, insightId))).build();
+		return WebUtility.getResponse(permissions.addInsightPermissionsForUser(loggedInUser, userId, databaseName, insightId), 200);
 	}
 	
 	@POST
@@ -342,7 +353,8 @@ public class AuthorizationResource
 	public Response removeInsightPermissions(@Context HttpServletRequest request, @QueryParam("userId") String userId, @QueryParam("database") String databaseName, @QueryParam("insight") String insightId) {
 		String loggedInUser = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		return Response.status(200).entity(WebUtility.getSO(permissions.removeInsightPermissionsForUser(loggedInUser, userId, databaseName, insightId))).build();
+//		return Response.status(200).entity(WebUtility.getSO(permissions.removeInsightPermissionsForUser(loggedInUser, userId, databaseName, insightId))).build();
+		return WebUtility.getResponse(permissions.removeInsightPermissionsForUser(loggedInUser, userId, databaseName, insightId), 200);
 	}
 	
 	//Seed and RLS Permissions
@@ -379,14 +391,16 @@ public class AuthorizationResource
 	public Response getAllSeeds(@Context HttpServletRequest request) {
 		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		return Response.status(200).entity(WebUtility.getSO(permissions.getMetamodelSeedsForUser(userId, true))).build();
+//		return Response.status(200).entity(WebUtility.getSO(permissions.getMetamodelSeedsForUser(userId, true))).build();
+		return WebUtility.getResponse(permissions.getMetamodelSeedsForUser(userId, true), 200);
 	}
 	
 	@GET
 	@Produces("application/json")
 	@Path("/admin/getAllSeedsForUser")
 	public Response getAllSeedsForUser(@Context HttpServletRequest request, @QueryParam("userId") String userId) {
-		return Response.status(200).entity(WebUtility.getSO(permissions.getMetamodelSeedsForUser(userId, false))).build();
+//		return Response.status(200).entity(WebUtility.getSO(permissions.getMetamodelSeedsForUser(userId, false))).build();
+		return WebUtility.getResponse(permissions.getMetamodelSeedsForUser(userId, false), 200);
 	}
 	
 	@POST
@@ -395,7 +409,8 @@ public class AuthorizationResource
 	public Response addSeedForUser(@Context HttpServletRequest request, @QueryParam("seedName") String seedName, @QueryParam("userId") String userId) {
 		String loggedInUser = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		return Response.status(200).entity(WebUtility.getSO(permissions.addUserToSeed(userId, seedName, loggedInUser))).build();
+//		return Response.status(200).entity(WebUtility.getSO(permissions.addUserToSeed(userId, seedName, loggedInUser))).build();
+		return WebUtility.getResponse(permissions.addUserToSeed(userId, seedName, loggedInUser), 200);
 	}
 	
 	@POST
@@ -404,7 +419,8 @@ public class AuthorizationResource
 	public Response deleteSeedForUser(@Context HttpServletRequest request, @QueryParam("seedName") String seedName, @QueryParam("userId") String userId) {
 		String loggedInUser = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
 		
-		return Response.status(200).entity(WebUtility.getSO(permissions.deleteUserFromSeed(userId, seedName, loggedInUser))).build();
+//		return Response.status(200).entity(WebUtility.getSO(permissions.deleteUserFromSeed(userId, seedName, loggedInUser))).build();
+		return WebUtility.getResponse(permissions.deleteUserFromSeed(userId, seedName, loggedInUser), 200);
 	}
 	
 	@GET
@@ -413,11 +429,13 @@ public class AuthorizationResource
 		if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			if(!user.getId().equals(Constants.ANONYMOUS_USER_ID) && permissions.isUserAdmin(user.getId())) {
-				return Response.status(200).entity(WebUtility.getSO(true)).build();
+//				return Response.status(200).entity(WebUtility.getSO(true)).build();
+				return WebUtility.getResponse(true, 200);
 			}
 		}
 		
-		return Response.status(200).entity(WebUtility.getSO(false)).build();
+//		return Response.status(200).entity(WebUtility.getSO(false)).build();
+		return WebUtility.getResponse(false, 200);
 	}
 	
 	@GET
@@ -434,7 +452,8 @@ public class AuthorizationResource
 		
 		if(teamShareMaps.containsKey(teamId)) {
 			retData.put("success", false);
-			return Response.status(400).entity(WebUtility.getSO(retData)).build();
+//			return Response.status(400).entity(WebUtility.getSO(retData)).build();
+			return WebUtility.getResponse(retData, 200);
 		} else {
 			StringMap<String> newTeamShareMap = new StringMap<String>();
 			newTeamShareMap.put("insightId", insightId);
@@ -444,7 +463,8 @@ public class AuthorizationResource
 		DIHelper.getInstance().setLocalProperty("teamShareMaps", teamShareMaps);
 		
 		retData.put("success", true);
-		return Response.status(200).entity(WebUtility.getSO(retData)).build();
+//		return Response.status(200).entity(WebUtility.getSO(retData)).build();
+		return WebUtility.getResponse(retData, 200);
 	}
 	
 	@GET
@@ -463,7 +483,8 @@ public class AuthorizationResource
 		//If the map doesn't exist, or the teamId isn't in the map, or the logged in user isn't the owner of the team session, don't do anything
 		if(teamShareMaps == null || !teamShareMaps.containsKey(teamId) || !teamShareMaps.get(teamId).get("owner").equals(loggedInUser)) {
 			retData.put("success", false);
-			return Response.status(400).entity(WebUtility.getSO(retData)).build();
+//			return Response.status(400).entity(WebUtility.getSO(retData)).build();
+			return WebUtility.getResponse(retData, 200);
 		}
 		
 		//Remove the team session information and replace the map in DIHelper
@@ -471,6 +492,7 @@ public class AuthorizationResource
 		DIHelper.getInstance().setLocalProperty("teamShareMaps", teamShareMaps);
 		
 		retData.put("success", true);
-		return Response.status(200).entity(WebUtility.getSO(retData)).build();
+//		return Response.status(200).entity(WebUtility.getSO(retData)).build();
+		return WebUtility.getResponse(retData, 200);
 	}
 }
