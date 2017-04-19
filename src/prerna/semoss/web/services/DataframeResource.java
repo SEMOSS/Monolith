@@ -188,15 +188,17 @@ public class DataframeResource {
 		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
 		list.add(pksl);
 
-		Object resultHash = null;
+		Map<Object, Object> resultHash = new HashMap<Object, Object>();
+		resultHash.put("insightId", this.insight.getInsightID());
 		//synchronize applyCalc calls for each insight to prevent interference during calculation
 		synchronized(insight) {
 			insight.processPostTransformation(list);
 			insight.syncPkslRunnerAndFrame(runner);
-			resultHash = insight.getPKSLData(true);
-			if(resultHash == null) {
-				resultHash = "complete";
+			Object pkslOutput = insight.getPKSLData(true);
+			if(pkslOutput == null) {
+				pkslOutput = "complete";
 			}
+			resultHash.put("pkslOutput", pkslOutput);
 		}
 //		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
 		return WebUtility.getResponse(resultHash, 200);
