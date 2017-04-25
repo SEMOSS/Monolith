@@ -79,7 +79,6 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
-import prerna.cache.CacheFactory;
 import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
@@ -89,10 +88,9 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc.services.DatabasePkqlService;
+import prerna.sablecc2.PKSLRunner;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
-import prerna.ui.components.playsheets.datamakers.IDataMaker;
-import prerna.ui.helpers.InsightCreateRunner;
 import prerna.upload.DatabaseUploader;
 import prerna.upload.FileUploader;
 import prerna.upload.Uploader;
@@ -913,7 +911,7 @@ public class NameServer {
 	public StreamingOutput runPkql(MultivaluedMap<String, String> form ) {
 		/*
 		 * This is only used for calls that do not require us to hold state
-		 * Import to note that pkql that run in here should not touch a data farme
+		 * pkql that run in here should not touch a data farme
 		 */
 		String expression = form.getFirst("expression");
 		PKQLRunner runner = new PKQLRunner();
@@ -934,6 +932,31 @@ public class NameServer {
 		
 		return WebUtility.getSO(resultHash);
 	}
+	
+	@POST
+	@Path("runPksl")
+	@Produces("application/json")
+	public StreamingOutput runPksl(MultivaluedMap<String, String> form){
+		/*
+		 * This is only used for calls that do not require us to hold state
+		 * pksl that run in here should not touch a data farme
+		 */
+		String expression = form.getFirst("expression");
+		PKSLRunner runner = new PKSLRunner();
+		runner.runPKSL(expression);
+		
+		Map<String, Object> resultHash = new HashMap<String, Object>();
+		
+		// get the pksl output
+		Object pkslOutput = runner.getResults();
+		if(pkslOutput == null) {
+			pkslOutput = "complete";
+		}
+		resultHash.put("pkslOutput", pkslOutput);
+		
+		return WebUtility.getSO(resultHash);
+	}
+	
 	
 	/**
 	 * Executes search on MediaWiki/Wikipedia for a given search term and returns the top results.
