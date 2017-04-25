@@ -31,7 +31,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -46,6 +50,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
+import prerna.ds.TinkerFrameGraphExporter;
 import prerna.ds.gexf.IGexfIterator;
 
 /**
@@ -156,6 +161,36 @@ public class WebUtility {
 				logger.error("Failed to write object to stream");
 			}      
 		}
+		return null;
+	}
+	
+	public static Response getResponse(String insightId, TinkerFrameGraphExporter iterator) {
+		if(iterator != null) {
+			Map<String, Object> data = new HashMap<String, Object>();
+			data.put("insightID", insightId);
+			Gson gson = getDefaultGson();
+			try {
+				List<Map<String, Object>> edges = new ArrayList<Map<String, Object>>();
+				while(iterator.hasNextEdge()) {
+					edges.add(iterator.getNextEdge());
+				}
+				data.put("edges", edges);
+				
+				List<Map<String, Object>> vertices = new ArrayList<Map<String, Object>>();
+				while(iterator.hasNextVert()) {
+					vertices.add(iterator.getNextVert());
+				}
+				data.put("nodes", vertices);
+				
+				final byte[] output = gson.toJson(data).getBytes("UTF8");
+				int length = output.length;
+				return Response.status(200).entity(WebUtility.getSO(output)).header("Content-Length", length).build();
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
+			return Response.status(200).entity(WebUtility.getSO(insightId)).build();
+		}
+		
 		return null;
 	}
 
