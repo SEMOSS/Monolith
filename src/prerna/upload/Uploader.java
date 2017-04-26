@@ -63,8 +63,8 @@ import prerna.util.Utility;
 @SuppressWarnings("serial")
 public abstract class Uploader extends HttpServlet {
 
-	protected int maxFileSize = 1000000 * 1024;
-	protected int maxMemSize = 4 * 1024;
+	protected int maxFileSize = 10000000 * 1024;
+	protected int maxMemSize = 8 * 1024;
 	protected String filePath;
 	protected String tempFilePath = "";
 	protected boolean securityEnabled;
