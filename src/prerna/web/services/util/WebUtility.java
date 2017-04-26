@@ -32,7 +32,6 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -50,8 +49,8 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
-import prerna.ds.TinkerFrameGraphExporter;
-import prerna.ds.gexf.IGexfIterator;
+import prerna.ds.export.gexf.IGexfIterator;
+import prerna.ds.export.graph.IGraphExporter;
 
 /**
  * The Utility class contains a variety of miscellaneous functions implemented extensively throughout SEMOSS.
@@ -129,8 +128,6 @@ public class WebUtility {
 			try {
 				return new StreamingOutput() {
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-						boolean firstTime = true;
-
 						try(
 								PrintStream ps = new PrintStream(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
 								)
@@ -164,25 +161,25 @@ public class WebUtility {
 		return null;
 	}
 	
-	public static Response getResponse(String insightId, TinkerFrameGraphExporter iterator) {
+	public static Response getResponse(String insightId, IGraphExporter iterator) {
 		if(iterator != null) {
-			Map<String, Object> data = new HashMap<String, Object>();
-			data.put("insightID", insightId);
+			StringBuilder builder = new StringBuilder();
+			builder.append("{").append("\"insightID\":\"").append(insightId).append("\",");
 			Gson gson = getDefaultGson();
 			try {
 				List<Map<String, Object>> edges = new ArrayList<Map<String, Object>>();
 				while(iterator.hasNextEdge()) {
 					edges.add(iterator.getNextEdge());
 				}
-				data.put("edges", edges);
+				builder.append("\"edges\":").append(gson.toJson(edges)).append(",");
 				
 				List<Map<String, Object>> vertices = new ArrayList<Map<String, Object>>();
 				while(iterator.hasNextVert()) {
 					vertices.add(iterator.getNextVert());
 				}
-				data.put("nodes", vertices);
-				
-				final byte[] output = gson.toJson(data).getBytes("UTF8");
+				builder.append("\"nodes\":").append(gson.toJson(vertices));
+				builder.append("}");
+				final byte[] output = builder.toString().getBytes("UTF8");
 				int length = output.length;
 				return Response.status(200).entity(WebUtility.getSO(output)).header("Content-Length", length).build();
 			} catch (UnsupportedEncodingException e) {
