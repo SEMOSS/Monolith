@@ -36,8 +36,9 @@ import prerna.auth.UserPermissionsMasterDB;
 import prerna.ds.AbstractTableDataFrame;
 import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
-import prerna.ds.gexf.IGexfIterator;
-import prerna.ds.gexf.RdbmsGexfIterator;
+import prerna.ds.export.gexf.IGexfIterator;
+import prerna.ds.export.gexf.RdbmsGexfIterator;
+import prerna.ds.export.graph.TinkerFrameGraphExporter;
 import prerna.ds.h2.H2Frame;
 import prerna.ds.nativeframe.NativeFrame;
 import prerna.ds.r.RDataTable;
@@ -108,8 +109,6 @@ public class DataframeResource {
 		}
 		
 		InsightStore.getInstance().put(id, insight);
-
-//		return Response.status(200).entity(WebUtility.getSO("Insight " + id + " has been cleared")).build();
 		return WebUtility.getResponse("Insight " + id + " has been cleared", 200);
 	}
 
@@ -128,12 +127,10 @@ public class DataframeResource {
 			retMap.put("filteredValues", filterModel[1]);
 			retMap.put("minMax", filterModel[2]);
 
-//			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 			return WebUtility.getResponse(retMap, 200);
 		} 
 
 		else {
-//			return Response.status(400).entity(WebUtility.getSO("Data Maker not instance of ITableDataFrame.  Cannot grab filter model from Data Maker.")).build();
 			return WebUtility.getResponse("Data Maker not instance of ITableDataFrame.  Cannot grab filter model from Data Maker.", 400);
 		}
 
@@ -145,7 +142,6 @@ public class DataframeResource {
 	public Response openBackDoor(@Context HttpServletRequest request){
 		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
 		tf.openBackDoor();
-//		return Response.status(200).entity(WebUtility.getSO("Succesfully closed back door")).build();
 		return WebUtility.getResponse("Successfully closed back door", 200);
 	}
 
@@ -200,7 +196,6 @@ public class DataframeResource {
 			}
 			resultHash.put("pkslOutput", pkslOutput);
 		}
-//		return Response.status(200).entity(WebUtility.getSO(resultHash)).build();
 		return WebUtility.getResponse(resultHash, 200);
 	}
 
@@ -252,16 +247,13 @@ public class DataframeResource {
 			
 			if(success) {
 				logger.info("Succesfully dropped insight " + insightID);
-//				return Response.status(200).entity(WebUtility.getSO("Succesfully dropped insight " + insightID)).build();
 				return WebUtility.getResponse("Succesfully dropped insight " + insightID, 200);
 			} else {
 				Map<String, String> errorHash = new HashMap<String, String>();
 				errorHash.put("errorMessage", "Could not remove data.");
-//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 				return WebUtility.getResponse(errorHash, 400);
 			}
 		} else {
-//			return Response.status(200).entity(WebUtility.getSO("Insight is a read and no need to drop insight " + insightID)).build();
 			return WebUtility.getResponse("Insight is a read and no need to drop insight " + insightID, 200);
 		}
 	}
@@ -302,30 +294,16 @@ public class DataframeResource {
 			options.put(AbstractTableDataFrame.LIMIT, (endRow - startRow));
 		}
 
-//		Map<String, Object> returnData = new HashMap<String, Object>();
-//		returnData.put("insightID", insight.getInsightID());
-
-//		List<Object[]> table = new Vector<Object[]>();
 		List<String> selectors = gson.fromJson(form.getFirst("selectors"), new TypeToken<List<String>>() {}.getType());
-
 		if(selectors.isEmpty()) {
 			options.put(AbstractTableDataFrame.SELECTORS, Arrays.asList(dm.getColumnHeaders()));
-//			returnData.put("headers", dm.getColumnHeaders());
 			selectors = Arrays.asList(dm.getColumnHeaders());
 		} else {
 			options.put(AbstractTableDataFrame.SELECTORS, selectors);
-//			returnData.put("headers", selectors);
 		}
 		options.put(AbstractTableDataFrame.DE_DUP, true);
 
 		Iterator<Object[]> it = dm.iterator(options);
-		//while(it.hasNext()) {
-		//	table.add(it.next());
-		//}
-
-		//returnData.put("data", table);
-
-//		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 		return Response.status(200).entity(WebUtility.getSO(insight.getInsightID(), selectors.toArray(new String[]{}), it)).build();
 	}
 
@@ -338,7 +316,6 @@ public class DataframeResource {
 		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();	
 		retMap.put("insightID", insight.getInsightID());
 		retMap.put("tableHeaders", table.getTableHeaderObjects());
-//		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 		return WebUtility.getResponse(retMap, 200);
 	}
 
@@ -348,7 +325,6 @@ public class DataframeResource {
 	public Response getRecipe() {
 		Map<String, Object> retMap = new HashMap<String, Object>();		
 		retMap.put("recipe", insight.getRecipe());
-//		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 		return WebUtility.getResponse(retMap, 200);
 	}
 
@@ -357,31 +333,26 @@ public class DataframeResource {
 	@Produces("application/json")
 	public Response getGraphData(@Context HttpServletRequest request){
 		IDataMaker maker = insight.getDataMaker();
-		if(maker instanceof TinkerFrame){ 
-//			return Response.status(200).entity(WebUtility.getSO(((TinkerFrame)maker).getGraphOutput())).build();
-			return WebUtility.getResponse(((TinkerFrame)maker).getGraphOutput(), 200);
+		if(maker instanceof TinkerFrame){
+			TinkerFrame tframe = (TinkerFrame) maker;
+			return WebUtility.getResponse(insight.getInsightID(), new TinkerFrameGraphExporter(tframe));
 		}
 		else if (maker instanceof GraphDataModel){
-//			return Response.status(200).entity(WebUtility.getSO(((GraphDataModel)maker).getDataMakerOutput())).build();
 			return WebUtility.getResponse(((GraphDataModel)maker).getDataMakerOutput(), 200);
 		} else if(maker instanceof H2Frame) {
 			//convert to tinker then return
 			TinkerFrame tframe = TableDataFrameFactory.convertToTinkerFrameForGraph((H2Frame)maker);
-//			return Response.status(200).entity(WebUtility.getSO(tframe.getGraphOutput())).build();
-			return WebUtility.getResponse(tframe.getGraphOutput(), 200);
+			return WebUtility.getResponse(insight.getInsightID(), new TinkerFrameGraphExporter((TinkerFrame) tframe));
 		} 
 		
 		else if(maker instanceof NativeFrame) {
 			H2Frame frame = TableDataFrameFactory.convertToH2FrameFromNativeFrame((NativeFrame)maker);
 			TinkerFrame tframe = TableDataFrameFactory.convertToTinkerFrameForGraph((H2Frame)frame);
-//			return Response.status(200).entity(WebUtility.getSO(tframe.getGraphOutput())).build();
-			return WebUtility.getResponse(tframe.getGraphOutput(), 200);
+			return WebUtility.getResponse(insight.getInsightID(), new TinkerFrameGraphExporter((TinkerFrame) tframe));
 		}
 		else {
-//			return Response.status(400).entity(WebUtility.getSO("Illegal data maker type ")).build();
 			return WebUtility.getResponse("Illegal data maker type ", 400);
 		}
-		
 	}
 	
 	@POST
@@ -395,13 +366,11 @@ public class DataframeResource {
 		} catch(ClassCastException e) {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Insight data maker could not be cast to a table data frame.");
-//			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			return WebUtility.getResponse(errorHash, 400);
 		}
 		if(table == null) {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Could not find insight data maker.");
-//			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			return WebUtility.getResponse(errorHash, 400);
 		}
 
@@ -446,7 +415,6 @@ public class DataframeResource {
 		returnData.put("data", table);
 		returnData.put("headers", headers);
 		returnData.put("insightID", insight.getInsightID());
-//		return Response.status(200).entity(WebUtility.getSO(returnData)).build();
 		return WebUtility.getResponse(returnData, 200);
 	}
 
@@ -474,10 +442,8 @@ public class DataframeResource {
 		} catch(IllegalArgumentException e) {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", e.getMessage());
-//			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			return WebUtility.getResponse(errorHash, 400);
 		}
-//		return Response.status(200).entity(WebUtility.getSO(returnHash)).build();
 		return WebUtility.getResponse(returnHash, 200);
 	}
 
@@ -493,13 +459,11 @@ public class DataframeResource {
 		} catch(ClassCastException e) {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Insight data maker could not be cast to a table data frame.");
-//			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			return WebUtility.getResponse(errorHash, 400);
 		}
 		if(table == null) {
 			Map<String, String> errorHash = new HashMap<String, String>();
 			errorHash.put("errorMessage", "Could not find insight data maker.");
-//			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 			return WebUtility.getResponse(errorHash, 400);
 		}
 
@@ -532,7 +496,6 @@ public class DataframeResource {
 			rowCount++;
 		}
 		boolean hasDuplicates = comboSet.size() != numRows;
-//		return Response.status(200).entity(WebUtility.getSO(hasDuplicates)).build();
 		return WebUtility.getResponse(hasDuplicates, 200);
 	}
 
@@ -546,7 +509,6 @@ public class DataframeResource {
 		Gson gson = new Gson();
 		Hashtable<String, Object> hash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
 		Object ret = this.insight.getPlaySheet().doMethod(method, hash);
-//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 		return WebUtility.getResponse(ret, 200);
 	}
 
@@ -566,7 +528,6 @@ public class DataframeResource {
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put("isDbInsight", insight.isDbInsight());
 		
-//		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
 		return WebUtility.getResponse(retMap, 200);
 	}
 	
@@ -592,7 +553,6 @@ public class DataframeResource {
 				errorMessage = e.getMessage();
 			}
 			errorMap.put("errorMessage", errorMessage);
-//			return Response.status(200).entity(WebUtility.getSO(errorMap)).build();
 			return WebUtility.getResponse(errorMap, 200);
 		}
 
@@ -741,7 +701,6 @@ public class DataframeResource {
 		
 		retData.put("parentMap", parentMap);
 		retData.put("recipe", list);
-//		return Response.status(200).entity(WebUtility.getSO(retData)).build();
 		return WebUtility.getResponse(retData, 200);
 	}
 }
