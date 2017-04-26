@@ -38,6 +38,7 @@ import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
 import prerna.ds.export.gexf.IGexfIterator;
 import prerna.ds.export.gexf.RdbmsGexfIterator;
+import prerna.ds.export.graph.RdbmsGraphExporter;
 import prerna.ds.export.graph.TinkerFrameGraphExporter;
 import prerna.ds.h2.H2Frame;
 import prerna.ds.nativeframe.NativeFrame;
@@ -334,17 +335,16 @@ public class DataframeResource {
 	public Response getGraphData(@Context HttpServletRequest request){
 		IDataMaker maker = insight.getDataMaker();
 		if(maker instanceof TinkerFrame){
-			TinkerFrame tframe = (TinkerFrame) maker;
-			return WebUtility.getResponse(insight.getInsightID(), new TinkerFrameGraphExporter(tframe));
-		}
-		else if (maker instanceof GraphDataModel){
-			return WebUtility.getResponse(((GraphDataModel)maker).getDataMakerOutput(), 200);
+			return WebUtility.getResponse(insight.getInsightID(), new TinkerFrameGraphExporter((TinkerFrame) maker));
 		} else if(maker instanceof H2Frame) {
-			//convert to tinker then return
-			TinkerFrame tframe = TableDataFrameFactory.convertToTinkerFrameForGraph((H2Frame)maker);
-			return WebUtility.getResponse(insight.getInsightID(), new TinkerFrameGraphExporter((TinkerFrame) tframe));
+			return WebUtility.getResponse(insight.getInsightID(), new RdbmsGraphExporter((H2Frame) maker));
 		} 
+		// old data way
+		else if (maker instanceof GraphDataModel) {
+			return WebUtility.getResponse(((GraphDataModel)maker).getDataMakerOutput(), 200);
+		}
 		
+		// need to account for this in rdbms graph exporter
 		else if(maker instanceof NativeFrame) {
 			H2Frame frame = TableDataFrameFactory.convertToH2FrameFromNativeFrame((NativeFrame)maker);
 			TinkerFrame tframe = TableDataFrameFactory.convertToTinkerFrameForGraph((H2Frame)frame);
