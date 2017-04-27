@@ -177,7 +177,10 @@ public class WebUtility {
 				while(iterator.hasNextVert()) {
 					vertices.add(iterator.getNextVert());
 				}
-				builder.append("\"nodes\":").append(gson.toJson(vertices));
+				builder.append("\"nodes\":").append(gson.toJson(vertices)).append(",");
+				
+				// add the meta data pieces
+				builder.append("\"graphMeta\":").append(gson.toJson(iterator.getVertCounts()));
 				builder.append("}");
 				final byte[] output = builder.toString().getBytes("UTF8");
 				int length = output.length;
