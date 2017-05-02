@@ -18,10 +18,15 @@ import com.google.gson.Gson;
 
 import prerna.auth.User;
 import prerna.engine.api.IEngine;
+import prerna.engine.api.IRawSelectWrapper;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
+import prerna.engine.impl.rdf.BigDataEngine;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.rdf.main.NodeRenamer;
+import prerna.test.TestUtilityMethods;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -138,6 +143,66 @@ public class FormResource {
 //		return Response.status(200).entity(WebUtility.getSO("success")).build();
 		return WebUtility.getResponse("success", 200);
 	}
+	
+	@POST
+	@Path("/renameNode")
+	@Produces("application/json")
+	public Response nodeRenamer(MultivaluedMap<String, String> form) 
+	{
+		String dbFilepath = DIHelper.getInstance().getProperty("BaseFolder");
+		dbFilepath = dbFilepath + "\\db\\";
+		
+		String dbName = form.getFirst("dbName");
+		String originalUri = form.getFirst("originalUri");
+		String newUri = form.getFirst("newUri");
+		String newInstanceName = newUri.substring(newUri.lastIndexOf('/')+1);
+		
+		NodeRenamer nodeRenamer = new NodeRenamer();
+		
+		BigDataEngine coreEngine = (BigDataEngine) DIHelper.getInstance().getLocalProp(dbName);
+		
+		if(coreEngine == null) {
+			System.out.println("Need to instantiate database.");			
+			
+			String smssFilepath = dbFilepath + dbName + ".smss";
+			coreEngine = new BigDataEngine();
+			coreEngine.setEngineName(dbName);
+			coreEngine.openDB(smssFilepath);
+			DIHelper.getInstance().setLocalProperty(dbName, coreEngine);
+		}
+		
+		// get all the subjects
+		String upQuery = "SELECT DISTINCT ?s ?p ?o WHERE {"
+				+ "BIND(<" + originalUri + "> AS ?s)"
+				+ "{?s ?p ?o}"
+				+ "}";
+
+		List<Object[]> upTriples = new Vector<Object[]>();
+		IRawSelectWrapper upIt = WrapperManager.getInstance().getRawWrapper(coreEngine, upQuery);
+		nodeRenamer.storeValues(upIt, upTriples);
+
+		// get all the objects
+		String downQuery = "SELECT DISTINCT ?s ?p ?o WHERE {"
+				+ "BIND(<" + originalUri + "> AS ?o)"
+				+ "{?s ?p ?o}"
+				+ "}";
+
+		List<Object[]> downTriples = new Vector<Object[]>();
+		IRawSelectWrapper downIt = WrapperManager.getInstance().getRawWrapper(coreEngine, downQuery);
+		nodeRenamer.storeValues(downIt, downTriples);
+
+		// now go through and modify where necessary
+		nodeRenamer.deleteTriples(upTriples, coreEngine);
+		nodeRenamer.deleteTriples(downTriples, coreEngine);
+
+		nodeRenamer.addUpTriples(upTriples, coreEngine, newUri, newInstanceName);
+		nodeRenamer.addDownTriples(downTriples, coreEngine, newUri);
+		
+		coreEngine.commit();
+		
+//		return Response.status(200).entity(WebUtility.getSO("success")).build();
+		return WebUtility.getResponse("success", 200);
+	}	
 	
 	@POST
 	@Path("/deleteForm")
