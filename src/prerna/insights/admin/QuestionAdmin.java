@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.insights.admin;
 
+import java.io.File;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -71,8 +72,10 @@ import prerna.ui.components.playsheets.datamakers.FilterTransformation;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
+import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
+import prerna.util.insight.InsightScreenshot;
 
 public class QuestionAdmin {
 
@@ -248,10 +251,51 @@ public class QuestionAdmin {
 		}
 		solrInsights.put(SolrIndexEngine.ENGINES, engines);
 
-		//TODO: need to add users
+		// TODO: need to add users
 		solrInsights.put(SolrIndexEngine.USER_ID, "default");
 		try {
+			// Save insight
+			final String finalID = newInsightID;
 			SolrIndexEngine.getInstance().addInsight(engineName + "_" + newInsightID, solrInsights);
+
+			// add image in background grid and viva are not supported by the
+			// embedded browser
+			if (!layout.equals("Grid") && !layout.equals("VivaGraph") && !layout.equals("Map")) {
+				Runnable r = new Runnable() {
+					public void run() {
+						// generate image URL from saved insight
+						String url = "http://localhost:8080/SemossWebBranch/embed/#/embed?engine=" + engineName
+								+ "&questionId=" + finalID + "&settings=false";
+						String imagePath = DIHelper.getInstance().getProperty("BaseFolder") + "\\insight_" + finalID
+								+ ".png";
+						InsightScreenshot screenshot = new InsightScreenshot();
+						screenshot.showUrl(url, imagePath);
+						screenshot.getComplete();
+
+						// Get the serialized image and delete the file
+						String serialized_image = "data:image/png;base64," + InsightScreenshot.imageToString(imagePath);
+						File imageFile = new File(imagePath);
+						imageFile.delete();
+						solrInsights.put(SolrIndexEngine.IMAGE, serialized_image);
+						try {
+							SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + finalID, solrInsights);
+						} catch (KeyManagementException e) {
+							e.printStackTrace();
+						} catch (NoSuchAlgorithmException e) {
+							e.printStackTrace();
+						} catch (KeyStoreException e) {
+							e.printStackTrace();
+						} catch (SolrServerException e) {
+							e.printStackTrace();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				};
+				//TODO use this for new image capture
+				//				new Thread(r).start();
+			}
+
 			return newInsightID;
 		} catch (KeyManagementException e) {
 			e.printStackTrace();
