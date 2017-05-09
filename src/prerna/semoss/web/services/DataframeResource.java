@@ -578,13 +578,13 @@ public class DataframeResource {
 		// can properly create pkqls using the insight metamodel
 		ITableDataFrame dataframe = (ITableDataFrame) this.insight.getDataMaker();
 		Map<String, Set<String>> edgeHash = dataframe.getEdgeHash();
-		
+
 		// need to update the recipe now
 		for(FilePkqlMetadata fileMeta : filesMetadata) {
-			
+
 			// this is the pkql string we need to update
 			String pkqlStrToFind = fileMeta.getPkqlStr();
-			
+
 			// this is the transformation that invoked the file load
 			// need to update its pkql recipe
 			PKQLTransformation pkqlTrans = fileMeta.getInvokingPkqlTransformation();
@@ -592,14 +592,14 @@ public class DataframeResource {
 			// need to look at each and consolidate appropriately as to not lose
 			// any statements
 			List<String> listPkqlRun = pkqlTrans.getPkql();
-			
+
 			// keep track of all statements
 			// only used if updatePkqlExpression boolean becomes true
 			List<String> newPkqlRun = new Vector<String>();
-			
+
 			// this is the list of headers that were uploaded into the frame
 			List<String> selectorsToMatch = fileMeta.getSelectors();
-			
+
 			// need to iterate through and update the correct pkql
 			for(int pkqlIdx = 0; pkqlIdx < listPkqlRun.size(); pkqlIdx++) {
 				String pkqlExp = listPkqlRun.get(pkqlIdx);
@@ -614,38 +614,39 @@ public class DataframeResource {
 						List<String> selectors = newTablesAndCols.get(newTable);
 
 						// need to see if all selectors match
-						FILE_LOOP : for(String selectorInFile : selectorsToMatch) {
+						SELECTOR_MATCH_LOOP : for(String selectorInFile : selectorsToMatch) {
+							boolean selectorFound = false;
 							for(String selectorInTable : selectors) {
-
 								// we found a match, we are good
 								// format of selector in table is http://semoss.org/ontologies/Relation/Contains/Rotten_Tomatoes_Audience/MOVIECSV
 								if(selectorInFile.equalsIgnoreCase(Utility.getClassName(selectorInTable))) {
-									continue FILE_LOOP;
-								} else {
-									break FILE_LOOP;
+									selectorFound = true;
+									continue SELECTOR_MATCH_LOOP;
 								}
 							}
-							// if we hit this point, then there was a selector
-							// in selectorsToMatch that wasn't found in the tableSelectors
-							// lets look at next table
-							continue TABLE_LOOP;
 							
-						} // end file loop
-						
+							if(selectorFound == false) {
+								// if we hit this point, then there was a selector
+								// in selectorsToMatch that wasn't found in the tableSelectors
+								// lets look at next table
+								continue TABLE_LOOP;
+							}
+						} // end SELECTOR_MATCH_LOOP
+
 						// if we hit this point, then everything matched!
 						tableToUse = newTable;
-						
+
 						// lets update the prim key name from its currently random name
 						// to the name of the table
 						UPDATE_PRIM_KEY_LOOP : for(String parentName : edgeHash.keySet()) {
 							Set<String> children = edgeHash.get(parentName);
-							
+
 							// if the set contains all the names of the file
 							// it is the one we want to modify
 							if(children.containsAll(selectorsToMatch)) {
 								dataframe.modifyColumnName(parentName, tableToUse);
 								parentMap.put(parentName, tableToUse);
-								
+
 								// need to also add the engine name for each of the nodes
 								// do this for the main node
 								// and for each of the children nodes
@@ -653,17 +654,17 @@ public class DataframeResource {
 								for(String child : children) {
 									dataframe.addEngineForColumnName(child, engineName);
 								}
-								
+
 								break UPDATE_PRIM_KEY_LOOP;
 							}
 						}
-						
+
 						break TABLE_LOOP;
 					}
 
 					// this will update the pkql query to run
 					newPkqlRun.add(fileMeta.generatePkqlOnEngine(engineName, tableToUse));
-					
+
 				} else {
 					newPkqlRun.add(pkqlExp);
 				}
@@ -687,10 +688,10 @@ public class DataframeResource {
 
 		// clear the files since they are now loaded into the engine
 		filesMetadata.clear();
-		
+
 		// we will return the new insight recipe after the PKQL has been modified
 		Map<String, Object> retData = new HashMap<String, Object>();
-		
+
 		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
 		String[] pkqlRecipe = this.insight.getPkqlRecipe();
 		for(String command: pkqlRecipe) {
@@ -698,7 +699,7 @@ public class DataframeResource {
 			retMap.put("command", command);
 			list.add(retMap);
 		}
-		
+
 		retData.put("parentMap", parentMap);
 		retData.put("recipe", list);
 		return WebUtility.getResponse(retData, 200);
