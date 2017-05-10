@@ -38,7 +38,8 @@ import prerna.ds.TableDataFrameFactory;
 import prerna.ds.TinkerFrame;
 import prerna.ds.export.gexf.IGexfIterator;
 import prerna.ds.export.gexf.RdbmsGexfIterator;
-import prerna.ds.export.graph.RdbmsGraphExporter;
+import prerna.ds.export.graph.GraphExporterFactory;
+import prerna.ds.export.graph.IGraphExporter;
 import prerna.ds.export.graph.TinkerFrameGraphExporter;
 import prerna.ds.h2.H2Frame;
 import prerna.ds.nativeframe.NativeFrame;
@@ -334,23 +335,30 @@ public class DataframeResource {
 	@Produces("application/json")
 	public Response getGraphData(@Context HttpServletRequest request){
 		IDataMaker maker = insight.getDataMaker();
-		if(maker instanceof TinkerFrame){
-			return WebUtility.getResponse(insight.getInsightID(), new TinkerFrameGraphExporter((TinkerFrame) maker));
-		} else if(maker instanceof H2Frame) {
-			return WebUtility.getResponse(insight.getInsightID(), new RdbmsGraphExporter((H2Frame) maker));
-		} 
-		// old data way
+		IGraphExporter exporter = null;
+		try {
+			exporter = GraphExporterFactory.getExporter(maker);
+		} catch(IllegalArgumentException e) {
+			Map<String, String> errorMap = new Hashtable<String, String>();
+			errorMap.put("errorMessage", e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		if(exporter != null) {
+			return WebUtility.getResponse(insight.getInsightID(), exporter);
+		}
+		// we have some stuff that hasn't been ported over yet...
+		// gdm is not that big of a deal
 		else if (maker instanceof GraphDataModel) {
 			return WebUtility.getResponse(((GraphDataModel)maker).getDataMakerOutput(), 200);
 		}
-		
-		// need to account for this in rdbms graph exporter
+		// ... but native frame is very very bad... :(
 		else if(maker instanceof NativeFrame) {
 			H2Frame frame = TableDataFrameFactory.convertToH2FrameFromNativeFrame((NativeFrame)maker);
 			TinkerFrame tframe = TableDataFrameFactory.convertToTinkerFrameForGraph((H2Frame)frame);
 			return WebUtility.getResponse(insight.getInsightID(), new TinkerFrameGraphExporter((TinkerFrame) tframe));
-		}
-		else {
+		} else {
+			Map<String, String> errorMap = new Hashtable<String, String>();
+			errorMap.put("errorMessage", "Data type cannot yet be represented as a graph");
 			return WebUtility.getResponse("Illegal data maker type ", 400);
 		}
 	}
