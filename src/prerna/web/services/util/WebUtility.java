@@ -91,7 +91,7 @@ public class WebUtility {
 			try {
 				final byte[] output = gson.toJson(vec).getBytes("UTF8");
 				int length = output.length;
-				return Response.status(200).entity(WebUtility.getSO(output)).header("Content-Length", length).build();
+				return Response.status(status).entity(WebUtility.getSO(output)).header("Content-Length", length).build();
 			} catch (UnsupportedEncodingException e) {
 				e.printStackTrace();
 			}
