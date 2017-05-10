@@ -264,7 +264,7 @@ public class QuestionAdmin {
 				Runnable r = new Runnable() {
 					public void run() {
 						// generate image URL from saved insight
-						String url = "http://localhost:8080/SemossWebBranch/embed/#/embed?engine=" + engineName
+						String url = "http://localhost:8080/SemossWeb/embed/#/embed?engine=" + engineName
 								+ "&questionId=" + finalID + "&settings=false";
 						String imagePath = DIHelper.getInstance().getProperty("BaseFolder") + "\\insight_" + finalID
 								+ ".png";
@@ -277,23 +277,23 @@ public class QuestionAdmin {
 						File imageFile = new File(imagePath);
 						imageFile.delete();
 						solrInsights.put(SolrIndexEngine.IMAGE, serialized_image);
-						try {
-							SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + finalID, solrInsights);
-						} catch (KeyManagementException e) {
-							e.printStackTrace();
-						} catch (NoSuchAlgorithmException e) {
-							e.printStackTrace();
-						} catch (KeyStoreException e) {
-							e.printStackTrace();
-						} catch (SolrServerException e) {
-							e.printStackTrace();
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
+						boolean success = false;
+						do {
+							try {
+								SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + finalID, solrInsights);
+								success = true;
+								LOGGER.info("Updated solr id: " + finalID + " image:::: " + serialized_image);
+
+							} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException
+									| SolrServerException | IOException e) {
+								e.printStackTrace();
+							}
+						} while (!success);
+
 					}
 				};
-				//TODO use this for new image capture
-				//				new Thread(r).start();
+				// TODO use this for new image capture
+				// new Thread(r).start();
 			}
 
 			return newInsightID;
