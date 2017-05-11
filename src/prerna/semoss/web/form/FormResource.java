@@ -2,6 +2,8 @@ package prerna.semoss.web.form;
 
 import java.io.IOException;
 import java.security.cert.X509Certificate;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,7 @@ import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.engine.impl.rdf.BigDataEngine;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.rdf.main.NodeRenamer;
@@ -235,7 +238,7 @@ public class FormResource {
 	public Response getUserInstanceAuth(@Context HttpServletRequest request) throws InvalidNameException {
 		X509Certificate[] certs = (X509Certificate[]) request.getAttribute("javax.servlet.request.X509Certificate");
 		if(certs == null || certs.length == 0) {
-//			output = "WE GOT NOTHING!!! :(";
+			return WebUtility.getResponse("you messed up", 400);
 		} else {
 			//TODO: use this id to get the systems the user has access to
 			//i.e. create a sql query on the engine you will add at the top
@@ -251,9 +254,27 @@ public class FormResource {
 					}
 				}
 			}
+			
+			// create some query
+			// run it on engine
+			List<String> userAccessableInstances = new Vector<String>();
+			Map<String, Object> ret = (Map<String, Object>) userAccessEng.execQuery("");
+			ResultSet rs = (ResultSet) ret.get(RDBMSNativeEngine.RESULTSET_OBJECT);
+			try {
+				while(rs.next()) {
+					// this rs is 1 based!!!
+					userAccessableInstances.add(rs.getString(1));
+				}
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			
+			Map<String, Object> returnData = new Hashtable<String, Object>();
+			returnData.put("cac_id", x509Id);
+			returnData.put("validInstances", userAccessableInstances);
+			
+			return WebUtility.getResponse(returnData, 200);
 		}
-		
-		return null;
 	}
 	
 	private String getFormTableFromName(String formName) {
