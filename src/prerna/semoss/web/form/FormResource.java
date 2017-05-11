@@ -1,11 +1,15 @@
 package prerna.semoss.web.form;
 
 import java.io.IOException;
+import java.security.cert.X509Certificate;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
+import javax.naming.InvalidNameException;
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -24,7 +28,6 @@ import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.rdf.BigDataEngine;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.rdf.main.NodeRenamer;
-import prerna.test.TestUtilityMethods;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
@@ -35,10 +38,13 @@ public class FormResource {
 
 	public static final String FORM_BUILDER_ENGINE_NAME = "form_builder_engine";
 	public static final String AUDIT_FORM_SUFFIX = "_FORM_LOG";
+	
 	private IEngine formBuilderEng;
+	private IEngine userAccessEng;
 	
 	public FormResource() {
 		this.formBuilderEng = Utility.getEngine(FORM_BUILDER_ENGINE_NAME);
+		//TODO: add in user access eng
 	}
 	
 	
@@ -221,6 +227,33 @@ public class FormResource {
 		
 //		return Response.status(200).entity(WebUtility.getSO("success")).build();
 		return WebUtility.getResponse("success", 200);
+	}
+	
+	@POST
+	@Path("/getUserInstanceAuth")
+	@Produces("applicaiton/json")
+	public Response getUserInstanceAuth(@Context HttpServletRequest request) throws InvalidNameException {
+		X509Certificate[] certs = (X509Certificate[]) request.getAttribute("javax.servlet.request.X509Certificate");
+		if(certs == null || certs.length == 0) {
+//			output = "WE GOT NOTHING!!! :(";
+		} else {
+			//TODO: use this id to get the systems the user has access to
+			//i.e. create a sql query on the engine you will add at the top
+			String x509Id = null;
+			for(int i = 0; i < certs.length; i++) {
+				X509Certificate cert = certs[i];
+				
+				String dn = cert.getSubjectX500Principal().getName();
+				LdapName ldapDN = new LdapName(dn);
+				for(Rdn rdn: ldapDN.getRdns()) {
+					if(rdn.getType().equals("CN")) {
+						x509Id = rdn.getValue().toString();
+					}
+				}
+			}
+		}
+		
+		return null;
 	}
 	
 	private String getFormTableFromName(String formName) {
