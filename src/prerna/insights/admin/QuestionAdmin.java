@@ -56,6 +56,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import cern.colt.Arrays;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.cache.CacheFactory;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
@@ -100,34 +101,47 @@ public class QuestionAdmin {
 		String layout = form.getFirst("layout");
 		String insightID = form.getFirst("insightID");
 		String uiOptions = form.getFirst("uiOptions");
-		String image = form.getFirst("image");
 		String tagsString = form.getFirst("tags");
+		String baseURL = form.getFirst("url");
+
 
 		Gson gson = new Gson();
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		List<String> pkqlsToAdd = gson.fromJson(form.getFirst("pkqlsToAdd"), List.class);
-		List<String> saveRecipe = gson.fromJson(form.getFirst("saveRecipe"), List.class); //this is the recipe we want to save the insight as
+		// this is the recipe we want to save the insight as
+		List<String> saveRecipe = gson.fromJson(form.getFirst("saveRecipe"), List.class);
+
+		// used if an insight has params 
+		List<String> runRecipe = gson.fromJson(form.getFirst("runRecipe"), List.class); // this
+		boolean hasParams = false;
 		
+		if(runRecipe != null) {
+			hasParams = true;
+		}
+
 		List<String> tags = new Vector<String>();
-		if(tagsString != null && !tagsString.isEmpty()) {
+		if (tagsString != null && !tagsString.isEmpty()) {
 			tags = gson.fromJson(tagsString, List.class);
 		}
 		tags.add(perspective.replace("-Perspective", ""));
-		
+
 		Insight insight = InsightStore.getInstance().get(insightID);
 		String newInsightID = "";
-		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
+		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"),
+				new TypeToken<Vector<Map<String, String>>>() {
+				}.getType());
 
-		//If saving with params, FE passes a user.input PKQL that needs to be added/saved - better way to do this?
-		if(pkqlsToAdd != null && !pkqlsToAdd.isEmpty()) {
+		// If saving with params, FE passes a user.input PKQL that needs to be
+		// added/saved - better way to do this?
+		if (pkqlsToAdd != null && !pkqlsToAdd.isEmpty()) {
 			PKQLRunner runner = insight.getPKQLRunner();
 			DataMakerComponent dmc = null;
-			if(insight.getDataMaker() instanceof Dashboard) {
-//				dmc = insight.getDashboardDataMakerComponent();
+			if (insight.getDataMaker() instanceof Dashboard) {
+				// dmc = insight.getDashboardDataMakerComponent();
 			} else {
 				dmc = insight.getDataMakerComponents().get(insight.getDataMakerComponents().size() - 1);
 			}
-			for(String pkqlCmd : pkqlsToAdd) {
+			for (String pkqlCmd : pkqlsToAdd) {
 				PKQLTransformation pkqlToAdd = new PKQLTransformation();
 				Map<String, Object> props = new HashMap<String, Object>();
 				props.put(PKQLTransformation.EXPRESSION, pkqlCmd);
@@ -138,93 +152,150 @@ public class QuestionAdmin {
 			}
 		}
 
+		
 		Insight insightToSave = getInsightToSave(insight, saveRecipe);
-		newInsightID = addInsightFromDb(insightToSave, 
-										insightName, 
-										perspective, 
-										order, 
-										layout, 
-										description,
-										uiOptions, 
-										tags, 
-										dataTableAlign, 
-										paramMapList, 
-										image);
+		newInsightID = addInsightFromDb(insightToSave, insightName, perspective, order, layout, description, uiOptions,
+				tags, dataTableAlign, paramMapList);
+		addInsightToSolr(insightToSave, insightName, layout, description, tags, newInsightID);
+		// create a temporary insight to capture image of unparameterized image
+		// to use embed
+		if (hasParams) {
+			Insight tempInsight = new Insight(coreEngine, "H2Frame", "Grid");
+			// set the user id into the insight
+			tempInsight.setUserID("-1");
+			//use unparameterized insight run recipe
+			Insight paramTempInsight = getInsightToSave(tempInsight, runRecipe);
+			String paramInsightName = insightName + "temp";
+			paramTempInsight.setInsightName(paramInsightName);
+			paramTempInsight.setInsightID(insightToSave.getInsightID());
+			String paramInsightID = addInsightFromDb(paramTempInsight, paramInsightName, perspective, order, layout, description,
+					uiOptions, tags, dataTableAlign, paramMapList);
+
+			// adding temp insight to solr need to remove this from solr and question admin
+			addInsightToSolr(paramTempInsight, paramInsightName, layout, description, tags, paramInsightID);
+			updateSolrImage(newInsightID, paramInsightID, layout, baseURL);
+		}
+		// capture an image for normal i
+		else {
+			updateSolrImage(newInsightID, newInsightID, layout, baseURL);
+		}
 
 		insight.setRdbmsId(newInsightID);
 		insight.setMainEngine(this.coreEngine);
 		insight.setInsightName(insightName);
 		Map<String, Object> retMap = new HashMap<String, Object>();
-		//			retMap.put("newInsightID", newInsightID);
+		// retMap.put("newInsightID", newInsightID);
 		retMap.put("core_engine", this.coreEngine.getEngineName());
 		retMap.put("core_engine_id", newInsightID);
 		retMap.put("insightName", insightName);
 		if (newInsightID != null) {
-//			return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+			// return
+			// Response.status(200).entity(WebUtility.getSO(retMap)).build();
 			return WebUtility.getResponse(retMap, 200);
 		} else {
-//			return Response.status(500).entity(WebUtility.getSO("Error adding insight")).build();
+			// return Response.status(500).entity(WebUtility.getSO("Error adding
+			// insight")).build();
 			return WebUtility.getResponse("Error adding insight", 500);
 		}
 	}
-	
-	private String addInsightFromDb(Insight insight, 
-			String insightName, 
-			String perspective, 
-			String order, 
-			String layout,
-			String description,
-			String uiOptions,
-			List<String> tags,
-			Map<String, String> dataTableAlign, 
-			Vector<Map<String, String>> paramMapList,
-			String image) {
+
+	private String addInsightFromDb(Insight insight, String insightName, String perspective, String order,
+			String layout, String description, String uiOptions, List<String> tags, Map<String, String> dataTableAlign,
+			Vector<Map<String, String>> paramMapList) {
 		boolean isDbQuery = true;
-		
+
 		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
 		List<SEMOSSParam> params = buildParameterList(insight, paramMapList);
-		
-		//Add necessary filter transformations
+
+		// Add necessary filter transformations
 		IDataMaker dm = insight.getDataMaker();
 		String newInsightID = null;
-		String engineName = coreEngine.getEngineName();
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		if(dm instanceof ITableDataFrame) {
-			//add list of new filter transformations to the last component
+		if (dm instanceof ITableDataFrame) {
+			// add list of new filter transformations to the last component
 			List<ISEMOSSTransformation> oldPostTrans = null;
-			if(dmcList.size() > 0) {
+			if (dmcList.size() > 0) {
 				DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
 				List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
 				oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
 				List<FilterTransformation> trans2add = flushFilterModel2Transformations((ITableDataFrame) dm);
-				if(trans2add != null) {
+				if (trans2add != null) {
 					newPostTrans.addAll(trans2add);
 				}
 			}
-			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
+			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order,
+					insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
-			//reset the post trans on the last component if the filter model has been flushed to it
-			//we don't want the insight itself to change at all through this process
-			if(dmcList.size() > 0) {
+			// reset the post trans on the last component if the filter model
+			// has been flushed to it
+			// we don't want the insight itself to change at all through this
+			// process
+			if (dmcList.size() > 0) {
 				DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
 				lastComponent.setPostTrans(oldPostTrans);
 			}
-		} 
-		
-//		else if(dm instanceof Dashboard) {
-//			dmcList = new ArrayList<>();
-//			Dashboard dash = (Dashboard)dm;
-//			DataMakerComponent lastComponent = insight.getDashboardDataMakerComponent();
-//			dmcList.add(lastComponent);
-//			List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
-//			List<ISEMOSSTransformation> oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
-//
-//			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
-//		}
-		else {
-			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 		}
-				
+
+		// else if(dm instanceof Dashboard) {
+		// dmcList = new ArrayList<>();
+		// Dashboard dash = (Dashboard)dm;
+		// DataMakerComponent lastComponent =
+		// insight.getDashboardDataMakerComponent();
+		// dmcList.add(lastComponent);
+		// List<ISEMOSSTransformation> newPostTrans =
+		// lastComponent.getPostTrans();
+		// List<ISEMOSSTransformation> oldPostTrans = new
+		// Vector<ISEMOSSTransformation>(newPostTrans);
+		//
+		// newInsightID = questionAdmin.addQuestion(insightName, perspective,
+		// dmcList, layout, order, insight.getDataMakerName(), isDbQuery,
+		// dataTableAlign, params, uiOptions);
+		// }
+		else {
+			newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order,
+					insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
+		}
+
+		return newInsightID;
+
+	}
+
+	private void addInsightToSolr(Insight insight, String insightName, String layout, String description,
+			List<String> tags, String insightIDToSave) {
+		boolean isDbQuery = true;
+
+		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
+
+		// Add necessary filter transformations
+		IDataMaker dm = insight.getDataMaker();
+		String engineName = coreEngine.getEngineName();
+		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
+		if (dm instanceof ITableDataFrame) {
+			// add list of new filter transformations to the last component
+			List<ISEMOSSTransformation> oldPostTrans = null;
+			if (dmcList.size() > 0) {
+				DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
+				List<ISEMOSSTransformation> newPostTrans = lastComponent.getPostTrans();
+				oldPostTrans = new Vector<ISEMOSSTransformation>(newPostTrans);
+				List<FilterTransformation> trans2add = flushFilterModel2Transformations((ITableDataFrame) dm);
+				if (trans2add != null) {
+					newPostTrans.addAll(trans2add);
+				}
+			}
+			// newInsightID = questionAdmin.addQuestion(insightName,
+			// perspective, dmcList, layout, order, insight.getDataMakerName(),
+			// isDbQuery, dataTableAlign, params, uiOptions);
+
+			// reset the post trans on the last component if the filter model
+			// has been flushed to it
+			// we don't want the insight itself to change at all through this
+			// process
+			if (dmcList.size() > 0) {
+				DataMakerComponent lastComponent = dmcList.get(dmcList.size() - 1);
+				lastComponent.setPostTrans(oldPostTrans);
+			}
+		}
+
 		Map<String, Object> solrInsights = new HashMap<>();
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
@@ -238,15 +309,16 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.LAST_VIEWED_ON, currDate);
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
 		solrInsights.put(SolrIndexEngine.DESCRIPTION, description);
-		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(newInsightID));
-		solrInsights.put(SolrIndexEngine.IMAGE, image);
-		
+		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(insightIDToSave));
+		solrInsights.put(SolrIndexEngine.IMAGE, "");
+
+		// TODO what is this for????????????????????????????????????????
 		Set<String> engines = new HashSet<String>();
-		for(DataMakerComponent dmc : dmcList) {
+		for (DataMakerComponent dmc : dmcList) {
 			engines.add(dmc.getEngine().getEngineName());
 		}
-		
-		if(engines.isEmpty()) {
+
+		if (engines.isEmpty()) {
 			engines.add(engineName);
 		}
 		solrInsights.put(SolrIndexEngine.ENGINES, engines);
@@ -254,64 +326,75 @@ public class QuestionAdmin {
 		// TODO: need to add users
 		solrInsights.put(SolrIndexEngine.USER_ID, "default");
 		try {
-			// Save insight
-			final String finalID = newInsightID;
-			SolrIndexEngine.getInstance().addInsight(engineName + "_" + newInsightID, solrInsights);
-
-			// add image in background grid and viva are not supported by the
-			// embedded browser
-			if (!layout.equals("Grid") && !layout.equals("VivaGraph") && !layout.equals("Map")) {
-				Runnable r = new Runnable() {
-					public void run() {
-						// generate image URL from saved insight
-						String url = "http://localhost:8080/SemossWeb/embed/#/embed?engine=" + engineName
-								+ "&questionId=" + finalID + "&settings=false";
-						String imagePath = DIHelper.getInstance().getProperty("BaseFolder") + "\\insight_" + finalID
-								+ ".png";
-						InsightScreenshot screenshot = new InsightScreenshot();
-						screenshot.showUrl(url, imagePath);
-						screenshot.getComplete();
-
-						// Get the serialized image and delete the file
-						String serialized_image = "data:image/png;base64," + InsightScreenshot.imageToString(imagePath);
-						File imageFile = new File(imagePath);
-						imageFile.delete();
-						solrInsights.put(SolrIndexEngine.IMAGE, serialized_image);
-						boolean success = false;
-						do {
-							try {
-								SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + finalID, solrInsights);
-								success = true;
-								LOGGER.info("Updated solr id: " + finalID + " image:::: " + serialized_image);
-
-							} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException
-									| SolrServerException | IOException e) {
-								e.printStackTrace();
-							}
-						} while (!success);
-
-					}
-				};
-				// TODO use this for new image capture
-				// new Thread(r).start();
-			}
-
-			return newInsightID;
-		} catch (KeyManagementException e) {
-			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		} catch (KeyStoreException e) {
-			e.printStackTrace();
-		} catch (SolrServerException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
+			SolrIndexEngine.getInstance().addInsight(engineName + "_" + insightIDToSave, solrInsights);
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
+				| IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 		}
-		
-		return null;
+
 	}
-	
+
+	private void updateSolrImage(String insightIDToSave, String imageInsightID, String layout, String baseURL) {
+		// Save insight
+		final String finalID = insightIDToSave;
+		final String idForURL = imageInsightID;
+
+		// add image in background grid and viva are not supported by the
+		// embedded browser
+		
+		if (!layout.equals("Grid") && !layout.equals("VivaGraph") && !layout.equals("Map")) {
+			Runnable r = new Runnable() {
+				public void run() {
+					// generate image URL from saved insight
+					String engineName = coreEngine.getEngineName();
+					String url = baseURL + "#/embed?engine=" + engineName + "&questionId="
+							+ idForURL + "&settings=false";
+					String imagePath = DIHelper.getInstance().getProperty("BaseFolder") + "\\insight_" + finalID
+							+ ".png";
+					InsightScreenshot screenshot = new InsightScreenshot();
+					screenshot.showUrl(url, imagePath);
+					screenshot.getComplete();
+					Map<String, Object> solrInsights = new HashMap<>();
+					// Get the serialized image and delete the file
+					String serialized_image = "data:image/png;base64," + InsightScreenshot.imageToString(imagePath);
+					File imageFile = new File(imagePath);
+					// imageFile.delete();
+					solrInsights.put(SolrIndexEngine.IMAGE, serialized_image);
+					LOGGER.info("Starting to update solr image!!!!!!!!");
+					boolean success = false;
+					do {
+						try {
+							SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + finalID, solrInsights);
+							LOGGER.info("Updated solr id: " + finalID + " image:::: " + serialized_image);
+
+							// clean up temp param insight data
+							if (!finalID.equals(idForURL)) {
+								// remove Solr data for temporary param
+								List<String> insightsToRemove = new ArrayList();
+								insightsToRemove.add(engineName + "_" + idForURL);
+								LOGGER.info("REMOVING SOLR INSTANCE" + Arrays.toString(insightsToRemove.toArray()));
+								SolrIndexEngine.getInstance().removeInsight(insightsToRemove);
+
+								QuestionAdministrator questionAdmin = new QuestionAdministrator(coreEngine);
+								questionAdmin.removeQuestion(idForURL);
+							}
+							success = true;
+
+						} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException
+								| SolrServerException | IOException e) {
+							e.printStackTrace();
+						}
+					} while (!success);
+				}
+			};
+			// TODO use this for new image capture
+			Thread t = new Thread(r);
+			t.setPriority(Thread.MAX_PRIORITY);
+			t.start();
+		}
+	}
+
 	@POST
 	@Path("editFromAction")
 	@Produces("application/json")
@@ -331,55 +414,42 @@ public class QuestionAdmin {
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 		List<String> saveRecipe = gson.fromJson(form.getFirst("saveRecipe"), List.class);
 		List<String> tags = new Vector<String>();
-		if(tagsString != null && !tagsString.isEmpty()) {
+		if (tagsString != null && !tagsString.isEmpty()) {
 			tags = gson.fromJson(tagsString, List.class);
 		}
 		tags.add(perspective.replace("-Perspective", ""));
-		
+
 		Insight insight = InsightStore.getInstance().get(insightID);
 		insight.setInsightName(insightName);
-		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"), new TypeToken<Vector<Map<String, String>>>() {}.getType());
+		Vector<Map<String, String>> paramMapList = gson.fromJson(form.getFirst("parameterQueryList"),
+				new TypeToken<Vector<Map<String, String>>>() {
+				}.getType());
 		Insight insightToEdit = getInsightToSave(insight, saveRecipe);
-		editInsightFromDb(insightToEdit, 
-							insightName, 
-							perspective, 
-							order, 
-							layout,
-							description,
-							uiOptions, 
-							tags,
-							dataTableAlign, 
-							paramMapList, 
-							image);
-		
-//		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+		editInsightFromDb(insightToEdit, insightName, perspective, order, layout, description, uiOptions, tags,
+				dataTableAlign, paramMapList, image);
+
+		// return
+		// Response.status(200).entity(WebUtility.getSO("Success")).build();
 		return WebUtility.getResponse("Success", 200);
 	}
 
-	private void editInsightFromDb(Insight insight, 
-			String insightName, 
-			String perspective, 
-			String order, 
-			String layout,
-			String description,
-			String uiOptions,
-			List<String> tags,
-			Map<String, String> dataTableAlign, 
-			Vector<Map<String, String>> paramMapList,
-			String image) {
-		//TODO: currently not exposed through UI
+	private void editInsightFromDb(Insight insight, String insightName, String perspective, String order, String layout,
+			String description, String uiOptions, List<String> tags, Map<String, String> dataTableAlign,
+			Vector<Map<String, String>> paramMapList, String image) {
+		// TODO: currently not exposed through UI
 		boolean isDbQuery = true;
 
 		// delete existing cache folder for insight if present
 		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteInsightCache(insight);
-		
+
 		String engineName = coreEngine.getEngineName();
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
 		String rdbmsId = insight.getRdbmsId();
 		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
 
 		List<SEMOSSParam> params = buildParameterList(insight, paramMapList);
-		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order, insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
+		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order,
+				insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
@@ -395,10 +465,10 @@ public class QuestionAdmin {
 		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
 		solrModifyInsights.put(SolrIndexEngine.IMAGE, image);
 
-		//TODO: need to add users
+		// TODO: need to add users
 		solrModifyInsights.put(SolrIndexEngine.USER_ID, "default");
 		Set<String> engines = new HashSet<String>();
-		for(DataMakerComponent dmc : dmcList) {
+		for (DataMakerComponent dmc : dmcList) {
 			engines.add(dmc.getEngine().getEngineName());
 		}
 		solrModifyInsights.put(SolrIndexEngine.ENGINES, engines);
@@ -410,18 +480,20 @@ public class QuestionAdmin {
 			e.printStackTrace();
 		}
 	}
-	
+
 	private Insight getInsightToSave(Insight insight, List<String> saveRecipe) {
-		//if the saveRecipe is passed, it means save the insight with this recipe
-		if(saveRecipe != null && !saveRecipe.isEmpty()) {
-			
-			//get a copy of the insight without the dmc components and insight id
+		// if the saveRecipe is passed, it means save the insight with this
+		// recipe
+		if (saveRecipe != null && !saveRecipe.isEmpty()) {
+
+			// get a copy of the insight without the dmc components and insight
+			// id
 			Insight insightCopy = insight.emptyCopyForSave();
 			DataMakerComponent dmc = insightCopy.getLastComponent();
 			PKQLRunner runner = insight.getPKQLRunner();
-			
-			//add the pkqls in the copy
-			for(String recipePkql : saveRecipe) {
+
+			// add the pkqls in the copy
+			for (String recipePkql : saveRecipe) {
 				PKQLTransformation newPkql = new PKQLTransformation();
 				Map<String, Object> props = new HashMap<String, Object>();
 				props.put(PKQLTransformation.EXPRESSION, recipePkql);
@@ -429,7 +501,7 @@ public class QuestionAdmin {
 				newPkql.setRunner(runner);
 				dmc.addPostTrans(newPkql);
 			}
-			
+
 			return insightCopy;
 		} else {
 			return insight;
@@ -443,7 +515,7 @@ public class QuestionAdmin {
 		String insightID = form.getFirst("insightID");
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
 		questionAdmin.removeQuestion(insightID);
-		
+
 		try {
 			List<String> removeList = new ArrayList<String>();
 			removeList.add(coreEngine.getEngineName() + "_" + insightID);
@@ -459,10 +531,11 @@ public class QuestionAdmin {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-//		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+		// return
+		// Response.status(200).entity(WebUtility.getSO("Success")).build();
 		return WebUtility.getResponse("Success", 200);
 	}
-	
+
 	@POST
 	@Path("addFromText")
 	@Produces("application/json")
@@ -478,37 +551,43 @@ public class QuestionAdmin {
 		String query = form.getFirst("query");
 		String uiOptions = form.getFirst("uiOptions");
 		boolean isDbQuery = true;
-		
+
 		// TODO: need to fix the UI around this
 		// when adding a single query insight, the user doesn't specify this
 		// but it should be specified
-		// the user doesn't need to specify it when the output type is a custom playsheet
+		// the user doesn't need to specify it when the output type is a custom
+		// playsheet
 		String dmName = form.getFirst("dmName");
-		// need to perform a check if it is empty AND if layout isn't a custom query
+		// need to perform a check if it is empty AND if layout isn't a custom
+		// query
 		// currently just saying if layout doesn't start with "prerna."
-		if(dmName == null || dmName.isEmpty() && !layout.startsWith("prerna.")) {
+		if (dmName == null || dmName.isEmpty() && !layout.startsWith("prerna.")) {
 			dmName = "TinkerFrame";
-		} 
-		
+		}
+
 		List<DataMakerComponent> dmcList = null;
 		List<SEMOSSParam> params = null;
-		// if query is defined, we are defining the insight the basic way -- just query and engine
-		if(query != null && !query.isEmpty()) {
-//			List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
-//			dmName = InsightsConverter.getDataMaker(layout, allSheets);
+		// if query is defined, we are defining the insight the basic way --
+		// just query and engine
+		if (query != null && !query.isEmpty()) {
+			// List<String> allSheets =
+			// PlaySheetRDFMapBasedEnum.getAllSheetNames();
+			// dmName = InsightsConverter.getDataMaker(layout, allSheets);
 			dmcList = new ArrayList<DataMakerComponent>();
 			DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
 			dmcList.add(dmc);
 			Map<String, String> paramsInQuery = Utility.getParamTypeHash(query);
-			
+
 			// TODO: need to change the way this data is coming back.....
 			Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
 			Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
 			Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
 			// ....sad, need to define the parameter based on the engine type
-			params = generateSEMOSSParamObjects(parameterDependList, parameterQueryList, parameterOptionList, paramsInQuery);
-		} 
-		// otherwise, we are defining the complex way -- with datamaker, insight makeup, layout, etc.
+			params = generateSEMOSSParamObjects(parameterDependList, parameterQueryList, parameterOptionList,
+					paramsInQuery);
+		}
+		// otherwise, we are defining the complex way -- with datamaker, insight
+		// makeup, layout, etc.
 		else {
 			String insightID = form.getFirst("insightID");
 			Insight existingIn = coreEngine.getInsight(insightID).get(0);
@@ -519,8 +598,9 @@ public class QuestionAdmin {
 
 		// for now use this method
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		String newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, dmName, isDbQuery, dataTableAlign, params, uiOptions);
-		
+		String newInsightID = questionAdmin.addQuestion(insightName, perspective, dmcList, layout, order, dmName,
+				isDbQuery, dataTableAlign, params, uiOptions);
+
 		Map<String, Object> solrInsights = new HashMap<>();
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
@@ -535,14 +615,14 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(newInsightID));
 
 		Set<String> engines = new HashSet<String>();
-		for(DataMakerComponent newDmc : dmcList) {
+		for (DataMakerComponent newDmc : dmcList) {
 			engines.add(newDmc.getEngine().getEngineName());
 		}
 		solrInsights.put(SolrIndexEngine.ENGINES, engines);
 
-		//TODO: need to add users
+		// TODO: need to add users
 		solrInsights.put(SolrIndexEngine.USER_ID, "default");
-		
+
 		try {
 			SolrIndexEngine.getInstance().addInsight(engineName + "_" + newInsightID, solrInsights);
 		} catch (KeyManagementException e) {
@@ -555,11 +635,12 @@ public class QuestionAdmin {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
-		}		
-//		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+		}
+		// return
+		// Response.status(200).entity(WebUtility.getSO("Success")).build();
 		return WebUtility.getResponse("success", 200);
 	}
-	
+
 	@POST
 	@Path("editFromText")
 	@Produces("application/json")
@@ -573,61 +654,70 @@ public class QuestionAdmin {
 		String order = form.getFirst("order");
 		String insightName = form.getFirst("insightName");
 		String layout = form.getFirst("layout");
-		//TODO: currently FE only passes a single query
+		// TODO: currently FE only passes a single query
 		String query = form.getFirst("query");
 		String uiOptions = form.getFirst("uiOptions");
 		boolean isDbQuery = true;
 		String dmName = form.getFirst("dmName");
-		if(dmName == null || dmName.isEmpty()) {
+		if (dmName == null || dmName.isEmpty()) {
 			dmName = "TinkerFrame";
-		} 
-		
+		}
+
 		Insight existingIn = coreEngine.getInsight(insightID).get(0);
 		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteInsightCache(existingIn);
-		
+
 		List<DataMakerComponent> dmcList = null;
 		List<SEMOSSParam> params = null;
-		// if query is defined, we are defining the insight the basic way -- just query and engine
-		if(query != null && !query.isEmpty()) {
-//			List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
-//			dmName = InsightsConverter.getDataMaker(layout, allSheets);
+		// if query is defined, we are defining the insight the basic way --
+		// just query and engine
+		if (query != null && !query.isEmpty()) {
+			// List<String> allSheets =
+			// PlaySheetRDFMapBasedEnum.getAllSheetNames();
+			// dmName = InsightsConverter.getDataMaker(layout, allSheets);
 			dmcList = new ArrayList<DataMakerComponent>();
 			DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, query);
 			dmcList.add(dmc);
 			Map<String, String> paramsInQuery = Utility.getParamTypeHash(query);
-			
+
 			// TODO: need to change the way this data is coming back.....
 			Vector<String> parameterDependList = gson.fromJson(form.getFirst("parameterDependList"), Vector.class);
 			Vector<String> parameterQueryList = gson.fromJson(form.getFirst("parameterQueryList"), Vector.class);
 			Vector<String> parameterOptionList = gson.fromJson(form.getFirst("parameterOptionList"), Vector.class);
 			// ....sad, need to define the parameter based on the engine type
-			params = generateSEMOSSParamObjects(parameterDependList, parameterQueryList, parameterOptionList, paramsInQuery);
-		} 
-		// otherwise, we are defining the complex way -- with datamaker, insight makeup, layout, etc.
+			params = generateSEMOSSParamObjects(parameterDependList, parameterQueryList, parameterOptionList,
+					paramsInQuery);
+		}
+		// otherwise, we are defining the complex way -- with datamaker, insight
+		// makeup, layout, etc.
 		else {
-//			dmName =  form.getFirst("dmName");
+			// dmName = form.getFirst("dmName");
 			dmcList = existingIn.getDataMakerComponents();
 			params = existingIn.getInsightParameters();
-			
+
 			// BELOW CODE IS FOR EDITING COMPONENTS VIA TEXT
-			// CURRENTLY NOT ENABLED BECAUSE GETTING PARAMETERS FROM DMC LIST STILL NEEDS TO BE THOUGHT THROUGH
-//			String insightMakeup = form.getFirst("insightMakeup");
-//			Insight in = new Insight(coreEngine, dmName, layout);
-//			InMemorySesameEngine myEng = buildMakeupEngine(insightMakeup);
-//			if(myEng == null){
-//				Map<String, String> errorHash = new HashMap<String, String>();
-//				errorHash.put("errorMessage", "Error parsing through N-Triples insight makeup. Please make sure it is copied correctly and each triple ends with a \".\" and a line break.");
-//				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-//			}
-//			dmcList = in.digestNTriples(myEng);
-//			params = getParamsFromDmcList(dmcList);
+			// CURRENTLY NOT ENABLED BECAUSE GETTING PARAMETERS FROM DMC LIST
+			// STILL NEEDS TO BE THOUGHT THROUGH
+			// String insightMakeup = form.getFirst("insightMakeup");
+			// Insight in = new Insight(coreEngine, dmName, layout);
+			// InMemorySesameEngine myEng = buildMakeupEngine(insightMakeup);
+			// if(myEng == null){
+			// Map<String, String> errorHash = new HashMap<String, String>();
+			// errorHash.put("errorMessage", "Error parsing through N-Triples
+			// insight makeup. Please make sure it is copied correctly and each
+			// triple ends with a \".\" and a line break.");
+			// return
+			// Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+			// }
+			// dmcList = in.digestNTriples(myEng);
+			// params = getParamsFromDmcList(dmcList);
 		}
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
 
 		// for now use this method
 		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		questionAdmin.modifyQuestion(insightID, insightName, perspective, dmcList, layout, order, dmName, isDbQuery, dataTableAlign, params, uiOptions);
-		
+		questionAdmin.modifyQuestion(insightID, insightName, perspective, dmcList, layout, order, dmName, isDbQuery,
+				dataTableAlign, params, uiOptions);
+
 		Map<String, Object> solrInsights = new HashMap<>();
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
@@ -642,17 +732,18 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(insightID));
 
 		Set<String> engines = new HashSet<String>();
-		for(DataMakerComponent newDmc : dmcList) {
+		for (DataMakerComponent newDmc : dmcList) {
 			engines.add(newDmc.getEngine().getEngineName());
 		}
 		solrInsights.put(SolrIndexEngine.ENGINES, engines);
 
-		//TODO: need to add users
+		// TODO: need to add users
 		solrInsights.put(SolrIndexEngine.USER_ID, "default");
-		
+
 		try {
 			SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + insightID, solrInsights);
-			//SolrIndexEngine.getInstance().addDocument(engine.getEngineName() + "_" + lastIDNum, solrInsights);
+			// SolrIndexEngine.getInstance().addDocument(engine.getEngineName()
+			// + "_" + lastIDNum, solrInsights);
 		} catch (KeyManagementException e) {
 			e.printStackTrace();
 		} catch (NoSuchAlgorithmException e) {
@@ -663,97 +754,111 @@ public class QuestionAdmin {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
-		}		
-		
-//		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+		}
+
+		// return
+		// Response.status(200).entity(WebUtility.getSO("Success")).build();
 		return WebUtility.getResponse("Success", 200);
 	}
-	
-	private List<SEMOSSParam> generateSEMOSSParamObjects(
-			Vector<String> parameterDependList, 
-			Vector<String> parameterQueryList, 
-			Vector<String> parameterOptionList, 
-			Map<String, String> paramsInQuery) 
-	{
+
+	private List<SEMOSSParam> generateSEMOSSParamObjects(Vector<String> parameterDependList,
+			Vector<String> parameterQueryList, Vector<String> parameterOptionList, Map<String, String> paramsInQuery) {
 		List<SEMOSSParam> params = new ArrayList<SEMOSSParam>();
-		for(String paramName : paramsInQuery.keySet()) {
+		for (String paramName : paramsInQuery.keySet()) {
 			SEMOSSParam param = new SEMOSSParam();
 			param.setName(paramName);
-			
-			for(String s : parameterDependList) {
+
+			for (String s : parameterDependList) {
 				String[] split = s.split("_DEPEND_-_");
-				if(split[0].equals(paramName)) {
+				if (split[0].equals(paramName)) {
 					param.addDependVar(split[1]);
 					param.setDepends("true");
 				}
 			}
-			
+
 			boolean foundInList = false;
-			for(String s : parameterQueryList) {
+			for (String s : parameterQueryList) {
 				String[] split = s.split("_QUERY_-_");
-				if(split[0].equals(paramName)) {
+				if (split[0].equals(paramName)) {
 					param.setQuery(split[1]);
 					foundInList = true;
 				}
 			}
-			for(String s : parameterOptionList) {
+			for (String s : parameterOptionList) {
 				String[] split = s.split("_OPTION_-_");
-				if(split[0].equals(paramName)) {
+				if (split[0].equals(paramName)) {
 					param.setOptions(split[1]);
 					foundInList = true;
 				}
 			}
-			if(!foundInList) {
+			if (!foundInList) {
 				param.setType(paramsInQuery.get(paramName));
 			}
-			
+
 			params.add(param);
 		}
-		
+
 		return params;
 	}
 
 	/**
-	 * This method appends the parameter options to the DataMakerComponent metamodel
-	 * @param paramMapList				The list of parameters to save.  Comes as a map with the URI and the parent if it is a property
-	 * @param dmcList					The list of the DataMakerComponents for the insight
-	 * @param params					A list of SEMOSSParams to store the parameters with the correct options
+	 * This method appends the parameter options to the DataMakerComponent
+	 * metamodel
+	 * 
+	 * @param paramMapList
+	 *            The list of parameters to save. Comes as a map with the URI
+	 *            and the parent if it is a property
+	 * @param dmcList
+	 *            The list of the DataMakerComponents for the insight
+	 * @param params
+	 *            A list of SEMOSSParams to store the parameters with the
+	 *            correct options
 	 */
 	private List<SEMOSSParam> buildParameterList(Insight insight, Vector<Map<String, String>> paramMapList) {
-		if(insight.getDataMaker() instanceof Dashboard) return new Vector<SEMOSSParam>();
+		if (insight.getDataMaker() instanceof Dashboard)
+			return new Vector<SEMOSSParam>();
 		Map<String, Object> metamodelData = insight.getInsightMetaModel();
-//		IMetaData metaData = insight.getMetaData();
+		// IMetaData metaData = insight.getMetaData();
 		List<SEMOSSParam> params = new Vector<SEMOSSParam>();
-		if(paramMapList != null && !paramMapList.isEmpty()) {
-			for(Map<String, String> paramMap : paramMapList) {
+		if (paramMapList != null && !paramMapList.isEmpty()) {
+			for (Map<String, String> paramMap : paramMapList) {
 				String paramName = paramMap.get("name");
 				String logicalParamURI = "http://semoss.org/ontologies/Concept/" + paramName;
-//				String logicalParamURI = paramMap.get("value");
-//				String paramURI = this.coreEngine.getTransformedNodeName(logicalParamURI, false);
+				// String logicalParamURI = paramMap.get("value");
+				// String paramURI =
+				// this.coreEngine.getTransformedNodeName(logicalParamURI,
+				// false);
 				String paramURI = logicalParamURI;
-				
+
 				// get the paramParent if it is a property
 				String paramParent = null;
 				Map<String, Object> nodes = (Map<String, Object>) metamodelData.get("nodes");
-				PARAM_TYPE_LOOP : for(String node : nodes.keySet()) {
+				PARAM_TYPE_LOOP: for (String node : nodes.keySet()) {
 
 					Map<String, Object> nodeMap = (Map<String, Object>) nodes.get(node);
-					if(node.equals(paramName)) {
-						if(nodeMap.containsKey("prop")){
-							paramParent = ((ITableDataFrame)insight.getDataMaker()).getPhysicalUriForNode(nodeMap.get("prop") + "", this.coreEngine.getEngineName());
+					if (node.equals(paramName)) {
+						if (nodeMap.containsKey("prop")) {
+							paramParent = ((ITableDataFrame) insight.getDataMaker())
+									.getPhysicalUriForNode(nodeMap.get("prop") + "", this.coreEngine.getEngineName());
 						}
 						break PARAM_TYPE_LOOP;
 					}
 				}
-					
+
 				SEMOSSParam p = new SEMOSSParam();
-				//TODO: Bifurcation in processing logic if it is RDBMS vs. RDF
-				//Due to the fact that we do not store the parameters as metamodels but as queries
-				if(this.coreEngine.getEngineType() == ENGINE_TYPE.RDBMS) {
-					// the uri on rdbms is always in the form /Concept/Column/Table
-//					String rdbmsType = Utility.getInstanceName(paramURI)+":"+Utility.getClassName(paramURI);  // THIS WILL BE TAKEN CARE OF IN THE ENGINE. we need the physical uri as the type to know which component is involved in question administrator
+				// TODO: Bifurcation in processing logic if it is RDBMS vs. RDF
+				// Due to the fact that we do not store the parameters as
+				// metamodels but as queries
+				if (this.coreEngine.getEngineType() == ENGINE_TYPE.RDBMS) {
+					// the uri on rdbms is always in the form
+					// /Concept/Column/Table
+					// String rdbmsType =
+					// Utility.getInstanceName(paramURI)+":"+Utility.getClassName(paramURI);
+					// // THIS WILL BE TAKEN CARE OF IN THE ENGINE. we need the
+					// physical uri as the type to know which component is
+					// involved in question administrator
 					p.setType(paramURI);
-					if(paramParent != null) {
+					if (paramParent != null) {
 						p.setName(Utility.getInstanceName(paramParent) + "__" + paramName);
 					} else {
 						p.setName(paramName);
@@ -761,54 +866,61 @@ public class QuestionAdmin {
 				} else {
 					p.setName(paramName);
 					p.setType(paramURI);
-					if(paramParent != null) {
-//						String paramParentURI = this.coreEngine.getTransformedNodeName(paramParent, false);
+					if (paramParent != null) {
+						// String paramParentURI =
+						// this.coreEngine.getTransformedNodeName(paramParent,
+						// false);
 						String paramParentURI = paramParent;
-						// if it is a property, we need to define a unique query which pulls up values for the property based on the parent
-						String query = "SELECT DISTINCT ?entity WHERE { {?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <" + paramParentURI + "> } "
-								+ "{ ?x <" + paramURI + "> ?entity} }";
+						// if it is a property, we need to define a unique query
+						// which pulls up values for the property based on the
+						// parent
+						String query = "SELECT DISTINCT ?entity WHERE { {?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <"
+								+ paramParentURI + "> } " + "{ ?x <" + paramURI + "> ?entity} }";
 						p.setQuery(query);
 					} else {
-						// if it is a concept, just run getEntityOfType query with the concepts URI
+						// if it is a concept, just run getEntityOfType query
+						// with the concepts URI
 						p.setType(paramURI);
 					}
 				}
 				params.add(p);
-				//Param still needs to have id set once we know what component it goes on
-				//this will happen in question administrator
+				// Param still needs to have id set once we know what component
+				// it goes on
+				// this will happen in question administrator
 			}
 		}
 		return params;
 	}
-	
+
 	/**
 	 * 
 	 * @param filterModel
 	 * @return
 	 * 
-	 * Creates a list of filter transformations based on the filter model
+	 * 		Creates a list of filter transformations based on the filter
+	 *         model
 	 */
 	private List<FilterTransformation> flushFilterModel2Transformations(ITableDataFrame table) {
 		List<FilterTransformation> transformationList = null;
 
 		Map<String, Object[]> filterModel = table.getFilterTransformationValues();
-		if(filterModel != null) {
+		if (filterModel != null) {
 			Set<String> columns = filterModel.keySet();
 			transformationList = new ArrayList<>(columns.size());
-			for(String column : columns) {
-			
+			for (String column : columns) {
+
 				FilterTransformation filterTrans = new FilterTransformation();
 				filterTrans.setTransformationType(false);
 				Map<String, Object> selectedOptions = new HashMap<String, Object>();
 				selectedOptions.put(FilterTransformation.COLUMN_HEADER_KEY, column);
 				selectedOptions.put(FilterTransformation.VALUES_KEY, filterModel.get(column));
 				filterTrans.setProperties(selectedOptions);
-			
+
 				transformationList.add(filterTrans);
 			}
 		}
 		return transformationList;
 
 	}
-	
+
 }
