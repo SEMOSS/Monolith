@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.sql.ResultSet;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -152,30 +153,35 @@ public class QuestionAdmin {
 			}
 		}
 
-		
+		//save insight to insights db and solr
 		Insight insightToSave = getInsightToSave(insight, saveRecipe);
 		newInsightID = addInsightFromDb(insightToSave, insightName, perspective, order, layout, description, uiOptions,
 				tags, dataTableAlign, paramMapList);
 		addInsightToSolr(insightToSave, insightName, layout, description, tags, newInsightID);
-		// create a temporary insight to capture image of unparameterized image
-		// to use embed
+		
+		//image capture
 		if (hasParams) {
+			//create temp insight
 			Insight tempInsight = new Insight(coreEngine, "H2Frame", "Grid");
 			// set the user id into the insight
 			tempInsight.setUserID("-1");
-			//use unparameterized insight run recipe
+			//use unparameterized insight recipe to run on insight
 			Insight paramTempInsight = getInsightToSave(tempInsight, runRecipe);
 			String paramInsightName = insightName + "temp";
 			paramTempInsight.setInsightName(paramInsightName);
 			paramTempInsight.setInsightID(insightToSave.getInsightID());
+			
+			//add temp insight to questions db
 			String paramInsightID = addInsightFromDb(paramTempInsight, paramInsightName, perspective, order, layout, description,
 					uiOptions, tags, dataTableAlign, paramMapList);
 
-			// adding temp insight to solr need to remove this from solr and question admin
+			// adding temp insight to solr
 			addInsightToSolr(paramTempInsight, paramInsightName, layout, description, tags, paramInsightID);
+			
+			//capture image and remove temp insight from insights db and solr
 			updateSolrImage(newInsightID, paramInsightID, layout, baseURL);
 		}
-		// capture an image for normal i
+		// capture an image for insight without params
 		else {
 			updateSolrImage(newInsightID, newInsightID, layout, baseURL);
 		}
@@ -335,57 +341,76 @@ public class QuestionAdmin {
 
 	}
 
+	/**
+	 * 
+	 * @param insightIDToSave id used to update solr image string
+	 * @param imageInsightID id used for embed url link to load in image capture browser
+	 * @param layout
+	 * @param baseURL
+	 */
 	private void updateSolrImage(String insightIDToSave, String imageInsightID, String layout, String baseURL) {
-		// Save insight
+		// solr id to update
 		final String finalID = insightIDToSave;
+
+		// id used for embed link
 		final String idForURL = imageInsightID;
 
-		// add image in background grid and viva are not supported by the
-		// embedded browser
-		
+		// not supported by the embedded browser
 		if (!layout.equals("Grid") && !layout.equals("VivaGraph") && !layout.equals("Map")) {
 			Runnable r = new Runnable() {
 				public void run() {
 					// generate image URL from saved insight
 					String engineName = coreEngine.getEngineName();
-					String url = baseURL + "#/embed?engine=" + engineName + "&questionId="
-							+ idForURL + "&settings=false";
+					String url = baseURL + "#/embed?engine=" + engineName + "&questionId=" + idForURL
+							+ "&settings=false";
 					String imagePath = DIHelper.getInstance().getProperty("BaseFolder") + "\\insight_" + finalID
 							+ ".png";
+
+					// Set up the embedded browser
 					InsightScreenshot screenshot = new InsightScreenshot();
 					screenshot.showUrl(url, imagePath);
+
+					// wait for screenshot
+					long startTime = System.currentTimeMillis();
 					screenshot.getComplete();
-					Map<String, Object> solrInsights = new HashMap<>();
-					// Get the serialized image and delete the file
-					String serialized_image = "data:image/png;base64," + InsightScreenshot.imageToString(imagePath);
-					File imageFile = new File(imagePath);
-					// imageFile.delete();
-					solrInsights.put(SolrIndexEngine.IMAGE, serialized_image);
-					LOGGER.info("Starting to update solr image!!!!!!!!");
-					boolean success = false;
-					do {
+					long endTime = System.currentTimeMillis();
+					LOGGER.info("IMAGE CAPTURE TIME " + (endTime - startTime) + " ms");
+
+					// Get the serialized image
+					String serialized_image = "";
+					try {
+						serialized_image = "data:image/png;base64," + InsightScreenshot.imageToString(imagePath);
+						
+						//Delete image file
+						File imageFile = new File(imagePath);
+						imageFile.delete();
+						
+						//Update solr
+						Map<String, Object> solrInsights = new HashMap<>();
+						solrInsights.put(SolrIndexEngine.IMAGE, serialized_image);
 						try {
 							SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + finalID, solrInsights);
 							LOGGER.info("Updated solr id: " + finalID + " image:::: " + serialized_image);
-
 							// clean up temp param insight data
 							if (!finalID.equals(idForURL)) {
 								// remove Solr data for temporary param
 								List<String> insightsToRemove = new ArrayList();
 								insightsToRemove.add(engineName + "_" + idForURL);
-								LOGGER.info("REMOVING SOLR INSTANCE" + Arrays.toString(insightsToRemove.toArray()));
+								LOGGER.info("REMOVING TEMP SOLR INSTANCE FOR PARAM INSIGHT "
+										+ Arrays.toString(insightsToRemove.toArray()));
 								SolrIndexEngine.getInstance().removeInsight(insightsToRemove);
-
 								QuestionAdministrator questionAdmin = new QuestionAdministrator(coreEngine);
 								questionAdmin.removeQuestion(idForURL);
 							}
-							success = true;
 
 						} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException
 								| SolrServerException | IOException e) {
 							e.printStackTrace();
 						}
-					} while (!success);
+					} catch (IOException e1) {
+						// unable to capture image timeout or browser errors
+					}
+
 				}
 			};
 			// TODO use this for new image capture
@@ -477,7 +502,7 @@ public class QuestionAdmin {
 			SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + rdbmsId, solrModifyInsights);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
 				| IOException e) {
-			e.printStackTrace();
+//			e.printStackTrace();
 		}
 	}
 
