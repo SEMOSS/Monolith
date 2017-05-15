@@ -95,8 +95,8 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			instanceConceptURI = baseURI + "/Concept/" + Utility.getInstanceName(conceptType) + "/" + conceptValue;
 			
 			boolean removeConcept = false;
-			if(deleteConcept.get(OVERRIDE) != null) {
-				removeConcept = Boolean.parseBoolean(deleteConcept.get(OVERRIDE).toString());
+			if(deleteConcept.get("removeNode") != null) {
+				removeConcept = Boolean.parseBoolean(deleteConcept.get("removeNode").toString());
 			}
 			
 			if(removeConcept){
