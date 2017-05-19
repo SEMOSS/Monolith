@@ -26,10 +26,8 @@
 				<artifactId>maven-war-plugin</artifactId>
 				<version>2.6</version>
 				<configuration>
-				<!-- 
-					<webXml>./WebContent/WEB-INF/web.xml</webXml>
+					<webXml>WebContent/WEB-INF/web.xml</webXml>
 					<failOnMissingWebXml>true</failOnMissingWebXml>
-				-->
 				</configuration>
 			</plugin>
 		</plugins>
@@ -1643,6 +1641,7 @@
 	    <groupId>javax.servlet</groupId>
 	    <artifactId>javax.servlet-api</artifactId>
 	    <version>3.1.0</version>
+	    <scope>provided</scope>
 	</dependency>
 	<dependency>
 	    <groupId>net.java.dev.jna</groupId>
