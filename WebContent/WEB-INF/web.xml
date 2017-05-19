@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee" 
-         xmlns:web="http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
-         version="3.1" xmlns="http://xmlns.jcp.org/xml/ns/javaee">
-	<display-name>Monolith_Dev</display-name>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+		xmlns="http://java.sun.com/xml/ns/javaee" 
+		xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" 
+		xsi:schemaLocation="http://java.sun.com/xml/ns/javaee 
+		http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd" 
+		id="WebApp_ID" version="3.0">
+	<display-name>Monolith</display-name>
 	<welcome-file-list>
 		<welcome-file>index.html</welcome-file>
 	</welcome-file-list>
@@ -98,7 +100,7 @@
 		<description>Location to store uploaded file</description>
 		<param-name>file-upload</param-name>
 		<param-value>
-         C:\\Development\\workspace\\SEMOSS-dev
+         C:\\workspace\\Semoss_Dev\\
     </param-value>
 	</context-param>
 	<context-param>
@@ -112,7 +114,7 @@
 		<description>The place where the core RDF Map gets picked from</description>
 		<param-name>RDF-MAP</param-name>
 		<param-value>
-         C:\\Development\\workspace\\SEMOSS-dev\\RDF_Map.prop
+         C:\\workspace\\Semoss_Dev\\RDF_Map.prop
      </param-value>
 	</context-param>
 	<listener>
