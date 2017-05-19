@@ -362,7 +362,7 @@ public class QuestionAdmin {
 					// generate image URL from saved insight
 					String engineName = coreEngine.getEngineName();
 					String url = baseURL + "#/embed?engine=" + engineName + "&questionId=" + idForURL
-							+ "&settings=false";
+							+ "&settings=false&hideTitle=true";
 					String imagePath = DIHelper.getInstance().getProperty("BaseFolder") + "\\insight_" + finalID
 							+ ".png";
 
@@ -390,7 +390,7 @@ public class QuestionAdmin {
 						solrInsights.put(SolrIndexEngine.IMAGE, serialized_image);
 						try {
 							SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + finalID, solrInsights);
-							LOGGER.info("Updated solr id: " + finalID + " image:::: " + serialized_image);
+							LOGGER.info("Updated solr id: " + finalID + " image");
 							// clean up temp param insight data
 							if (!finalID.equals(idForURL)) {
 								// remove Solr data for temporary param
