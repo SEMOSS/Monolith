@@ -103,8 +103,6 @@ public class QuestionAdmin {
 		String insightID = form.getFirst("insightID");
 		String uiOptions = form.getFirst("uiOptions");
 		String tagsString = form.getFirst("tags");
-		String baseURL = form.getFirst("url");
-
 
 		Gson gson = new Gson();
 		Map<String, String> dataTableAlign = gson.fromJson(form.getFirst("dataTableAlign"), Map.class);
@@ -112,13 +110,8 @@ public class QuestionAdmin {
 		// this is the recipe we want to save the insight as
 		List<String> saveRecipe = gson.fromJson(form.getFirst("saveRecipe"), List.class);
 
-		// used if an insight has params 
-		List<String> runRecipe = gson.fromJson(form.getFirst("runRecipe"), List.class); // this
-		boolean hasParams = false;
-		
-		if(runRecipe != null) {
-			hasParams = true;
-		}
+
+
 
 		List<String> tags = new Vector<String>();
 		if (tagsString != null && !tagsString.isEmpty()) {
@@ -158,6 +151,7 @@ public class QuestionAdmin {
 		newInsightID = addInsightFromDb(insightToSave, insightName, perspective, order, layout, description, uiOptions,
 				tags, dataTableAlign, paramMapList);
 		addInsightToSolr(insightToSave, insightName, layout, description, tags, newInsightID);
+		
 		// read pkqls for clone to see if a visualization will break the browser
 		// for unsupported visualizations if there is an unsupported visual
 		// don't run image capture
@@ -167,8 +161,19 @@ public class QuestionAdmin {
 				cleanRecipe = true;
 			}
 		}
+		boolean dashboard = false;
+		String baseURL = form.getFirst("url");
+		if(baseURL== null) {
+			dashboard = true;
+		}
+		// used if an insight has params 
+		List<String> runRecipe = gson.fromJson(form.getFirst("runRecipe"), List.class);
+		boolean hasParams = false;
+		if(runRecipe != null) {
+			hasParams = true;
+		}
 		// image capture
-		if (cleanRecipe) {
+		if (cleanRecipe && !dashboard) {
 			if (hasParams) {
 				// create temp insight
 				Insight tempInsight = new Insight(coreEngine, "H2Frame", "Grid");
