@@ -158,32 +158,43 @@ public class QuestionAdmin {
 		newInsightID = addInsightFromDb(insightToSave, insightName, perspective, order, layout, description, uiOptions,
 				tags, dataTableAlign, paramMapList);
 		addInsightToSolr(insightToSave, insightName, layout, description, tags, newInsightID);
-		
-		//image capture
-		if (hasParams) {
-			//create temp insight
-			Insight tempInsight = new Insight(coreEngine, "H2Frame", "Grid");
-			// set the user id into the insight
-			tempInsight.setUserID("-1");
-			//use unparameterized insight recipe to run on insight
-			Insight paramTempInsight = getInsightToSave(tempInsight, runRecipe);
-			String paramInsightName = insightName + "temp";
-			paramTempInsight.setInsightName(paramInsightName);
-			paramTempInsight.setInsightID(insightToSave.getInsightID());
-			
-			//add temp insight to questions db
-			String paramInsightID = addInsightFromDb(paramTempInsight, paramInsightName, perspective, order, layout, description,
-					uiOptions, tags, dataTableAlign, paramMapList);
-
-			// adding temp insight to solr
-			addInsightToSolr(paramTempInsight, paramInsightName, layout, description, tags, paramInsightID);
-			
-			//capture image and remove temp insight from insights db and solr
-			updateSolrImage(newInsightID, paramInsightID, layout, baseURL);
+		// read pkqls for clone to see if a visualization will break the browser
+		// for unsupported visualizations if there is an unsupported visual
+		// don't run image capture
+		boolean cleanRecipe = false;
+		for (String pkql : saveRecipe) {
+			if (pkql.contains("Grid") || (pkql.contains("VivaGraph") || pkql.contains("Map"))) {
+				cleanRecipe = true;
+			}
 		}
-		// capture an image for insight without params
-		else {
-			updateSolrImage(newInsightID, newInsightID, layout, baseURL);
+		// image capture
+		if (cleanRecipe) {
+			if (hasParams) {
+				// create temp insight
+				Insight tempInsight = new Insight(coreEngine, "H2Frame", "Grid");
+				// set the user id into the insight
+				tempInsight.setUserID("-1");
+				// use unparameterized insight recipe to run on insight
+				Insight paramTempInsight = getInsightToSave(tempInsight, runRecipe);
+				String paramInsightName = insightName + "temp";
+				paramTempInsight.setInsightName(paramInsightName);
+				paramTempInsight.setInsightID(insightToSave.getInsightID());
+
+				// add temp insight to questions db
+				String paramInsightID = addInsightFromDb(paramTempInsight, paramInsightName, perspective, order, layout,
+						description, uiOptions, tags, dataTableAlign, paramMapList);
+
+				// adding temp insight to solr
+				addInsightToSolr(paramTempInsight, paramInsightName, layout, description, tags, paramInsightID);
+
+				// capture image and remove temp insight from insights db and
+				// solr
+				updateSolrImage(newInsightID, paramInsightID, layout, baseURL);
+			}
+			// capture an image for insight without params
+			else {
+				updateSolrImage(newInsightID, newInsightID, layout, baseURL);
+			}
 		}
 
 		insight.setRdbmsId(newInsightID);
@@ -318,7 +329,6 @@ public class QuestionAdmin {
 		solrInsights.put(SolrIndexEngine.CORE_ENGINE_ID, Integer.parseInt(insightIDToSave));
 		solrInsights.put(SolrIndexEngine.IMAGE, "");
 
-		// TODO what is this for????????????????????????????????????????
 		Set<String> engines = new HashSet<String>();
 		for (DataMakerComponent dmc : dmcList) {
 			engines.add(dmc.getEngine().getEngineName());
