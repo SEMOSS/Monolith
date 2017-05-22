@@ -163,10 +163,11 @@ public class QuestionAdmin {
 		// don't run image capture
 		boolean cleanRecipe = false;
 		for (String pkql : saveRecipe) {
-			if (pkql.contains("Grid") || (pkql.contains("VivaGraph") || pkql.contains("Map"))) {
+			if (!pkql.contains("Grid") && !(pkql.contains("VivaGraph") && ! pkql.contains("Map"))) {
 				cleanRecipe = true;
 			}
 		}
+		System.out.println("Can I save???" + cleanRecipe);
 		// image capture
 		if (cleanRecipe) {
 			if (hasParams) {
