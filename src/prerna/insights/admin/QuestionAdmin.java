@@ -167,7 +167,6 @@ public class QuestionAdmin {
 				cleanRecipe = true;
 			}
 		}
-		System.out.println("Can I save???" + cleanRecipe);
 		// image capture
 		if (cleanRecipe) {
 			if (hasParams) {
