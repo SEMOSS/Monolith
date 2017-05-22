@@ -163,7 +163,7 @@ public class QuestionAdmin {
 		// don't run image capture
 		boolean cleanRecipe = false;
 		for (String pkql : saveRecipe) {
-			if (!pkql.contains("Grid") && !(pkql.contains("VivaGraph"))) {
+			if (!pkql.contains("Grid") && !(pkql.contains("VivaGraph") && !(pkql.contains("Map")))) {
 				cleanRecipe = true;
 			}
 		}
@@ -366,7 +366,7 @@ public class QuestionAdmin {
 		final String idForURL = imageInsightID;
 
 		// not supported by the embedded browser
-		if (!layout.equals("Grid") && !layout.equals("VivaGraph")) {
+		if (!layout.equals("Grid") && !layout.equals("VivaGraph") && !(layout.equals("Map"))) {
 			Runnable r = new Runnable() {
 				public void run() {
 					// generate image URL from saved insight
