@@ -179,6 +179,17 @@ public abstract class AbstractFormBuilder {
 		}
 	}
 
+	/**
+	 * Method to actually save form data
+	 * @param baseURI
+	 * @param conceptBaseURI
+	 * @param relationBaseURI
+	 * @param propertyBaseURI
+	 * @param nodes
+	 * @param relationships
+	 * @param removeNodes
+	 * @param removeRelationships
+	 */
 	protected abstract void saveFormData(
 			String baseURI, 
 			String conceptBaseURI,
@@ -189,6 +200,13 @@ public abstract class AbstractFormBuilder {
 			List<HashMap<String, Object>> removeNodes, 
 			List<HashMap<String, Object>> removeRelationships);
 
+	/**
+	 * Method to replace an instance across the entire db
+	 * @param origName
+	 * @param newName
+	 */
+	protected abstract void modifyInstanceValue(String origName, String newName);
+	
 	/**
 	 * Store the action that was performed in the audit log
 	 * @param action
