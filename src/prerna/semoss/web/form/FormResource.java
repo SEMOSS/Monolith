@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.security.cert.X509Certificate;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -24,15 +26,11 @@ import com.google.gson.Gson;
 
 import prerna.auth.User;
 import prerna.engine.api.IEngine;
-import prerna.engine.api.IRawSelectWrapper;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
-import prerna.engine.impl.rdf.BigDataEngine;
 import prerna.rdf.engine.wrappers.WrapperManager;
-import prerna.rdf.main.NodeRenamer;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -40,6 +38,7 @@ import prerna.web.services.util.WebUtility;
 public class FormResource {
 
 	public static final String FORM_BUILDER_ENGINE_NAME = "form_builder_engine";
+	public static final String USER_ACCESS_ENGINE_NAME = "form_user_access_engine";
 	public static final String AUDIT_FORM_SUFFIX = "_FORM_LOG";
 	
 	private IEngine formBuilderEng;
@@ -47,9 +46,8 @@ public class FormResource {
 	
 	public FormResource() {
 		this.formBuilderEng = Utility.getEngine(FORM_BUILDER_ENGINE_NAME);
-		//TODO: add in user access eng
+		this.userAccessEng = Utility.getEngine(USER_ACCESS_ENGINE_NAME);
 	}
-	
 	
 	@POST
 	@Path("/getAllAvailableForms")
@@ -68,7 +66,6 @@ public class FormResource {
 			formsList.add(formMap);
 		}
 		
-//		return Response.status(200).entity(WebUtility.getSO(formsList)).build();
 		return WebUtility.getResponse(formsList, 200);
 	}
 
@@ -83,11 +80,9 @@ public class FormResource {
 		try {
 			FormBuilder.saveForm(formBuilderEng, formName, formLocation);
 		} catch (IOException e) {
-//			return Response.status(400).entity(WebUtility.getSO(e.getMessage())).build();
 			return WebUtility.getResponse(e.getMessage(), 400);
 		}
 
-//		return Response.status(200).entity(WebUtility.getSO("saved successfully")).build();
 		return WebUtility.getResponse("saved successfully", 200);
 	}
 	
@@ -104,11 +99,9 @@ public class FormResource {
 			FormBuilder.saveFormData(formBuilderEng, formTableName, userId, formData);
 		} catch(Exception e) {
 			e.printStackTrace();
-//			return Response.status(400).entity(WebUtility.getSO("error saving data")).build();
 			return WebUtility.getResponse("error saving data", 400);
 		}
 
-//		return Response.status(200).entity(WebUtility.getSO("success")).build();
 		return WebUtility.getResponse("success", 200);
 	}
 	
@@ -124,12 +117,10 @@ public class FormResource {
 			results = FormBuilder.getStagingData(formBuilderEng, formTableName);
 		} catch(Exception e) {
 			e.printStackTrace();
-//			return Response.status(400).entity(WebUtility.getSO("error retrieving data")).build();
 			return WebUtility.getResponse("error retrieving data", 400);
 			
 		}
 
-//		return Response.status(200).entity(WebUtility.getSO((results))).build();
 		return WebUtility.getResponse(results, 200);
 	}
 	
@@ -145,79 +136,58 @@ public class FormResource {
 			FormBuilder.deleteFromStaggingArea(formBuilderEng, formName, formIds);
 		} catch(Exception e) {
 			e.printStackTrace();
-//			return Response.status(400).entity(WebUtility.getSO("error deleting staging data")).build();
 			return WebUtility.getResponse("error deleting staging data", 400);
 		}
 
-//		return Response.status(200).entity(WebUtility.getSO("success")).build();
+		return WebUtility.getResponse("success", 200);
+	}
+	
+	@POST
+	//TODO: change this path to be modifyUserAccess
+	@Path("/deleteRdbmsInstance")
+	@Produces("application/json")
+	public Response modifyUserAccess(MultivaluedMap<String, String> form) {	
+		String addOrRemove = form.getFirst("addOrRemove");
+		String userid = form.getFirst("userid");
+		String instancename = form.getFirst("instanceName");
+		// this is a boolean being represented by a string true/false
+		String owner = form.getFirst("ownerStatus");
+		
+        String query = null;
+        if (addOrRemove.equals("Remove")) {        
+        	query = "DELETE FROM USER_ACCESS WHERE USER_ID = '" + userid + "';";
+        } else if (addOrRemove.equals("Add")) {
+        	query = "INSERT INTO USER_ACCESS (USER_ID, INSTANCE, OWNER) VALUES ('" + userid + "','" + instancename + "'," + owner + ");";
+        } else {
+        	return WebUtility.getResponse("Error: need to specify Add or Remove", 400);
+        }
+        
+        // execute the insert statement
+    	this.userAccessEng.insertData(query);
+    	// commit to engine
+    	this.userAccessEng.commit();
+    	
 		return WebUtility.getResponse("success", 200);
 	}
 	
 	@POST
 	@Path("/renameNode")
 	@Produces("application/json")
-	public Response nodeRenamer(MultivaluedMap<String, String> form) 
-	{
-		String dbFilepath = DIHelper.getInstance().getProperty("BaseFolder");
-		dbFilepath = dbFilepath + "\\db\\";
-		
+	public Response renameInstance(MultivaluedMap<String, String> form) {
 		String dbName = form.getFirst("dbName");
-		String originalUri = form.getFirst("originalUri");
+		String origUri = form.getFirst("originalUri");
 		String newUri = form.getFirst("newUri");
-		String newInstanceName = newUri.substring(newUri.lastIndexOf('/')+1);
+		IEngine coreEngine = Utility.getEngine(dbName);
 		
-		NodeRenamer nodeRenamer = new NodeRenamer();
-		
-		BigDataEngine coreEngine = (BigDataEngine) DIHelper.getInstance().getLocalProp(dbName);
-		
-		if(coreEngine == null) {
-			System.out.println("Need to instantiate database.");			
-			
-			String smssFilepath = dbFilepath + dbName + ".smss";
-			coreEngine = new BigDataEngine();
-			coreEngine.setEngineName(dbName);
-			coreEngine.openDB(smssFilepath);
-			DIHelper.getInstance().setLocalProperty(dbName, coreEngine);
-		}
-		
-		// get all the subjects
-		String upQuery = "SELECT DISTINCT ?s ?p ?o WHERE {"
-				+ "BIND(<" + originalUri + "> AS ?s)"
-				+ "{?s ?p ?o}"
-				+ "}";
-
-		List<Object[]> upTriples = new Vector<Object[]>();
-		IRawSelectWrapper upIt = WrapperManager.getInstance().getRawWrapper(coreEngine, upQuery);
-		nodeRenamer.storeValues(upIt, upTriples);
-
-		// get all the objects
-		String downQuery = "SELECT DISTINCT ?s ?p ?o WHERE {"
-				+ "BIND(<" + originalUri + "> AS ?o)"
-				+ "{?s ?p ?o}"
-				+ "}";
-
-		List<Object[]> downTriples = new Vector<Object[]>();
-		IRawSelectWrapper downIt = WrapperManager.getInstance().getRawWrapper(coreEngine, downQuery);
-		nodeRenamer.storeValues(downIt, downTriples);
-
-		// now go through and modify where necessary
-		nodeRenamer.deleteTriples(upTriples, coreEngine);
-		nodeRenamer.deleteTriples(downTriples, coreEngine);
-
-		nodeRenamer.addUpTriples(upTriples, coreEngine, newUri, newInstanceName);
-		nodeRenamer.addDownTriples(downTriples, coreEngine, newUri);
-		
-		coreEngine.commit();
-		
-//		return Response.status(200).entity(WebUtility.getSO("success")).build();
+		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
+		formbuilder.modifyInstanceValue(origUri, newUri);
 		return WebUtility.getResponse("success", 200);
-	}	
+	}
 	
 	@POST
 	@Path("/deleteForm")
 	@Produces("application/json")
-	public Response deleteForm(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
-	{
+	public Response deleteForm(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String formName = form.getFirst("formName");
 		String formTableName = getFormTableFromName(formName);
 		
@@ -228,7 +198,6 @@ public class FormResource {
 		deleteQuery = "DROP TABLE " + formName;
 		formBuilderEng.removeData(deleteQuery);
 		
-//		return Response.status(200).entity(WebUtility.getSO("success")).build();
 		return WebUtility.getResponse("success", 200);
 	}
 	
@@ -240,8 +209,6 @@ public class FormResource {
 		if(certs == null || certs.length == 0) {
 			return WebUtility.getResponse("you messed up", 400);
 		} else {
-			//TODO: use this id to get the systems the user has access to
-			//i.e. create a sql query on the engine you will add at the top
 			String x509Id = null;
 			for(int i = 0; i < certs.length; i++) {
 				X509Certificate cert = certs[i];
@@ -251,22 +218,33 @@ public class FormResource {
 				for(Rdn rdn: ldapDN.getRdns()) {
 					if(rdn.getType().equals("CN")) {
 						x509Id = rdn.getValue().toString();
+						break;
 					}
 				}
 			}
+			// map to store the valid instances for the given user
+			Map<String, String> userAccessableInstances = new HashMap<String, String>();
 			
-			// create some query
-			// run it on engine
-			List<String> userAccessableInstances = new Vector<String>();
-			Map<String, Object> ret = (Map<String, Object>) userAccessEng.execQuery("");
+			Map<String, Object> ret = (Map<String, Object>) userAccessEng.execQuery("SELECT SysAcronym, SysAdminTrueFalse FROM FORMS_TAP_USER_INFOCSV WHERE EDIPI = '" + x509Id + "';");
+			Statement stmt = (Statement) ret.get(RDBMSNativeEngine.STATEMENT_OBJECT);
 			ResultSet rs = (ResultSet) ret.get(RDBMSNativeEngine.RESULTSET_OBJECT);
 			try {
 				while(rs.next()) {
-					// this rs is 1 based!!!
-					userAccessableInstances.add(rs.getString(1));
+					userAccessableInstances.put(rs.getString("SysAcronym"), rs.getString("SysAdminTrueFalse"));
 				}
 			} catch (SQLException e) {
 				e.printStackTrace();
+			} finally {
+				try {
+					if(rs != null) {
+						rs.close();
+					}
+					if(stmt != null) {
+						stmt.close();
+					}
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
 			}
 			
 			Map<String, Object> returnData = new Hashtable<String, Object>();
