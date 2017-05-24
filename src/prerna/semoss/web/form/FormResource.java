@@ -38,7 +38,7 @@ import prerna.web.services.util.WebUtility;
 public class FormResource {
 
 	public static final String FORM_BUILDER_ENGINE_NAME = "form_builder_engine";
-	public static final String USER_ACCESS_ENGINE_NAME = "form_user_access_engine";
+	public static final String USER_ACCESS_ENGINE_NAME = "Forms_User_Data";
 	public static final String AUDIT_FORM_SUFFIX = "_FORM_LOG";
 	
 	private IEngine formBuilderEng;
@@ -143,21 +143,21 @@ public class FormResource {
 	}
 	
 	@POST
-	//TODO: change this path to be modifyUserAccess
-	@Path("/deleteRdbmsInstance")
+	@Path("/modifyUserAccess")
 	@Produces("application/json")
 	public Response modifyUserAccess(MultivaluedMap<String, String> form) {	
 		String addOrRemove = form.getFirst("addOrRemove");
 		String userid = form.getFirst("userid");
-		String instancename = form.getFirst("instanceName");
-		// this is a boolean being represented by a string true/false
-		String owner = form.getFirst("ownerStatus");
 		
         String query = null;
         if (addOrRemove.equals("Remove")) {        
-        	query = "DELETE FROM USER_ACCESS WHERE USER_ID = '" + userid + "';";
+        	query = "DELETE FROM FORMS_USER_DATACSV WHERE UserId = '" + userid + "';";
         } else if (addOrRemove.equals("Add")) {
-        	query = "INSERT INTO USER_ACCESS (USER_ID, INSTANCE, OWNER) VALUES ('" + userid + "','" + instancename + "'," + owner + ");";
+    		String instancename = form.getFirst("instanceName");
+    		// this is a boolean being represented by a string true/false
+    		String owner = form.getFirst("ownerStatus");
+    		
+        	query = "INSERT INTO FORMS_USER_DATACSV (UserId, SysAcronym, SysAdminTrueFalse) VALUES ('" + userid + "','" + instancename + "','" + owner + "');";
         } else {
         	return WebUtility.getResponse("Error: need to specify Add or Remove", 400);
         }
@@ -171,7 +171,7 @@ public class FormResource {
 	}
 	
 	@POST
-	@Path("/renameNode")
+	@Path("/renameInstance")
 	@Produces("application/json")
 	public Response renameInstance(MultivaluedMap<String, String> form) {
 		String dbName = form.getFirst("dbName");
@@ -222,10 +222,11 @@ public class FormResource {
 					}
 				}
 			}
+			
 			// map to store the valid instances for the given user
 			Map<String, String> userAccessableInstances = new HashMap<String, String>();
 			
-			Map<String, Object> ret = (Map<String, Object>) userAccessEng.execQuery("SELECT SysAcronym, SysAdminTrueFalse FROM FORMS_TAP_USER_INFOCSV WHERE EDIPI = '" + x509Id + "';");
+			Map<String, Object> ret = (Map<String, Object>) userAccessEng.execQuery("SELECT SysAcronym, SysAdminTrueFalse FROM FORMS_USER_DATACSV WHERE UserId = '" + x509Id + "';");
 			Statement stmt = (Statement) ret.get(RDBMSNativeEngine.STATEMENT_OBJECT);
 			ResultSet rs = (ResultSet) ret.get(RDBMSNativeEngine.RESULTSET_OBJECT);
 			try {
