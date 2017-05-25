@@ -633,4 +633,77 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 
 		this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
 	}
+
+	@Override
+	protected void certifyInstance(String instanceUri) {
+		String versionPropUri = "http://semoss.org/ontologies/Relation/Contains/CertificationVersion";
+		String timePropUri = "http://semoss.org/ontologies/Relation/Contains/CertificationDate";
+		String userPropUri = "http://semoss.org/ontologies/Relation/Contains/CertificationUsername";
+		
+		// 1) delete old values
+		Integer oldVersion = null;
+		String getPrevValuesQuery = "select distinct ?i ?v ?t ?u where {BIND(<" + instanceUri + "> as ?i) "
+				+ "{?i <" + versionPropUri + "> ?v}"
+				+ "{?i <" + timePropUri + "> ?t}"
+				+ "{?i <" + userPropUri + "> ?u}"
+				+ "}";
+		
+		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(this.engine, getPrevValuesQuery);
+		while(wrapper.hasNext()) {
+			IHeadersDataRow row = wrapper.next();
+			Object[] uris = row.getRawValues();
+			Object[] clean = row.getValues();
+			
+			Object[] statement = new Object[4];
+			statement[0] = uris[0];
+			statement[1] = versionPropUri;
+			// for properties, always grab clean output
+			// otherwise, you will get double quotes around stuff
+			statement[2] = clean[1];
+			statement[3] = false;
+			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
+			
+			// repeat for all the props
+			statement[1] = timePropUri;
+			statement[2] = clean[2];
+			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
+			
+			statement[1] = userPropUri;
+			statement[2] = clean[3];
+			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
+			oldVersion = Integer.valueOf((String) clean[1]);
+		}
+		
+		// 2)  add new values
+		if(oldVersion == null) {
+			oldVersion = 0;
+		}
+		String newVersion = Integer.toString(oldVersion + 1);
+		
+		Object[] statement = new Object[4];
+		statement[0] = instanceUri;
+		statement[1] = versionPropUri;
+		statement[2] = newVersion;
+		statement[3] = false;
+		this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, statement);
+
+		// repeat for other props
+		statement[1] = userPropUri;
+		statement[2] = this.user;
+		this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, statement);
+
+		Calendar cal = Calendar.getInstance();
+		String currTime = DATE_DF.format(cal.getTime());
+		statement[1] = timePropUri;
+		statement[2] = currTime;
+		this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, statement);
+
+		// commit engine
+		this.engine.commit();
+
+		// add to log
+		addAuditLog(ADMIN_SIGN_OFF, instanceUri, "", "", versionPropUri, newVersion, currTime);
+		addAuditLog(ADMIN_SIGN_OFF, instanceUri, "", "", userPropUri, this.user, currTime);
+		addAuditLog(ADMIN_SIGN_OFF, instanceUri, "", "", timePropUri, currTime, currTime);
+	}
 }
