@@ -1,15 +1,12 @@
 package prerna.semoss.web.form;
 
-import java.io.IOException;
 import java.security.cert.X509Certificate;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
@@ -22,15 +19,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import com.google.gson.Gson;
-
-import prerna.auth.User;
 import prerna.engine.api.IEngine;
-import prerna.engine.api.ISelectStatement;
-import prerna.engine.api.ISelectWrapper;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
-import prerna.rdf.engine.wrappers.WrapperManager;
-import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -38,108 +28,12 @@ import prerna.web.services.util.WebUtility;
 public class FormResource {
 
 	public static final String FORM_BUILDER_ENGINE_NAME = "form_builder_engine";
-	public static final String USER_ACCESS_ENGINE_NAME = "Forms_User_Data";
 	public static final String AUDIT_FORM_SUFFIX = "_FORM_LOG";
 	
 	private IEngine formBuilderEng;
-	private IEngine userAccessEng;
 	
 	public FormResource() {
 		this.formBuilderEng = Utility.getEngine(FORM_BUILDER_ENGINE_NAME);
-		this.userAccessEng = Utility.getEngine(USER_ACCESS_ENGINE_NAME);
-	}
-	
-	@POST
-	@Path("/getAllAvailableForms")
-	@Produces("application/json")
-	public Response getAllAvailableForms() {
-		String query = "SELECT FORM_NAME, FORM_LOCATION FROM FORM_METADATA";
-		List<Map<String, String>> formsList = new Vector<Map<String, String>>();
-
-		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, query);
-		String[] names = wrapper.getVariables();
-		while(wrapper.hasNext()) {
-			ISelectStatement ss = wrapper.next();
-			Map<String, String> formMap = new Hashtable<String, String>();
-			formMap.put("formName", ss.getVar(names[0]) + "");
-			formMap.put("formLocation", ss.getVar(names[1]) + "");
-			formsList.add(formMap);
-		}
-		
-		return WebUtility.getResponse(formsList, 200);
-	}
-
-	@POST
-	@Path("/saveForm")
-	@Produces("application/json")	
-	public Response saveForm(MultivaluedMap<String, String> form) 
-	{
-		String formName = form.getFirst("formName");
-		String formLocation = form.getFirst("formLocation");
-
-		try {
-			FormBuilder.saveForm(formBuilderEng, formName, formLocation);
-		} catch (IOException e) {
-			return WebUtility.getResponse(e.getMessage(), 400);
-		}
-
-		return WebUtility.getResponse("saved successfully", 200);
-	}
-	
-	@POST
-	@Path("/saveFormData")
-	@Produces("application/json")
-	public Response saveFormData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
-	{
-		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
-		String formName = form.getFirst("formName");
-		String formData = form.getFirst("formData");
-		String formTableName = getFormTableFromName(formName);
-		try {
-			FormBuilder.saveFormData(formBuilderEng, formTableName, userId, formData);
-		} catch(Exception e) {
-			e.printStackTrace();
-			return WebUtility.getResponse("error saving data", 400);
-		}
-
-		return WebUtility.getResponse("success", 200);
-	}
-	
-	@POST
-	@Path("/getFormStagingData")
-	@Produces("application/json")
-	public Response getFormStagingData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
-	{
-		String formName = form.getFirst("formName");
-		String formTableName = getFormTableFromName(formName);
-		List<Map<String, String>> results = null;
-		try {
-			results = FormBuilder.getStagingData(formBuilderEng, formTableName);
-		} catch(Exception e) {
-			e.printStackTrace();
-			return WebUtility.getResponse("error retrieving data", 400);
-			
-		}
-
-		return WebUtility.getResponse(results, 200);
-	}
-	
-	@POST
-	@Path("/deleteFormDataFromStaging")
-	@Produces("application/json")
-	public Response deleteFormDataFromStaging(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
-	{
-		Gson gson = new Gson();
-		String formName = form.getFirst("formName");
-		String[] formIds = gson.fromJson(form.getFirst("ids"), String[].class);
-		try {
-			FormBuilder.deleteFromStaggingArea(formBuilderEng, formName, formIds);
-		} catch(Exception e) {
-			e.printStackTrace();
-			return WebUtility.getResponse("error deleting staging data", 400);
-		}
-
-		return WebUtility.getResponse("success", 200);
 	}
 	
 	@POST
@@ -151,21 +45,21 @@ public class FormResource {
 		
         String query = null;
         if (addOrRemove.equals("Remove")) {        
-        	query = "DELETE FROM FORMS_USER_DATACSV WHERE UserId = '" + userid + "';";
+        	query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '" + userid + "';";
         } else if (addOrRemove.equals("Add")) {
     		String instancename = form.getFirst("instanceName");
     		// this is a boolean being represented by a string true/false
     		String owner = form.getFirst("ownerStatus");
     		
-        	query = "INSERT INTO FORMS_USER_DATACSV (UserId, SysAcronym, SysAdminTrueFalse) VALUES ('" + userid + "','" + instancename + "','" + owner + "');";
+        	query = "INSERT INTO FORMS_USER_ACCESS (USER_ID, INSTANCE_NAME, IS_SYS_ADMIN) VALUES ('" + userid + "','" + instancename + "','" + owner + "');";
         } else {
         	return WebUtility.getResponse("Error: need to specify Add or Remove", 400);
         }
         
         // execute the insert statement
-    	this.userAccessEng.insertData(query);
+    	this.formBuilderEng.insertData(query);
     	// commit to engine
-    	this.userAccessEng.commit();
+    	this.formBuilderEng.commit();
     	
 		return WebUtility.getResponse("success", 200);
 	}
@@ -185,21 +79,19 @@ public class FormResource {
 	}
 	
 	@POST
-	@Path("/deleteForm")
+	@Path("/certifyInstance")
 	@Produces("application/json")
-	public Response deleteForm(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String formName = form.getFirst("formName");
-		String formTableName = getFormTableFromName(formName);
+	public Response certifyInstance(MultivaluedMap<String, String> form) {
+		String userid = form.getFirst("userid");
+		String instanceUri = form.getFirst("instanceUri");
+		String dbName = form.getFirst("dbName");
+		IEngine coreEngine = Utility.getEngine(dbName);
 		
-		// delete form information
-		String deleteQuery = "DELETE FROM FORM_METADATA WHERE FORM_TABLE ='" + formTableName + "'"; 
-		formBuilderEng.removeData(deleteQuery);
-		// drop form table
-		deleteQuery = "DROP TABLE " + formName;
-		formBuilderEng.removeData(deleteQuery);
-		
+		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
+		formbuilder.setUser(userid);
+		formbuilder.certifyInstance(instanceUri);
 		return WebUtility.getResponse("success", 200);
-	}
+	}	
 	
 	@POST
 	@Path("/getUserInstanceAuth")
@@ -222,16 +114,18 @@ public class FormResource {
 					}
 				}
 			}
+		
+//		    String x509Id = "1234";
 			
 			// map to store the valid instances for the given user
 			Map<String, String> userAccessableInstances = new HashMap<String, String>();
-			
-			Map<String, Object> ret = (Map<String, Object>) userAccessEng.execQuery("SELECT SysAcronym, SysAdminTrueFalse FROM FORMS_USER_DATACSV WHERE UserId = '" + x509Id + "';");
+			String query = "SELECT INSTANCE_NAME, IS_SYS_ADMIN FROM FORMS_USER_ACCESS WHERE USER_ID = '" + x509Id + "';";
+			Map<String, Object> ret = (Map<String, Object>) formBuilderEng.execQuery(query);
 			Statement stmt = (Statement) ret.get(RDBMSNativeEngine.STATEMENT_OBJECT);
 			ResultSet rs = (ResultSet) ret.get(RDBMSNativeEngine.RESULTSET_OBJECT);
 			try {
 				while(rs.next()) {
-					userAccessableInstances.put(rs.getString("SysAcronym"), rs.getString("SysAdminTrueFalse"));
+					userAccessableInstances.put(rs.getString("INSTANCE_NAME"), rs.getString("IS_SYS_ADMIN"));
 				}
 			} catch (SQLException e) {
 				e.printStackTrace();
@@ -256,14 +150,124 @@ public class FormResource {
 		}
 	}
 	
-	private String getFormTableFromName(String formName) {
-		String query = "SELECT FORM_TABLE FROM FORM_METADATA WHERE FORM_NAME = '" + formName + "'";
-		
-		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, query);
-		String[] names = wrapper.getVariables();
-		wrapper.hasNext();
-		ISelectStatement ss = wrapper.next();
-		return ss.getVar(names[0]).toString();
-	}
+//	@POST
+//	@Path("/getAllAvailableForms")
+//	@Produces("application/json")
+//	public Response getAllAvailableForms() {
+//		String query = "SELECT FORM_NAME, FORM_LOCATION FROM FORM_METADATA";
+//		List<Map<String, String>> formsList = new Vector<Map<String, String>>();
+//
+//		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, query);
+//		String[] names = wrapper.getVariables();
+//		while(wrapper.hasNext()) {
+//			ISelectStatement ss = wrapper.next();
+//			Map<String, String> formMap = new Hashtable<String, String>();
+//			formMap.put("formName", ss.getVar(names[0]) + "");
+//			formMap.put("formLocation", ss.getVar(names[1]) + "");
+//			formsList.add(formMap);
+//		}
+//		
+//		return WebUtility.getResponse(formsList, 200);
+//	}
+
+//	@POST
+//	@Path("/saveForm")
+//	@Produces("application/json")	
+//	public Response saveForm(MultivaluedMap<String, String> form) 
+//	{
+//		String formName = form.getFirst("formName");
+//		String formLocation = form.getFirst("formLocation");
+//
+//		try {
+//			FormBuilder.saveForm(formBuilderEng, formName, formLocation);
+//		} catch (IOException e) {
+//			return WebUtility.getResponse(e.getMessage(), 400);
+//		}
+//
+//		return WebUtility.getResponse("saved successfully", 200);
+//	}
+	
+//	@POST
+//	@Path("/saveFormData")
+//	@Produces("application/json")
+//	public Response saveFormData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
+//	{
+//		String userId = ((User)request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+//		String formName = form.getFirst("formName");
+//		String formData = form.getFirst("formData");
+//		String formTableName = getFormTableFromName(formName);
+//		try {
+//			FormBuilder.saveFormData(formBuilderEng, formTableName, userId, formData);
+//		} catch(Exception e) {
+//			e.printStackTrace();
+//			return WebUtility.getResponse("error saving data", 400);
+//		}
+//
+//		return WebUtility.getResponse("success", 200);
+//	}
+	
+//	@POST
+//	@Path("/getFormStagingData")
+//	@Produces("application/json")
+//	public Response getFormStagingData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
+//	{
+//		String formName = form.getFirst("formName");
+//		String formTableName = getFormTableFromName(formName);
+//		List<Map<String, String>> results = null;
+//		try {
+//			results = FormBuilder.getStagingData(formBuilderEng, formTableName);
+//		} catch(Exception e) {
+//			e.printStackTrace();
+//			return WebUtility.getResponse("error retrieving data", 400);
+//			
+//		}
+//
+//		return WebUtility.getResponse(results, 200);
+//	}
+	
+//	@POST
+//	@Path("/deleteFormDataFromStaging")
+//	@Produces("application/json")
+//	public Response deleteFormDataFromStaging(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
+//	{
+//		Gson gson = new Gson();
+//		String formName = form.getFirst("formName");
+//		String[] formIds = gson.fromJson(form.getFirst("ids"), String[].class);
+//		try {
+//			FormBuilder.deleteFromStaggingArea(formBuilderEng, formName, formIds);
+//		} catch(Exception e) {
+//			e.printStackTrace();
+//			return WebUtility.getResponse("error deleting staging data", 400);
+//		}
+//
+//		return WebUtility.getResponse("success", 200);
+//	}
+	
+//	@POST
+//	@Path("/deleteForm")
+//	@Produces("application/json")
+//	public Response deleteForm(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+//		String formName = form.getFirst("formName");
+//		String formTableName = getFormTableFromName(formName);
+//		
+//		// delete form information
+//		String deleteQuery = "DELETE FROM FORM_METADATA WHERE FORM_TABLE ='" + formTableName + "'"; 
+//		formBuilderEng.removeData(deleteQuery);
+//		// drop form table
+//		deleteQuery = "DROP TABLE " + formName;
+//		formBuilderEng.removeData(deleteQuery);
+//		
+//		return WebUtility.getResponse("success", 200);
+//	}
+	
+//	private String getFormTableFromName(String formName) {
+//		String query = "SELECT FORM_TABLE FROM FORM_METADATA WHERE FORM_NAME = '" + formName + "'";
+//		
+//		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(formBuilderEng, query);
+//		String[] names = wrapper.getVariables();
+//		wrapper.hasNext();
+//		ISelectStatement ss = wrapper.next();
+//		return ss.getVar(names[0]).toString();
+//	}
 	
 }
