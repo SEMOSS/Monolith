@@ -31,6 +31,7 @@ public abstract class AbstractFormBuilder {
 	protected static final String OVERRIDE = "override";
 	protected static final String ADD = "Added";
 	protected static final String REMOVE = "Removed";
+	protected static final String ADMIN_SIGN_OFF = "Validated";
 
 	protected IEngine formEng;
 	protected String auditLogTableName;
