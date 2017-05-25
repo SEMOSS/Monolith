@@ -31,7 +31,7 @@ public abstract class AbstractFormBuilder {
 	protected static final String OVERRIDE = "override";
 	protected static final String ADD = "Added";
 	protected static final String REMOVE = "Removed";
-	protected static final String ADMIN_SIGN_OFF = "Validated";
+	protected static final String ADMIN_SIGN_OFF = "Certified";
 
 	protected IEngine formEng;
 	protected String auditLogTableName;
@@ -44,6 +44,8 @@ public abstract class AbstractFormBuilder {
 	protected AbstractFormBuilder(IEngine engine) {
 		this.formEng = Utility.getEngine(FORM_BUILDER_ENGINE_NAME);
 		this.engine = engine;
+		this.auditLogTableName = RDBMSEngineCreationHelper.escapeForSQLStatement(RDBMSEngineCreationHelper.cleanTableName(this.engine.getEngineName())).toUpperCase() + FormResource.AUDIT_FORM_SUFFIX;
+		generateEngineAuditLog(this.auditLogTableName);
 	}
 	
 	public void commitFormData(Map<String, Object> engineHash) throws IOException {
@@ -55,10 +57,6 @@ public abstract class AbstractFormBuilder {
 			this.tagCols = (List<String>) engineHash.get("tagCols");
 			this.tagValues = (List<String>) engineHash.get("tagValues");
 		}
-		
-		// generate an audit table if currently doesn't exist
-		this.auditLogTableName = RDBMSEngineCreationHelper.escapeForSQLStatement(RDBMSEngineCreationHelper.cleanTableName(this.engine.getEngineName())).toUpperCase() + FormResource.AUDIT_FORM_SUFFIX;
-		generateEngineAuditLog(this.auditLogTableName);
 		
 		String semossBaseURI = "http://semoss.org/ontologies";
 		String baseURI = engine.getNodeBaseUri();
@@ -208,6 +206,8 @@ public abstract class AbstractFormBuilder {
 	 */
 	protected abstract void modifyInstanceValue(String origName, String newName);
 	
+	protected abstract void certifyInstance(String instanceName);
+	
 	/**
 	 * Store the action that was performed in the audit log
 	 * @param action
@@ -236,4 +236,7 @@ public abstract class AbstractFormBuilder {
 		this.formEng.insertData(insertLogStatement.toString());
 	}
 
+	public void setUser(String user) {
+		this.user = user;
+	}
 }
