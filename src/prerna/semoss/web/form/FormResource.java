@@ -83,13 +83,14 @@ public class FormResource {
 	@Produces("application/json")
 	public Response certifyInstance(MultivaluedMap<String, String> form) {
 		String userid = form.getFirst("userid");
-		String instanceUri = form.getFirst("instanceUri");
+		String instanceType = form.getFirst("instanceType");
+		String instanceName = form.getFirst("instanceName");
 		String dbName = form.getFirst("dbName");
 		IEngine coreEngine = Utility.getEngine(dbName);
 		
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
 		formbuilder.setUser(userid);
-		formbuilder.certifyInstance(instanceUri);
+		formbuilder.certifyInstance(instanceType, instanceName);
 		return WebUtility.getResponse("success", 200);
 	}	
 	
@@ -115,7 +116,7 @@ public class FormResource {
 				}
 			}
 		
-//		    String x509Id = "1234";
+		    //String x509Id = "1234";
 			
 			// map to store the valid instances for the given user
 			Map<String, String> userAccessableInstances = new HashMap<String, String>();
