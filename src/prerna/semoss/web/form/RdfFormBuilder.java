@@ -20,6 +20,7 @@ import prerna.engine.api.IRawSelectWrapper;
 import prerna.engine.api.ISelectStatement;
 import prerna.engine.api.ISelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.util.Constants;
 import prerna.util.Utility;
 
 public class RdfFormBuilder extends AbstractFormBuilder {
@@ -635,10 +636,11 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 	}
 
 	@Override
-	protected void certifyInstance(String instanceUri) {
-		String versionPropUri = "http://semoss.org/ontologies/Relation/Contains/CertificationVersion";
-		String timePropUri = "http://semoss.org/ontologies/Relation/Contains/CertificationDate";
-		String userPropUri = "http://semoss.org/ontologies/Relation/Contains/CertificationUsername";
+	protected void certifyInstance(String conceptType, String instanceName) {
+		String instanceUri = this.engine.getNodeBaseUri() + conceptType + "/" + instanceName;
+		String versionPropUri = Constants.PROPERTY_URI + "CertificationVersion";
+		String timePropUri = Constants.PROPERTY_URI + "CertificationDate";
+		String userPropUri = Constants.PROPERTY_URI + "CertificationUsername";
 		
 		// 1) delete old values
 		Integer oldVersion = null;
