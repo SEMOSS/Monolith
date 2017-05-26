@@ -206,7 +206,7 @@ public abstract class AbstractFormBuilder {
 	 */
 	protected abstract void modifyInstanceValue(String origName, String newName);
 	
-	protected abstract void certifyInstance(String instanceName);
+	protected abstract void certifyInstance(String conceptType, String instanceName);
 	
 	/**
 	 * Store the action that was performed in the audit log
