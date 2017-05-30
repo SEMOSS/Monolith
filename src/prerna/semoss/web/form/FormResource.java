@@ -110,8 +110,28 @@ public class FormResource {
 				LdapName ldapDN = new LdapName(dn);
 				for(Rdn rdn: ldapDN.getRdns()) {
 					if(rdn.getType().equals("CN")) {
-						x509Id = rdn.getValue().toString();
-						break;
+						String fullNameAndId = rdn.getValue().toString();
+						// TODO: figure out how to do this well
+						// we are getting a weird value coming through from one of the certs
+						// which is causing issues
+						// going to hack around this for now
+						// for CAC card, we know it must contain a 10 digit number at the end
+						// so make sure length is 10 and we can cast it to an integer
+						String[] split = null;
+						if((split = fullNameAndId.split("\\.")).length > 0) {
+							String possibleId = split[split.length-1];
+							if(possibleId.length() == 10) {
+								try {
+									Integer.parseInt(possibleId);
+								} catch(NumberFormatException e) {
+									// we know this is not a valid cac id
+									// so move on
+									continue;
+								}
+								x509Id = possibleId;
+								break;
+							}
+						}
 					}
 				}
 			}
