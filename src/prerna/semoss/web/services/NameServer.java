@@ -83,11 +83,11 @@ import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.insights.admin.DBAdminResource;
+import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Dashboard;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc.PKQLRunner;
-import prerna.sablecc.services.DatabasePkqlService;
 import prerna.sablecc2.PKSLRunner;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
@@ -599,7 +599,7 @@ public class NameServer {
 		if(conceptLogicalNames == null || conceptLogicalNames.isEmpty()) {
 			return WebUtility.getSO("");
 		}
-		return WebUtility.getSO(DatabasePkqlService.getConnectedConcepts(conceptLogicalNames));
+		return WebUtility.getSO(MasterDatabaseUtility.getConnectedConcepts(conceptLogicalNames));
 	}
 	
 	@POST
@@ -614,7 +614,7 @@ public class NameServer {
 			return WebUtility.getResponse("", 200);
 		}
 //		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getConceptProperties(conceptLogicalNames, null))).build();
-		return WebUtility.getResponse(DatabasePkqlService.getConceptProperties(conceptLogicalNames, null), 200);
+		return WebUtility.getResponse(MasterDatabaseUtility.getConceptProperties(conceptLogicalNames, null), 200);
 	}
 
 	@POST
@@ -652,7 +652,7 @@ public class NameServer {
 			parentConceptualName = cleanParentConceptualName;
 		}
 //		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
-		return WebUtility.getResponse(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName), 200);
+		return WebUtility.getResponse(MasterDatabaseUtility.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName), 200);
 	}
 	
 	@GET
@@ -673,9 +673,9 @@ public class NameServer {
 				metamodelFilter = permissions.getMetamodelSeedsForUser(userId).get(engineName);
 			}
 			
-			ret = DatabasePkqlService.getMetamodelSecure(engineName, metamodelFilter);
+			ret = MasterDatabaseUtility.getMetamodelSecure(engineName, metamodelFilter);
 		} else {
-			ret = DatabasePkqlService.getMetamodel(engineName);
+			ret = MasterDatabaseUtility.getMetamodel(engineName);
 		}
 		
 //		return Response.status(200).entity(WebUtility.getSO(ret)).build();
@@ -686,7 +686,7 @@ public class NameServer {
 	@Path("central/context/getAllConcepts")
 	@Produces("application/json")
 	public Response getAllConceptsFromEngines(@Context HttpServletRequest request) {
-		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllConceptsFromEngines())).build();
+		return Response.status(200).entity(WebUtility.getSO(MasterDatabaseUtility.getAllConceptsFromEngines())).build();
 	}
 
 	// get all insights related to a specific uri
