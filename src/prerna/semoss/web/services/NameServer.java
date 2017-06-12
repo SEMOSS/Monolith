@@ -98,6 +98,7 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
+import prerna.util.insight.InsightScreenshot;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
@@ -431,7 +432,26 @@ public class NameServer {
 		
 		try {
 			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortField, sortOrdering, offsetInt, limitInt, filterData);
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
+			//serialize images from path
+			SolrDocumentList list = (SolrDocumentList) results.get("queryResponse");
+			String basePath = DIHelper.getInstance().getProperty("BaseFolder");
+			int imageCount = 0;
+			for (int i = 0; i < list.size(); i++) {
+				SolrDocument doc = list.get(i);
+				String imagePath = (String) doc.get("image");
+				if (imagePath != null && imagePath.length() > 0 && !imagePath.contains("data")) {
+					imageCount++;
+					long startTime = System.currentTimeMillis();
+					String image = InsightScreenshot.imageToString(basePath+imagePath);
+					long endTime = System.currentTimeMillis();
+					long duration = endTime - startTime;
+					// logger.info("Time to serialize an image " + duration );
+					doc.put("image", "data:image/png;base64," + image);
+				}
+			}
+			// logger.info("total images " + imageCount );
+		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
+				| IOException e1) {
 			e1.printStackTrace();
 			return WebUtility.getSO("Error executing solr query");
 		}
