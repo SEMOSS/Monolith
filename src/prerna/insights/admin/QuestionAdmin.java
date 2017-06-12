@@ -28,6 +28,7 @@
 package prerna.insights.admin;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -60,9 +61,11 @@ import com.google.gson.reflect.TypeToken;
 import cern.colt.Arrays;
 import prerna.algorithm.api.ITableDataFrame;
 import prerna.cache.CacheFactory;
+import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.QuestionAdministrator;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.om.Dashboard;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -151,7 +154,8 @@ public class QuestionAdmin {
 		newInsightID = addInsightFromDb(insightToSave, insightName, perspective, order, layout, description, uiOptions,
 				tags, dataTableAlign, paramMapList);
 		addInsightToSolr(insightToSave, insightName, layout, description, tags, newInsightID);
-		
+		String baseImagePath = DIHelper.getInstance().getProperty("BaseFolder");
+
 		// read pkqls for clone to see if a visualization will break the browser
 		// for unsupported visualizations if there is an unsupported visual
 		// don't run image capture
@@ -172,6 +176,7 @@ public class QuestionAdmin {
 		if(runRecipe != null) {
 			hasParams = true;
 		}
+		String engineName = coreEngine.getEngineName();
 		// image capture
 		if (cleanRecipe && !dashboard) {
 			if (hasParams) {
@@ -194,11 +199,11 @@ public class QuestionAdmin {
 
 				// capture image and remove temp insight from insights db and
 				// solr
-				updateSolrImage(newInsightID, paramInsightID, layout, baseURL);
+				updateSolrImage(newInsightID, paramInsightID, layout, baseURL, baseImagePath, engineName);
 			}
 			// capture an image for insight without params
 			else {
-				updateSolrImage(newInsightID, newInsightID, layout, baseURL);
+				updateSolrImage(newInsightID, newInsightID, layout, baseURL, baseImagePath, engineName);
 			}
 		}
 
@@ -357,29 +362,31 @@ public class QuestionAdmin {
 	}
 
 	/**
-	 * 
-	 * @param insightIDToSave id used to update solr image string
-	 * @param imageInsightID id used for embed url link to load in image capture browser
+	 *
+	 * @param insightIDToSave
+	 *            id used to update solr image string
+	 * @param imageInsightID
+	 *            id used for embed url link to load in image capture browser
 	 * @param layout
 	 * @param baseURL
+	 * @param baseImagePath
+	 * @param engineName
 	 */
-	private void updateSolrImage(String insightIDToSave, String imageInsightID, String layout, String baseURL) {
+	private void updateSolrImage(String insightIDToSave, String imageInsightID, String layout, String baseURL,
+			String baseImagePath, String engineName) {
 		// solr id to update
 		final String finalID = insightIDToSave;
-
 		// id used for embed link
 		final String idForURL = imageInsightID;
+		final String imagePath = baseImagePath + "\\images\\" + engineName + "_" + finalID + ".png";
 
 		// not supported by the embedded browser
 		if (!layout.equals("Grid") && !layout.equals("VivaGraph") && !(layout.equals("Map"))) {
 			Runnable r = new Runnable() {
 				public void run() {
 					// generate image URL from saved insight
-					String engineName = coreEngine.getEngineName();
 					String url = baseURL + "#/embed?engine=" + engineName + "&questionId=" + idForURL
 							+ "&settings=false&hideTitle=true";
-					String imagePath = DIHelper.getInstance().getProperty("BaseFolder") + "\\insight_" + finalID
-							+ ".png";
 
 					// Set up the embedded browser
 					InsightScreenshot screenshot = new InsightScreenshot();
@@ -387,22 +394,14 @@ public class QuestionAdmin {
 
 					// wait for screenshot
 					long startTime = System.currentTimeMillis();
-					screenshot.getComplete();
-					long endTime = System.currentTimeMillis();
-					LOGGER.info("IMAGE CAPTURE TIME " + (endTime - startTime) + " ms");
-
-					// Get the serialized image
-					String serialized_image = "";
 					try {
-						serialized_image = "data:image/png;base64," + InsightScreenshot.imageToString(imagePath);
-						
-						//Delete image file
-						File imageFile = new File(imagePath);
-						imageFile.delete();
-						
+						screenshot.getComplete();
+						long endTime = System.currentTimeMillis();
+//						LOGGER.info("IMAGE CAPTURE TIME " + (endTime - startTime) + " ms");
+
 						//Update solr
 						Map<String, Object> solrInsights = new HashMap<>();
-						solrInsights.put(SolrIndexEngine.IMAGE, serialized_image);
+						solrInsights.put(SolrIndexEngine.IMAGE, "\\images\\" + engineName + "_" + finalID + ".png");
 						try {
 							SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + finalID, solrInsights);
 							LOGGER.info("Updated solr id: " + finalID + " image");
@@ -422,10 +421,10 @@ public class QuestionAdmin {
 								| SolrServerException | IOException e) {
 							e.printStackTrace();
 						}
-					} catch (IOException e1) {
-						// unable to capture image timeout or browser errors
+						//Catch browser image exception
+					} catch (Exception e1) {
+						LOGGER.error("Unable to capture image from " + url);
 					}
-
 				}
 			};
 			// TODO use this for new image capture
@@ -467,33 +466,116 @@ public class QuestionAdmin {
 		Insight insightToEdit = getInsightToSave(insight, saveRecipe);
 		editInsightFromDb(insightToEdit, insightName, perspective, order, layout, description, uiOptions, tags,
 				dataTableAlign, paramMapList, image);
+		editInsightToSolr(insightToEdit,insightName, layout, description, tags);
+		
+		//image capture for edit 
+		//updateSolrImage(insightToEdit.getRdbmsId(), insightToEdit.getRdbmsId(), layout, "http://localhost:8080/SemossWeb/embed/");
+		
+		
+		// read pkqls for clone to see if a visualization will break the browser
+		// for unsupported visualizations if there is an unsupported visual
+		// don't run image capture
+		boolean cleanRecipe = false;
+		for (String pkql : saveRecipe) {
+			if (!pkql.contains("Grid") && !(pkql.contains("VivaGraph") && !(pkql.contains("Map")))) {
+				cleanRecipe = true;
+			}
+		}
+		boolean dashboard = false;
+		String baseURL = form.getFirst("url");
+		if (baseURL == null) {
+			dashboard = true;
+		}
+		//TODO remove this used for testing
+		dashboard = false;
+		baseURL = "http://localhost:8080/SemossWeb/embed/";
+		String baseImagePath = DIHelper.getInstance().getProperty("BaseFolder");
+		// used if an insight has params
+		List<String> runRecipe = gson.fromJson(form.getFirst("runRecipe"), List.class);
+		boolean hasParams = false;
+		if (runRecipe != null) {
+			hasParams = true;
+		}
+		String engineName = coreEngine.getEngineName();
+		// image capture
+		if (cleanRecipe && !dashboard) {
+			if (hasParams) {
+				// create temp insight
+				Insight tempInsight = new Insight(coreEngine, "H2Frame", "Grid");
+				// set the user id into the insight
+				tempInsight.setUserID("-1");
+				// use unparameterized insight recipe to run on insight
+				Insight paramTempInsight = getInsightToSave(tempInsight, runRecipe);
+				String paramInsightName = insightName + "temp";
+				paramTempInsight.setInsightName(paramInsightName);
+				paramTempInsight.setInsightID(insightToEdit.getInsightID());
+
+				// add temp insight to questions db
+				String paramInsightID = addInsightFromDb(paramTempInsight, paramInsightName, perspective, order, layout,
+						description, uiOptions, tags, dataTableAlign, paramMapList);
+
+				// adding temp insight to solr
+				addInsightToSolr(paramTempInsight, paramInsightName, layout, description, tags, paramInsightID);
+
+				// capture image and remove temp insight from insights db and
+				// solr
+				updateSolrImage(insightToEdit.getInsightID(), paramInsightID, layout, baseURL, baseImagePath, engineName);
+			}
+			// capture an image for insight without params
+			else {
+				updateSolrImage(insightToEdit.getRdbmsId(), insightToEdit.getRdbmsId(), layout, baseURL, baseImagePath, engineName);
+			}
+		}
 
 		// return
 		// Response.status(200).entity(WebUtility.getSO("Success")).build();
 		return WebUtility.getResponse("Success", 200);
 	}
 
-	private void editInsightFromDb(Insight insight, String insightName, String perspective, String order, String layout,
-			String description, String uiOptions, List<String> tags, Map<String, String> dataTableAlign,
-			Vector<Map<String, String>> paramMapList, String image) {
-		// TODO: currently not exposed through UI
-		boolean isDbQuery = true;
+	@POST
+	@Path("createInsightImages")
+	@Produces("application/json")
+	public Response createInsightImages(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String baseURL = form.getFirst("baseURL");
+		String engineName = form.getFirst("engineName");
+        IEngine engine = Utility.getEngine(engineName.replaceAll(" ", "_"));
+		
+        RDBMSNativeEngine insightsDB = (RDBMSNativeEngine) engine.getInsightDatabase();
+        
+		List<Object> ids = insightsDB.getEntityOfType("QUESTION_ID:ID");
+		String baseImagePath = DIHelper.getInstance().getProperty("BaseFolder");
 
-		// delete existing cache folder for insight if present
-		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteInsightCache(insight);
+		//run insight image capture for 5 insights at a time 
+		Runnable r = new Runnable() {
+			public void run() {
+				for(Object value: ids){
+					String questionID = value.toString();
+					String layout = "Pie";
+					updateSolrImage(questionID, questionID, layout, baseURL, baseImagePath, engineName);
+				}
+			}
+		};
 
+			Thread t = new Thread(r);
+			t.setPriority(Thread.MAX_PRIORITY);
+			t.start();
+			
+			
+
+
+		// return
+		// Response.status(200).entity(WebUtility.getSO("Success")).build();
+		return WebUtility.getResponse("Success", 200);
+	}
+	
+	private void editInsightToSolr(Insight insight, String insightName, String layout, String description, List<String> tags) {
 		String engineName = coreEngine.getEngineName();
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
-		String rdbmsId = insight.getRdbmsId();
-		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
-
-		List<SEMOSSParam> params = buildParameterList(insight, paramMapList);
-		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order,
-				insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
 
 		DateFormat dateFormat = SolrIndexEngine.getDateFormat();
 		Date date = new Date();
 		String currDate = dateFormat.format(date);
+		String rdbmsId = insight.getRdbmsId();
+		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
 		Map<String, Object> solrModifyInsights = new HashMap<>();
 		solrModifyInsights.put(SolrIndexEngine.STORAGE_NAME, insightName);
 		solrModifyInsights.put(SolrIndexEngine.INDEX_NAME, insightName);
@@ -503,7 +585,8 @@ public class QuestionAdmin {
 		solrModifyInsights.put(SolrIndexEngine.MODIFIED_ON, currDate);
 		solrModifyInsights.put(SolrIndexEngine.LAST_VIEWED_ON, currDate);
 		solrModifyInsights.put(SolrIndexEngine.CORE_ENGINE, engineName);
-		solrModifyInsights.put(SolrIndexEngine.IMAGE, image);
+//		String image = "";
+//		solrModifyInsights.put(SolrIndexEngine.IMAGE, image);
 
 		// TODO: need to add users
 		solrModifyInsights.put(SolrIndexEngine.USER_ID, "default");
@@ -518,7 +601,27 @@ public class QuestionAdmin {
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
 				| IOException e) {
 //			e.printStackTrace();
-		}
+		}	
+		//TODO return rdbmsID
+	}
+
+	private void editInsightFromDb(Insight insight, String insightName, String perspective, String order, String layout,
+			String description, String uiOptions, List<String> tags, Map<String, String> dataTableAlign,
+			Vector<Map<String, String>> paramMapList, String image) {
+		// TODO: currently not exposed through UI
+		boolean isDbQuery = true;
+
+		// delete existing cache folder for insight if present
+		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteInsightCache(insight);
+		QuestionAdministrator questionAdmin = new QuestionAdministrator(this.coreEngine);
+		String rdbmsId = insight.getRdbmsId();
+		List<DataMakerComponent> dmcList = insight.getDataMakerComponents();
+
+		List<SEMOSSParam> params = buildParameterList(insight, paramMapList);
+		questionAdmin.modifyQuestion(rdbmsId, insightName, perspective, dmcList, layout, order,
+				insight.getDataMakerName(), isDbQuery, dataTableAlign, params, uiOptions);
+
+		
 	}
 
 	private Insight getInsightToSave(Insight insight, List<String> saveRecipe) {
