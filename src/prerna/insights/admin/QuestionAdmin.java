@@ -539,9 +539,9 @@ public class QuestionAdmin {
 	}
 
 	@POST
-	@Path("createInsightImages")
+	@Path("createInsightImagesForDB")
 	@Produces("application/json")
-	public Response createInsightImages(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response createInsightImagesForDB(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String baseURL = form.getFirst("baseURL");
 		String engineName = form.getFirst("engineName");
         IEngine engine = Utility.getEngine(engineName.replaceAll(" ", "_"));
@@ -595,6 +595,29 @@ public class QuestionAdmin {
 
 		// return
 		// Response.status(200).entity(WebUtility.getSO("Success")).build();
+		return WebUtility.getResponse("Success", 200);
+	}
+	
+	@POST
+	@Path("createNewInsightImage")
+	@Produces("application/json")
+	public Response createNewInsightImage(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String baseURL = form.getFirst("baseURL");
+		String engineName = form.getFirst("engineName");
+		String baseImagePath = DIHelper.getInstance().getProperty("BaseFolder");
+		String rdbmsID = form.getFirst("rdbmsID");
+
+		// run insight image capture for 25 insights at a time
+		Runnable r = new Runnable() {
+			public void run() {
+				updateSolrImage(rdbmsID, rdbmsID, "Pie", baseURL, baseImagePath, engineName);
+			}
+		};
+		Thread t = new Thread(r);
+		t.setPriority(Thread.MAX_PRIORITY);
+		t.start();
+			
+		
 		return WebUtility.getResponse("Success", 200);
 	}
 	
