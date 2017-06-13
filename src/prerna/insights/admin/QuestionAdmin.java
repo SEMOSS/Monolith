@@ -43,6 +43,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
@@ -395,6 +400,7 @@ public class QuestionAdmin {
 					// wait for screenshot
 					long startTime = System.currentTimeMillis();
 					try {
+						//check if image has been saved throws exception if no image is saved
 						screenshot.getComplete();
 						long endTime = System.currentTimeMillis();
 //						LOGGER.info("IMAGE CAPTURE TIME " + (endTime - startTime) + " ms");
@@ -427,7 +433,7 @@ public class QuestionAdmin {
 					}
 				}
 			};
-			// TODO use this for new image capture
+
 			Thread t = new Thread(r);
 			t.setPriority(Thread.MAX_PRIORITY);
 			t.start();
@@ -545,14 +551,38 @@ public class QuestionAdmin {
 		List<Object> ids = insightsDB.getEntityOfType("QUESTION_ID:ID");
 		String baseImagePath = DIHelper.getInstance().getProperty("BaseFolder");
 
-		//run insight image capture for 5 insights at a time 
+		//run insight image capture for 25 insights at a time 
 		Runnable r = new Runnable() {
 			public void run() {
-				for(Object value: ids){
-					String questionID = value.toString();
-					String layout = "Pie";
-					updateSolrImage(questionID, questionID, layout, baseURL, baseImagePath, engineName);
+				int start = 0;
+				int i = 0;
+				int offset = 25;
+				
+				while (start < ids.size()) {
+					while (i < start + offset) {
+						if (i < ids.size()) {
+							Object value = ids.get(i);
+							if (value != null) {
+								String questionID = value.toString();
+								String layout = "Pie";
+								updateSolrImage(questionID, questionID, layout, baseURL, baseImagePath, engineName);
+							}
+						}
+						i++;
+					}
+					try {
+						//wait 1 minute for images to be captured to start next pool
+						Thread.sleep(60*1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					start += offset;
 				}
+//				for(Object value: ids){
+//					String questionID = value.toString();
+//					String layout = "Pie";
+//					updateSolrImage(questionID, questionID, layout, baseURL, baseImagePath, engineName);
+//				}
 			}
 		};
 
