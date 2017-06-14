@@ -116,6 +116,7 @@ public class DatabaseUploader extends Uploader {
 
 		// determine the db type
 		String dbType = inputData.get("dataOutputType");
+		
 		if(dbType.equalsIgnoreCase("RDBMS")) {
 			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
 
@@ -214,7 +215,19 @@ public class DatabaseUploader extends Uploader {
 
 			} else if(dbType.equalsIgnoreCase("Tinker")) {
 				// load as a tinker engine
+				String tinkerDriver = form.getFirst("tinkerOutputType");
 				options.setDbType(ImportOptions.DB_TYPE.TINKER);
+				//set driver type for smss file 
+				if(tinkerDriver.equalsIgnoreCase("TG")) {
+					options.setTinkerDriverType(ImportOptions.TINKER_DRIVER.TG);
+				} else if (tinkerDriver.equalsIgnoreCase("NEO4J")) {
+					options.setTinkerDriverType(ImportOptions.TINKER_DRIVER.NEO4J);
+				} else if (tinkerDriver.equalsIgnoreCase("XML")) {
+					options.setTinkerDriverType(ImportOptions.TINKER_DRIVER.XML);
+				} else if (tinkerDriver.equalsIgnoreCase("JSON")) {
+					options.setTinkerDriverType(ImportOptions.TINKER_DRIVER.JSON);
+				}
+				
 			} else {
 				// default to RDF db type
 				options.setDbType(ImportOptions.DB_TYPE.RDF);
@@ -1257,6 +1270,7 @@ public class DatabaseUploader extends Uploader {
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
 
 		String driver = form.getFirst("driver");
+		//driver = "DB2";
 		String hostname = form.getFirst("hostname");
 		String port = form.getFirst("port");
 		String username = form.getFirst("username");
@@ -1281,6 +1295,7 @@ public class DatabaseUploader extends Uploader {
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
 
 		String driver = form.getFirst("driver");
+		//driver = "DB2";
 		String hostname = form.getFirst("hostname");
 		String port = form.getFirst("port");
 		String username = form.getFirst("username");
@@ -1379,6 +1394,7 @@ public class DatabaseUploader extends Uploader {
 		importOptions.setAllowDuplicates(true);
 		importOptions.setDbName(options.get("dbName"));
 		importOptions.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.valueOf(options.get("driver")));
+		//importOptions.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.DB2);
 		importOptions.setHost(options.get("hostname"));
 		importOptions.setPort(options.get("port"));
 		importOptions.setSchema(options.get("schema"));
@@ -1396,6 +1412,7 @@ public class DatabaseUploader extends Uploader {
 
 		Gson gson = new Gson();
 		String driver = form.getFirst("driver");
+		//driver = "DB2";
 		String hostname = form.getFirst("hostname");
 		String port = form.getFirst("port");
 		String username = form.getFirst("username");
