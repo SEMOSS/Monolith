@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -436,17 +437,22 @@ public class NameServer {
 			SolrDocumentList list = (SolrDocumentList) results.get("queryResponse");
 			String basePath = DIHelper.getInstance().getProperty("BaseFolder");
 			int imageCount = 0;
-			for (int i = 0; i < list.size(); i++) {
-				SolrDocument doc = list.get(i);
-				String imagePath = (String) doc.get("image");
-				if (imagePath != null && imagePath.length() > 0 && !imagePath.contains("data")) {
-					imageCount++;
-					long startTime = System.currentTimeMillis();
-					String image = InsightScreenshot.imageToString(basePath+imagePath);
-					long endTime = System.currentTimeMillis();
-					long duration = endTime - startTime;
-					// logger.info("Time to serialize an image " + duration );
-					doc.put("image", "data:image/png;base64," + image);
+			if (list != null) {
+				for (int i = 0; i < list.size(); i++) {
+					SolrDocument doc = list.get(i);
+					String imagePath = (String) doc.get("image");
+					if (imagePath != null && imagePath.length() > 0 && !imagePath.contains("data:image/:base64")) {
+						imageCount++;
+						long startTime = System.currentTimeMillis();
+						File file = new File(basePath + imagePath);
+						if (file.exists()) {
+							String image = InsightScreenshot.imageToString(basePath + imagePath);
+							long endTime = System.currentTimeMillis();
+							long duration = endTime - startTime;
+							//logger.info("Time to serialize an image " + duration);
+							doc.put("image", "data:image/png;base64," + image);
+						}
+					}
 				}
 			}
 			// logger.info("total images " + imageCount );
