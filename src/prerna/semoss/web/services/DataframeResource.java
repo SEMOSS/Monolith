@@ -109,7 +109,9 @@ public class DataframeResource {
 		while(dataId >= insight.getDataMaker().getDataId()) {
 			this.insight.getDataMaker().updateDataId();
 		}
-		
+		// update the id one more time
+		this.insight.getDataMaker().updateDataId();
+
 		InsightStore.getInstance().put(id, insight);
 		return WebUtility.getResponse("Insight " + id + " has been cleared", 200);
 	}
