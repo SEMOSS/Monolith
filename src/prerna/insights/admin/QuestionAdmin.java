@@ -27,13 +27,10 @@
  *******************************************************************************/
 package prerna.insights.admin;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.sql.ResultSet;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -43,11 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
@@ -84,8 +76,8 @@ import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
-import prerna.web.services.util.WebUtility;
 import prerna.util.insight.InsightScreenshot;
+import prerna.web.services.util.WebUtility;
 
 public class QuestionAdmin {
 
@@ -411,18 +403,6 @@ public class QuestionAdmin {
 						try {
 							SolrIndexEngine.getInstance().modifyInsight(engineName + "_" + finalID, solrInsights);
 							LOGGER.info("Updated solr id: " + finalID + " image");
-							// clean up temp param insight data
-							if (!finalID.equals(idForURL)) {
-								// remove Solr data for temporary param
-								List<String> insightsToRemove = new ArrayList();
-								insightsToRemove.add(engineName + "_" + idForURL);
-								LOGGER.info("REMOVING TEMP SOLR INSTANCE FOR PARAM INSIGHT "
-										+ Arrays.toString(insightsToRemove.toArray()));
-								SolrIndexEngine.getInstance().removeInsight(insightsToRemove);
-								QuestionAdministrator questionAdmin = new QuestionAdministrator(coreEngine);
-								questionAdmin.removeQuestion(idForURL);
-							}
-
 						} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException
 								| SolrServerException | IOException e) {
 							e.printStackTrace();
@@ -430,6 +410,21 @@ public class QuestionAdmin {
 						//Catch browser image exception
 					} catch (Exception e1) {
 						LOGGER.error("Unable to capture image from " + url);
+					} finally {
+						// clean up temp param insight data
+						if (!finalID.equals(idForURL)) {
+							// remove Solr data for temporary param
+							List<String> insightsToRemove = new ArrayList();
+							insightsToRemove.add(engineName + "_" + idForURL);
+							LOGGER.info("REMOVING TEMP SOLR INSTANCE FOR PARAM INSIGHT " + Arrays.toString(insightsToRemove.toArray()));
+							try {
+								SolrIndexEngine.getInstance().removeInsight(insightsToRemove);
+							} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
+								e.printStackTrace();
+							}
+							QuestionAdministrator questionAdmin = new QuestionAdministrator(coreEngine);
+							questionAdmin.removeQuestion(idForURL);
+						}
 					}
 				}
 			};
