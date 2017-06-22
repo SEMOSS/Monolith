@@ -1,5 +1,6 @@
 package prerna.semoss.web.services;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,6 +26,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
@@ -63,6 +66,8 @@ import prerna.web.services.util.WebUtility;
 
 public class DataframeResource {
 
+	private static final Logger LOGGER = LogManager.getLogger(DataframeResource.class.getName());
+	
 	@Context
 	ServletContext context;
 
@@ -249,6 +254,16 @@ public class DataframeResource {
 			// also see if other variables in runner that need to be dropped
 			PKQLRunner runner = insight.getPKQLRunner();
 			runner.cleanUp();
+			
+			// also delete any files that were used
+			List<FilePkqlMetadata> fileData = insight.getFilesMetadata();
+			if(fileData != null && !fileData.isEmpty()) {
+				for(int fileIdx = 0; fileIdx < fileData.size(); fileIdx++) {
+					FilePkqlMetadata file = fileData.get(fileIdx);
+					File f = new File(file.getFileLoc());
+					f.delete();
+				}
+			}
 			
 			if(success) {
 				logger.info("Succesfully dropped insight " + insightID);
