@@ -434,9 +434,10 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 	 * Since this is an RDF engine, the inputs are full URIs
 	 * @param origName
 	 * @param newName
+	 * @param deleteInstanceBoolean
 	 */
 	@Override
-	protected void modifyInstanceValue(String origName, String newName) {
+	protected void modifyInstanceValue(String origName, String newName, boolean deleteInstanceBoolean) {
 		String newInstanceName = Utility.getInstanceName(newName);
 
 		// get all the subjects
@@ -462,12 +463,14 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 		deleteTriples(upTriples);
 		deleteTriples(downTriples);
 
-		addUpTriples(upTriples, newName, newInstanceName);
-		addDownTriples(downTriples, newName);
+		if(!deleteInstanceBoolean) {
+			addUpTriples(upTriples, newName, newInstanceName);
+			addDownTriples(downTriples, newName);
+		}
 		
-		this.engine.commit();
+		this.engine.commit();		
 	}
-
+	
 	protected void addUpTriples(List<Object[]> triples, String newUri, String newName) {
 		int size = triples.size();
 		for(int i = 0; i < size; i++) {
@@ -485,20 +488,12 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 
 			}
 		
-			//TODO: Discuss if this can be handled in the storevalues() instead
+			// need to take into consideration if this is the label we add for each node
 			if(predicate.equals(RDFS.LABEL.stringValue())) {
 				object = newName;
 				concept = false;
 			}
 			
-//			if (predicate.equals(RDFS.LABEL.stringValue())) {
-				System.out.println("Add Up Subject: " + subject);
-				System.out.println("Add Up Predicate: " + predicate);
-				System.out.println("Add Up Object: " + object.toString());
-				System.out.println("Is Concept: " + concept);
-				System.out.println("");
-//			}
-
 			addData(subject, predicate, object, concept);
 		}
 	}
@@ -519,15 +514,6 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			} catch (Exception e) {
 
 			}
-			
-//			if (predicate.equals(RDFS.LABEL.stringValue())) {
-				System.out.println("Add Down Subject: " + subject);
-				System.out.println("Add Down Predicate: " + predicate);
-				System.out.println("Add Down Object: " + object.toString());
-				System.out.println("Is Concept: " + concept);
-				System.out.println("");
-//			}
-			
 			addData(subject, predicate, object, concept);
 		}
 	}
@@ -547,15 +533,6 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			} catch (Exception e) {
 
 			}
-
-			
-//			if (predicate.equals(RDFS.LABEL.stringValue())) {
-				System.out.println("Delete Subject: " + subject);
-				System.out.println("Delete Predicate: " + predicate);
-				System.out.println("Delete Object: " + object.toString());
-				System.out.println("Is Concept: " + concept);
-				System.out.println("");
-//			}
 			deleteData(subject, predicate, object, concept);
 		}
 	}

@@ -199,12 +199,14 @@ public abstract class AbstractFormBuilder {
 			List<HashMap<String, Object>> removeNodes, 
 			List<HashMap<String, Object>> removeRelationships);
 
+
 	/**
 	 * Method to replace an instance across the entire db
 	 * @param origName
 	 * @param newName
+	 * @param deleteInstanceBoolean
 	 */
-	protected abstract void modifyInstanceValue(String origName, String newName);
+	protected abstract void modifyInstanceValue(String origName, String newName, boolean deleteInstanceBoolean);
 	
 	protected abstract void certifyInstance(String conceptType, String instanceName);
 	
