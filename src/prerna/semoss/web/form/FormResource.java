@@ -71,10 +71,15 @@ public class FormResource {
 		String dbName = form.getFirst("dbName");
 		String origUri = form.getFirst("originalUri");
 		String newUri = form.getFirst("newUri");
-		IEngine coreEngine = Utility.getEngine(dbName);
+		boolean deleteInstanceBoolean = false;
+		if(form.getFirst("deleteInstanceBoolean") != null) {
+			deleteInstanceBoolean = Boolean.parseBoolean(form.getFirst("deleteInstanceBoolean"));
+		}
 		
+		IEngine coreEngine = Utility.getEngine(dbName);
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
-		formbuilder.modifyInstanceValue(origUri, newUri);
+		
+		formbuilder.modifyInstanceValue(origUri, newUri, deleteInstanceBoolean);
 		return WebUtility.getResponse("success", 200);
 	}
 	
@@ -135,9 +140,6 @@ public class FormResource {
 					}
 				}
 			}
-		
-		    //String x509Id = "1234";
-			
 			// map to store the valid instances for the given user
 			Map<String, String> userAccessableInstances = new HashMap<String, String>();
 			String query = "SELECT INSTANCE_NAME, IS_SYS_ADMIN FROM FORMS_USER_ACCESS WHERE USER_ID = '" + x509Id + "';";
