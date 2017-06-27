@@ -144,6 +144,9 @@ public class DatabaseUploader extends Uploader {
 		if(questionFile != null && !questionFile.trim().isEmpty()) {
 			options.setQuestionFile(questionFile);
 		}
+		
+		// set clean string by default
+		options.setCleanString(true);
 	}
 
 	/**
@@ -239,6 +242,9 @@ public class DatabaseUploader extends Uploader {
 		if(questionFile != null && !questionFile.trim().isEmpty()) {
 			options.setQuestionFile(questionFile);
 		}
+		
+		// set clean string by default
+		options.setCleanString(true);
 	}
 
 	///////////////////////////////////////////// END SET DEFAULT OPTIONS ///////////////////////////////////////////////
