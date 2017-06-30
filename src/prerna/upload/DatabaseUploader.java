@@ -17,9 +17,11 @@ import java.util.Map;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -32,6 +34,7 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
+import prerna.engine.impl.solr.SolrEngine;
 import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
 import prerna.poi.main.HeadersException;
@@ -1265,7 +1268,62 @@ public class DatabaseUploader extends Uploader {
 		String outputText = "NLP Loading was a success.";
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
+	
+	@GET
+	@Path("/solr/ping")
+	@Produces("applicaiton/json")
+	public Response validSolrEngine(@QueryParam("solrURL") String solrURL , @QueryParam("coreName") String coreName) {
+		boolean isValid = SolrEngine.ping(solrURL, coreName);
+		return WebUtility.getResponse(isValid, 200);
+	}
+	
+	@POST
+	@Path("/solr/getMetamodel")
+	@Produces("applicaiton/json")
+	public Response getSolrMetadata(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String solrURL = form.getFirst("solrURL");
+		String coreName = form.getFirst("coreName");
+		boolean isValid = SolrEngine.ping(solrURL, coreName);
+		if(isValid) {
+			Map<String, Object> schemaData = SolrEngine.getSchema(solrURL, coreName);
+			// we send a really weird object
+			// so going format this data into that format
+			List<String> columnHeaders = (List<String>) schemaData.get(SolrEngine.SCHEMA_HEADERS_KEY);
+			List<String> columnTypes = (List<String>) schemaData.get(SolrEngine.SCHEMA_DATA_TYPE_KEY);
+			String key = (String) schemaData.get(SolrEngine.SCHEMA_UNIQUE_HEADER_KEY);
+			String keyType = (String) schemaData.get(SolrEngine.SCHEMA_UNIQUE_HEADER_DATA_TYPE_KEY);
 
+			Map<String, Object> retMap = new HashMap<String, Object>();
+			Map<String, List<Map<String, Object>>> tableMap = new HashMap<String, List<Map<String, Object>>>();
+			retMap.put("tables", tableMap);
+			// we only have one table in our solr metamodel
+			List<Map<String, Object>> fieldList = new Vector<Map<String, Object>>();
+			// add the name of the "table" -> i.e. the unique field
+			// to all of the other fields
+			tableMap.put(key, fieldList);
+			int numFields = columnHeaders.size();
+			for(int i = 0; i < numFields; i++) {
+				Map<String, Object> fieldMap = new HashMap<String, Object>();
+				String field = columnHeaders.get(i);
+				fieldMap.put("name", field);
+				fieldMap.put("type", columnTypes.get(i));
+				if(field.equals(key)) {
+					fieldMap.put("isPK", true);
+				} else {
+					fieldMap.put("isPK", false);
+				}
+				fieldList.add(fieldMap);
+			}
+			
+			return WebUtility.getResponse(retMap, 200);
+		} else {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Unable to successfully connect to solr instance at " + solrURL);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+	}
+	
+	
 	@POST
 	@Path("/rdbms/getMetadata")
 	@Produces("application/json")
@@ -1483,171 +1541,5 @@ public class DatabaseUploader extends Uploader {
 		}
 		return s;
 	}
-
-	////////////////////////////////////////////////////////////////////////////////////////////	
-	// OLD CSV UPLOAD WHEN THE BE WAS NOT RESPONSIBLE FOR METAMODEL LOGIC
-	//	@POST
-	//	@Path("/csv/upload")
-	//	@Produces("application/json")
-	//	public Response uploadCSVFile(@Context HttpServletRequest request)
-	//	{
-	//		Gson gson = new Gson();
-	//		List<FileItem> fileItems = processRequest(request);
-	//		// collect all of the data input on the form
-	//		Hashtable<String, String> inputData = getInputData(fileItems);
-	//		System.out.println(inputData);
-	//
-	//		ImportOptions options = null;
-	//		String[] propFileArr = null;
-	//		try {
-	//			// load as many default options as possible
-	//			options = new ImportOptions();
-	//			// now just load the rest as usual
-	//			setDefaultOptions(options, inputData);
-	//			// set the import type
-	//			options.setImportType(ImportOptions.IMPORT_TYPE.CSV);
-	//			
-	//			// open refine logic
-	//			Object obj = inputData.get("cleanedFiles");
-	//			if(obj != null) {
-	//				String cleanedFileName = processOpenRefine(options.getDbName(), (String) obj);
-	//				if(cleanedFileName.startsWith("Error")) {
-	//					Map<String, String> errorHash = new HashMap<String, String>();
-	//					errorHash.put("errorMessage", "Could not write the cleaned data to file. Please check application file-upload path.");
-	//					return Response.status(400).entity(gson.toJson(errorHash)).build();
-	//				}
-	//				inputData.put("file", cleanedFileName);
-	//			}
-	//			
-	//			// only default options not set are the files
-	//			String files = inputData.get("file");
-	//			if(files == null || files.trim().isEmpty()) {
-	//				Map<String, String> errorHash = new HashMap<String, String>();
-	//				errorHash.put("errorMessage", "No files have been identified to upload");
-	//				return Response.status(400).entity(gson.toJson(errorHash)).build();
-	//			}
-	//			options.setFileLocation(files);
-	//			
-	//			////////////////////// begin logic to process metamodel for excel flat table //////////////////////
-	//			List<String> allFileData = gson.fromJson(inputData.get("fileInfoArray"), List.class);
-	//			int size = allFileData.size();
-	//			
-	//			Hashtable<String, String>[] propHashArr = new Hashtable[size];
-	//			propFileArr = new String[size];
-	//			boolean allEmpty = true;
-	//			for(int i = 0; i < size; i++) {
-	//				Hashtable<String, String> itemForFile = gson.fromJson(allFileData.get(i), Hashtable.class);
-	//				CSVPropFileBuilder propWriter = new CSVPropFileBuilder();
-	//				List<String> rel = gson.fromJson(itemForFile.get("rowsRelationship"), List.class);
-	//				List<String> prop = gson.fromJson(itemForFile.get("rowsProperty"), List.class);
-	//				List<String> displayNames = gson.fromJson(itemForFile.get("itemDisplayName"), List.class);
-	//				if((rel != null &&!rel.isEmpty()) || (prop != null && !prop.isEmpty()) ) {
-	//					allEmpty = false;
-	//				}
-	//				if(rel != null) {
-	//					for(String str : rel) {
-	//						// subject and object keys link to array list for concatenations, while the predicate is always a string
-	//						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-	//						if(!((String) mRow.get("selectedRelSubject").toString()).isEmpty() && !((String) mRow.get("relPredicate").toString()).isEmpty() && !((String) mRow.get("selectedRelObject").toString()).isEmpty())
-	//						{
-	//							propWriter.addRelationship((ArrayList<String>) mRow.get("selectedRelSubject"), mRow.get("relPredicate").toString(), (ArrayList<String>) mRow.get("selectedRelObject"));
-	//						}
-	//					}
-	//				}
-	//				if(prop != null) {
-	//					for(String str : prop) {
-	//						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-	//						if(!((String) mRow.get("selectedPropSubject").toString()).isEmpty() && !((String) mRow.get("selectedPropObject").toString()).isEmpty() && !((String) mRow.get("selectedPropDataType").toString()).isEmpty())
-	//						{
-	//							propWriter.addProperty((ArrayList<String>) mRow.get("selectedPropSubject"), (ArrayList<String>) mRow.get("selectedPropObject"), (String) mRow.get("selectedPropDataType").toString());
-	//						}
-	//					}
-	//				}
-	//				if(displayNames != null) {
-	//					for(String str : displayNames) {
-	//						Hashtable<String, Object> mRow = gson.fromJson(str, Hashtable.class);
-	//						if(!((String) mRow.get("selectedNode").toString()).isEmpty() && !((String) mRow.get("selectedProperty").toString()).isEmpty() && !((String) mRow.get("selectedDisplayName").toString()).isEmpty())
-	//						{
-	//							propWriter.addDisplayName((ArrayList<String>) mRow.get("selectedNode"), (ArrayList<String>) mRow.get("selectedProperty"), (ArrayList<String>) mRow.get("selectedDisplayName"));
-	//						}
-	//					}
-	//				}
-	//				String headersList = itemForFile.get("allHeaders"); 
-	//				Hashtable<String, Object> headerHash = gson.fromJson(headersList, Hashtable.class);
-	//				ArrayList<String> headers = (ArrayList<String>) headerHash.get("AllHeaders");
-	//				propWriter.columnTypes(headers);
-	//				propHashArr[i] = propWriter.getPropHash(itemForFile.get("csvStartLineCount"), itemForFile.get("csvEndLineCount")); 
-	//				propFileArr[i] = propWriter.getPropFile();
-	//			}
-	//			if(allEmpty) {
-	//				Map<String, String> errorHash = new HashMap<String, String>();
-	//				errorHash.put("errorMessage", "No metamodel has been specified.\n Please specify a metamodel in order to determine how to load this data.");
-	//				return Response.status(400).entity(gson.toJson(errorHash)).build();
-	//			}
-	//			// set it in the options
-	//			options.setMetamodelArray(propHashArr);
-	//			////////////////////// end logic to process metamodel for excel flat table //////////////////////
-	//			
-	//			// add engine owner for permissions
-	//			if(this.securityEnabled) {
-	//				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-	//				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-	//					addEngineOwner(options.getDbName(), ((User) user).getId());
-	//				} else {
-	//					Map<String, String> errorHash = new HashMap<String, String>();
-	//					errorHash.put("errorMessage", "Please log in to upload data.");
-	//					return Response.status(400).entity(gson.toJson(errorHash)).build();
-	//				}
-	//			}
-	//
-	//			// run the processor
-	//			ImportDataProcessor importer = new ImportDataProcessor();
-	//			importer.runProcessor(options);
-	//		} catch (IOException e) {
-	//			e.printStackTrace();
-	//			Map<String, String> errorHash = new HashMap<String, String>();
-	//			errorHash.put("errorMessage", e.getMessage());
-	//			return Response.status(400).entity(gson.toJson(errorHash)).build();
-	//		} catch(Exception e) {
-	//			e.printStackTrace();
-	//			Map<String, String> errorHash = new HashMap<String, String>();
-	//			errorHash.put("errorMessage", e.getMessage());
-	//			return Response.status(400).entity(gson.toJson(errorHash)).build();
-	//		} finally {
-	//			deleteFilesFromServer(inputData.get("file").toString().split(";"));
-	//			String questionFile = inputData.get("questionFile");
-	//			if(questionFile != null && !questionFile.isEmpty()) {
-	//				deleteFilesFromServer(new String[]{questionFile});
-	//			}				
-	//		}
-	//
-	//		// need to write out the property files
-	//		try {
-	//			Date currDate = Calendar.getInstance().getTime();
-	//			SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmssZ");
-	//			String dateName = sdf.format(currDate);
-	//			
-	//			String dbName = options.getDbName();
-	//			String[] fileNames = options.getFileLocations().split(";");
-	//			for(int i = 0; i < propFileArr.length; i++) {
-	//				String fileName = new File(fileNames[i]).getName().replace(".xls*", "");
-	//				FileUtils.writeStringToFile(new File(
-	//						DIHelper.getInstance().getProperty("BaseFolder")
-	//						.concat(File.separator).concat("db").concat(File.separator)
-	//						.concat(dbName).concat(File.separator).concat(dbName).concat("_")
-	//						.concat(fileName)
-	//						.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
-	//			}
-	//		} catch (IOException e) {
-	//			e.printStackTrace();
-	//			Map<String, String> errorHash = new HashMap<String, String>();
-	//			errorHash.put("errorMessage", "Failure to write Excel Prop File based on user-defined metamodel.");
-	//			return Response.status(400).entity(gson.toJson(errorHash)).build();
-	//		}
-	//		
-	//		String outputText = "CSV Loading was a success.";
-	//		return Response.status(200).entity(gson.toJson(outputText)).build();
-	//	}
-
 
 }
