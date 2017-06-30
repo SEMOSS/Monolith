@@ -1323,6 +1323,24 @@ public class DatabaseUploader extends Uploader {
 		}
 	}
 	
+	@POST
+	@Path("/solr/loadSolrEngine")
+	@Produces("applicaiton/json")
+	public Response loadSolrEngine(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String solrURL = form.getFirst("solrURL");
+		String coreName = form.getFirst("coreName");
+		boolean isValid = SolrEngine.ping(solrURL, coreName);
+		if(isValid) {
+			boolean success = true;
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("success", success);
+			return WebUtility.getResponse(ret, 200);
+		} else {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Unable to successfully connect to solr instance at " + solrURL);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+	}
 	
 	@POST
 	@Path("/rdbms/getMetadata")
