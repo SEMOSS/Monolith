@@ -39,6 +39,7 @@ import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
 import prerna.poi.main.HeadersException;
 import prerna.poi.main.MetaModelCreator;
+import prerna.poi.main.SolrEngineConnector;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.ImportOptions;
 import prerna.poi.main.helper.XLFileHelper;
@@ -1330,7 +1331,18 @@ public class DatabaseUploader extends Uploader {
 		String solrURL = form.getFirst("solrURL");
 		String coreName = form.getFirst("coreName");
 		boolean isValid = SolrEngine.ping(solrURL, coreName);
+		String dbName = form.getFirst("dbName");
 		if(isValid) {
+			dbName = makeAlphaNumeric(dbName);
+			SolrEngineConnector connector = new SolrEngineConnector();
+			try {
+				connector.processExistingSolrConnection(dbName, solrURL, coreName);
+			} catch (IOException e) {
+				e.printStackTrace();
+				Map<String, Object> errorMap = new HashMap<String, Object>();
+				errorMap.put("errorMessage", e.getMessage());
+				return WebUtility.getResponse(errorMap, 400);
+			}
 			boolean success = true;
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", success);
