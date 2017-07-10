@@ -26,7 +26,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
@@ -46,19 +45,15 @@ import prerna.ds.export.graph.IGraphExporter;
 import prerna.ds.export.graph.TinkerFrameGraphExporter;
 import prerna.ds.h2.H2Frame;
 import prerna.ds.nativeframe.NativeFrame;
-import prerna.ds.r.RDataTable;
 import prerna.engine.api.IEngine;
-import prerna.om.Dashboard;
 import prerna.om.GraphDataModel;
 import prerna.om.Insight;
 import prerna.om.InsightMessageStore;
 import prerna.om.InsightStore;
+import prerna.om.OldInsight;
 import prerna.poi.main.InsightFilesToDatabaseReader;
-import prerna.sablecc.PKQLRunner;
 import prerna.sablecc.meta.FilePkqlMetadata;
-import prerna.sablecc2.PKSLRunner;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
-import prerna.ui.components.playsheets.datamakers.ISEMOSSTransformation;
 import prerna.ui.components.playsheets.datamakers.PKQLTransformation;
 import prerna.util.Constants;
 import prerna.util.Utility;
@@ -84,41 +79,57 @@ public class DataframeResource {
 	@Path("/clear")
 	@Produces("application/json")
 	public Response clearInsight(@Context HttpServletRequest request){
-		String id = insight.getInsightID();
-		String dmName = insight.getDataMakerName();
-		String engName = insight.getEngineName();
-		String rdbmsId = insight.getRdbmsId();
-		Insight parentInsight = insight.getParentInsight();
-		int dataId = insight.getDataMaker().getDataId();
+		Insight newInsight = new Insight();
+		String id = insight.getInsightId();
+		newInsight.setInsightId(id);
+		newInsight.setEngineName(insight.getEngineName());
+		newInsight.setRdbmsId(insight.getRdbmsId());
 		
-		IEngine eng = null;
-		if(engName != null){
-			eng = Utility.getEngine(engName);//(IEngine) DIHelper.getInstance().getLocalProp(engName);
-		}
-		String layoutName = insight.getOutput();
-
-		this.insight = new Insight(eng, dmName, layoutName);
-		this.insight.getDataMaker(); // need to instatiate datamaker so next call doesn't try to get it from cache
-		this.insight.setInsightID(id);
-		if(rdbmsId != null) {
-			this.insight.setRdbmsId(rdbmsId);
-		}
+		List<String> newPkslList = new Vector<String>(insight.getPkslRecipe());
+		newInsight.runPkql(newPkslList);
 		
-		this.insight.setParentInsight(parentInsight);
-		if(this.insight.isJoined()) {
-			Dashboard dashboard = (Dashboard)parentInsight.getDataMaker();
-			List<Insight> insights = new ArrayList<>(1);
-			insights.add(this.insight);
-			dashboard.addInsights(insights);
-		}
+		//TODO:
+		//TODO:
+		//TODO:
+		//TODO:
+		//TODO:
+		//TODO: clear the insight
 		
+//		String dmName = insight.getDataMakerName();
+//		String engName = insight.getEngineName();
+//		String rdbmsId = insight.getRdbmsId();
+//		Insight parentInsight = insight.getParentInsight();
+//		int dataId = insight.getDataMaker().getDataId();
+//		
+//		IEngine eng = null;
+//		if(engName != null){
+//			eng = Utility.getEngine(engName);//(IEngine) DIHelper.getInstance().getLocalProp(engName);
+//		}
+//		String layoutName = insight.getOutput();
+//
+//		this.insight = new Insight(eng, dmName, layoutName);
+//		this.insight.getDataMaker(); // need to instatiate datamaker so next call doesn't try to get it from cache
+//		this.insight.setInsightID(id);
+//		if(rdbmsId != null) {
+//			this.insight.setRdbmsId(rdbmsId);
+//		}
+//		
+//		this.insight.setParentInsight(parentInsight);
+//		if(this.insight.isJoined()) {
+//			Dashboard dashboard = (Dashboard)parentInsight.getDataMaker();
+//			List<Insight> insights = new ArrayList<>(1);
+//			insights.add(this.insight);
+//			dashboard.addInsights(insights);
+//		}
+//		
+		int dataId = 0;
 		while(dataId >= insight.getDataMaker().getDataId()) {
-			this.insight.getDataMaker().updateDataId();
+			newInsight.getDataMaker().updateDataId();
 		}
 		// update the id one more time
-		this.insight.getDataMaker().updateDataId();
+		newInsight.getDataMaker().updateDataId();
 
-		InsightStore.getInstance().put(id, insight);
+		InsightStore.getInstance().put(id, newInsight);
 		return WebUtility.getResponse("Insight " + id + " has been cleared", 200);
 	}
 
@@ -143,77 +154,56 @@ public class DataframeResource {
 		else {
 			return WebUtility.getResponse("Data Maker not instance of ITableDataFrame.  Cannot grab filter model from Data Maker.", 400);
 		}
-
 	}
 
-	@POST
-	@Path("/openBackDoor")
-	@Produces("application/json")
-	public Response openBackDoor(@Context HttpServletRequest request){
-		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
-		tf.openBackDoor();
-		return WebUtility.getResponse("Successfully closed back door", 200);
-	}
+//	@POST
+//	@Path("/openBackDoor")
+//	@Produces("application/json")
+//	public Response openBackDoor(@Context HttpServletRequest request){
+//		TinkerFrame tf = (TinkerFrame) insight.getDataMaker();
+//		tf.openBackDoor();
+//		return WebUtility.getResponse("Successfully closed back door", 200);
+//	}
 
 	@POST
 	@Path("/applyCalc")
 	@Produces("application/json")
 	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
-		PKQLTransformation pkql = new PKQLTransformation();
-		Map<String, Object> props = new HashMap<String, Object>();
 		String pkqlCmd = form.getFirst("expression");
-		props.put(PKQLTransformation.EXPRESSION, pkqlCmd);
-		pkql.setProperties(props);
-		PKQLRunner runner = insight.getPKQLRunner();
-		pkql.setRunner(runner);
-		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
-		list.add(pkql);
-
-		Map resultHash = null;
-		//synchronize applyCalc calls for each insight to prevent interference during calculation
+		Map<String, Object> resultHash = null;
 		synchronized(insight) {
-			insight.processPostTransformation(list);
-			insight.syncPkqlRunnerAndFrame(runner);
-			resultHash = insight.getPKQLData(true);
+			resultHash = insight.runPkql(pkqlCmd);
 		}
+
+		//TODO: stupid stuff that was never cleaned up... 
+		Map<String, Object> stupidFEObj = new HashMap<String, Object>();
+		stupidFEObj.put("insights", new Object[]{resultHash});
 		
-		return WebUtility.getResponse(resultHash, 200);
+		return WebUtility.getResponse(stupidFEObj, 200);
 	}
 	
 	@POST
 	@Path("/runPksl")
 	@Produces("application/json")
 	public Response runPksl(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
-		PKQLTransformation pksl = new PKQLTransformation();
-		Map<String, Object> props = new HashMap<String, Object>();
-		String pkqlCmd = form.getFirst("expression");
-		props.put(PKQLTransformation.EXPRESSION, pkqlCmd);
-		pksl.setProperties(props);
-		PKSLRunner runner = insight.getPKSLRunner();
-		pksl.setRunner(runner);
-		List<ISEMOSSTransformation> list = new Vector<ISEMOSSTransformation>();
-		list.add(pksl);
-
-		Map<Object, Object> resultHash = new HashMap<Object, Object>();
-		resultHash.put("insightId", this.insight.getInsightID());
-		//synchronize applyCalc calls for each insight to prevent interference during calculation
+		String pkslCmd = form.getFirst("expression");
+		Map<String, Object> resultHash = null;
 		synchronized(insight) {
-			insight.processPostTransformation(list);
-			insight.syncPkslRunnerAndFrame(runner);
-			Object pkslOutput = insight.getPKSLData(true);
-			if(pkslOutput == null) {
-				pkslOutput = "complete";
-			}
-			resultHash.put("pkslOutput", pkslOutput);
+			resultHash = insight.runPksl(pkslCmd);
 		}
-		return WebUtility.getResponse(resultHash, 200);
+
+		//TODO: stupid stuff that was never cleaned up... 
+		Map<String, Object> stupidFEObj = new HashMap<String, Object>();
+		stupidFEObj.put("insights", new Object[]{resultHash});
+		
+		return WebUtility.getResponse(stupidFEObj, 200);
 	}
 
 	@POST
 	@Path("/drop")
 	@Produces("application/json")
 	public Response dropInsight(@Context HttpServletRequest request) {
-		String insightID = insight.getInsightID();
+		String insightID = insight.getInsightId();
 
 		boolean isReadOnlyInsight = false;
 		String inEngine = insight.getEngineName();
@@ -232,31 +222,31 @@ public class DataframeResource {
 		}
 		
 		if(!isReadOnlyInsight) {
-			logger.info("Dropping insight with id ::: " + insightID);
+//			logger.info("Dropping insight with id ::: " + insightID);
 			boolean success = InsightStore.getInstance().remove(insightID);
-			InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
-			IDataMaker dm = insight.getDataMaker();
-			if(dm instanceof H2Frame) {
-				H2Frame frame = (H2Frame)dm;
-				frame.closeRRunner();
-				frame.dropTable();
-				if(!frame.isInMem()) {
-					frame.dropOnDiskTemporalSchema();
-				}
-			} else if(dm instanceof RDataTable) {
-				RDataTable frame = (RDataTable)dm;
-				frame.closeConnection();
-			} else if(dm instanceof Dashboard) {
-				Dashboard dashboard = (Dashboard)dm;
-				dashboard.dropDashboard();
-			}
-			
-			// also see if other variables in runner that need to be dropped
-			PKQLRunner runner = insight.getPKQLRunner();
-			runner.cleanUp();
-			
+//			InsightStore.getInstance().removeFromSessionHash(request.getSession().getId(), insightID);
+//			IDataMaker dm = insight.getDataMaker();
+//			if(dm instanceof H2Frame) {
+//				H2Frame frame = (H2Frame)dm;
+//				frame.closeRRunner();
+//				frame.dropTable();
+//				if(!frame.isInMem()) {
+//					frame.dropOnDiskTemporalSchema();
+//				}
+//			} else if(dm instanceof RDataTable) {
+//				RDataTable frame = (RDataTable)dm;
+//				frame.closeConnection();
+//			} else if(dm instanceof Dashboard) {
+//				Dashboard dashboard = (Dashboard)dm;
+//				dashboard.dropDashboard();
+//			}
+//			
+//			// also see if other variables in runner that need to be dropped
+//			PKQLRunner runner = insight.getPKQLRunner();
+//			runner.cleanUp();
+//			
 			// also delete any files that were used
-			List<FilePkqlMetadata> fileData = insight.getFilesMetadata();
+			List<FilePkqlMetadata> fileData = insight.getFilesUsedInInsight();
 			if(fileData != null && !fileData.isEmpty()) {
 				for(int fileIdx = 0; fileIdx < fileData.size(); fileIdx++) {
 					FilePkqlMetadata file = fileData.get(fileIdx);
@@ -288,43 +278,51 @@ public class DataframeResource {
 	{
 		ITableDataFrame dm = (ITableDataFrame) insight.getDataMaker();
 
-		if(startRow == null)
-			startRow = 0;
-		if(endRow == null)
-			endRow = 500;
-		Gson gson = new Gson();
-		Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
-		String concept = null;
-		String orderDirection = null;
-
-		Map<String, Object> options = new HashMap<String, Object>();
-		if(sortModel != null && !sortModel.isEmpty()) {
-			concept = sortModel.get("colId");
-			if(concept != null && !concept.isEmpty()) {
-				orderDirection = sortModel.get("sort");
-				if(orderDirection == null || orderDirection.isEmpty()) {
-					orderDirection = "asc";
+		if(dm != null) {
+			if(startRow == null)
+				startRow = 0;
+			if(endRow == null)
+				endRow = 500;
+			Gson gson = new Gson();
+			Map<String, String> sortModel = gson.fromJson(form.getFirst("sortModel"), new TypeToken<Map<String, String>>() {}.getType());
+			String concept = null;
+			String orderDirection = null;
+	
+			Map<String, Object> options = new HashMap<String, Object>();
+			if(sortModel != null && !sortModel.isEmpty()) {
+				concept = sortModel.get("colId");
+				if(concept != null && !concept.isEmpty()) {
+					orderDirection = sortModel.get("sort");
+					if(orderDirection == null || orderDirection.isEmpty()) {
+						orderDirection = "asc";
+					}
+					options.put(AbstractTableDataFrame.SORT_BY, concept);
+					options.put(AbstractTableDataFrame.SORT_BY_DIRECTION, orderDirection);
 				}
-				options.put(AbstractTableDataFrame.SORT_BY, concept);
-				options.put(AbstractTableDataFrame.SORT_BY_DIRECTION, orderDirection);
 			}
-		}
-		if(startRow >= 0 && endRow > startRow) {
-			options.put(AbstractTableDataFrame.OFFSET, startRow);
-			options.put(AbstractTableDataFrame.LIMIT, (endRow - startRow));
-		}
-
-		List<String> selectors = gson.fromJson(form.getFirst("selectors"), new TypeToken<List<String>>() {}.getType());
-		if(selectors.isEmpty()) {
-			options.put(AbstractTableDataFrame.SELECTORS, Arrays.asList(dm.getColumnHeaders()));
-			selectors = Arrays.asList(dm.getColumnHeaders());
+			if(startRow >= 0 && endRow > startRow) {
+				options.put(AbstractTableDataFrame.OFFSET, startRow);
+				options.put(AbstractTableDataFrame.LIMIT, (endRow - startRow));
+			}
+	
+			List<String> selectors = gson.fromJson(form.getFirst("selectors"), new TypeToken<List<String>>() {}.getType());
+			if(selectors.isEmpty()) {
+				options.put(AbstractTableDataFrame.SELECTORS, Arrays.asList(dm.getColumnHeaders()));
+				selectors = Arrays.asList(dm.getColumnHeaders());
+			} else {
+				options.put(AbstractTableDataFrame.SELECTORS, selectors);
+			}
+			options.put(AbstractTableDataFrame.DE_DUP, true);
+	
+			Iterator<Object[]> it = dm.iterator(options);
+			return Response.status(200).entity(WebUtility.getSO(insight.getInsightId(), selectors.toArray(new String[]{}), it)).build();
 		} else {
-			options.put(AbstractTableDataFrame.SELECTORS, selectors);
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("insightID", insight.getInsightId());
+			ret.put("data", new Object[0][]);
+			ret.put("headers", new String[0]);
+			return Response.status(200).entity(WebUtility.getSO(ret)).build();
 		}
-		options.put(AbstractTableDataFrame.DE_DUP, true);
-
-		Iterator<Object[]> it = dm.iterator(options);
-		return Response.status(200).entity(WebUtility.getSO(insight.getInsightID(), selectors.toArray(new String[]{}), it)).build();
 	}
 
 	@GET
@@ -334,7 +332,7 @@ public class DataframeResource {
 		Map<String, Object> retMap = new HashMap<String, Object>();
 
 		ITableDataFrame table = (ITableDataFrame) insight.getDataMaker();	
-		retMap.put("insightID", insight.getInsightID());
+		retMap.put("insightID", insight.getInsightId());
 		retMap.put("tableHeaders", table.getTableHeaderObjects());
 		return WebUtility.getResponse(retMap, 200);
 	}
@@ -344,7 +342,7 @@ public class DataframeResource {
 	@Produces("application/json")
 	public Response getRecipe() {
 		Map<String, Object> retMap = new HashMap<String, Object>();		
-		retMap.put("recipe", insight.getRecipe());
+		retMap.put("recipe", insight.getPkslRecipe());
 		return WebUtility.getResponse(retMap, 200);
 	}
 
@@ -362,7 +360,7 @@ public class DataframeResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		if(exporter != null) {
-			return WebUtility.getResponse(insight.getInsightID(), exporter);
+			return WebUtility.getResponse(insight.getInsightId(), exporter);
 		}
 		// we have some stuff that hasn't been ported over yet...
 		// gdm is not that big of a deal
@@ -373,7 +371,7 @@ public class DataframeResource {
 		else if(maker instanceof NativeFrame) {
 			H2Frame frame = TableDataFrameFactory.convertToH2FrameFromNativeFrame((NativeFrame)maker);
 			TinkerFrame tframe = TableDataFrameFactory.convertToTinkerFrameForGraph((H2Frame)frame);
-			return WebUtility.getResponse(insight.getInsightID(), new TinkerFrameGraphExporter((TinkerFrame) tframe));
+			return WebUtility.getResponse(insight.getInsightId(), new TinkerFrameGraphExporter((TinkerFrame) tframe));
 		} else {
 			Map<String, String> errorMap = new Hashtable<String, String>();
 			errorMap.put("errorMessage", "Data type cannot yet be represented as a graph");
@@ -416,34 +414,34 @@ public class DataframeResource {
 			gexf = new RdbmsGexfIterator((H2Frame) table, nodes, edges, alias);
 		}
 		
-		return Response.status(200).entity(WebUtility.getSO(insight.getInsightID(), gexf)).build();
+		return Response.status(200).entity(WebUtility.getSO(insight.getInsightId(), gexf)).build();
 	}
 
-	@POST
-	@Path("getVizTable")
-	@Produces("application/json")
-	public Response getExploreTable(
-			//@QueryParam("start") int start,
-			//@QueryParam("end") int end,
-			@Context HttpServletRequest request)
-	{
-		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();		
-		if(mainTree == null) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Dataframe not found within insight");
-//			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			return WebUtility.getResponse(errorHash, 400);
-		}
-
-		List<Object[]> table = mainTree.getData();
-		String[] headers = mainTree.getColumnHeaders();
-		Map<String, Object> returnData = new HashMap<String, Object>();
-		returnData.put("data", table);
-		returnData.put("headers", headers);
-		returnData.put("insightID", insight.getInsightID());
-		return WebUtility.getResponse(returnData, 200);
-	}
-
+//	@POST
+//	@Path("getVizTable")
+//	@Produces("application/json")
+//	public Response getExploreTable(
+//			//@QueryParam("start") int start,
+//			//@QueryParam("end") int end,
+//			@Context HttpServletRequest request)
+//	{
+//		ITableDataFrame mainTree = (ITableDataFrame) insight.getDataMaker();		
+//		if(mainTree == null) {
+//			Map<String, String> errorHash = new HashMap<String, String>();
+//			errorHash.put("errorMessage", "Dataframe not found within insight");
+////			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//			return WebUtility.getResponse(errorHash, 400);
+//		}
+//
+//		List<Object[]> table = mainTree.getData();
+//		String[] headers = mainTree.getColumnHeaders();
+//		Map<String, Object> returnData = new HashMap<String, Object>();
+//		returnData.put("data", table);
+//		returnData.put("headers", headers);
+//		returnData.put("insightID", insight.getInsightID());
+//		return WebUtility.getResponse(returnData, 200);
+//	}
+//
 	/**
 	 * If its a tinker, parse the meta graph to get metamodel
 	 * Otherwise go through the components and either 1. parse QueryBuilderData or 2. parse query
@@ -534,8 +532,14 @@ public class DataframeResource {
 	{    	
 		Gson gson = new Gson();
 		Hashtable<String, Object> hash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-		Object ret = this.insight.getPlaySheet().doMethod(method, hash);
-		return WebUtility.getResponse(ret, 200);
+		if(insight instanceof OldInsight) {
+			Object ret = ((OldInsight) this.insight).getPlaySheet().doMethod(method, hash);
+			return WebUtility.getResponse(ret, 200);
+		} else {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put("errorMessage", "Rest call is not applicable for this insight");
+			return WebUtility.getResponse(errorHash, 200);
+		}
 	}
 
 	@GET
@@ -552,8 +556,11 @@ public class DataframeResource {
 		 */
 		
 		Map<String, Object> retMap = new HashMap<String, Object>();
-		retMap.put("isDbInsight", insight.isDbInsight());
-		
+		if(insight.getFilesUsedInInsight() == null || insight.getFilesUsedInInsight().isEmpty()) {
+			retMap.put("isDbInsight", true);
+		} else {
+			retMap.put("isDbInsight", false);
+		}
 		return WebUtility.getResponse(retMap, 200);
 	}
 	
@@ -584,7 +591,7 @@ public class DataframeResource {
 
 		logger.info("Start modifying PKQL to query of new engine");
 
-		List<FilePkqlMetadata> filesMetadata = insight.getFilesMetadata();
+		List<FilePkqlMetadata> filesMetadata = insight.getFilesUsedInInsight();
 		
 		// need to align each file to the table that was created from it
 		Set<String> newTables = creator.getNewTables();
@@ -719,7 +726,7 @@ public class DataframeResource {
 		Map<String, Object> retData = new HashMap<String, Object>();
 
 		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
-		String[] pkqlRecipe = this.insight.getPkqlRecipe();
+		List<String> pkqlRecipe = this.insight.getPkslRecipe();
 		for(String command: pkqlRecipe) {
 			Map<String, Object> retMap = new HashMap<String, Object>();
 			retMap.put("command", command);
@@ -744,7 +751,7 @@ public class DataframeResource {
 		 * does contain some information from full dbs
 		 */
 		
-		List<String> messages = InsightMessageStore.getInstance().getAllMessages(this.insight.getInsightID());
+		List<String> messages = InsightMessageStore.getInstance().getAllMessages(this.insight.getInsightId());
 		if(messages == null) {
 			// i guess we have no new messages
 			messages = new Vector<String>();
