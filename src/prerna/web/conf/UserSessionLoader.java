@@ -78,7 +78,7 @@ public class UserSessionLoader implements HttpSessionListener {
 						dashboard.dropDashboard();
 					}
 					// also see if other variables in runner that need to be dropped
-					PKQLRunner runner = in.getPKQLRunner();
+					PKQLRunner runner = in.getPkqlRunner();
 					runner.cleanUp();
 					
 					inStore.remove(id);

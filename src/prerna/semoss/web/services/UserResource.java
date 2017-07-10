@@ -38,11 +38,15 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URLEncoder;
 import java.security.Principal;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Scanner;
 
+import javax.naming.InvalidNameException;
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -63,14 +67,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
-import prerna.auth.CACReader;
-import prerna.auth.User;
-import prerna.auth.UserPermissionsMasterDB;
-import prerna.util.Constants;
-import prerna.util.DIHelper;
-import prerna.web.services.util.WebUtility;
-import waffle.servlet.WindowsPrincipal;
-
 import com.google.api.client.auth.oauth2.TokenResponseException;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
@@ -88,6 +84,14 @@ import com.restfb.FacebookClient;
 import com.restfb.Parameter;
 import com.sun.jna.platform.win32.Secur32;
 import com.sun.jna.platform.win32.Secur32Util;
+
+import prerna.auth.CACReader;
+import prerna.auth.User;
+import prerna.auth.UserPermissionsMasterDB;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
+import prerna.web.services.util.WebUtility;
+import waffle.servlet.WindowsPrincipal;
 
 @Path("/auth")
 public class UserResource
@@ -456,6 +460,34 @@ public class UserResource
 			}
 		}
 		output = output + "</pre></body></html>";
+		return new StreamingOutput() {
+			public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+				PrintStream ps = new PrintStream(outputStream);
+				ps.println(output);
+			}
+		};
+	}
+	
+	@GET
+	@Produces("text/plain")
+	@Path("/getCert")
+	public StreamingOutput getCert(@Context HttpServletRequest request, @Context HttpServletResponse response) throws InvalidNameException {
+		X509Certificate[] certs = (X509Certificate[]) request.getAttribute("javax.servlet.request.X509Certificate");
+		if(certs == null || certs.length == 0) {
+			output = "WE GOT NOTHING!!! :(";
+		} else {
+			for(int i = 0; i < certs.length; i++) {
+				X509Certificate cert = certs[i];
+				
+				String dn = cert.getSubjectX500Principal().getName();
+				LdapName ldapDN = new LdapName(dn);
+				for(Rdn rdn: ldapDN.getRdns()) {
+					if(rdn.getType().equals("CN")) {
+						output += "You are = " + rdn.getValue().toString() + "\n";
+					}
+				}
+			}
+		}
 		return new StreamingOutput() {
 			public void write(OutputStream outputStream) throws IOException, WebApplicationException {
 				PrintStream ps = new PrintStream(outputStream);
