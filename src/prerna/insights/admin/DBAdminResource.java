@@ -64,7 +64,7 @@ import prerna.auth.UserPermissionsMasterDB;
 import prerna.cache.CacheFactory;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.AbstractEngine;
-import prerna.engine.impl.QuestionAdministrator;
+import prerna.engine.impl.InsightAdministrator;
 import prerna.nameserver.DeleteFromMasterDB;
 import prerna.om.Insight;
 import prerna.solr.SolrDocumentExportWriter;
@@ -91,16 +91,16 @@ public class DBAdminResource {
 		Gson gson = new Gson();
 
 		String enginesString = form.getFirst("engines");
-		String perspectivesString = form.getFirst("perspectives");
+//		String perspectivesString = form.getFirst("perspectives");
 		String questionsString = form.getFirst("insightIds");
 
 		List<String> questionIds = null;
 		if (questionsString != null) {
 			questionIds = gson.fromJson(questionsString, List.class);
 			AbstractEngine engine = getEngine(enginesString, request);
-			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
+			InsightAdministrator admin = new InsightAdministrator(engine.getInsightDatabase());
 			try {
-				questionAdmin.removeQuestion(questionIds.toArray(new String[questionIds.size()]));
+				admin.dropInsight(questionIds.toArray(new String[questionIds.size()]));
 				questionIds = SolrIndexEngine.getSolrIdFromInsightEngineId(engine.getEngineName(), questionIds);
 			} catch (RuntimeException e) {
 				// reload question xml from file if it errored
@@ -112,25 +112,25 @@ public class DBAdminResource {
 				return WebUtility.getResponse(e.toString().substring(0,
 						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR), 500);
 			}
-		} else if (perspectivesString != null) {
-			AbstractEngine engine = getEngine(enginesString, request);
-			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
-			try {
-				Vector<String> perspectives = gson.fromJson(perspectivesString, Vector.class);
-				questionIds = questionAdmin.removePerspective(perspectives.toArray(new String[perspectives.size()]));
-				questionIds = SolrIndexEngine.getSolrIdFromInsightEngineId(engine.getEngineName(), questionIds);
-
-			} catch (RuntimeException e) {
-				// reload question xml from file if it errored
-				// otherwise xml gets corrupted
-				System.out.println("caught exception while deleting perspectives.................");
-				e.printStackTrace();
-//				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0,
-//						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR))).build();
-				
-				return WebUtility.getResponse(e.toString().substring(0,
-						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR), 500);
-			}
+//		} else if (perspectivesString != null) {
+//			AbstractEngine engine = getEngine(enginesString, request);
+//			QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
+//			try {
+//				Vector<String> perspectives = gson.fromJson(perspectivesString, Vector.class);
+//				questionIds = questionAdmin.removePerspective(perspectives.toArray(new String[perspectives.size()]));
+//				questionIds = SolrIndexEngine.getSolrIdFromInsightEngineId(engine.getEngineName(), questionIds);
+//
+//			} catch (RuntimeException e) {
+//				// reload question xml from file if it errored
+//				// otherwise xml gets corrupted
+//				System.out.println("caught exception while deleting perspectives.................");
+//				e.printStackTrace();
+////				return Response.status(500).entity(WebUtility.getSO(e.toString().substring(0,
+////						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR))).build();
+//				
+//				return WebUtility.getResponse(e.toString().substring(0,
+//						(e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR), 500);
+//			}
 
 		} else if (enginesString != null) {
 			Vector<String> engines = gson.fromJson(enginesString, Vector.class);
@@ -178,36 +178,36 @@ public class DBAdminResource {
 		return WebUtility.getResponse("success", 200);
 	}
 
-	@POST
-	@Path("reorderPerspective")
-	@Produces("application/json")
-	public Response reorderPerspective(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		Gson gson = new Gson();
-		String perspective = form.getFirst("perspective");
-		String enginesString = form.getFirst("engine");
-		String insightsString = form.getFirst("insights");
-		List<String> questionIds = gson.fromJson(insightsString, List.class);
-
-		AbstractEngine engine = getEngine(enginesString, request);
-		QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
-		try {
-			questionAdmin.reorderPerspective(perspective, questionIds);
-		} catch (RuntimeException e) {
-
-			System.out.println("caught exception while reordering.................");
-			e.printStackTrace();
-			
-			String errorMessage = e.toString().substring(0, (e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR);
-//			return Response.status(500).entity(WebUtility.getSO(
-//					e.toString().substring(0, (e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR)))
-//					.build();
-			
-			return WebUtility.getResponse(errorMessage, 500);
-		}
-
-//		return Response.status(200).entity(WebUtility.getSO("Success")).build();
-		return WebUtility.getResponse("success", 200);
-	}
+//	@POST
+//	@Path("reorderPerspective")
+//	@Produces("application/json")
+//	public Response reorderPerspective(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+//		Gson gson = new Gson();
+//		String perspective = form.getFirst("perspective");
+//		String enginesString = form.getFirst("engine");
+//		String insightsString = form.getFirst("insights");
+//		List<String> questionIds = gson.fromJson(insightsString, List.class);
+//
+//		AbstractEngine engine = getEngine(enginesString, request);
+//		QuestionAdministrator questionAdmin = new QuestionAdministrator(engine);
+//		try {
+//			questionAdmin.reorderPerspective(perspective, questionIds);
+//		} catch (RuntimeException e) {
+//
+//			System.out.println("caught exception while reordering.................");
+//			e.printStackTrace();
+//			
+//			String errorMessage = e.toString().substring(0, (e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR);
+////			return Response.status(500).entity(WebUtility.getSO(
+////					e.toString().substring(0, (e.toString().length() < MAX_CHAR) ? e.toString().length() : MAX_CHAR)))
+////					.build();
+//			
+//			return WebUtility.getResponse(errorMessage, 500);
+//		}
+//
+////		return Response.status(200).entity(WebUtility.getSO("Success")).build();
+//		return WebUtility.getResponse("success", 200);
+//	}
 
 	@Path("insight-{engine}")
 	public Object insight(@PathParam("engine") String engineString, @Context HttpServletRequest request) {
@@ -276,8 +276,7 @@ public class DBAdminResource {
 		String dbName = form.getFirst("engine");
 		String insightID = form.getFirst("insightID");
 		String questionName = form.getFirst("questionName");
-		Insight in = new Insight(getEngine(dbName, request), "", "");
-		in.setRdbmsId(insightID);
+		Insight in = new Insight(getEngine(dbName, request).getEngineName(), insightID);
 		in.setInsightName(questionName);
 
 		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteInsightCache(in);
@@ -425,8 +424,8 @@ public class DBAdminResource {
 
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////// END SOLR
-	//////////////////////////////////////////////////////////////////////////////////// //////////////////////////////////////
+	//////////////////////////////////// END SOLR //////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
 }

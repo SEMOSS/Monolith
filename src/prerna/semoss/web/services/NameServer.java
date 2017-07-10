@@ -56,6 +56,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -869,7 +870,8 @@ public class NameServer {
 				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
 //				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 				return WebUtility.getResponse(errorHash, 400);
-			} else if(!existingInsight.hasInstantiatedDataMaker()) {
+			} 
+//			else if(!existingInsight.hasInstantiatedDataMaker()) {
 //				synchronized(existingInsight) {
 //					if(!existingInsight.hasInstantiatedDataMaker()) {
 ////						IDataMaker dm = null;
@@ -902,7 +904,7 @@ public class NameServer {
 //						}
 //					}
 //				}
-			}
+//			}
 		}
 		else if(insightID.equals("new"))
 		{
@@ -910,17 +912,20 @@ public class NameServer {
 			if(dataFrameType == null) {
 				dataFrameType = "H2Frame";
 			}
-			existingInsight = new Insight(null, dataFrameType, "Grid");
+//			existingInsight = new Insight(null, dataFrameType, "Grid");
+			existingInsight = new Insight();
 			// set the user id into the insight
-			existingInsight.setUserID( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
+			existingInsight.setUserId( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
 			InsightStore.getInstance().put(existingInsight);
 		}
 		else if(insightID.equals("newDashboard")) {
 			// get the data frame type and set it from the FE
-			existingInsight = new Insight(null, "Dashboard", "Dashboard");
+//			existingInsight = new Insight(null, "Dashboard", "Dashboard");
+			existingInsight = new Insight();
 			// set the user id into the insight
-			existingInsight.setUserID( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
-			Dashboard dashboard = (Dashboard)existingInsight.getDataMaker();
+			existingInsight.setUserId( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
+			Dashboard dashboard = new Dashboard();
+			existingInsight.setDataMaker(dashboard);
 			String insightid = InsightStore.getInstance().put(existingInsight);
 			dashboard.setInsightID(insightid);
 		}
@@ -1049,7 +1054,7 @@ public class NameServer {
 		   ResponseHashSingleton.setThread(jId, newThread);	
 		   //request.getSession(true).setAttribute("JOB_ID", jId);
 		   return jId; // store this in session so the user doesn't need to provide this
-      }   
+      }
 	   
 	   @GET
 	   @Path("/joutput")
@@ -1057,13 +1062,13 @@ public class NameServer {
 	   public String getJobOutput(@QueryParam("jobId") String jobId, @Context HttpServletRequest request){
 			
 		   		String output = "Job Longer Available";
-			   //AsyncResponse myResponse = (AsyncResponse)ResponseHashSingleton.getResponseforJobId(jobId);
-			   if(ResponseHashSingleton.getThread(jobId) != null)
-			   {
-				   SemossThread thread = (SemossThread)ResponseHashSingleton.getThread(jobId);
-				   output = thread.getOutput() + "";
-			   }			   
-/*			   if(myResponse != null ) {
+			   AsyncResponse myResponse = (AsyncResponse)ResponseHashSingleton.getResponseforJobId(jobId);
+//			   if(ResponseHashSingleton.getThread(jobId) != null)
+//			   {
+//				   SemossThread thread = (SemossThread)ResponseHashSingleton.getThread(jobId);
+//				   output = thread.getOutput() + "";
+//			   }			   
+			   if(myResponse != null ) {
 				   System.out.println("Respons Done ? " + myResponse.isDone());
 				   System.out.println("Respons suspended ? " + myResponse.isSuspended());
 				   System.out.println("Is the response done..  ? " + myResponse.isDone());
@@ -1071,7 +1076,7 @@ public class NameServer {
 				   myResponse.resume("Hola again");
 				   System.out.println("MyResponse is not null");
 			   }
-*/			
+			
 			return output;
 		}
 

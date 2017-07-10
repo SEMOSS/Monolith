@@ -8,7 +8,6 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
@@ -26,7 +25,6 @@ import prerna.cache.FileStore;
 import prerna.ds.TableDataFrameFactory;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.ui.components.playsheets.datamakers.DataMakerComponent;
 import prerna.ui.components.playsheets.datamakers.IDataMaker;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -200,13 +198,14 @@ public class FileUploader extends Uploader{
 	}
 	
 	private String generateInsight(IDataMaker dm, String dataMakerName) {
-		Insight in = new Insight(null, dataMakerName, "Grid");
-		DataMakerComponent dmc = new DataMakerComponent(""); //dmc currently doesn't have a location since it is not saved yet
-		Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
-		dmcList.add(dmc);
-		in.setDataMakerComponents(dmcList);
-		in.setDataMaker(dm);
-		in.setIsDbInsight(false);
+		Insight in = new Insight();
+//		Insight in = new Insight(null, dataMakerName, "Grid");
+//		DataMakerComponent dmc = new DataMakerComponent(""); //dmc currently doesn't have a location since it is not saved yet
+//		Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
+//		dmcList.add(dmc);
+//		in.setDataMakerComponents(dmcList);
+//		in.setDataMaker(dm);
+//		in.setIsDbInsight(false);
 		String insightId = InsightStore.getInstance().put(in);
 		return insightId;
 	}
