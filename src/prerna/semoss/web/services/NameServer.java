@@ -91,6 +91,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc2.PKSLRunner;
+import prerna.sablecc2.om.NounMetadata;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
 import prerna.upload.DatabaseUploader;
@@ -979,10 +980,7 @@ public class NameServer {
 		Map<String, Object> resultHash = new HashMap<String, Object>();
 		
 		// get the pksl output
-		Object pkslOutput = runner.getResults();
-		if(pkslOutput == null) {
-			pkslOutput = "complete";
-		}
+		List<NounMetadata> pkslOutput = runner.getResults();
 		resultHash.put("pkslOutput", pkslOutput);
 		
 		return WebUtility.getSO(resultHash);
