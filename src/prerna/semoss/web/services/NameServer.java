@@ -90,8 +90,6 @@ import prerna.om.Dashboard;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc.PKQLRunner;
-import prerna.sablecc2.PKSLRunner;
-import prerna.sablecc2.om.NounMetadata;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
 import prerna.upload.DatabaseUploader;
@@ -970,20 +968,13 @@ public class NameServer {
 	@Produces("application/json")
 	public StreamingOutput runPksl(MultivaluedMap<String, String> form){
 		/*
-		 * This is only used for calls that do not require us to hold state
-		 * pksl that run in here should not touch a data farme
+		 * This is only used for calls that do not require us to store the insight
 		 */
 		String expression = form.getFirst("expression");
-		PKSLRunner runner = new PKSLRunner();
-		runner.runPKSL(expression);
-		
-		Map<String, Object> resultHash = new HashMap<String, Object>();
-		
-		// get the pksl output
-		List<NounMetadata> pkslOutput = runner.getResults();
-		resultHash.put("pkslOutput", pkslOutput);
-		
-		return WebUtility.getSO(resultHash);
+		Insight in = new Insight();
+		in.setInsightId("tempInsightThatIsNotStored");
+		Map<String, Object> dataReturn = in.runPksl(expression);
+		return WebUtility.getSO(dataReturn);
 	}
 	
 	
