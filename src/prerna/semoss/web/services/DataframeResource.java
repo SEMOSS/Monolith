@@ -192,11 +192,7 @@ public class DataframeResource {
 			resultHash = insight.runPksl(pkslCmd);
 		}
 
-		//TODO: stupid stuff that was never cleaned up... 
-		Map<String, Object> stupidFEObj = new HashMap<String, Object>();
-		stupidFEObj.put("insights", new Object[]{resultHash});
-		
-		return WebUtility.getResponse(stupidFEObj, 200);
+		return WebUtility.getResponse(resultHash, 200);
 	}
 
 	@POST
