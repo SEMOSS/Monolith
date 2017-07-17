@@ -625,7 +625,7 @@ public class NameServer {
 		if(conceptLogicalNames == null || conceptLogicalNames.isEmpty()) {
 			return WebUtility.getSO("");
 		}
-		return WebUtility.getSO(MasterDatabaseUtility.getConnectedConcepts(conceptLogicalNames));
+		return WebUtility.getSO(MasterDatabaseUtility.getConnectedConceptsRDBMS(conceptLogicalNames));
 	}
 	
 	@POST
@@ -640,7 +640,7 @@ public class NameServer {
 			return WebUtility.getResponse("", 200);
 		}
 //		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getConceptProperties(conceptLogicalNames, null))).build();
-		return WebUtility.getResponse(MasterDatabaseUtility.getConceptProperties(conceptLogicalNames, null), 200);
+		return WebUtility.getResponse(MasterDatabaseUtility.getConceptPropertiesRDBMS(conceptLogicalNames, null), 200);
 	}
 
 	@POST
@@ -678,7 +678,7 @@ public class NameServer {
 			parentConceptualName = cleanParentConceptualName;
 		}
 //		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
-		return WebUtility.getResponse(MasterDatabaseUtility.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName), 200);
+		return WebUtility.getResponse(MasterDatabaseUtility.getAllLogicalNamesFromConceptualRDBMS(conceptualName, parentConceptualName), 200);
 	}
 	
 	@GET
@@ -699,9 +699,9 @@ public class NameServer {
 				metamodelFilter = permissions.getMetamodelSeedsForUser(userId).get(engineName);
 			}
 			
-			ret = MasterDatabaseUtility.getMetamodelSecure(engineName, metamodelFilter);
+			//ret = MasterDatabaseUtility.getMetamodelSecure(engineName, metamodelFilter);
 		} else {
-			ret = MasterDatabaseUtility.getMetamodel(engineName);
+			ret = MasterDatabaseUtility.getMetamodelRDBMS(engineName);
 		}
 		
 //		return Response.status(200).entity(WebUtility.getSO(ret)).build();
@@ -712,7 +712,7 @@ public class NameServer {
 	@Path("central/context/getAllConcepts")
 	@Produces("application/json")
 	public Response getAllConceptsFromEngines(@Context HttpServletRequest request) {
-		return Response.status(200).entity(WebUtility.getSO(MasterDatabaseUtility.getAllConceptsFromEngines())).build();
+		return Response.status(200).entity(WebUtility.getSO(MasterDatabaseUtility.getAllConceptsFromEnginesRDBMS())).build();
 	}
 
 	// get all insights related to a specific uri

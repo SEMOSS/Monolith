@@ -240,7 +240,8 @@ public class DBAdminResource {
 		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engineNames);
 
 		DeleteFromMasterDB remover = new DeleteFromMasterDB(Constants.LOCAL_MASTER_DB_NAME);
-		remover.deleteEngine(engineName);
+		remover.deleteEngineRDBMS(engineNames);
+		//remover.deleteEngineRDBMS(engineName);
 
 		SolrIndexEngine solrE;
 		try {
