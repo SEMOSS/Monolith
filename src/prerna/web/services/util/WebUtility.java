@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -260,7 +261,7 @@ public class WebUtility {
 	}
 
 	private static Gson getDefaultGson() {
-		Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().registerTypeAdapter(Double.class, new NumberAdaptor()).create();
+		Gson gson = new GsonBuilder().disableHtmlEscaping().excludeFieldsWithModifiers(Modifier.TRANSIENT).registerTypeAdapter(Double.class, new NumberAdaptor()).create();
 		return gson;
 	}
 }
