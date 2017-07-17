@@ -47,7 +47,7 @@ public class DBLoader implements ServletContextListener {
 
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
-		System.out.println("Initializing application context...");
+		System.out.println("Initializing application context..." + arg0.getServletContext().getContextPath());
 		
 		//Set default file separator system variable
 		System.out.println("Changing file separator value to: '/'");
