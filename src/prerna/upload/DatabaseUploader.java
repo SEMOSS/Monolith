@@ -2,9 +2,16 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.URL;
+import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -28,6 +35,8 @@ import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.FileUtils;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -379,6 +388,59 @@ public class DatabaseUploader extends Uploader {
 
 	
 	////////////////////////////////////////////// START CSV UPLOADING //////////////////////////////////////////////////////////
+	
+	@POST
+	@Path("/json/uploadFile")
+	@Produces("application/json")
+	/*
+	 * This method is used for uploading x-ray configuration 
+	 * uploads a json file and returns a string of the parsed json 
+	 * and deletes the file.
+	 */
+	public Response uploadJson(@Context HttpServletRequest request) {
+		Gson gson = new Gson();
+		
+		//process request
+		List<FileItem> fileItems = processRequest(request);
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = getInputData(fileItems);
+		
+		// objects to store data
+		// master object to send to FE
+		Map<String, Object> returnObj = new HashMap<>(2);
+		// this will store the MM info for all the files
+		
+		try {
+			// get the files
+			String[] files = inputData.get("file").split(";");
+	
+			for(int i = 0; i < files.length; i++) {
+				
+				// store the file location on server so FE can send that back into actual upload routine
+				String filePath = files[i];
+				String file = filePath.substring(filePath.lastIndexOf("\\") + 1, filePath.lastIndexOf("."));
+				
+				//.json file
+				JSONParser parser = new JSONParser();
+				Object obj = parser.parse(new FileReader(filePath));
+				JSONObject jsonObject = (JSONObject) obj;
+				returnObj.put(file, jsonObject.toJSONString());
+				//TODO 
+				FileUtils.forceDelete(new File(filePath));
+				
+			}
+		} catch(Exception e) { 
+			e.printStackTrace();
+			// grab the error thrown and send it to the FE
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", e.getMessage());
+//			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		return Response.status(200).entity(gson.toJson(returnObj)).build();
+	}
+	
 
 	@POST
 	@Path("/csv/uploadFile")
@@ -1411,7 +1473,8 @@ public class DatabaseUploader extends Uploader {
 
 		return Response.status(200).entity(gson.toJson(ret)).build();
 	}
-
+	
+	
 	@POST
 	@Path("/rdbms/connect")
 	@Produces("application/json")
