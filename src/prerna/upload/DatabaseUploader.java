@@ -59,6 +59,7 @@ import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.util.sql.SQLQueryUtil;
 import prerna.web.services.util.WebUtility;
+import prerna.nameserver.AddToMasterDB;
 
 public class DatabaseUploader extends Uploader {
 
@@ -424,9 +425,13 @@ public class DatabaseUploader extends Uploader {
 				JSONParser parser = new JSONParser();
 				Object obj = parser.parse(new FileReader(filePath));
 				JSONObject jsonObject = (JSONObject) obj;
-				returnObj.put(file, jsonObject.toJSONString());
-				//TODO 
-				FileUtils.forceDelete(new File(filePath));
+				returnObj.put(file, jsonObject.escape(jsonObject.toJSONString()));
+				//add json to local master 
+				String jsonStringEscaped = jsonObject.escape(jsonObject.toJSONString());
+				AddToMasterDB lm = new AddToMasterDB(Constants.LOCAL_MASTER_DB_NAME);
+				lm.addXrayConfig(jsonStringEscaped, file);
+				
+				
 				
 			}
 		} catch(Exception e) { 
@@ -434,7 +439,6 @@ public class DatabaseUploader extends Uploader {
 			// grab the error thrown and send it to the FE
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", e.getMessage());
-//			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -1426,7 +1430,6 @@ public class DatabaseUploader extends Uploader {
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
 
 		String driver = form.getFirst("driver");
-		//driver = "DB2";
 		String hostname = form.getFirst("hostname");
 		String port = form.getFirst("port");
 		String username = form.getFirst("username");
@@ -1551,7 +1554,6 @@ public class DatabaseUploader extends Uploader {
 		importOptions.setAllowDuplicates(true);
 		importOptions.setDbName(options.get("dbName"));
 		importOptions.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.valueOf(options.get("driver")));
-		//importOptions.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.DB2);
 		importOptions.setHost(options.get("hostname"));
 		importOptions.setPort(options.get("port"));
 		importOptions.setSchema(options.get("schema"));
