@@ -261,7 +261,12 @@ public class WebUtility {
 	}
 
 	private static Gson getDefaultGson() {
-		Gson gson = new GsonBuilder().disableHtmlEscaping().excludeFieldsWithModifiers(Modifier.TRANSIENT).registerTypeAdapter(Double.class, new NumberAdaptor()).create();
+		Gson gson = new GsonBuilder()
+				.disableHtmlEscaping()
+				.excludeFieldsWithModifiers(Modifier.STATIC)
+				.excludeFieldsWithModifiers(Modifier.TRANSIENT)
+				.registerTypeAdapter(Double.class, new NumberAdaptor())
+				.create();
 		return gson;
 	}
 }
