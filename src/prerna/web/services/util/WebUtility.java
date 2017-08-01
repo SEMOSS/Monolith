@@ -263,8 +263,7 @@ public class WebUtility {
 	private static Gson getDefaultGson() {
 		Gson gson = new GsonBuilder()
 				.disableHtmlEscaping()
-				.excludeFieldsWithModifiers(Modifier.STATIC)
-				.excludeFieldsWithModifiers(Modifier.TRANSIENT)
+				.excludeFieldsWithModifiers(Modifier.STATIC, Modifier.TRANSIENT)
 				.registerTypeAdapter(Double.class, new NumberAdaptor())
 				.create();
 		return gson;
