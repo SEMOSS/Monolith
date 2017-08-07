@@ -403,6 +403,7 @@ public class DatabaseUploader extends Uploader {
 		
 		//process request
 		List<FileItem> fileItems = processRequest(request);
+		String cleanName = fileItems.get(0).getName();
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
 		
@@ -410,6 +411,7 @@ public class DatabaseUploader extends Uploader {
 		// master object to send to FE
 		Map<String, Object> returnObj = new HashMap<>(2);
 		// this will store the MM info for all the files
+		returnObj.put("cleanName", cleanName);  
 		
 		try {
 			// get the files
