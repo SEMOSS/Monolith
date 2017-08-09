@@ -411,7 +411,7 @@ public class DatabaseUploader extends Uploader {
 		// master object to send to FE
 		Map<String, Object> returnObj = new HashMap<>(2);
 		// this will store the MM info for all the files
-		returnObj.put("cleanName", cleanName);  
+		//returnObj.put("cleanName", cleanName);  
 		
 		try {
 			// get the files
@@ -431,7 +431,7 @@ public class DatabaseUploader extends Uploader {
 				//add json to local master 
 				String jsonStringEscaped = jsonObject.escape(jsonObject.toJSONString());
 				AddToMasterDB lm = new AddToMasterDB(Constants.LOCAL_MASTER_DB_NAME);
-				lm.addXrayConfig(jsonStringEscaped, file);
+				lm.addXrayConfig(jsonStringEscaped, cleanName.replace(".xray", ""));
 				
 				
 				
