@@ -433,8 +433,12 @@ public class EngineResource {
 						insightMap.put("insights", new Object[]{stuipdFEInsightGarabage});
 						((Map)obj).put("pkqlOutput", insightMap);
 					} else {
-						// just send back the recipe
-						// and a few other things to the FE
+						// TODO: this should no longer be used
+						// TODO: this should no longer be used
+						// TODO: this should no longer be used
+						// TODO: this should no longer be used
+						// it is fully encapsulated in pixel
+						
 						obj = new HashMap<String, String>();
 						((Map) obj).put("recipe", insightObj.getPixelRecipe());
 						((Map) obj).put("rdbmsID", insightObj.getRdbmsId());
@@ -442,11 +446,11 @@ public class EngineResource {
 						((Map) obj).put("title", insightObj.getInsightName());
 						
 						// this is only necessary to get dashboards to work...
-						String layout = insightObj.getOutput();
-						((Map) obj).put("layout", layout);
-						if(layout.equalsIgnoreCase("dashboard")) {
-							((Map) obj).put("dataMakerName", "Dashboard");
-						}
+//						String layout = insightObj.getOutput();
+//						((Map) obj).put("layout", layout);
+//						if(layout.equalsIgnoreCase("dashboard")) {
+//							((Map) obj).put("dataMakerName", "Dashboard");
+//						}
 					}
 				} catch (Exception ex) { //need to specify the different exceptions 
 					ex.printStackTrace();
