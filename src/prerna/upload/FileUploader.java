@@ -13,20 +13,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
-import prerna.cache.FileStore;
-import prerna.ds.TableDataFrameFactory;
-import prerna.om.Insight;
-import prerna.om.InsightStore;
-import prerna.ui.components.playsheets.datamakers.IDataMaker;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class FileUploader extends Uploader{
@@ -115,98 +105,5 @@ public class FileUploader extends Uploader{
 		}
 
 		return inputData;
-	}
-	
-
-	
-	////////////////////////// THE BELOW TEXT IS NO LONGER USED /////////////////////////////////////
-	/*
-	 * Used to be used back when "drag and drop" file was done through a rest call
-	 * This functionality has been moved to PKQL so this is never no longer invoked
-	 */
-	
-	
-	/**
-	 * Create a data frame based on a file
-	 * @param request
-	 * @return
-	 */
-	//TODO: change to generateTableFromText
-	@POST
-	@Path("generateTableDataframe")
-	public Response generateTableFromFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		try {
-			String uniqueFileKey = form.getFirst("uniqueFileKey");
-			String delimiter = form.getFirst("delimiter");
-			String dataFrameType = form.getFirst("dataFrameType");
-			String dataTypeMapStr = form.getFirst("headerData");
-			String mainColumnStr = form.getFirst("mainColumn");
-			
-			Gson gson = new Gson();
-			Map<String, Map<String, String>> dataTypeMap = gson.fromJson(dataTypeMapStr, new TypeToken<Map<String, Map<String, String>>>() {}.getType());
-			
-			// process the data types to be accurate
-			if(dataTypeMap != null && !dataTypeMap.isEmpty()) {
-				for(String sheet : dataTypeMap.keySet()) {
-					Map<String, String> headerTypes = dataTypeMap.get(sheet);
-					Map<String, String> newHeaderTypes = new Hashtable<String, String>();
-					for(String header : headerTypes.keySet()) {
-						newHeaderTypes.put(header, Utility.getRawDataType(headerTypes.get(header)));
-					}
-					// override existing with new
-					dataTypeMap.put(sheet, newHeaderTypes);
-				}
-			}
-			
-			String fileName = FileStore.getInstance().get(uniqueFileKey);
-			// generate tinker frame from 
-			if(delimiter == null || delimiter.isEmpty()) {
-				delimiter = "\t";
-			}
-			if(dataFrameType == null || dataFrameType.isEmpty()) {
-				dataFrameType = "H2";
-			}
-			
-			Map<String, String> mainCol = new HashMap<String, String>();
-			if(mainColumnStr != null) {
-				mainCol = gson.fromJson(mainColumnStr, new TypeToken<Map<String, String>>() {}.getType());
-			}
-		
-			IDataMaker table = TableDataFrameFactory.generateDataFrameFromFile(fileName, delimiter, dataFrameType, dataTypeMap, mainCol);
-			String dataFrame;
-			if(dataFrameType.equalsIgnoreCase("H2")) {
-				dataFrame = "H2Frame";
-			} else {
-				dataFrame = "TinkerFrame";
-			}
-		
-			String insightId = generateInsight(table, dataFrame);
-			Map<String, String> retObj = new HashMap<String, String>();
-			retObj.put("insightID", insightId);
-			
-			deleteFilesFromServer(new String[]{fileName});
-			
-//			return Response.status(200).entity(WebUtility.getSO(retObj)).build();
-			return WebUtility.getResponse(retObj, 200);
-		} catch(Exception e) {
-			e.printStackTrace();
-			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Error processing new data");
-//			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
-			return WebUtility.getResponse(errorMap, 400);
-		}
-	}
-	
-	private String generateInsight(IDataMaker dm, String dataMakerName) {
-		Insight in = new Insight();
-//		Insight in = new Insight(null, dataMakerName, "Grid");
-//		DataMakerComponent dmc = new DataMakerComponent(""); //dmc currently doesn't have a location since it is not saved yet
-//		Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
-//		dmcList.add(dmc);
-//		in.setDataMakerComponents(dmcList);
-//		in.setDataMaker(dm);
-//		in.setIsDbInsight(false);
-		String insightId = InsightStore.getInstance().put(in);
-		return insightId;
 	}
 }

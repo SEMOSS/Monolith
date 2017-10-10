@@ -436,7 +436,7 @@ public class EngineResource {
 						// just send back the recipe
 						// and a few other things to the FE
 						obj = new HashMap<String, String>();
-						((Map) obj).put("recipe", insightObj.getPkslRecipe());
+						((Map) obj).put("recipe", insightObj.getPixelRecipe());
 						((Map) obj).put("rdbmsID", insightObj.getRdbmsId());
 						((Map) obj).put("insightID", insightObj.getInsightId());
 						((Map) obj).put("title", insightObj.getInsightName());
