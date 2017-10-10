@@ -57,7 +57,6 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocumentList;
-import org.json.simple.parser.JSONParser;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -86,16 +85,16 @@ public class DBAdminResource {
 	public void setSecurityEnabled(boolean securityEnabled) {
 		this.securityEnabled = securityEnabled;
 	}
-	
+
 	@POST
 	@Path("/quartz")
 	@Produces("application/json")
 	public void scheduleJob(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String json = form.getFirst("json");
-		final String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER); 
+		final String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		Date date = new Date();
 		String stringDate = date.toString();
-		stringDate = stringDate.replaceAll("\\s+","_").replaceAll(":","_");
+		stringDate = stringDate.replaceAll("\\s+", "_").replaceAll(":", "_");
 		try (FileWriter file = new FileWriter(baseFolder + "\\quartz\\job_" + stringDate + ".json")) {
 			file.write(json);
 			System.out.println("Successfully Copied JSON Object to File...");

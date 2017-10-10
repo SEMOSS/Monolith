@@ -61,7 +61,6 @@ import prerna.engine.api.IEngine;
 import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightAdministrator;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
-import prerna.om.Dashboard;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.solr.SolrIndexEngine;
@@ -113,11 +112,11 @@ public class QuestionAdmin {
 		//TODO: get FE to fix this
 		//TODO: get FE to fix this
 		//TODO: get FE to fix this
-		if(!(in.getDataMaker() instanceof Dashboard)) {
-			pkqlRecipeToSave = fixCauseFeDumb(pkqlRecipeToSave);
-		} else {
+//		if(!(in.getDataMaker() instanceof Dashboard)) {
+//			pkqlRecipeToSave = fixCauseFeDumb(pkqlRecipeToSave);
+//		} else {
 			pkqlRecipeToSave = otherFixCauseFeDumb(pkqlRecipeToSave);
-		}
+//		}
 		
 		// add the recipe to the insights database
 		InsightAdministrator admin = new InsightAdministrator(this.coreEngine.getInsightDatabase());
@@ -148,11 +147,11 @@ public class QuestionAdmin {
 		//TODO: get FE to fix this
 		//TODO: get FE to fix this
 		//TODO: get FE to fix this
-		if(!(in.getDataMaker() instanceof Dashboard)) {
-			pkqlRecipeToSave = fixCauseFeDumb(pkqlRecipeToSave);
-		} else {
+//		if(!(in.getDataMaker() instanceof Dashboard)) {
+//			pkqlRecipeToSave = fixCauseFeDumb(pkqlRecipeToSave);
+//		} else {
 			pkqlRecipeToSave = otherFixCauseFeDumb(pkqlRecipeToSave);
-		}
+//		}
 		saveInsightImage(newRdbmsId, layout, url, pkqlRecipeToSave, runRecipe);
 		
 		LOGGER.info("3) Done - thread will be running async");
@@ -297,11 +296,11 @@ public class QuestionAdmin {
 		//TODO: get FE to fix this
 		//TODO: get FE to fix this
 		//TODO: get FE to fix this
-		if(!(in.getDataMaker() instanceof Dashboard)) {
-			pkqlRecipeToSave = fixCauseFeDumb(pkqlRecipeToSave);
-		} else {
+//		if(!(in.getDataMaker() instanceof Dashboard)) {
+//			pkqlRecipeToSave = fixCauseFeDumb(pkqlRecipeToSave);
+//		} else {
 			pkqlRecipeToSave = otherFixCauseFeDumb(pkqlRecipeToSave);
-		}
+//		}
 				
 		// add the recipe to the insights database
 		InsightAdministrator admin = new InsightAdministrator(this.coreEngine.getInsightDatabase());
@@ -332,11 +331,11 @@ public class QuestionAdmin {
 		//TODO: get FE to fix this
 		//TODO: get FE to fix this
 		//TODO: get FE to fix this
-		if(!(in.getDataMaker() instanceof Dashboard)) {
-			pkqlRecipeToSave = fixCauseFeDumb(pkqlRecipeToSave);
-		} else {
+//		if(!(in.getDataMaker() instanceof Dashboard)) {
+//			pkqlRecipeToSave = fixCauseFeDumb(pkqlRecipeToSave);
+//		} else {
 			pkqlRecipeToSave = otherFixCauseFeDumb(pkqlRecipeToSave);
-		}
+//		}
 		saveInsightImage(existingRdbmsId, layout, url, pkqlRecipeToSave, runRecipe);
 		
 		LOGGER.info("3) Done - thread will be running async");
@@ -524,26 +523,26 @@ public class QuestionAdmin {
 		t.start();
 	}
 	
-	private String[] fixCauseFeDumb(String[] pkslRecipe) {
-		if(pkslRecipe == null || pkslRecipe.length == 0) {
+	private String[] fixCauseFeDumb(String[] pixelRecipe) {
+		if(pixelRecipe == null || pixelRecipe.length == 0) {
 			return new String[0];
 		}
 		List<String> fixForFe = new Vector<String>();
-		if(!pkslRecipe[0].startsWith("data.frame")) {
+		if(!pixelRecipe[0].startsWith("data.frame")) {
 			fixForFe.add("data.frame('grid');");
 		}
-		for(int i = 0; i < pkslRecipe.length; i++) {
-			fixForFe.add(pkslRecipe[i]);
+		for(int i = 0; i < pixelRecipe.length; i++) {
+			fixForFe.add(pixelRecipe[i]);
 		}
 		// edit the reference
 		return fixForFe.toArray(new String[]{});
 	}
 	
-	private String[] otherFixCauseFeDumb(String[] pkslRecipe) {
+	private String[] otherFixCauseFeDumb(String[] pixelRecipe) {
 		List<String> fixForFe = new Vector<String>();
 		fixForFe.add("data.frame('dashboard');");
-		for(int i = 0; i < pkslRecipe.length; i++) {
-			fixForFe.add(pkslRecipe[i]);
+		for(int i = 0; i < pixelRecipe.length; i++) {
+			fixForFe.add(pixelRecipe[i]);
 		}
 		// edit the reference
 		return fixForFe.toArray(new String[]{});

@@ -13,7 +13,6 @@ import prerna.auth.User.LOGIN_TYPES;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.ds.h2.H2Frame;
 import prerna.ds.r.RDataTable;
-import prerna.om.Dashboard;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc.PKQLRunner;
@@ -37,7 +36,9 @@ public class UserSessionLoader implements HttpSessionListener {
 			Set<String> copy = new HashSet<String>(insightIDs);
 			for(String id : copy) {
 				Insight in = inStore.get(id);
-				
+				if(in == null) {
+					continue;
+				}
 				// adding logic
 				// if insight is read only for user -1
 				// we will not remove it from memory
@@ -65,7 +66,6 @@ public class UserSessionLoader implements HttpSessionListener {
 					IDataMaker dm = in.getDataMaker();
 					if(dm instanceof H2Frame) {
 						H2Frame frame = (H2Frame)dm;
-						frame.closeRRunner();
 						frame.dropTable();
 						if(!frame.isInMem()) {
 							frame.dropOnDiskTemporalSchema();
@@ -73,10 +73,11 @@ public class UserSessionLoader implements HttpSessionListener {
 					} else if(dm instanceof RDataTable) {
 						RDataTable frame = (RDataTable)dm;
 						frame.closeConnection();
-					} else if(dm instanceof Dashboard) {
-						Dashboard dashboard = (Dashboard)dm;
-						dashboard.dropDashboard();
-					}
+					} 
+//					else if(dm instanceof Dashboard) {
+//						Dashboard dashboard = (Dashboard)dm;
+//						dashboard.dropDashboard();
+//					}
 					// also see if other variables in runner that need to be dropped
 					PKQLRunner runner = in.getPkqlRunner();
 					runner.cleanUp();

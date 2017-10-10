@@ -32,10 +32,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -51,7 +48,6 @@ import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
 import prerna.ds.export.gexf.IGexfIterator;
-import prerna.ds.export.graph.IGraphExporter;
 
 /**
  * The Utility class contains a variety of miscellaneous functions implemented extensively throughout SEMOSS.
@@ -162,38 +158,38 @@ public class WebUtility {
 		return null;
 	}
 	
-	public static Response getResponse(String insightId, IGraphExporter iterator) {
-		if(iterator != null) {
-			StringBuilder builder = new StringBuilder();
-			builder.append("{").append("\"insightID\":\"").append(insightId).append("\",");
-			Gson gson = getDefaultGson();
-			try {
-				List<Map<String, Object>> edges = new ArrayList<Map<String, Object>>();
-				while(iterator.hasNextEdge()) {
-					edges.add(iterator.getNextEdge());
-				}
-				builder.append("\"edges\":").append(gson.toJson(edges)).append(",");
-				
-				List<Map<String, Object>> vertices = new ArrayList<Map<String, Object>>();
-				while(iterator.hasNextVert()) {
-					vertices.add(iterator.getNextVert());
-				}
-				builder.append("\"nodes\":").append(gson.toJson(vertices)).append(",");
-				
-				// add the meta data pieces
-				builder.append("\"graphMeta\":").append(gson.toJson(iterator.getVertCounts()));
-				builder.append("}");
-				final byte[] output = builder.toString().getBytes("UTF8");
-				int length = output.length;
-				return Response.status(200).entity(WebUtility.getSO(output)).header("Content-Length", length).build();
-			} catch (UnsupportedEncodingException e) {
-				e.printStackTrace();
-			}
-			return Response.status(200).entity(WebUtility.getSO(insightId)).build();
-		}
-		
-		return null;
-	}
+//	public static Response getResponse(String insightId, IGraphExporter iterator) {
+//		if(iterator != null) {
+//			StringBuilder builder = new StringBuilder();
+//			builder.append("{").append("\"insightID\":\"").append(insightId).append("\",");
+//			Gson gson = getDefaultGson();
+//			try {
+//				List<Map<String, Object>> edges = new ArrayList<Map<String, Object>>();
+//				while(iterator.hasNextEdge()) {
+//					edges.add(iterator.getNextEdge());
+//				}
+//				builder.append("\"edges\":").append(gson.toJson(edges)).append(",");
+//				
+//				List<Map<String, Object>> vertices = new ArrayList<Map<String, Object>>();
+//				while(iterator.hasNextVert()) {
+//					vertices.add(iterator.getNextVert());
+//				}
+//				builder.append("\"nodes\":").append(gson.toJson(vertices)).append(",");
+//				
+//				// add the meta data pieces
+//				builder.append("\"graphMeta\":").append(gson.toJson(iterator.getVertCounts()));
+//				builder.append("}");
+//				final byte[] output = builder.toString().getBytes("UTF8");
+//				int length = output.length;
+//				return Response.status(200).entity(WebUtility.getSO(output)).header("Content-Length", length).build();
+//			} catch (UnsupportedEncodingException e) {
+//				e.printStackTrace();
+//			}
+//			return Response.status(200).entity(WebUtility.getSO(insightId)).build();
+//		}
+//		
+//		return null;
+//	}
 
 	public static StreamingOutput getSO(String insightId, IGexfIterator gexf) {
 		if(gexf != null) {

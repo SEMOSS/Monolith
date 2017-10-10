@@ -81,15 +81,15 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
-import prerna.ds.TinkerFrame;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.utility.MasterDatabaseUtility;
-import prerna.om.Dashboard;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc.PKQLRunner;
+import prerna.sablecc2.comm.JobManager;
+import prerna.sablecc2.comm.JobThread;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
 import prerna.upload.DatabaseUploader;
@@ -656,29 +656,29 @@ public class NameServer {
 		}
 		int size = conceptualName.size();
 
-		List<String> parentConceptualName = gson.fromJson(form.getFirst("parentConcept"), new TypeToken<List<String>>() {}.getType());
-		if(parentConceptualName != null) {
-			// TODO: yell at FE
-			// ugh, FE, why do you send parent as the string "undefined"
-			// ugh, BE, how to tell FE that the prim key that is generated for metamodel view is fake
-			List<String> cleanParentConceptualName = new Vector<String>();
-			for(int i = 0; i < size; i++) {
-				String val = parentConceptualName.get(i);
-				if(val == null) {
-					cleanParentConceptualName.add(null);
-				} else if(val.equals("undefined") || val.startsWith(TinkerFrame.PRIM_KEY) || val.isEmpty()) {
-					cleanParentConceptualName.add(null);
-				} else {
-					cleanParentConceptualName.add(val);
-				}
-			}
-			
-			// override reference to parent conceptual name
-			// can just keep it as null when we pass back the info to the FE
-			parentConceptualName = cleanParentConceptualName;
-		}
+//		List<String> parentConceptualName = gson.fromJson(form.getFirst("parentConcept"), new TypeToken<List<String>>() {}.getType());
+//		if(parentConceptualName != null) {
+//			// TODO: yell at FE
+//			// ugh, FE, why do you send parent as the string "undefined"
+//			// ugh, BE, how to tell FE that the prim key that is generated for metamodel view is fake
+//			List<String> cleanParentConceptualName = new Vector<String>();
+//			for(int i = 0; i < size; i++) {
+//				String val = parentConceptualName.get(i);
+//				if(val == null) {
+//					cleanParentConceptualName.add(null);
+//				} else if(val.equals("undefined") || val.startsWith(TinkerFrame.PRIM_KEY) || val.isEmpty()) {
+//					cleanParentConceptualName.add(null);
+//				} else {
+//					cleanParentConceptualName.add(val);
+//				}
+//			}
+//			
+//			// override reference to parent conceptual name
+//			// can just keep it as null when we pass back the info to the FE
+//			parentConceptualName = cleanParentConceptualName;
+//		}
 //		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
-		return WebUtility.getResponse(MasterDatabaseUtility.getAllLogicalNamesFromConceptualRDBMS(conceptualName, parentConceptualName), 200);
+		return WebUtility.getResponse(MasterDatabaseUtility.getAllLogicalNamesFromConceptualRDBMS(conceptualName), 200);
 	}
 	
 	@GET
@@ -856,7 +856,7 @@ public class NameServer {
 	}
 
 	@Path("i-{insightID}")
-	public Object getInsightDataFrame(@PathParam("insightID") String insightID, @QueryParam("dataFrameType") String dataFrameType, @Context HttpServletRequest request){
+	public Object getInsightDataFrame(@PathParam("insightID") String insightID, @QueryParam("dataFrameType") String dataFrameType, @Context HttpServletRequest request) {
 		// eventually I want to pick this from session
 		// but for now let us pick it from the insight store
 		System.out.println("Came into this point.. " + insightID);
@@ -917,17 +917,17 @@ public class NameServer {
 			existingInsight.setUserId( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
 			InsightStore.getInstance().put(existingInsight);
 		}
-		else if(insightID.equals("newDashboard")) {
-			// get the data frame type and set it from the FE
-//			existingInsight = new Insight(null, "Dashboard", "Dashboard");
-			existingInsight = new Insight();
-			// set the user id into the insight
-			existingInsight.setUserId( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
-			Dashboard dashboard = new Dashboard();
-			existingInsight.setDataMaker(dashboard);
-			String insightid = InsightStore.getInstance().put(existingInsight);
-			dashboard.setInsightID(insightid);
-		}
+//		else if(insightID.equals("newDashboard")) {
+//			// get the data frame type and set it from the FE
+////			existingInsight = new Insight(null, "Dashboard", "Dashboard");
+//			existingInsight = new Insight();
+//			// set the user id into the insight
+//			existingInsight.setUserId( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
+//			Dashboard dashboard = new Dashboard();
+//			existingInsight.setDataMaker(dashboard);
+//			String insightid = InsightStore.getInstance().put(existingInsight);
+//			dashboard.setInsightID(insightid);
+//		}
 		
 		DataframeResource dfr = new DataframeResource();
 		dfr.insight = existingInsight;
@@ -963,20 +963,245 @@ public class NameServer {
 		return WebUtility.getSO(resultHash);
 	}
 	
+	
 	@POST
-	@Path("runPksl")
+	@Path("/runPixel")
 	@Produces("application/json")
-	public StreamingOutput runPksl(MultivaluedMap<String, String> form){
-		/*
-		 * This is only used for calls that do not require us to store the insight
-		 */
+	public Response runPixelSync(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
+		// I need to do a couple of things here
+		// I need to get the basic blocking queue as a singleton
+		// create a thread
+		// set the insight and pixels into the thread
+		// and then let it lose
+		
+		// I need a couple of different statistics for this user and panel
+		// is user (initially I had he, but then diversity) listening for stdout / stderr or both
+		// what is the level of log the user wants and the panel wants
+		
+		// other than that - 
+		// there is a jobID status Hash - this can eventually be zookeeper
+		// Then there is a jobID to message if the user has turned on the stdout, then it has a stack of messages
+		// once the job is done, the stack is also cleared
+		
+		HttpSession session = request.getSession(true);
+		String sessionId = session.getId();
+		String userId = "defaultUser";
+		User user = ((User) session.getAttribute(Constants.SESSION_USER));
+		if(user!= null) {
+			userId = user.getId();
+		}
+		
+		String jobId = "";
+		final String tempInsightId = "TempInsightNotStored";
+		Map<String, Object> dataReturn = null;
+		
+		String insightId = form.getFirst("insightId");
 		String expression = form.getFirst("expression");
-		Insight in = new Insight();
-		in.setInsightId("tempInsightThatIsNotStored");
-		Map<String, Object> dataReturn = in.runPksl(expression);
+		Insight insight = null;
+		
+		// figure out the type of insight
+		// first is temp
+		if(insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
+			insightId = tempInsightId;
+			insight = new Insight();
+			insight.setInsightId(tempInsightId);
+			insight.setUserId(userId);
+		} else if(insightId.equals("new")) { // need to make a new insight here
+			insight = new Insight();
+			insight.setUserId(userId);
+			InsightStore.getInstance().put(insight);
+			insightId = insight.getInsightId();
+			InsightStore.getInstance().addToSessionHash(sessionId, insightId);
+		} else {// or just get it from the store
+			// the session id needs to be checked
+			// you better have a valid id... or else... O_O
+			insight = InsightStore.getInstance().get(insightId);
+			if(insight == null) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Could not find the insight id");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+			// make sure we have the correct session trying to get this id
+			// #soMuchSecurity
+//			Set<String> sessionStore = InsightStore.getInstance().getInsightIDsForSession(sessionId);
+//			if(sessionStore == null || !sessionStore.contains(insightId)) {
+//				Map<String, String> errorMap = new HashMap<String, String>();
+//				errorMap.put("errorMessage", "Trying to access insight id from incorrect session");
+//				return WebUtility.getResponse(errorMap, 400);
+//			}
+		}
+		if(insight != null)
+		{
+			synchronized(insight) {
+				JobManager manager = JobManager.getManager();
+				JobThread jt = null;
+				if(insightId.equals(tempInsightId)) {
+					jt = manager.makeJob();
+				} else {
+					jt = manager.makeJob(insightId);
+				}
+				jobId = jt.getJobId();
+				session.setAttribute(jobId+"", "TRUE");
+				String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
+				expression = job + expression;
+				
+				jt.setInsight(insight);
+				jt.addPixel(expression);
+				jt.run();
+				dataReturn = jt.getOutput();
+				Vector pixelReturnVector = (Vector)dataReturn.get("pixelReturn");
+				pixelReturnVector.remove(0);
+				dataReturn.put("pixelReturn", pixelReturnVector);
+				// i need to kill this job
+				manager.flushJob(jobId);
+			}
+		}		
+		return WebUtility.getResponse(dataReturn, 200);
+	}
+	
+	@POST
+	@Path("runPixelAsync")
+	@Produces("application/json")
+	public Response runPixelAsync(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		HttpSession session = request.getSession(true);
+		String sessionId = session.getId();
+		
+		String jobId = "";
+		Map<String, String> dataReturn = new HashMap<String, String>();
+		
+		String insightId = form.getFirst("insightId");
+		String expression = form.getFirst("expression");
+		Insight insight = null;
+		
+		// figure out the type of insight
+		// first is temp
+		if(insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
+			insight = new Insight();
+			insight.setInsightId("TempInsightNotStored");
+		} else if(insightId.equals("new")) { // need to make a new insight here
+			insight = new Insight();
+			InsightStore.getInstance().put(insight);
+			InsightStore.getInstance().addToSessionHash(sessionId, insight.getInsightId());
+		} else {// or just get it from the store
+			// the session id needs to be checked
+			// you better have a valid id... or else... O_O
+			insight = InsightStore.getInstance().get(insightId);
+			if(insight == null) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Could not find the insight id");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+			// make sure we have the correct session trying to get this id
+			// #soMuchSecurity
+//			Set<String> sessionStore = InsightStore.getInstance().getInsightIDsForSession(sessionId);
+//			if(sessionStore == null || !sessionStore.contains(insightId)) {
+//				Map<String, String> errorMap = new HashMap<String, String>();
+//				errorMap.put("errorMessage", "Trying to access insight id from incorrect session");
+//				return WebUtility.getResponse(errorMap, 400);
+//			}
+		}
+		if(insight != null)
+		{
+			synchronized(insight) {
+				JobManager manager = JobManager.getManager();
+				JobThread jt = manager.makeJob();
+				jobId = jt.getJobId();
+				session.setAttribute(jobId+"", "TRUE");
+				String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
+				expression = job + expression;
+				
+				jt.setInsight(insight);
+				jt.addPixel(expression);
+				jt.start();
+				dataReturn.put("jobId", jobId);
+			}
+		}		
+		return WebUtility.getResponse(dataReturn, 200);
+	}
+	
+	// get result of the operation
+	@POST
+	@Path("/result")
+	@Produces("application/json")
+	public StreamingOutput result(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		Object dataReturn = "NULL";
+		HttpSession session = request.getSession(true);
+		String jobId = form.getFirst("jobId");
+		if(session.getAttribute(jobId) != null) {
+			dataReturn = JobManager.getManager().getOutput(jobId);
+		}
 		return WebUtility.getSO(dataReturn);
 	}
 	
+	// is the status of the operation
+	// get result of the operation
+	@POST
+	@Path("/status")
+	@Produces("application/json")
+	public StreamingOutput status(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		Object dataReturn = "NULL";
+		HttpSession session = request.getSession(true);
+		String jobId = form.getFirst("jobId");
+		if(session.getAttribute(jobId) != null) {
+			dataReturn = JobManager.getManager().getStatus(jobId);
+		}
+		return WebUtility.getSO(dataReturn);
+	}
+
+	// std outputs and errors
+	@POST
+	@Path("/console")
+	@Produces("application/json")
+	public StreamingOutput console(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		Object dataReturn = "NULL";
+		String jobId = form.getFirst("jobId");
+//		HttpSession session = request.getSession(true);
+//		if(session.getAttribute(jobId) != null) {
+			dataReturn = JobManager.getManager().getStdOut(jobId);
+//		}
+		return WebUtility.getSO(dataReturn);
+	}
+	
+	@POST
+	@Path("/error")
+	@Produces("application/json")
+	public StreamingOutput error(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		Object dataReturn = "NULL";
+		String jobId = form.getFirst("jobId");
+//		HttpSession session = request.getSession(true);
+//		if(session.getAttribute(jobId) != null) {
+			dataReturn = JobManager.getManager().getError(jobId);
+//		}
+		return WebUtility.getSO(dataReturn);
+	}
+
+	// close / terminate job
+	@POST
+	@Path("/terminate")
+	@Produces("application/json")
+	public StreamingOutput terminate(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String jobId = form.getFirst("jobId");
+//		HttpSession session = request.getSession(true);
+//		if(session.getAttribute(jobId) != null) {
+			JobManager.getManager().flushJob(jobId);
+//		}
+//		session.removeAttribute(jobId);
+		return WebUtility.getSO("success");
+	}
+	
+	
+	// reset job
+	@POST
+	@Path("/reset")
+	@Produces("application/json")
+	public StreamingOutput reset(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String jobId = form.getFirst("jobId");
+//		HttpSession session = request.getSession(true);
+//		if(session.getAttribute(jobId) != null) {
+			JobManager.getManager().resetJob(jobId);
+//		}
+		return WebUtility.getSO("success");
+	}
 	
 	/**
 	 * Executes search on MediaWiki/Wikipedia for a given search term and returns the top results.

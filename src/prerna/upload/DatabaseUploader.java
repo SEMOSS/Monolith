@@ -5,13 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.net.URL;
-import java.nio.file.DirectoryNotEmptyException;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -44,6 +38,7 @@ import com.google.gson.reflect.TypeToken;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.impl.solr.SolrEngine;
+import prerna.nameserver.AddToMasterDB;
 import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
 import prerna.poi.main.HeadersException;
@@ -59,7 +54,6 @@ import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.util.sql.SQLQueryUtil;
 import prerna.web.services.util.WebUtility;
-import prerna.nameserver.AddToMasterDB;
 
 public class DatabaseUploader extends Uploader {
 
@@ -389,64 +383,6 @@ public class DatabaseUploader extends Uploader {
 
 	
 	////////////////////////////////////////////// START CSV UPLOADING //////////////////////////////////////////////////////////
-	
-	@POST
-	@Path("/json/uploadFile")
-	@Produces("application/json")
-	/*
-	 * This method is used for uploading x-ray configuration 
-	 * uploads a json file and returns a string of the parsed json 
-	 * and deletes the file.
-	 */
-	public Response uploadJson(@Context HttpServletRequest request) {
-		Gson gson = new Gson();
-		
-		//process request
-		List<FileItem> fileItems = processRequest(request);
-		String cleanName = fileItems.get(0).getName();
-		// collect all of the data input on the form
-		Hashtable<String, String> inputData = getInputData(fileItems);
-		
-		// objects to store data
-		// master object to send to FE
-		Map<String, Object> returnObj = new HashMap<>(2);
-		// this will store the MM info for all the files
-		//returnObj.put("cleanName", cleanName);  
-		
-		try {
-			// get the files
-			String[] files = inputData.get("file").split(";");
-	
-			for(int i = 0; i < files.length; i++) {
-				
-				// store the file location on server so FE can send that back into actual upload routine
-				String filePath = files[i];
-				String file = filePath.substring(filePath.lastIndexOf("\\") + 1, filePath.lastIndexOf("."));
-				
-				//.json file
-				JSONParser parser = new JSONParser();
-				Object obj = parser.parse(new FileReader(filePath));
-				JSONObject jsonObject = (JSONObject) obj;
-				returnObj.put(file, jsonObject.escape(jsonObject.toJSONString()));
-				//add json to local master 
-				String jsonStringEscaped = jsonObject.escape(jsonObject.toJSONString());
-				AddToMasterDB lm = new AddToMasterDB(Constants.LOCAL_MASTER_DB_NAME);
-				lm.addXrayConfig(jsonStringEscaped, cleanName.replace(".xray", ""));
-				
-				
-				
-			}
-		} catch(Exception e) { 
-			e.printStackTrace();
-			// grab the error thrown and send it to the FE
-			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-		
-		return Response.status(200).entity(gson.toJson(returnObj)).build();
-	}
-	
 
 	@POST
 	@Path("/csv/uploadFile")
@@ -1432,6 +1368,7 @@ public class DatabaseUploader extends Uploader {
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
 
 		String driver = form.getFirst("driver");
+		//driver = "DB2";
 		String hostname = form.getFirst("hostname");
 		String port = form.getFirst("port");
 		String username = form.getFirst("username");
@@ -1478,8 +1415,7 @@ public class DatabaseUploader extends Uploader {
 
 		return Response.status(200).entity(gson.toJson(ret)).build();
 	}
-	
-	
+
 	@POST
 	@Path("/rdbms/connect")
 	@Produces("application/json")
@@ -1556,6 +1492,7 @@ public class DatabaseUploader extends Uploader {
 		importOptions.setAllowDuplicates(true);
 		importOptions.setDbName(options.get("dbName"));
 		importOptions.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.valueOf(options.get("driver")));
+		//importOptions.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.DB2);
 		importOptions.setHost(options.get("hostname"));
 		importOptions.setPort(options.get("port"));
 		importOptions.setSchema(options.get("schema"));
@@ -1610,14 +1547,16 @@ public class DatabaseUploader extends Uploader {
 		try {
 			fw = new FileWriter(filename);
 			fw.append(cleanedValues);
+			fw.flush();
 		} catch (IOException e) {
 			return "Error: Could not write cleaned values.";
 		} finally {
 			try {
-				fw.flush();
-				fw.close();
+				if(fw != null) {
+					fw.close();
+				}
 			} catch (IOException e) {
-				return "Error: Could not flush/close FileWriter";
+				e.printStackTrace();
 			}
 		}
 
@@ -1637,6 +1576,62 @@ public class DatabaseUploader extends Uploader {
 			s = s.replace("__", "_");
 		}
 		return s;
+	}
+	
+	@POST
+	@Path("/json/uploadXrayConfig")
+	@Produces("application/json")
+	/*
+	 * This method is used for uploading x-ray configuration 
+	 * uploads a json file and returns a string of the parsed json 
+	 * and deletes the file.
+	 */
+	public Response uploadXrayConfig(@Context HttpServletRequest request) {
+		Gson gson = new Gson();
+		
+		//process request
+		List<FileItem> fileItems = processRequest(request);
+		String cleanName = fileItems.get(0).getName();
+		// collect all of the data input on the form
+		Hashtable<String, String> inputData = getInputData(fileItems);
+		
+		// objects to store data
+		// master object to send to FE
+		Map<String, Object> returnObj = new HashMap<>(2);
+		// this will store the MM info for all the files
+		//returnObj.put("cleanName", cleanName);  
+		
+		try {
+			// get the files
+			String[] files = inputData.get("file").split(";");
+	
+			for(int i = 0; i < files.length; i++) {
+				
+				// store the file location on server so FE can send that back into actual upload routine
+				String filePath = files[i];
+				String file = filePath.substring(filePath.lastIndexOf("\\") + 1, filePath.lastIndexOf("."));
+				
+				//.json file
+				JSONParser parser = new JSONParser();
+				Object obj = parser.parse(new FileReader(filePath));
+				JSONObject jsonObject = (JSONObject) obj;
+				returnObj.put(file, jsonObject.escape(jsonObject.toJSONString()));
+				//add json to local master 
+				String jsonStringEscaped = jsonObject.escape(jsonObject.toJSONString());
+				AddToMasterDB lm = new AddToMasterDB(Constants.LOCAL_MASTER_DB_NAME);
+				lm.addXrayConfig(jsonStringEscaped, cleanName.replace(".xray", ""));
+				
+				
+			}
+		} catch(Exception e) { 
+			e.printStackTrace();
+			// grab the error thrown and send it to the FE
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		return Response.status(200).entity(gson.toJson(returnObj)).build();
 	}
 
 }
