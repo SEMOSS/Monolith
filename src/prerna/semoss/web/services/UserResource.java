@@ -264,10 +264,23 @@ public class UserResource
 		Hashtable<String, String> ret = new Hashtable<String, String>();
 		
 		StringBuilder buffer = new StringBuilder();
-		BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()));
-		String line;
-		while ((line = reader.readLine()) != null) {
-			buffer.append(line);
+		BufferedReader reader = null;
+		try {
+			reader = new BufferedReader(new InputStreamReader(request.getInputStream()));
+			String line;
+			while ((line = reader.readLine()) != null) {
+				buffer.append(line);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if(reader != null) {
+				try {
+					reader.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 
 		HashMap<String, String> h = GSON.fromJson(buffer.toString(), HashMap.class);
