@@ -836,7 +836,7 @@ public final class FormBuilder {
 		String tableColumn;
 		String tableValue;
 		Map<String, Map<String, String>> nodeMapping = new HashMap<String, Map<String, String>>();
-		Map<String, Map<String, String>> tableColTypesHash = RDBMSEngineCreationHelper.getExistingRDBMSStructure(engine, null);//passing null for SQLQueryUtil object
+		Map<String, Map<String, String>> tableColTypesHash = RDBMSEngineCreationHelper.getExistingRDBMSStructure(engine);
 
 		List<String> tablesToRemoveDuplicates = new ArrayList<String>();
 		List<String> colsForTablesToRemoveDuplicates = new ArrayList<String>();
