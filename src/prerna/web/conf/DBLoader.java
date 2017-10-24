@@ -43,7 +43,6 @@ import com.ibm.icu.util.StringTokenizer;
 public class DBLoader implements ServletContextListener {
 
 	public static final String RDFMAP = "RDF-MAP";
-	public Object monitor = new Object();
 
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
@@ -85,6 +84,7 @@ public class DBLoader implements ServletContextListener {
 		StringTokenizer watchers = new StringTokenizer(watcherStr, ";");
 		try {		
 			while(watchers.hasMoreElements()) {
+				Object monitor = new Object();
 				String watcher = watchers.nextToken();
 				String watcherClass = DIHelper.getInstance().getProperty(watcher);
 				String folder = DIHelper.getInstance().getProperty(watcher + "_DIR");
