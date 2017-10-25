@@ -35,7 +35,6 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
@@ -69,6 +68,7 @@ import prerna.engine.impl.AbstractEngine;
 import prerna.engine.impl.InsightAdministrator;
 import prerna.nameserver.DeleteFromMasterDB;
 import prerna.om.Insight;
+import prerna.rpa.RPAProps;
 import prerna.solr.SolrDocumentExportWriter;
 import prerna.solr.SolrIndexEngine;
 import prerna.util.Constants;
@@ -87,6 +87,32 @@ public class DBAdminResource {
 	}
 
 	@POST
+	@Path("/scheduleJob")
+	@Produces("application/json")
+	public Response scheduleJob(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String json = form.getFirst("json");
+		String fileName = form.getFirst("fileName");
+		try {
+			String jsonDirectory = RPAProps.getInstance().getProperty(RPAProps.JSON_DIRECTORY_KEY);
+			String jsonFilePath = jsonDirectory + fileName + ".json";
+			try (FileWriter file = new FileWriter(jsonDirectory + fileName + ".json")) {
+				file.write(json);
+			} catch (IOException e) {
+				String errorMessage = "failed to write file to " + jsonFilePath + ": " + e.toString();
+				return WebUtility.getResponse(errorMessage.substring(0,
+						(errorMessage.length() < MAX_CHAR) ? errorMessage.length() : MAX_CHAR), 500);
+			}
+		} catch (Exception e) {
+			String errorMessage = "failed to retrieve the json directory: " + e.toString();
+			return WebUtility.getResponse(errorMessage.substring(0,
+					(errorMessage.length() < MAX_CHAR) ? errorMessage.length() : MAX_CHAR), 500);
+		}
+		return WebUtility.getResponse("success", 200);
+	}
+	
+	// TODO delete
+	/*
+	@POST
 	@Path("/quartz")
 	@Produces("application/json")
 	public void scheduleJob(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
@@ -103,6 +129,7 @@ public class DBAdminResource {
 			e.printStackTrace();
 		}
 	}
+	*/
 	
 	@POST
 	@Path("/delete")
