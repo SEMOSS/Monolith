@@ -110,6 +110,30 @@ public class DBAdminResource {
 		return WebUtility.getResponse("success", 200);
 	}
 	
+	@POST
+	@Path("/unscheduleJob")
+	@Produces("application/json")
+	public Response unscheduleJob(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String fileName = form.getFirst("fileName");
+		try {
+			String jsonDirectory = RPAProps.getInstance().getProperty(RPAProps.JSON_DIRECTORY_KEY);
+			String jsonFilePath = jsonDirectory + fileName + ".json";
+			File file = new File(jsonFilePath);
+			try {
+				file.delete();
+			} catch (SecurityException e) {
+				String errorMessage = "failed to delete file " + jsonFilePath + ": " + e.toString();
+				return WebUtility.getResponse(errorMessage.substring(0,
+						(errorMessage.length() < MAX_CHAR) ? errorMessage.length() : MAX_CHAR), 500);
+			}
+		} catch (Exception e) {
+			String errorMessage = "failed to retrieve the json directory: " + e.toString();
+			return WebUtility.getResponse(errorMessage.substring(0,
+					(errorMessage.length() < MAX_CHAR) ? errorMessage.length() : MAX_CHAR), 500);
+		}
+		return WebUtility.getResponse("success", 200);
+	}
+	
 	// TODO delete
 	/*
 	@POST
