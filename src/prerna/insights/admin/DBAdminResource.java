@@ -134,6 +134,27 @@ public class DBAdminResource {
 		return WebUtility.getResponse("success", 200);
 	}
 	
+	@POST
+	@Path("/listJobs")
+	@Produces("application/json")
+	public Response listJobs(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		List<String> jobNames = new ArrayList<String>();
+		try {
+			File jsonDirectory = new File(RPAProps.getInstance().getProperty(RPAProps.JSON_DIRECTORY_KEY));
+			File[] files = jsonDirectory.listFiles();
+			for (File file : files) {
+				if (file.getName().endsWith(".json")) {
+					jobNames.add(file.getName());
+				}
+			}
+		} catch (Exception e) {
+			String errorMessage = "failed to retrieve the json directory: " + e.toString();
+			return WebUtility.getResponse(errorMessage.substring(0,
+					(errorMessage.length() < MAX_CHAR) ? errorMessage.length() : MAX_CHAR), 500);
+		}
+		return WebUtility.getResponse(jobNames, 200);
+	}
+	
 	// TODO delete
 	/*
 	@POST
