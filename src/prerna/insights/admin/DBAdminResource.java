@@ -144,7 +144,7 @@ public class DBAdminResource {
 			File[] files = jsonDirectory.listFiles();
 			for (File file : files) {
 				if (file.getName().endsWith(".json")) {
-					jobNames.add(file.getName());
+					jobNames.add(file.getName().substring(0, file.getName().length() - 5));
 				}
 			}
 		} catch (Exception e) {
