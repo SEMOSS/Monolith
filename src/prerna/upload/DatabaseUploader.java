@@ -15,6 +15,7 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -51,6 +52,7 @@ import prerna.rdf.main.ImportRDBMSProcessor;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.GoogleAnalytics;
 import prerna.util.Utility;
 import prerna.util.sql.SQLQueryUtil;
 import prerna.web.services.util.WebUtility;
@@ -727,8 +729,29 @@ public class DatabaseUploader extends Uploader {
 				List<Map<String, String[]>> headerDataTypes = 
 						gson.fromJson(headerDataTypesStr, new TypeToken<List<Map<String, String[]>>>() {}.getType());
 				options.setCsvDataTypeMap(headerDataTypes);
+				
+				// get data for Google Analytics
+				String curExpression = "";
+				String userID = request.getSession().getId();
+				if (userID != null && userID.equals("-1")) {
+					userID = null;
+				}
+				String tableName = form.getFirst("dbName");
+				for (int i = 0; i < headerDataTypes.size(); i++) {
+					String[] gaHeaders = headerDataTypes.get(i).get("headers");
+					String fileName = files.substring(files.lastIndexOf("\\") + 1, files.lastIndexOf("."));
+					fileName = fileName.substring(0, fileName.length() - 24);
+					for (int j = 0; j < gaHeaders.length; j++) {
+						curExpression = curExpression + fileName + ":" + tableName + "__" + gaHeaders[j];
+						if (j != (gaHeaders.length - 1)) {
+							curExpression += ";";
+						}
+					}
+					GoogleAnalytics ga = new GoogleAnalytics(curExpression, "upload", userID);
+					// fire and release...
+					ga.start();
+				}
 			}
-			
 			// add engine owner for permissions
 			if(this.securityEnabled) {
 				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
@@ -1125,6 +1148,29 @@ public class DatabaseUploader extends Uploader {
 				List<Map<String, Map<String, String[]>>> headerDataTypes = 
 						gson.fromJson(headerDataTypesStr, new TypeToken<List<Map<String, LinkedHashMap<String, String[]>>>>() {}.getType());
 				options.setExcelDataTypeMap(headerDataTypes);
+				
+				// get data for Google Analytics
+				String curExpression = "";
+				String tableName = form.getFirst("dbName");
+				String userID = request.getSession().getId();
+				if (userID != null && userID.equals("-1")) {
+					userID = null;
+				}
+				Map<String, Map<String, String[]>> map = headerDataTypes.get(0);
+				for (Entry<String, Map<String, String[]>> entry : map.entrySet()) {
+					String[] gaHeaders = map.get(entry.getKey()).get("headers");
+					String fileName = files.substring(files.lastIndexOf("\\") + 1, files.lastIndexOf("."));
+					fileName = fileName.substring(0, fileName.length() - 24);
+					for (int j = 0; j < gaHeaders.length; j++) {
+						curExpression = curExpression + fileName + ":" + tableName + "__" + gaHeaders[j];
+						if (j != (gaHeaders.length - 1)) {
+							curExpression += ";";
+						}
+					}
+				}
+				GoogleAnalytics ga = new GoogleAnalytics(curExpression, "upload", userID);
+				// fire and release...
+				ga.start();
 			}
 			
 			// add engine owner for permissions
