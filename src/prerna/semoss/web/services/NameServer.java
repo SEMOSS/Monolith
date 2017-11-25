@@ -1050,7 +1050,17 @@ public class NameServer {
 				jt.run();
 				dataReturn = jt.getOutput();
 				Vector pixelReturnVector = (Vector)dataReturn.get("pixelReturn");
-				pixelReturnVector.remove(0);
+				// TODO: need FE to not react based on the size ...
+				// but basically want to return an error
+				// but dont want to show the implicit Job reactor we are adding
+				if(pixelReturnVector.size() > 1) {
+					pixelReturnVector.remove(0);
+				} else {
+					// this is most likelyl due to an error with compiling the expresison being sent
+					String newExp = (String) ((Map<String, Object>) pixelReturnVector.get(0)).get("pixelExpression");
+					newExp = newExp.replace(job, "");
+					((Map<String, Object>) pixelReturnVector.get(0)).put("pixelExpression", newExp);
+				}
 				dataReturn.put("pixelReturn", pixelReturnVector);
 				// i need to kill this job
 				manager.flushJob(jobId);
