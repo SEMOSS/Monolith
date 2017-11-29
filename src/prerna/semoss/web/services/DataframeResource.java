@@ -170,7 +170,9 @@ public class DataframeResource {
 				for(int i = 0; i < selectors.size(); i++) {
 					QueryColumnSelector newCol = new QueryColumnSelector(selectors.get(i));
 					newSelectors.add(newCol);
-					dataTypeMap.put(newCol.getColumn(), h2Frame.getMetaData().getHeaderTypeAsString(selectors.get(i)));
+					// upper case in the data-type map because the headers are upper case
+					// when we do the CSVWrite method in sql
+					dataTypeMap.put(newCol.getColumn().toUpperCase(), h2Frame.getMetaData().getHeaderTypeAsString(selectors.get(i)));
 				}
 				fileMeta.setSelectors(newSelectors);
 				fileMeta.setDataMap(dataTypeMap);
