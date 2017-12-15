@@ -747,7 +747,7 @@ public class DatabaseUploader extends Uploader {
 							curExpression += ";";
 						}
 					}
-					GoogleAnalytics ga = new GoogleAnalytics(curExpression, "upload", userID);
+					GoogleAnalytics ga = new GoogleAnalytics(curExpression, "upload");
 					// fire and release...
 					ga.start();
 				}
@@ -1168,7 +1168,7 @@ public class DatabaseUploader extends Uploader {
 						}
 					}
 				}
-				GoogleAnalytics ga = new GoogleAnalytics(curExpression, "upload", userID);
+				GoogleAnalytics ga = new GoogleAnalytics(curExpression, "upload");
 				// fire and release...
 				ga.start();
 			}
