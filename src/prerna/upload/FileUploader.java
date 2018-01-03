@@ -16,11 +16,14 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 import prerna.web.services.util.WebUtility;
 
-public class FileUploader extends Uploader{
+public class FileUploader extends Uploader {
 
+	private static final Logger LOGGER = LogManager.getLogger(FileUploader.class);
 	/*
 	 * Moving a file onto the BE cannot be performed through PKQL
 	 * Thus, we still expose "drag and drop" of a file through a rest call
@@ -31,21 +34,16 @@ public class FileUploader extends Uploader{
 	@POST
 	@Path("determineDataTypesForFile")
 	public Response determineDataTypesForFile(@Context HttpServletRequest request) {
-
 		try {
 			List<FileItem> fileItems = processRequest(request);
-			
 			// collect all of the data input on the form
 			Hashtable<String, String> inputData = getInputData(fileItems);
 			Map<String, Object> retObj = generateDataTypes(inputData);
-//			return Response.status(200).entity(WebUtility.getSO(retObj)).build();
 			return WebUtility.getResponse(retObj, 200);
-
 		} catch(Exception e) {
 			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "Error processing new data");
-//			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
@@ -83,7 +81,7 @@ public class FileUploader extends Uploader{
 						value = filePath + "\\\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")).replace(" ", "") + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
 						file = new File(value);
 						writeFile(fi, file);
-						System.out.println( "Saved Filename: " + fileName + "  to "+ file);
+						LOGGER.info("Saved Filename: " + fileName + "  to "+ file);
 					}
 				}
 			} else if(fieldName.equals("file")) { // its a file, but not in a form
@@ -93,7 +91,7 @@ public class FileUploader extends Uploader{
 				value = filePath + "\\\\FileString_" + modifiedDate;
 				file = new File(value);
 				writeFile(fi, file);
-				System.out.println( "Created new file...");
+				LOGGER.info( "Created new file...");
 			}
 			//need to handle multiple files getting selected for upload
 			if(inputData.get(fieldName) != null)
