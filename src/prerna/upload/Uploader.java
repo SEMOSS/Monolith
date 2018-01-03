@@ -46,6 +46,8 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 import prerna.cache.FileStore;
 import prerna.cache.ICache;
@@ -63,14 +65,15 @@ import prerna.util.Utility;
 @SuppressWarnings("serial")
 public abstract class Uploader extends HttpServlet {
 
+	private static final Logger LOGGER = LogManager.getLogger(FileUploader.class);
+	public static final String CSV_FILE_KEY = "CSV";
+	public static final String CSV_HELPER_MESSAGE = "HTML_RESPONSE";
+
 	protected int maxFileSize = 10000000 * 1024;
 	protected int maxMemSize = 8 * 1024;
 	protected String filePath;
 	protected String tempFilePath = "";
 	protected boolean securityEnabled;
-
-	public static final String CSV_FILE_KEY = "CSV";
-	public static final String CSV_HELPER_MESSAGE = "HTML_RESPONSE";
 	
 	// we will control the adding of the engine into local master and solr
 	// such that we dont send a success before those processes are complete
@@ -156,11 +159,11 @@ public abstract class Uploader extends HttpServlet {
 						value = filePath + "\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
 						file = new File(value);
 						writeFile(fi, file);
-						System.out.println( "Saved Filename: " + fileName + "  to "+ file);
+						LOGGER.info("File item is the actual data. Saved Filename: " + fileName + "  to "+ file);
 					}
 				}
 			} else {
-				System.err.println("Type is " + fi.getFieldName() + fi.getString());
+				LOGGER.info("File item type is " + fi.getFieldName() + fi.getString());
 			}
 			//need to handle multiple files getting selected for upload
 			if(inputData.get(fieldName) != null)
