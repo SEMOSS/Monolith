@@ -476,25 +476,31 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 		for(int i = 0; i < size; i++) {
 			Object[] data = triples.get(i);
 			// we replace the subject with the new uri we are adding
-			String subject = newUri;
-			String predicate = data[1].toString();
-			Object object = data[2];
-			boolean concept = (boolean) data[3];
+			Object[] statement = new Object[4];
+			statement[0] = newUri;
+			statement[1] = data[1];
+			statement[2] = data[2];
+			statement[3] = data[3];
 			
 			//handles if the instance of the object is a date. The doAction (used for add and delete, needs a specific date object for dates)
 			try {
-				object = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss'Z'").parse((String) data[2]);
+				statement[2] = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss'Z'").parse((String) statement[2]);
 			} catch (Exception e) {
 
 			}
 		
 			// need to take into consideration if this is the label we add for each node
-			if(predicate.equals(RDFS.LABEL.stringValue())) {
-				object = newName;
-				concept = false;
+			if(statement[1].toString().equals(RDFS.LABEL.stringValue())) {
+				statement[2] = newName;
+				statement[3] = false;
 			}
 			
-			addData(subject, predicate, object, concept);
+			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
+			
+			// add audit log statement
+			Calendar cal = Calendar.getInstance();
+			String currTime = DATE_DF.format(cal.getTime());
+			addAuditLog(ADD, statement[0].toString(), statement[1].toString(), statement[2].toString(), "", "", currTime);
 		}
 	}
 	
@@ -502,38 +508,50 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 		int size = triples.size();
 		for(int i = 0; i < size; i++) {
 			Object[] data = triples.get(i);
-			String subject = data[0].toString();
-			String predicate = data[1].toString();
-			// replace the object with the new uri we are adding
-			Object object = newUri;
-			boolean concept = (boolean) data[3];
+			// we replace the object with the new uri we are adding
+			Object[] statement = new Object[4];
+			statement[0] = data[0];
+			statement[1] = data[1];
+			statement[2] = newUri;
+			statement[3] = data[3];
 			
-			//handles if the new istance being added is a date. The doAction (used for add and delete, needs a specific date object for dates)
-			try {
-				object = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss'Z'").parse((String) data[2]);
-			} catch (Exception e) {
-
+			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
+			
+			// add audit log statement
+			Calendar cal = Calendar.getInstance();
+			String currTime = DATE_DF.format(cal.getTime());
+			// determine if we are deleting a concept or a property
+			// true means it is a relationship
+			if((boolean) statement[3] == true ) {	
+				addAuditLog(ADD, statement[0].toString(), statement[1].toString(), statement[2].toString(), "", "", currTime);
+			} else {
+				addAuditLog(ADD, statement[0].toString(), "", "", statement[1].toString(), statement[2].toString(), currTime);
 			}
-			addData(subject, predicate, object, concept);
 		}
 	}
 
 	protected void deleteTriples(List<Object[]> triples) {
 		int size = triples.size();
 		for(int i = 0; i < size; i++) {
-			Object[] data = triples.get(i);
-			String subject = data[0].toString();
-			String predicate = data[1].toString();
-			Object object = data[2];
-			boolean concept = (boolean) data[3];
-			
+			Object[] statement = triples.get(i);
 			//handles if the instance of the object is a date. The doAction (used for add and delete, needs a specific date object for dates)
 			try {
-				object = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss'Z'").parse((String) data[2]);
+				statement[2] = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss'Z'").parse((String) statement[2]);
 			} catch (Exception e) {
-
+				// ignore
 			}
-			deleteData(subject, predicate, object, concept);
+			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
+			
+			// add audit log statement
+			Calendar cal = Calendar.getInstance();
+			String currTime = DATE_DF.format(cal.getTime());
+			// determine if we are deleting a concept or a property
+			// true means it is a relationship
+			if((boolean) statement[3] == true ) {
+				addAuditLog(REMOVE, statement[0].toString(), statement[1].toString(), statement[2].toString(), "", "", currTime);
+			} else {
+				addAuditLog(REMOVE, statement[0].toString(), "", "", statement[1].toString(), statement[2].toString(), currTime);
+			}
 		}
 	}
 
@@ -549,7 +567,6 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			Object[] rawTriple = datarow.getRawValues();
 			//only instance name
 			Object[] cleanTriple = datarow.getValues();
-//			System.out.println("FOUND TRIPLE ::: " + Arrays.toString(rawTriple));
 
 			// we need to also consider
 			// if the last thing is a literal
@@ -558,6 +575,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			for(int i = 0; i < 3; i++) {
 				adjustedTriple[i] = rawTriple[i];
 			}
+			
 			// if its a literal
 			// use the clean value
 			// checks the relationship to see if this a property or an RDF label
@@ -574,46 +592,11 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 		}
 	}
 
-	/**
-	 * Insert the triple into the local master database
-	 * @param subject                   The subject URI
-	 * @param predicate                       The predicate URI
-	 * @param object                    The object (either URI or Literal)
-	 * @param concept                   Boolean true if object is concept and false is object is literal
-	 * @param engine                    The local master engine to insert into
-	 */
-	private void addData(String subject, String predicate, Object object, boolean concept)
-	{
-		Object [] statement = new Object[4];
-		statement[0] = subject;
-		statement[1] = predicate;
-		statement[2] = object;
-		statement[3] = new Boolean(concept);
-
-		this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, statement);
-	}
-
-	/**
-	 * Insert the triple into the local master database
-	 * @param subject                   The subject URI
-	 * @param predicate                       The predicate URI
-	 * @param object                    The object (either URI or Literal)
-	 * @param concept                   Boolean true if object is concept and false is object is literal
-	 * @param engine                    The local master engine to insert into
-	 */
-	private void deleteData(String subject, String predicate, Object object, boolean concept)
-	{
-		Object [] statement = new Object[4];
-		statement[0] = subject;
-		statement[1] = predicate;
-		statement[2] = object;
-		statement[3] = new Boolean(concept);
-
-		this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
-	}
-
 	@Override
 	protected void certifyInstance(String conceptType, String instanceName) {
+		Calendar cal = Calendar.getInstance();
+		String currTime = null;
+
 		String instanceUri = this.engine.getNodeBaseUri() + conceptType + "/" + instanceName;
 		String versionPropUri = Constants.PROPERTY_URI + "CertificationVersion";
 		String timePropUri = Constants.PROPERTY_URI + "CertificationDate";
@@ -641,15 +624,26 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			statement[2] = clean[1];
 			statement[3] = false;
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
+			// audit
+			currTime = DATE_DF.format(cal.getTime());
+			addAuditLog(REMOVE, statement[0].toString(), "", "", statement[1].toString(), statement[2].toString(), currTime);
 			
 			// repeat for all the props
 			statement[1] = timePropUri;
 			statement[2] = clean[2];
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
-			
+			// audit
+			currTime = DATE_DF.format(cal.getTime());
+			addAuditLog(REMOVE, statement[0].toString(), "", "", statement[1].toString(), statement[2].toString(), currTime);
+		
 			statement[1] = userPropUri;
 			statement[2] = clean[3];
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
+			// audit
+			currTime = DATE_DF.format(cal.getTime());
+			addAuditLog(REMOVE, statement[0].toString(), "", "", statement[1].toString(), statement[2].toString(), currTime);
+
+			// get the old version so we can update it
 			oldVersion = Integer.valueOf((String) clean[1]);
 		}
 		
@@ -665,22 +659,30 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 		statement[2] = newVersion;
 		statement[3] = false;
 		this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, statement);
+		// audit
+		currTime = DATE_DF.format(cal.getTime());
+		addAuditLog(ADD, instanceUri, "", "", versionPropUri, newVersion, currTime);
 
 		// repeat for other props
 		statement[1] = userPropUri;
 		statement[2] = this.user;
 		this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, statement);
+		// audit
+		currTime = DATE_DF.format(cal.getTime());
+		addAuditLog(ADD,instanceUri, "", "", userPropUri, this.user, currTime);
 
-		Calendar cal = Calendar.getInstance();
-		String currTime = DATE_DF.format(cal.getTime());
 		statement[1] = timePropUri;
 		statement[2] = currTime;
 		this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, statement);
+		// audit
+		currTime = DATE_DF.format(cal.getTime());
+		addAuditLog(ADD, instanceUri, "", "", timePropUri, currTime, currTime);
 
 		// commit engine
 		this.engine.commit();
 
-		// add to log
+		// add to certified log
+		currTime = DATE_DF.format(cal.getTime());
 		addAuditLog(ADMIN_SIGN_OFF, instanceUri, "", "", versionPropUri, newVersion, currTime);
 		addAuditLog(ADMIN_SIGN_OFF, instanceUri, "", "", userPropUri, this.user, currTime);
 		addAuditLog(ADMIN_SIGN_OFF, instanceUri, "", "", timePropUri, currTime, currTime);
