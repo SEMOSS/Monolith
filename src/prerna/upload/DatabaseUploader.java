@@ -51,8 +51,8 @@ import prerna.rdf.main.ImportRDBMSProcessor;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
-import prerna.util.GoogleAnalytics;
 import prerna.util.Utility;
+import prerna.util.ga.GATracker;
 import prerna.util.sql.SQLQueryUtil;
 import prerna.web.services.util.WebUtility;
 
@@ -731,7 +731,7 @@ public class DatabaseUploader extends Uploader {
 				
 				// track GA data
 				String tableName = form.getFirst("dbName");
-				GoogleAnalytics.trackCsvUpload(files, tableName, headerDataTypes);
+				GATracker.getInstance().trackCsvUpload(files, tableName, headerDataTypes);
 			}
 			// add engine owner for permissions
 			if(this.securityEnabled) {
@@ -1133,7 +1133,7 @@ public class DatabaseUploader extends Uploader {
 				// track GA data
 				String dbName = form.getFirst("dbName");
                 String fileName = files.substring(files.lastIndexOf("\\") + 1, files.lastIndexOf("."));
-                GoogleAnalytics.trackExcelUpload(dbName, fileName, headerDataTypes);
+                GATracker.getInstance().trackExcelUpload(dbName, fileName, headerDataTypes);
 			}
 			
 			// add engine owner for permissions
