@@ -106,71 +106,74 @@ public class FormResource {
 		X509Certificate[] certs = (X509Certificate[]) request.getAttribute("javax.servlet.request.X509Certificate");
 		if(certs == null || certs.length == 0) {
 			return WebUtility.getResponse("you messed up", 400);
-		} else {
-			String x509Id = null;
-			for(int i = 0; i < certs.length; i++) {
-				X509Certificate cert = certs[i];
-				
-				String dn = cert.getSubjectX500Principal().getName();
-				LdapName ldapDN = new LdapName(dn);
-				for(Rdn rdn: ldapDN.getRdns()) {
-					if(rdn.getType().equals("CN")) {
-						String fullNameAndId = rdn.getValue().toString();
-						// TODO: figure out how to do this well
-						// we are getting a weird value coming through from one of the certs
-						// which is causing issues
-						// going to hack around this for now
-						// for CAC card, we know it must contain a 10 digit number at the end
-						// so make sure length is 10 and we can cast it to an integer
-						String[] split = null;
-						if((split = fullNameAndId.split("\\.")).length > 0) {
-							String possibleId = split[split.length-1];
-							if(possibleId.length() == 10) {
-								try {
-									Integer.parseInt(possibleId);
-								} catch(NumberFormatException e) {
-									// we know this is not a valid cac id
-									// so move on
-									continue;
-								}
-								x509Id = possibleId;
-								break;
+		}
+
+		// the x509 for the user
+		// and the instances they have access to
+		String x509Id = null;
+		Map<String, String> userAccessableInstances = new HashMap<String, String>();
+
+		for(int i = 0; i < certs.length; i++) {
+			X509Certificate cert = certs[i];
+
+			String dn = cert.getSubjectX500Principal().getName();
+			LdapName ldapDN = new LdapName(dn);
+			for(Rdn rdn: ldapDN.getRdns()) {
+				if(rdn.getType().equals("CN")) {
+					String fullNameAndId = rdn.getValue().toString();
+					// TODO: figure out how to do this well
+					// we are getting a weird value coming through from one of the certs
+					// which is causing issues
+					// going to hack around this for now
+					// for CAC card, we know it must contain a 10 digit number at the end
+					// so make sure length is 10 and we can cast it to an integer
+					String[] split = null;
+					if((split = fullNameAndId.split("\\.")).length > 0) {
+						String possibleId = split[split.length-1];
+						if(possibleId.length() == 10) {
+							try {
+								Integer.parseInt(possibleId);
+							} catch(NumberFormatException e) {
+								// we know this is not a valid cac id
+								// so move on
+								continue;
 							}
+							x509Id = possibleId;
+							break;
 						}
 					}
 				}
 			}
-			// map to store the valid instances for the given user
-			Map<String, String> userAccessableInstances = new HashMap<String, String>();
-			String query = "SELECT INSTANCE_NAME, IS_SYS_ADMIN FROM FORMS_USER_ACCESS WHERE USER_ID = '" + x509Id + "';";
-			Map<String, Object> ret = (Map<String, Object>) formBuilderEng.execQuery(query);
-			Statement stmt = (Statement) ret.get(RDBMSNativeEngine.STATEMENT_OBJECT);
-			ResultSet rs = (ResultSet) ret.get(RDBMSNativeEngine.RESULTSET_OBJECT);
+		}
+		// map to store the valid instances for the given user
+		String query = "SELECT INSTANCE_NAME, IS_SYS_ADMIN FROM FORMS_USER_ACCESS WHERE USER_ID = '" + x509Id + "';";
+		Map<String, Object> ret = (Map<String, Object>) formBuilderEng.execQuery(query);
+		Statement stmt = (Statement) ret.get(RDBMSNativeEngine.STATEMENT_OBJECT);
+		ResultSet rs = (ResultSet) ret.get(RDBMSNativeEngine.RESULTSET_OBJECT);
+		try {
+			while(rs.next()) {
+				userAccessableInstances.put(rs.getString("INSTANCE_NAME"), rs.getString("IS_SYS_ADMIN"));
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
 			try {
-				while(rs.next()) {
-					userAccessableInstances.put(rs.getString("INSTANCE_NAME"), rs.getString("IS_SYS_ADMIN"));
+				if(rs != null) {
+					rs.close();
+				}
+				if(stmt != null) {
+					stmt.close();
 				}
 			} catch (SQLException e) {
 				e.printStackTrace();
-			} finally {
-				try {
-					if(rs != null) {
-						rs.close();
-					}
-					if(stmt != null) {
-						stmt.close();
-					}
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
 			}
-			
-			Map<String, Object> returnData = new Hashtable<String, Object>();
-			returnData.put("cac_id", x509Id);
-			returnData.put("validInstances", userAccessableInstances);
-			
-			return WebUtility.getResponse(returnData, 200);
 		}
+
+		Map<String, Object> returnData = new Hashtable<String, Object>();
+		returnData.put("cac_id", x509Id);
+		returnData.put("validInstances", userAccessableInstances);
+
+		return WebUtility.getResponse(returnData, 200);
 	}
 	
 //	@POST
