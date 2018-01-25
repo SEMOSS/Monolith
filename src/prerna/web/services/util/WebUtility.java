@@ -260,7 +260,7 @@ public class WebUtility {
 		Gson gson = new GsonBuilder()
 				.disableHtmlEscaping()
 				.excludeFieldsWithModifiers(Modifier.STATIC, Modifier.TRANSIENT)
-				.registerTypeAdapter(Double.class, new NumberAdaptor())
+				.registerTypeAdapter(Double.class, new NumberAdapter())
 				.create();
 		return gson;
 	}
@@ -270,7 +270,7 @@ public class WebUtility {
  * Generation of new NumberAdaptor to not send NaN/Infinity to the FE
  * since they are invalid JSON values
  */
-class NumberAdaptor extends TypeAdapter<Double>{
+class NumberAdapter extends TypeAdapter<Double>{
 
 	@Override 
 	public Double read(JsonReader in) throws IOException {
