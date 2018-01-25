@@ -32,6 +32,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Modifier;
+import java.util.Date;
 import java.util.Iterator;
 
 import javax.ws.rs.WebApplicationException;
@@ -47,7 +48,9 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
+import prerna.date.SemossDate;
 import prerna.ds.export.gexf.IGexfIterator;
+import prerna.util.Utility;
 
 /**
  * The Utility class contains a variety of miscellaneous functions implemented extensively throughout SEMOSS.
@@ -261,6 +264,7 @@ public class WebUtility {
 				.disableHtmlEscaping()
 				.excludeFieldsWithModifiers(Modifier.STATIC, Modifier.TRANSIENT)
 				.registerTypeAdapter(Double.class, new NumberAdapter())
+				.registerTypeAdapter(SemossDate.class, new SemossDateAdapter())
 				.create();
 		return gson;
 	}
@@ -293,5 +297,36 @@ class NumberAdapter extends TypeAdapter<Double>{
 		} else {
 			out.value(value);
 		}
+	}
+}
+
+class SemossDateAdapter extends TypeAdapter<SemossDate>{
+
+	@Override 
+	public SemossDate read(JsonReader in) throws IOException {
+		if (in.peek() == JsonToken.NULL) {
+			in.nextNull();
+			return null;
+		}
+		
+		String dateStr = in.nextString();
+		Date d = Utility.getDateAsDateObj(dateStr);
+		if(d != null) {
+			return new SemossDate(d);
+		}
+		d = Utility.getTimeStampAsDateObj(dateStr);
+		if(d != null) {
+			return new SemossDate(d, "yyyy-MM-dd hh:mm:ss");
+		}
+		return null;
+	}
+
+	@Override 
+	public void write(JsonWriter out, SemossDate value) throws IOException {
+		if (value == null) {
+			out.nullValue();
+			return;
+		}
+		out.value(value.toString());
 	}
 }
