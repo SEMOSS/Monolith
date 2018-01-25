@@ -1601,7 +1601,7 @@ public class DatabaseUploader extends Uploader {
 				returnObj.put(file, jsonObject.escape(jsonObject.toJSONString()));
 				//add json to local master 
 				String jsonStringEscaped = jsonObject.escape(jsonObject.toJSONString());
-				AddToMasterDB lm = new AddToMasterDB(Constants.LOCAL_MASTER_DB_NAME);
+				AddToMasterDB lm = new AddToMasterDB();
 				lm.addXrayConfig(jsonStringEscaped, cleanName.replace(".xray", ""));
 				
 				
