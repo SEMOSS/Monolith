@@ -265,14 +265,10 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 		query.append("BIND(<" + instanceObjectURI + "> AS ?OBJ) ");
 		query.append("{?SUB <").append(RDF.TYPE).append("> <" + subjectTypeURI + ">} ");
 		query.append("{?OBJ <").append(RDF.TYPE).append("> <" + objectTypeURI + ">} ");
-		query.append("{ ");
 		query.append("{?PRED <").append(RDFS.SUBPROPERTYOF).append("> <" + baseRelationshipURI + ">} ");
 		query.append("{?SUB ?PRED ?OBJ} ");
 		query.append("OPTIONAL{ ?PRED <").append(RDFS.LABEL).append("> ?LABEL} ");
-		query.append("} UNION { ");
-		query.append("{?PRED <").append(RDFS.SUBPROPERTYOF).append("> <" + baseRelationshipURI + ">} ");
-		query.append("{?SUB ?PRED ?OBJ} ");
-		query.append("OPTIONAL{ ?PRED <").append(RDFS.LABEL).append("> ?LABEL} ");
+		query.append("OPTIONAL{ ");
 		query.append("{?PROP <").append(RDF.TYPE).append("> <http://semoss.org/ontologies/Relation/Contains>} ");
 		query.append("{?PRED ?PROP ?VAL} ");
 		query.append("} }");
