@@ -118,16 +118,36 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 					if(propertyValue instanceof String) {
 						// check if string val is a date
 						SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-						try {
-							dateFormat.setLenient(false);
-							propertyValue= (Date) dateFormat.parse(((String) propertyValue).trim());
-						} catch (ParseException e) {
-							propertyValue = propertyValue.toString();
-						}
+							try {
+								dateFormat.setLenient(false);
+								propertyValue= (Date) dateFormat.parse(((String) propertyValue).trim());
+							} catch (ParseException e) {
+								// TODO: trying to account for more FE issues
+								// TODO: trying to account for more FE issues
+								// TODO: trying to account for more FE issues
+								dateFormat = new SimpleDateFormat("MMM_dd,_yyyy");
+								try {
+									dateFormat.setLenient(false);
+									propertyValue= (Date) dateFormat.parse(((String) propertyValue).trim());
+								} catch (ParseException e2) {									
+									propertyValue = propertyValue.toString();
+								}
+							}
 					}
 					propertyURI = property.get("propertyName").toString();
 
 					this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{instanceConceptURI, propertyURI, propertyValue, false});
+					if(propertyValue instanceof String) {
+						// TODO: trying to account for more FE issues
+						// TODO: trying to account for more FE issues
+						// TODO: trying to account for more FE issues
+						try {
+							Double maybeThisIsANumber = Double.parseDouble(propertyValue.toString().trim());
+							this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{instanceConceptURI, propertyURI, maybeThisIsANumber, false});
+						} catch(NumberFormatException e) {
+							// do nothing
+						}
+					}
 					// ugh... we need to push forms
 					// values being passed are not properly keeping track of things that have underscores and things that don't
 					// just going to try both versions
@@ -217,12 +237,27 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 					propertyValue = property.get("propertyValue");
 					if(propertyValue instanceof String) {
 						// check if string val is a date
-						SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+						SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 						try {
 							dateFormat.setLenient(true);
 							propertyValue= (Date) dateFormat.parse(((String) propertyValue).trim());
+							if(((Date) propertyValue).getYear() < 99) { // 99 because the rule is 1999 but getYear returns the value minus 1990
+								// TODO: this is a FE bug on forms
+								// just ignore old dates and don't save them
+								continue;
+							}
 						} catch (ParseException e) {
 							propertyValue = propertyValue.toString();
+						}
+					}
+					if(propertyValue instanceof String) {
+						// TODO: trying to account for more FE issues
+						// TODO: trying to account for more FE issues
+						// TODO: trying to account for more FE issues
+						try {
+							propertyValue = Double.parseDouble(propertyValue.toString().trim());
+						} catch(NumberFormatException e) {
+							// do nothing
 						}
 					}
 					propertyURI = property.get("propertyName").toString();
