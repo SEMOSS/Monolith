@@ -87,22 +87,22 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			baseRelationshipURI = relationBaseURI + "/" + relationType;
 			instanceRel = startNode + ":" + endNode;
 			instanceRelationshipURI =  baseURI + "/Relation/" + relationType + "/" + instanceRel;
-			
+
 			overrideRDFRelationship(instanceSubjectURI, subject, instanceObjectURI, object, baseRelationshipURI);
 		}
-		
+
 		// for deleting existing concepts
 		for(int i = 0; i < removeNodes.size(); i++) {
 			Map<String, Object> deleteConcept = removeNodes.get(i);
 			conceptType = deleteConcept.get("conceptName").toString();
 			conceptValue = Utility.cleanString(deleteConcept.get("conceptValue").toString(), true);
 			instanceConceptURI = baseURI + "/Concept/" + Utility.getInstanceName(conceptType) + "/" + conceptValue;
-			
+
 			boolean removeConcept = false;
 			if(deleteConcept.get("removeNode") != null) {
 				removeConcept = Boolean.parseBoolean(deleteConcept.get("removeNode").toString());
 			}
-			
+
 			if(removeConcept){
 				// need to delete all properties before deleting concept
 				Set<String> uriBindingList = new HashSet<String>();
@@ -118,12 +118,12 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 					if(propertyValue instanceof String) {
 						// check if string val is a date
 						SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-							try {
-								dateFormat.setLenient(false);
-								propertyValue= (Date) dateFormat.parse(((String) propertyValue).trim());
-							} catch (ParseException e) {
-								propertyValue = propertyValue.toString();
-							}
+						try {
+							dateFormat.setLenient(false);
+							propertyValue= (Date) dateFormat.parse(((String) propertyValue).trim());
+						} catch (ParseException e) {
+							propertyValue = propertyValue.toString();
+						}
 					}
 					propertyURI = property.get("propertyName").toString();
 
@@ -141,7 +141,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 				}
 			}
 		}
-		
+
 		// for adding new relationships
 		for(int i = 0; i < relationships.size(); i++) {
 			Map<String, Object> relationship = relationships.get(i);
@@ -170,8 +170,8 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.SUBPROPERTYOF, relationBaseURI, true});
 			this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDF.TYPE, RDF.PROPERTY, true});
 			this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, RDFS.LABEL, instanceRel, false});
-			
-			
+
+
 			// add relationship properties
 			if(relationship.containsKey("properties")) {
 				List<Map<String, Object>> properties = (List<Map<String, Object>>) relationship.get("properties");
@@ -189,7 +189,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 						}
 					}
 					propertyURI = property.get("propertyName").toString();
-	
+
 					this.engine.doAction(IEngine.ACTION_TYPE.ADD_STATEMENT, new Object[]{instanceRelationshipURI, propertyURI, propertyValue, false});
 					// add audit log statement
 					cal = Calendar.getInstance();
@@ -199,7 +199,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 				}
 			}
 		}
-		
+
 		//for adding concepts and properties of nodes
 		for(int i = 0; i < nodes.size(); i++) {
 			Map<String, Object> concept = nodes.get(i);
@@ -237,34 +237,28 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			}
 		}
 	}
-	
+
 	/**
 	 * Deletes the relationship and relationship properties that exist between an instance and all other instances of a specified type
-	 * @param engine
 	 * @param instanceSubjectURI
 	 * @param subjectTypeURI
 	 * @param instanceObjectURI
 	 * @param objectTypeURI
 	 * @param baseRelationshipURI
-	 * @param deleteDownstream
-	 * @param removeNode 
-	 * @param deleteUnconnectedConcepts 
-	 * @param removeNode 
-	 * @param deleteUnconnectedConcepts 
 	 */
 	private void overrideRDFRelationship(
-			String instanceSubjectURI, 
-			String subjectTypeURI, 
-			String instanceObjectURI, 
-			String objectTypeURI, 
+			String instanceSubjectURI,
+			String subjectTypeURI,
+			String instanceObjectURI,
+			String objectTypeURI,
 			String baseRelationshipURI)
 	{
 		// generate the query to override existing rdf relationships
 		StringBuilder query = new StringBuilder("SELECT DISTINCT ?SUB ?PRED ?OBJ ?LABEL ?PROP ?VAL WHERE { ");
 		query.append("BIND(<" + instanceSubjectURI + "> AS ?SUB) ");
 		query.append("BIND(<" + instanceObjectURI + "> AS ?OBJ) ");
-		query.append("{?SUB <").append(RDF.TYPE).append("> <" + subjectTypeURI + ">} ");
-		query.append("{?OBJ <").append(RDF.TYPE).append("> <" + objectTypeURI + ">} ");
+		//         query.append("{?SUB <").append(RDF.TYPE).append("> <" + subjectTypeURI + ">} ");
+		//         query.append("{?OBJ <").append(RDF.TYPE).append("> <" + objectTypeURI + ">} ");
 		query.append("{?PRED <").append(RDFS.SUBPROPERTYOF).append("> <" + baseRelationshipURI + ">} ");
 		query.append("{?SUB ?PRED ?OBJ} ");
 		query.append("OPTIONAL{ ?PRED <").append(RDFS.LABEL).append("> ?LABEL} ");
@@ -292,7 +286,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			Calendar cal = Calendar.getInstance();
 			String currTime = DATE_DF.format(cal.getTime());
 			addAuditLog(REMOVE, subURI, baseRelationshipURI, objURI, "", "", currTime);
-						
+			
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDFS.SUBPROPERTYOF, baseRelationshipURI, true});
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDFS.SUBPROPERTYOF, baseRelationURI, true});
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDF.TYPE, RDF.PROPERTY, true});
@@ -307,12 +301,13 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			}
 		}
 	}
-	
+
 	private void deleteAllRDFConnectionsToConcept(Set<String> uriBindingList) {
 		String[] queries = new String[]{
 				generateDeleteAllRDFConnectionsToConceptQuery(uriBindingList, true),
 				generateDeleteAllRDFConnectionsToConceptQuery(uriBindingList, false)};
-		
+
+		String baseRel = "http://semoss.org/ontologies/Relation";
 		for(String query : queries) {
 			if(query == null) {
 				continue;
@@ -327,13 +322,13 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 				Object label = ss.getVar(names[3]);
 				Object propURI = ss.getRawVar(names[4]);
 				Object propVal = ss.getVar(names[5]);
-	
+
 				this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{subURI, predURI, objURI, true});
 				// add audit log statement
 				Calendar cal = Calendar.getInstance();
 				String currTime = DATE_DF.format(cal.getTime());
 				addAuditLog(REMOVE, subURI, predURI, objURI, "", "", currTime);
-				if(label != null && label.toString().isEmpty()) {
+				if(label != null && !label.toString().isEmpty()) {
 					this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDFS.LABEL, label, false});
 				}
 				if(propURI != null && !propURI.toString().isEmpty()) {
@@ -343,13 +338,39 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 					currTime = DATE_DF.format(cal.getTime());
 					addAuditLog(REMOVE, "", predURI, "", propURI.toString(), propVal + "", currTime);
 				}
+
+				// need to do a lot of stuff for relationships
+				// ignore the base Relation
+				if(!predURI.equals(baseRel)) {
+					// remove the prefix so we only get RelType/Instance
+					// assuming the instance is there..
+					String suffix = predURI.replaceAll(".*ontologies/Relation/", "");
+					if(suffix.contains("/")) {
+						String[] split = suffix.split("/");
+						String relType = split[0];
+
+						// delete the sub properties around the instance
+						String baseRelationURI = baseRel + "/" + relType;
+						this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDFS.SUBPROPERTYOF, baseRel, true});
+						this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDFS.SUBPROPERTYOF, baseRelationURI, true});
+						this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{predURI, RDF.TYPE, RDF.PROPERTY, true});
+
+						// and delete the base rel directly between the subject and object
+						this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{subURI, baseRelationURI, objURI, true});
+					}
+				}
 			}
 		}
-		
 		// lastly, remove the node and all its props
 		removeRDFNodeAndAllProps(uriBindingList);
 	}
 
+	/**
+	 * 
+	 * @param conceptURI
+	 * @param downstream
+	 * @return
+	 */
 	private String generateDeleteAllRDFConnectionsToConceptQuery(Set<String> conceptURI, boolean downstream) {
 		if(conceptURI.isEmpty()) {
 			return null;
@@ -380,12 +401,12 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 
 		return query.toString();
 	}
-	
+
 	private void removeRDFNodeAndAllProps(Set<String> uriBindingList) {
 		if(uriBindingList.isEmpty()) {
 			return;
 		}
-		
+
 		// delete the properties for the instances
 		StringBuilder query = new StringBuilder("SELECT DISTINCT ?NODE ?PROP ?VAL WHERE { ");
 		query.append("{?PROP <").append(RDF.TYPE).append("> <http://semoss.org/ontologies/Relation/Contains>} ");
@@ -397,7 +418,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			query.append(">)");
 		}
 		query.append("}");
-		
+
 		ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(this.engine, query.toString());
 		String[] names = wrapper.getVariables();
 		while(wrapper.hasNext()) {
@@ -405,14 +426,14 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			String nodeURI = ss.getRawVar(names[0]) + "";
 			String propURI = ss.getRawVar(names[1]) + "";
 			Object propVal = ss.getVar(names[2]);
-			
+
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{nodeURI, propURI, propVal, false});
 			// add audit log statement
 			Calendar cal = Calendar.getInstance();
 			String currTime = DATE_DF.format(cal.getTime());
 			addAuditLog(REMOVE, nodeURI, "", "", propURI, propVal + "", currTime);
 		}
-		
+
 		// deletes the instances
 		String semossBaseConcept = "http://semoss.org/ontologies/Concept";
 		for(String nodeURI : uriBindingList) {
@@ -425,7 +446,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, new Object[]{nodeURI, RDFS.LABEL, Utility.getInstanceName(nodeURI), false});
 		}
 	}
-	
+
 	/**
 	 * Since this is an RDF engine, the inputs are full URIs
 	 * @param origName
@@ -463,10 +484,10 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			addUpTriples(upTriples, newName, newInstanceName);
 			addDownTriples(downTriples, newName);
 		}
-		
+
 		this.engine.commit();		
 	}
-	
+
 	protected void addUpTriples(List<Object[]> triples, String newUri, String newName) {
 		int size = triples.size();
 		for(int i = 0; i < size; i++) {
@@ -477,29 +498,29 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			statement[1] = data[1];
 			statement[2] = data[2];
 			statement[3] = data[3];
-			
+
 			//handles if the instance of the object is a date. The doAction (used for add and delete, needs a specific date object for dates)
 			try {
 				statement[2] = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss'Z'").parse((String) statement[2]);
 			} catch (Exception e) {
 
 			}
-		
+
 			// need to take into consideration if this is the label we add for each node
 			if(statement[1].toString().equals(RDFS.LABEL.stringValue())) {
 				statement[2] = newName;
 				statement[3] = false;
 			}
-			
+
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
-			
+
 			// add audit log statement
 			Calendar cal = Calendar.getInstance();
 			String currTime = DATE_DF.format(cal.getTime());
 			addAuditLog(ADD, statement[0].toString(), statement[1].toString(), statement[2].toString(), "", "", currTime);
 		}
 	}
-	
+
 	protected void addDownTriples(List<Object[]> triples, String newUri) {
 		int size = triples.size();
 		for(int i = 0; i < size; i++) {
@@ -510,9 +531,9 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			statement[1] = data[1];
 			statement[2] = newUri;
 			statement[3] = data[3];
-			
+
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
-			
+
 			// add audit log statement
 			Calendar cal = Calendar.getInstance();
 			String currTime = DATE_DF.format(cal.getTime());
@@ -537,7 +558,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 				// ignore
 			}
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
-			
+
 			// add audit log statement
 			Calendar cal = Calendar.getInstance();
 			String currTime = DATE_DF.format(cal.getTime());
@@ -571,7 +592,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			for(int i = 0; i < 3; i++) {
 				adjustedTriple[i] = rawTriple[i];
 			}
-			
+
 			// if its a literal
 			// use the clean value
 			// checks the relationship to see if this a property or an RDF label
@@ -583,7 +604,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			} else {
 				adjustedTriple[3] = true;
 			}
-			
+
 			listToAdd.add(adjustedTriple);
 		}
 	}
@@ -597,7 +618,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 		String versionPropUri = Constants.PROPERTY_URI + "CertificationVersion";
 		String timePropUri = Constants.PROPERTY_URI + "CertificationDate";
 		String userPropUri = Constants.PROPERTY_URI + "CertificationUsername";
-		
+
 		// 1) delete old values
 		Integer oldVersion = null;
 		String getPrevValuesQuery = "select distinct ?i ?v ?t ?u where {BIND(<" + instanceUri + "> as ?i) "
@@ -605,13 +626,13 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 				+ "{?i <" + timePropUri + "> ?t}"
 				+ "{?i <" + userPropUri + "> ?u}"
 				+ "}";
-		
+
 		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(this.engine, getPrevValuesQuery);
 		while(wrapper.hasNext()) {
 			IHeadersDataRow row = wrapper.next();
 			Object[] uris = row.getRawValues();
 			Object[] clean = row.getValues();
-			
+
 			Object[] statement = new Object[4];
 			statement[0] = uris[0];
 			statement[1] = versionPropUri;
@@ -623,7 +644,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			// audit
 			currTime = DATE_DF.format(cal.getTime());
 			addAuditLog(REMOVE, statement[0].toString(), "", "", statement[1].toString(), statement[2].toString(), currTime);
-			
+
 			// repeat for all the props
 			statement[1] = timePropUri;
 			statement[2] = clean[2];
@@ -631,7 +652,7 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			// audit
 			currTime = DATE_DF.format(cal.getTime());
 			addAuditLog(REMOVE, statement[0].toString(), "", "", statement[1].toString(), statement[2].toString(), currTime);
-		
+
 			statement[1] = userPropUri;
 			statement[2] = clean[3];
 			this.engine.doAction(IEngine.ACTION_TYPE.REMOVE_STATEMENT, statement);
@@ -642,13 +663,13 @@ public class RdfFormBuilder extends AbstractFormBuilder {
 			// get the old version so we can update it
 			oldVersion = Integer.valueOf((String) clean[1]);
 		}
-		
+
 		// 2)  add new values
 		if(oldVersion == null) {
 			oldVersion = 0;
 		}
 		String newVersion = Integer.toString(oldVersion + 1);
-		
+
 		Object[] statement = new Object[4];
 		statement[0] = instanceUri;
 		statement[1] = versionPropUri;
