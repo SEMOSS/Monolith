@@ -36,7 +36,9 @@ import java.net.URLEncoder;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,6 +60,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -961,6 +964,32 @@ public class NameServer {
 		resultHash.put("insights", insightArr);
 		
 		return WebUtility.getSO(resultHash);
+	}
+	
+	@GET
+	@Path("/downloadFile")
+	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	public Response downloadFile(@QueryParam("insightId") String insightId, @QueryParam("fileKey") String fileKey) {
+		Insight insight = InsightStore.getInstance().get(insightId);
+		if(insight == null) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Could not find the insight id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		File exportFile = new File(insight.getExportFileLocation(fileKey));
+		if(!exportFile.exists()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Could not find the file for given file id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		Date date = new Date();
+		String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
+		String exportName = "SEMOSS_Export_" + modifiedDate + ".csv";
+		
+		return Response.status(200).entity(exportFile)
+			.header("Content-Disposition", "attachment; filename=" + exportName).build();
 	}
 	
 	
