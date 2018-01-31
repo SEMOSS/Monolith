@@ -221,7 +221,13 @@ public abstract class AbstractFormBuilder {
 	 * @param timeStamp
 	 */
 	protected void addAuditLog(String action, String startNode, String relName, String endNode, String propName, String propValue, String timeStamp) {
-		String cleanUser = RDBMSEngineCreationHelper.escapeForSQLStatement(this.user);
+		String cleanUser = null;
+		// TODO: FE NEEDS TO PASS IN USER!
+		if(this.user != null) {
+			cleanUser = RDBMSEngineCreationHelper.escapeForSQLStatement(this.user);
+		} else {
+			cleanUser = "User Information Not Submitted";
+		}
 		
 		startNode = RDBMSEngineCreationHelper.escapeForSQLStatement(startNode);
 		relName = RDBMSEngineCreationHelper.escapeForSQLStatement(relName);
