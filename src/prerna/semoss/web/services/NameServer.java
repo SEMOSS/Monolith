@@ -1056,7 +1056,7 @@ public class NameServer {
 				if(pixelReturnVector.size() > 1) {
 					pixelReturnVector.remove(0);
 				} else {
-					// this is most likelyl due to an error with compiling the expresison being sent
+					// this is most likely due to an error with compiling the expression being sent
 					String newExp = (String) ((Map<String, Object>) pixelReturnVector.get(0)).get("pixelExpression");
 					newExp = newExp.replace(job, "");
 					((Map<String, Object>) pixelReturnVector.get(0)).put("pixelExpression", newExp);
