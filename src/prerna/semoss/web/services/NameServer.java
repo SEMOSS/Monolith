@@ -65,6 +65,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -977,7 +978,8 @@ public class NameServer {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
-		File exportFile = new File(insight.getExportFileLocation(fileKey));
+		String filePath = insight.getExportFileLocation(fileKey);
+		File exportFile = new File(filePath);
 		if(!exportFile.exists()) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "Could not find the file for given file id");
@@ -986,7 +988,7 @@ public class NameServer {
 		
 		Date date = new Date();
 		String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-		String exportName = "SEMOSS_Export_" + modifiedDate + ".csv";
+		String exportName = "SEMOSS_Export_" + modifiedDate + "." + FilenameUtils.getExtension(filePath);
 		
 		return Response.status(200).entity(exportFile)
 			.header("Content-Disposition", "attachment; filename=" + exportName).build();
