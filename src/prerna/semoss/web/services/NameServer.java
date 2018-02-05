@@ -28,6 +28,7 @@
 package prerna.semoss.web.services;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -66,6 +67,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -971,6 +973,10 @@ public class NameServer {
 	@Path("/downloadFile")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
 	public Response downloadFile(@QueryParam("insightId") String insightId, @QueryParam("fileKey") String fileKey) {
+		// for "security"
+		// require the person to have both the insight id
+		// and the file id
+		// in order to download the file
 		Insight insight = InsightStore.getInstance().get(insightId);
 		if(insight == null) {
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -994,6 +1000,28 @@ public class NameServer {
 			.header("Content-Disposition", "attachment; filename=" + exportName).build();
 	}
 	
+	@GET
+	@Path("/insightImage")
+	@Produces("image/png")
+	public Response getInsightImage(@QueryParam("app") String app, @QueryParam("insightId") String insightId) {
+		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+		String fileLocation = baseFolder + "\\db\\" + app + "\\version\\" + insightId + "\\image.png";
+		File f = new File(fileLocation);
+		if(f.exists()) {
+			try {
+				return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "error sending image file");
+			return Response.status(400).entity(errorMap).build();
+		} else {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "no image found");
+			return Response.status(400).entity(errorMap).build();
+		}
+	}
 	
 	@POST
 	@Path("/runPixel")
