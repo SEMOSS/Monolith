@@ -1003,7 +1003,7 @@ public class NameServer {
 	@GET
 	@Path("/insightImage")
 	@Produces("image/png")
-	public Response getInsightImage(@QueryParam("app") String app, @QueryParam("insightId") String insightId) {
+	public Response getInsightImage(@QueryParam("app") String app, @QueryParam("rdbmsId") String insightId) {
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = baseFolder + "\\db\\" + app + "\\version\\" + insightId + "\\image.png";
 		File f = new File(fileLocation);
