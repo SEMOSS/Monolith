@@ -98,6 +98,7 @@ import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
+import prerna.solr.SolrUtility;
 import prerna.upload.DatabaseUploader;
 import prerna.upload.FileUploader;
 import prerna.upload.Uploader;
@@ -1017,9 +1018,22 @@ public class NameServer {
 			errorMap.put("errorMessage", "error sending image file");
 			return Response.status(400).entity(errorMap).build();
 		} else {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "no image found");
-			return Response.status(400).entity(errorMap).build();
+			// sending a stock image
+			f = SolrUtility.getStockImage(app, insightId);
+			if(f != null && f.exists()) {
+				try {
+					return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "error sending image file");
+				return Response.status(400).entity(errorMap).build();
+			} else {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "no image found");
+				return Response.status(400).entity(errorMap).build();
+			}
 		}
 	}
 	
