@@ -30,16 +30,12 @@ public class FormResource {
 	public static final String FORM_BUILDER_ENGINE_NAME = "form_builder_engine";
 	public static final String AUDIT_FORM_SUFFIX = "_FORM_LOG";
 	
-	private IEngine formBuilderEng;
-	
-	public FormResource() {
-		this.formBuilderEng = Utility.getEngine(FORM_BUILDER_ENGINE_NAME);
-	}
-	
 	@POST
 	@Path("/modifyUserAccess")
 	@Produces("application/json")
 	public Response modifyUserAccess(MultivaluedMap<String, String> form) {	
+		IEngine formBuilderEng = Utility.getEngine(FORM_BUILDER_ENGINE_NAME);
+
 		String addOrRemove = form.getFirst("addOrRemove");
 		String userid = form.getFirst("userid");
 		
@@ -57,9 +53,9 @@ public class FormResource {
         }
         
         // execute the insert statement
-    	this.formBuilderEng.insertData(query);
+    	formBuilderEng.insertData(query);
     	// commit to engine
-    	this.formBuilderEng.commit();
+    	formBuilderEng.commit();
     	
 		return WebUtility.getResponse("success", 200);
 	}
@@ -108,6 +104,8 @@ public class FormResource {
 			return WebUtility.getResponse("you messed up", 400);
 		}
 
+		IEngine formBuilderEng = Utility.getEngine(FORM_BUILDER_ENGINE_NAME);
+		
 		// the x509 for the user
 		// and the instances they have access to
 		String x509Id = null;
