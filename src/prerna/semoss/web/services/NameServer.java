@@ -1020,18 +1020,11 @@ public class NameServer {
 		} else {
 			// sending a stock image
 			f = SolrUtility.getStockImage(app, insightId);
-			if(f != null && f.exists()) {
-				try {
-					return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+			try {
+				return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "error sending image file");
-				return Response.status(400).entity(errorMap).build();
-			} else {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "no image found");
 				return Response.status(400).entity(errorMap).build();
 			}
 		}
