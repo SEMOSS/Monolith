@@ -1002,6 +1002,36 @@ public class NameServer {
 	}
 	
 	@GET
+	@Path("/appImage")
+	@Produces("image/png")
+	public Response getAppImage(@QueryParam("app") String app) {
+		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+		String fileLocation = baseFolder + "\\db\\" + app + "\\version\\image.png";
+		File f = new File(fileLocation);
+		if(f.exists()) {
+			try {
+				return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "error sending image file");
+			return Response.status(400).entity(errorMap).build();
+		} else {
+			// sending a stock image
+			String imageDir = baseFolder + "\\images\\stock\\color-logo.png";
+			f = new File(imageDir);
+			try {
+				return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+			} catch (IOException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "error sending image file");
+				return Response.status(400).entity(errorMap).build();
+			}
+		}
+	}
+	
+	@GET
 	@Path("/insightImage")
 	@Produces("image/png")
 	public Response getInsightImage(@QueryParam("app") String app, @QueryParam("rdbmsId") String insightId) {
