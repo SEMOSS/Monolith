@@ -108,6 +108,7 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.insight.InsightScreenshot;
+import prerna.util.insight.TextToGraphic;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
@@ -1030,9 +1031,9 @@ public class NameServer {
 			errorMap.put("errorMessage", "error sending image file");
 			return Response.status(400).entity(errorMap).build();
 		} else {
-			// sending a stock image
-			String imageDir = baseFolder + "\\images\\stock\\color-logo.png";
-			f = new File(imageDir);
+			// make the image
+			f.getParentFile().mkdirs();
+			TextToGraphic.makeImage(app, fileLocation);
 			try {
 				return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
 			} catch (IOException e) {
