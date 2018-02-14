@@ -96,6 +96,7 @@ import prerna.om.InsightStore;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
+import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngineQueryBuilder;
 import prerna.solr.SolrUtility;
@@ -1061,14 +1062,26 @@ public class NameServer {
 			errorMap.put("errorMessage", "error sending image file");
 			return Response.status(400).entity(errorMap).build();
 		} else {
-			// sending a stock image
-			f = SolrUtility.getStockImage(app, insightId);
-			try {
-				return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
-			} catch (IOException e) {
+			// try making the image
+			ImageCaptureReactor.runImageCapture(app, insightId);
+			if(f.exists()) {
+				try {
+					return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "error sending image file");
 				return Response.status(400).entity(errorMap).build();
+			} else {
+				f = SolrUtility.getStockImage(app, insightId);
+				try {
+					return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+				} catch (IOException e) {
+					Map<String, String> errorMap = new HashMap<String, String>();
+					errorMap.put("errorMessage", "error sending image file");
+					return Response.status(400).entity(errorMap).build();
+				}
 			}
 		}
 	}

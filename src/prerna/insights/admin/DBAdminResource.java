@@ -46,7 +46,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
@@ -301,12 +300,12 @@ public class DBAdminResource {
 //		return WebUtility.getResponse("success", 200);
 //	}
 
-	@Path("insight-{engine}")
-	public Object insight(@PathParam("engine") String engineString, @Context HttpServletRequest request) {
-		AbstractEngine engine = getEngine(engineString, request);
-		QuestionAdmin admin = new QuestionAdmin(engine);
-		return admin;
-	}
+//	@Path("insight-{engine}")
+//	public Object insight(@PathParam("engine") String engineString, @Context HttpServletRequest request) {
+//		AbstractEngine engine = getEngine(engineString, request);
+//		QuestionAdmin admin = new QuestionAdmin(engine);
+//		return admin;
+//	}
 
 	private boolean deleteEngine(IEngine coreEngine, HttpServletRequest request) {
 		String engineName = coreEngine.getEngineName();
@@ -405,25 +404,6 @@ public class DBAdminResource {
 
 		return WebUtility.getSO(modifyInsight(solrId, fieldsToModify));
 		
-	}
-
-	/**
-	 * Modify the insight image
-	 * 
-	 * @return
-	 */
-	@POST
-	@Path("modifyInsightImage")
-	@Produces("application/json")
-	public StreamingOutput modifyInsightImage(MultivaluedMap<String, String> form,
-			@Context HttpServletRequest request) {
-		String solrId = form.getFirst("id");
-		String imageStr = form.getFirst("image");
-
-		Map<String, Object> fieldsToModify = new HashMap<String, Object>();
-		fieldsToModify.put(SolrIndexEngine.IMAGE, imageStr);
-
-		return WebUtility.getSO(modifyInsight(solrId, fieldsToModify));
 	}
 
 	private String modifyInsight(String solrId, Map<String, Object> fieldsToModify) {
