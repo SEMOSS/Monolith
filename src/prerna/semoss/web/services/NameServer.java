@@ -1048,7 +1048,7 @@ public class NameServer {
 	@GET
 	@Path("/insightImage")
 	@Produces("image/png")
-	public Response getInsightImage(@QueryParam("app") String app, @QueryParam("rdbmsId") String insightId) {
+	public Response getInsightImage(@Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId) {
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = baseFolder + "\\db\\" + app + "\\version\\" + insightId + "\\image.png";
 		File f = new File(fileLocation);
@@ -1062,8 +1062,9 @@ public class NameServer {
 			errorMap.put("errorMessage", "error sending image file");
 			return Response.status(400).entity(errorMap).build();
 		} else {
+			String feUrl = request.getHeader("Referer");
 			// try making the image
-			ImageCaptureReactor.runImageCapture(app, insightId);
+			ImageCaptureReactor.runImageCapture(feUrl, app, insightId);
 			if(f.exists()) {
 				try {
 					return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
