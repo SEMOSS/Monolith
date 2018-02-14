@@ -24,7 +24,6 @@ public class ImageUploader extends Uploader {
 		
 		for(FileItem fi : fileItems) {
 			String fieldName = fi.getFieldName();
-			String fileName = fi.getName();
 			String value = fi.getString();
 			if(fieldName.equals("file")) {
 				imageFile = fi;
