@@ -1022,11 +1022,16 @@ public class NameServer {
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = baseFolder + "\\db\\" + app + "\\version\\image.png";
 		File f = new File(fileLocation);
+		FileInputStream fis = null;
 		if(f.exists()) {
 			try {
-				return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+				fis = new FileInputStream(f);
+				byte[] byteArray = IOUtils.toByteArray(fis);
+				return Response.status(200).entity(byteArray).build();
 			} catch (IOException e) {
 				e.printStackTrace();
+			} finally {
+				closeStream(fis);
 			}
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "error sending image file");
@@ -1036,11 +1041,15 @@ public class NameServer {
 			f.getParentFile().mkdirs();
 			TextToGraphic.makeImage(app, fileLocation);
 			try {
-				return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+				fis = new FileInputStream(f);
+				byte[] byteArray = IOUtils.toByteArray(fis);
+				return Response.status(200).entity(byteArray).build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "error sending image file");
 				return Response.status(400).entity(errorMap).build();
+			} finally {
+				closeStream(fis);
 			}
 		}
 	}
@@ -1052,11 +1061,16 @@ public class NameServer {
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = baseFolder + "\\db\\" + app + "\\version\\" + insightId + "\\image.png";
 		File f = new File(fileLocation);
+		FileInputStream fis = null;
 		if(f.exists()) {
 			try {
-				return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+				fis = new FileInputStream(f);
+				byte[] byteArray = IOUtils.toByteArray(fis);
+				return Response.status(200).entity(byteArray).build();
 			} catch (IOException e) {
 				e.printStackTrace();
+			} finally {
+				closeStream(fis);
 			}
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "error sending image file");
@@ -1067,9 +1081,13 @@ public class NameServer {
 			ImageCaptureReactor.runImageCapture(feUrl, app, insightId);
 			if(f.exists()) {
 				try {
-					return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+					fis = new FileInputStream(f);
+					byte[] byteArray = IOUtils.toByteArray(fis);
+					return Response.status(200).entity(byteArray).build();
 				} catch (IOException e) {
 					e.printStackTrace();
+				} finally {
+					closeStream(fis);
 				}
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "error sending image file");
@@ -1077,12 +1095,26 @@ public class NameServer {
 			} else {
 				f = SolrUtility.getStockImage(app, insightId);
 				try {
-					return Response.status(200).entity(IOUtils.toByteArray(new FileInputStream(f))).build();
+					fis = new FileInputStream(f);
+					byte[] byteArray = IOUtils.toByteArray(fis);
+					return Response.status(200).entity(byteArray).build();
 				} catch (IOException e) {
 					Map<String, String> errorMap = new HashMap<String, String>();
 					errorMap.put("errorMessage", "error sending image file");
 					return Response.status(400).entity(errorMap).build();
+				} finally {
+					closeStream(fis);
 				}
+			}
+		}
+	}
+	
+	private void closeStream(FileInputStream fis) {
+		if(fis != null) {
+			try {
+				fis.close();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
 	}
