@@ -22,6 +22,7 @@ import javax.ws.rs.core.Response;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.forms.AbstractFormBuilder;
+import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -29,14 +30,11 @@ import prerna.web.services.util.WebUtility;
 @Path("/form")
 public class FormResource {
 
-	public static final String FORM_BUILDER_ENGINE_NAME = "form_builder_engine";
-	public static final String AUDIT_FORM_SUFFIX = "_FORM_LOG";
-	
 	@POST
 	@Path("/modifyUserAccess")
 	@Produces("application/json")
 	public Response modifyUserAccess(MultivaluedMap<String, String> form) {	
-		IEngine formBuilderEng = Utility.getEngine(FORM_BUILDER_ENGINE_NAME);
+		IEngine formBuilderEng = Utility.getEngine(FormBuilder.FORM_BUILDER_ENGINE_NAME);
 
 		String addOrRemove = form.getFirst("addOrRemove");
 		String userid = form.getFirst("userid");
@@ -106,7 +104,7 @@ public class FormResource {
 			return WebUtility.getResponse("you messed up", 400);
 		}
 
-		IEngine formBuilderEng = Utility.getEngine(FORM_BUILDER_ENGINE_NAME);
+		IEngine formBuilderEng = Utility.getEngine(FormBuilder.FORM_BUILDER_ENGINE_NAME);
 		
 		// the x509 for the user
 		// and the instances they have access to
