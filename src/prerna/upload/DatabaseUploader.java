@@ -121,7 +121,7 @@ public class DatabaseUploader extends Uploader {
 			String errorMessage = "Database name \'" + dbName + "\' is invalid";
 			throw new IOException(errorMessage);
 		}
-		options.setDbName(makeAlphaNumeric(dbName));
+		options.setDbName(Utility.makeAlphaNumeric(dbName));
 
 		// determine the db type
 		String dbType = inputData.get("dataOutputType");
@@ -202,7 +202,7 @@ public class DatabaseUploader extends Uploader {
 			String errorMessage = "Database name \'" + dbName + "\' is invalid";
 			throw new IOException(errorMessage);
 		}
-		options.setDbName(makeAlphaNumeric(dbName));
+		options.setDbName(Utility.makeAlphaNumeric(dbName));
 
 		// determine the db type
 		// do not need this when we do add to existing
@@ -1346,7 +1346,7 @@ public class DatabaseUploader extends Uploader {
 		boolean isValid = SolrEngine.ping(solrURL, coreName);
 		String dbName = form.getFirst("dbName");
 		if(isValid) {
-			dbName = makeAlphaNumeric(dbName);
+			dbName = Utility.makeAlphaNumeric(dbName);
 			SolrEngineConnector connector = new SolrEngineConnector();
 			try {
 				connector.processExistingSolrConnection(dbName, solrURL, coreName);
@@ -1433,7 +1433,7 @@ public class DatabaseUploader extends Uploader {
 		
 		HashMap<String, String> databaseOptions = gson.fromJson(gson.toJson(details.get("databaseOptions")), new TypeToken<HashMap<String, String>>() {}.getType());
 		HashMap<String, String> options = gson.fromJson(gson.toJson(details.get("options")), new TypeToken<HashMap<String, Object>>() {}.getType());
-		options.put("dbName", makeAlphaNumeric(databaseOptions.get("databaseName")));
+		options.put("dbName", Utility.makeAlphaNumeric(databaseOptions.get("databaseName")));
 		ImportOptions importOptions = setupImportOptionsForExternalConnection(options, metamodel);
 
 		// add engine owner for permissions
@@ -1551,16 +1551,6 @@ public class DatabaseUploader extends Uploader {
 		masterDB.addEngineAndOwner(engine, userId);
 	}
 
-	private String makeAlphaNumeric(String s) {
-		s = s.trim();
-		s = s.replaceAll(" ", "_");
-		s = s.replaceAll("[^a-zA-Z0-9\\_]", "");
-		while(s.contains("__")){
-			s = s.replace("__", "_");
-		}
-		return s;
-	}
-	
 	@POST
 	@Path("/json/uploadXrayConfig")
 	@Produces("application/json")
