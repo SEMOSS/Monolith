@@ -28,6 +28,7 @@
 package prerna.semoss.web.services;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -68,6 +69,7 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -1017,13 +1019,13 @@ public class NameServer {
 	
 	@GET
 	@Path("/appImage")
-	@Produces("image/png")
+	@Produces("image/*")
 	public Response getAppImage(@QueryParam("app") String app) {
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + "\\db\\" + app + "\\version\\image.png";
-		File f = new File(fileLocation);
+		String fileLocation = baseFolder + "\\db\\" + app + "\\version";
+		File f = findImageFile(fileLocation);
 		FileInputStream fis = null;
-		if(f.exists()) {
+		if(f != null) {
 			try {
 				fis = new FileInputStream(f);
 				byte[] byteArray = IOUtils.toByteArray(fis);
@@ -1038,7 +1040,8 @@ public class NameServer {
 			return Response.status(400).entity(errorMap).build();
 		} else {
 			// make the image
-			f.getParentFile().mkdirs();
+			f = new File(fileLocation);
+			f.mkdirs();
 			TextToGraphic.makeImage(app, fileLocation);
 			try {
 				fis = new FileInputStream(f);
@@ -1054,9 +1057,30 @@ public class NameServer {
 		}
 	}
 	
+	/**
+	 * Find an image in the directory
+	 * @param baseDir
+	 * @return
+	 */
+	private File findImageFile(String baseDir) {
+		List<String> extensions = new Vector<String>();
+		extensions.add("image.png");
+		extensions.add("image.jpeg");
+		extensions.add("image.jpg");
+		extensions.add("image.gif");
+		extensions.add("image.svg");
+		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
+		File baseFolder = new File(baseDir);
+		File[] imageFiles = baseFolder.listFiles(imageExtensionFilter);
+		if(imageFiles.length > 0) {
+			return imageFiles[0];
+		}
+		return null;
+	}
+	
 	@GET
 	@Path("/insightImage")
-	@Produces("image/png")
+	@Produces("image/*")
 	public Response getInsightImage(@Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId) {
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = baseFolder + "\\db\\" + app + "\\version\\" + insightId + "\\image.png";
