@@ -1045,6 +1045,7 @@ public class NameServer {
 			fileLocation = fileLocation + "\\image.png";
 			TextToGraphic.makeImage(app, fileLocation);
 			try {
+				f = new File(fileLocation);
 				fis = new FileInputStream(f);
 				byte[] byteArray = IOUtils.toByteArray(fis);
 				return Response.status(200).entity(byteArray).build();
