@@ -1042,6 +1042,7 @@ public class NameServer {
 			// make the image
 			f = new File(fileLocation);
 			f.mkdirs();
+			fileLocation = fileLocation + "\\image.png";
 			TextToGraphic.makeImage(app, fileLocation);
 			try {
 				fis = new FileInputStream(f);
