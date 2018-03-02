@@ -1072,7 +1072,7 @@ public class NameServer {
 		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
 		File baseFolder = new File(baseDir);
 		File[] imageFiles = baseFolder.listFiles(imageExtensionFilter);
-		if(imageFiles.length > 0) {
+		if(imageFiles != null && imageFiles.length > 0) {
 			return imageFiles[0];
 		}
 		return null;
