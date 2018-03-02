@@ -50,8 +50,10 @@ public class ImageUploader extends Uploader {
 		// and delete them
 		File[] oldImages = findImageFile(f.getParentFile());
 		// delete if any exist
-		for(File oldI : oldImages) {
-			oldI.delete();
+		if(oldImages != null) {
+			for(File oldI : oldImages) {
+				oldI.delete();
+			}
 		}
 		writeFile(imageFile, f);
 	}
