@@ -15,6 +15,9 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
 public class ImageUploader extends Uploader {
+	
+	// get the directory separator
+	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 
 	@POST
 	@Path("/appImage")
@@ -39,12 +42,12 @@ public class ImageUploader extends Uploader {
 		// now that we have the app name
 		// and the image file
 		// we want to write it into the app location
-		String imageDir = filePath + "\\" + appName + "\\version";
+		String imageDir = filePath + DIR_SEPARATOR + appName + DIR_SEPARATOR + "version";
 		File f = new File(imageDir);
 		if(!f.exists()) {
 			f.mkdirs();
 		}
-		String imageLoc = imageDir + "\\image." + imageFile.getContentType().split("/")[1];
+		String imageLoc = imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
 		f = new File(imageLoc);
 		// find all the existing image files
 		// and delete them
