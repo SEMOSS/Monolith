@@ -123,6 +123,9 @@ public class NameServer {
 	@Context
 	private ServletContext context;
 	
+	// get the directory separator
+	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
+	
 	private static final Logger logger = Logger.getLogger(NameServer.class.getName());
 	private Hashtable<String, String> helpHash = null;
 	UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
@@ -1022,7 +1025,7 @@ public class NameServer {
 	@Produces("image/*")
 	public Response getAppImage(@QueryParam("app") String app) {
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + "\\db\\" + app + "\\version";
+		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version";
 		File f = findImageFile(fileLocation);
 		FileInputStream fis = null;
 		if(f != null) {
@@ -1042,7 +1045,7 @@ public class NameServer {
 			// make the image
 			f = new File(fileLocation);
 			f.mkdirs();
-			fileLocation = fileLocation + "\\image.png";
+			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
 			TextToGraphic.makeImage(app, fileLocation);
 			try {
 				f = new File(fileLocation);
@@ -1085,7 +1088,7 @@ public class NameServer {
 	@Produces("image/*")
 	public Response getInsightImage(@Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId) {
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + "\\db\\" + app + "\\version\\" + insightId + "\\image.png";
+		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId + DIR_SEPARATOR + "image.png";
 		File f = new File(fileLocation);
 		FileInputStream fis = null;
 		if(f.exists()) {
