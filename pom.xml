@@ -345,7 +345,7 @@
 		<dependency>
 			<groupId>com.google.api-client</groupId>
 			<artifactId>google-api-client</artifactId>
-			<version>1.17.0-rc</version>
+			<version>1.23.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
@@ -378,7 +378,7 @@
 		<dependency>
 			<groupId>com.google.http-client</groupId>
 			<artifactId>google-http-client</artifactId>
-			<version>1.17.0-rc</version>
+			<version>1.23.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
@@ -387,9 +387,9 @@
 			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>com.google.http-client</groupId>
-			<artifactId>google-http-client-jackson</artifactId>
-			<version>1.17.0-rc</version>
+		    <groupId>com.google.http-client</groupId>
+			<artifactId>google-http-client-jackson2</artifactId>
+			<version>1.23.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
@@ -400,7 +400,7 @@
 		<dependency>
 			<groupId>com.google.oauth-client</groupId>
 			<artifactId>google-oauth-client</artifactId>
-			<version>1.17.0-rc</version>
+			<version>1.23.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
@@ -2322,5 +2322,21 @@
 		    <artifactId>json-path</artifactId>
 		    <version>2.3.0</version>
 		</dependency> 
+		<!--  Google Sheets -->
+		<dependency>
+		    <groupId>com.google.apis</groupId>
+		    <artifactId>google-api-services-sheets</artifactId>
+		    <version>v4-rev506-1.23.0</version>
+		</dependency>
+		<dependency>
+		    <groupId>com.google.gdata</groupId>
+		    <artifactId>core</artifactId>
+		    <version>1.47.1</version>
+		</dependency>
+		<dependency>
+		    <groupId>com.google.apis</groupId>
+		    <artifactId>google-api-services-drive</artifactId>
+		    <version>v3-rev105-1.23.0</version>
+		</dependency>  
 	</dependencies>
 </project>
