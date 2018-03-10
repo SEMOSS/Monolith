@@ -2342,7 +2342,7 @@
   <groupId>io.burt</groupId>
   <artifactId>jmespath-jackson</artifactId>
   <version>0.2.0</version>
-</dependency>
+</dependency> 
 		
 	</dependencies>
 </project>
