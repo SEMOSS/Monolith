@@ -696,9 +696,9 @@ public class DatabaseUploader extends Uploader {
 		try {
 			options = new ImportOptions();
 			setDefaultOptions(options, form);
-
 			// can only load flat files as RDBMS
 			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
+			options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.H2_DB);
 			options.setImportType(ImportOptions.IMPORT_TYPE.CSV_FLAT_LOAD);
 
 			// set the files
@@ -1100,9 +1100,9 @@ public class DatabaseUploader extends Uploader {
 		try {
 			options = new ImportOptions();
 			setDefaultOptions(options, form);
-
 			// can only load flat files as RDBMS
 			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
+			options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.H2_DB);
 			options.setImportType(ImportOptions.IMPORT_TYPE.EXCEL_FLAT_UPLOAD);
 
 			// set the files
