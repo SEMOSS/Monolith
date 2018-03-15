@@ -1371,21 +1371,20 @@ public class DatabaseUploader extends Uploader {
 	@Path("/rdbms/getMetadata2")
 	@Produces("application/json")
 	public Response getExistingRDBMSMetadata2(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-
 		Gson gson = new Gson();
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
 
 		String driver = form.getFirst("driver");
-		//driver = "DB2";
 		String hostname = form.getFirst("hostname");
 		String port = form.getFirst("port");
 		String username = form.getFirst("username");
 		String password = form.getFirst("password");
 		String schema = form.getFirst("schema");
+		String additionalProperties = form.getFirst("additionalParams");
 
 		Map<String, Object>	ret = new HashMap<String, Object>();
 		try {
-			ret = importer.getSchemaDetails(driver, hostname, port, username, password, schema);
+			ret = importer.getSchemaDetails(driver, hostname, port, username, password, schema, additionalProperties);
 		} catch(Exception e) {
 			e.printStackTrace();
 			if(e.getMessage() != null) {
@@ -1481,6 +1480,7 @@ public class DatabaseUploader extends Uploader {
 		importOptions.setSchema(options.get("schema"));
 		importOptions.setUsername(options.get("username"));
 		importOptions.setPassword(options.get("password"));
+		importOptions.setAdditionalJDBCProperties(options.get("additionalParams"));
 		importOptions.setExternalMetamodel(externalMetamodel);
 		
 		return importOptions;
@@ -1490,25 +1490,18 @@ public class DatabaseUploader extends Uploader {
 	@Path("/rdbms/test")
 	@Produces("application/json")
 	public Response testExistingRDBMSConnection(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-
 		Gson gson = new Gson();
 		String driver = form.getFirst("driver");
-		//driver = "DB2";
 		String hostname = form.getFirst("hostname");
 		String port = form.getFirst("port");
 		String username = form.getFirst("username");
 		String password = form.getFirst("password");
 		String schema = form.getFirst("schema");
-//		String connectionURL = gson.fromJson(form.getFirst("connectionURL"), String.class);
-
+		String additionalProperties = form.getFirst("additionalParams");
 		HashMap<String, Object> ret = new HashMap<String, Object>();
+
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
-
-		//		if(connectionURL != null && !connectionURL.isEmpty()) {
-		//			importer.setConnectionURL(connectionURL);
-		//		}
-
-		String test = importer.checkConnectionParams(driver, hostname, port, username, password, schema);
+		String test = importer.checkConnectionParams(driver, hostname, port, username, password, schema, additionalProperties);
 		if(Boolean.parseBoolean(test)) {
 			ret.put("success", Boolean.parseBoolean(test));
 			return Response.status(200).entity(gson.toJson(ret)).build();
