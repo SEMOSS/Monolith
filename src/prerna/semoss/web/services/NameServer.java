@@ -940,7 +940,7 @@ public class NameServer {
 //			existingInsight = new Insight(null, dataFrameType, "Grid");
 			existingInsight = new Insight();
 			// set the user id into the insight
-			existingInsight.setUserId( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
+			existingInsight.setUser( ((User) request.getSession().getAttribute(Constants.SESSION_USER)) );
 			InsightStore.getInstance().put(existingInsight);
 		}
 //		else if(insightID.equals("newDashboard")) {
@@ -1169,11 +1169,7 @@ public class NameServer {
 		
 		HttpSession session = request.getSession(true);
 		String sessionId = session.getId();
-		String userId = "defaultUser";
 		User user = ((User) session.getAttribute(Constants.SESSION_USER));
-		if(user!= null) {
-			userId = user.getId();
-		}
 		
 		String jobId = "";
 		final String tempInsightId = "TempInsightNotStored";
@@ -1189,10 +1185,10 @@ public class NameServer {
 			insightId = tempInsightId;
 			insight = new Insight();
 			insight.setInsightId(tempInsightId);
-			insight.setUserId(userId);
+			insight.setUser(user);
 		} else if(insightId.equals("new")) { // need to make a new insight here
 			insight = new Insight();
-			insight.setUserId(userId);
+			insight.setUser(user);
 			InsightStore.getInstance().put(insight);
 			insightId = insight.getInsightId();
 			InsightStore.getInstance().addToSessionHash(sessionId, insightId);
@@ -1259,6 +1255,7 @@ public class NameServer {
 	public Response runPixelAsync(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		HttpSession session = request.getSession(true);
 		String sessionId = session.getId();
+		User user = ((User) session.getAttribute(Constants.SESSION_USER));
 		
 		String jobId = "";
 		Map<String, String> dataReturn = new HashMap<String, String>();
@@ -1272,10 +1269,12 @@ public class NameServer {
 		if(insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
 			insight = new Insight();
 			insight.setInsightId("TempInsightNotStored");
+			insight.setUser(user);
 		} else if(insightId.equals("new")) { // need to make a new insight here
 			insight = new Insight();
 			InsightStore.getInstance().put(insight);
 			InsightStore.getInstance().addToSessionHash(sessionId, insight.getInsightId());
+			insight.setUser(user);
 		} else {// or just get it from the store
 			// the session id needs to be checked
 			// you better have a valid id... or else... O_O
