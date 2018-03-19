@@ -397,7 +397,7 @@ public class EngineResource {
 				//Get the Insight, grab its ID
 				insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
 				// set the user id into the insight
-				insightObj.setUserId( ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
+				insightObj.setUser( ((User) request.getSession().getAttribute(Constants.SESSION_USER)) );
 				
 				Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 				if(insightObj.isOldInsight()) {
