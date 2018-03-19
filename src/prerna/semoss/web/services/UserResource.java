@@ -124,6 +124,7 @@ public class UserResource
 			e.printStackTrace();
 		}
 	}
+	
 	/**
 	 * Logs user in through Google+.
 	 */
@@ -197,11 +198,12 @@ public class UserResource
 			User newUser;
 			if(picture != null && !picture.isEmpty()) {
 				ret.put("picture", picture);
-				newUser = new User(gplusId, name, User.LOGIN_TYPES.google, email, picture);
+				newUser = new User(gplusId, name, User.LOGIN_TYPES.GOOGLE, email, picture);
 			} else {
-				newUser = new User(gplusId, name, User.LOGIN_TYPES.google, email);
+				newUser = new User(gplusId, name, User.LOGIN_TYPES.GOOGLE, email);
 			}
-			
+			// also set the google id token
+			newUser.setAdditionalData("googleCredential", credential);
 			addUser(newUser);
 			
 			if(permissions.isUserAdmin(gplusId)) {
@@ -343,9 +345,9 @@ public class UserResource
 		if(me.getPicture() != null) {
 			String picture = me.getPicture().getUrl();
 			ret.put("picture", picture);
-			newUser = new User(id, name, User.LOGIN_TYPES.facebook, email, picture);
+			newUser = new User(id, name, User.LOGIN_TYPES.FACEBOOK, email, picture);
 		} else {
-			newUser = new User(id, name, User.LOGIN_TYPES.facebook, email);
+			newUser = new User(id, name, User.LOGIN_TYPES.FACEBOOK, email);
 		}
 		
 		ret.put("token", accessToken);
@@ -414,7 +416,7 @@ public class UserResource
 	 * Adds user to Local Master DB upon sign-in
 	 * 
 	 * @param userId	User ID of user retrieved from Identity Provider
-	 * @param email		Email address of user retrieved from Identity Provider
+	 * @param EMAIL		Email address of user retrieved from Identity Provider
 	 */
 	private void addUser(User newUser) {
 		permissions.addUser(newUser);
@@ -508,4 +510,24 @@ public class UserResource
 			}
 		};
 	}
+	
+//	/**
+//	 * Logs user in through Google+.
+//	 */
+//	@POST
+//	@Produces("application/json")
+//	@Path("/login/github")
+//	public Response loginGithub(@Context HttpServletRequest request) throws IOException {
+//		final String YOUR_API_KEY = "0d45001167302b65c68f"; // client id
+//		final String YOUR_API_SECRET = "***REMOVED***"; // client secret
+//		
+//		OAuthService service = new ServiceBuilder(YOUR_API_KEY)
+//                .apiSecret(YOUR_API_SECRET)
+//                .build(GitHubApi.instance());
+//		
+//		System.out.println(service);
+//		
+//		return WebUtility.getResponse(true, 200);
+//	}
+	
 }

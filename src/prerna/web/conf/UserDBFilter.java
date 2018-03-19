@@ -27,8 +27,6 @@
  *******************************************************************************/
 package prerna.web.conf;
 
-import it.unimi.dsi.util.Properties;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,17 +43,19 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import com.ibm.icu.util.StringTokenizer;
+
+import it.unimi.dsi.util.Properties;
 import prerna.auth.User;
 import prerna.auth.User.LOGIN_TYPES;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 
-import com.ibm.icu.util.StringTokenizer;
-
 public class UserDBFilter implements Filter {
+	
 	FilterConfig config;
-	User user = new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.anonymous, "Anonymous");
+	User user = new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.ANONYMOUS, "Anonymous");
 	
 	@Override
 	public void destroy() {

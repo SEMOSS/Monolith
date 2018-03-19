@@ -23,7 +23,7 @@ import prerna.util.Constants;
 public class UserSessionLoader implements HttpSessionListener {
 	
 	public void sessionCreated(HttpSessionEvent sessionEvent) {
-		sessionEvent.getSession().setAttribute(Constants.SESSION_USER, new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.anonymous, "Anonymous"));
+		sessionEvent.getSession().setAttribute(Constants.SESSION_USER, new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.ANONYMOUS, "Anonymous"));
 	}
 	 
 	public void sessionDestroyed(HttpSessionEvent sessionEvent) {
