@@ -1196,6 +1196,7 @@ public class NameServer {
 			// the session id needs to be checked
 			// you better have a valid id... or else... O_O
 			insight = InsightStore.getInstance().get(insightId);
+			insight.setUser(user);
 			if(insight == null) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "Could not find the insight id");
