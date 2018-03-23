@@ -905,6 +905,12 @@
 		    <artifactId>jython</artifactId>
 		    <version>2.7.1b3</version>
 		</dependency>
+		<!-- jsonrpc4j -->
+		<dependency>
+			<groupId>com.github.briandilley.jsonrpc4j</groupId>
+			<artifactId>jsonrpc4j</artifactId>
+			<version>1.5.3</version>
+		</dependency>
 		<dependency>
 			<groupId>org.codehaus.jet</groupId>
 			<artifactId>jet-regression</artifactId>
@@ -1216,7 +1222,7 @@
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
-			<version>4.0.28.Final</version>
+			<version>4.1.22.Final</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
@@ -2268,6 +2274,11 @@
 			<artifactId>jackson-databind</artifactId>
 			<version>2.9.0</version>
 		</dependency>
+		<dependency>
+		    <groupId>com.fasterxml.jackson.core</groupId>
+		    <artifactId>jackson-annotations</artifactId>
+		    <version>2.9.0</version>
+		</dependency>		
 		<dependency>
 			<groupId>com.amazon.redshift</groupId>
 			<artifactId>redshift-jdbc41</artifactId>
