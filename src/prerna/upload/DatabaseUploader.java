@@ -147,12 +147,6 @@ public class DatabaseUploader extends Uploader {
 			// default to RDF db type
 			options.setDbType(ImportOptions.DB_TYPE.RDF);
 		}
-
-		// get the question file is present
-		String questionFile = inputData.get("questionFile");
-		if(questionFile != null && !questionFile.trim().isEmpty()) {
-			options.setQuestionFile(questionFile);
-		}
 		
 		// set clean string by default
 		options.setCleanString(true);
@@ -244,12 +238,6 @@ public class DatabaseUploader extends Uploader {
 				// default to RDF db type
 				options.setDbType(ImportOptions.DB_TYPE.RDF);
 			}
-		}
-
-		// get the question file is present
-		String questionFile = form.getFirst("questionFile");
-		if(questionFile != null && !questionFile.trim().isEmpty()) {
-			options.setQuestionFile(questionFile);
 		}
 		
 		// set clean string by default
