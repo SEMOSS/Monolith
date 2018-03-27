@@ -1268,12 +1268,10 @@ public class NameServer {
 		if(insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
 			insight = new Insight();
 			insight.setInsightId("TempInsightNotStored");
-			insight.setUser(user);
 		} else if(insightId.equals("new")) { // need to make a new insight here
 			insight = new Insight();
 			InsightStore.getInstance().put(insight);
 			InsightStore.getInstance().addToSessionHash(sessionId, insight.getInsightId());
-			insight.setUser(user);
 		} else {// or just get it from the store
 			// the session id needs to be checked
 			// you better have a valid id... or else... O_O
@@ -1295,6 +1293,7 @@ public class NameServer {
 		if(insight != null)
 		{
 			synchronized(insight) {
+				insight.setUser(user);
 				JobManager manager = JobManager.getManager();
 				JobThread jt = manager.makeJob();
 				jobId = jt.getJobId();
