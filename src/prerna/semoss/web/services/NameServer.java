@@ -1185,10 +1185,8 @@ public class NameServer {
 			insightId = tempInsightId;
 			insight = new Insight();
 			insight.setInsightId(tempInsightId);
-			insight.setUser(user);
 		} else if(insightId.equals("new")) { // need to make a new insight here
 			insight = new Insight();
-			insight.setUser(user);
 			InsightStore.getInstance().put(insight);
 			insightId = insight.getInsightId();
 			InsightStore.getInstance().addToSessionHash(sessionId, insightId);
@@ -1196,7 +1194,6 @@ public class NameServer {
 			// the session id needs to be checked
 			// you better have a valid id... or else... O_O
 			insight = InsightStore.getInstance().get(insightId);
-			insight.setUser(user);
 			if(insight == null) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "Could not find the insight id");
@@ -1214,6 +1211,7 @@ public class NameServer {
 		if(insight != null)
 		{
 			synchronized(insight) {
+				insight.setUser(user);
 				JobManager manager = JobManager.getManager();
 				JobThread jt = null;
 				if(insightId.equals(tempInsightId)) {
