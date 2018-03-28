@@ -28,11 +28,6 @@
 package prerna.semoss.web.services;
 
 import java.io.File;
-import java.io.IOException;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -52,32 +47,26 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.SolrServerException;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
-import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.IRawSelectWrapper;
-import prerna.engine.impl.AbstractEngine;
 import prerna.forms.AbstractFormBuilder;
 import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
 import prerna.insights.admin.DBAdminResource;
 import prerna.om.Insight;
-import prerna.om.InsightStore;
-import prerna.om.OldInsight;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.sablecc2.reactor.legacy.playsheets.GetPlaysheetParamsReactor;
-import prerna.solr.SolrIndexEngine;
-import prerna.ui.helpers.OldInsightProcessor;
+import prerna.sablecc2.reactor.legacy.playsheets.RunPlaysheetReactor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
@@ -199,164 +188,41 @@ public class EngineResource {
 	@POST
 	@Path("output")
 	@Produces("application/json")
-	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request, @Context HttpServletResponse response)
+	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
-		Gson gson = new Gson();
-		String insight = form.getFirst("insight");
-		UserPermissionsMasterDB tracker = new UserPermissionsMasterDB();
-		HttpSession session = request.getSession();
+		HttpSession session = request.getSession(true);
 		User user = ((User) session.getAttribute(Constants.SESSION_USER));
-		String userId = "";
-		if(user!= null) {
-			userId = user.getId();
+		
+		Gson gson = new Gson();
+		String insightId = form.getFirst("insight");
+		Map<String, List<Object>> params = null;
+		if(form.getFirst("params") != null && !form.getFirst("params").isEmpty()) {
+			params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
 		}
 		
-		// executes the output and gives the data
-		// executes the create runner
-		// once complete, it would plug the output into the session
-		// need to find a way where I can specify if I want to keep the result or not
-		// params are typically passed on as
-		// pairs like this
-		// key$value~key2:value2 etc
-		// need to find a way to handle other types than strings
-
-		// if insight, playsheet and sparql are null throw bad data exception
-//		if(insight == null) {
-//			String playsheet = form.getFirst("layout");
-//			String sparql = form.getFirst("sparql");
-//			//check for sparql and playsheet; if not null then parameters have been passed in for preview functionality
-//			if(sparql != null && playsheet != null){
-//				Insight in = null;
-//				Object obj = null;
-//				try {
-//					List<String> allSheets = PlaySheetRDFMapBasedEnum.getAllSheetNames();
-//					String dmName = InsightsConverter.getDataMaker(playsheet, allSheets);
-//					in = new Insight(coreEngine, dmName, playsheet);
-//					Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
-//					DataMakerComponent dmc = new DataMakerComponent(coreEngine, sparql);
-//					dmcList.add(dmc);
-//					in.setDataMakerComponents(dmcList);
-//					InsightStore.getInstance().put(in);
-//					InsightCreateRunner insightRunner = new InsightCreateRunner(in);
-//					obj = insightRunner.runWeb();
-//				} catch (Exception ex) { //need to specify the different exceptions 
-//					ex.printStackTrace();
-//					Hashtable<String, String> errorHash = new Hashtable<String, String>();
-//					errorHash.put("Message", "Error occured processing question.");
-//					errorHash.put("Class", this.getClass().getName());
-////					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
-//					return WebUtility.getResponse(errorHash, 500);
-//				}
-//
-////				return Response.status(200).entity(WebUtility.getSO(obj)).build();
-//				return WebUtility.getResponse(obj, 200);
-//			}
-//			else{
-//				Hashtable<String, String> errorHash = new Hashtable<String, String>();
-//				errorHash.put("Message", "No question defined.");
-//				errorHash.put("Class", this.getClass().getName());
-////				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-//				return WebUtility.getResponse(errorHash, 400);
-//			}
-//		}
-//		else {
-			Object obj = null;
-			
-			// if the insight is a read only insight
-			// we store it and do not remove it since we can just send it back faster
-			// and there is no chance of it affecting the output return
-			String inEngine = this.coreEngine.getEngineName();
-			Insight insightObj = InsightStore.getInstance().findInsightInStore(inEngine, insight);
-			boolean isReadOnlyInsight = false;
-			if(insightObj != null) {
-				UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
-				isReadOnlyInsight = permissions.isUserReadOnlyInsights(userId, inEngine, insight);
-			}
-			
-			if(isReadOnlyInsight) {
-				obj = insightObj.getWebData();
-			} else {
-				//Get the Insight, grab its ID
-				insightObj = ((AbstractEngine)coreEngine).getInsight(insight).get(0);
-				// set the user id into the insight
-				insightObj.setUser( ((User) request.getSession().getAttribute(Constants.SESSION_USER)) );
-				
-				Map<String, List<Object>> params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
-				if(insightObj.isOldInsight()) {
-					((OldInsight) insightObj).setParamHash(params);
-				}
-				// check if the insight has already been cached
-//				System.out.println("Params is " + params);
-	
-				try {
-					InsightStore.getInstance().put(insightObj);
-					if(insightObj.isOldInsight()) {
-						// we have some old legacy stuff...
-						// just run and return the object
-						OldInsightProcessor processor = new OldInsightProcessor((OldInsight) insightObj);
-						obj = processor.runWeb();
-						((Map)obj).put("isPkqlRunnable", false);
-						((Map)obj).put("recipe", new Object[0]);
-						
-						// TODO: why did we allow the FE to still require this when
-						// we already pass a boolean that says this is not pkql....
-						// wtf...
-						
-						HashMap insightMap = new HashMap();
-						Map stuipdFEInsightGarabage = new HashMap();
-						stuipdFEInsightGarabage.put("clear", false);
-						stuipdFEInsightGarabage.put("closedPanels", new Object[0]);
-						stuipdFEInsightGarabage.put("dataID", 0);
-						stuipdFEInsightGarabage.put("feData", new HashMap());
-						stuipdFEInsightGarabage.put("insightID", insightObj.getInsightId());
-						stuipdFEInsightGarabage.put("newColumns", new HashMap());
-						stuipdFEInsightGarabage.put("newInsights", new Object[0]);
-						stuipdFEInsightGarabage.put("pkqlData", new Object[0]);
-						insightMap.put("insights", new Object[]{stuipdFEInsightGarabage});
-						((Map)obj).put("pkqlOutput", insightMap);
-					} else {
-						// TODO: this should no longer be used
-						// TODO: this should no longer be used
-						// TODO: this should no longer be used
-						// TODO: this should no longer be used
-						// it is fully encapsulated in pixel
-						
-						obj = new HashMap<String, String>();
-						((Map) obj).put("recipe", insightObj.getPixelRecipe());
-						((Map) obj).put("rdbmsID", insightObj.getRdbmsId());
-						((Map) obj).put("insightID", insightObj.getInsightId());
-						((Map) obj).put("title", insightObj.getInsightName());
-						
-						// this is only necessary to get dashboards to work...
-//						String layout = insightObj.getOutput();
-//						((Map) obj).put("layout", layout);
-//						if(layout.equalsIgnoreCase("dashboard")) {
-//							((Map) obj).put("dataMakerName", "Dashboard");
-//						}
-					}
-				} catch (Exception ex) { //need to specify the different exceptions 
-					ex.printStackTrace();
-					Hashtable<String, String> errorHash = new Hashtable<String, String>();
-					errorHash.put("Message", "Error occured processing question.");
-					errorHash.put("Class", this.getClass().getName());
-//					return Response.status(500).entity(WebUtility.getSO(errorHash)).build();
-					return WebUtility.getResponse(errorHash, 500);
-				}
-			}
-			
-			// update security db user tracker
-			tracker.trackInsightExecution(userId, coreEngine.getEngineName(), insightObj.getInsightId(), session.getId());
-			// update global solr tracker
-			try {
-				SolrIndexEngine.getInstance().updateViewedInsight(coreEngine.getEngineName() + "_" + insight);
-			} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
-					| IOException e) {
-				e.printStackTrace();
-			}
-
-//			return Response.status(200).entity(WebUtility.getSO(obj)).build();
-			return WebUtility.getResponse(obj, 200);
-//		}
+		// mocking inputs until FE makes full pixel call
+		RunPlaysheetReactor playsheetRunReactor = new RunPlaysheetReactor();
+		playsheetRunReactor.In();
+		// make an insight to set
+		// so we can pass the user 
+		Insight dummyIn = new Insight();
+		dummyIn.setUser(user);
+		playsheetRunReactor.setInsight(dummyIn);
+		GenRowStruct grs1 = new GenRowStruct();
+		grs1.add(new NounMetadata(coreEngine.getEngineName(), PixelDataType.CONST_STRING));
+		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs1);
+		GenRowStruct grs2 = new GenRowStruct();
+		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
+		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.ID.getKey(), grs2);
+		if(params != null) {
+			GenRowStruct grs3 = new GenRowStruct();
+			grs3.add(new NounMetadata(params, PixelDataType.MAP));
+			playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.PARAM_KEY.getKey(), grs3);
+		}
+		
+		NounMetadata retNoun = playsheetRunReactor.execute();
+		return WebUtility.getResponse(retNoun.getValue(), 200);
+		
 	}
 
 	@POST
@@ -380,11 +246,9 @@ public class EngineResource {
 			}
 		} catch(Exception e) {
 			e.printStackTrace();
-//			return Response.status(400).entity(WebUtility.getSO(gson.toJson(e.getMessage()))).build();
 			return WebUtility.getResponse(gson.toJson(e.getMessage()), 400);
 		}
 
-//		return Response.status(200).entity(WebUtility.getSO(gson.toJson("success"))).build();
 		return WebUtility.getResponse("success", 200);
 	}
 
@@ -399,11 +263,9 @@ public class EngineResource {
 			auditInfo = FormBuilder.getAuditDataForEngine(this.coreEngine.getEngineName());
 		} catch(Exception e) {
 			e.printStackTrace();
-//			return Response.status(400).entity(WebUtility.getSO(gson.toJson(e.getMessage()))).build();
 			return WebUtility.getResponse(gson.toJson(e.getMessage()), 400);
 		}
 
-//		return Response.status(200).entity(WebUtility.getSO(gson.toJson(auditInfo))).build();
 		return WebUtility.getResponse(gson.toJson(auditInfo), 200);
 	}
 	
