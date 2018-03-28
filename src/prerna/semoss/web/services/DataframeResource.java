@@ -100,7 +100,7 @@ public class DataframeResource {
 	public Response doMethod(@PathParam("method") String method, MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{    	
 		Gson gson = new Gson();
-		Hashtable<String, Object> hash = gson.fromJson(form.getFirst("data"), new TypeToken<Hashtable<String, Object>>() {}.getType());
+		Map<String, Object> hash = gson.fromJson(form.getFirst("data"), new TypeToken<Map<String, Object>>() {}.getType());
 		if(insight instanceof OldInsight) {
 			Object ret = ((OldInsight) this.insight).getPlaySheet().doMethod(method, hash);
 			return WebUtility.getResponse(ret, 200);
