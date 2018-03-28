@@ -100,6 +100,7 @@ import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
 import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
 import prerna.solr.SolrIndexEngine;
+import prerna.solr.SolrIndexEngine.SOLR_PATHS;
 import prerna.solr.SolrIndexEngineQueryBuilder;
 import prerna.solr.SolrUtility;
 import prerna.upload.DatabaseUploader;
@@ -548,7 +549,7 @@ public class NameServer {
 
 		Map<String, Map<String, Long>> facetFieldMap = null;
 		try {
-			facetFieldMap = SolrIndexEngine.getInstance().executeQueryFacetResults(searchString, facetList);
+			facetFieldMap = SolrIndexEngine.getInstance().executeQueryFacetResults(searchString, facetList, SOLR_PATHS.SOLR_INSIGHTS_PATH);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException e) {
 			e.printStackTrace();
 		}
@@ -820,7 +821,7 @@ public class NameServer {
 			return WebUtility.getResponse(errorHash, 400);
 		}
 		// query for facet results
-		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, facetList);
+		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, facetList, SOLR_PATHS.SOLR_INSIGHTS_PATH);
 
 		Map<String, Object> retMap = new HashMap<String, Object>();
 		retMap.put(SolrIndexEngine.NUM_FOUND, results.getNumFound());
