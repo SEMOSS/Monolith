@@ -33,13 +33,10 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Vector;
-import java.util.concurrent.TimeUnit;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -49,8 +46,6 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
@@ -60,7 +55,6 @@ import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
@@ -76,15 +70,18 @@ import prerna.insights.admin.DBAdminResource;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.OldInsight;
-import prerna.om.SEMOSSParam;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.sablecc2.om.GenRowStruct;
+import prerna.sablecc2.om.PixelDataType;
+import prerna.sablecc2.om.ReactorKeysEnum;
+import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.sablecc2.reactor.legacy.playsheets.GetPlaysheetParamsReactor;
 import prerna.solr.SolrIndexEngine;
 import prerna.ui.helpers.OldInsightProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.util.ZipDatabase;
-import prerna.web.services.util.InMemoryHash;
 import prerna.web.services.util.WebUtility;
 
 public class EngineResource {
@@ -99,43 +96,6 @@ public class EngineResource {
 	{
 		LOGGER.info("Setting core engine to " + coreEngine);
 		this.coreEngine = coreEngine;
-	}
-
-	/**
-	 * Gets all the insights for a given perspective, instance, type, or tag (in that order) in the given engine
-	 * @param type is the URI of a perspective (e.g. http://semoss.org/ontologies/Concept/Director)
-	 * @param instance is the URI of an instance (e.g. http://semoss.org/ontologies/Concept/Director/Ang_Lee)
-	 * @param tag currently isn't used--will be used to tag insights (TODO)
-	 * @param perspective is just the name of the perspective (e.g. Movie-Perspective)
-	 * @param request
-	 * @return Vector of Insights where each Insight has a label and a propHash with the propHash containing order, output, engine, sparql, uri and id
-	 */
-	@GET
-	@Path("insights")
-	@Produces("application/json")
-	public Response getInsights(@QueryParam("nodeType") String type, @QueryParam("nodeInstance") String instance, @QueryParam("tag") String tag,@QueryParam("perspective") String perspective, @Context HttpServletRequest request)
-	{
-		// if the type is null then send all the insights else only that
-		Vector<String> resultInsights = null;
-		if(perspective != null)
-			resultInsights = coreEngine.getInsights(perspective);
-		else if(type != null || instance != null) 
-		{
-			if(instance != null) type = Utility.getConceptType(coreEngine, instance);
-			resultInsights = coreEngine.getInsight4Type(type);
-		}
-		else if(tag != null)
-			resultInsights = coreEngine.getInsight4Tag(tag);
-		else 
-			resultInsights = coreEngine.getInsights();
-
-		//Vector<Hashtable<String,String>> resultInsightObjects = coreEngine.getOutputs4Insights(resultInsights);
-		Vector<Insight> resultInsightObjects = null;
-		if(resultInsights!=null && !resultInsights.isEmpty())
-			resultInsightObjects = ((AbstractEngine)coreEngine).getInsight(resultInsights.toArray(new String[resultInsights.size()]));
-
-//		return Response.status(200).entity(WebUtility.getSO(resultInsightObjects)).build();
-		return WebUtility.getResponse(resultInsightObjects, 200);
 	}
 
 	/**
@@ -211,99 +171,21 @@ public class EngineResource {
 	@GET
 	@Path("insight")
 	@Produces("application/json")
-	public Response getInsightDefinition(@QueryParam("insight") String insight)
+	public Response getInsightParams(@QueryParam("insight") String insightId)
 	{
-		// TODO: why does FE call this????
-		// TODO: why does FE call this????
-		// TODO: why does FE call this????
-		// TODO: why does FE call this????
-		// TODO: why does FE call this????
-		// TODO: why does FE call this????
-
-		// returns the insight
-		// typically is a JSON of the insight
-		System.out.println("Insight is " + insight);
-		Insight in = coreEngine.getInsight(insight).get(0);
+		// mocking inputs until FE makes full pixel call
+		GetPlaysheetParamsReactor paramR = new GetPlaysheetParamsReactor();
+		paramR.In();
+		GenRowStruct grs1 = new GenRowStruct();
+		grs1.add(new NounMetadata(coreEngine.getEngineName(), PixelDataType.CONST_STRING));
+		paramR.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs1);
+		GenRowStruct grs2 = new GenRowStruct();
+		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
+		paramR.getNounStore().addNoun(ReactorKeysEnum.ID.getKey(), grs2);
 		
-		Hashtable outputHash = new Hashtable<String, Hashtable>();
-		outputHash.put("result", in.getRdbmsId());
-
-		if(in.isOldInsight()) {
-			Vector <SEMOSSParam> paramVector = ((OldInsight) in).getInsightParameters();
-			System.err.println("Params are " + paramVector);
-			Hashtable optionsHash = new Hashtable();
-			Hashtable paramsHash = new Hashtable();
-	
-			for(int paramIndex = 0;paramIndex < paramVector.size();paramIndex++)
-			{
-				SEMOSSParam param = paramVector.elementAt(paramIndex);
-				if(param.isDepends().equalsIgnoreCase("false")) {
-					Vector<Object> vals = this.coreEngine.getParamOptions(param.getParamID());
-					Set<Object> uniqueVals = new HashSet<Object>(vals);
-					optionsHash.put(param.getName(), uniqueVals);			
-				}
-				else {
-					optionsHash.put(param.getName(), "");
-				}
-				paramsHash.put(param.getName(), param);
-			}
-	
-			outputHash.put("options", optionsHash);
-			outputHash.put("params", paramsHash);
-		}
-//		return Response.status(200).entity(WebUtility.getSO(outputHash)).build();
-		return WebUtility.getResponse(outputHash, 200);
+		NounMetadata retNoun = paramR.execute();
+		return WebUtility.getResponse(retNoun.getValue(), 200);
 	}
-
-
-	/**
-	 * Method used to get the query or raw insight makeup 
-	 * @param insight
-	 * @return
-	 */
-//	@GET
-//	@Path("insightSpecifics")
-//	@Produces("application/json")
-//	public Response getInsightSpecifics(@QueryParam("insightID") String insightID)
-//	{
-//		Insight in = ((AbstractEngine)coreEngine).getInsight(insightID).get(0);
-//		IEngine makeupEng = in.getMakeupEngine();
-//
-//		int total = in.getNumComponents();
-//
-//		String retString = "";
-//		boolean hasQuery = false;
-//		if(total == 1) {
-//			String query = "SELECT ?Component ?Query ?Metamodel WHERE { {?Component a <http://semoss.org/ontologies/Concept/Component>} OPTIONAL {?Component <http://semoss.org/ontologies/Relation/Contains/Query> ?Query} OPTIONAL {?Component <http://semoss.org/ontologies/Relation/Contains/Metamodel> ?Metamodel} }";
-//			ISelectWrapper wrapper = WrapperManager.getInstance().getSWrapper(makeupEng, query);
-//			String[] names = wrapper.getVariables();
-//			String insightMetamodel = "";
-//			while(wrapper.hasNext()) {
-//				ISelectStatement ss = wrapper.next();
-//				retString = ss.getVar(names[1]) + "";
-//				insightMetamodel = ss.getVar(names[2]) + "";
-//			}
-//			if (!retString.isEmpty()) {
-//				hasQuery = true;
-//			} 				
-//		} 
-//		if(!hasQuery){
-//			retString = in.getNTriples();
-//		}
-//
-//		Map<String, Object> retMap = new HashMap<String, Object>();
-//		if(hasQuery) {
-//			retMap.put("query", retString);
-//		} else {
-//			retMap.put("insightMakeup", retString);
-//		}
-//		retMap.put("dataMakerName", in.getDataMakerName());
-//		retMap.put("parameters", in.getInsightParameters());
-//		retMap.put("dataTableAlign", in.getDataTableAlign());
-//
-////		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-//		return WebUtility.getResponse(retMap, 200);
-//	}
 
 	/**
 	 * Executes a particular insight or runs a custom query on the specified playsheet
@@ -477,118 +359,6 @@ public class EngineResource {
 //		}
 	}
 
-//	@POST
-//	@Path("/addData")
-//	@Produces("application/json")
-//	@Deprecated
-//	/**
-//	 * THIS IS THE OLD WAY OF ADDING DATA ONTO THE DATAFRAME!!!!
-//	 * SADLY, FORMS IS NOT PUSHED INTO PKQL SO THEY USE THIS TO GET THE DATA
-//	 * WILL DELETE THIS ONCE THEY SHIFT OVER!!!!
-//	 * @return
-//	 */
-//	public Response addData(MultivaluedMap<String, String> form, 
-//			@QueryParam("existingConcept") String currConcept, 
-//			@QueryParam("joinConcept") String equivConcept, 
-//			@QueryParam("joinType") String joinType,
-//			@QueryParam("insightID") String insightID,
-//			@Context HttpServletRequest request)
-//	{
-//		equivConcept = Utility.getInstanceName(equivConcept);
-//		Gson gson = new Gson();
-//		//		Hashtable<String, Object> dataHash = gson.fromJson(form.getFirst("QueryData"), new TypeToken<Hashtable<String, Object>>() {}.getType());
-//		//		QueryBuilderData data = new QueryBuilderData(dataHash);
-//		//		QueryBuilderHelper.parsePath(data, this.coreEngine);
-//		//		QueryStruct qs = data.getQueryStruct(false);
-//
-//		QueryStruct qs = gson.fromJson(form.getFirst("QueryData"), new QueryStruct().getClass());
-//
-//		// Very simply, here is the logic:
-//		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
-//		// 2. Else, we get the insight from session (if the insight isn't in session, we are done--throw an error)
-//		// 2. a. If its not an outer join, add a filter transformation with all instances from other column in order to speed up join
-//		// 2. b. Add join transformation since we know a tree already exists and we will have to join to it
-//		// 3. Process the component
-//
-//		// get the insight if an id has been passed
-//		Insight insight = null;
-//		DataMakerComponent dmc = new DataMakerComponent(this.coreEngine, qs);
-//
-//		// need to remove filter and add that as a pretransformation. Otherwise our metamodel data is not truly clean metamodel data
-//		//		Map<String, List<Object>> filters = data.getFilterData();
-//
-//		//		if(filters != null){
-//		//			for(String filterCol : filters.keySet()){
-//		//				Map<String, Object> transProps = new HashMap<String, Object>();
-//		//				transProps.put(FilterTransformation.COLUMN_HEADER_KEY, filterCol);
-//		//				transProps.put(FilterTransformation.VALUES_KEY, Utility.getTransformedNodeNamesList(this.coreEngine, filters.get(filterCol), false));
-//		//				ISEMOSSTransformation filterTrans = new FilterTransformation();
-//		//				filterTrans.setProperties(transProps);
-//		//				dmc.addPreTrans(filterTrans);
-//		//			}
-//		//		}
-//
-//		ISEMOSSTransformation joinTrans = null;
-//		// 1. If no insight ID is passed in, we create a new Insight and put in the store. Also, if new insight, we know there are no transformations
-//		if(insightID == null || insightID.isEmpty()) {
-//			String datatype = "TinkerFrame";
-//			String type;
-//			if(form.get("dataFrameType") != null && (type = form.get("dataFrameType").get(0)) != null) {
-//				if(type.equalsIgnoreCase("H2")) {
-//					datatype = "H2Frame";
-//				}
-//			}
-//			insight = new Insight(this.coreEngine, datatype, PlaySheetRDFMapBasedEnum.getSheetName("Grid")); // TODO: this needs to be an enum or grabbed from rdf map somehow
-//			insightID = InsightStore.getInstance().put(insight);
-//		} 
-//
-//		// 2. Else, we get the insight from session (if the insight isn't in session, we are done--throw an error)
-//		else {
-//			NameServer ns = new NameServer();
-//			ns.getInsightDataFrame(insightID, null, request);
-//			insight = InsightStore.getInstance().get(insightID);
-//			if(insight == null) {
-//				Map<String, String> errorHash = new HashMap<String, String>();
-//				errorHash.put("errorMessage", "Existing insight based on passed insightID is not found");
-////				return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-//				return WebUtility.getResponse(errorHash, 400);
-//			}
-//
-//			// 2. b. Add join transformation since we know a tree already exists and we will have to join to it
-//			joinTrans = new JoinTransformation();
-//			Map<String, Object> selectedOptions = new HashMap<String, Object>();
-//			selectedOptions.put(JoinTransformation.COLUMN_ONE_KEY, currConcept);
-//			selectedOptions.put(JoinTransformation.COLUMN_TWO_KEY, equivConcept);
-//			selectedOptions.put(JoinTransformation.JOIN_TYPE, joinType);
-//			joinTrans.setProperties(selectedOptions);
-//			//			dmc.addPostTrans(joinTrans);
-//			dmc.addPreTrans(joinTrans);
-//		}
-//
-//		// 3. Process the component
-//		System.err.println("Starting component processing...");
-//		long startJoinTime = System.currentTimeMillis();
-//		insight.processDataMakerComponent(dmc);
-//		System.err.println("Finished processing component: " + (System.currentTimeMillis() - startJoinTime) + " ms");
-//		Map<String, Object> retMap = new HashMap<String, Object>();
-//		retMap.put("insightID", insightID);
-//
-//		//get the last added column
-//		ITableDataFrame df = (ITableDataFrame) insight.getDataMaker();
-//		String[] headerList = df.getColumnHeaders();
-//		if(headerList != null && headerList.length > 0) {
-//			String lastAddedColumn = headerList[headerList.length - 1];
-//			retMap.put("logicalName", lastAddedColumn);
-//		}
-//		if(joinTrans==null) {
-//			retMap.put("stepID", dmc.getId());
-//		} else {
-//			retMap.put("stepID", joinTrans.getId());
-//		}
-////		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-//		return WebUtility.getResponse(retMap, 200);
-//	}
-
 	@POST
 	@Path("/commitFormData")
 	@Produces("application/json")
@@ -666,108 +436,5 @@ public class EngineResource {
 		
 		return resp;
 	}
-	
-	public static void main(String[] args) {
-
-		Gson gson = new GsonBuilder().disableHtmlEscaping().serializeSpecialFloatingPointValues().setPrettyPrinting().create();
-		Map<String, Object> testMap = new HashMap<String, Object>();
-		Map<String, Object> innerMap = new HashMap<String, Object>();
-		innerMap.put("object1", "value1");
-		innerMap.put("object2", "value2");
-
-		String bytes = gson.toJson(innerMap);
-
-		testMap.put("object", "value");
-		testMap.put("innerMap", bytes);
-
-		String s = gson.toJson(testMap);
-		Map<String, Object> newMap = gson.fromJson(s, new TypeToken<Map<String, Object>>() {}.getType());
-	}
-
-
-	// TESTING FOR JOB-ID THREADS
-	// TESTING FOR JOB-ID THREADS
-	// TESTING FOR JOB-ID THREADS
-	// TESTING FOR JOB-ID THREADS
-	// TESTING FOR JOB-ID THREADS
-	// TESTING FOR JOB-ID THREADS
-
-	// test
-	@GET
-	@Path("comet")
-	@Produces("text/plain")
-	public void cometTry(final @Suspended AsyncResponse response,  @Context HttpServletRequest request) {
-		System.out.println("Dropped in here >>>>>> 2" + "comet");
-		/*
-		   Thread t = new Thread()
-		      {
-		         @Override
-		         public void run()
-		         {
-		            try
-		            {
-		            	System.out.println("Came into thread ");
-		               Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
-		               //jaxrs.
-		               Thread.sleep(1000);
-		               response.resume(jaxrs);
-		            }
-		            catch (Exception e)
-		            {
-		               e.printStackTrace();
-		            }
-		         }
-		      };
-		      t.start();*/
-		HttpSession session = request.getSession();
-		InMemoryHash.getInstance().put("respo", response);
-		response.setTimeout(1000, TimeUnit.MINUTES);
-		final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
-		System.out.println("Is the response done..  ? " + myResponse.isDone());
-
-		//myResponse.resume("Hello");
-		System.err.println("Put the response here");
-
-	}   
-
-	@GET
-	@Path("/trigger")
-	@Produces("application/xml")
-	public String trigger(@Context HttpServletRequest request) {
-		System.out.println("Dropped in here >>>>>> 2" + "trigger");
-		HttpSession session = request.getSession();
-		final AsyncResponse myResponse = (AsyncResponse)InMemoryHash.getInstance().get("respo");
-
-		if(myResponse != null) {
-			System.out.println("Is the response done..  ? " + myResponse.isDone());
-			myResponse.resume("Hello2222");
-			myResponse.resume("Hola again");
-			System.out.println("MyResponse is not null");
-			/*
-			   Thread t = new Thread()
-			      {
-			         @Override
-			         public void run()
-			         {
-			            try
-			            {
-			            	System.out.println("Came into thread ");
-			               Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
-			               //jaxrs.
-			               Thread.sleep(1000);
-			               myResponse.resume(jaxrs);
-			            }
-			            catch (Exception e)
-			            {
-			               e.printStackTrace();
-			            }
-			         }
-			      };
-			      t.start();*/
-		}
-		//Response jaxrs = Response.ok("Funny... ", "basic").type(MediaType.TEXT_PLAIN).build();
-		//myResponse.resume(jaxrs);
-		return "Returned.. ";
-	}  
 
 }
