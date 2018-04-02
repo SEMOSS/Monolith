@@ -36,6 +36,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.security.Principal;
 import java.security.cert.X509Certificate;
@@ -43,6 +44,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Scanner;
+import java.util.UUID;
 
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
@@ -59,6 +61,8 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+
+import jodd.util.URLDecoder;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -88,6 +92,7 @@ import com.sun.jna.platform.win32.Secur32Util;
 import prerna.auth.CACReader;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
+import prerna.security.AbstractHttpHelper;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
@@ -510,6 +515,319 @@ public class UserResource
 			}
 		};
 	}
+	
+	/**
+	 * Logs user in through SalesForce
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/sf")
+	public Response loginSF(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		// redirect if query string not there
+		
+		
+
+		String queryString = request.getQueryString();
+		
+		if(queryString != null && queryString.contains("code="))
+		{
+			Hashtable<String, String> ret = new Hashtable<String, String>();			
+			String [] outputs = AbstractHttpHelper.getCodes(queryString);
+			
+			String prefix = "sf_";
+			
+			String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
+			String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
+			String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+			
+			System.out.println(">> " + request.getQueryString());
+			
+			Hashtable params = new Hashtable();
+			params.put("client_id", clientId);
+			params.put("grant_type", "authorization_code");
+			params.put("redirect_uri", redirectUri);
+			params.put("code", URLDecoder.decode(outputs[0]));
+			params.put("client_secret", clientSecret);
+	
+			String url = "https://login.salesforce.com/services/oauth2/token";
+			
+			String accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+			
+			System.out.println("Access Token is.. " + accessToken);
+			
+			ret.put("success", "true");
+	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 200);
+		}
+		else
+		{
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getSFRedirect(request));
+		}
+		return null;
+	}
+	
+	private String getSFRedirect(HttpServletRequest request)
+			throws UnsupportedEncodingException {
+
+		String prefix = "sf_";
+		
+		String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
+		String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
+		String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+
+		
+		String redirectUrl = "https://login.salesforce.com/services/oauth2/authorize?" +
+		"client_id=" + clientId +
+		"&response_type=code" +
+		"&redirect_uri=" + redirectUri +
+		"&scope=" + URLEncoder.encode("api", "UTF-8");
+
+		System.out.println("Sending redirect.. " + redirectUrl);
+
+		return redirectUrl;
+	}
+
+
+	/**
+	 * Logs user in through GIT
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/git")
+	public Response loginGit(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		// redirect if query string not there
+		
+		//https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
+		String queryString = request.getQueryString();
+		
+		if(queryString != null && queryString.contains("code="))
+		{
+			Hashtable<String, String> ret = new Hashtable<String, String>();			
+			String [] outputs = AbstractHttpHelper.getCodes(queryString);
+			
+			String prefix = "git_";
+			
+			String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
+			String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
+			String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+			
+			System.out.println(">> " + request.getQueryString());
+			
+			Hashtable params = new Hashtable();
+			params.put("client_id", clientId);
+			params.put("redirect_uri", redirectUri);
+			params.put("code", outputs[0]);
+			params.put("state", outputs[1]);
+			params.put("client_secret", clientSecret);
+
+			String url = "https://github.com/login/oauth/access_token";
+				
+			String accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
+			
+			System.out.println("Access Token is.. " + accessToken);
+			
+			ret.put("success", "true");
+	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 200);
+		}
+		else
+		{
+			// not authenticated
+
+			response.setStatus(302);
+			response.sendRedirect(getGitRedirect(request));
+		}
+		return null;
+	}
+	
+	private String getGitRedirect(HttpServletRequest request)
+			throws UnsupportedEncodingException {
+
+		String prefix = "git_";
+		
+		String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
+		String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
+		String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+
+		String redirectUrl = "https://github.com/login/oauth/authorize?" +
+				"client_id=" + clientId +
+				"&redirect_uri=" + redirectUri +
+				"&state=" + UUID.randomUUID().toString() +
+				"&allow_signup=true" + 
+				"&scope=" + URLEncoder.encode("public_repo user", "UTF-8");
+
+		System.out.println("Sending redirect.. " + redirectUrl);
+
+		return redirectUrl;
+	}
+
+	/**
+	 * Logs user in through SalesForce
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/ms")
+	public Response loginMS(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		// redirect if query string not there
+		
+		
+		
+		String queryString = request.getQueryString();
+		
+		if(queryString != null && queryString.contains("code="))
+		{
+			Hashtable<String, String> ret = new Hashtable<String, String>();			
+			String [] outputs = AbstractHttpHelper.getCodes(queryString);
+			
+			String prefix = "ms_";
+			
+			String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
+			String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
+			String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+			String tenant = request.getServletContext().getInitParameter(prefix+"tenant");
+			
+			System.out.println(">> " + request.getQueryString());
+			
+			Hashtable params = new Hashtable();
+
+			params.put("client_id", clientId);
+			params.put("scope", "User.Read.All");
+			params.put("redirect_uri", redirectUri);
+			params.put("code", outputs[0]);
+			params.put("grant_type", "authorization_code");
+			params.put("client_secret", clientSecret);
+
+			String url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
+	
+			
+			String accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+			
+			System.out.println("Access Token is.. " + accessToken);
+			
+			ret.put("success", "true");
+	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 200);
+		}
+		else
+		{
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getMSRedirect(request));
+		}
+		return null;
+	}
+	
+	private String getMSRedirect(HttpServletRequest request)
+			throws UnsupportedEncodingException {
+
+		String prefix = "ms_";
+		
+		String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
+		String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
+		String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+		String tenant = request.getServletContext().getInitParameter(prefix+"tenant");
+		String scope = request.getServletContext().getInitParameter(prefix+"scope"); // need to set this up and reuse
+
+		String state = UUID.randomUUID().toString();
+	
+		String redirectUrl = "https://login.microsoftonline.com/" + tenant
+				+ "/oauth2/v2.0/authorize?" + "client_id=" + clientId
+				+ "&response_type=code" + "&redirect_uri="
+				+ URLEncoder.encode(redirectUri, "UTF-8")
+				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state="
+				+ state;
+		
+
+		System.out.println("Sending redirect.. " + redirectUrl);
+
+		return redirectUrl;
+	}
+
+	/**
+	 * Logs user in through SalesForce
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/dropbox")
+	public Response loginDropBox(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		// redirect if query string not there
+		
+		
+		
+		String queryString = request.getQueryString();
+		
+		if(queryString != null && queryString.contains("code="))
+		{
+			Hashtable<String, String> ret = new Hashtable<String, String>();			
+			String [] outputs = AbstractHttpHelper.getCodes(queryString);
+			
+			String prefix = "dropbox_";
+			
+			String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
+			String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
+			String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+			
+			System.out.println(">> " + request.getQueryString());
+			
+			Hashtable params = new Hashtable();
+
+			params.put("client_id", clientId);
+			params.put("redirect_uri", redirectUri);
+			params.put("code", outputs[0]);
+			params.put("grant_type", "authorization_code");
+			params.put("client_secret", clientSecret);
+
+			String url = "https://www.dropbox.com/oauth2/token";
+	
+			
+			String accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+			
+			System.out.println("Access Token is.. " + accessToken);
+			
+			ret.put("success", "true");
+	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 200);
+		}
+		else
+		{
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getDBRedirect(request));
+		}
+		return null;
+	}
+	
+	private String getDBRedirect(HttpServletRequest request)
+			throws UnsupportedEncodingException {
+
+		String prefix = "dropbox_";
+		
+		String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
+		String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
+		String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+		String scope = request.getServletContext().getInitParameter(prefix+"scope"); // need to set this up and reuse
+		String role = request.getServletContext().getInitParameter(prefix+"role"); // need to set this up and reuse
+
+		String state = UUID.randomUUID().toString();
+	
+		String redirectUrl = "https://www.dropbox.com/oauth2/authorize?" + 
+				"client_id=" + clientId+
+				"&response_type=code" + 
+				"&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")+ 
+				"&require_role=" + role + 
+				"&disable_signup=false";		
+
+		System.out.println("Sending redirect.. " + redirectUrl);
+
+		return redirectUrl;
+	}
+
 	
 //	/**
 //	 * Logs user in through Google+.
