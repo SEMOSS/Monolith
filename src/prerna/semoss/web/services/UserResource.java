@@ -43,6 +43,7 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Scanner;
 import java.util.UUID;
 
@@ -71,6 +72,23 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
+import prerna.auth.AccessToken;
+import prerna.auth.AuthProvider;
+import prerna.auth.CACReader;
+import prerna.auth.User;
+import prerna.auth.User2;
+import prerna.auth.UserPermissionsMasterDB;
+import prerna.io.connector.IConnectorIOp;
+import prerna.io.connector.google.GoogleFileRetriever;
+import prerna.io.connector.google.GoogleListFiles;
+import prerna.io.connector.google.GoogleProfile;
+import prerna.security.AbstractHttpHelper;
+import prerna.util.BeanFiller;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
+import prerna.web.services.util.WebUtility;
+import waffle.servlet.WindowsPrincipal;
+
 import com.google.api.client.auth.oauth2.TokenResponseException;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
@@ -88,15 +106,6 @@ import com.restfb.FacebookClient;
 import com.restfb.Parameter;
 import com.sun.jna.platform.win32.Secur32;
 import com.sun.jna.platform.win32.Secur32Util;
-
-import prerna.auth.CACReader;
-import prerna.auth.User;
-import prerna.auth.UserPermissionsMasterDB;
-import prerna.security.AbstractHttpHelper;
-import prerna.util.Constants;
-import prerna.util.DIHelper;
-import prerna.web.services.util.WebUtility;
-import waffle.servlet.WindowsPrincipal;
 
 @Path("/auth")
 public class UserResource
@@ -526,13 +535,17 @@ public class UserResource
 	{
 		// redirect if query string not there
 		
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
 		
 
 		String queryString = request.getQueryString();
 		
 		if(queryString != null && queryString.contains("code="))
 		{
-			Hashtable<String, String> ret = new Hashtable<String, String>();			
+			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.GOOGLE.name()) == null)
+			{
+
 			String [] outputs = AbstractHttpHelper.getCodes(queryString);
 			
 			String prefix = "sf_";
@@ -552,15 +565,28 @@ public class UserResource
 	
 			String url = "https://login.salesforce.com/services/oauth2/token";
 			
-			String accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+			AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
 			
-			System.out.println("Access Token is.. " + accessToken);
+			accessToken.setProvider(AuthProvider.SALESFORCE.name());
+			addAccessToken(accessToken, request);
+			
+			System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			
 			ret.put("success", "true");
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
+			}
+			else
+			{
+				ret.put("success", "true");
+				ret.put("Already_Authenticated", "true");
+				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+				return WebUtility.getResponse(ret, 200);
+
+			}
+				
 		}
-		else
+		else if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.SALESFORCE.name()) == null)
 		{
 			// not authenticated
 			response.setStatus(302);
@@ -600,13 +626,17 @@ public class UserResource
 	public Response loginGit(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
 	{
 		// redirect if query string not there
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
 		
 		//https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
 		String queryString = request.getQueryString();
 		
 		if(queryString != null && queryString.contains("code="))
 		{
-			Hashtable<String, String> ret = new Hashtable<String, String>();			
+			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.GIT.name()) == null)
+			{
+
 			String [] outputs = AbstractHttpHelper.getCodes(queryString);
 			
 			String prefix = "git_";
@@ -626,15 +656,26 @@ public class UserResource
 
 			String url = "https://github.com/login/oauth/access_token";
 				
-			String accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
+			AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
+			accessToken.setProvider(AuthProvider.GIT.name());
+			addAccessToken(accessToken, request);
 			
-			System.out.println("Access Token is.. " + accessToken);
+			System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			
 			ret.put("success", "true");
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
+			}
+			else
+			{
+				ret.put("success", "true");
+				ret.put("Already_Authenticated", "true");
+				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+				return WebUtility.getResponse(ret, 200);
+
+			}
 		}
-		else
+		else if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.GIT.name()) == null)
 		{
 			// not authenticated
 
@@ -675,13 +716,16 @@ public class UserResource
 	{
 		// redirect if query string not there
 		
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
 		
 		
 		String queryString = request.getQueryString();
 		
 		if(queryString != null && queryString.contains("code="))
 		{
-			Hashtable<String, String> ret = new Hashtable<String, String>();			
+			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.AZURE_GRAPH.name()) == null)
+			{
 			String [] outputs = AbstractHttpHelper.getCodes(queryString);
 			
 			String prefix = "ms_";
@@ -705,15 +749,26 @@ public class UserResource
 			String url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
 	
 			
-			String accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
-			
-			System.out.println("Access Token is.. " + accessToken);
+			AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+			accessToken.setProvider(AuthProvider.AZURE_GRAPH.name());
+			addAccessToken(accessToken, request);
+
+			System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			
 			ret.put("success", "true");
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
+			}
+			else
+			{
+				ret.put("success", "true");
+				ret.put("Already_Authenticated", "true");
+				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+				return WebUtility.getResponse(ret, 200);
+
+			}
 		}
-		else
+		else if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.AZURE_GRAPH.name()) == null)
 		{
 			// not authenticated
 			response.setStatus(302);
@@ -758,43 +813,57 @@ public class UserResource
 	{
 		// redirect if query string not there
 		
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
 		
 		
 		String queryString = request.getQueryString();
 		
 		if(queryString != null && queryString.contains("code="))
 		{
-			Hashtable<String, String> ret = new Hashtable<String, String>();			
-			String [] outputs = AbstractHttpHelper.getCodes(queryString);
-			
-			String prefix = "dropbox_";
-			
-			String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
-			String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
-			String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
-			
-			System.out.println(">> " + request.getQueryString());
-			
-			Hashtable params = new Hashtable();
-
-			params.put("client_id", clientId);
-			params.put("redirect_uri", redirectUri);
-			params.put("code", outputs[0]);
-			params.put("grant_type", "authorization_code");
-			params.put("client_secret", clientSecret);
-
-			String url = "https://www.dropbox.com/oauth2/token";
+			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.GOOGLE.name()) == null)
+			{
+				String [] outputs = AbstractHttpHelper.getCodes(queryString);
+				
+				String prefix = "dropbox_";
+				
+				String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
+				String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
+				String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+				
+				System.out.println(">> " + request.getQueryString());
+				
+				Hashtable params = new Hashtable();
 	
-			
-			String accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
-			
-			System.out.println("Access Token is.. " + accessToken);
-			
+				params.put("client_id", clientId);
+				params.put("redirect_uri", redirectUri);
+				params.put("code", outputs[0]);
+				params.put("grant_type", "authorization_code");
+				params.put("client_secret", clientSecret);
+	
+				String url = "https://www.dropbox.com/oauth2/token";
+		
+				
+				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				accessToken.setProvider(AuthProvider.DROPBOX.name());
+				addAccessToken(accessToken, request);
+	
+				System.out.println("Access Token is.. " + accessToken.getAccess_token());			
 			ret.put("success", "true");
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
+			}
+			else
+			{
+				ret.put("success", "true");
+				ret.put("Already_Authenticated", "true");
+				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+				return WebUtility.getResponse(ret, 200);
+
+			}
+
 		}
-		else
+		else if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.DROPBOX.name()) == null)
 		{
 			// not authenticated
 			response.setStatus(302);
@@ -828,7 +897,175 @@ public class UserResource
 		return redirectUrl;
 	}
 
+
+	/**
+	 * Logs user in through SalesForce
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/google2")
+	public Response loginGoogle2(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		// redirect if query string not there
+		
+		String queryString = request.getQueryString();
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+		
+		// if the code is there
+		if(queryString != null && queryString.contains("code="))
+		{
+			// if the user is not logged in
+			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.GOOGLE.name()) == null)
+			{
+				String [] outputs = AbstractHttpHelper.getCodes(queryString);
+				
+				String prefix = "google_";
+				
+				String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
+				String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
+				String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+				
+				System.out.println(">> " + request.getQueryString());
+				
+				Hashtable params = new Hashtable();
 	
+				params.put("client_id", clientId);
+				params.put("redirect_uri", redirectUri);
+				params.put("code", outputs[0]);
+				params.put("grant_type", "authorization_code");
+				params.put("client_secret", clientSecret);
+	
+				String url = "https://www.googleapis.com/oauth2/v4/token";
+				
+				System.out.println("Temp.. ");
+		
+				
+				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				//https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
+				// Shows how to make a google credential from an access token
+				System.out.println("Access Token is.. " + accessToken.getAccess_token());
+				accessToken.setProvider(AuthProvider.GOOGLE.name());
+				addAccessToken(accessToken, request);
+			}
+			
+
+			userObj = request.getSession().getAttribute("semoss_user");
+			User2 user = (User2)userObj;
+			AccessToken accessToken = user.getAccessToken(AuthProvider.GOOGLE.name());
+			
+			performGoogleOps(request, ret);
+			ret.put("success", "true");
+			try {
+				ret.put("user", BeanFiller.getJson(accessToken));
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			ret.put("success", "true");
+	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 200);
+		}
+		// else if the user object is there, but there is no google
+		else if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.GOOGLE.name()) == null)
+		{
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getGoogleRedirect(request));
+		}
+		// else if user object is there and google is there
+		else if(userObj != null && ((User2)userObj).getAccessToken(AuthProvider.GOOGLE.name()) != null)
+		{
+			ret.put("success", "true");
+			User2 user = (User2)userObj;
+			AccessToken accessToken = user.getAccessToken(AuthProvider.GOOGLE.name());
+			
+			performGoogleOps(request, ret);
+			ret.put("success", "true");
+			try {
+				ret.put("user", BeanFiller.getJson(accessToken));
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			return WebUtility.getResponse(ret, 200);
+			
+		}
+		return null;
+	}
+	
+	private void performGoogleOps(HttpServletRequest request, Hashtable ret)
+	{
+		// get the user details
+		IConnectorIOp prof = new GoogleProfile();
+		prof.execute((User2)request.getSession().getAttribute("semoss_user"), null);
+		
+		IConnectorIOp lister = new GoogleListFiles();
+		List fileList = (List)lister.execute((User2)request.getSession().getAttribute("semoss_user"), null);
+
+		// get the file
+		IConnectorIOp getter = new GoogleFileRetriever();
+		Hashtable params2 = new Hashtable();
+		params2.put("exportFormat", "csv");
+		params2.put("id", "1it40jNFcRo1ur2dHIYUk18XmXdd37j4gmJm_Sg7KLjI");
+		params2.put("target", "c:\\users\\pkapaleeswaran\\workspacej3\\datasets\\googlefile.csv");
+
+		getter.execute((User2)request.getSession().getAttribute("semoss_user"), params2);
+
+		try {
+			ret.put("files", BeanFiller.getJson(fileList));
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+
+	}
+	
+	private String getGoogleRedirect(HttpServletRequest request)
+			throws UnsupportedEncodingException {
+
+		String prefix = "google_";
+		
+		String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
+		String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
+		String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+		String scope = request.getServletContext().getInitParameter(prefix+"scope"); // need to set this up and reuse
+		String accessType = request.getServletContext().getInitParameter(prefix+"access_type"); // need to set this up and reuse
+
+		String state = UUID.randomUUID().toString();
+	
+		String redirectUrl = "https://accounts.google.com/o/oauth2/v2/auth?"
+				+ "client_id=" + clientId
+				+ "&response_type=code" 
+				+ "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
+				+ "&access_type=" + accessType
+				+ "&scope=" + URLEncoder.encode(scope, "UTF-8")
+				+ "&state="	+ state;
+		
+
+		System.out.println("Sending redirect.. " + redirectUrl);
+
+		return redirectUrl;
+	}
+	
+	// add this user to session
+	private void addAccessToken(AccessToken token, HttpServletRequest request)
+	{
+		User2 semossUser = null;
+		Object user = request.getSession().getAttribute("semoss_user");
+		if(user != null)
+			semossUser = (User2)user;
+		else
+			semossUser = new User2();
+		
+		semossUser.setAccessToken(token);
+		
+		request.getSession().setAttribute("semoss_user",semossUser);
+	}
+
 //	/**
 //	 * Logs user in through Google+.
 //	 */
