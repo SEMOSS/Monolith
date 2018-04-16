@@ -34,16 +34,19 @@ import java.util.Set;
 import javax.ws.rs.core.Application;
 
 import prerna.semoss.web.form.FormResource;
+import prerna.semoss.web.services.AppResource;
 import prerna.semoss.web.services.AuthorizationResource;
 import prerna.semoss.web.services.NameServer;
 import prerna.semoss.web.services.UserResource;
 
 public class MonolithApplication extends Application {
+	
    private Set<Object> singletons = new HashSet<Object>();
 
    public MonolithApplication() {
       singletons.add(new UserResource());
       singletons.add(new NameServer());
+      singletons.add(new AppResource());
       singletons.add(new AuthorizationResource());
       singletons.add(new FormResource());
    }
