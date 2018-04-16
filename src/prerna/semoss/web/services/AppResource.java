@@ -27,6 +27,7 @@ import prerna.solr.SolrUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.insight.TextToGraphic;
+import prerna.web.services.util.WebUtility;
 
 @Path("/app-{appName}")
 public class AppResource {
@@ -142,11 +143,29 @@ public class AppResource {
 				DIR_SEPARATOR + app + 
 				DIR_SEPARATOR + "version" + 
 				DIR_SEPARATOR + "widgets";
-		
-		return null;
+
+		// Get widget file
+		String widgetFile = appWidgetDirLoc + DIR_SEPARATOR + widgetName + DIR_SEPARATOR + fileName;
+		File f = new File(widgetFile);
+		FileInputStream fis = null;
+		if (f.exists()) {
+			try {
+				fis = new FileInputStream(f);
+				byte[] byteArray = IOUtils.toByteArray(fis);
+				// return file
+				return Response.status(200).entity(byteArray).build();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				closeStream(fis);
+			}
+		}
+		// return error
+		Map<String, String> errorMap = new HashMap<String, String>();
+		errorMap.put("errorMessage", "error sending widget file " + widgetName + "\\" + fileName);
+		return WebUtility.getResponse(errorMap, 400);
 	}
-	
-	
+
 	/////////////////////////////////////////////////////////////////
 	
 	/*
