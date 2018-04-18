@@ -83,11 +83,8 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.jsoup.Jsoup;
 
-import com.google.gson.Gson;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
-
 import prerna.auth.User;
+import prerna.auth.User2;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
@@ -117,6 +114,10 @@ import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
 import prerna.web.services.util.WebUtility;
+
+import com.google.gson.Gson;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
 
 @Path("/engine")
 public class NameServer {
@@ -1171,6 +1172,7 @@ public class NameServer {
 		HttpSession session = request.getSession(true);
 		String sessionId = session.getId();
 		User user = ((User) session.getAttribute(Constants.SESSION_USER));
+		User2 user2 = ((User2) session.getAttribute("semoss_user"));
 		
 		String jobId = "";
 		final String tempInsightId = "TempInsightNotStored";
@@ -1213,6 +1215,9 @@ public class NameServer {
 		{
 			synchronized(insight) {
 				insight.setUser(user);
+				
+				// set the other user
+				insight.setUser2(user2);
 				JobManager manager = JobManager.getManager();
 				JobThread jt = null;
 				if(insightId.equals(tempInsightId)) {

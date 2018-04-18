@@ -29,6 +29,7 @@ package prerna.semoss.web.services;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -38,15 +39,23 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
+import java.security.SignatureException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Formatter;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Properties;
 import java.util.Scanner;
 import java.util.UUID;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
@@ -66,10 +75,16 @@ import javax.ws.rs.core.StreamingOutput;
 import jodd.util.URLDecoder;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
 import prerna.auth.AccessToken;
@@ -79,9 +94,12 @@ import prerna.auth.User;
 import prerna.auth.User2;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.io.connector.IConnectorIOp;
+import prerna.io.connector.google.GoogleEntityResolver;
 import prerna.io.connector.google.GoogleFileRetriever;
+import prerna.io.connector.google.GoogleLatLongGetter;
 import prerna.io.connector.google.GoogleListFiles;
 import prerna.io.connector.google.GoogleProfile;
+import prerna.om.NLPDocumentInput;
 import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
@@ -115,6 +133,10 @@ public class UserResource
 	private final JacksonFactory JSON_FACTORY = new JacksonFactory();
 	private final Gson GSON = new Gson();
 	private UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+	private static AccessToken twitToken = null;
+	private static AccessToken googAppToken = null; 
+	
+	private static Properties socialData = null;
 	
 	private final String GOOGLE_CLIENT_SECRET = "***REMOVED***";	
 	
@@ -135,6 +157,28 @@ public class UserResource
 				whitelist.close();
 			}
 		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		loadConnectors();
+	}
+	
+	public static void loadConnectors()
+	{
+		try {
+			if(socialData == null)
+			{
+				socialData = new Properties();
+				socialData.load(new FileInputStream(new File(DIHelper.getInstance().getProperty("SOCIAL"))));
+				
+				loginTwitterApp();
+				loginGoogleApp();
+				// also make the twit token and such
+			}
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -550,9 +594,9 @@ public class UserResource
 			
 			String prefix = "sf_";
 			
-			String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
-			String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
-			String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+			String clientId = (String)socialData.getProperty(prefix+"client_id");
+			String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+			String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
 			
 			System.out.println(">> " + request.getQueryString());
 			
@@ -600,9 +644,9 @@ public class UserResource
 
 		String prefix = "sf_";
 		
-		String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
-		String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
-		String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+		String clientId = (String)socialData.getProperty(prefix+"client_id");
+		String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+		String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
 
 		
 		String redirectUrl = "https://login.salesforce.com/services/oauth2/authorize?" +
@@ -641,9 +685,9 @@ public class UserResource
 			
 			String prefix = "git_";
 			
-			String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
-			String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
-			String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+			String clientId = (String)socialData.getProperty(prefix+"client_id");
+			String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+			String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
 			
 			System.out.println(">> " + request.getQueryString());
 			
@@ -690,16 +734,17 @@ public class UserResource
 
 		String prefix = "git_";
 		
-		String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
-		String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
-		String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+		String clientId = (String)socialData.getProperty(prefix+"client_id");
+		String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+		String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
+		String scope = (String)socialData.getProperty(prefix+"scope");
 
 		String redirectUrl = "https://github.com/login/oauth/authorize?" +
 				"client_id=" + clientId +
 				"&redirect_uri=" + redirectUri +
 				"&state=" + UUID.randomUUID().toString() +
 				"&allow_signup=true" + 
-				"&scope=" + URLEncoder.encode("public_repo user", "UTF-8");
+				"&scope=" + URLEncoder.encode(scope, "UTF-8");
 
 		System.out.println("Sending redirect.. " + redirectUrl);
 
@@ -730,10 +775,10 @@ public class UserResource
 			
 			String prefix = "ms_";
 			
-			String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
-			String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
-			String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
-			String tenant = request.getServletContext().getInitParameter(prefix+"tenant");
+			String clientId = (String)socialData.getProperty(prefix+"client_id");
+			String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+			String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
+			String tenant = (String)socialData.getProperty(prefix+"tenant");
 			
 			System.out.println(">> " + request.getQueryString());
 			
@@ -782,11 +827,11 @@ public class UserResource
 
 		String prefix = "ms_";
 		
-		String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
-		String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
-		String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
-		String tenant = request.getServletContext().getInitParameter(prefix+"tenant");
-		String scope = request.getServletContext().getInitParameter(prefix+"scope"); // need to set this up and reuse
+		String clientId = (String)socialData.getProperty(prefix+"client_id");
+		String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+		String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
+		String tenant = (String)socialData.getProperty(prefix+"tenant");
+		String scope = (String)socialData.getProperty(prefix+"scope"); // need to set this up and reuse
 
 		String state = UUID.randomUUID().toString();
 	
@@ -827,9 +872,9 @@ public class UserResource
 				
 				String prefix = "dropbox_";
 				
-				String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
-				String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
-				String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+				String clientId = (String)socialData.getProperty(prefix+"client_id");
+				String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+				String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
 				
 				System.out.println(">> " + request.getQueryString());
 				
@@ -877,11 +922,11 @@ public class UserResource
 
 		String prefix = "dropbox_";
 		
-		String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
-		String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
-		String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
-		String scope = request.getServletContext().getInitParameter(prefix+"scope"); // need to set this up and reuse
-		String role = request.getServletContext().getInitParameter(prefix+"role"); // need to set this up and reuse
+		String clientId = (String)socialData.getProperty(prefix+"client_id");
+		String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+		String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
+		String scope = (String)socialData.getProperty(prefix+"scope"); // need to set this up and reuse
+		String role = (String)socialData.getProperty(prefix+"role"); // need to set this up and reuse
 
 		String state = UUID.randomUUID().toString();
 	
@@ -922,9 +967,9 @@ public class UserResource
 				
 				String prefix = "google_";
 				
-				String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
-				String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
-				String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
+				String clientId = (String)socialData.getProperty(prefix+"client_id");
+				String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+				String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
 				
 				System.out.println(">> " + request.getQueryString());
 				
@@ -1014,6 +1059,19 @@ public class UserResource
 
 		getter.execute((User2)request.getSession().getAttribute("semoss_user"), params2);
 
+		IConnectorIOp ner = new GoogleEntityResolver();
+
+		NLPDocumentInput docInput = new NLPDocumentInput();
+		docInput.setContent("Obama is staying in the whitehouse !!");
+		params2 = new Hashtable();
+		
+		Hashtable docInputShell = new Hashtable();
+		docInputShell.put("encodingType", "UTF8");
+		docInputShell.put("document", docInput);
+		
+		params2.put("input", docInputShell);
+		ner.execute((User2)request.getSession().getAttribute("semoss_user"), params2);
+		
 		try {
 			ret.put("files", BeanFiller.getJson(fileList));
 		} catch (Exception e) {
@@ -1021,6 +1079,11 @@ public class UserResource
 			e.printStackTrace();
 		}
 
+		IConnectorIOp lat = new GoogleLatLongGetter();
+		params2 = new Hashtable();
+		params2.put("address", "1919 N Lynn Street, Arlington, VA");
+		
+		lat.execute((User2)request.getSession().getAttribute("semoss_user"), params2);
 
 	}
 	
@@ -1029,11 +1092,11 @@ public class UserResource
 
 		String prefix = "google_";
 		
-		String clientId = request.getServletContext().getInitParameter(prefix+"client_id");
-		String clientSecret = request.getServletContext().getInitParameter(prefix+"secret_key");
-		String redirectUri = request.getServletContext().getInitParameter(prefix+"redirect_uri");
-		String scope = request.getServletContext().getInitParameter(prefix+"scope"); // need to set this up and reuse
-		String accessType = request.getServletContext().getInitParameter(prefix+"access_type"); // need to set this up and reuse
+		String clientId = (String)socialData.getProperty(prefix+"client_id");
+		String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+		String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
+		String scope = (String)socialData.getProperty(prefix+"scope"); // need to set this up and reuse
+		String accessType = (String)socialData.getProperty(prefix+"access_type"); // need to set this up and reuse
 
 		String state = UUID.randomUUID().toString();
 	
@@ -1059,13 +1122,415 @@ public class UserResource
 		if(user != null)
 			semossUser = (User2)user;
 		else
+		{
 			semossUser = new User2();
+			if(twitToken != null)
+				semossUser.setAccessToken(twitToken);
+			if(googAppToken != null)
+				semossUser.setAccessToken(googAppToken);
+
+		}
 		
 		semossUser.setAccessToken(token);
 		
 		request.getSession().setAttribute("semoss_user",semossUser);
 	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("/login/producthunt")
+	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		// redirect if query string not there
+		
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+		
+		
+		String queryString = request.getQueryString();
+		
+		if(queryString != null && queryString.contains("code="))
+		{
+			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.PRODUCT_HUNT.name()) == null)
+			{
+				String [] outputs = AbstractHttpHelper.getCodes(queryString);
+				
+				String prefix = "producthunt_";
+				
+				String clientId = (String)socialData.getProperty(prefix+"client_id");
+				String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+				String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
+				
+				System.out.println(">> " + request.getQueryString());
+				
+				Hashtable params = new Hashtable();
+	
+				params.put("client_id", clientId);
+				params.put("redirect_uri", redirectUri);
+				params.put("code", outputs[0]);
+				params.put("grant_type", "authorization_code");
+				params.put("client_secret", clientSecret);
+	
+				String url = "https://api.producthunt.com/v1/oauth/token";
+		
+				
+				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				accessToken.setProvider(AuthProvider.PRODUCT_HUNT.name());
+				addAccessToken(accessToken, request);
+	
+				System.out.println("Access Token is.. " + accessToken.getAccess_token());			
+			ret.put("success", "true");
+	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 200);
+			}
+			else
+			{
+				ret.put("success", "true");
+				ret.put("Already_Authenticated", "true");
+				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+				return WebUtility.getResponse(ret, 200);
 
+			}
+
+		}
+		else if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.PRODUCT_HUNT.name()) == null)
+		{
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getProducthuntRedirect(request));
+		}
+		return null;
+	}
+	
+	private String getProducthuntRedirect(HttpServletRequest request)
+			throws UnsupportedEncodingException {
+
+		String prefix = "producthunt_";
+		
+		String clientId = (String)socialData.getProperty(prefix+"client_id");
+		String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+		String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
+		String scope = (String)socialData.getProperty(prefix+"scope");
+
+	
+		String redirectUrl = "https://api.producthunt.com/v1/oauth/authorize?" + 
+				"client_id=" + clientId+
+				"&response_type=code" + 
+				"&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")+ 
+				"&scope=" + URLEncoder.encode(scope, "UTF-8") ;
+
+		System.out.println("Sending redirect.. " + redirectUrl);
+
+		return redirectUrl;
+	}
+	
+	
+	public static void loginTwitterApp() throws IOException 
+	{
+		// redirect if query string not there
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+		
+		// getting the bearer token on twitter for app authentication is a lot simpler
+		// need to just combine the id and secret
+		// base 64 and send as authorization
+
+		if(twitToken == null)
+		{
+			try {
+				String prefix = "twitter_";
+				
+				
+				String clientId = "***REMOVED***";
+				String clientSecret = "***REMOVED***";
+				
+				clientId = (String)socialData.getProperty(prefix+"client_id");
+				clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+
+				
+				// make a joint string
+				String jointString = clientId + ":" + clientSecret;
+				
+				// encde this base 64
+				String encodedJointString = new String(Base64.getEncoder().encode(jointString.getBytes()));
+				CloseableHttpClient httpclient = HttpClients.createDefault();
+				HttpPost httppost = new HttpPost("https://api.twitter.com/oauth2/token");
+				
+				httppost.addHeader("Authorization", "Basic " + encodedJointString);
+				//httppost.addHeader("Content-Type","application/json; charset=utf-8");
+
+				List<NameValuePair> paramList = new ArrayList<NameValuePair>();
+					
+				paramList.add(new BasicNameValuePair("grant_type", "client_credentials"));
+					
+				httppost.setEntity(new UrlEncodedFormEntity(paramList));
+								
+				ResponseHandler<String> handler = new BasicResponseHandler();
+				CloseableHttpResponse authResp = httpclient.execute(httppost);
+				
+				System.out.println("Response Code " + authResp.getStatusLine().getStatusCode());
+				
+				int status = authResp.getStatusLine().getStatusCode();
+				
+				BufferedReader rd = new BufferedReader(
+				        new InputStreamReader(authResp.getEntity().getContent()));
+	
+				StringBuffer result = new StringBuffer();
+				String line = "";
+				while ((line = rd.readLine()) != null) {
+					result.append(line);
+				}
+				
+				twitToken = AbstractHttpHelper.getJAccessToken(result.toString());
+				twitToken.setProvider(AuthProvider.TWITTER.name());
+				
+				//addAccessToken(twitToken, request);
+				
+			}catch(Exception ex)
+			{
+				ex.printStackTrace();
+			}
+		System.out.println("Access Token is.. " + twitToken.getAccess_token());
+		}		
+	}
+	
+	private static void loginGoogleApp()
+	{
+		// nothing big here
+		// set the name on accesstoken
+		if(googAppToken == null)
+		{
+			googAppToken = new AccessToken();
+			googAppToken.setAccess_token(socialData.getProperty("google_maps_api"));
+			googAppToken.setProvider(AuthProvider.GOOGLE_MAP.name());
+		}
+	}
+
+
+	/**
+	 * Logs user in through GIT
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/twitter")
+	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		// redirect if query string not there
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+		
+		// getting the bearer token on twitter for app authentication is a lot simpler
+		// need to just combine the id and secret
+		// base 64 and send as authorization
+		
+		
+		//https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
+		String queryString = request.getQueryString();
+		
+		if(queryString != null && queryString.contains("code="))
+		{
+			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.GIT.name()) == null)
+			{
+
+			String [] outputs = AbstractHttpHelper.getCodes(queryString);
+			
+			String prefix = "git_";
+			
+			String clientId = (String)socialData.getProperty(prefix+"client_id");
+			String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+			String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
+			
+			System.out.println(">> " + request.getQueryString());
+			
+			Hashtable params = new Hashtable();
+			params.put("client_id", clientId);
+			params.put("redirect_uri", redirectUri);
+			params.put("code", outputs[0]);
+			params.put("state", outputs[1]);
+			params.put("client_secret", clientSecret);
+
+			String url = "https://github.com/login/oauth/access_token";
+				
+			AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
+			accessToken.setProvider(AuthProvider.GIT.name());
+			addAccessToken(accessToken, request);
+			
+			System.out.println("Access Token is.. " + accessToken.getAccess_token());
+			
+			ret.put("success", "true");
+	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 200);
+			}
+			else
+			{
+				ret.put("success", "true");
+				ret.put("Already_Authenticated", "true");
+				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+				return WebUtility.getResponse(ret, 200);
+
+			}
+		}
+		else if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.GIT.name()) == null)
+		{
+			// not authenticated
+
+			response.setStatus(302);
+			response.sendRedirect(getGitRedirect(request));
+		}
+		return null;
+	}
+	
+	private String getTwitterRedirect(HttpServletRequest request)
+			throws UnsupportedEncodingException {
+
+		String prefix = "twitter_";
+		
+		String clientId = (String)socialData.getProperty(prefix+"client_id");
+		String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+		String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
+		String scope = (String)socialData.getProperty(prefix+"scope");
+		String nonce = UUID.randomUUID().toString() ;
+		String timestamp = System.currentTimeMillis() +"";
+
+		
+		StringBuffer signatureString = new StringBuffer("GET").append("&");
+		signatureString.append(URLEncoder.encode("https://api.twitter.com/oauth/authorize", "UTF-8")).append("&");
+		
+		StringBuffer parameterString = new StringBuffer("");
+		parameterString.append("oauth_callback=").append(URLEncoder.encode(redirectUri, "UTF-8")).append("&");
+		parameterString.append("oauth_consumer_key=").append(clientId).append("&");
+		parameterString.append("oauth_nonce=").append(nonce).append("&");
+		parameterString.append("oauth_timestamp=").append(timestamp);
+		
+		String finalString = signatureString.toString() + parameterString.toString();
+		
+		//String signature = 
+	
+		String redirectUrl = "https://github.com/login/oauth/authorize?" +
+				"oauth_consumer_key=" + clientId +
+				"&oauth_callback=" + redirectUri +
+				"&oauth_nonce=" + nonce +
+				"&oauth_timestamp=" + timestamp + 
+				"&scope=" + URLEncoder.encode(scope, "UTF-8");
+	
+		System.out.println("Sending redirect.. " + redirectUrl);
+
+		return redirectUrl;
+	}
+
+
+	/**
+	 * Logs user in through GIT
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/linkedin")
+	public Response loginIn(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		// redirect if query string not there
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+		
+		//https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
+		String queryString = request.getQueryString();
+		
+		if(queryString != null && queryString.contains("code="))
+		{
+			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.IN.name()) == null)
+			{
+
+			String [] outputs = AbstractHttpHelper.getCodes(queryString);
+			
+			String prefix = "in_";
+			
+			String clientId = (String)socialData.getProperty(prefix+"client_id");
+			String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+			String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
+			
+			System.out.println(">> " + request.getQueryString());
+			
+			Hashtable params = new Hashtable();
+			params.put("client_id", clientId);
+			params.put("redirect_uri", redirectUri);
+			params.put("code", outputs[0]);
+			params.put("grant_type", "authorization_code");
+			params.put("client_secret", clientSecret);
+
+			String url = "https://www.linkedin.com/oauth/v2/accessToken";
+				
+			AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+			accessToken.setProvider(AuthProvider.IN.name());
+			addAccessToken(accessToken, request);
+			
+			System.out.println("Access Token is.. " + accessToken.getAccess_token());
+			
+			ret.put("success", "true");
+	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+			return WebUtility.getResponse(ret, 200);
+			}
+			else
+			{
+				ret.put("success", "true");
+				ret.put("Already_Authenticated", "true");
+				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+				return WebUtility.getResponse(ret, 200);
+
+			}
+		}
+		else if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.IN.name()) == null)
+		{
+			// not authenticated
+
+			response.setStatus(302);
+			response.sendRedirect(getInRedirect(request));
+		}
+		return null;
+	}
+	
+	private String getInRedirect(HttpServletRequest request)
+			throws UnsupportedEncodingException {
+
+		String prefix = "in_";
+		
+		String clientId = (String)socialData.getProperty(prefix+"client_id");
+		String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
+		String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
+		String scope = (String)socialData.getProperty(prefix+"scope");
+
+		String redirectUrl = "https://www.linkedin.com/oauth/v2/authorization?" +
+				"client_id=" + clientId +
+				"&redirect_uri=" + redirectUri +
+				"&state=" + UUID.randomUUID().toString() +
+				"&response_type=code" +
+				"&scope=" + URLEncoder.encode(scope, "UTF-8");
+
+		System.out.println("Sending redirect.. " + redirectUrl);
+
+		return redirectUrl;
+	}
+
+	
+	public static String calculateRFC2104HMAC(String data, String key)
+			throws SignatureException, NoSuchAlgorithmException, InvalidKeyException
+		{
+			SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), "HmacSHA1");
+			Mac mac = Mac.getInstance("HmacSHA1");
+			mac.init(signingKey);
+			return toHexString(mac.doFinal(data.getBytes()));
+		}
+	
+	private static String toHexString(byte[] bytes) {
+		Formatter formatter = new Formatter();
+		
+		for (byte b : bytes) {
+			formatter.format("%02x", b);
+		}
+
+		return formatter.toString();
+	}
+	
+	
+
+	
 //	/**
 //	 * Logs user in through Google+.
 //	 */
