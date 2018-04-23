@@ -241,12 +241,18 @@ public class PixelWebUtility extends WebUtility{
 		
 		// running a saved insight
 		else if(nounT == PixelDataType.PIXEL_RUNNER) {
-			PixelRunner runner = (PixelRunner) noun.getValue();
+			Map<String, Object> runnerWraper = (Map<String, Object>) noun.getValue();
+			PixelRunner runner = (PixelRunner) runnerWraper.get("runner");
+			Object params = runnerWraper.get("params");
+			List<String> additionalPixels = (List<String>) runnerWraper.get("additionalPixels");
+
 			Insight in = runner.getInsight();
 			ps.print("\"output\":{");
 			ps.print("\"name\":" + gson.toJson(in.getInsightName()));
 			ps.print(",\"core_engine\":" + gson.toJson(in.getEngineName()));
 			ps.print(",\"core_engine_id\":" + gson.toJson(in.getRdbmsId()));
+			ps.print(",\"params\":" + gson.toJson(params));
+			ps.print(",\"additionalPixels\":" + gson.toJson(additionalPixels));
 			ps.flush();
 			ps.print(",\"insightData\":");
 			// process the inner recipe
