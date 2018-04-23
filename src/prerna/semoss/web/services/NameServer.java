@@ -115,6 +115,7 @@ import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.insight.InsightScreenshot;
 import prerna.util.insight.TextToGraphic;
+import prerna.web.services.util.PixelWebUtility;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
@@ -1235,7 +1236,7 @@ public class NameServer {
 			PixelRunner pixelRunner = jt.getRunner();
 
 			manager.flushJob(jobId);
-			return Response.status(200).entity(WebUtility.collectPixelData(pixelRunner)).build();
+			return Response.status(200).entity(PixelWebUtility.collectPixelData(pixelRunner)).build();
 
 			//				jt.run();
 			//				dataReturn = jt.getOutput();
