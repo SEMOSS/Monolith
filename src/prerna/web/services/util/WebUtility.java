@@ -32,7 +32,6 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Modifier;
-import java.util.Iterator;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -44,7 +43,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import prerna.date.SemossDate;
-import prerna.ds.export.gexf.IGexfIterator;
+import prerna.sablecc2.PixelRunner;
+import prerna.sablecc2.PixelStreamUtility;
 import prerna.util.gson.NumberAdapter;
 import prerna.util.gson.SemossDateAdapter;
 
@@ -54,8 +54,18 @@ import prerna.util.gson.SemossDateAdapter;
  */
 public class WebUtility {
 
-	public static int id = 0;
-	static Logger logger = Logger.getLogger(prerna.web.services.util.WebUtility.class);
+	private static final String CLASS_NAME = WebUtility.class.getName();
+	private static final Logger LOGGER = Logger.getLogger(CLASS_NAME);
+
+	private static Gson getDefaultGson() {
+		Gson gson = new GsonBuilder()
+				.disableHtmlEscaping()
+				.excludeFieldsWithModifiers(Modifier.STATIC, Modifier.TRANSIENT)
+				.registerTypeAdapter(Double.class, new NumberAdapter())
+				.registerTypeAdapter(SemossDate.class, new SemossDateAdapter())
+				.create();
+		return gson;
+	}
 
 	public static StreamingOutput getSO(Object vec)
 	{
@@ -74,13 +84,13 @@ public class WebUtility {
 					}};
 			} catch (UnsupportedEncodingException e) {
 				e.printStackTrace();
-				logger.error("Failed to write object to stream");
+				LOGGER.error("Failed to write object to stream");
 			}      
 		}
-		
+
 		return null;
 	}
-	
+
 	public static Response getResponse(Object vec, int status) {
 		if(vec != null) {
 			Gson gson = getDefaultGson();
@@ -93,11 +103,11 @@ public class WebUtility {
 			}
 			return Response.status(200).entity(WebUtility.getSO(vec)).build();
 		}
-		
+
 		return null;
 	}
-	
-	public static StreamingOutput getSO(byte[] output2)
+
+	public static StreamingOutput getSO(byte[] output)
 	{
 		try {
 			return new StreamingOutput() {
@@ -105,163 +115,38 @@ public class WebUtility {
 					try(
 							PrintStream ps = new PrintStream(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
 							){
-						ps.write(output2, 0 , output2.length);
+						ps.write(output, 0 , output.length);
 					}
 				}};
 		} catch (Exception e) {
 			e.printStackTrace();
-			logger.error("Failed to write object to stream");
+			LOGGER.error("Failed to write object to stream");
 		}      
-		
+
 		return null;
 	}
 
-	public static StreamingOutput getSO(String insightId, String [] headers, Iterator iterator)
-	{
-		if(iterator != null)
-		{
-			Gson gson = getDefaultGson();
-			try {
-				return new StreamingOutput() {
-					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-						try(
-								PrintStream ps = new PrintStream(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
-								)
-						{
-							String headerStr ="{\"headers\": "; 
-							ps.print(headerStr);
-							String headerOutput = gson.toJson(headers);
-							ps.print(headerOutput);
+	/**
+	 * Collect pixel data from the runner
+	 * @param runner
+	 * @return
+	 */
+	public static StreamingOutput collectPixelData(PixelRunner runner) {
+		// get the default gson object
+		Gson gson = getDefaultGson();
 
-							ps.flush();
-
-							ps.print(", \"data\": [");
-							ps.flush();
-							while(iterator.hasNext())
-							{
-								Object obj = iterator.next();
-								ps.print(gson.toJson(obj));
-								if(iterator.hasNext())
-									ps.print(", ");                            		 
-								ps.flush();
-							}
-							byte[] insight = new String("] , \"insightID\": \"" + insightId + "\" }").getBytes("UTF8");
-							ps.write(insight, 0 , insight.length);
-							ps.flush();
-						}
-					}};
-			} catch (Exception e) {
-				logger.error("Failed to write object to stream");
-			}      
-		}
-		return null;
-	}
-	
-//	public static Response getResponse(String insightId, IGraphExporter iterator) {
-//		if(iterator != null) {
-//			StringBuilder builder = new StringBuilder();
-//			builder.append("{").append("\"insightID\":\"").append(insightId).append("\",");
-//			Gson gson = getDefaultGson();
-//			try {
-//				List<Map<String, Object>> edges = new ArrayList<Map<String, Object>>();
-//				while(iterator.hasNextEdge()) {
-//					edges.add(iterator.getNextEdge());
-//				}
-//				builder.append("\"edges\":").append(gson.toJson(edges)).append(",");
-//				
-//				List<Map<String, Object>> vertices = new ArrayList<Map<String, Object>>();
-//				while(iterator.hasNextVert()) {
-//					vertices.add(iterator.getNextVert());
-//				}
-//				builder.append("\"nodes\":").append(gson.toJson(vertices)).append(",");
-//				
-//				// add the meta data pieces
-//				builder.append("\"graphMeta\":").append(gson.toJson(iterator.getVertCounts()));
-//				builder.append("}");
-//				final byte[] output = builder.toString().getBytes("UTF8");
-//				int length = output.length;
-//				return Response.status(200).entity(WebUtility.getSO(output)).header("Content-Length", length).build();
-//			} catch (UnsupportedEncodingException e) {
-//				e.printStackTrace();
-//			}
-//			return Response.status(200).entity(WebUtility.getSO(insightId)).build();
-//		}
-//		
-//		return null;
-//	}
-
-	public static StreamingOutput getSO(String insightId, IGexfIterator gexf) {
-		if(gexf != null) {
-			try {
-				Gson gson = getDefaultGson();
-				return new StreamingOutput() {
-					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-						try(
-								PrintStream ps = new PrintStream(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
-								)
-						{
-							// note: to be able to stream this
-							// we have to substring the outputs after being gson'ed
-							// so that the gexf points to a single string
-							
-							// get start of gexf
-							ps.print("{\"gexf\": \"");
-							ps.flush();
-							String out = gson.toJson( gexf.getStartString() );
-							ps.print( out.substring(1, out.length()-1) );
-							ps.flush();
-
-							// print the nodes
-							out = gson.toJson( gexf.getNodeStart());
-							ps.print( out.substring(1, out.length()-1) );
-							ps.flush();
-							while(gexf.hasNextNode()) {
-								out = gson.toJson( gexf.getNextNodeString());
-								ps.print( out.substring(1, out.length()-1) );
-								ps.flush();
-							}
-							out = gson.toJson( gexf.getNodeEnd());
-							ps.print( out.substring(1, out.length()-1) );
-							ps.flush();
-
-							// print the edges
-							out = gson.toJson( gexf.getEdgeStart());
-							ps.print( out.substring(1, out.length()-1) );
-							ps.flush();
-							while(gexf.hasNextEdge()) {
-								out = gson.toJson( gexf.getNextEdgeString());
-								ps.print( out.substring(1, out.length()-1) );
-								ps.flush();
-							}
-							out = gson.toJson( gexf.getEdgeEnd());
-							ps.print( out.substring(1, out.length()-1) );
-							ps.flush();
-
-							// end the gexf
-							out = gson.toJson( gexf.getEndString());
-							ps.print( out.substring(1, out.length()-1) );
-							ps.flush();
-
-							byte[] insight = new String("\" , \"insightID\": \"" + insightId + "\" }").getBytes("UTF8");
-							ps.write(insight, 0 , insight.length);
-							ps.flush();
-							ps.close();
-						}
-					}};
-			} catch (Exception e) {
-				logger.error("Failed to write object to stream");
-			}      
+		// now process everything
+		try {
+			return new StreamingOutput() {
+				public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+					try(PrintStream ps = new PrintStream(outputStream)) {
+						PixelStreamUtility.processPixelRunner(ps, gson, runner);
+					}
+				}};
+		} catch (Exception e) {
+			LOGGER.error("Failed to write object to stream");
 		}
 		return null;
 	}
 
-	private static Gson getDefaultGson() {
-		Gson gson = new GsonBuilder()
-				.disableHtmlEscaping()
-				.excludeFieldsWithModifiers(Modifier.STATIC, Modifier.TRANSIENT)
-				.registerTypeAdapter(Double.class, new NumberAdapter())
-				.registerTypeAdapter(SemossDate.class, new SemossDateAdapter())
-				.create();
-		return gson;
-	}
 }
