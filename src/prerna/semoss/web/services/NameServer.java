@@ -83,6 +83,10 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.jsoup.Jsoup;
 
+import com.google.gson.Gson;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
+
 import prerna.auth.User;
 import prerna.auth.User2;
 import prerna.auth.UserPermissionsMasterDB;
@@ -93,6 +97,7 @@ import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc.PKQLRunner;
+import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
 import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
@@ -114,10 +119,6 @@ import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
 import prerna.web.services.util.WebUtility;
-
-import com.google.gson.Gson;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
 
 @Path("/engine")
 public class NameServer {
@@ -1211,47 +1212,49 @@ public class NameServer {
 //				return WebUtility.getResponse(errorMap, 400);
 //			}
 		}
-		if(insight != null)
-		{
-			synchronized(insight) {
-				insight.setUser(user);
-				
-				// set the other user
-				insight.setUser2(user2);
-				JobManager manager = JobManager.getManager();
-				JobThread jt = null;
-				if(insightId.equals(tempInsightId)) {
-					jt = manager.makeJob();
-				} else {
-					jt = manager.makeJob(insightId);
-				}
-				jobId = jt.getJobId();
-				session.setAttribute(jobId+"", "TRUE");
-				String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
-				expression = job + expression;
-				
-				jt.setInsight(insight);
-				jt.addPixel(expression);
-				jt.run();
-				dataReturn = jt.getOutput();
-				Vector pixelReturnVector = (Vector)dataReturn.get("pixelReturn");
-				// TODO: need FE to not react based on the size ...
-				// but basically want to return an error
-				// but dont want to show the implicit Job reactor we are adding
-				if(pixelReturnVector.size() > 1) {
-					pixelReturnVector.remove(0);
-				} else {
-					// this is most likely due to an error with compiling the expression being sent
-					String newExp = (String) ((Map<String, Object>) pixelReturnVector.get(0)).get("pixelExpression");
-					newExp = newExp.replace(job, "");
-					((Map<String, Object>) pixelReturnVector.get(0)).put("pixelExpression", newExp);
-				}
-				dataReturn.put("pixelReturn", pixelReturnVector);
-				// i need to kill this job
-				manager.flushJob(jobId);
+		synchronized(insight) {
+			insight.setUser(user);
+
+			// set the other user
+			insight.setUser2(user2);
+			JobManager manager = JobManager.getManager();
+			JobThread jt = null;
+			if(insightId.equals(tempInsightId)) {
+				jt = manager.makeJob();
+			} else {
+				jt = manager.makeJob(insightId);
 			}
-		}		
-		return WebUtility.getResponse(dataReturn, 200);
+			jobId = jt.getJobId();
+			session.setAttribute(jobId+"", "TRUE");
+			String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
+			expression = job + expression;
+
+			jt.setInsight(insight);
+			jt.addPixel(expression);
+			jt.run2();
+			PixelRunner pixelRunner = jt.getRunner();
+
+			manager.flushJob(jobId);
+			return Response.status(200).entity(WebUtility.collectPixelData(pixelRunner)).build();
+
+			//				jt.run();
+			//				dataReturn = jt.getOutput();
+			//				Vector pixelReturnVector = (Vector)dataReturn.get("pixelReturn");
+			//				// TODO: need FE to not react based on the size ...
+			//				// but basically want to return an error
+			//				// but dont want to show the implicit Job reactor we are adding
+			//				if(pixelReturnVector.size() > 1) {
+			//					pixelReturnVector.remove(0);
+			//				} else {
+			//					// this is most likely due to an error with compiling the expression being sent
+			//					String newExp = (String) ((Map<String, Object>) pixelReturnVector.get(0)).get("pixelExpression");
+			//					newExp = newExp.replace(job, "");
+			//					((Map<String, Object>) pixelReturnVector.get(0)).put("pixelExpression", newExp);
+			//				}
+			//				dataReturn.put("pixelReturn", pixelReturnVector);
+			//				// i need to kill this job
+			//				manager.flushJob(jobId);
+		}
 	}
 	
 	@POST
