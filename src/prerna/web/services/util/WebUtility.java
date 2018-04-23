@@ -43,8 +43,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import prerna.date.SemossDate;
-import prerna.sablecc2.PixelRunner;
-import prerna.sablecc2.PixelStreamUtility;
 import prerna.util.gson.NumberAdapter;
 import prerna.util.gson.SemossDateAdapter;
 
@@ -57,7 +55,7 @@ public class WebUtility {
 	private static final String CLASS_NAME = WebUtility.class.getName();
 	private static final Logger LOGGER = Logger.getLogger(CLASS_NAME);
 
-	private static Gson getDefaultGson() {
+	protected static Gson getDefaultGson() {
 		Gson gson = new GsonBuilder()
 				.disableHtmlEscaping()
 				.excludeFieldsWithModifiers(Modifier.STATIC, Modifier.TRANSIENT)
@@ -123,30 +121,6 @@ public class WebUtility {
 			LOGGER.error("Failed to write object to stream");
 		}      
 
-		return null;
-	}
-
-	/**
-	 * Collect pixel data from the runner
-	 * @param runner
-	 * @return
-	 */
-	public static StreamingOutput collectPixelData(PixelRunner runner) {
-		// get the default gson object
-		Gson gson = getDefaultGson();
-
-		// now process everything
-		try {
-			return new StreamingOutput() {
-				public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-					try(PrintStream ps = new PrintStream(outputStream)) {
-						// we want to ignore the first index since it will be a job
-						PixelStreamUtility.processPixelRunner(ps, gson, runner, true);
-					}
-				}};
-		} catch (Exception e) {
-			LOGGER.error("Failed to write object to stream");
-		}
 		return null;
 	}
 
