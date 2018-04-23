@@ -140,7 +140,8 @@ public class WebUtility {
 			return new StreamingOutput() {
 				public void write(OutputStream outputStream) throws IOException, WebApplicationException {
 					try(PrintStream ps = new PrintStream(outputStream)) {
-						PixelStreamUtility.processPixelRunner(ps, gson, runner);
+						// we want to ignore the first index since it will be a job
+						PixelStreamUtility.processPixelRunner(ps, gson, runner, true);
 					}
 				}};
 		} catch (Exception e) {
