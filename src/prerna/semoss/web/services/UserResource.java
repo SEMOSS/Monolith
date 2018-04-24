@@ -72,6 +72,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import jodd.util.URLDecoder;
+
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ResponseHandler;
@@ -84,6 +86,28 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+
+import prerna.auth.AccessToken;
+import prerna.auth.AuthProvider;
+import prerna.auth.CACReader;
+import prerna.auth.User;
+import prerna.auth.User2;
+import prerna.auth.UserPermissionsMasterDB;
+import prerna.io.connector.IConnectorIOp;
+import prerna.io.connector.google.GoogleEntityResolver;
+import prerna.io.connector.google.GoogleFileRetriever;
+import prerna.io.connector.google.GoogleLatLongGetter;
+import prerna.io.connector.google.GoogleListFiles;
+import prerna.io.connector.google.GoogleProfile;
+import prerna.io.connector.twitter.TwitterSearcher;
+import prerna.om.NLPDocumentInput;
+import prerna.om.Viewpoint;
+import prerna.security.AbstractHttpHelper;
+import prerna.util.BeanFiller;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
+import prerna.web.services.util.WebUtility;
+import waffle.servlet.WindowsPrincipal;
 
 import com.google.api.client.auth.oauth2.TokenResponseException;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
@@ -102,27 +126,6 @@ import com.restfb.FacebookClient;
 import com.restfb.Parameter;
 import com.sun.jna.platform.win32.Secur32;
 import com.sun.jna.platform.win32.Secur32Util;
-
-import jodd.util.URLDecoder;
-import prerna.auth.AccessToken;
-import prerna.auth.AuthProvider;
-import prerna.auth.CACReader;
-import prerna.auth.User;
-import prerna.auth.User2;
-import prerna.auth.UserPermissionsMasterDB;
-import prerna.io.connector.IConnectorIOp;
-import prerna.io.connector.google.GoogleEntityResolver;
-import prerna.io.connector.google.GoogleFileRetriever;
-import prerna.io.connector.google.GoogleLatLongGetter;
-import prerna.io.connector.google.GoogleListFiles;
-import prerna.io.connector.google.GoogleProfile;
-import prerna.om.NLPDocumentInput;
-import prerna.security.AbstractHttpHelper;
-import prerna.util.BeanFiller;
-import prerna.util.Constants;
-import prerna.util.DIHelper;
-import prerna.web.services.util.WebUtility;
-import waffle.servlet.WindowsPrincipal;
 
 @Path("/auth")
 public class UserResource
@@ -1084,6 +1087,15 @@ public class UserResource
 		
 		lat.execute((User2)request.getSession().getAttribute("semoss_user"), params2);
 
+		IConnectorIOp ts = new TwitterSearcher();
+		params2 = new Hashtable();
+		params2.put("q", "Anlaytics");
+		params2.put("lang", "en");
+		params2.put("count", "10");
+		
+		Object vp = ts.execute((User2)request.getSession().getAttribute("semoss_user"), params2);
+
+		
 	}
 	
 	private String getGoogleRedirect(HttpServletRequest request)
