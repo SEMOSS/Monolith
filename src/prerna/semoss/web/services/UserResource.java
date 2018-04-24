@@ -1001,10 +1001,10 @@ public class UserResource
 			User2 user = (User2)userObj;
 			AccessToken accessToken = user.getAccessToken(AuthProvider.GOOGLE.name());
 			
-			performGoogleOps(request, ret);
+			//performGoogleOps(request, ret);
 			ret.put("success", "true");
 			try {
-				ret.put("user", BeanFiller.getJson(accessToken));
+				//ret.put("user", BeanFiller.getJson(accessToken));
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -1031,7 +1031,7 @@ public class UserResource
 			performGoogleOps(request, ret);
 			ret.put("success", "true");
 			try {
-				ret.put("user", BeanFiller.getJson(accessToken));
+				//ret.put("user", BeanFiller.getJson(accessToken));
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
