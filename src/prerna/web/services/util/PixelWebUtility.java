@@ -182,6 +182,8 @@ public class PixelWebUtility extends WebUtility{
 			// if we have a task
 			// we gotta iterate through it to return the data
 			ITask task = (ITask) noun.getValue();
+			int numCollect = task.getNumCollect();
+			boolean collectAll = numCollect == -1;
 			String formatType = task.getFormatter().getFormatType();
 			Map<String, Object> taskMeta = task.getMeta();
 
@@ -196,7 +198,9 @@ public class PixelWebUtility extends WebUtility{
 					
 					boolean first = true;
 					String[] headers = null;
-					while(task.hasNext()) {
+					int count = 0;
+					// recall, a task is also an iterator!
+					while(task.hasNext() && (collectAll || count < numCollect)) {
 						IHeadersDataRow row = task.next();
 						// need to set the headers
 						if(headers == null) {
@@ -211,6 +215,7 @@ public class PixelWebUtility extends WebUtility{
 						ps.flush();
 						
 						first = false;
+						count++;
 					}
 					// end the values and add the headers
 					ps.print("],\"headers\":" + gson.toJson(headers));
