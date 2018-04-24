@@ -231,7 +231,7 @@ public class PixelWebUtility extends WebUtility{
 				// THIS IS TEMPORARY UNTIL I FIGURE OUT HOW TO DO 
 				// GRAPHS OR OTHER TYPES OF FORMATS
 				ps.print("\"output\":");
-				ps.print(gson.toJson(task.collect(500, true)));
+				ps.print(gson.toJson(task.collect(true)));
 				ps.flush();
 				ps.print(",\"operationType\":");
 				ps.print(gson.toJson(noun.getOpType()));
