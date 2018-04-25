@@ -396,6 +396,7 @@ public class DatabaseUploader extends Uploader {
 			
 			// get the files
 			String[] files = inputData.get("file").split(";");
+			String[] delimiters = inputData.get("delimiter").split("\\+\\+\\+");
 			// get the property files if necessary
 			String props = inputData.get("propFile");
 			String[] propFiles = null;
@@ -420,6 +421,7 @@ public class DatabaseUploader extends Uploader {
 				
 				// store the file location on server so FE can send that back into actual upload routine
 				String filePath = files[i];
+				char delimiter = delimiters[i].charAt(0);
 				String file = filePath.substring(filePath.lastIndexOf("\\") + 1, filePath.lastIndexOf("."));
 				try {
 					file = file.substring(0, file.length() - 24); //taking out the date added onto the original file name
@@ -433,9 +435,7 @@ public class DatabaseUploader extends Uploader {
 				fileMetaModelData.put("fileName", file);
 				
 				CSVFileHelper helper = new CSVFileHelper();
-				// TODO: should enable any kind of single char delimited file
-				// have FE pass this info
-				helper.setDelimiter(',');
+				helper.setDelimiter(delimiter);
 				helper.parse(filePath);
 				
 				MetaModelCreator predictor;
