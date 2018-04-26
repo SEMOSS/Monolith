@@ -559,7 +559,7 @@ public class UserResource
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("/userinfo/onedrive")
+	@Path("/userinfo/ms")
 	public Response userinfoOneDrive(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
 	{
 		String queryString = request.getQueryString();
