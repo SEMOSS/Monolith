@@ -180,13 +180,20 @@ public class PixelWebUtility extends WebUtility{
 		} else if(nounT == PixelDataType.TASK) {
 			// if we have a task
 			// we gotta iterate through it to return the data
-			ITask task = (ITask) noun.getValue();
-			ps.print("\"output\":{");
-			ps.print("\"taskId\":\"" + task.getId() + "\"");
-			ps.print("}");
-			ps.print(",\"operationType\":");
-			ps.print(gson.toJson(noun.getOpType()));
-		
+			if(noun.getValue() instanceof ITask) {
+				ITask task = (ITask) noun.getValue();
+				ps.print("\"output\":{");
+				ps.print("\"taskId\":\"" + task.getId() + "\"");
+				ps.print("}");
+				ps.print(",\"operationType\":");
+				ps.print(gson.toJson(noun.getOpType()));
+			} else {
+				// sometimes there is just data to sends
+				ps.print("\"output\":");
+				ps.print(gson.toJson(noun.getValue()));
+				ps.print(",\"operationType\":");
+				ps.print(gson.toJson(noun.getOpType()));
+			}
 		} else if(nounT == PixelDataType.FORMATTED_DATA_SET) {
 			// if we have a task
 			// we gotta iterate through it to return the data
