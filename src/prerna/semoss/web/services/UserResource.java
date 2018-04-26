@@ -718,7 +718,7 @@ public class UserResource
 		// redirect if query string not there
 		
 		Object userObj = request.getSession().getAttribute("semoss_user");
-		Hashtable<String, String> ret = new Hashtable<String, String>();
+		Hashtable<String, Object> ret = new Hashtable<String, Object>();
 		
 
 		String queryString = request.getQueryString();
@@ -754,14 +754,14 @@ public class UserResource
 			
 			System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			
-			ret.put("success", "true");
+			ret.put("success", true);
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
 			}
 			else
 			{
-				ret.put("success", "true");
-				ret.put("Already_Authenticated", "true");
+				ret.put("success", true);
+				ret.put("Already_Authenticated", true);
 				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 				return WebUtility.getResponse(ret, 200);
 
@@ -809,7 +809,7 @@ public class UserResource
 	{
 		// redirect if query string not there
 		Object userObj = request.getSession().getAttribute("semoss_user");
-		Hashtable<String, String> ret = new Hashtable<String, String>();
+		Hashtable<String, Object> ret = new Hashtable<String, Object>();
 		
 		//https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
 		String queryString = request.getQueryString();
@@ -844,14 +844,14 @@ public class UserResource
 			
 			System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			
-			ret.put("success", "true");
+			ret.put("success", true);
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
 			}
 			else
 			{
-				ret.put("success", "true");
-				ret.put("Already_Authenticated", "true");
+				ret.put("success", true);
+				ret.put("Already_Authenticated", true);
 				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 				return WebUtility.getResponse(ret, 200);
 
@@ -863,6 +863,12 @@ public class UserResource
 
 			response.setStatus(302);
 			response.sendRedirect(getGitRedirect(request));
+		}
+		// else if user object is there and git is there
+		else if(userObj != null && ((User2)userObj).getAccessToken(AuthProvider.GIT.name()) != null)
+		{
+			ret.put("success", true);
+			return WebUtility.getResponse(ret, 200);
 		}
 		return null;
 	}
@@ -900,7 +906,7 @@ public class UserResource
 		// redirect if query string not there
 		
 		Object userObj = request.getSession().getAttribute("semoss_user");
-		Hashtable<String, String> ret = new Hashtable<String, String>();
+		Hashtable<String, Object> ret = new Hashtable<String, Object>();
 		
 		
 		String queryString = request.getQueryString();
@@ -938,14 +944,14 @@ public class UserResource
 
 			System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			
-			ret.put("success", "true");
+			ret.put("success", true);
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
 			}
 			else
 			{
-				ret.put("success", "true");
-				ret.put("Already_Authenticated", "true");
+				ret.put("success", true);
+				ret.put("Already_Authenticated", true);
 				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 				return WebUtility.getResponse(ret, 200);
 
@@ -957,6 +963,13 @@ public class UserResource
 			response.setStatus(302);
 			response.sendRedirect(getMSRedirect(request));
 		}
+		// else if user object is there and ms is there
+		else if(userObj != null && ((User2)userObj).getAccessToken(AuthProvider.AZURE_GRAPH.name()) != null)
+		{
+			ret.put("success", true);
+			return WebUtility.getResponse(ret, 200);
+		}
+		
 		return null;
 	}
 	
@@ -997,7 +1010,7 @@ public class UserResource
 		// redirect if query string not there
 		
 		Object userObj = request.getSession().getAttribute("semoss_user");
-		Hashtable<String, String> ret = new Hashtable<String, String>();
+		Hashtable<String, Object> ret = new Hashtable<String, Object>();
 		
 		
 		String queryString = request.getQueryString();
@@ -1032,14 +1045,14 @@ public class UserResource
 				addAccessToken(accessToken, request);
 	
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());			
-			ret.put("success", "true");
+			ret.put("success", true);
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
 			}
 			else
 			{
-				ret.put("success", "true");
-				ret.put("Already_Authenticated", "true");
+				ret.put("success", true);
+				ret.put("Already_Authenticated", true);
 				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 				return WebUtility.getResponse(ret, 200);
 
@@ -1051,6 +1064,12 @@ public class UserResource
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getDBRedirect(request));
+		}
+		// else if user object is there and dropbox is there
+		else if(userObj != null && ((User2)userObj).getAccessToken(AuthProvider.DROPBOX.name()) != null)
+		{
+			ret.put("success", true);
+			return WebUtility.getResponse(ret, 200);
 		}
 		return null;
 	}
@@ -1093,7 +1112,7 @@ public class UserResource
 		
 		String queryString = request.getQueryString();
 		Object userObj = request.getSession().getAttribute("semoss_user");
-		Hashtable<String, String> ret = new Hashtable<String, String>();
+		Hashtable<String, Object> ret = new Hashtable<String, Object>();
 		
 		// if the code is there
 		if(queryString != null && queryString.contains("code="))
@@ -1138,7 +1157,7 @@ public class UserResource
 			AccessToken accessToken = user.getAccessToken(AuthProvider.GOOGLE.name());
 			
 			//performGoogleOps(request, ret);
-			ret.put("success", "true");
+			ret.put("success", true);
 			try {
 				//ret.put("user", BeanFiller.getJson(accessToken));
 			} catch (Exception e) {
@@ -1146,7 +1165,6 @@ public class UserResource
 				e.printStackTrace();
 			}
 
-			ret.put("success", "true");
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
 		}
@@ -1160,12 +1178,11 @@ public class UserResource
 		// else if user object is there and google is there
 		else if(userObj != null && ((User2)userObj).getAccessToken(AuthProvider.GOOGLE.name()) != null)
 		{
-			ret.put("success", "true");
+			ret.put("success", true);
 			User2 user = (User2)userObj;
 			AccessToken accessToken = user.getAccessToken(AuthProvider.GOOGLE.name());
 			
 			// performGoogleOps(request, ret);
-			ret.put("success", "true");
 			try {
 				//ret.put("user", BeanFiller.getJson(accessToken));
 			} catch (Exception e) {
@@ -1291,7 +1308,7 @@ public class UserResource
 		// redirect if query string not there
 		
 		Object userObj = request.getSession().getAttribute("semoss_user");
-		Hashtable<String, String> ret = new Hashtable<String, String>();
+		Hashtable<String, Object> ret = new Hashtable<String, Object>();
 		
 		
 		String queryString = request.getQueryString();
@@ -1326,14 +1343,14 @@ public class UserResource
 				addAccessToken(accessToken, request);
 	
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());			
-			ret.put("success", "true");
+			ret.put("success", true);
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
 			}
 			else
 			{
-				ret.put("success", "true");
-				ret.put("Already_Authenticated", "true");
+				ret.put("success", true);
+				ret.put("Already_Authenticated", true);
 				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 				return WebUtility.getResponse(ret, 200);
 
@@ -1463,7 +1480,7 @@ public class UserResource
 	{
 		// redirect if query string not there
 		Object userObj = request.getSession().getAttribute("semoss_user");
-		Hashtable<String, String> ret = new Hashtable<String, String>();
+		Hashtable<String, Object> ret = new Hashtable<String, Object>();
 		
 		// getting the bearer token on twitter for app authentication is a lot simpler
 		// need to just combine the id and secret
@@ -1503,14 +1520,14 @@ public class UserResource
 			
 			System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			
-			ret.put("success", "true");
+			ret.put("success", true);
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
 			}
 			else
 			{
-				ret.put("success", "true");
-				ret.put("Already_Authenticated", "true");
+				ret.put("success", true);
+				ret.put("Already_Authenticated", true);
 				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 				return WebUtility.getResponse(ret, 200);
 
@@ -1575,7 +1592,7 @@ public class UserResource
 	{
 		// redirect if query string not there
 		Object userObj = request.getSession().getAttribute("semoss_user");
-		Hashtable<String, String> ret = new Hashtable<String, String>();
+		Hashtable<String, Object> ret = new Hashtable<String, Object>();
 		
 		//https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
 		String queryString = request.getQueryString();
@@ -1610,14 +1627,14 @@ public class UserResource
 			
 			System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			
-			ret.put("success", "true");
+			ret.put("success", true);
 	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 			return WebUtility.getResponse(ret, 200);
 			}
 			else
 			{
-				ret.put("success", "true");
-				ret.put("Already_Authenticated", "true");
+				ret.put("success", true);
+				ret.put("Already_Authenticated", true);
 				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 				return WebUtility.getResponse(ret, 200);
 
@@ -1693,7 +1710,7 @@ public class UserResource
 		}
 		
 		Hashtable ret = new Hashtable();
-		ret.put("logout", "true");
+		ret.put("success", true);
 		//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 		return WebUtility.getResponse(ret, 200);		
 	}
