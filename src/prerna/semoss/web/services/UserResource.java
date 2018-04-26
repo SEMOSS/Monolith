@@ -296,31 +296,6 @@ public class UserResource
 	}
 	
 	/**
-	 * Logs user out when authenticated through Google+.
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/logout/google")
-	public Response logoutGoogle(@Context HttpServletRequest request) throws IOException {
-		Hashtable<String, String> ret = new Hashtable<String, String>();
-
-		// Only disconnect a connected user.
-		String tokenData = (String) request.getSession().getAttribute("token");
-		if (tokenData == null) {
-			ret.put("success", "false");
-			ret.put("error", "User is not connected.");
-//			return Response.status(200).entity(WebUtility.getSO(ret)).build();
-			return WebUtility.getResponse(ret, 200);
-		}
-
-		request.getSession().invalidate();
-
-		ret.put("success", "true");
-//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
-		return WebUtility.getResponse(ret, 200);
-	}
-	
-	/**
 	 * Logs user in through Facebook.
 	 */
 	@POST
@@ -1032,7 +1007,7 @@ public class UserResource
 			User2 user = (User2)userObj;
 			AccessToken accessToken = user.getAccessToken(AuthProvider.GOOGLE.name());
 			
-			performGoogleOps(request, ret);
+			// performGoogleOps(request, ret);
 			ret.put("success", "true");
 			try {
 				//ret.put("user", BeanFiller.getJson(accessToken));
