@@ -495,6 +495,79 @@ public class UserResource
 //		return Response.status(200).entity(WebUtility.getSO(ret)).build();
 		return WebUtility.getResponse(ret, 200);
 	}
+	
+	/**
+	 * Gets user info for OneDrive
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/onedrive")
+	public Response userinfoOneDrive(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		String queryString = request.getQueryString();
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+
+		String objectName = "prerna.auth.AccessToken"; // it will fill this object and return the data
+		String [] beanProps = {"name"}; // add is done when you have a list
+		String jsonPattern = "[displayName]";
+
+		userObj = request.getSession().getAttribute("semoss_user");
+		User2 user = (User2)userObj;
+		AccessToken accessToken = user.getAccessToken(AuthProvider.AZURE_GRAPH.name());
+		String accessString = accessToken.getAccess_token();
+		String url = "https://graph.microsoft.com/v1.0/me/";
+
+
+		String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
+		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
+		try {
+			ret.put("name", accessToken2.getName());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return WebUtility.getResponse(ret, 200);
+
+	}
+	
+	/**
+	 * Gets user info for DropBox
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/dropbox")
+	public Response userinfoDropbox(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		String queryString = request.getQueryString();
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+
+		String objectName = "prerna.auth.AccessToken"; // it will fill this object and return the data
+		String [] beanProps = {"name", "profile"}; // add is done when you have a list
+		String jsonPattern = "[name.display_name, profile_photo_url]";
+
+		userObj = request.getSession().getAttribute("semoss_user");
+		User2 user = (User2)userObj;
+		AccessToken accessToken = user.getAccessToken(AuthProvider.DROPBOX.name());
+		String accessString = accessToken.getAccess_token();
+		String url = "https://api.dropboxapi.com/2/users/get_current_account";
+
+
+		String output = AbstractHttpHelper.makePostCall(url, accessString, null, true);
+		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
+		try {
+			if(accessToken2.getProfile() != null) {
+				ret.put("picture", accessToken2.getProfile());
+			}
+				ret.put("name", accessToken2.getName());
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return WebUtility.getResponse(ret, 200);
+
+	}
 
 	@GET
 	@Produces("text/plain")
