@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Modifier;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -40,11 +39,8 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
-import prerna.date.SemossDate;
-import prerna.util.gson.NumberAdapter;
-import prerna.util.gson.SemossDateAdapter;
+import prerna.util.gson.GsonUtility;
 
 /**
  * The Utility class contains a variety of miscellaneous functions implemented extensively throughout SEMOSS.
@@ -56,13 +52,7 @@ public class WebUtility {
 	private static final Logger LOGGER = Logger.getLogger(CLASS_NAME);
 
 	protected static Gson getDefaultGson() {
-		Gson gson = new GsonBuilder()
-				.disableHtmlEscaping()
-				.excludeFieldsWithModifiers(Modifier.STATIC, Modifier.TRANSIENT)
-				.registerTypeAdapter(Double.class, new NumberAdapter())
-				.registerTypeAdapter(SemossDate.class, new SemossDateAdapter())
-				.create();
-		return gson;
+		return GsonUtility.getDefaultGson();
 	}
 
 	public static StreamingOutput getSO(Object vec)
