@@ -50,6 +50,7 @@ import java.util.Formatter;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Scanner;
 import java.util.UUID;
@@ -104,6 +105,10 @@ import prerna.io.connector.google.GoogleProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
 import prerna.om.Viewpoint;
+import prerna.sablecc2.om.PixelDataType;
+import prerna.sablecc2.om.PixelOperationType;
+import prerna.sablecc2.om.execptions.SemossPixelException;
+import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
@@ -497,6 +502,59 @@ public class UserResource
 	}
 	
 	/**
+	 * Gets user info for GoogleDrive
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/google")
+	public Response userinfoGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		String queryString = request.getQueryString();
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+
+		String objectName = "prerna.auth.AccessToken"; // it will fill this object and return the data
+		String [] beanProps = {"name", "profile"}; // add is done when you have a list
+		String jsonPattern = "[name, picture]";
+
+		userObj = request.getSession().getAttribute("semoss_user");
+		User2 user = (User2)userObj;
+		String accessString=null;
+		try{
+			if(user==null){
+				ret.put("ERROR", "Log into your Google account");
+				return WebUtility.getResponse(ret, 200);
+				}
+			else if (user != null) {
+				AccessToken googleToken = user.getAccessToken(AuthProvider.GOOGLE.name());
+				accessString=googleToken.getAccess_token();
+			}
+		}
+		catch (Exception e) {
+			ret.put("ERROR", "Log into your Google account");
+			return WebUtility.getResponse(ret, 200);
+		}
+		String url = "https://www.googleapis.com/oauth2/v3/userinfo";
+		Hashtable params = new Hashtable();
+		params.put("access_token", accessString);
+		params.put("alt", "json");
+
+		String output = AbstractHttpHelper.makeGetCall(url, accessString, params, true);
+		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
+		try {
+		if(accessToken2.getProfile() != null) {
+			ret.put("picture", accessToken2.getProfile());
+		}
+			ret.put("name", accessToken2.getName());
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return WebUtility.getResponse(ret, 200);
+
+	}
+	
+	/**
 	 * Gets user info for OneDrive
 	 */
 	@GET
@@ -514,8 +572,21 @@ public class UserResource
 
 		userObj = request.getSession().getAttribute("semoss_user");
 		User2 user = (User2)userObj;
-		AccessToken accessToken = user.getAccessToken(AuthProvider.AZURE_GRAPH.name());
-		String accessString = accessToken.getAccess_token();
+		String accessString=null;
+		try{
+			if(user==null){
+				ret.put("ERROR", "Log into your Microsoft account");
+				return WebUtility.getResponse(ret, 200);
+			}
+			else if (user != null) {
+				AccessToken msToken = user.getAccessToken(AuthProvider.AZURE_GRAPH.name());
+				accessString=msToken.getAccess_token();
+			}
+		}
+		catch (Exception e) {
+			ret.put("ERROR", "Log into your Microsoft account");
+			return WebUtility.getResponse(ret, 200);
+		}
 		String url = "https://graph.microsoft.com/v1.0/me/";
 
 
@@ -549,8 +620,21 @@ public class UserResource
 
 		userObj = request.getSession().getAttribute("semoss_user");
 		User2 user = (User2)userObj;
-		AccessToken accessToken = user.getAccessToken(AuthProvider.DROPBOX.name());
-		String accessString = accessToken.getAccess_token();
+		String accessString=null;
+		try{
+			if(user==null){
+				ret.put("ERROR", "Log into your DropBox account");
+				return WebUtility.getResponse(ret, 200);
+			}
+			else if (user != null) {
+				AccessToken dropToken = user.getAccessToken(AuthProvider.DROPBOX.name());
+				accessString=dropToken.getAccess_token();
+			}
+		}
+		catch (Exception e) {
+			ret.put("ERROR", "Log into your DropBox account");
+			return WebUtility.getResponse(ret, 200);
+		}
 		String url = "https://api.dropboxapi.com/2/users/get_current_account";
 
 
