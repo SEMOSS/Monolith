@@ -65,6 +65,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
@@ -88,6 +89,7 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
 import prerna.auth.AccessToken;
+import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
 import prerna.auth.CACReader;
 import prerna.auth.User;
@@ -175,6 +177,8 @@ public class UserResource
 				loginTwitterApp();
 				loginGoogleApp();
 				// also make the twit token and such
+				AppTokens.getInstance().setAccessToken(twitToken);
+				AppTokens.getInstance().setAccessToken(googAppToken);	
 			}
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -868,7 +872,7 @@ public class UserResource
 		
 		if(queryString != null && queryString.contains("code="))
 		{
-			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.GOOGLE.name()) == null)
+			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.DROPBOX.name()) == null)
 			{
 				String [] outputs = AbstractHttpHelper.getCodes(queryString);
 				
@@ -1539,7 +1543,28 @@ public class UserResource
 		return formatter.toString();
 	}
 	
-	
+	@GET
+	@Produces("application/json")
+	@Path("/logout/{provider}")
+	public Response logout(@PathParam("provider") String provider, @Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		if(provider.equalsIgnoreCase("ALL"))
+		{
+			// remove the user from session call it a day
+			request.getSession().removeAttribute("semoss_user");
+		}
+		else
+		{
+			User2 thisUser = (User2)request.getSession().getAttribute("semoss_user");
+			thisUser.dropAccessToken(provider.toUpperCase());
+			request.getSession().setAttribute("semoss_user",thisUser);
+		}
+		
+		Hashtable ret = new Hashtable();
+		ret.put("logout", "true");
+		//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		return WebUtility.getResponse(ret, 200);		
+	}
 
 	
 //	/**
