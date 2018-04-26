@@ -176,9 +176,18 @@ public class PixelWebUtility extends WebUtility{
 			}
 			ps.print(",\"operationType\":");
 			ps.print(gson.toJson(noun.getOpType()));
-		} 
 		
-		else if(nounT == PixelDataType.FORMATTED_DATA_SET) {
+		} else if(nounT == PixelDataType.TASK) {
+			// if we have a task
+			// we gotta iterate through it to return the data
+			ITask task = (ITask) noun.getValue();
+			ps.print("\"output\":{");
+			ps.print("\"taskId\":\"" + task.getId() + "\"");
+			ps.print("}");
+			ps.print(",\"operationType\":");
+			ps.print(gson.toJson(noun.getOpType()));
+		
+		} else if(nounT == PixelDataType.FORMATTED_DATA_SET) {
 			// if we have a task
 			// we gotta iterate through it to return the data
 			ITask task = (ITask) noun.getValue();
