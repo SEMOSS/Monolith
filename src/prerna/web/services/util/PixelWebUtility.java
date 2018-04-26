@@ -20,6 +20,7 @@ import prerna.om.Insight;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelUtility;
 import prerna.sablecc2.om.PixelDataType;
+import prerna.sablecc2.om.PixelOperationType;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.sablecc2.om.task.ConstantDataTask;
 import prerna.sablecc2.om.task.ITask;
@@ -188,7 +189,8 @@ public class PixelWebUtility extends WebUtility{
 				ps.print(",\"operationType\":");
 				ps.print(gson.toJson(noun.getOpType()));
 			} else {
-				// sometimes there is just data to sends
+				// sometimes there is just data to send
+				// dont need to do anything special
 				ps.print("\"output\":");
 				ps.print(gson.toJson(noun.getValue()));
 				ps.print(",\"operationType\":");
@@ -204,37 +206,60 @@ public class PixelWebUtility extends WebUtility{
 			Map<String, Object> taskMeta = task.getMeta();
 
 			if(formatType.equals("TABLE")) {
-				ps.print("\"output\":{");
 				if(task instanceof ConstantDataTask) {
+					ps.print("\"output\":{");
 					ps.print("\"data\":" + gson.toJson( ((ConstantDataTask) task).getOutputData()));
 					ps.flush();
 				} else {
 					// right now, only grid will work
-					ps.print("\"data\":{" );
-					
 					boolean first = true;
 					String[] headers = null;
 					int count = 0;
-					// recall, a task is also an iterator!
-					while(task.hasNext() && (collectAll || count < numCollect)) {
-						IHeadersDataRow row = task.next();
-						// need to set the headers
-						if(headers == null) {
-							headers = row.getHeaders();
-							ps.print("\"values\":[");
+					
+					// we need to use a try catch
+					// in case there is an issue
+					// since we can get to this point 
+					// without trying to execute or anything
+					try {
+						// recall, a task is also an iterator!
+						while(task.hasNext() && (collectAll || count < numCollect)) {
+							IHeadersDataRow row = task.next();
+							// need to set the headers
+							if(headers == null) {
+								headers = row.getHeaders();
+								ps.print("\"output\":{");
+								ps.print("\"data\":{" );
+								ps.print("\"values\":[");
+							}
+							
+							if(!first) {
+								ps.print(",");
+							}
+							ps.print(gson.toJson(row.getValues()));
+							ps.flush();
+							
+							first = false;
+							count++;
 						}
+					} catch(Exception e) {
+						// on no, this is not good
+						e.printStackTrace();
 						
-						if(!first) {
-							ps.print(",");
-						}
-						ps.print(gson.toJson(row.getValues()));
+						// let us send back an error
+						ps.print("\"output\":");
+						ps.print(gson.toJson(e.getMessage()));
+						ps.print(",\"operationType\":");
+						ps.print(gson.toJson(new PixelOperationType[]{PixelOperationType.ERROR}));
+						// close the map
+						ps.print("}");
 						ps.flush();
-						
-						first = false;
-						count++;
+						return;
 					}
+					
 					// this happens if there is no data to return
 					if(first == true) {
+						ps.print("\"output\":{");
+						ps.print("\"data\":{" );
 						ps.print("\"values\":[");
 						// try to at least provide the headers
 						List<Map<String, Object>> headerInfo = task.getHeaderInfo();
