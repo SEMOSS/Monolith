@@ -30,7 +30,7 @@ public class PixelWebUtility extends WebUtility{
 
 	private static final String CLASS_NAME = PixelWebUtility.class.getName();
 	private static final Logger LOGGER = Logger.getLogger(CLASS_NAME);
-	
+
 	/**
 	 * Collect pixel data from the runner
 	 * @param runner
@@ -54,7 +54,7 @@ public class PixelWebUtility extends WebUtility{
 		}
 		return null;
 	}
-	
+
 	private static void processPixelRunner(PrintStream ps, Gson gson, PixelRunner runner, boolean ignoreFirst) {
 		// get the values we need from the runner
 		Insight in = runner.getInsight();
@@ -65,16 +65,16 @@ public class PixelWebUtility extends WebUtility{
 		List<Boolean> isMeta = runner.isMeta();
 		Map<String, String> encodedTextToOriginal = runner.getEncodedTextToOriginal();
 		boolean invalidSyntax = runner.isInvalidSyntax();
-		
+
 		// start of the map
 		// and the insight id
 		ps.print("{\"insightID\":\"" + in.getInsightId() + "\",");
 		ps.flush();
-		
+
 		// now flush array of pixel returns
 		ps.println("\"pixelReturn\":[");
 		int size = pixelStrings.size();
-		
+
 		// THIS IS BECAUSE WE APPEND THE JOB PIXEL
 		// BUT FE DOENS'T RESPOND TO IT AND NEED TO REMOVE IT
 		// HOWEVER, IF THE SIZE IS JUST 1, IT MEANS THAT THERE WAS
@@ -94,27 +94,27 @@ public class PixelWebUtility extends WebUtility{
 			expression = PixelUtility.recreateOriginalPixelExpression(expression, encodedTextToOriginal);
 			boolean meta = isMeta.get(i);
 			processNounMetadata(ps, gson, noun, expression, meta);
-			
+
 			// update the pixel list to say this is routine is valid
 			// TODO: need to set this inside the translation directly!!!
 			if (!meta && !invalidSyntax) {
 				// update the insight recipe
 				in.getPixelRecipe().add(expression);
 			}
-			
+
 			// add a comma for the next item in the list
 			if( (i+1) != size) {
 				ps.print(",");
 				ps.flush();
 			}
 		}
-		
+
 		// now close of the array and the map
 		ps.print("]}");
 		ps.flush();
 	}
-	
-	
+
+
 	/**
 	 * Process the noun metadata for consumption on the FE
 	 * @param noun
@@ -122,7 +122,7 @@ public class PixelWebUtility extends WebUtility{
 	 */
 	private static void processNounMetadata(PrintStream ps, Gson gson, NounMetadata noun, String expression, Boolean isMeta) {
 		ps.print("{");
-		
+
 		// add expression if there
 		if(expression != null) {
 			ps.print("\"pixelExpression\":" + gson.toJson(expression) + ",");
@@ -131,7 +131,7 @@ public class PixelWebUtility extends WebUtility{
 		if(isMeta != null) {
 			ps.print("\"isMeta\":" + isMeta + ",");
 		}
-		
+
 		PixelDataType nounT = noun.getNounType();
 		if(nounT == PixelDataType.FRAME) {
 			// if we have a frame
@@ -145,12 +145,12 @@ public class PixelWebUtility extends WebUtility{
 			if(name != null) {
 				frameData.put("name", name);
 			}
-			
+
 			ps.print("\"output\":");
 			ps.print(gson.toJson(frameData));
 			ps.print(",\"operationType\":");
 			ps.print(gson.toJson(noun.getOpType()));
-			
+
 			// add additional outputs
 			List<NounMetadata> addReturns = noun.getAdditionalReturn();
 			int numOutputs = addReturns.size();
@@ -161,7 +161,7 @@ public class PixelWebUtility extends WebUtility{
 				}
 				ps.print("]");
 			}
-			
+
 		} else if(nounT == PixelDataType.CODE || nounT == PixelDataType.TASK_LIST) {
 			// code is a tough one to process
 			// since many operations could have been performed
@@ -177,45 +177,38 @@ public class PixelWebUtility extends WebUtility{
 			}
 			ps.print(",\"operationType\":");
 			ps.print(gson.toJson(noun.getOpType()));
-		
+
 		} else if(nounT == PixelDataType.TASK) {
 			// if we have a task
 			// we gotta iterate through it to return the data
-			if(noun.getValue() instanceof ITask) {
-				ITask task = (ITask) noun.getValue();
-				ps.print("\"output\":{");
-				ps.print("\"taskId\":\"" + task.getId() + "\"");
-				ps.print("}");
-				ps.print(",\"operationType\":");
-				ps.print(gson.toJson(noun.getOpType()));
-			} else {
-				// sometimes there is just data to send
-				// dont need to do anything special
-				ps.print("\"output\":");
-				ps.print(gson.toJson(noun.getValue()));
-				ps.print(",\"operationType\":");
-				ps.print(gson.toJson(noun.getOpType()));
-			}
-		} else if(nounT == PixelDataType.FORMATTED_DATA_SET) {
-			// if we have a task
-			// we gotta iterate through it to return the data
 			ITask task = (ITask) noun.getValue();
-			int numCollect = task.getNumCollect();
-			boolean collectAll = numCollect == -1;
-			String formatType = task.getFormatter().getFormatType();
-			Map<String, Object> taskMeta = task.getMeta();
+			ps.print("\"output\":{");
+			ps.print("\"taskId\":\"" + task.getId() + "\"");
+			ps.print("}");
+			ps.print(",\"operationType\":");
+			ps.print(gson.toJson(noun.getOpType()));
+	
+		} else if(nounT == PixelDataType.FORMATTED_DATA_SET) {
+			Object value = noun.getValue();
+			if(value instanceof ITask) {
+				// if we have a task
+				// we gotta iterate through it to return the data
+				ITask task = (ITask) noun.getValue();
+				int numCollect = task.getNumCollect();
+				boolean collectAll = numCollect == -1;
+				String formatType = task.getFormatter().getFormatType();
+				Map<String, Object> taskMeta = task.getMeta();
 
-			if(formatType.equals("TABLE")) {
 				if(task instanceof ConstantDataTask) {
 					ps.print("\"output\":{");
 					ps.print("\"data\":" + gson.toJson( ((ConstantDataTask) task).getOutputData()));
 					ps.flush();
-				} else {
+				} else if(formatType.equals("TABLE")) {
 					// right now, only grid will work
 					boolean first = true;
 					String[] headers = null;
 					int count = 0;
-					
+
 					// we need to use a try catch
 					// in case there is an issue
 					// since we can get to this point 
@@ -231,20 +224,20 @@ public class PixelWebUtility extends WebUtility{
 								ps.print("\"data\":{" );
 								ps.print("\"values\":[");
 							}
-							
+
 							if(!first) {
 								ps.print(",");
 							}
 							ps.print(gson.toJson(row.getValues()));
 							ps.flush();
-							
+
 							first = false;
 							count++;
 						}
 					} catch(Exception e) {
 						// on no, this is not good
 						e.printStackTrace();
-						
+
 						// let us send back an error
 						ps.print("\"output\":");
 						ps.print(gson.toJson(e.getMessage()));
@@ -255,7 +248,7 @@ public class PixelWebUtility extends WebUtility{
 						ps.flush();
 						return;
 					}
-					
+
 					// this happens if there is no data to return
 					if(first == true) {
 						ps.print("\"output\":{");
@@ -271,8 +264,9 @@ public class PixelWebUtility extends WebUtility{
 					// end the values and add the headers
 					ps.print("],\"headers\":" + gson.toJson(headers));
 					ps.print("}" );
+
 				}
-				
+
 				for(String taskMetaKey : taskMeta.keySet()) {
 					ps.print(",\"" + taskMetaKey + "\":" + gson.toJson(taskMeta.get(taskMetaKey)));
 					ps.flush();
@@ -281,20 +275,20 @@ public class PixelWebUtility extends WebUtility{
 				ps.print("}");
 				ps.print(",\"operationType\":");
 				ps.print(gson.toJson(noun.getOpType()));
-				
-			} else {
-				// TODO
-				// THIS IS TEMPORARY UNTIL I FIGURE OUT HOW TO DO 
-				// GRAPHS OR OTHER TYPES OF FORMATS
+
+			}
+			// if we do not have a task
+			// we just have data to send
+			else {
+				// sometimes there is just data to send
+				// dont need to do anything special
 				ps.print("\"output\":");
-				ps.print(gson.toJson(task.collect(true)));
-				ps.flush();
+				ps.print(gson.toJson(noun.getValue()));
 				ps.print(",\"operationType\":");
 				ps.print(gson.toJson(noun.getOpType()));
-				ps.flush();
 			}
-		} 
-		
+		}
+
 		// running a saved insight
 		else if(nounT == PixelDataType.PIXEL_RUNNER) {
 			Map<String, Object> runnerWraper = (Map<String, Object>) noun.getValue();
@@ -317,10 +311,8 @@ public class PixelWebUtility extends WebUtility{
 			ps.print(",\"operationType\":");
 			ps.print(gson.toJson(noun.getOpType()));
 			ps.flush();
-			
-			//TODO: account for params!!!!
 		}
-		
+
 		// everything else is simple
 		else {
 			ps.print("\"output\":");
@@ -333,4 +325,5 @@ public class PixelWebUtility extends WebUtility{
 		ps.print("}");
 		ps.flush();
 	}
+	
 }
