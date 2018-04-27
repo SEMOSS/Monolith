@@ -22,6 +22,7 @@ import prerna.sablecc2.PixelUtility;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.PixelOperationType;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.sablecc2.om.task.AbstractTask;
 import prerna.sablecc2.om.task.ConstantDataTask;
 import prerna.sablecc2.om.task.ITask;
 import prerna.sablecc2.reactor.frame.FrameFactory;
@@ -265,6 +266,12 @@ public class PixelWebUtility extends WebUtility{
 					ps.print("],\"headers\":" + gson.toJson(headers));
 					ps.print("}" );
 
+				} else if(formatType.equals("GRAPH")){
+					// format type is probably graph
+					ps.print("\"output\":{");
+					ps.print("\"data\":" );
+					// this is a map return
+					ps.print(gson.toJson( ((AbstractTask) task).getData()));
 				}
 
 				for(String taskMetaKey : taskMeta.keySet()) {
