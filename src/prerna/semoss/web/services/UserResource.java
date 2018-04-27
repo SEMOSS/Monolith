@@ -576,30 +576,22 @@ public class UserResource
 		try{
 			if(user==null){
 				ret.put("ERROR", "Log into your Microsoft account");
-				return WebUtility.getResponse(ret, 200);
 			}
 			else if (user != null) {
 				AccessToken msToken = user.getAccessToken(AuthProvider.AZURE_GRAPH.name());
 				accessString=msToken.getAccess_token();
+				String url = "https://graph.microsoft.com/v1.0/me/";
+				String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
+				AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
+				String name = accessToken2.getName();
+				ret.put("name", name);
 			}
+			return WebUtility.getResponse(ret, 200);
 		}
 		catch (Exception e) {
 			ret.put("ERROR", "Log into your Microsoft account");
 			return WebUtility.getResponse(ret, 200);
 		}
-		String url = "https://graph.microsoft.com/v1.0/me/";
-
-
-		String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
-		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
-		try {
-			ret.put("name", accessToken2.getName());
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return WebUtility.getResponse(ret, 200);
-
 	}
 	
 	/**
@@ -926,13 +918,14 @@ public class UserResource
 			String clientSecret = (String)socialData.getProperty(prefix+"secret_key");
 			String redirectUri = (String)socialData.getProperty(prefix+"redirect_uri");
 			String tenant = (String)socialData.getProperty(prefix+"tenant");
+			String scope = (String)socialData.getProperty(prefix+"scope");
 			
 			System.out.println(">> " + request.getQueryString());
 			
 			Hashtable params = new Hashtable();
 
 			params.put("client_id", clientId);
-			params.put("scope", "User.Read.All");
+			params.put("scope", scope);
 			params.put("redirect_uri", redirectUri);
 			params.put("code", outputs[0]);
 			params.put("grant_type", "authorization_code");
