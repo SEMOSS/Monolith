@@ -647,6 +647,56 @@ public class UserResource
 			return WebUtility.getResponse(ret, 200);
 
 	}
+	
+	/**
+	 * Gets user info for Github
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/git")
+	public Response userinfoGithub(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
+	{
+		String queryString = request.getQueryString();
+		Object userObj = request.getSession().getAttribute("semoss_user");
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+
+		String objectName = "prerna.auth.AccessToken"; // it will fill this object and return the data
+		String [] beanProps = {"name", "profile"}; // add is done when you have a list
+		String jsonPattern = "[name,login]";
+
+		userObj = request.getSession().getAttribute("semoss_user");
+		User2 user = (User2)userObj;
+		String accessString=null;
+		try{
+			if(user==null){
+				ret.put("ERROR", "Log into your Github account");
+				return WebUtility.getResponse(ret, 200);
+			}
+			else if (user != null) {
+				AccessToken gitToken = user.getAccessToken(AuthProvider.GIT.name());
+				accessString=gitToken.getAccess_token();
+			}
+		}
+		catch (Exception e) {
+			ret.put("ERROR", "Log into your Github account");
+			return WebUtility.getResponse(ret, 200);
+		}
+		String url = "https://api.github.com/user/";
+		Hashtable params = new Hashtable();
+		params.put("access_token", accessString);
+
+		String output = AbstractHttpHelper.makePostCall(url, accessString, null, false);
+		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
+		try {
+			ret.put("name", accessToken2.getName());
+			ret.put("username", accessToken2.getProfile());
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return WebUtility.getResponse(ret, 200);
+
+	}
 
 	@GET
 	@Produces("text/plain")
