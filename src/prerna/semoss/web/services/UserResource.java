@@ -641,10 +641,13 @@ public class UserResource
 		String output = AbstractHttpHelper.makePostCall(url, accessString, null, true);
 		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
 		try {
-			if(accessToken2.getProfile() != null) {
-				ret.put("picture", accessToken2.getProfile());
-			}
-				ret.put("name", accessToken2.getName());
+			if(accessToken2.getProfile() == null||accessToken2.getProfile().equalsIgnoreCase("null")) {
+					ret.put("picture", "");
+				}
+				else{
+					ret.put("picture", accessToken2.getProfile());
+				}
+			ret.put("name", accessToken2.getName());
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
