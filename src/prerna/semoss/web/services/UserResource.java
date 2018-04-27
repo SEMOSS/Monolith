@@ -685,7 +685,7 @@ public class UserResource
 		Hashtable params = new Hashtable();
 		params.put("access_token", accessString);
 
-		String output = AbstractHttpHelper.makePostCall(url, accessString, null, false);
+		String output = AbstractHttpHelper.makeGetCall(url, accessString, null, false);
 		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
 		try {
 			ret.put("name", accessToken2.getName());
