@@ -483,7 +483,7 @@ public class UserResource
 	
 	@GET
 	@Produces("application/json")
-	@Path("userInfo")
+	@Path("userinfo")
 	public Response getLoggedInUserInfo(@Context HttpServletRequest request) {
 		Hashtable<String, String> ret = new Hashtable<String, String>();
 		
