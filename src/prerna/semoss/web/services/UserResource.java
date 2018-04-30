@@ -681,14 +681,14 @@ public class UserResource
 			ret.put("ERROR", "Log into your Github account");
 			return WebUtility.getResponse(ret, 200);
 		}
-		String url = "https://api.github.com/user/";
+		String url = "https://api.github.com/user";
 		Hashtable params = new Hashtable();
 		params.put("access_token", accessString);
 
-		String output = AbstractHttpHelper.makeGetCall(url, accessString, null, false);
+		String output = AbstractHttpHelper.makeGetCall(url, accessString, params, false);
 		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
 		try {
-			ret.put("name", accessToken2.getName());
+			//ret.put("name", accessToken2.getName());
 			ret.put("username", accessToken2.getProfile());
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
