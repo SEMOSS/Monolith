@@ -689,7 +689,7 @@ public class UserResource
 		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
 		try {
 			//ret.put("name", accessToken2.getName());
-			ret.put("username", accessToken2.getProfile());
+			ret.put("name", accessToken2.getProfile());
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
