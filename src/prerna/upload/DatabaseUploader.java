@@ -396,7 +396,7 @@ public class DatabaseUploader extends Uploader {
 			
 			// get the files
 			String[] files = inputData.get("file").split(";");
-			String[] delimiters = inputData.get("delimiter").split("\\+\\+\\+");
+			String[] delimiters = inputData.get("delimiter").split(";");
 			// get the property files if necessary
 			String props = inputData.get("propFile");
 			String[] propFiles = null;
