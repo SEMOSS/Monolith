@@ -26,6 +26,7 @@ import prerna.sablecc2.om.task.AbstractTask;
 import prerna.sablecc2.om.task.ConstantDataTask;
 import prerna.sablecc2.om.task.ITask;
 import prerna.sablecc2.reactor.frame.FrameFactory;
+import prerna.util.insight.InsightUtility;
 
 public class PixelWebUtility extends WebUtility{
 
@@ -94,7 +95,7 @@ public class PixelWebUtility extends WebUtility{
 			String expression = pixelStrings.get(i);
 			expression = PixelUtility.recreateOriginalPixelExpression(expression, encodedTextToOriginal);
 			boolean meta = isMeta.get(i);
-			processNounMetadata(ps, gson, noun, expression, meta);
+			processNounMetadata(in, ps, gson, noun, expression, meta);
 
 			// update the pixel list to say this is routine is valid
 			// TODO: need to set this inside the translation directly!!!
@@ -121,7 +122,7 @@ public class PixelWebUtility extends WebUtility{
 	 * @param noun
 	 * @return
 	 */
-	private static void processNounMetadata(PrintStream ps, Gson gson, NounMetadata noun, String expression, Boolean isMeta) {
+	private static void processNounMetadata(Insight in, PrintStream ps, Gson gson, NounMetadata noun, String expression, Boolean isMeta) {
 		ps.print("{");
 
 		// add expression if there
@@ -158,7 +159,7 @@ public class PixelWebUtility extends WebUtility{
 			if(numOutputs > 0) {
 				ps.print(",\"additionalOutput\":[");
 				for(int i = 0; i < numOutputs; i++) {
-					processNounMetadata(ps, gson, addReturns.get(i), null, null);
+					processNounMetadata(in, ps, gson, addReturns.get(i), null, null);
 				}
 				ps.print("]");
 			}
@@ -172,7 +173,7 @@ public class PixelWebUtility extends WebUtility{
 			if(numOutputs > 0) {
 				ps.print("\"output\":[");
 				for(int i = 0; i < numOutputs; i++) {
-					processNounMetadata(ps, gson, codeOutputs.get(i), null, null);
+					processNounMetadata(in, ps, gson, codeOutputs.get(i), null, null);
 				}
 				ps.print("]");
 			}
@@ -303,11 +304,11 @@ public class PixelWebUtility extends WebUtility{
 			Object params = runnerWraper.get("params");
 			List<String> additionalPixels = (List<String>) runnerWraper.get("additionalPixels");
 
-			Insight in = runner.getInsight();
+			Insight innerInsight = runner.getInsight();
 			ps.print("\"output\":{");
-			ps.print("\"name\":" + gson.toJson(in.getInsightName()));
-			ps.print(",\"core_engine\":" + gson.toJson(in.getEngineName()));
-			ps.print(",\"core_engine_id\":" + gson.toJson(in.getRdbmsId()));
+			ps.print("\"name\":" + gson.toJson(innerInsight.getInsightName()));
+			ps.print(",\"core_engine\":" + gson.toJson(innerInsight.getEngineName()));
+			ps.print(",\"core_engine_id\":" + gson.toJson(innerInsight.getRdbmsId()));
 			ps.print(",\"params\":" + gson.toJson(params));
 			ps.print(",\"additionalPixels\":" + gson.toJson(additionalPixels));
 			ps.flush();
@@ -318,6 +319,20 @@ public class PixelWebUtility extends WebUtility{
 			ps.print(",\"operationType\":");
 			ps.print(gson.toJson(noun.getOpType()));
 			ps.flush();
+		}
+		
+		// remove variable
+		else if(nounT == PixelDataType.REMOVE_VARIABLE) {
+			// we only remove variables at the end
+			// because the user may want to get the task and then
+			// remove teh frame right after
+			// so we need to remove only at the end
+			NounMetadata newNoun = InsightUtility.removeVaraible(in.getVarStore(), noun.getValue().toString());
+			ps.print("\"output\":");
+			ps.print(gson.toJson(newNoun.getValue()));
+			ps.print(",\"operationType\":");
+			ps.print(gson.toJson(newNoun.getOpType()));
+			
 		}
 
 		// everything else is simple
