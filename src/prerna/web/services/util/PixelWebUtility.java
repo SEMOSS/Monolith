@@ -325,13 +325,27 @@ public class PixelWebUtility extends WebUtility{
 		else if(nounT == PixelDataType.REMOVE_VARIABLE) {
 			// we only remove variables at the end
 			// because the user may want to get the task and then
-			// remove teh frame right after
+			// remove the frame right after
 			// so we need to remove only at the end
 			NounMetadata newNoun = InsightUtility.removeVaraible(in.getVarStore(), noun.getValue().toString());
 			ps.print("\"output\":");
 			ps.print(gson.toJson(newNoun.getValue()));
 			ps.print(",\"operationType\":");
 			ps.print(gson.toJson(newNoun.getOpType()));
+			
+		}
+		
+		else if(nounT == PixelDataType.REMOVE_TASK) {
+			// we only remove variables at the end
+			// because the user may want to get the task and then
+			// remove the frame right after
+			// so we need to remove only at the end
+			ITask task = InsightUtility.removeTask(in, noun.getValue().toString());
+			ps.print("\"output\":{");
+			ps.print("\"taskId\":\"" + task.getId() + "\"");
+			ps.print("}");
+			ps.print(",\"operationType\":");
+			ps.print(gson.toJson(noun.getOpType()));
 			
 		}
 
