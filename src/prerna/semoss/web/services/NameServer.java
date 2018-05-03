@@ -1232,7 +1232,7 @@ public class NameServer {
 
 			jt.setInsight(insight);
 			jt.addPixel(expression);
-			jt.run2();
+			jt.run();
 			PixelRunner pixelRunner = jt.getRunner();
 
 			manager.flushJob(jobId);
