@@ -80,19 +80,6 @@ public class DataframeResource {
 		return WebUtility.getResponse(stupidFEObj, 200);
 	}
 	
-	@POST
-	@Path("/runPksl2")
-	@Produces("application/json")
-	public Response runPixel(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
-		String pixelCmd = form.getFirst("expression");
-		Map<String, Object> resultHash = null;
-		synchronized(insight) {
-			resultHash = insight.runPixel(pixelCmd);
-		}
-
-		return WebUtility.getResponse(resultHash, 200);
-	}
-
 	//for handling playsheet specific tool calls
 	@POST
 	@Path("do-{method}")
