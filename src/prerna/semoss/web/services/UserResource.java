@@ -481,6 +481,29 @@ public class UserResource
 		return WebUtility.getResponse(false, 200);
 	}
 	
+	
+	@GET
+	@Path("logins")
+	public Response getAllLogins(@Context HttpServletRequest request) {
+
+		User2 semossUser = null;
+		Object user = request.getSession().getAttribute("semoss_user");
+		
+		List <String> logins = new ArrayList<String>();
+		
+		if(user != null)
+		{
+			semossUser = (User2)user;
+//				return Response.status(200).entity(WebUtility.getSO(true)).build();
+			logins = semossUser.getLogins();
+		}		
+		Hashtable params = new Hashtable();
+		params.put("logins", logins);
+		return WebUtility.getResponse(params, 200);
+	}
+
+	
+	
 	@GET
 	@Produces("application/json")
 	@Path("userinfo")
@@ -1202,7 +1225,7 @@ public class UserResource
 			User2 user = (User2)userObj;
 			AccessToken accessToken = user.getAccessToken(AuthProvider.GOOGLE.name());
 			
-			//performGoogleOps(request, ret);
+			performGoogleOps(request, ret);
 			ret.put("success", true);
 			try {
 				//ret.put("user", BeanFiller.getJson(accessToken));
@@ -1264,13 +1287,14 @@ public class UserResource
 
 		NLPDocumentInput docInput = new NLPDocumentInput();
 		docInput.setContent("Obama is staying in the whitehouse !!");
+
 		params2 = new Hashtable();
 		
-		Hashtable docInputShell = new Hashtable();
-		docInputShell.put("encodingType", "UTF8");
-		docInputShell.put("document", docInput);
+		//Hashtable docInputShell = new Hashtable();
+		params2.put("encodingType", "UTF8");
+		params2.put("document", docInput);
 		
-		params2.put("input", docInputShell);
+		//params2.put("input", docInputShell);
 		ner.execute((User2)request.getSession().getAttribute("semoss_user"), params2);
 		
 		try {
