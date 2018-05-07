@@ -50,7 +50,6 @@ import java.util.Formatter;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Scanner;
 import java.util.UUID;
@@ -74,8 +73,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import jodd.util.URLDecoder;
-
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ResponseHandler;
@@ -88,33 +85,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-
-import prerna.auth.AccessToken;
-import prerna.auth.AppTokens;
-import prerna.auth.AuthProvider;
-import prerna.auth.CACReader;
-import prerna.auth.User;
-import prerna.auth.User2;
-import prerna.auth.UserPermissionsMasterDB;
-import prerna.io.connector.IConnectorIOp;
-import prerna.io.connector.google.GoogleEntityResolver;
-import prerna.io.connector.google.GoogleFileRetriever;
-import prerna.io.connector.google.GoogleLatLongGetter;
-import prerna.io.connector.google.GoogleListFiles;
-import prerna.io.connector.google.GoogleProfile;
-import prerna.io.connector.twitter.TwitterSearcher;
-import prerna.om.NLPDocumentInput;
-import prerna.om.Viewpoint;
-import prerna.sablecc2.om.PixelDataType;
-import prerna.sablecc2.om.PixelOperationType;
-import prerna.sablecc2.om.execptions.SemossPixelException;
-import prerna.sablecc2.om.nounmeta.NounMetadata;
-import prerna.security.AbstractHttpHelper;
-import prerna.util.BeanFiller;
-import prerna.util.Constants;
-import prerna.util.DIHelper;
-import prerna.web.services.util.WebUtility;
-import waffle.servlet.WindowsPrincipal;
 
 import com.google.api.client.auth.oauth2.TokenResponseException;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
@@ -133,6 +103,29 @@ import com.restfb.FacebookClient;
 import com.restfb.Parameter;
 import com.sun.jna.platform.win32.Secur32;
 import com.sun.jna.platform.win32.Secur32Util;
+
+import jodd.util.URLDecoder;
+import prerna.auth.AccessToken;
+import prerna.auth.AppTokens;
+import prerna.auth.AuthProvider;
+import prerna.auth.CACReader;
+import prerna.auth.User;
+import prerna.auth.User2;
+import prerna.auth.UserPermissionsMasterDB;
+import prerna.io.connector.IConnectorIOp;
+import prerna.io.connector.google.GoogleEntityResolver;
+import prerna.io.connector.google.GoogleFileRetriever;
+import prerna.io.connector.google.GoogleLatLongGetter;
+import prerna.io.connector.google.GoogleListFiles;
+import prerna.io.connector.google.GoogleProfile;
+import prerna.io.connector.twitter.TwitterSearcher;
+import prerna.om.NLPDocumentInput;
+import prerna.security.AbstractHttpHelper;
+import prerna.util.BeanFiller;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
+import prerna.web.services.util.WebUtility;
+import waffle.servlet.WindowsPrincipal;
 
 @Path("/auth")
 public class UserResource
@@ -1767,21 +1760,19 @@ public class UserResource
 	@Path("/logout/{provider}")
 	public Response logout(@PathParam("provider") String provider, @Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
 	{
-		if(provider.equalsIgnoreCase("ALL"))
-		{
+		boolean removed = false;
+		if(provider.equalsIgnoreCase("ALL")) {
 			// remove the user from session call it a day
 			request.getSession().removeAttribute("semoss_user");
-		}
-		else
-		{
+			removed = true;
+		} else {
 			User2 thisUser = (User2)request.getSession().getAttribute("semoss_user");
-			thisUser.dropAccessToken(provider.toUpperCase());
-			request.getSession().setAttribute("semoss_user",thisUser);
+			removed = thisUser.dropAccessToken(provider.toUpperCase());
+			request.getSession().setAttribute("semoss_user", thisUser);
 		}
 		
 		Hashtable ret = new Hashtable();
-		ret.put("success", true);
-		//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
+		ret.put("success", removed);
 		return WebUtility.getResponse(ret, 200);		
 	}
 
