@@ -342,11 +342,17 @@ public class PixelWebUtility extends WebUtility{
 			// so we need to remove only at the end
 			ITask task = InsightUtility.removeTask(in, noun.getValue().toString());
 			ps.print("\"output\":{");
-			ps.print("\"taskId\":\"" + task.getId() + "\"");
-			ps.print("}");
-			ps.print(",\"operationType\":");
-			ps.print(gson.toJson(noun.getOpType()));
-			
+			if(task == null) {
+				ps.print("\"taskId\":\"Could not find task id = " + noun.getValue().toString() + "\"");
+				ps.print("}");
+				ps.print(",\"operationType\":");
+				ps.print(gson.toJson(new PixelOperationType[]{PixelOperationType.ERROR}));
+			} else {
+				ps.print("\"taskId\":\"" + task.getId() + "\"");
+				ps.print("}");
+				ps.print(",\"operationType\":");
+				ps.print(gson.toJson(noun.getOpType()));
+			}
 		}
 
 		// everything else is simple
