@@ -4,6 +4,16 @@
    <welcome-file-list>
       <welcome-file>index.html</welcome-file>
    </welcome-file-list>
+   <!--
+   <filter>
+      <filter-name>CACFilter</filter-name>
+      <filter-class>prerna.web.conf.CACFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>CACFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+   -->
    <filter>
       <filter-name>UserDBFilter</filter-name>
       <filter-class>prerna.web.conf.UserDBFilter</filter-class>
@@ -109,31 +119,7 @@
       <description>The place where the core RDF Map gets picked from</description>
       <param-name>RDF-MAP</param-name>
       <param-value>C:\\workspace\\Semoss_Dev\\RDF_Map.prop</param-value>
-   </context-param>
-   
-   <!-- OAUTH SECURITY -->
-   <!-- GOOGLE -->
-   <context-param>
-      <param-name>google_client_id</param-name>
-      <param-value>placeholder</param-value>
-   </context-param>
-   <context-param>
-      <param-name>google_secret_key</param-name>
-      <param-value>placeholder</param-value>
-   </context-param>
-   <context-param>
-      <param-name>google_redirect_uri</param-name>
-      <param-value>http://localhost:8080/Monolith_Dev/api/auth/login/google2</param-value>
-   </context-param>
-   <context-param>
-      <param-name>google_scope</param-name>
-      <param-value>https://www.googleapis.com/auth/forms https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/drive.metadata https://www.googleapis.com/auth/cloud-language</param-value>
-   </context-param>
-      <context-param>
-      <param-name>google_access_type</param-name>
-      <param-value>offline</param-value>
-   </context-param>
-   
+   </context-param>  
    <listener>
       <listener-class>prerna.web.conf.DBLoader</listener-class>
    </listener>
