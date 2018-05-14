@@ -3,6 +3,9 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.security.cert.X509Certificate;
 
+import javax.naming.InvalidNameException;
+import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -12,6 +15,10 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import prerna.auth.AccessToken;
+import prerna.auth.AuthProvider;
+import prerna.auth.User2;
+
 public class CACFilter implements Filter {
 
 	@Override
@@ -19,23 +26,38 @@ public class CACFilter implements Filter {
 		X509Certificate[] certs = (X509Certificate[]) arg0.getAttribute("javax.servlet.request.X509Certificate");
 		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
 
-		if(session != null) {
+		if(session != null && certs != null) {
+			User2 user = (User2) session.getAttribute("semoss_user");
+			if(user == null) {
+				user = new User2();
+			}
+			
+			AccessToken token = new AccessToken();
 
-			if(certs != null) {
-				for(int i = 0; i < certs.length; i++) {
-					X509Certificate cert = certs[i];
+			for(int i = 0; i < certs.length; i++) {
+				X509Certificate cert = certs[i];
 
-					System.out.println(" Client certificate " + (i + 1) + ":");
-					System.out.println(" Subject DN: " + cert.getSubjectDN());
-					System.out.println(" Subject Name: " + cert.getSubjectX500Principal().getName());
-
-					System.out.println(" Signature Algorithm: " + cert.getSigAlgName());
-					System.out.println(" Valid from: " + cert.getNotBefore());
-					System.out.println(" Valid until: " + cert.getNotAfter());
-					System.out.println(" Issuer: " + cert.getIssuerDN());
+				token.setToken_type(AuthProvider.CAC.toString());
+				token.setProvider(cert.getIssuerDN().getName());
+				token.setExpires_in((int) cert.getNotAfter().getTime());
+				
+				String fullName = cert.getSubjectX500Principal().getName();
+				LdapName ldapDN;
+				try {
+					ldapDN = new LdapName(fullName);
+					for(Rdn rdn: ldapDN.getRdns()) {
+						if(rdn.getType().equals("CN")) {
+							token.setName(rdn.getValue().toString());
+						}
+					}
+				} catch (InvalidNameException e) {
+					token.setName(fullName);
+					e.printStackTrace();
 				}
 			}
-
+			
+			user.setAccessToken(token);
+			session.setAttribute("semoss-user", user);
 		}
 
 		arg2.doFilter(arg0, arg1);
@@ -46,8 +68,6 @@ public class CACFilter implements Filter {
 		// TODO Auto-generated method stub
 
 	}
-
-
 
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
