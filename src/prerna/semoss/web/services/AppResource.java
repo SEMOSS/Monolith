@@ -46,7 +46,7 @@ public class AppResource {
 			try {
 				fis = new FileInputStream(f);
 				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).build();
+				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
 			} catch (IOException e) {
 				e.printStackTrace();
 			} finally {
@@ -65,7 +65,7 @@ public class AppResource {
 				f = new File(fileLocation);
 				fis = new FileInputStream(f);
 				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).build();
+				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "error sending image file");
@@ -88,7 +88,7 @@ public class AppResource {
 			try {
 				fis = new FileInputStream(f);
 				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).build();
+				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
 			} catch (IOException e) {
 				e.printStackTrace();
 			} finally {
@@ -105,7 +105,7 @@ public class AppResource {
 				try {
 					fis = new FileInputStream(f);
 					byte[] byteArray = IOUtils.toByteArray(fis);
-					return Response.status(200).entity(byteArray).build();
+					return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
 				} catch (IOException e) {
 					e.printStackTrace();
 				} finally {
@@ -119,7 +119,7 @@ public class AppResource {
 				try {
 					fis = new FileInputStream(f);
 					byte[] byteArray = IOUtils.toByteArray(fis);
-					return Response.status(200).entity(byteArray).build();
+					return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
 				} catch (IOException e) {
 					Map<String, String> errorMap = new HashMap<String, String>();
 					errorMap.put("errorMessage", "error sending image file");
