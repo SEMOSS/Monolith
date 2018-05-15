@@ -1020,8 +1020,7 @@ public class NameServer {
 		String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
 		String exportName = "SEMOSS_Export_" + modifiedDate + "." + FilenameUtils.getExtension(filePath);
 		
-		return Response.status(200).entity(exportFile)
-			.header("Content-Disposition", "attachment; filename=" + exportName).build();
+		return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
 	}
 	
 	@GET
@@ -1036,7 +1035,7 @@ public class NameServer {
 			try {
 				fis = new FileInputStream(f);
 				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).build();
+				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
 			} catch (IOException e) {
 				e.printStackTrace();
 			} finally {
@@ -1055,7 +1054,7 @@ public class NameServer {
 				f = new File(fileLocation);
 				fis = new FileInputStream(f);
 				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).build();
+				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "error sending image file");
@@ -1099,7 +1098,7 @@ public class NameServer {
 			try {
 				fis = new FileInputStream(f);
 				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).build();
+				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
 			} catch (IOException e) {
 				e.printStackTrace();
 			} finally {
@@ -1116,7 +1115,7 @@ public class NameServer {
 				try {
 					fis = new FileInputStream(f);
 					byte[] byteArray = IOUtils.toByteArray(fis);
-					return Response.status(200).entity(byteArray).build();
+					return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
 				} catch (IOException e) {
 					e.printStackTrace();
 				} finally {
@@ -1130,7 +1129,7 @@ public class NameServer {
 				try {
 					fis = new FileInputStream(f);
 					byte[] byteArray = IOUtils.toByteArray(fis);
-					return Response.status(200).entity(byteArray).build();
+					return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
 				} catch (IOException e) {
 					Map<String, String> errorMap = new HashMap<String, String>();
 					errorMap.put("errorMessage", "error sending image file");
