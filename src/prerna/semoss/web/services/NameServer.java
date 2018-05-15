@@ -28,8 +28,6 @@
 package prerna.semoss.web.services;
 
 import java.io.File;
-import java.io.FileFilter;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -47,7 +45,6 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -68,8 +65,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -100,11 +95,9 @@ import prerna.sablecc.PKQLRunner;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
-import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
 import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngine.SOLR_PATHS;
 import prerna.solr.SolrIndexEngineQueryBuilder;
-import prerna.solr.SolrUtility;
 import prerna.upload.DatabaseUploader;
 import prerna.upload.FileUploader;
 import prerna.upload.ImageUploader;
@@ -114,7 +107,6 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.insight.InsightScreenshot;
-import prerna.util.insight.TextToGraphic;
 import prerna.web.services.util.PixelWebUtility;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
@@ -126,9 +118,6 @@ public class NameServer {
 
 	@Context
 	private ServletContext context;
-	
-	// get the directory separator
-	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	
 	private static final Logger logger = Logger.getLogger(NameServer.class.getName());
 	private Hashtable<String, String> helpHash = null;
@@ -1023,133 +1012,34 @@ public class NameServer {
 		return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
 	}
 	
+	///////////////////////////////////////////////
+	///////////////////////////////////////////////
+	///////////////////////////////////////////////
+	
+	/*
+	 * TODO: move FE to use app resource calls
+	 */
+	
 	@GET
 	@Path("/appImage")
 	@Produces("image/*")
 	public Response getAppImage(@QueryParam("app") String app) {
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version";
-		File f = findImageFile(fileLocation);
-		FileInputStream fis = null;
-		if(f != null) {
-			try {
-				fis = new FileInputStream(f);
-				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
-			} catch (IOException e) {
-				e.printStackTrace();
-			} finally {
-				closeStream(fis);
-			}
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "error sending image file");
-			return Response.status(400).entity(errorMap).build();
-		} else {
-			// make the image
-			f = new File(fileLocation);
-			f.mkdirs();
-			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-			TextToGraphic.makeImage(app, fileLocation);
-			try {
-				f = new File(fileLocation);
-				fis = new FileInputStream(f);
-				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
-			} catch (IOException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "error sending image file");
-				return Response.status(400).entity(errorMap).build();
-			} finally {
-				closeStream(fis);
-			}
-		}
-	}
-	
-	/**
-	 * Find an image in the directory
-	 * @param baseDir
-	 * @return
-	 */
-	private File findImageFile(String baseDir) {
-		List<String> extensions = new Vector<String>();
-		extensions.add("image.png");
-		extensions.add("image.jpeg");
-		extensions.add("image.jpg");
-		extensions.add("image.gif");
-		extensions.add("image.svg");
-		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
-		File baseFolder = new File(baseDir);
-		File[] imageFiles = baseFolder.listFiles(imageExtensionFilter);
-		if(imageFiles != null && imageFiles.length > 0) {
-			return imageFiles[0];
-		}
-		return null;
+		AppResource r = new AppResource();
+		return r.downloadAppImage(app);
 	}
 	
 	@GET
 	@Path("/insightImage")
 	@Produces("image/*")
 	public Response getInsightImage(@Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId) {
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId + DIR_SEPARATOR + "image.png";
-		File f = new File(fileLocation);
-		FileInputStream fis = null;
-		if(f.exists()) {
-			try {
-				fis = new FileInputStream(f);
-				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
-			} catch (IOException e) {
-				e.printStackTrace();
-			} finally {
-				closeStream(fis);
-			}
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "error sending image file");
-			return Response.status(400).entity(errorMap).build();
-		} else {
-			String feUrl = request.getHeader("Referer");
-			// try making the image
-			ImageCaptureReactor.runImageCapture(feUrl, app, insightId);
-			if(f.exists()) {
-				try {
-					fis = new FileInputStream(f);
-					byte[] byteArray = IOUtils.toByteArray(fis);
-					return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
-				} catch (IOException e) {
-					e.printStackTrace();
-				} finally {
-					closeStream(fis);
-				}
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "error sending image file");
-				return Response.status(400).entity(errorMap).build();
-			} else {
-				f = SolrUtility.getStockImage(app, insightId);
-				try {
-					fis = new FileInputStream(f);
-					byte[] byteArray = IOUtils.toByteArray(fis);
-					return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
-				} catch (IOException e) {
-					Map<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put("errorMessage", "error sending image file");
-					return Response.status(400).entity(errorMap).build();
-				} finally {
-					closeStream(fis);
-				}
-			}
-		}
+		AppResource r = new AppResource();
+		return r.downloadInsightImage(request, app, insightId);
 	}
 	
-	private void closeStream(FileInputStream fis) {
-		if(fis != null) {
-			try {
-				fis.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
+	///////////////////////////////////////////////
+	///////////////////////////////////////////////
+	///////////////////////////////////////////////
+
 	
 	@POST
 	@Path("/runPixel")
