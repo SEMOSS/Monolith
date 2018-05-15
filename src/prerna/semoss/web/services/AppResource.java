@@ -19,6 +19,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
@@ -35,103 +36,85 @@ public class AppResource {
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	
 	@GET
-	@Path("/appImage")
-	@Produces("image/*")
-	public Response getAppImage(@PathParam("appName") String app) {
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version";
-		File f = findImageFile(fileLocation);
-		FileInputStream fis = null;
-		if(f != null) {
-			try {
-				fis = new FileInputStream(f);
-				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
-			} catch (IOException e) {
-				e.printStackTrace();
-			} finally {
-				closeStream(fis);
-			}
+	@Path("/appImage/download")
+	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	public Response downloadAppImage(@PathParam("appName") String app) {
+		File exportFile = getAppImageFile(app);
+		if(exportFile.exists()) {
+			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
+			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
+		} else {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "error sending image file");
 			return Response.status(400).entity(errorMap).build();
+		}
+	}
+	
+	/**
+	 * Use to find the file for the image
+	 * @param app
+	 * @return
+	 */
+	private File getAppImageFile(String app) {
+		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version";
+		File f = findImageFile(fileLocation);
+		if(f != null) {
+			return f;
 		} else {
 			// make the image
 			f = new File(fileLocation);
 			f.mkdirs();
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
 			TextToGraphic.makeImage(app, fileLocation);
-			try {
-				f = new File(fileLocation);
-				fis = new FileInputStream(f);
-				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
-			} catch (IOException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "error sending image file");
-				return Response.status(400).entity(errorMap).build();
-			} finally {
-				closeStream(fis);
-			}
+			f = new File(fileLocation);
+			return f;
 		}
 	}
 	
 	@GET
-	@Path("/insightImage")
-	@Produces("image/*")
-	public Response getInsightImage(@Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String insightId) {
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId + DIR_SEPARATOR + "image.png";
-		File f = new File(fileLocation);
-		FileInputStream fis = null;
-		if(f.exists()) {
-			try {
-				fis = new FileInputStream(f);
-				byte[] byteArray = IOUtils.toByteArray(fis);
-				return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
-			} catch (IOException e) {
-				e.printStackTrace();
-			} finally {
-				closeStream(fis);
-			}
+	@Path("/insightImage/download")
+	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	public Response downloadInsightImage(@Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String insightId) {
+		File exportFile = getInsightImageFile(app, insightId, request.getHeader("Referer"));
+		if(exportFile.exists()) {
+			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
+			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
+		} else {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "error sending image file");
 			return Response.status(400).entity(errorMap).build();
+		}
+	}
+	
+	/**
+	 * Use to find the file for the image
+	 * @param app
+	 * @return
+	 */
+	private File getInsightImageFile(String app, String insightId, String feUrl) {
+		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId + DIR_SEPARATOR + "image.png";
+		File f = new File(fileLocation);
+		if(f.exists()) {
+			return f;
 		} else {
-			String feUrl = request.getHeader("Referer");
 			// try making the image
 			ImageCaptureReactor.runImageCapture(feUrl, app, insightId);
 			if(f.exists()) {
-				try {
-					fis = new FileInputStream(f);
-					byte[] byteArray = IOUtils.toByteArray(fis);
-					return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
-				} catch (IOException e) {
-					e.printStackTrace();
-				} finally {
-					closeStream(fis);
-				}
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "error sending image file");
-				return Response.status(400).entity(errorMap).build();
+				return f;
 			} else {
+				// return stock image
 				f = SolrUtility.getStockImage(app, insightId);
-				try {
-					fis = new FileInputStream(f);
-					byte[] byteArray = IOUtils.toByteArray(fis);
-					return Response.status(200).entity(byteArray).header("Content-Type", "image/*").build();
-				} catch (IOException e) {
-					Map<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put("errorMessage", "error sending image file");
-					return Response.status(400).entity(errorMap).build();
-				} finally {
-					closeStream(fis);
-				}
+				return f;
 			}
 		}
-		
-		
 	}
+	
+	
+	/*
+	 * Currently not used below...
+	 */
 	
 	@GET
 	@Path("/appWidget")
