@@ -1031,9 +1031,9 @@ public class NameServer {
 	@GET
 	@Path("/insightImage")
 	@Produces("image/*")
-	public Response getInsightImage(@Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId) {
+	public Response getInsightImage(@Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId, @QueryParam("params") String params) {
 		AppResource r = new AppResource();
-		return r.downloadInsightImage(request, app, insightId);
+		return r.downloadInsightImage(request, app, insightId, params);
 	}
 	
 	///////////////////////////////////////////////

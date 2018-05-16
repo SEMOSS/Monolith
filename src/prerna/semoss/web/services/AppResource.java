@@ -75,8 +75,8 @@ public class AppResource {
 	@GET
 	@Path("/insightImage/download")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
-	public Response downloadInsightImage(@Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String insightId) {
-		File exportFile = getInsightImageFile(app, insightId, request.getHeader("Referer"));
+	public Response downloadInsightImage(@Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String insightId, @QueryParam("params") String params) {
+		File exportFile = getInsightImageFile(app, insightId, request.getHeader("Referer"), params);
 		if(exportFile.exists()) {
 			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
@@ -92,15 +92,20 @@ public class AppResource {
 	 * @param app
 	 * @return
 	 */
-	private File getInsightImageFile(String app, String insightId, String feUrl) {
+	private File getInsightImageFile(String app, String insightId, String feUrl, String params) {
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId + DIR_SEPARATOR + "image.png";
+		String fileLocation = "";
+		if(params != null && !params.isEmpty() && !params.equals("undefined")) {
+			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId + params + DIR_SEPARATOR + "image.png";
+		} else {
+			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId + DIR_SEPARATOR + "image.png";
+		}
 		File f = new File(fileLocation);
 		if(f.exists()) {
 			return f;
 		} else {
 			// try making the image
-			ImageCaptureReactor.runImageCapture(feUrl, app, insightId);
+			ImageCaptureReactor.runImageCapture(feUrl, app, insightId, params);
 			if(f.exists()) {
 				return f;
 			} else {
