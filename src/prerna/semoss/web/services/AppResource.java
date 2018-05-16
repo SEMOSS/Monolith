@@ -27,6 +27,7 @@ import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
 import prerna.solr.SolrUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.Utility;
 import prerna.util.insight.TextToGraphic;
 import prerna.web.services.util.WebUtility;
 
@@ -75,8 +76,8 @@ public class AppResource {
 	@GET
 	@Path("/insightImage/download")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
-	public Response downloadInsightImage(@Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String insightId, @QueryParam("params") String params) {
-		File exportFile = getInsightImageFile(app, insightId, request.getHeader("Referer"), params);
+	public Response downloadInsightImage(@Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
+		File exportFile = getInsightImageFile(app, id, request.getHeader("Referer"), params);
 		if(exportFile.exists()) {
 			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
@@ -92,25 +93,26 @@ public class AppResource {
 	 * @param app
 	 * @return
 	 */
-	private File getInsightImageFile(String app, String insightId, String feUrl, String params) {
+	private File getInsightImageFile(String app, String id, String feUrl, String params) {
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = "";
 		if(params != null && !params.isEmpty() && !params.equals("undefined")) {
-			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId + params + DIR_SEPARATOR + "image.png";
+			String encodedParams = Utility.encodeURIComponent(params);
+			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + id + encodedParams + DIR_SEPARATOR + "image.png";
 		} else {
-			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId + DIR_SEPARATOR + "image.png";
+			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + id + DIR_SEPARATOR + "image.png";
 		}
 		File f = new File(fileLocation);
 		if(f.exists()) {
 			return f;
 		} else {
 			// try making the image
-			ImageCaptureReactor.runImageCapture(feUrl, app, insightId, params);
+			ImageCaptureReactor.runImageCapture(feUrl, app, id, params);
 			if(f.exists()) {
 				return f;
 			} else {
 				// return stock image
-				f = SolrUtility.getStockImage(app, insightId);
+				f = SolrUtility.getStockImage(app, id);
 				return f;
 			}
 		}
