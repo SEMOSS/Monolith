@@ -107,7 +107,9 @@ public class AppResource {
 			return f;
 		} else {
 			// try making the image
-			ImageCaptureReactor.runImageCapture(feUrl, app, id, params);
+			if(feUrl != null) {
+				ImageCaptureReactor.runImageCapture(feUrl, app, id, params);
+			}
 			if(f.exists()) {
 				return f;
 			} else {
