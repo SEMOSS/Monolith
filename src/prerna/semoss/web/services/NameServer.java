@@ -697,7 +697,7 @@ public class NameServer {
 //			parentConceptualName = cleanParentConceptualName;
 //		}
 //		return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
-		return WebUtility.getResponse(MasterDatabaseUtility.getAllLogicalNamesFromConceptualRDBMS(conceptualName), 200);
+		return WebUtility.getResponse(MasterDatabaseUtility.getAllLogicalNamesFromConceptualRDBMS(conceptualName, null), 200);
 	}
 	
 	@GET
