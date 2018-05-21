@@ -61,7 +61,7 @@ public class DatabaseUploader extends Uploader {
 	// we will control the adding of the engine into local master and solr
 	// such that we dont send a success before those processes are complete
 	boolean autoLoad = false;
-
+	
 	///////////////////////////////////////////// SET DEFAULT OPTIONS ///////////////////////////////////////////////
 
 	/*
@@ -422,12 +422,12 @@ public class DatabaseUploader extends Uploader {
 				// store the file location on server so FE can send that back into actual upload routine
 				String filePath = files[i];
 				char delimiter = delimiters[i].charAt(0);
-				String file = filePath.substring(filePath.lastIndexOf("\\") + 1, filePath.lastIndexOf("."));
+				String file = filePath.substring(filePath.lastIndexOf(DIR_SEPARATOR) + DIR_SEPARATOR.length(), filePath.lastIndexOf("."));
 				try {
 					file = file.substring(0, file.length() - 24); //taking out the date added onto the original file name
 				} catch(Exception e) {
 					//just in case that fails, this shouldnt because if its a filename it should have a "."
-					file = filePath.substring(filePath.lastIndexOf("\\") + 1, filePath.lastIndexOf(".")); 
+					file = filePath.substring(filePath.lastIndexOf(DIR_SEPARATOR) + DIR_SEPARATOR.length(), filePath.lastIndexOf(".")); 
 				}
 				
 				// store file path and file name to send to FE
