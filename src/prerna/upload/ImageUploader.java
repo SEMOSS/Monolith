@@ -16,9 +16,6 @@ import org.apache.commons.io.filefilter.WildcardFileFilter;
 
 public class ImageUploader extends Uploader {
 	
-	// get the directory separator
-	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
-
 	@POST
 	@Path("/appImage")
 	@Produces("application/json")
