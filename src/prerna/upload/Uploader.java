@@ -66,6 +66,10 @@ import prerna.util.Utility;
 public abstract class Uploader extends HttpServlet {
 
 	private static final Logger LOGGER = LogManager.getLogger(FileUploader.class);
+
+	// get the directory separator
+	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
+
 	public static final String CSV_FILE_KEY = "CSV";
 	public static final String CSV_HELPER_MESSAGE = "HTML_RESPONSE";
 
@@ -79,8 +83,12 @@ public abstract class Uploader extends HttpServlet {
 	// such that we dont send a success before those processes are complete
 	boolean autoLoad = false;
 
-	public void setFilePath(String filePath){
-		this.filePath = filePath;
+	public void setFilePath(String filePath) {
+		if(filePath.endsWith(DIR_SEPARATOR)) {
+			this.filePath = filePath;
+		} else {
+			this.filePath = filePath + DIR_SEPARATOR;
+		}
 	}
 
 	public void setTempFilePath(String tempFilePath){
@@ -151,12 +159,12 @@ public abstract class Uploader extends HttpServlet {
 					continue;
 				}
 				else {
-					if(fieldName.equals("file") || fieldName.equals("mapFile") || fieldName.equals("questionFile") || fieldName.equals("propFile")) {
+					if(fieldName.equals("file") || fieldName.equals("propFile")) {
 						// need to clean the fileName to not have ";" since we split on that in upload data
 						fileName = fileName.replace(";", "");
 						Date date = new Date();
 						String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-						value = filePath + "\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
+						value = this.filePath + fileName.substring(fileName.lastIndexOf(DIR_SEPARATOR) + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
 						file = new File(value);
 						writeFile(fi, file);
 						LOGGER.info("File item is the actual data. Saved Filename: " + fileName + "  to "+ file);
