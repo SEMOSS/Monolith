@@ -14,6 +14,9 @@ import javax.ws.rs.core.Context;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
+import prerna.engine.impl.SmssUtilities;
+import prerna.nameserver.utility.MasterDatabaseUtility;
+
 public class ImageUploader extends Uploader {
 	
 	@POST
@@ -36,10 +39,13 @@ public class ImageUploader extends Uploader {
 			}
 		}
 
+		//TODO: account for user here
+		String appId = MasterDatabaseUtility.getEngineIdsForAlias(appName).get(0);
+		
 		// now that we have the app name
 		// and the image file
 		// we want to write it into the app location
-		String imageDir = filePath + DIR_SEPARATOR + appName + DIR_SEPARATOR + "version";
+		String imageDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version";
 		File f = new File(imageDir);
 		if(!f.exists()) {
 			f.mkdirs();
