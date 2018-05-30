@@ -738,13 +738,6 @@ public class NameServer {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
-	@POST
-	@Path("central/context/getAllConcepts")
-	@Produces("application/json")
-	public Response getAllConceptsFromEngines(@Context HttpServletRequest request) {
-		return Response.status(200).entity(WebUtility.getSO(MasterDatabaseUtility.getAllConceptsFromEnginesRDBMS())).build();
-	}
-
 	// get all insights related to a specific uri
 	// preferably we would also pass vert store and edge store... the more
 	// context the better. Don't have any of that for now though.
