@@ -544,6 +544,7 @@ public class NameServer {
 
 		List<String> facetList = new ArrayList<>();
 		facetList.add(SolrIndexEngine.APP_ID);
+		facetList.add(SolrIndexEngine.APP_NAME);
 		facetList.add(SolrIndexEngine.LAYOUT);
 		facetList.add(SolrIndexEngine.TAGS);
 
