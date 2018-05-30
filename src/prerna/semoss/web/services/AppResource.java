@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -59,15 +60,10 @@ public class AppResource {
 	 * @return
 	 */
 	private File getAppImageFile(String app) {
-		//TODO: account for user here
-		String appId = null;
-		List<String> appIds = MasterDatabaseUtility.getEngineIdsForAlias(app);
-		if(!appIds.isEmpty()) {
-			appId = appIds.get(0);
-		} else {
-			appId = app;
-			app = null;
-		}
+		String appId = MasterDatabaseUtility.testEngineIdIfAlias(app);
+		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
+		Properties prop = Utility.loadProperties(propFileLoc);
+		app = prop.getProperty(Constants.ENGINE_ALIAS);
 		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "version";
@@ -79,7 +75,11 @@ public class AppResource {
 			f = new File(fileLocation);
 			f.mkdirs();
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-			TextToGraphic.makeImage(appId, fileLocation);
+			if(app != null) {
+				TextToGraphic.makeImage(app, fileLocation);
+			} else {
+				TextToGraphic.makeImage(appId, fileLocation);
+			}
 			f = new File(fileLocation);
 			return f;
 		}
@@ -106,15 +106,10 @@ public class AppResource {
 	 * @return
 	 */
 	private File getInsightImageFile(String app, String id, String feUrl, String params) {
-		//TODO: account for user here
-		String appId = null;
-		List<String> appIds = MasterDatabaseUtility.getEngineIdsForAlias(app);
-		if(!appIds.isEmpty()) {
-			appId = appIds.get(0);
-		} else {
-			appId = app;
-			app = null;
-		}
+		String appId = MasterDatabaseUtility.testEngineIdIfAlias(app);
+		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
+		Properties prop = Utility.loadProperties(propFileLoc);
+		app = prop.getProperty(Constants.ENGINE_ALIAS);
 		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = "";
