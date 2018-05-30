@@ -79,7 +79,7 @@ public class AppResource {
 			f = new File(fileLocation);
 			f.mkdirs();
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-			TextToGraphic.makeImage(app, fileLocation);
+			TextToGraphic.makeImage(appId, fileLocation);
 			f = new File(fileLocation);
 			return f;
 		}
@@ -130,13 +130,13 @@ public class AppResource {
 		} else {
 			// try making the image
 			if(feUrl != null) {
-				ImageCaptureReactor.runImageCapture(feUrl, app, id, params);
+				ImageCaptureReactor.runImageCapture(feUrl, appId, id, params);
 			}
 			if(f.exists()) {
 				return f;
 			} else {
 				// return stock image
-				f = SolrUtility.getStockImage(app, id);
+				f = SolrUtility.getStockImage(appId, id);
 				return f;
 			}
 		}
