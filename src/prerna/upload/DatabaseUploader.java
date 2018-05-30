@@ -36,10 +36,7 @@ import org.json.simple.parser.JSONParser;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import prerna.auth.AccessToken;
-import prerna.auth.AuthProvider;
 import prerna.auth.User;
-import prerna.auth.User2;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.impl.SmssUtilities;
 import prerna.engine.impl.solr.SolrEngine;
@@ -1340,12 +1337,14 @@ public class DatabaseUploader extends Uploader {
 		String solrURL = form.getFirst("solrURL");
 		String coreName = form.getFirst("coreName");
 		boolean isValid = SolrEngine.ping(solrURL, coreName);
-		String dbName = form.getFirst("dbName");
+		String appName = form.getFirst("dbName");
+		String appID = UUID.randomUUID().toString();
+		
 		if(isValid) {
-			dbName = Utility.makeAlphaNumeric(dbName);
+			appName = Utility.makeAlphaNumeric(appName);
 			SolrEngineConnector connector = new SolrEngineConnector();
 			try {
-				connector.processExistingSolrConnection(dbName, solrURL, coreName);
+				connector.processExistingSolrConnection(appName, appID, solrURL, coreName  );
 			} catch (IOException e) {
 				e.printStackTrace();
 				Map<String, Object> errorMap = new HashMap<String, Object>();
@@ -1442,7 +1441,9 @@ public class DatabaseUploader extends Uploader {
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
 		}
-		
+		String appID = UUID.randomUUID().toString();
+		importOptions.setEngineID(appID);
+
 		boolean success = true;
 		try {
 			importer.runProcessor(importOptions);
