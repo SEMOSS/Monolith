@@ -193,7 +193,7 @@ public class DBAdminResource {
 			InsightAdministrator admin = new InsightAdministrator(engine.getInsightDatabase());
 			try {
 				admin.dropInsight(questionIds.toArray(new String[questionIds.size()]));
-				questionIds = SolrIndexEngine.getSolrIdFromInsightEngineId(engine.getEngineName(), questionIds);
+				questionIds = SolrIndexEngine.getSolrIdFromInsightEngineId(engine.getEngineId(), questionIds);
 			} catch (RuntimeException e) {
 				// reload question xml from file if it errored
 				// otherwise xml gets corrupted
@@ -309,7 +309,7 @@ public class DBAdminResource {
 	}
 
 	private boolean deleteEngine(IEngine coreEngine, HttpServletRequest request) {
-		String engineName = coreEngine.getEngineName();
+		String engineName = coreEngine.getEngineId();
 		coreEngine.deleteDB();
 		// remove from session
 		HttpSession session = request.getSession();
@@ -368,7 +368,7 @@ public class DBAdminResource {
 		String dbName = form.getFirst("engine");
 		String insightID = form.getFirst("insightID");
 		String questionName = form.getFirst("questionName");
-		Insight in = new Insight(getEngine(dbName, request).getEngineName(), insightID);
+		Insight in = new Insight(getEngine(dbName, request).getEngineId(), insightID);
 		in.setInsightName(questionName);
 
 		CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).deleteInsightCache(in);
