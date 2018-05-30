@@ -166,7 +166,7 @@ public class EngineResource {
 		GetPlaysheetParamsReactor paramR = new GetPlaysheetParamsReactor();
 		paramR.In();
 		GenRowStruct grs1 = new GenRowStruct();
-		grs1.add(new NounMetadata(coreEngine.getEngineName(), PixelDataType.CONST_STRING));
+		grs1.add(new NounMetadata(coreEngine.getEngineId(), PixelDataType.CONST_STRING));
 		paramR.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs1);
 		GenRowStruct grs2 = new GenRowStruct();
 		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
@@ -209,7 +209,7 @@ public class EngineResource {
 		dummyIn.setUser(user);
 		playsheetRunReactor.setInsight(dummyIn);
 		GenRowStruct grs1 = new GenRowStruct();
-		grs1.add(new NounMetadata(coreEngine.getEngineName(), PixelDataType.CONST_STRING));
+		grs1.add(new NounMetadata(coreEngine.getEngineId(), PixelDataType.CONST_STRING));
 		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs1);
 		GenRowStruct grs2 = new GenRowStruct();
 		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
@@ -260,7 +260,7 @@ public class EngineResource {
 		Gson gson = new Gson();
 		Map<String, Object> auditInfo = null;
 		try {
-			auditInfo = FormBuilder.getAuditDataForEngine(this.coreEngine.getEngineName());
+			auditInfo = FormBuilder.getAuditDataForEngine(this.coreEngine.getEngineId());
 		} catch(Exception e) {
 			e.printStackTrace();
 			return WebUtility.getResponse(gson.toJson(e.getMessage()), 400);
@@ -274,7 +274,7 @@ public class EngineResource {
 	@Produces("application/zip")
 	public Response exportDatabase(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession();
-		String engineName = coreEngine.getEngineName();
+		String engineName = coreEngine.getEngineId();
 		
 		// we want to start exporting the solr documents as well
 		// since we want to move away from using the rdbms insights for that
