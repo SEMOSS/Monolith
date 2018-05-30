@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -274,22 +273,23 @@ public class EngineResource {
 	@Produces("application/zip")
 	public Response exportDatabase(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession();
-		String engineName = coreEngine.getEngineId();
-		
+		String engineId = coreEngine.getEngineId();
+		String engineName = coreEngine.getEngineName();
+
 		// we want to start exporting the solr documents as well
 		// since we want to move away from using the rdbms insights for that
 		DBAdminResource dbAdmin = new DBAdminResource();
 		MultivaluedMap<String, String> form = new MultivaluedHashMap<String, String>();
-		form.putSingle("engineName", engineName);
+		form.putSingle("engineName", engineId);
 		dbAdmin.exportDbSolrInfo(form , request);
 		
 		// close the engine so we can export it
-		session.removeAttribute(engineName);
-		DIHelper.getInstance().removeLocalProperty(engineName);
+		session.removeAttribute(engineId);
+		DIHelper.getInstance().removeLocalProperty(engineId);
 		coreEngine.closeDB();
 		
-		LOGGER.info("Attending to export engine = " + engineName);
-		File zip = ZipDatabase.zipEngine(engineName);
+		LOGGER.info("Attending to export engine = " + engineId);
+		File zip = ZipDatabase.zipEngine(engineId, engineName);
 		
 		Response resp = Response.ok(zip)
 				.header("x-filename", zip.getName())
