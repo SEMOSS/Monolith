@@ -72,7 +72,7 @@ public class QuestionAdmin {
 
 		try {
 			List<String> removeList = new ArrayList<String>();
-			removeList.add(coreEngine.getEngineName() + "_" + insightID);
+			removeList.add(coreEngine.getEngineId() + "_" + insightID);
 			SolrIndexEngine.getInstance().removeInsight(removeList);
 		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
 			e.printStackTrace();
