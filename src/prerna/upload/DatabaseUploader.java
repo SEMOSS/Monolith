@@ -127,6 +127,7 @@ public class DatabaseUploader extends Uploader {
 			throw new IOException(errorMessage);
 		}
 		options.setDbName(Utility.makeAlphaNumeric(dbName));
+		options.setEngineID(UUID.randomUUID().toString());
 
 		// determine the db type
 		String dbType = inputData.get("dataOutputType");
