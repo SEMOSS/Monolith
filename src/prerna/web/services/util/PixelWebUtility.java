@@ -307,7 +307,7 @@ public class PixelWebUtility extends WebUtility{
 			Insight innerInsight = runner.getInsight();
 			ps.print("\"output\":{");
 			ps.print("\"name\":" + gson.toJson(innerInsight.getInsightName()));
-			ps.print(",\"core_engine\":" + gson.toJson(innerInsight.getEngineName()));
+			ps.print(",\"core_engine\":" + gson.toJson(innerInsight.getEngineId()));
 			ps.print(",\"core_engine_id\":" + gson.toJson(innerInsight.getRdbmsId()));
 			ps.print(",\"params\":" + gson.toJson(params));
 			ps.print(",\"additionalPixels\":" + gson.toJson(additionalPixels));

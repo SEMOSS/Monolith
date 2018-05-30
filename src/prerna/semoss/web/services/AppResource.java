@@ -23,6 +23,8 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
+import prerna.engine.impl.SmssUtilities;
+import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
 import prerna.solr.SolrUtility;
 import prerna.util.Constants;
@@ -39,7 +41,7 @@ public class AppResource {
 	@GET
 	@Path("/appImage/download")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
-	public Response downloadAppImage(@PathParam("appName") String app) {
+	public Response downloadAppImage(@Context HttpServletRequest request, @PathParam("appName") String app) {
 		File exportFile = getAppImageFile(app);
 		if(exportFile.exists()) {
 			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
@@ -57,8 +59,18 @@ public class AppResource {
 	 * @return
 	 */
 	private File getAppImageFile(String app) {
+		//TODO: account for user here
+		String appId = null;
+		List<String> appIds = MasterDatabaseUtility.getEngineIdsForAlias(app);
+		if(!appIds.isEmpty()) {
+			appId = appIds.get(0);
+		} else {
+			appId = app;
+			app = null;
+		}
+		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version";
+		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "version";
 		File f = findImageFile(fileLocation);
 		if(f != null) {
 			return f;
@@ -94,13 +106,23 @@ public class AppResource {
 	 * @return
 	 */
 	private File getInsightImageFile(String app, String id, String feUrl, String params) {
+		//TODO: account for user here
+		String appId = null;
+		List<String> appIds = MasterDatabaseUtility.getEngineIdsForAlias(app);
+		if(!appIds.isEmpty()) {
+			appId = appIds.get(0);
+		} else {
+			appId = app;
+			app = null;
+		}
+		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = "";
 		if(params != null && !params.isEmpty() && !params.equals("undefined")) {
 			String encodedParams = Utility.encodeURIComponent(params);
-			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + id + encodedParams + DIR_SEPARATOR + "image.png";
+			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "version" + DIR_SEPARATOR + id + encodedParams + DIR_SEPARATOR + "image.png";
 		} else {
-			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + app + DIR_SEPARATOR + "version" + DIR_SEPARATOR + id + DIR_SEPARATOR + "image.png";
+			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "version" + DIR_SEPARATOR + id + DIR_SEPARATOR + "image.png";
 		}
 		File f = new File(fileLocation);
 		if(f.exists()) {
