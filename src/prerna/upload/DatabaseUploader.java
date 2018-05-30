@@ -15,6 +15,7 @@ import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -35,8 +36,12 @@ import org.json.simple.parser.JSONParser;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.auth.AccessToken;
+import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.auth.User2;
 import prerna.auth.UserPermissionsMasterDB;
+import prerna.engine.impl.SmssUtilities;
 import prerna.engine.impl.solr.SolrEngine;
 import prerna.nameserver.AddToMasterDB;
 import prerna.poi.main.CSVPropFileBuilder;
@@ -197,6 +202,7 @@ public class DatabaseUploader extends Uploader {
 			throw new IOException(errorMessage);
 		}
 		options.setDbName(Utility.makeAlphaNumeric(dbName));
+		options.setEngineID(UUID.randomUUID().toString());
 
 		// determine the db type
 		// do not need this when we do add to existing
@@ -645,12 +651,13 @@ public class DatabaseUploader extends Uploader {
 
 			String dbName = options.getDbName();
 			String[] fileNames = options.getFileLocations().split(";");
+			String dbLocation = SmssUtilities.getUniqueName(Utility.cleanString(dbName, true).toString(), options.getEngineID());
 			for(int i = 0; i < propFileArr.length; i++) {
 				String fileName = new File(fileNames[i]).getName().replace(".csv", "");
 				FileUtils.writeStringToFile(new File(
 						DIHelper.getInstance().getProperty("BaseFolder")
 						.concat(File.separator).concat("db").concat(File.separator)
-						.concat(Utility.cleanString(dbName, true).toString()).concat(File.separator)
+						.concat(dbLocation).concat(File.separator)
 						.concat(dbName.toString()).concat("_").concat(fileName)
 						.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
 			}
