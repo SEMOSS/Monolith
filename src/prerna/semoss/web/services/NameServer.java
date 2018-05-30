@@ -82,6 +82,7 @@ import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.User2;
 import prerna.auth.UserPermissionsMasterDB;
@@ -227,18 +228,24 @@ public class NameServer {
 		return WebUtility.getSO(results);
 	}
 
-	// gets a particular insight
+	/**
+	 * Get the basic information of all engines from solr.
+	 * @param request
+	 * @return all engines.
+	 */
 	@GET
 	@Path("all")
 	@Produces("application/json")
 	public StreamingOutput printEngines(@Context HttpServletRequest request) {
-		// would be cool to give this as an HTML
-		Map<String, List<Hashtable<String, String>>> hashTable = new Hashtable<String, List<Hashtable<String, String>>>();
-		// ArrayList<String> enginesList = new ArrayList<String>();
-		HttpSession session = request.getSession();
-		List<Hashtable<String, String>> engines = (ArrayList<Hashtable<String, String>>) session.getAttribute(Constants.ENGINES);
-		hashTable.put("engines", engines);
-		return WebUtility.getSO(hashTable);
+		List<Map<String, String>> engines = null;
+		try {
+//			engines = SolrUtility.getAllEgnines();
+		} catch (Exception e1) {
+			e1.printStackTrace();
+			return WebUtility.getSO("Error executing solr query");
+		}
+		
+		return WebUtility.getSO(engines);
 	}
 
 	@GET
@@ -427,26 +434,27 @@ public class NameServer {
 		String userId = "";
 		
 		if(securityEnabled) {
-			HttpSession session = request.getSession(true);
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			HttpSession session = request.getSession(false);
+			User2 user = ((User2) session.getAttribute("semoss_user"));
 			if(user!= null) {
-				userId = user.getId();
+				userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
 			}
 			
 			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
-			if(filterData.get("core_engine") != null) {
+			if(filterData.get(SolrIndexEngine.APP_ID) != null) {
 				filterEngines.addAll(filterData.get("core_engine"));
 			}
 			if(filterEngines.size() > 0) {
 				for(String s : filterEngines) {
 					if(!userEngines.contains(s)) {
-						filterData.get("core_engine").remove(s);
+						filterData.get(SolrIndexEngine.APP_ID).remove(s);
 					}
 				}
 			} else {
 				filterEngines.addAll(userEngines);
-				if(filterEngines.size() > 0) 
-					filterData.put("core_engine", filterEngines);
+				if(filterEngines.size() > 0)  {
+					filterData.put(SolrIndexEngine.APP_ID, filterEngines);
+				}
 			}
 		}
 		
@@ -535,7 +543,7 @@ public class NameServer {
 		logger.info("Searching based on input: " + searchString);
 
 		List<String> facetList = new ArrayList<>();
-		facetList.add(SolrIndexEngine.CORE_ENGINE);
+		facetList.add(SolrIndexEngine.APP_ID);
 		facetList.add(SolrIndexEngine.LAYOUT);
 		facetList.add(SolrIndexEngine.TAGS);
 
@@ -594,7 +602,7 @@ public class NameServer {
 		
 		//If security is enabled, remove the engines in the filters that aren't accessible - if none in filters, add all accessible engines to filter list
 		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
-			HttpSession session = request.getSession(true);
+			HttpSession session = request.getSession(false);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
 			String userId = "";
 			if(user!= null) {
@@ -603,19 +611,20 @@ public class NameServer {
 			
 			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
 			ArrayList<String> filterEngines = new ArrayList<String>();
-			if(filterData.get("core_engine") != null) {
-				filterEngines.addAll(filterData.get("core_engine"));
+			if(filterData.get(SolrIndexEngine.APP_ID) != null) {
+				filterEngines.addAll(filterData.get(SolrIndexEngine.APP_ID));
 			}
 			if(filterEngines.size() > 0) {
 				for(String s : filterEngines) {
 					if(!userEngines.contains(s)) {
-						filterData.get("core_engine").remove(s);
+						filterData.get(SolrIndexEngine.APP_ID).remove(s);
 					}
 				}
 			} else {
 				filterEngines.addAll(userEngines);
-				if(filterEngines.size() > 0) 
-					filterData.put("core_engine", filterEngines);
+				if(filterEngines.size() > 0) {
+					filterData.put(SolrIndexEngine.APP_ID, filterEngines);
+				}
 			}
 		}
 		
@@ -712,7 +721,8 @@ public class NameServer {
 		
 		Map<String, Object[]> ret = new HashMap<String, Object[]>();
 		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
-			String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
 			HashMap<String, ArrayList<String>> metamodelFilter = new HashMap<String, ArrayList<String>>();
 			if(permissions.getMetamodelSeedsForUser(userId).get(engineName) != null) {
 				metamodelFilter = permissions.getMetamodelSeedsForUser(userId).get(engineName);
@@ -768,7 +778,7 @@ public class NameServer {
 		queryBuilder.setDefaultSearchField(SolrIndexEngine.INDEX_NAME);
 
 		List<String> facetList = new ArrayList<>();
-		facetList.add(SolrIndexEngine.CORE_ENGINE);
+		facetList.add(SolrIndexEngine.APP_ID);
 		facetList.add(SolrIndexEngine.LAYOUT);
 		facetList.add(SolrIndexEngine.TAGS);
 		queryBuilder.setFacetField(facetList);
@@ -1023,9 +1033,9 @@ public class NameServer {
 	@GET
 	@Path("/appImage")
 	@Produces("image/*")
-	public Response getAppImage(@QueryParam("app") String app) {
+	public Response getAppImage(@Context HttpServletRequest request, @QueryParam("app") String app) {
 		AppResource r = new AppResource();
-		return r.downloadAppImage(app);
+		return r.downloadAppImage(request, app);
 	}
 	
 	@GET
@@ -1059,15 +1069,33 @@ public class NameServer {
 		// there is a jobID status Hash - this can eventually be zookeeper
 		// Then there is a jobID to message if the user has turned on the stdout, then it has a stack of messages
 		// once the job is done, the stack is also cleared
+
+		HttpSession session;
+		String sessionId; 
+		User2 user2;
 		
-		HttpSession session = request.getSession(true);
-		String sessionId = session.getId();
-		User user = ((User) session.getAttribute(Constants.SESSION_USER));
-		User2 user2 = ((User2) session.getAttribute("semoss_user"));
-		
+		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
+		//If security is enabled try to get an existing session.
+		//Otherwise get a session with the default user.
+		if(securityEnabled){
+			session = request.getSession(false);
+			if(session != null){
+				sessionId = session.getId();
+				user2 = ((User2) session.getAttribute("semoss_user"));
+			} else {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", "User session is invalid");
+				System.out.println("User session is invalid");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		} else {
+			session = request.getSession(true);
+			user2 = ((User2) session.getAttribute("semoss_user"));
+			sessionId = session.getId();
+		}
+	
 		String jobId = "";
 		final String tempInsightId = "TempInsightNotStored";
-		Map<String, Object> dataReturn = null;
 		
 		String insightId = form.getFirst("insightId");
 		String expression = form.getFirst("expression");
@@ -1079,8 +1107,10 @@ public class NameServer {
 			insightId = tempInsightId;
 			insight = new Insight();
 			insight.setInsightId(tempInsightId);
-		} else if(insightId.equals("new")) { // need to make a new insight here
+			//insight.setUser(user);
+		} else if (insightId.equals("new")) { // need to make a new insight here
 			insight = new Insight();
+			//insight.setUser(user);
 			InsightStore.getInstance().put(insight);
 			insightId = insight.getInsightId();
 			InsightStore.getInstance().addToSessionHash(sessionId, insightId);
@@ -1088,7 +1118,8 @@ public class NameServer {
 			// the session id needs to be checked
 			// you better have a valid id... or else... O_O
 			insight = InsightStore.getInstance().get(insightId);
-			if(insight == null) {
+			//insight.setUser(user);
+			if (insight == null) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "Could not find the insight id");
 				return WebUtility.getResponse(errorMap, 400);
@@ -1103,9 +1134,7 @@ public class NameServer {
 //			}
 		}
 		synchronized(insight) {
-			insight.setUser(user);
-
-			// set the other user
+			// set the user
 			insight.setUser2(user2);
 			JobManager manager = JobManager.getManager();
 			JobThread jt = null;
@@ -1126,24 +1155,6 @@ public class NameServer {
 
 			manager.flushJob(jobId);
 			return Response.status(200).entity(PixelWebUtility.collectPixelData(pixelRunner)).build();
-
-			//				jt.run();
-			//				dataReturn = jt.getOutput();
-			//				Vector pixelReturnVector = (Vector)dataReturn.get("pixelReturn");
-			//				// TODO: need FE to not react based on the size ...
-			//				// but basically want to return an error
-			//				// but dont want to show the implicit Job reactor we are adding
-			//				if(pixelReturnVector.size() > 1) {
-			//					pixelReturnVector.remove(0);
-			//				} else {
-			//					// this is most likely due to an error with compiling the expression being sent
-			//					String newExp = (String) ((Map<String, Object>) pixelReturnVector.get(0)).get("pixelExpression");
-			//					newExp = newExp.replace(job, "");
-			//					((Map<String, Object>) pixelReturnVector.get(0)).put("pixelExpression", newExp);
-			//				}
-			//				dataReturn.put("pixelReturn", pixelReturnVector);
-			//				// i need to kill this job
-			//				manager.flushJob(jobId);
 		}
 	}
 	
@@ -1151,9 +1162,16 @@ public class NameServer {
 	@Path("runPixelAsync")
 	@Produces("application/json")
 	public Response runPixelAsync(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		HttpSession session = request.getSession(true);
+		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
+		HttpSession session = null;
+		User2 user2 = null;
+		if(securityEnabled){
+			session = request.getSession(false);
+			user2 = ((User2) session.getAttribute("semoss_user"));
+		} else {
+			session = request.getSession(true);
+		}
 		String sessionId = session.getId();
-		User user = ((User) session.getAttribute(Constants.SESSION_USER));
 		
 		String jobId = "";
 		Map<String, String> dataReturn = new HashMap<String, String>();
@@ -1192,7 +1210,7 @@ public class NameServer {
 		if(insight != null)
 		{
 			synchronized(insight) {
-				insight.setUser(user);
+				insight.setUser2(user2);
 				JobManager manager = JobManager.getManager();
 				JobThread jt = manager.makeJob();
 				jobId = jt.getJobId();
