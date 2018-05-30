@@ -32,9 +32,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.Map;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -48,8 +50,10 @@ import javax.ws.rs.core.StreamingOutput;
 import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 
+import prerna.auth.AuthProvider;
 import prerna.auth.EngineAccessRequest;
 import prerna.auth.User;
+import prerna.auth.User2;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.auth.EnginePermission;
 import prerna.util.Constants;
@@ -63,6 +67,10 @@ public class AuthorizationResource
 	String output = "";
 	UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
 	
+	/**
+	 * Check if the security is enabled in the application.
+	 * @return true or false
+	 */
 	@GET
 	@Produces("application/json")
 	@Path("securityEnabled")
@@ -187,13 +195,27 @@ public class AuthorizationResource
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	/**
+	 * Get all the grous the user is part of.
+	 * @param request
+	 * @return get all groups the user is part of
+	 */
 	@GET
-	@Produces("application/json")//DONE
+	@Produces("application/json")
 	@Path("getGroups")
-	public StreamingOutput getGroupsAndMembers(@Context HttpServletRequest request) {
-		StringMap<ArrayList<StringMap<String>>> ret = permissions.getGroupsAndMembersForUser(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId());
+	public Response getGroupsAndMembers(@Context HttpServletRequest request) {
+		HttpSession session = request.getSession(false);
+		if(session == null){
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
 		
-		return WebUtility.getSO(ret);
+		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+		ArrayList<HashMap<String, Object>> ret = permissions.getGroupsAndMembersForUser(userId);
+		
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	@GET
@@ -224,6 +246,123 @@ public class AuthorizationResource
 		return WebUtility.getSO(ret);
 	}
 	
+	/**
+	 * Get databases the user has access to
+	 * @param request
+	 * @return Databases the user has access to
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getDatabases")
+	public Response getDatabases(@Context HttpServletRequest request) {
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		ArrayList<StringMap<String>> ret = new ArrayList<>(); 
+		HttpSession session = request.getSession(false);
+		if(session == null){
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try{
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			ret = permissions.getUserDatabases(userId, false);
+			return WebUtility.getResponse(ret, 200);
+		} catch (IllegalArgumentException e){
+			e.printStackTrace();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 500);
+		} catch (Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+	}
+	
+	/**
+	 * Get databases the user has access to
+	 * @param request
+	 * @return Databases the user has access to
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/admin/getDatabases")
+	public Response getAdminDatabases(@Context HttpServletRequest request) {
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		ArrayList<StringMap<String>> ret = new ArrayList<>(); 
+		try{
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			ret = permissions.getUserDatabases(userId, true);
+			return WebUtility.getResponse(ret, 200);
+		} catch (IllegalArgumentException e){
+			e.printStackTrace();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 500);
+		} catch (Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+	}
+	
+	/**
+	 * Get groups and user of database
+	 * @param request
+	 * @return Groups and user of a specific database
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("/admin/getDatabaseUsersAndGroups")
+	public Response getAdminDatabaseUsersAndGroups(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		StringMap<ArrayList<StringMap<String>>>  ret = new StringMap<>();
+		try{
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			String engineId = form.getFirst("engineId");
+			ret = permissions.getDatabaseUsersAndGroups(userId, engineId, true);
+			return WebUtility.getResponse(ret, 200);
+		} catch (IllegalArgumentException e){
+			e.printStackTrace();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 500);
+		} catch (Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+	}
+	
+	/**
+	 * Get the groups and users directly associated with 
+	 * the database requested that the user has access to.
+	 * @param request
+	 * @return Groups and user of a specific database
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("getDatabaseUsersAndGroups")
+	public Response getDatabaseUsersAndGroups(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		StringMap<ArrayList<StringMap<String>>>  ret = new StringMap<>();
+		try{
+			String engineId = form.getFirst("engineId");
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			ret = permissions.getDatabaseUsersAndGroups(userId, engineId, false);
+			return WebUtility.getResponse(ret, 200);
+		} catch (IllegalArgumentException e){
+			e.printStackTrace();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 500);
+		} catch (Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+	}
+	
 	@GET
 	@Produces("application/json")
 	@Path("getAllDatabasesAndPermissions")//DONE
@@ -239,13 +378,13 @@ public class AuthorizationResource
 	public Response addNewGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		ArrayList<String> users = gson.fromJson(form.getFirst("users"), ArrayList.class);
-		Boolean success = permissions.addGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), form.getFirst("groupName").trim(), users);
+		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+		Boolean success = permissions.addGroup(userId, form.getFirst("groupName").trim(), users);
 		
 		if(success) {
-//			return Response.status(200).entity(WebUtility.getSO(success)).build();
 			return WebUtility.getResponse(success, 200);
 		} else {
-//			return Response.status(400).entity(WebUtility.getSO(success)).build();
 			return WebUtility.getResponse(success, 200);
 		}
 	}
@@ -254,14 +393,14 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("removeGroup")
 	public Response removeGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		String groupName = form.getFirst("groupName").trim();
-		Boolean success = permissions.removeGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName);
+		String groupId = form.getFirst("groupId").trim();
+		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+		Boolean success = permissions.removeGroup(userId, groupId);
 		
 		if(success) {
-//			return Response.status(200).entity(WebUtility.getSO(success)).build();
 			return WebUtility.getResponse(success, 200);
 		} else {
-//			return Response.status(400).entity(WebUtility.getSO(success)).build();
 			return WebUtility.getResponse(success, 400);
 		}
 	}
@@ -272,19 +411,20 @@ public class AuthorizationResource
 	public Response editGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		
-		String groupName = form.getFirst("groupName").trim();
+		String groupId = form.getFirst("groupId").trim();
 		ArrayList<String> toAdd = gson.fromJson(form.getFirst("add"), ArrayList.class);
 		ArrayList<String> toRemove = gson.fromJson(form.getFirst("remove"), ArrayList.class);
 		
+		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+		
 		for(String add : toAdd) {
-			permissions.addUserToGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName, add);
+			permissions.addUserToGroup(userId, groupId, add);
 		}
 		
 		for(String remove : toRemove) {
-			permissions.removeUserFromGroup(((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId(), groupName, remove);
+			permissions.removeUserFromGroup(userId, groupId, remove);
 		}
-		
-//		return Response.status(200).entity(WebUtility.getSO(true)).build();
 		return WebUtility.getResponse(true, 200);
 	}
 	
@@ -293,40 +433,90 @@ public class AuthorizationResource
 	@Path("savePermissions")
 	public Response savePermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
-		String userId = ((User) request.getSession().getAttribute(Constants.SESSION_USER)).getId();
-		
-		String engineName = form.getFirst("databaseName").trim();
-		StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
-		ArrayList<StringMap<String>> groupsToAdd = groups.get("add");
-		ArrayList<StringMap<String>> groupsToRemove = groups.get("remove");
-		
-		for(StringMap<String> map : groupsToRemove) {
-			permissions.removeAllPermissionsForGroup(userId, map.get("name"), engineName);
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		try{ 
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			String engineId = form.getFirst("engineId").trim();
+			StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
+			StringMap<ArrayList<StringMap<String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
+			permissions.savePermissions(userId, false, engineId, groups, users);
+		} catch(IllegalArgumentException e){
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch(Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
 		}
 		
-		for(StringMap<String> map : groupsToAdd) {
-			String perm = map.get("permission");
-			EnginePermission[] permArray = new EnginePermission[] { EnginePermission.getPermissionByValue(perm) };
-			permissions.setPermissionsForGroup(userId, map.get("name"), engineName, permArray);
-		}
-		
-		StringMap<ArrayList<StringMap<String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
-		ArrayList<StringMap<String>> usersToAdd = users.get("add");
-		ArrayList<StringMap<String>> usersToRemove = users.get("remove");
-		
-		for(StringMap<String> map : usersToRemove) {
-			permissions.removeAllPermissionsForUser(userId, engineName, map.get("id"));
-		}
-		
-		for(StringMap<String> map : usersToAdd) {
-			String perm = map.get("permission");
-			EnginePermission[] permArray = new EnginePermission[] { EnginePermission.getPermissionByValue(perm) };
-			permissions.setPermissionsForUser(userId, engineName, map.get("id"), permArray);
-		}
-		
-		
-//		return Response.status(200).entity(WebUtility.getSO(true)).build();
 		return WebUtility.getResponse(true, 200);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("isUserGroupAddedValid")
+	public Response isUserGroupAddedValid(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
+		try {
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			String ret = "true";
+			
+			userId = form.getFirst("userIdAdd").trim();
+			String groupId = form.getFirst("groupIdAdd").trim();
+			String engineId = form.getFirst("engineId").trim();
+			
+			StringMap<ArrayList<String>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
+			ArrayList<String> groupsToAdd = groups.get("add");
+			ArrayList<String> groupsToRemove = groups.get("remove");
+			
+			StringMap<ArrayList<String>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
+			ArrayList<String> usersToAdd = users.get("add");
+			ArrayList<String> usersToRemove = users.get("remove");
+			
+			ArrayList<String> groupsFinal = permissions.getAllDbGroupsById(engineId, groupsToAdd, groupsToRemove);
+			ArrayList<String> usersFinal = permissions.getAllDbUsersById(engineId, usersToAdd, usersToRemove);
+			
+			if(!userId.isEmpty()){
+				ret = permissions.isUserWithDatabasePermissionAlready(userId, groupsFinal, usersFinal);
+			} else if(!groupId.isEmpty()){
+				ret = permissions.isGroupUsersWithDatabasePermissionAlready(groupId, groupsFinal, usersFinal);
+			} 
+			
+			if(ret.equals("true")){
+				return WebUtility.getResponse(ret, 200);
+			} else {
+				return WebUtility.getResponse(ret, 400);
+			}
+		} catch(Exception ex) {
+			return WebUtility.getResponse("An unexpected error happened. Please try again.", 500);
+		}		
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("isUserAddedToGroupValid")
+	public Response isUserAddedToGroupValid(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
+		try {
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			String ret = "";
+			
+			String userIdAdd = form.getFirst("userIdAdd").trim();
+			String groupId = form.getFirst("groupId").trim();
+			
+			ret += permissions.isUserAddedToGroupValid(userIdAdd, groupId);
+			
+			if(ret.equals("true")){
+				return WebUtility.getResponse(ret, 200);
+			} else {
+				return WebUtility.getResponse(ret, 400);
+			}
+		} catch(Exception ex) {
+			return WebUtility.getResponse("An unexpected error happened. Please try again.", 500);
+		}		
 	}
 	
 	@GET
@@ -426,15 +616,22 @@ public class AuthorizationResource
 	@GET
 	@Path("/admin/isAdminUser")
 	public Response isAdminUser(@Context HttpServletRequest request) {
-		if(request.getSession().getAttribute(Constants.SESSION_USER) != null) {
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			if(!user.getId().equals(Constants.ANONYMOUS_USER_ID) && permissions.isUserAdmin(user.getId())) {
-//				return Response.status(200).entity(WebUtility.getSO(true)).build();
+		
+		HttpSession session = request.getSession(false);
+		if(session == null){
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(session.getAttribute("semoss_user") != null) {
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			if(!userId.equals(Constants.ANONYMOUS_USER_ID) && permissions.isUserAdmin(userId)) {
 				return WebUtility.getResponse(true, 200);
 			}
 		}
 		
-//		return Response.status(200).entity(WebUtility.getSO(false)).build();
 		return WebUtility.getResponse(false, 200);
 	}
 	
@@ -494,5 +691,150 @@ public class AuthorizationResource
 		retData.put("success", true);
 //		return Response.status(200).entity(WebUtility.getSO(retData)).build();
 		return WebUtility.getResponse(retData, 200);
+	}
+	
+	@GET
+	@Path("/getAllDbUsers")
+	@Produces("application/json")
+	public Response getAllDbUsers(@Context HttpServletRequest request) {
+		ArrayList<StringMap<String>> ret = new ArrayList<>();
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+		try{
+			ret = permissions.getAllDbUsers(userId);
+		} catch (IllegalArgumentException e){
+			e.printStackTrace();
+			errorRet.put("error", e.getMessage());
+		} catch (Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+		}
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	@POST
+	@Path("/removeDatabaseAccess")
+	@Produces("application/json")
+	public Response removeUserPermissionsbyDbId(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		boolean ret = false;
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+		String engineId = form.getFirst("engineId");
+		try{
+			ret = permissions.removeUserPermissionsbyDbId(userId, engineId);
+		} catch (IllegalArgumentException e){
+			e.printStackTrace();
+			errorRet.put("error", e.getMessage());
+		} catch (Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+		}
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Edit user properties 
+	 * @param request
+	 * @param form
+	 * @return true if the edition was performed
+	 */
+	@POST
+	@Path("/editUser")
+	@Produces("application/json")
+	public Response editUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		boolean ret = false;
+		Gson gson = new Gson();
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		try{
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			StringMap<String> userInfo = gson.fromJson(form.getFirst("user"), StringMap.class);
+			ret = permissions.editUser(userId, userInfo);
+		} catch (IllegalArgumentException e){
+			e.printStackTrace();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("/admin/savePermissions")
+	public Response savePermissionsAdmin(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		
+		try{
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			String engineId = form.getFirst("engineId").trim();
+			StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
+			StringMap<ArrayList<StringMap<String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
+			permissions.savePermissions(userId, true, engineId, groups, users);
+		} catch(IllegalArgumentException e){
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch(Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		return WebUtility.getResponse(true, 200);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("setDbVisibility")
+	public Response setDbVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		try{
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			String engineId = form.getFirst("engineId");
+			String visibility = form.getFirst("visibility");
+			permissions.setDbVisibility(userId, engineId, visibility);
+		} catch (IllegalArgumentException e){
+			e.printStackTrace();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		return WebUtility.getResponse(true, 200);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("/admin/deleteUser")
+	public Response deleteUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		try{
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String adminId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			String userId = form.getFirst("userId");
+			permissions.deleteUser(adminId, userId);
+			if(adminId.equals(userId)){
+				request.getSession().invalidate();
+			}
+		} catch (IllegalArgumentException e){
+			e.printStackTrace();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		return WebUtility.getResponse(true, 200);
 	}
 }
