@@ -118,7 +118,7 @@ public class EngineRemoteResource {
 		sjw.execute();
 		*/
 		// need someway to get an indirection for now hardcoded
-		((IRemoteQueryable)sjw).setRemoteAPI(uriBase + coreEngine.getEngineName());
+		((IRemoteQueryable)sjw).setRemoteAPI(uriBase + coreEngine.getEngineId());
 		QueryResultHash.getInstance().addObject((SesameConstructWrapper)sjw);		
 		
 		return WebUtility.getSO(sjw);
@@ -133,7 +133,7 @@ public class EngineRemoteResource {
 		AbstractWrapper sjsw = (AbstractWrapper) WrapperManager.getInstance().getSWrapper(coreEngine, query);
 		sjsw.setRemote(true);
 		// need someway to get an indirection for now hardcoded
-		((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineName());
+		((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineId());
 		QueryResultHash.getInstance().addObject(sjsw);		
 	
 		return WebUtility.getSO(sjsw);
@@ -149,7 +149,7 @@ public class EngineRemoteResource {
 		AbstractWrapper sjsw = (AbstractWrapper) WrapperManager.getInstance().getChWrapper(coreEngine, query);
 		sjsw.setRemote(true);
 		// need someway to get an indirection for now hardcoded
-		((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineName());
+		((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineId());
 		QueryResultHash.getInstance().addObject(sjsw);		
 	
 		return WebUtility.getSO(sjsw);
