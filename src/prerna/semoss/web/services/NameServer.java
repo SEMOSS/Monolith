@@ -126,8 +126,7 @@ public class NameServer {
 
 	// gets the engine resource necessary for all engine calls
 	@Path("e-{engine}")
-	public Object getLocalDatabase(@PathParam("engine") String db, @QueryParam("api") String api,
-			@Context HttpServletRequest request) throws IOException {
+	public Object getLocalDatabase(@Context HttpServletRequest request, @PathParam("engine") String db, @QueryParam("api") String api) throws IOException {
 		// check if api has been passed
 		// if yes:
 		// check if remote engine has already been started and stored in context
@@ -139,14 +138,16 @@ public class NameServer {
 		// otherwise grab local engine
 		System.out.println(" Getting DB... " + db);
 		HttpSession session = request.getSession();
-		if(api != null && api.equalsIgnoreCase("undefined")) // why do we send this shit ?
+		if(api != null && api.equalsIgnoreCase("undefined")) {
 			api = null;
+		}
 		IEngine engine = null;
-		if (api != null) {
+		if(api != null) {
 			String remoteEngineKey = api + ":" + db;
 			engine = (IEngine) session.getAttribute(remoteEngineKey);
-			if (engine == null && session.getAttribute(db) instanceof IEngine)
+			if (engine == null && session.getAttribute(db) instanceof IEngine) {
 				engine = (IEngine) session.getAttribute(db);
+			}
 			if (engine == null && !api.equalsIgnoreCase("null")) { // this is a legit API
 				addEngine(request, api, db);
 				engine = (IEngine) session.getAttribute(remoteEngineKey);
@@ -155,27 +156,31 @@ public class NameServer {
 				engine = loadEngine(db);
 				session.setAttribute(remoteEngineKey, engine);
 			}
-		}
-		else
-		{
+		} else {
 			String remoteEngineKey = db;
-			if(session.getAttribute(remoteEngineKey) instanceof IEngine)
+			if(session.getAttribute(remoteEngineKey) instanceof IEngine) {
 				engine = (IEngine) session.getAttribute(remoteEngineKey);			
-			else
-			{
+			} else {
 				engine = loadEngine(db);
 				session.setAttribute(remoteEngineKey, engine);				
 			}
 		}
-		if (engine == null)
+		// error at the end
+		if(engine == null) {
 			throw new IOException("The engine " + db + " at " + api + " cannot be found");
+		}
 		EngineResource res = new EngineResource();
 		res.setEngine(engine);
 		return res;
 	}
 	
-	private IEngine loadEngine(String db){
-		return Utility.getEngine(db);
+	private IEngine loadEngine(String engineId) {
+		try {
+			engineId = MasterDatabaseUtility.testEngineIdIfAlias(engineId);
+		} catch(Exception e) {
+			return null;
+		}
+		return Utility.getEngine(engineId);
 	}
 
 	@Path("s-{engine}")
