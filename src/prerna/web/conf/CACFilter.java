@@ -74,11 +74,13 @@ public class CACFilter implements Filter {
 					session.setAttribute("semoss_user", user);
 				}
 			}
-		} else {
+		}
+		
+		if(session.getAttribute("semoss_user") == null) {
 			//TOOD: figure out redirect
-//			HttpServletResponse httpResponse = (HttpServletResponse) arg1;
-//			httpResponse.sendRedirect( ((HttpServletRequest)arg0).getHeader("Referer") + "TestRedirect/test.html");
-//			return;
+			HttpServletResponse httpResponse = (HttpServletResponse) arg1;
+			httpResponse.sendRedirect( ((HttpServletRequest)arg0).getHeader("Referer") + "TestRedirect/test.html");
+			return;
 		}
 
 		arg2.doFilter(arg0, arg1);
