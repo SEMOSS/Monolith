@@ -51,7 +51,7 @@ public class CACFilter implements Filter {
 									String cacId = split[split.length-1];
 									if(cacId.length() >= 10) {
 										// valid CAC!!!
-										token.setName(value);
+										token.setName(cacId);
 										// now set the other properties
 										token.setToken_type(cert.getIssuerDN().getName());
 										token.setExpires_in((int) cert.getNotAfter().getTime());
