@@ -461,7 +461,6 @@ public class DatabaseUploader extends Uploader {
 					Map<String, List<Map<String, Object>>> metaModel = predictor.getMetaModelData();
 					fileMetaModelData.putAll(metaModel);
 				}
-				
 				else {
 					// user is creating their own
 					predictor = new MetaModelCreator(helper, null);
@@ -475,6 +474,7 @@ public class DatabaseUploader extends Uploader {
 				fileMetaModelData.put("startCount", start);
 				fileMetaModelData.put("endCount", end);
 				fileMetaModelData.put("dataTypes", predictor.getDataTypeMap());
+				fileMetaModelData.put("additionalDataTypes", predictor.getAdditionalDataTypeMap());
 				fileMetaModelData.put("additionalInfo", additionalInfo);
 				// store auto modified header names
 				fileMetaModelData.put("headerModifications", helper.getChangedHeaders());
