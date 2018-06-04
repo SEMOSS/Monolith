@@ -3,6 +3,7 @@ package prerna.upload;
 import java.io.File;
 import java.io.FileFilter;
 import java.util.List;
+import java.util.Properties;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -16,6 +17,9 @@ import org.apache.commons.io.filefilter.WildcardFileFilter;
 
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
+import prerna.util.Utility;
 
 public class ImageUploader extends Uploader {
 	
@@ -40,7 +44,10 @@ public class ImageUploader extends Uploader {
 		}
 
 		//TODO: account for user here
-		String appId = MasterDatabaseUtility.getEngineIdsForAlias(appName).get(0);
+		String appId = MasterDatabaseUtility.testEngineIdIfAlias(appName);
+		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
+		Properties prop = Utility.loadProperties(propFileLoc);
+		appName = prop.getProperty(Constants.ENGINE_ALIAS);
 		
 		// now that we have the app name
 		// and the image file
