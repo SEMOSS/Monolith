@@ -31,12 +31,9 @@ import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -49,15 +46,9 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
-import prerna.cache.FileStore;
 import prerna.cache.ICache;
 import prerna.poi.main.HeadersException;
-import prerna.poi.main.helper.AmazonApiHelper;
 import prerna.poi.main.helper.CSVFileHelper;
-import prerna.poi.main.helper.ImportApiHelper;
-import prerna.poi.main.helper.WebAPIHelper;
-import prerna.poi.main.helper.XLFileHelper;
-import prerna.util.Utility;
 
 /**
  * Servlet implementation class Uploader
@@ -65,7 +56,7 @@ import prerna.util.Utility;
 @SuppressWarnings("serial")
 public abstract class Uploader extends HttpServlet {
 
-	private static final Logger LOGGER = LogManager.getLogger(FileUploader.class);
+	private static final Logger LOGGER = LogManager.getLogger(Uploader.class);
 
 	// get the directory separator
 	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
@@ -204,108 +195,5 @@ public abstract class Uploader extends HttpServlet {
 		}
 		
 		return true;
-	}
-	
-	/**
-	 * 
-	 * @param inputData
-	 * @return
-	 * @throws IOException
-	 */
-	protected static Map<String, Object> generateDataTypes(Map<String, String> inputData) throws IOException {
-		Map<String, Object> retObj = new HashMap<String, Object>();
-
-		Map<String, Map<String, String>> headerTypeMap = new Hashtable<String, Map<String, String>>();
-
-		boolean webExtract = (inputData.get("file") == null);
-		String keyvalue = "";
-
-		if(webExtract){//Provision for extracted data via import.io
-			WebAPIHelper helper = null;
-			if(inputData.get("api") != null){
-				keyvalue = inputData.get("api");
-				helper = new ImportApiHelper();
-			}else if(inputData.get("itemSearch") != null){
-				keyvalue = inputData.get("itemSearch");
-				helper = new AmazonApiHelper();
-				((AmazonApiHelper) helper).setOperationType("ItemSearch");
-			}else if(inputData.get("itemLookup") != null){
-				keyvalue = inputData.get("itemLookup");
-				helper = new AmazonApiHelper();
-				((AmazonApiHelper) helper).setOperationType("ItemLookup");
-			}
-
-			helper.setApiParam(keyvalue);
-			helper.parse();	
-
-
-			String [] headers = helper.getHeaders();
-			String [] types = helper.predictTypes();
-
-			Map<String, String> headerTypes = new LinkedHashMap<String, String>();
-			for(int j = 0; j < headers.length; j++) {
-				headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
-			}
-			headerTypeMap.put(CSV_FILE_KEY, headerTypes);
-
-		} else {
-
-			String fileLoc = inputData.get("file");
-			String uniqueStorageId = FileStore.getInstance().put(fileLoc);
-			retObj.put("uniqueFileKey", uniqueStorageId);
-			if(fileLoc.endsWith(".xlsx") || fileLoc.endsWith(".xlsm")) {
-				XLFileHelper helper = new XLFileHelper();
-				helper.parse(fileLoc);
-
-				String[] sheets = helper.getTables();
-				for(int i = 0; i < sheets.length; i++)
-				{
-					String sheetName = sheets[i];
-					String[] types = helper.predictRowTypes(sheetName);
-					String[] headers = helper.getHeaders(sheetName);
-
-					String [] cleanHeaders = new String[headers.length];
-					for(int x = 0; x < headers.length; x++) {
-						cleanHeaders[i] = Utility.cleanVariableString(headers[i]);
-					}
-
-					Map<String, String> headerTypes = new LinkedHashMap<String, String>();
-					for(int j = 0; j < cleanHeaders.length; j++) {
-						headerTypes.put(cleanHeaders[j], Utility.getCleanDataType(types[j]));
-					}
-					headerTypeMap.put(sheetName, headerTypes);
-				}
-			} else {
-				String delimiter = inputData.get("delimiter");
-				// generate tinker frame from 
-				if(inputData.get("delimiter") == null || inputData.get("delimiter").isEmpty()) {
-					delimiter = "\t";
-				}
-
-				CSVFileHelper helper = new CSVFileHelper();
-				helper.setDelimiter(delimiter.charAt(0));
-				helper.parse(fileLoc);
-
-				String [] headers = helper.getHeaders();
-				String [] types = helper.predictTypes();
-
-				Map<String, String> headerTypes = new LinkedHashMap<String, String>();
-				for(int j = 0; j < headers.length; j++) {
-					headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
-				}
-				headerTypeMap.put(CSV_FILE_KEY, headerTypes);
-				retObj.put("delimiter", delimiter);
-				
-//				String htmlMessage = helper.getHTMLBasedHeaderChanges();
-//				if(htmlMessage != null) {
-//					retObj.put(CSV_HELPER_MESSAGE, htmlMessage);
-//				}
-				
-				helper.clear();
-			}
-		}
-
-		retObj.put("headerData", headerTypeMap);
-		return retObj;
 	}
 }
