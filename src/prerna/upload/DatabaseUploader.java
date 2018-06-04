@@ -12,7 +12,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -47,6 +46,7 @@ import prerna.poi.main.HeadersException;
 import prerna.poi.main.MetaModelCreator;
 import prerna.poi.main.SolrEngineConnector;
 import prerna.poi.main.helper.CSVFileHelper;
+import prerna.poi.main.helper.FileHelperUtil;
 import prerna.poi.main.helper.ImportOptions;
 import prerna.poi.main.helper.XLFileHelper;
 import prerna.rdf.main.ImportRDBMSProcessor;
@@ -54,7 +54,6 @@ import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
-import prerna.util.ga.GATracker;
 import prerna.util.sql.SQLQueryUtil;
 import prerna.web.services.util.WebUtility;
 
@@ -498,11 +497,6 @@ public class DatabaseUploader extends Uploader {
 		// store the info
 		returnObj.put("metaModelData", metaModelData);
 		
-		// add question file location on server is present
-		if(inputData.containsKey("questionFile")){
-			returnObj.put("questionFile", returnObj.get("questionFile"));
-		}
-		
 		return Response.status(200).entity(gson.toJson(returnObj)).build();
 	}
 
@@ -636,10 +630,6 @@ public class DatabaseUploader extends Uploader {
 			if(files != null && !files.isEmpty()) {
 				deleteFilesFromServer(files.split(";"));
 			}
-			String questionFile = form.getFirst("questionFile");
-			if(questionFile != null && !questionFile.isEmpty()) {
-				deleteFilesFromServer(new String[]{questionFile});
-			}
 		}
 
 		try {
@@ -670,101 +660,100 @@ public class DatabaseUploader extends Uploader {
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
 	
-	@POST
-	@Path("/csv/flat")
-	@Produces("application/json")
-	/**
-	 * The process flow for loading a flat file based on drag/drop
-	 * Since the user confirms what type of datatypes they want for each column
-	 * The file has already been loaded onto the server
-	 * @param form					Form object containing all the information regarding the load
-	 * @param request
-	 * @return
-	 */
-	public Response uploadFlatCsvFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		Gson gson = new Gson();
-		System.out.println(form);
-
-		ImportOptions options = null;
-		try {
-			options = new ImportOptions();
-			setDefaultOptions(options, form);
-			// can only load flat files as RDBMS
-			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
-			options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.H2_DB);
-			options.setImportType(ImportOptions.IMPORT_TYPE.CSV_FLAT_LOAD);
-
-			// set the files
-			String files = form.getFirst("file");
-			if(files == null || files.trim().isEmpty()) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "No files have been identified to upload");
-				return Response.status(400).entity(gson.toJson(errorHash)).build();
-			}
-			options.setFileLocation(files);
-
-			// see if user also manually changed some the headers
-			String newHeadersStr = form.getFirst("newHeaders");
-			System.out.println("new headers is " + newHeadersStr);
-			if(newHeadersStr != null && newHeadersStr.equalsIgnoreCase("undefined"))
-				newHeadersStr = null;
-			if(newHeadersStr != null) {
-				Map<String, Map<String, String>> newHeaders = 
-						gson.fromJson(newHeadersStr, new TypeToken<Map<String, Map<String, String>>>() {}.getType());
-				options.setCsvNewHeaders(newHeaders);
-			}
-			
-			// this should always be present now since we dont want to predict types twice on the BE
-			// get the data types and set them in the options
-			String headerDataTypesStr = form.getFirst("headerData");
-			if(headerDataTypesStr != null) {
-				List<Map<String, String[]>> headerDataTypes = 
-						gson.fromJson(headerDataTypesStr, new TypeToken<List<Map<String, String[]>>>() {}.getType());
-				options.setCsvDataTypeMap(headerDataTypes);
-				
-				// track GA data
-				String tableName = form.getFirst("dbName");
-				GATracker.getInstance().trackCsvUpload(files, tableName, headerDataTypes);
-			}
-			// add engine owner for permissions
-			if(this.securityEnabled) {
-				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getDbName(), ((User) user).getId());
-				} else {
-					Map<String, String> errorHash = new HashMap<String, String>();
-					errorHash.put("errorMessage", "Please log in to upload data.");
-					return Response.status(400).entity(gson.toJson(errorHash)).build();
-				}
-			}
-
-			ImportDataProcessor importer = new ImportDataProcessor();
-			importer.runProcessor(options);
-		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch(Exception e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} finally {
-			// we can't really use the options object for this :/
-			String files = form.getFirst("file");
-			if(files != null && !files.isEmpty()) {
-				deleteFilesFromServer(files.split(";"));
-			}
-			String questionFile = form.getFirst("questionFile");
-			if(questionFile != null && !questionFile.isEmpty()) {
-				deleteFilesFromServer(new String[]{questionFile});
-			}
-		}
-
-		String outputText = "Flat database loading was a success.";
-		return Response.status(200).entity(gson.toJson(outputText)).build();
-	}
+//	@POST
+//	@Path("/csv/flat")
+//	@Produces("application/json")
+//	/**
+//	 * The process flow for loading a flat file based on drag/drop
+//	 * Since the user confirms what type of datatypes they want for each column
+//	 * The file has already been loaded onto the server
+//	 * @param form					Form object containing all the information regarding the load
+//	 * @param request
+//	 * @return
+//	 */
+//	public Response uploadFlatCsvFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+//		Gson gson = new Gson();
+//		System.out.println(form);
+//
+//		ImportOptions options = null;
+//		try {
+//			options = new ImportOptions();
+//			setDefaultOptions(options, form);
+//			// can only load flat files as RDBMS
+//			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
+//			options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.H2_DB);
+//			options.setImportType(ImportOptions.IMPORT_TYPE.CSV_FLAT_LOAD);
+//
+//			// set the files
+//			String files = form.getFirst("file");
+//			if(files == null || files.trim().isEmpty()) {
+//				Map<String, String> errorHash = new HashMap<String, String>();
+//				errorHash.put("errorMessage", "No files have been identified to upload");
+//				return Response.status(400).entity(gson.toJson(errorHash)).build();
+//			}
+//			options.setFileLocation(files);
+//
+//			// see if user also manually changed some the headers
+//			String newHeadersStr = form.getFirst("newHeaders");
+//			System.out.println("new headers is " + newHeadersStr);
+//			if(newHeadersStr != null && newHeadersStr.equalsIgnoreCase("undefined"))
+//				newHeadersStr = null;
+//			if(newHeadersStr != null) {
+//				Map<String, Map<String, String>> newHeaders = 
+//						gson.fromJson(newHeadersStr, new TypeToken<Map<String, Map<String, String>>>() {}.getType());
+//				options.setCsvNewHeaders(newHeaders);
+//			}
+//			
+//			// this should always be present now since we dont want to predict types twice on the BE
+//			// get the data types and set them in the options
+//			String headerDataTypesStr = form.getFirst("headerData");
+//			if(headerDataTypesStr != null) {
+//				List<Map<String, String[]>> headerDataTypes = gson.fromJson(headerDataTypesStr, new TypeToken<List<Map<String, String[]>>>() {}.getType());
+//				options.setCsvDataTypeMap(headerDataTypes);
+//				
+//				// track GA data
+//				String tableName = form.getFirst("dbName");
+//				GATracker.getInstance().trackCsvUpload(files, tableName, headerDataTypes);
+//			}
+//			// add engine owner for permissions
+//			if(this.securityEnabled) {
+//				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+//				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+//					addEngineOwner(options.getDbName(), ((User) user).getId());
+//				} else {
+//					Map<String, String> errorHash = new HashMap<String, String>();
+//					errorHash.put("errorMessage", "Please log in to upload data.");
+//					return Response.status(400).entity(gson.toJson(errorHash)).build();
+//				}
+//			}
+//
+//			ImportDataProcessor importer = new ImportDataProcessor();
+//			importer.runProcessor(options);
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//			Map<String, String> errorHash = new HashMap<String, String>();
+//			errorHash.put("errorMessage", e.getMessage());
+//			return Response.status(400).entity(gson.toJson(errorHash)).build();
+//		} catch(Exception e) {
+//			e.printStackTrace();
+//			Map<String, String> errorHash = new HashMap<String, String>();
+//			errorHash.put("errorMessage", e.getMessage());
+//			return Response.status(400).entity(gson.toJson(errorHash)).build();
+//		} finally {
+//			// we can't really use the options object for this :/
+//			String files = form.getFirst("file");
+//			if(files != null && !files.isEmpty()) {
+//				deleteFilesFromServer(files.split(";"));
+//			}
+//			String questionFile = form.getFirst("questionFile");
+//			if(questionFile != null && !questionFile.isEmpty()) {
+//				deleteFilesFromServer(new String[]{questionFile});
+//			}
+//		}
+//
+//		String outputText = "Flat database loading was a success.";
+//		return Response.status(200).entity(gson.toJson(outputText)).build();
+//	}
 	
 	////////////////////////////////////////////// END CSV UPLOADING //////////////////////////////////////////////////////////
 	
@@ -809,20 +798,19 @@ public class DatabaseUploader extends Uploader {
 				// store the suggested data types
 				String[] sheetNames = helper.getTables();
 				Map<String, Map<String, String>> dataTypes = new Hashtable<String, Map<String, String>>();
+				Map<String, Map<String, String>> additionalDataTypes = new Hashtable<String, Map<String, String>>();
+
 				for(String sheetName : sheetNames) {
-					Map<String, String> sheetDataMap = new LinkedHashMap<String, String>();
-					String[] columnHeaders = helper.getHeaders(sheetName);
-					String[] predicatedDataTypes = helper.predictRowTypes(sheetName);
-					
-					int size = columnHeaders.length;
-					for(int colIdx = 0; colIdx < size; colIdx++) {
-						sheetDataMap.put(columnHeaders[colIdx], Utility.getCleanDataType(predicatedDataTypes[colIdx]));
-					}
+					Map[] predictionMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(helper.getHeaders(sheetName), helper.predictTypes(sheetName));
+					Map<String, String> sheetDataMap = predictionMaps[0];
+					Map<String, String> additionalTypesMap = predictionMaps[1];
 					
 					dataTypes.put(sheetName, sheetDataMap);
+					additionalDataTypes.put(sheetName, additionalTypesMap);
 				}
 				fileMetaModelData.put("dataTypes", dataTypes);
-				
+				fileMetaModelData.put("additionalDataTypes", additionalDataTypes);
+
 				// store auto modified header names
 				Map<String, Map<String, String>> fileHeaderMods = helper.getChangedHeaders();
 				fileMetaModelData.put("headerModifications", fileHeaderMods);
@@ -836,7 +824,6 @@ public class DatabaseUploader extends Uploader {
 			// grab the error thrown and send it to the FE
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", e.getMessage());
-//			return Response.status(400).entity(WebUtility.getSO(errorMap)).build();
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -1074,100 +1061,100 @@ public class DatabaseUploader extends Uploader {
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
 	
-	@POST
-	@Path("/excel/flat")
-	@Produces("application/json")
-	/**
-	 * The process flow for loading a flat file based on drag/drop
-	 * Since the user confirms what type of datatypes they want for each column
-	 * The file has already been loaded onto the server
-	 * @param form					Form object containing all the information regarding the load
-	 * @param request
-	 * @return
-	 */
-	public Response uploadFlatExcelFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		Gson gson = new Gson();
-		System.out.println(form);
-
-		ImportOptions options = null;
-		try {
-			options = new ImportOptions();
-			setDefaultOptions(options, form);
-			// can only load flat files as RDBMS
-			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
-			options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.H2_DB);
-			options.setImportType(ImportOptions.IMPORT_TYPE.EXCEL_FLAT_UPLOAD);
-
-			// set the files
-			String files = form.getFirst("file");
-			if(files == null || files.trim().isEmpty()) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "No files have been identified to upload");
-				return Response.status(400).entity(gson.toJson(errorHash)).build();
-			}
-			options.setFileLocation(files);
-
-			// see if user also manually changed some the headers
-			String newHeadersStr = form.getFirst("newHeaders");
-			if(newHeadersStr != null) {
-				List<Map<String, Map<String, String>>> newHeaders = 
-						gson.fromJson(newHeadersStr, new TypeToken<List<Map<String, LinkedHashMap<String, String>>>>() {}.getType());
-				options.setExcelNewHeaders(newHeaders);
-			}
-			
-			// this should always be present now since we dont want to predict types twice on the BE
-			// get the data types and set them in the options
-			String headerDataTypesStr = form.getFirst("headerData");
-			if(headerDataTypesStr != null) {
-				List<Map<String, Map<String, String[]>>> headerDataTypes = 
-						gson.fromJson(headerDataTypesStr, new TypeToken<List<Map<String, LinkedHashMap<String, String[]>>>>() {}.getType());
-				options.setExcelDataTypeMap(headerDataTypes);
-				
-				// track GA data
-				String dbName = form.getFirst("dbName");
-                String fileName = files.substring(files.lastIndexOf("\\") + 1, files.lastIndexOf("."));
-                GATracker.getInstance().trackExcelUpload(dbName, fileName, headerDataTypes);
-			}
-			
-			// add engine owner for permissions
-			if(this.securityEnabled) {
-				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getDbName(), ((User) user).getId());
-				} else {
-					Map<String, String> errorHash = new HashMap<String, String>();
-					errorHash.put("errorMessage", "Please log in to upload data.");
-					return Response.status(400).entity(gson.toJson(errorHash)).build();
-				}
-			}
-
-			ImportDataProcessor importer = new ImportDataProcessor();
-			importer.runProcessor(options);
-		} catch (IOException e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} catch(Exception e) {
-			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", e.getMessage());
-			return Response.status(400).entity(gson.toJson(errorHash)).build();
-		} finally {
-			// we can't really use the options object for this :/
-			String files = form.getFirst("file");
-			if(files != null && !files.isEmpty()) {
-				deleteFilesFromServer(files.split(";"));
-			}
-			String questionFile = form.getFirst("questionFile");
-			if(questionFile != null && !questionFile.isEmpty()) {
-				deleteFilesFromServer(new String[]{questionFile});
-			}
-		}
-
-		String outputText = "Flat database loading was a success.";
-		return Response.status(200).entity(gson.toJson(outputText)).build();
-	}
+//	@POST
+//	@Path("/excel/flat")
+//	@Produces("application/json")
+//	/**
+//	 * The process flow for loading a flat file based on drag/drop
+//	 * Since the user confirms what type of datatypes they want for each column
+//	 * The file has already been loaded onto the server
+//	 * @param form					Form object containing all the information regarding the load
+//	 * @param request
+//	 * @return
+//	 */
+//	public Response uploadFlatExcelFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+//		Gson gson = new Gson();
+//		System.out.println(form);
+//
+//		ImportOptions options = null;
+//		try {
+//			options = new ImportOptions();
+//			setDefaultOptions(options, form);
+//			// can only load flat files as RDBMS
+//			options.setDbType(ImportOptions.DB_TYPE.RDBMS);
+//			options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.H2_DB);
+//			options.setImportType(ImportOptions.IMPORT_TYPE.EXCEL_FLAT_UPLOAD);
+//
+//			// set the files
+//			String files = form.getFirst("file");
+//			if(files == null || files.trim().isEmpty()) {
+//				Map<String, String> errorHash = new HashMap<String, String>();
+//				errorHash.put("errorMessage", "No files have been identified to upload");
+//				return Response.status(400).entity(gson.toJson(errorHash)).build();
+//			}
+//			options.setFileLocation(files);
+//
+//			// see if user also manually changed some the headers
+//			String newHeadersStr = form.getFirst("newHeaders");
+//			if(newHeadersStr != null) {
+//				List<Map<String, Map<String, String>>> newHeaders = 
+//						gson.fromJson(newHeadersStr, new TypeToken<List<Map<String, LinkedHashMap<String, String>>>>() {}.getType());
+//				options.setExcelNewHeaders(newHeaders);
+//			}
+//			
+//			// this should always be present now since we dont want to predict types twice on the BE
+//			// get the data types and set them in the options
+//			String headerDataTypesStr = form.getFirst("headerData");
+//			if(headerDataTypesStr != null) {
+//				List<Map<String, Map<String, String[]>>> headerDataTypes = 
+//						gson.fromJson(headerDataTypesStr, new TypeToken<List<Map<String, LinkedHashMap<String, String[]>>>>() {}.getType());
+//				options.setExcelDataTypeMap(headerDataTypes);
+//				
+//				// track GA data
+//				String dbName = form.getFirst("dbName");
+//                String fileName = files.substring(files.lastIndexOf("\\") + 1, files.lastIndexOf("."));
+//                GATracker.getInstance().trackExcelUpload(dbName, fileName, headerDataTypes);
+//			}
+//			
+//			// add engine owner for permissions
+//			if(this.securityEnabled) {
+//				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+//				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
+//					addEngineOwner(options.getDbName(), ((User) user).getId());
+//				} else {
+//					Map<String, String> errorHash = new HashMap<String, String>();
+//					errorHash.put("errorMessage", "Please log in to upload data.");
+//					return Response.status(400).entity(gson.toJson(errorHash)).build();
+//				}
+//			}
+//
+//			ImportDataProcessor importer = new ImportDataProcessor();
+//			importer.runProcessor(options);
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//			Map<String, String> errorHash = new HashMap<String, String>();
+//			errorHash.put("errorMessage", e.getMessage());
+//			return Response.status(400).entity(gson.toJson(errorHash)).build();
+//		} catch(Exception e) {
+//			e.printStackTrace();
+//			Map<String, String> errorHash = new HashMap<String, String>();
+//			errorHash.put("errorMessage", e.getMessage());
+//			return Response.status(400).entity(gson.toJson(errorHash)).build();
+//		} finally {
+//			// we can't really use the options object for this :/
+//			String files = form.getFirst("file");
+//			if(files != null && !files.isEmpty()) {
+//				deleteFilesFromServer(files.split(";"));
+//			}
+//			String questionFile = form.getFirst("questionFile");
+//			if(questionFile != null && !questionFile.isEmpty()) {
+//				deleteFilesFromServer(new String[]{questionFile});
+//			}
+//		}
+//
+//		String outputText = "Flat database loading was a success.";
+//		return Response.status(200).entity(gson.toJson(outputText)).build();
+//	}
 	
 	////////////////////////////////////////////// END EXCEL UPLOADING //////////////////////////////////////////////////////////
 
