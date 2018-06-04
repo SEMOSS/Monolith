@@ -100,6 +100,7 @@ import prerna.solr.SolrIndexEngine;
 import prerna.solr.SolrIndexEngine.SOLR_PATHS;
 import prerna.solr.SolrIndexEngineQueryBuilder;
 import prerna.upload.DatabaseUploader;
+import prerna.upload.FileUploader;
 import prerna.upload.ImageUploader;
 import prerna.upload.Uploader;
 import prerna.util.Constants;
@@ -335,6 +336,17 @@ public class NameServer {
 	public Uploader uploadDatabase(@Context HttpServletRequest request) {
 		Uploader upload = new DatabaseUploader();
 		String filePath = context.getInitParameter("file-upload");
+		upload.setFilePath(filePath);
+		String tempFilePath = context.getInitParameter("temp-file-upload");
+		upload.setTempFilePath(tempFilePath);
+		upload.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
+		return upload;
+	}
+	
+	@Path("/uploadFile")
+	public Uploader uploadFile(@Context HttpServletRequest request) {
+		Uploader upload = new FileUploader();
+		String filePath = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR) + "\\" + DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER);
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
