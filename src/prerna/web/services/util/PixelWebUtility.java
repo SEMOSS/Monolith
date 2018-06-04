@@ -74,7 +74,7 @@ public class PixelWebUtility extends WebUtility{
 		ps.flush();
 
 		// now flush array of pixel returns
-		ps.println("\"pixelReturn\":[");
+		ps.print("\"pixelReturn\":[");
 		int size = pixelStrings.size();
 
 		// THIS IS BECAUSE WE APPEND THE JOB PIXEL
