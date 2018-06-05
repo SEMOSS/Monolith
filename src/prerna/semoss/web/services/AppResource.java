@@ -44,13 +44,13 @@ public class AppResource {
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
 	public Response downloadAppImage(@Context HttpServletRequest request, @PathParam("appName") String app) {
 		File exportFile = getAppImageFile(app);
-		if(exportFile.exists()) {
+		if(exportFile != null && exportFile.exists()) {
 			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
 		} else {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "error sending image file");
-			return Response.status(400).entity(errorMap).build();
+			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
 	
@@ -62,6 +62,9 @@ public class AppResource {
 	private File getAppImageFile(String app) {
 		String appId = MasterDatabaseUtility.testEngineIdIfAlias(app);
 		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
+		if(propFileLoc == null && !app.equals("NEWSEMOSSAPP")) {
+			return null;
+		}
 		Properties prop = Utility.loadProperties(propFileLoc);
 		app = prop.getProperty(Constants.ENGINE_ALIAS);
 		
@@ -90,13 +93,13 @@ public class AppResource {
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
 	public Response downloadInsightImage(@Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
 		File exportFile = getInsightImageFile(app, id, request.getHeader("Referer"), params);
-		if(exportFile.exists()) {
+		if(exportFile != null && exportFile.exists()) {
 			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
 		} else {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "error sending image file");
-			return Response.status(400).entity(errorMap).build();
+			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
 	
