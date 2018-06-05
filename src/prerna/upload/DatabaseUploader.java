@@ -427,7 +427,7 @@ public class DatabaseUploader extends Uploader {
 				char delimiter = delimiters[i].charAt(0);
 				String file = filePath.substring(filePath.lastIndexOf(DIR_SEPARATOR) + DIR_SEPARATOR.length(), filePath.lastIndexOf("."));
 				try {
-					file = file.substring(0, file.length() - 24); //taking out the date added onto the original file name
+					file = file.substring(0, file.indexOf("_____UNIQUE")); //taking out the date added onto the original file name
 				} catch(Exception e) {
 					//just in case that fails, this shouldnt because if its a filename it should have a "."
 					file = filePath.substring(filePath.lastIndexOf(DIR_SEPARATOR) + DIR_SEPARATOR.length(), filePath.lastIndexOf(".")); 
@@ -786,7 +786,7 @@ public class DatabaseUploader extends Uploader {
 				fileMetaModelData.put("fileLocation", files[i]);
 				String file = files[i].substring(files[i].lastIndexOf("\\") + 1, files[i].lastIndexOf("."));
 				try {
-					file = file.substring(0, file.length() - 24); //taking out the date added onto the original file name
+					file = file.substring(0, file.indexOf("_____UNIQUE")); //taking out the date added onto the original file name
 				} catch(Exception e) {
 					file = files[i].substring(files[i].lastIndexOf("\\") + 1, files[i].lastIndexOf(".")); //just in case that fails, this shouldnt because if its a filename it should have a "."
 				}
