@@ -7,7 +7,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,13 +21,9 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import prerna.cache.FileStore;
-import prerna.poi.main.helper.AmazonApiHelper;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.FileHelperUtil;
-import prerna.poi.main.helper.ImportApiHelper;
-import prerna.poi.main.helper.WebAPIHelper;
 import prerna.poi.main.helper.XLFileHelper;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class FileUploader extends Uploader {
@@ -40,7 +35,7 @@ public class FileUploader extends Uploader {
 	 * However, this is only used to push the file to the BE server, the actual
 	 * processing of the file to create/add to a data frame occurs through PKQL
 	 */
-	
+
 	@POST
 	@Path("determineDataTypesForFile")
 	public Response determineDataTypesForFile(@Context HttpServletRequest request) {
@@ -57,7 +52,7 @@ public class FileUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
-	
+
 
 	/**
 	 * 
@@ -68,95 +63,52 @@ public class FileUploader extends Uploader {
 	protected static Map<String, Object> generateDataTypes(Map<String, String> inputData) throws IOException {
 		Map<String, Object> retObj = new HashMap<String, Object>();
 
-		Map<String, Map<String, String>> headerTypeMap = new Hashtable<String, Map<String, String>>();
+		String fileLoc = inputData.get("file");
+		String uniqueStorageId = FileStore.getInstance().put(fileLoc);
+		retObj.put("uniqueFileKey", uniqueStorageId);
+		if(fileLoc.endsWith(".xlsx") || fileLoc.endsWith(".xlsm")) {
+			XLFileHelper helper = new XLFileHelper();
+			helper.parse(fileLoc);
 
-		boolean webExtract = (inputData.get("file") == null);
-		String keyvalue = "";
+			String[] sheets = helper.getTables();
+			for(int i = 0; i < sheets.length; i++) {
+				String sheetName = sheets[i];
+				String[] headers = helper.getHeaders(sheetName);
+				Map[] retMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(headers, helper.predictTypes(sheetName));
 
-		if(webExtract){//Provision for extracted data via import.io
-			WebAPIHelper helper = null;
-			if(inputData.get("api") != null){
-				keyvalue = inputData.get("api");
-				helper = new ImportApiHelper();
-			}else if(inputData.get("itemSearch") != null){
-				keyvalue = inputData.get("itemSearch");
-				helper = new AmazonApiHelper();
-				((AmazonApiHelper) helper).setOperationType("ItemSearch");
-			}else if(inputData.get("itemLookup") != null){
-				keyvalue = inputData.get("itemLookup");
-				helper = new AmazonApiHelper();
-				((AmazonApiHelper) helper).setOperationType("ItemLookup");
+				Map<String, Map> innerObj = new HashMap<String, Map>();
+				innerObj.put("dataTypes", retMaps[0]);
+				innerObj.put("additionalDataTypes", retMaps[1]);
+				retObj.put(sheetName, innerObj);
 			}
-
-			helper.setApiParam(keyvalue);
-			helper.parse();	
-
-
-			String [] headers = helper.getHeaders();
-			String [] types = helper.predictTypes();
-
-			Map<String, String> headerTypes = new LinkedHashMap<String, String>();
-			for(int j = 0; j < headers.length; j++) {
-				headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
-			}
-			headerTypeMap.put(CSV_FILE_KEY, headerTypes);
-
+			
+			helper.clear();
 		} else {
-
-			String fileLoc = inputData.get("file");
-			String uniqueStorageId = FileStore.getInstance().put(fileLoc);
-			retObj.put("uniqueFileKey", uniqueStorageId);
-			if(fileLoc.endsWith(".xlsx") || fileLoc.endsWith(".xlsm")) {
-				XLFileHelper helper = new XLFileHelper();
-				helper.parse(fileLoc);
-
-				String[] sheets = helper.getTables();
-				for(int i = 0; i < sheets.length; i++) {
-					String sheetName = sheets[i];
-					String[] headers = helper.getHeaders(sheetName);
-					String[] types = FileHelperUtil.generateDataTypeArrayFromPrediction(helper.predictTypes(sheetName));
-
-					String [] cleanHeaders = new String[headers.length];
-					for(int x = 0; x < headers.length; x++) {
-						cleanHeaders[i] = Utility.cleanVariableString(headers[i]);
-					}
-
-					Map<String, String> headerTypes = new LinkedHashMap<String, String>();
-					for(int j = 0; j < cleanHeaders.length; j++) {
-						headerTypes.put(cleanHeaders[j], Utility.getCleanDataType(types[j]));
-					}
-					headerTypeMap.put(sheetName, headerTypes);
-				}
-			} else {
-				String delimiter = inputData.get("delimiter");
-				// generate tinker frame from 
-				if(inputData.get("delimiter") == null || inputData.get("delimiter").isEmpty()) {
-					delimiter = "\t";
-				}
-
-				CSVFileHelper helper = new CSVFileHelper();
-				helper.setDelimiter(delimiter.charAt(0));
-				helper.parse(fileLoc);
-
-				String[] headers = helper.getHeaders();
-				String[] types = FileHelperUtil.generateDataTypeArrayFromPrediction(helper.predictTypes());
-
-				Map<String, String> headerTypes = new LinkedHashMap<String, String>();
-				for(int j = 0; j < headers.length; j++) {
-					headerTypes.put(headers[j], Utility.getCleanDataType(types[j]));
-				}
-				headerTypeMap.put(CSV_FILE_KEY, headerTypes);
-				retObj.put("delimiter", delimiter);
-				
-				helper.clear();
+			String delimiter = inputData.get("delimiter");
+			// generate tinker frame from 
+			if(inputData.get("delimiter") == null || inputData.get("delimiter").isEmpty()) {
+				delimiter = "\t";
 			}
+
+			CSVFileHelper helper = new CSVFileHelper();
+			helper.setDelimiter(delimiter.charAt(0));
+			helper.parse(fileLoc);
+
+			String[] headers = helper.getHeaders();
+			Map[] retMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(headers, helper.predictTypes());
+
+			Map<String, Map> innerObj = new HashMap<String, Map>();
+			innerObj.put("dataTypes", retMaps[0]);
+			innerObj.put("additionalDataTypes", retMaps[1]);
+			retObj.put(CSV_FILE_KEY, innerObj);
+			retObj.put("delimiter", delimiter);
+			helper.clear();
 		}
 
-		retObj.put("headerData", headerTypeMap);
 		return retObj;
 	}
-	
-	
+
+
 	/**
 	 * Extract the data to generate the file being passed from the user to the BE server
 	 */
@@ -187,7 +139,7 @@ public class FileUploader extends Uploader {
 						fileName = fileName.replace(";", "");
 						Date date = new Date();
 						String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-						value = filePath + "\\\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")).replace(" ", "") + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
+						value = filePath + "\\\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")).replace(" ", "") + "_____UNIQUE" + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
 						file = new File(value);
 						writeFile(fi, file);
 						LOGGER.info("Saved Filename: " + fileName + "  to "+ file);
