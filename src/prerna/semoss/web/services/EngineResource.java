@@ -28,6 +28,7 @@
 package prerna.semoss.web.services;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +51,9 @@ import org.apache.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.auth.User2;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.IRawSelectWrapper;
@@ -221,14 +224,28 @@ public class EngineResource {
 		
 		NounMetadata retNoun = playsheetRunReactor.execute();
 		return WebUtility.getResponse(retNoun.getValue(), 200);
-		
 	}
 
 	@POST
 	@Path("/commitFormData")
 	@Produces("application/json")
-	public Response commitFormData(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
+	public Response commitFormData(@Context HttpServletRequest request, MultivaluedMap<String, String> form) 
 	{
+		String userId = null;
+		try {
+			HttpSession session = ((HttpServletRequest)request).getSession(false);
+			User2 user = (User2) session.getAttribute("semoss_user");
+			userId = user.getAccessToken(AuthProvider.CAC.toString()).getName();
+		} catch(Exception e) {
+			Map<String, String> err = new HashMap<String, String>();
+			err.put("errorMessage", "Could not identify user");
+			return WebUtility.getResponse(err, 400);
+		}
+		if(userId == null) {
+			Map<String, String> err = new HashMap<String, String>();
+			err.put("errorMessage", "Could not identify user");
+			return WebUtility.getResponse(err, 400);
+		}
 		Gson gson = new Gson();
 		try {
 			String formData = form.getFirst("formData");
@@ -237,11 +254,11 @@ public class EngineResource {
 			AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(this.coreEngine);
 			if(formbuilder != null) {
 				//TODO: need to build this out for RDBMS engines!!!
-				formbuilder.commitFormData(engineHash);
+				formbuilder.commitFormData(engineHash, userId);
 			} else {
 				// old way is super messy since it has both implementations of inserting
 				// into both rdbms and rdf.. super annoying to go through
-				FormBuilder.commitFormData(this.coreEngine, engineHash);
+				FormBuilder.commitFormData(this.coreEngine, engineHash, userId);
 			}
 		} catch(Exception e) {
 			e.printStackTrace();
