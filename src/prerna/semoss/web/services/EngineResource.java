@@ -62,11 +62,14 @@ import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
 import prerna.insights.admin.DBAdminResource;
 import prerna.om.Insight;
+import prerna.om.InsightStore;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.sablecc2.reactor.PixelPlanner;
+import prerna.sablecc2.reactor.job.JobReactor;
 import prerna.sablecc2.reactor.legacy.playsheets.GetPlaysheetParamsReactor;
 import prerna.sablecc2.reactor.legacy.playsheets.RunPlaysheetReactor;
 import prerna.util.Constants;
@@ -208,8 +211,14 @@ public class EngineResource {
 		// make an insight to set
 		// so we can pass the user 
 		Insight dummyIn = new Insight();
+		InsightStore.getInstance().put(dummyIn);
+		InsightStore.getInstance().addToSessionHash(session.getId(), dummyIn.getInsightId());
+		dummyIn.getVarStore().put(JobReactor.SESSION_KEY, new NounMetadata(session.getId(), PixelDataType.CONST_STRING));
 		dummyIn.setUser(user);
 		playsheetRunReactor.setInsight(dummyIn);
+		PixelPlanner planner = new PixelPlanner();
+		planner.setVarStore(dummyIn.getVarStore());
+		playsheetRunReactor.setPixelPlanner(planner);
 		GenRowStruct grs1 = new GenRowStruct();
 		grs1.add(new NounMetadata(coreEngine.getEngineId(), PixelDataType.CONST_STRING));
 		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs1);
