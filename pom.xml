@@ -2196,12 +2196,11 @@
 			<version>3.8.1</version>
 			<scope>test</scope>
 		</dependency-->
-		<!-- cleanup -->
-		<!--dependency>
+		<dependency>
 			<groupId>org.apache.storm</groupId>
 			<artifactId>storm-core</artifactId>
 			<version>1.0.2</version>
-		</dependency-->
+		</dependency>
 		<!-- cleanup -->
 		<!--dependency>
 			<groupId>org.apache.storm</groupId>
@@ -2553,6 +2552,12 @@
 			<groupId>org.jodd</groupId>
 			<artifactId>jodd-core</artifactId>
 			<version>3.6.2</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.cliffc.high_scale_lib.wso2/high-scale-lib -->
+		<dependency>
+			<groupId>org.cliffc.high_scale_lib.wso2</groupId>
+			<artifactId>high-scale-lib</artifactId>
+			<version>1.1.2.wso2v1</version>
 		</dependency>
 	</dependencies>
 </project>
