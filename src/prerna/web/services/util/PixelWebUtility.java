@@ -209,6 +209,7 @@ public class PixelWebUtility extends WebUtility{
 					// right now, only grid will work
 					boolean first = true;
 					String[] headers = null;
+					String[] rawHeaders = null;
 					int count = 0;
 
 					// we need to use a try catch
@@ -222,6 +223,7 @@ public class PixelWebUtility extends WebUtility{
 							// need to set the headers
 							if(headers == null) {
 								headers = row.getHeaders();
+								rawHeaders = row.getRawHeaders();
 								ps.print("\"output\":{");
 								ps.print("\"data\":{" );
 								ps.print("\"values\":[");
@@ -265,6 +267,7 @@ public class PixelWebUtility extends WebUtility{
 					}
 					// end the values and add the headers
 					ps.print("],\"headers\":" + gson.toJson(headers));
+					ps.print(",\"rawHeaders\":" + gson.toJson(rawHeaders));
 					ps.print("}" );
 
 				} else if(formatType.equals("GRAPH")){
