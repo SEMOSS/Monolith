@@ -83,7 +83,7 @@ import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AuthProvider;
-import prerna.auth.User2;
+import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
@@ -439,7 +439,7 @@ public class NameServer {
 		
 		if(securityEnabled) {
 			HttpSession session = request.getSession(false);
-			User2 user = ((User2) session.getAttribute("semoss_user"));
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
 			if(user!= null) {
 				userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			}
@@ -726,7 +726,7 @@ public class NameServer {
 		
 		Map<String, Object[]> ret = new HashMap<String, Object[]>();
 		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			HashMap<String, ArrayList<String>> metamodelFilter = new HashMap<String, ArrayList<String>>();
 			if(permissions.getMetamodelSeedsForUser(userId).get(engineName) != null) {
@@ -941,7 +941,7 @@ public class NameServer {
 //			existingInsight = new Insight(null, dataFrameType, "Grid");
 			existingInsight = new Insight();
 			// set the user id into the insight
-			existingInsight.setUser2( ((User2) request.getSession().getAttribute(Constants.SESSION_USER)) );
+			existingInsight.setUser( ((User) request.getSession().getAttribute(Constants.SESSION_USER)) );
 			InsightStore.getInstance().put(existingInsight);
 		}
 //		else if(insightID.equals("newDashboard")) {
@@ -1070,7 +1070,7 @@ public class NameServer {
 
 		HttpSession session;
 		String sessionId; 
-		User2 user2;
+		User user;
 		
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		//If security is enabled try to get an existing session.
@@ -1079,7 +1079,7 @@ public class NameServer {
 			session = request.getSession(false);
 			if(session != null){
 				sessionId = session.getId();
-				user2 = ((User2) session.getAttribute("semoss_user"));
+				user = ((User) session.getAttribute(Constants.SESSION_USER));
 			} else {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("error", "User session is invalid");
@@ -1088,7 +1088,7 @@ public class NameServer {
 			}
 		} else {
 			session = request.getSession(true);
-			user2 = ((User2) session.getAttribute("semoss_user"));
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
 			sessionId = session.getId();
 		}
 	
@@ -1133,7 +1133,7 @@ public class NameServer {
 		}
 		synchronized(insight) {
 			// set the user
-			insight.setUser2(user2);
+			insight.setUser(user);
 			JobManager manager = JobManager.getManager();
 			JobThread jt = null;
 			if(insightId.equals(tempInsightId)) {
@@ -1162,10 +1162,10 @@ public class NameServer {
 	public Response runPixelAsync(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		HttpSession session = null;
-		User2 user2 = null;
+		User user = null;
 		if(securityEnabled){
 			session = request.getSession(false);
-			user2 = ((User2) session.getAttribute("semoss_user"));
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
 		} else {
 			session = request.getSession(true);
 		}
@@ -1208,7 +1208,7 @@ public class NameServer {
 		if(insight != null)
 		{
 			synchronized(insight) {
-				insight.setUser2(user2);
+				insight.setUser(user);
 				JobManager manager = JobManager.getManager();
 				JobThread jt = manager.makeJob();
 				jobId = jt.getJobId();
