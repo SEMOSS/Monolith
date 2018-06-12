@@ -50,7 +50,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AuthProvider;
-import prerna.auth.User2;
+import prerna.auth.User;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
 import prerna.engine.api.IRawSelectWrapper;
@@ -190,7 +190,7 @@ public class EngineResource {
 	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		HttpSession session = request.getSession(true);
-		User2 user = ((User2) session.getAttribute(Constants.SESSION_USER));
+		User user = ((User) session.getAttribute(Constants.SESSION_USER));
 		
 		Gson gson = new Gson();
 		String insightId = form.getFirst("insight");
@@ -208,7 +208,7 @@ public class EngineResource {
 		InsightStore.getInstance().put(dummyIn);
 		InsightStore.getInstance().addToSessionHash(session.getId(), dummyIn.getInsightId());
 		dummyIn.getVarStore().put(JobReactor.SESSION_KEY, new NounMetadata(session.getId(), PixelDataType.CONST_STRING));
-		dummyIn.setUser2(user);
+		dummyIn.setUser(user);
 		playsheetRunReactor.setInsight(dummyIn);
 		PixelPlanner planner = new PixelPlanner();
 		planner.setVarStore(dummyIn.getVarStore());
@@ -237,7 +237,7 @@ public class EngineResource {
 		String userId = null;
 		try {
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
-			User2 user = (User2) session.getAttribute("semoss_user");
+			User user = (User) session.getAttribute("semoss_user");
 			userId = user.getAccessToken(AuthProvider.CAC).getName();
 		} catch(Exception e) {
 			Map<String, String> err = new HashMap<String, String>();
