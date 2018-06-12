@@ -66,7 +66,7 @@ import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
-import prerna.auth.User2;
+import prerna.auth.User;
 import prerna.io.connector.IConnectorIOp;
 import prerna.io.connector.google.GoogleEntityResolver;
 import prerna.io.connector.google.GoogleFileRetriever;
@@ -238,7 +238,7 @@ public class UserResource {
 	@GET
 	@Path("logins")
 	public Response getAllLogins(@Context HttpServletRequest request) {
-		User2 semossUser = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User semossUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		List<AuthProvider> logins = new ArrayList<AuthProvider>();
 		if(semossUser != null) {
 			logins = semossUser.getLogins();
@@ -258,7 +258,7 @@ public class UserResource {
 			request.getSession().removeAttribute(Constants.SESSION_USER);
 			removed = true;
 		} else {
-			User2 thisUser = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+			User thisUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			removed = thisUser.dropAccessToken(provider.toUpperCase());
 			request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
 		}
@@ -274,12 +274,12 @@ public class UserResource {
 	 * @param request
 	 */
 	private void addAccessToken(AccessToken token, HttpServletRequest request) {
-		User2 semossUser = null;
+		User semossUser = null;
 		Object user = request.getSession().getAttribute(Constants.SESSION_USER);
 		if(user != null) {
-			semossUser = (User2)user;
+			semossUser = (User)user;
 		} else {
-			semossUser = new User2();
+			semossUser = new User();
 			if(twitToken != null) {
 				semossUser.setAccessToken(twitToken);
 			}
@@ -299,7 +299,7 @@ public class UserResource {
 	@Path("/userinfo/google")
 	public Response userinfoGoogle(@Context HttpServletRequest request) {
 		Map<String, String> ret = new Hashtable<String, String>();
-		User2 user = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
 		String [] beanProps = {"name", "profile"};
 		String jsonPattern = "[name, picture]";
@@ -344,7 +344,7 @@ public class UserResource {
 	@Path("/userinfo/ms")
 	public Response userinfoOneDrive(@Context HttpServletRequest request) {
 		Map<String, String> ret = new Hashtable<String, String>();
-		User2 user = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
 		String [] beanProps = {"name"};
 		String jsonPattern = "[displayName]";
@@ -378,7 +378,7 @@ public class UserResource {
 	@Path("/userinfo/dropbox")
 	public Response userinfoDropbox(@Context HttpServletRequest request) {
 		Map<String, String> ret = new Hashtable<String, String>();
-		User2 user = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
 		String [] beanProps = {"name", "profile"}; // add is done when you have a list
 		String jsonPattern = "[name.display_name, profile_photo_url]";
@@ -422,7 +422,7 @@ public class UserResource {
 	@Path("/userinfo/git")
 	public Response userinfoGithub(@Context HttpServletRequest request) {
 		Map<String, String> ret = new Hashtable<String, String>();
-		User2 user = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
 		String [] beanProps = {"name", "profile"}; // add is done when you have a list
 		String jsonPattern = "[name,login]";
@@ -468,7 +468,7 @@ public class UserResource {
 		 * Redirect the FE
 		 */
 		
-		User2 userObj = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		Hashtable<String, Object> ret = new Hashtable<String, Object>();
 
 		String queryString = request.getQueryString();
@@ -549,7 +549,7 @@ public class UserResource {
 		 */
 
 		Map<String, Object> ret = new Hashtable<String, Object>();
-		User2 userObj = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
@@ -630,11 +630,11 @@ public class UserResource {
 		 */
 
 		Map<String, Object> ret = new Hashtable<String, Object>();
-		User2 userObj = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.AZURE_GRAPH) == null) {
+			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.AZURE_GRAPH) == null) {
 				String [] outputs = AbstractHttpHelper.getCodes(queryString);
 
 				String prefix = "ms_";
@@ -717,7 +717,7 @@ public class UserResource {
 		 */
 		
 		Map<String, Object> ret = new Hashtable<String, Object>();
-		User2 userObj = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
@@ -798,7 +798,7 @@ public class UserResource {
 		 */
 
 		Map<String, Object> ret = new Hashtable<String, Object>();
-		User2 userObj = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
@@ -883,10 +883,10 @@ public class UserResource {
 	{
 		// get the user details
 		IConnectorIOp prof = new GoogleProfile();
-		prof.execute((User2)request.getSession().getAttribute(Constants.SESSION_USER), null);
+		prof.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), null);
 		
 		IConnectorIOp lister = new GoogleListFiles();
-		List fileList = (List)lister.execute((User2)request.getSession().getAttribute(Constants.SESSION_USER), null);
+		List fileList = (List)lister.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), null);
 
 		// get the file
 		IConnectorIOp getter = new GoogleFileRetriever();
@@ -895,7 +895,7 @@ public class UserResource {
 		params2.put("id", "1it40jNFcRo1ur2dHIYUk18XmXdd37j4gmJm_Sg7KLjI");
 		params2.put("target", "c:\\users\\pkapaleeswaran\\workspacej3\\datasets\\googlefile.csv");
 
-		getter.execute((User2)request.getSession().getAttribute(Constants.SESSION_USER), params2);
+		getter.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), params2);
 
 		IConnectorIOp ner = new GoogleEntityResolver();
 
@@ -909,7 +909,7 @@ public class UserResource {
 		params2.put("document", docInput);
 		
 		//params2.put("input", docInputShell);
-		ner.execute((User2)request.getSession().getAttribute(Constants.SESSION_USER), params2);
+		ner.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), params2);
 		
 		try {
 			ret.put("files", BeanFiller.getJson(fileList));
@@ -922,7 +922,7 @@ public class UserResource {
 		params2 = new Hashtable();
 		params2.put("address", "1919 N Lynn Street, Arlington, VA");
 		
-		lat.execute((User2)request.getSession().getAttribute(Constants.SESSION_USER), params2);
+		lat.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), params2);
 
 		IConnectorIOp ts = new TwitterSearcher();
 		params2 = new Hashtable();
@@ -930,7 +930,7 @@ public class UserResource {
 		params2.put("lang", "en");
 		params2.put("count", "10");
 		
-		Object vp = ts.execute((User2)request.getSession().getAttribute(Constants.SESSION_USER), params2);
+		Object vp = ts.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), params2);
 	}
 	
 	@GET
@@ -944,7 +944,7 @@ public class UserResource {
 		 */
 		
 		Map<String, Object> ret = new Hashtable<String, Object>();
-		User2 userObj = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
@@ -1020,7 +1020,7 @@ public class UserResource {
 		 */
 		
 		Map<String, Object> ret = new Hashtable<String, Object>();
-		User2 userObj = (User2) request.getSession().getAttribute(Constants.SESSION_USER);
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
@@ -1119,7 +1119,7 @@ public class UserResource {
 		
 		if(queryString != null && queryString.contains("code="))
 		{
-			if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.GIT) == null)
+			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GIT) == null)
 			{
 
 			String [] outputs = AbstractHttpHelper.getCodes(queryString);
@@ -1160,7 +1160,7 @@ public class UserResource {
 
 			}
 		}
-		else if(userObj == null || ((User2)userObj).getAccessToken(AuthProvider.GIT) == null)
+		else if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GIT) == null)
 		{
 			// not authenticated
 

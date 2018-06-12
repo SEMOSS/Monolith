@@ -49,7 +49,7 @@ import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 
 import prerna.auth.AuthProvider;
-import prerna.auth.User2;
+import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -90,7 +90,7 @@ public class AuthorizationResource
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute("semoss_user");
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		ArrayList<HashMap<String, Object>> ret = permissions.getGroupsAndMembersForUser(userId);
 		
@@ -123,7 +123,7 @@ public class AuthorizationResource
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		try{
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			ret = permissions.getUserDatabases(userId, false);
 			return WebUtility.getResponse(ret, 200);
@@ -150,7 +150,7 @@ public class AuthorizationResource
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		ArrayList<StringMap<String>> ret = new ArrayList<>(); 
 		try{
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			ret = permissions.getUserDatabases(userId, true);
 			return WebUtility.getResponse(ret, 200);
@@ -177,7 +177,7 @@ public class AuthorizationResource
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		StringMap<ArrayList<StringMap<String>>>  ret = new StringMap<>();
 		try{
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId");
 			ret = permissions.getDatabaseUsersAndGroups(userId, engineId, true);
@@ -207,7 +207,7 @@ public class AuthorizationResource
 		StringMap<ArrayList<StringMap<String>>>  ret = new StringMap<>();
 		try{
 			String engineId = form.getFirst("engineId");
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			ret = permissions.getDatabaseUsersAndGroups(userId, engineId, false);
 			return WebUtility.getResponse(ret, 200);
@@ -228,7 +228,7 @@ public class AuthorizationResource
 	public Response addNewGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		ArrayList<String> users = gson.fromJson(form.getFirst("users"), ArrayList.class);
-		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute("semoss_user");
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		Boolean success = permissions.addGroup(userId, form.getFirst("groupName").trim(), users);
 		
@@ -244,7 +244,7 @@ public class AuthorizationResource
 	@Path("removeGroup")
 	public Response removeGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String groupId = form.getFirst("groupId").trim();
-		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute("semoss_user");
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		Boolean success = permissions.removeGroup(userId, groupId);
 		
@@ -265,7 +265,7 @@ public class AuthorizationResource
 		ArrayList<String> toAdd = gson.fromJson(form.getFirst("add"), ArrayList.class);
 		ArrayList<String> toRemove = gson.fromJson(form.getFirst("remove"), ArrayList.class);
 		
-		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute("semoss_user");
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		
 		for(String add : toAdd) {
@@ -285,7 +285,7 @@ public class AuthorizationResource
 		Gson gson = new Gson();
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{ 
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId").trim();
 			StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
@@ -309,7 +309,7 @@ public class AuthorizationResource
 	public Response isUserGroupAddedValid(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		try {
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String ret = "true";
 			
@@ -350,7 +350,7 @@ public class AuthorizationResource
 	public Response isUserAddedToGroupValid(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		try {
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String ret = "";
 			
@@ -398,7 +398,7 @@ public class AuthorizationResource
 		}
 		
 		if(session.getAttribute("semoss_user") != null) {
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			if(!userId.equals(Constants.ANONYMOUS_USER_ID) && permissions.isUserAdmin(userId)) {
 				return WebUtility.getResponse(true, 200);
@@ -414,7 +414,7 @@ public class AuthorizationResource
 	public Response getAllDbUsers(@Context HttpServletRequest request) {
 		ArrayList<StringMap<String>> ret = new ArrayList<>();
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute("semoss_user");
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		try{
 			ret = permissions.getAllDbUsers(userId);
@@ -434,7 +434,7 @@ public class AuthorizationResource
 	public Response removeUserPermissionsbyDbId(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		boolean ret = false;
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		User2 user = (User2) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute("semoss_user");
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		String engineId = form.getFirst("engineId");
 		try{
@@ -463,7 +463,7 @@ public class AuthorizationResource
 		Gson gson = new Gson();
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			StringMap<String> userInfo = gson.fromJson(form.getFirst("user"), StringMap.class);
 			ret = permissions.editUser(userId, userInfo);
@@ -487,7 +487,7 @@ public class AuthorizationResource
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		
 		try{
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId").trim();
 			StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
@@ -511,7 +511,7 @@ public class AuthorizationResource
 	public Response setDbVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId");
 			String visibility = form.getFirst("visibility");
@@ -534,7 +534,7 @@ public class AuthorizationResource
 	public Response setAdminDbPublic(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId");
 			String isPublic = form.getFirst("public");
@@ -557,7 +557,7 @@ public class AuthorizationResource
 	public Response setDbPublic(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId");
 			String isPublic = form.getFirst("public");
@@ -580,7 +580,7 @@ public class AuthorizationResource
 	public Response deleteUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String adminId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String userId = form.getFirst("userId");
 			permissions.deleteUser(adminId, userId);
