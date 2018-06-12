@@ -33,7 +33,7 @@ public class CACFilter implements Filter {
 				user = new User2();
 
 				AccessToken token = new AccessToken();
-				token.setProvider(AuthProvider.CAC.toString());
+				token.setProvider(AuthProvider.CAC);
 				for(int i = 0; i < certs.length; i++) {
 					X509Certificate cert = certs[i];
 

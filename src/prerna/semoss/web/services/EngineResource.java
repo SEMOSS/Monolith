@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
@@ -42,7 +41,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
@@ -52,7 +50,6 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AuthProvider;
-import prerna.auth.User;
 import prerna.auth.User2;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.ENGINE_TYPE;
@@ -60,7 +57,6 @@ import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.AbstractFormBuilder;
 import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
-import prerna.insights.admin.DBAdminResource;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -73,9 +69,7 @@ import prerna.sablecc2.reactor.job.JobReactor;
 import prerna.sablecc2.reactor.legacy.playsheets.GetPlaysheetParamsReactor;
 import prerna.sablecc2.reactor.legacy.playsheets.RunPlaysheetReactor;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Utility;
-import prerna.util.ZipDatabase;
 import prerna.web.services.util.WebUtility;
 
 public class EngineResource {
@@ -196,7 +190,7 @@ public class EngineResource {
 	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
 	{
 		HttpSession session = request.getSession(true);
-		User user = ((User) session.getAttribute(Constants.SESSION_USER));
+		User2 user = ((User2) session.getAttribute(Constants.SESSION_USER));
 		
 		Gson gson = new Gson();
 		String insightId = form.getFirst("insight");
@@ -214,7 +208,7 @@ public class EngineResource {
 		InsightStore.getInstance().put(dummyIn);
 		InsightStore.getInstance().addToSessionHash(session.getId(), dummyIn.getInsightId());
 		dummyIn.getVarStore().put(JobReactor.SESSION_KEY, new NounMetadata(session.getId(), PixelDataType.CONST_STRING));
-		dummyIn.setUser(user);
+		dummyIn.setUser2(user);
 		playsheetRunReactor.setInsight(dummyIn);
 		PixelPlanner planner = new PixelPlanner();
 		planner.setVarStore(dummyIn.getVarStore());
@@ -244,7 +238,7 @@ public class EngineResource {
 		try {
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			User2 user = (User2) session.getAttribute("semoss_user");
-			userId = user.getAccessToken(AuthProvider.CAC.toString()).getName();
+			userId = user.getAccessToken(AuthProvider.CAC).getName();
 		} catch(Exception e) {
 			Map<String, String> err = new HashMap<String, String>();
 			err.put("errorMessage", "Could not identify user");
@@ -294,35 +288,35 @@ public class EngineResource {
 		return WebUtility.getResponse(gson.toJson(auditInfo), 200);
 	}
 	
-	@GET
-	@Path("/exportDatabase")
-	@Produces("application/zip")
-	public Response exportDatabase(@Context HttpServletRequest request) {
-		HttpSession session = request.getSession();
-		String engineId = coreEngine.getEngineId();
-		String engineName = coreEngine.getEngineName();
-
-		// we want to start exporting the solr documents as well
-		// since we want to move away from using the rdbms insights for that
-		DBAdminResource dbAdmin = new DBAdminResource();
-		MultivaluedMap<String, String> form = new MultivaluedHashMap<String, String>();
-		form.putSingle("engineName", engineId);
-		dbAdmin.exportDbSolrInfo(form , request);
-		
-		// close the engine so we can export it
-		session.removeAttribute(engineId);
-		DIHelper.getInstance().removeLocalProperty(engineId);
-		coreEngine.closeDB();
-		
-		LOGGER.info("Attending to export engine = " + engineId);
-		File zip = ZipDatabase.zipEngine(engineId, engineName);
-		
-		Response resp = Response.ok(zip)
-				.header("x-filename", zip.getName())
-				.header("content-type", "application/zip")
-				.header("Content-Disposition", "attachment; filename=\"" + zip.getName() + "\"" ).build();
-		
-		return resp;
-	}
+//	@GET
+//	@Path("/exportDatabase")
+//	@Produces("application/zip")
+//	public Response exportDatabase(@Context HttpServletRequest request) {
+//		HttpSession session = request.getSession();
+//		String engineId = coreEngine.getEngineId();
+//		String engineName = coreEngine.getEngineName();
+//
+//		// we want to start exporting the solr documents as well
+//		// since we want to move away from using the rdbms insights for that
+//		DBAdminResource dbAdmin = new DBAdminResource();
+//		MultivaluedMap<String, String> form = new MultivaluedHashMap<String, String>();
+//		form.putSingle("engineName", engineId);
+//		dbAdmin.exportDbSolrInfo(form , request);
+//		
+//		// close the engine so we can export it
+//		session.removeAttribute(engineId);
+//		DIHelper.getInstance().removeLocalProperty(engineId);
+//		coreEngine.closeDB();
+//		
+//		LOGGER.info("Attending to export engine = " + engineId);
+//		File zip = ZipDatabase.zipEngine(engineId, engineName);
+//		
+//		Response resp = Response.ok(zip)
+//				.header("x-filename", zip.getName())
+//				.header("content-type", "application/zip")
+//				.header("Content-Disposition", "attachment; filename=\"" + zip.getName() + "\"" ).build();
+//		
+//		return resp;
+//	}
 
 }
