@@ -44,11 +44,12 @@ import javax.servlet.http.HttpSession;
 
 import com.google.gson.internal.StringMap;
 
-import prerna.auth.User;
+//import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.util.Constants;
 
 public class UserDBInsightFilter implements Filter {
+	
 	FilterConfig config;
 	String engineAPIPath = "/e-";
 
@@ -58,32 +59,32 @@ public class UserDBInsightFilter implements Filter {
 		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		
-		if(securityEnabled) {
-			HttpServletRequest request = (HttpServletRequest) arg0;
-			String requestURI = request.getRequestURI();
-			if(requestURI.contains(engineAPIPath)) {
-				String requestPathWithEngine = requestURI.substring(requestURI.indexOf(engineAPIPath) + engineAPIPath.length()); 
-				String engineName = requestPathWithEngine.substring(0, requestPathWithEngine.indexOf("/"));
-				
-				User user = ((User) session.getAttribute(Constants.SESSION_USER));
-				String userId = "";
-				if(user!= null) {
-					userId = user.getId();
-				}
-				UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
-				HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
-				if(!engineName.equals(Constants.LOCAL_MASTER_DB_NAME) && !userEngines.contains(engineName)) {
-					StringMap<ArrayList<String>> insightPermissions = permissions.getInsightPermissionsForUser(userId);
-					
-					if(!insightPermissions.containsKey(engineName)) {
-						HttpServletResponse response = (HttpServletResponse) arg1;
-						response.addHeader("userId", userId);
-						response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-						return;
-					}
-				}
-			}
-		}
+//		if(securityEnabled) {
+//			HttpServletRequest request = (HttpServletRequest) arg0;
+//			String requestURI = request.getRequestURI();
+//			if(requestURI.contains(engineAPIPath)) {
+//				String requestPathWithEngine = requestURI.substring(requestURI.indexOf(engineAPIPath) + engineAPIPath.length()); 
+//				String engineName = requestPathWithEngine.substring(0, requestPathWithEngine.indexOf("/"));
+//				
+//				User user = ((User) session.getAttribute(Constants.SESSION_USER));
+//				String userId = "";
+//				if(user!= null) {
+//					userId = user.getId();
+//				}
+//				UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+//				HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
+//				if(!engineName.equals(Constants.LOCAL_MASTER_DB_NAME) && !userEngines.contains(engineName)) {
+//					StringMap<ArrayList<String>> insightPermissions = permissions.getInsightPermissionsForUser(userId);
+//					
+//					if(!insightPermissions.containsKey(engineName)) {
+//						HttpServletResponse response = (HttpServletResponse) arg1;
+//						response.addHeader("userId", userId);
+//						response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+//						return;
+//					}
+//				}
+//			}
+//		}
 		arg2.doFilter(arg0, arg1);
 	}
 
