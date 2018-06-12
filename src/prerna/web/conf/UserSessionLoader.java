@@ -8,8 +8,8 @@ import javax.servlet.http.HttpSession;
 import javax.servlet.http.HttpSessionEvent;
 import javax.servlet.http.HttpSessionListener;
 
-import prerna.auth.User;
-import prerna.auth.User.LOGIN_TYPES;
+//import prerna.auth.User;
+//import prerna.auth.User.LOGIN_TYPES;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.ds.h2.H2Frame;
 import prerna.ds.r.RDataTable;
@@ -23,7 +23,7 @@ import prerna.util.Constants;
 public class UserSessionLoader implements HttpSessionListener {
 	
 	public void sessionCreated(HttpSessionEvent sessionEvent) {
-		sessionEvent.getSession().setAttribute(Constants.SESSION_USER, new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.ANONYMOUS, "Anonymous"));
+//		sessionEvent.getSession().setAttribute(Constants.SESSION_USER, new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.ANONYMOUS, "Anonymous"));
 	}
 	 
 	public void sessionDestroyed(HttpSessionEvent sessionEvent) {
@@ -50,19 +50,19 @@ public class UserSessionLoader implements HttpSessionListener {
 				String inEngine = in.getEngineName();
 				String inRdbmsId = in.getRdbmsId();
 				
-				if(inEngine != null && inRdbmsId != null) {
-					HttpSession session = sessionEvent.getSession();
-					User user = ((User) session.getAttribute(Constants.SESSION_USER));
-					String userId = "";
-					if(user!= null) {
-						userId = user.getId();
-					}
-					
-					UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
-					isReadOnlyInsight = permissions.isUserReadOnlyInsights(userId, inEngine, inRdbmsId);
-				}
-				
-				if(!isReadOnlyInsight) {
+//				if(inEngine != null && inRdbmsId != null) {
+//					HttpSession session = sessionEvent.getSession();
+//					User user = ((User) session.getAttribute(Constants.SESSION_USER));
+//					String userId = "";
+//					if(user!= null) {
+//						userId = user.getId();
+//					}
+//					
+//					UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+//					isReadOnlyInsight = permissions.isUserReadOnlyInsights(userId, inEngine, inRdbmsId);
+//				}
+//				
+//				if(!isReadOnlyInsight) {
 					IDataMaker dm = in.getDataMaker();
 					if(dm instanceof H2Frame) {
 						H2Frame frame = (H2Frame)dm;
@@ -84,7 +84,7 @@ public class UserSessionLoader implements HttpSessionListener {
 					
 					inStore.remove(id);
 					inStore.removeFromSessionHash(sessionID, id);
-				}
+//				}
 			}
 			System.out.println("successfully removed qStore information for session");
 		}
