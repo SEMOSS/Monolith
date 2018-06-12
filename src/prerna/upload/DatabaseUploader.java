@@ -35,7 +35,8 @@ import org.json.simple.parser.JSONParser;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import prerna.auth.User;
+import prerna.auth.AuthProvider;
+import prerna.auth.User2;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.impl.SmssUtilities;
 import prerna.engine.impl.solr.SolrEngine;
@@ -601,9 +602,10 @@ public class DatabaseUploader extends Uploader {
 
 			// add engine owner for permissions
 			if(this.securityEnabled) {
-				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getDbName(), ((User) user).getId());
+				User2 user = (User2) request.getSession().getAttribute("semoss_user");
+				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
 				} else {
 					Map<String, String> errorHash = new HashMap<String, String>();
 					errorHash.put("errorMessage", "Please log in to upload data.");
@@ -935,9 +937,10 @@ public class DatabaseUploader extends Uploader {
 
 			// add engine owner for permissions
 			if(this.securityEnabled) {
-				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getDbName(), ((User) user).getId());
+				User2 user = (User2) request.getSession().getAttribute("semoss_user");
+				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
 				} else {
 					Map<String, String> errorHash = new HashMap<String, String>();
 					errorHash.put("errorMessage", "Please log in to upload data.");
@@ -1026,9 +1029,10 @@ public class DatabaseUploader extends Uploader {
 
 			// add engine owner for permissions
 			if(this.securityEnabled) {
-				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getDbName(), ((User) user).getId());
+				User2 user = (User2) request.getSession().getAttribute("semoss_user");
+				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
 				} else {
 					Map<String, String> errorHash = new HashMap<String, String>();
 					errorHash.put("errorMessage", "Please log in to upload data.");
@@ -1226,9 +1230,10 @@ public class DatabaseUploader extends Uploader {
 
 			// add engine owner for permissions
 			if(this.securityEnabled) {
-				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getDbName(), ((User) user).getId());
+				User2 user = (User2) request.getSession().getAttribute("semoss_user");
+				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
+					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
 				} else {
 					Map<String, String> errorHash = new HashMap<String, String>();
 					errorHash.put("errorMessage", "Please log in to upload data.");
@@ -1417,19 +1422,20 @@ public class DatabaseUploader extends Uploader {
 		options.put("dbName", Utility.makeAlphaNumeric(databaseOptions.get("databaseName")));
 		ImportOptions importOptions = setupImportOptionsForExternalConnection(options, metamodel);
 
+		String appID = UUID.randomUUID().toString();
+		importOptions.setEngineID(appID);
 		// add engine owner for permissions
 		if(this.securityEnabled) {
-			Object user = request.getSession().getAttribute(Constants.SESSION_USER);
-			if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
-				addEngineOwner(options.get("dbName") + "", ((User) user).getId());
+			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
+				addEngineOwner(appID, options.get("dbName"), userId);
 			} else {
 				Map<String, String> errorHash = new HashMap<String, String>();
 				errorHash.put("errorMessage", "Please log in to upload data.");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
 		}
-		String appID = UUID.randomUUID().toString();
-		importOptions.setEngineID(appID);
 
 		boolean success = true;
 		try {
@@ -1523,9 +1529,9 @@ public class DatabaseUploader extends Uploader {
 		return filename;
 	}
 
-	public void addEngineOwner(String engine, String userId) {
+	public void addEngineOwner(String engineId, String engine, String userId) {
 		UserPermissionsMasterDB masterDB = new UserPermissionsMasterDB();
-		masterDB.addEngineAndOwner(engine, userId);
+		masterDB.addEngineAndOwner(engineId, engine, userId);
 	}
 
 	@POST

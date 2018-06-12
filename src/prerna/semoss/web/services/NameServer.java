@@ -83,7 +83,6 @@ import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AuthProvider;
-import prerna.auth.User;
 import prerna.auth.User2;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
@@ -442,7 +441,7 @@ public class NameServer {
 			HttpSession session = request.getSession(false);
 			User2 user = ((User2) session.getAttribute("semoss_user"));
 			if(user!= null) {
-				userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+				userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			}
 			
 			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
@@ -563,86 +562,86 @@ public class NameServer {
 
 	}
 
-	/**
-	 * GroupBy based based on info from search. This groups documents based on specified field 
-	 * @param form - information passes in from the front end
-	 * @return a string version of the results attained from the query/group by search
-	 */
-	// group based on info from the search
-	@POST
-	@Path("central/context/getGroupInsightsResults")
-	@Produces("application/json")
-	public StreamingOutput getGroupInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		//text searched in search bar
-		String searchString = form.getFirst("searchString");
-		logger.info("Searching based on input: " + searchString);
-				
-		//specifies the starting number for the list of insights to return
-		String groupOffset = form.getFirst("groupOffset");
-		logger.info("Group offset is: " + groupOffset);
-		
-		//specifies the number of insights to return
-		String groupLimit = form.getFirst("groupLimit");
-		logger.info("Group limit is: " + groupLimit);
-
-		String groupSort = form.getFirst("groupSort");
-		logger.info("Group sort is: " + groupSort);
-		
-		//specifies the single field to group by
-		String groupByField = form.getFirst("groupBy");
-		logger.info("Group field is: " + groupByField);
-
-		Integer groupLimitInt = null;
-		Integer groupOffsetInt = null;
-		if(groupLimit != null && !groupLimit.isEmpty()) {
-			groupLimitInt = Integer.parseInt(groupLimit);
-		}
-		if(groupOffset != null && !groupOffset.isEmpty()) {
-			groupOffsetInt = Integer.parseInt(groupOffset);
-		}
-		
-		//filter based on the boxes checked in the facet filter (filtered with an exact filter)
-		String filterDataStr = form.getFirst("filterData");
-		Gson gson = new Gson();
-		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
-		
-		//If security is enabled, remove the engines in the filters that aren't accessible - if none in filters, add all accessible engines to filter list
-		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
-			HttpSession session = request.getSession(false);
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			String userId = "";
-			if(user!= null) {
-				userId = user.getId();
-			}
-			
-			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
-			ArrayList<String> filterEngines = new ArrayList<String>();
-			if(filterData.get(SolrIndexEngine.APP_ID) != null) {
-				filterEngines.addAll(filterData.get(SolrIndexEngine.APP_ID));
-			}
-			if(filterEngines.size() > 0) {
-				for(String s : filterEngines) {
-					if(!userEngines.contains(s)) {
-						filterData.get(SolrIndexEngine.APP_ID).remove(s);
-					}
-				}
-			} else {
-				filterEngines.addAll(userEngines);
-				if(filterEngines.size() > 0) {
-					filterData.put(SolrIndexEngine.APP_ID, filterEngines);
-				}
-			}
-		}
-		
-		Map<String, Object> groupFieldMap = null;
-		try {
-			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, groupOffsetInt, groupLimitInt, groupByField, groupSort, filterData);
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
-			e.printStackTrace();
-		}
-
-		return WebUtility.getSO(groupFieldMap);
-	}
+//	/**
+//	 * GroupBy based based on info from search. This groups documents based on specified field 
+//	 * @param form - information passes in from the front end
+//	 * @return a string version of the results attained from the query/group by search
+//	 */
+//	// group based on info from the search
+//	@POST
+//	@Path("central/context/getGroupInsightsResults")
+//	@Produces("application/json")
+//	public StreamingOutput getGroupInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+//		//text searched in search bar
+//		String searchString = form.getFirst("searchString");
+//		logger.info("Searching based on input: " + searchString);
+//				
+//		//specifies the starting number for the list of insights to return
+//		String groupOffset = form.getFirst("groupOffset");
+//		logger.info("Group offset is: " + groupOffset);
+//		
+//		//specifies the number of insights to return
+//		String groupLimit = form.getFirst("groupLimit");
+//		logger.info("Group limit is: " + groupLimit);
+//
+//		String groupSort = form.getFirst("groupSort");
+//		logger.info("Group sort is: " + groupSort);
+//		
+//		//specifies the single field to group by
+//		String groupByField = form.getFirst("groupBy");
+//		logger.info("Group field is: " + groupByField);
+//
+//		Integer groupLimitInt = null;
+//		Integer groupOffsetInt = null;
+//		if(groupLimit != null && !groupLimit.isEmpty()) {
+//			groupLimitInt = Integer.parseInt(groupLimit);
+//		}
+//		if(groupOffset != null && !groupOffset.isEmpty()) {
+//			groupOffsetInt = Integer.parseInt(groupOffset);
+//		}
+//		
+//		//filter based on the boxes checked in the facet filter (filtered with an exact filter)
+//		String filterDataStr = form.getFirst("filterData");
+//		Gson gson = new Gson();
+//		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
+//		
+//		//If security is enabled, remove the engines in the filters that aren't accessible - if none in filters, add all accessible engines to filter list
+//		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
+//			HttpSession session = request.getSession(false);
+//			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+//			String userId = "";
+//			if(user!= null) {
+//				userId = user.getId();
+//			}
+//			
+//			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
+//			ArrayList<String> filterEngines = new ArrayList<String>();
+//			if(filterData.get(SolrIndexEngine.APP_ID) != null) {
+//				filterEngines.addAll(filterData.get(SolrIndexEngine.APP_ID));
+//			}
+//			if(filterEngines.size() > 0) {
+//				for(String s : filterEngines) {
+//					if(!userEngines.contains(s)) {
+//						filterData.get(SolrIndexEngine.APP_ID).remove(s);
+//					}
+//				}
+//			} else {
+//				filterEngines.addAll(userEngines);
+//				if(filterEngines.size() > 0) {
+//					filterData.put(SolrIndexEngine.APP_ID, filterEngines);
+//				}
+//			}
+//		}
+//		
+//		Map<String, Object> groupFieldMap = null;
+//		try {
+//			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, groupOffsetInt, groupLimitInt, groupByField, groupSort, filterData);
+//		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
+//			e.printStackTrace();
+//		}
+//
+//		return WebUtility.getSO(groupFieldMap);
+//	}
 	
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
@@ -728,7 +727,7 @@ public class NameServer {
 		Map<String, Object[]> ret = new HashMap<String, Object[]>();
 		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
 			User2 user = (User2) request.getSession().getAttribute("semoss_user");
-			String userId = user.getAccessToken(AuthProvider.NATIVE.name()).getId();
+			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			HashMap<String, ArrayList<String>> metamodelFilter = new HashMap<String, ArrayList<String>>();
 			if(permissions.getMetamodelSeedsForUser(userId).get(engineName) != null) {
 				metamodelFilter = permissions.getMetamodelSeedsForUser(userId).get(engineName);
@@ -942,7 +941,7 @@ public class NameServer {
 //			existingInsight = new Insight(null, dataFrameType, "Grid");
 			existingInsight = new Insight();
 			// set the user id into the insight
-			existingInsight.setUser( ((User) request.getSession().getAttribute(Constants.SESSION_USER)) );
+			existingInsight.setUser2( ((User2) request.getSession().getAttribute(Constants.SESSION_USER)) );
 			InsightStore.getInstance().put(existingInsight);
 		}
 //		else if(insightID.equals("newDashboard")) {
