@@ -789,8 +789,8 @@ public class UserResource {
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("/login/google2")
-	public Response loginGoogle2(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	@Path("/login/google")
+	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
