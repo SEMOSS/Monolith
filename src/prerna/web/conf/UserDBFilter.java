@@ -46,8 +46,8 @@ import javax.servlet.http.HttpSession;
 import com.ibm.icu.util.StringTokenizer;
 
 import it.unimi.dsi.util.Properties;
-import prerna.auth.User;
-import prerna.auth.User.LOGIN_TYPES;
+//import prerna.auth.User;
+//import prerna.auth.User.LOGIN_TYPES;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -55,7 +55,7 @@ import prerna.util.DIHelper;
 public class UserDBFilter implements Filter {
 	
 	FilterConfig config;
-	User user = new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.ANONYMOUS, "Anonymous");
+//	User user = new User(Constants.ANONYMOUS_USER_ID, "Anonymous", LOGIN_TYPES.ANONYMOUS, "Anonymous");
 	
 	@Override
 	public void destroy() {
@@ -71,13 +71,13 @@ public class UserDBFilter implements Filter {
 		ServletContext context = getFilterConfig().getServletContext();
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
-		if(session != null) {
-			if(session.getAttribute(Constants.SESSION_USER) == null) {
-				session.setAttribute(Constants.SESSION_USER, user);
-			} else {
-				user = (User) session.getAttribute(Constants.SESSION_USER);
-			}
-		}
+//		if(session != null) {
+//			if(session.getAttribute(Constants.SESSION_USER) == null) {
+//				session.setAttribute(Constants.SESSION_USER, user);
+//			} else {
+//				user = (User) session.getAttribute(Constants.SESSION_USER);
+//			}
+//		}
 		boolean dbInitialized = session != null && session.getAttribute(Constants.ENGINES+"unused") != null;
 		if(!dbInitialized) // this is our new friend
 		{
@@ -85,7 +85,7 @@ public class UserDBFilter implements Filter {
 			session = ((HttpServletRequest)arg0).getSession(true);
 			if(securityEnabled) {
 				UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
-				userEngines = permissions.getUserAccessibleEngines(user.getId());
+//				userEngines = permissions.getUserAccessibleEngines(user.getId());
 			}
 			// get all the engines and add the top engines
 			String engineNames = (String)DIHelper.getInstance().getLocalProp(Constants.ENGINES);
