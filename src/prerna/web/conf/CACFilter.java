@@ -18,7 +18,7 @@ import javax.servlet.http.HttpSession;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
-import prerna.auth.User2;
+import prerna.auth.User;
 
 public class CACFilter implements Filter {
 
@@ -28,9 +28,9 @@ public class CACFilter implements Filter {
 		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 
 		if(certs != null) {
-			User2 user = (User2) session.getAttribute("semoss_user");
+			User user = (User) session.getAttribute("semoss_user");
 			if(user == null) {
-				user = new User2();
+				user = new User();
 
 				AccessToken token = new AccessToken();
 				token.setProvider(AuthProvider.CAC);
