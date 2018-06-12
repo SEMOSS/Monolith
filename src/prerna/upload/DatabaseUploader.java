@@ -36,7 +36,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AuthProvider;
-import prerna.auth.User2;
+import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.impl.SmssUtilities;
 import prerna.engine.impl.solr.SolrEngine;
@@ -602,7 +602,7 @@ public class DatabaseUploader extends Uploader {
 
 			// add engine owner for permissions
 			if(this.securityEnabled) {
-				User2 user = (User2) request.getSession().getAttribute("semoss_user");
+				User user = (User) request.getSession().getAttribute("semoss_user");
 				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
 					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
@@ -937,7 +937,7 @@ public class DatabaseUploader extends Uploader {
 
 			// add engine owner for permissions
 			if(this.securityEnabled) {
-				User2 user = (User2) request.getSession().getAttribute("semoss_user");
+				User user = (User) request.getSession().getAttribute("semoss_user");
 				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
 					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
@@ -1029,7 +1029,7 @@ public class DatabaseUploader extends Uploader {
 
 			// add engine owner for permissions
 			if(this.securityEnabled) {
-				User2 user = (User2) request.getSession().getAttribute("semoss_user");
+				User user = (User) request.getSession().getAttribute("semoss_user");
 				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
 					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
@@ -1230,7 +1230,7 @@ public class DatabaseUploader extends Uploader {
 
 			// add engine owner for permissions
 			if(this.securityEnabled) {
-				User2 user = (User2) request.getSession().getAttribute("semoss_user");
+				User user = (User) request.getSession().getAttribute("semoss_user");
 				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
 					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
@@ -1426,7 +1426,7 @@ public class DatabaseUploader extends Uploader {
 		importOptions.setEngineID(appID);
 		// add engine owner for permissions
 		if(this.securityEnabled) {
-			User2 user = (User2) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute("semoss_user");
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
 				addEngineOwner(appID, options.get("dbName"), userId);
