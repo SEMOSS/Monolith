@@ -13,37 +13,58 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.util.Constants;
 
 public class CACFilter implements Filter {
 
+	private static final Logger LOGGER = LogManager.getLogger(CACFilter.class.getName()); 
+	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		X509Certificate[] certs = (X509Certificate[]) arg0.getAttribute("javax.servlet.request.X509Certificate");
 		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 
 		if(certs != null) {
-			User user = (User) session.getAttribute("semoss_user");
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
 			if(user == null) {
 				user = new User();
 
 				AccessToken token = new AccessToken();
 				token.setProvider(AuthProvider.CAC);
-				for(int i = 0; i < certs.length; i++) {
+				// loop thorugh all the certs
+				CERT_LOOP : for(int i = 0; i < certs.length; i++) {
 					X509Certificate cert = certs[i];
 
 					String fullName = cert.getSubjectX500Principal().getName();
+					System.out.println("REQUEST COMING FROM " + fullName);
+					System.out.println("REQUEST COMING FROM " + fullName);
 					LdapName ldapDN;
 					try {
 						ldapDN = new LdapName(fullName);
 						for(Rdn rdn: ldapDN.getRdns()) {
 							if(rdn.getType().equals("CN")) {
 								String value = rdn.getValue().toString();
+
+								if(value.equals("topazbpm001.mhse2e.med.osd.mil")) {
+									// THIS IS FOR TOPAZ HITTING MHS
+									// GIVE IT ACCESS
+									token.setName(value);
+									// now set the other properties
+									token.setToken_type(cert.getIssuerDN().getName());
+									token.setExpires_in((int) cert.getNotAfter().getTime());
+									LOGGER.info("Request coming from TOPAZ");
+									break CERT_LOOP;
+								}
+
+
 								String[] split = value.split("\\.");
 								if(split.length == 3 || split.length == 4) {
 									// no idea if middle name is always there or not
@@ -55,6 +76,7 @@ public class CACFilter implements Filter {
 										// now set the other properties
 										token.setToken_type(cert.getIssuerDN().getName());
 										token.setExpires_in((int) cert.getNotAfter().getTime());
+										break CERT_LOOP;
 									} else {
 										continue;
 									}
@@ -64,12 +86,13 @@ public class CACFilter implements Filter {
 							}
 						}
 					} catch (InvalidNameException e) {
-						token.setName(fullName);
+						LOGGER.error("ERROR WITH PARSING CAC INFORMATION!");
 						e.printStackTrace();
 					}
 				}
 
 				if(token.getName() != null) {
+					LOGGER.info("Valid request coming from user " + token.getName());
 					user.setAccessToken(token);
 					session.setAttribute("semoss_user", user);
 				}
@@ -77,9 +100,7 @@ public class CACFilter implements Filter {
 		}
 		
 		if(session.getAttribute("semoss_user") == null) {
-			//TOOD: figure out redirect
-			HttpServletResponse httpResponse = (HttpServletResponse) arg1;
-			httpResponse.sendRedirect( ((HttpServletRequest)arg0).getHeader("Referer") + "TestRedirect/test.html");
+			LOGGER.error("COULDN'T AUTHORIZE USER!");
 			return;
 		}
 
