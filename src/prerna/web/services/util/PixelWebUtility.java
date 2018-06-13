@@ -25,6 +25,7 @@ import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.sablecc2.om.task.AbstractTask;
 import prerna.sablecc2.om.task.ConstantDataTask;
 import prerna.sablecc2.om.task.ITask;
+import prerna.sablecc2.reactor.export.GraphFormatter;
 import prerna.sablecc2.reactor.frame.FrameFactory;
 import prerna.util.insight.InsightUtility;
 
@@ -271,17 +272,22 @@ public class PixelWebUtility extends WebUtility{
 					ps.print("}" );
 
 				} else if(formatType.equals("GRAPH")){
-					// format type is probably graph
+//					// format type is probably graph
+//					ps.print("\"output\":{");
+//					ps.print("\"data\":" );
+//					// this is a map return
+//					ps.print(gson.toJson( ((AbstractTask) task).getData()));
+					
+					// format type is graph
 					ps.print("\"output\":{");
-					ps.print("\"data\":" );
-					// this is a map return
-					ps.print(gson.toJson( ((AbstractTask) task).getData()));
+					printMapData(ps, (Map<String, Object>) ((AbstractTask) task).getData(), gson);
 				}
 
 				for(String taskMetaKey : taskMeta.keySet()) {
 					ps.print(",\"" + taskMetaKey + "\":" + gson.toJson(taskMeta.get(taskMetaKey)));
 					ps.flush();
 				}
+				
 				ps.print(",\"taskId\":\"" + task.getId() + "\"");
 				ps.print("}");
 				ps.print(",\"operationType\":");
@@ -294,7 +300,20 @@ public class PixelWebUtility extends WebUtility{
 				// sometimes there is just data to send
 				// dont need to do anything special
 				ps.print("\"output\":");
-				ps.print(gson.toJson(noun.getValue()));
+				Object obj = noun.getValue();
+				if(obj instanceof Map && ((Map) obj).containsKey("type") && ((Map) obj).get("type").equals("GRAPH")) {
+					ps.print("{");
+					Map mapObj = (Map) obj;
+					Map<String, Object> retData = (Map<String, Object>) mapObj.remove("data");
+					printMapData(ps, retData, gson);
+					// print the rest of the stuff
+					for(Object key : mapObj.keySet()) {
+						ps.println(",\"" + key + ":" + gson.toJson(mapObj.get(key)));
+					}
+					ps.print("}");
+				} else {
+					ps.print(gson.toJson(noun.getValue()));
+				}
 				ps.print(",\"operationType\":");
 				ps.print(gson.toJson(noun.getOpType()));
 			}
@@ -379,6 +398,36 @@ public class PixelWebUtility extends WebUtility{
 		// close the map
 		ps.print("}");
 		ps.flush();
+	}
+	
+	/**
+	 * Logic to more efficiently print out the map formatted data 
+	 * @param ps
+	 * @param retData
+	 * @param gson
+	 */
+	private static void printMapData(PrintStream ps, Map<String, Object> retData, Gson gson) {
+		ps.print("\"data\":" );
+		// this is a map return
+		ps.print("{\"" + GraphFormatter.GRAPH_META + "\":" + gson.toJson(retData.get(GraphFormatter.GRAPH_META)));
+		ps.print(", \"" + GraphFormatter.NODES + "\":[");
+
+		List<Object> nodeList = (List<Object>) retData.get(GraphFormatter.NODES);
+		// print first node
+		if(!nodeList.isEmpty()) {
+			ps.print(gson.toJson(nodeList.remove(0)));
+		}
+		// print rest of nodes
+		nodeList.stream().forEach(node -> ps.print("," + gson.toJson(node)));
+		ps.print("], \"" + GraphFormatter.EDGES + "\":[");
+		List<Object> edgeList = (List<Object>) retData.get(GraphFormatter.EDGES);
+		// print first node
+		if(!edgeList.isEmpty()) {
+			ps.print(gson.toJson(edgeList.remove(0)));
+		}
+		// print rest of nodes
+		edgeList.stream().forEach(edge -> ps.print("," + gson.toJson(edge)));
+		ps.print("]}");
 	}
 	
 }
