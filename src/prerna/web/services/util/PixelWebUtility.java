@@ -50,6 +50,7 @@ public class PixelWebUtility extends WebUtility{
 					try(PrintStream ps = new PrintStream(outputStream)) {
 						// we want to ignore the first index since it will be a job
 						processPixelRunner(ps, gson, runner, true);
+						ps.close();
 					}
 				}};
 		} catch (Exception e) {
