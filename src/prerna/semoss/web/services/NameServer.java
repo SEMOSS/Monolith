@@ -1421,10 +1421,13 @@ public class NameServer {
 */			
 			//return thread.getOutput() + "";
 		}
-	   
 
-	
+	   @GET
+	   @Path("/sessionTimeout")
+	   @Produces("application/json")
+	   public Response getTimeoutValue(@Context HttpServletRequest request) {
+		   return WebUtility.getResponse((double) request.getSession().getMaxInactiveInterval() / 60, 200);
+	   }
 
 
-	
 }
