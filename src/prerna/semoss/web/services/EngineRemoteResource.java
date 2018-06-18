@@ -218,7 +218,8 @@ public class EngineRemoteResource {
 //			if(wrapper instanceof SesameJenaSelectCheater)
 //				retValue = ((SesameJenaSelectCheater)wrapper).hasNext();
 
-			retValue = ((IEngineWrapper)wrapper).hasNext();
+			//TODO: this shouldnt' be commented out!!!
+//			retValue = ((IEngineWrapper) wrapper).hasNext();
 			if(!retValue) // cleanup
 				QueryResultHash.getInstance().cleanObject(id);
 		}
