@@ -56,7 +56,7 @@ public class QueryResultHash {
 		if(prefix == null)
 			prefix = "QueryNo";
 		String key = prefix + runner;
-		maObject.setRemoteID(key);
+		maObject.setRemoteId(key);
 		objHash.put(key, maObject);
 		runner++;
 		return key;
