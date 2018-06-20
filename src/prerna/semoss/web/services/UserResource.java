@@ -61,6 +61,8 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
+import org.kohsuke.github.GHMyself;
+import org.kohsuke.github.GitHub;
 
 import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
@@ -573,7 +575,21 @@ public class UserResource {
 				String url = "https://github.com/login/oauth/access_token";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
+				if(accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getGoogleRedirect(request));
+					return null;
+				}
 				accessToken.setProvider(AuthProvider.GIT);
+
+				// add specific Git values
+				GHMyself myGit = GitHub.connectUsingOAuth(accessToken.getAccess_token()).getMyself();
+				accessToken.setId(myGit.getId() + "");
+				accessToken.setEmail(myGit.getEmail());
+				accessToken.setName(myGit.getName());
+				accessToken.setLocale(myGit.getLocation());
+				accessToken.setUsername(myGit.getLogin());
 				addAccessToken(accessToken, request);
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
@@ -657,6 +673,13 @@ public class UserResource {
 				String url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				if(accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getGoogleRedirect(request));
+					return null;
+				}
+				
 				accessToken.setProvider(AuthProvider.AZURE_GRAPH);
 				addAccessToken(accessToken, request);
 
@@ -821,6 +844,12 @@ public class UserResource {
 	
 				String url = "https://www.googleapis.com/oauth2/v4/token";
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				if(accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getGoogleRedirect(request));
+					return null;
+				}
 				//https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
 				// Shows how to make a google credential from an access token
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
