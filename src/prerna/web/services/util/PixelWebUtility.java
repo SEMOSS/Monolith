@@ -394,6 +394,17 @@ public class PixelWebUtility extends WebUtility{
 			ps.print(gson.toJson(noun.getValue()));
 			ps.print(",\"operationType\":");
 			ps.print(gson.toJson(noun.getOpType()));
+			
+			// add additional outputs
+			List<NounMetadata> addReturns = noun.getAdditionalReturn();
+			int numOutputs = addReturns.size();
+			if(numOutputs > 0) {
+				ps.print(",\"additionalOutput\":[");
+				for(int i = 0; i < numOutputs; i++) {
+					processNounMetadata(in, ps, gson, addReturns.get(i), null, null);
+				}
+				ps.print("]");
+			}
 		}
 
 		// close the map
