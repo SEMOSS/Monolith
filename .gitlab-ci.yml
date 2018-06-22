@@ -6,10 +6,10 @@ stages:
 before_script:
   - apt-get update
   - apt-get install -y openjfx
-  - wget https://repo.semoss.org/semoss/Semoss/-/jobs/artifacts/svn/dev/raw/target/semoss-0.0.1-SNAPSHOT.jar?job=build -P temp
+  - wget https://repo.semoss.org/semoss/Semoss/-/jobs/artifacts/svn/dev/raw/target/semoss-0.0.1-SNAPSHOT.jar?job=build -O temp/semoss.jar
   - cd temp
-  - ls -la
-  - mvn install:install-file -Dfile=semoss-0.0.1-SNAPSHOT.jar -DgroupId=org.semoss -DartifactId=semoss -Dversion=0.0.1-SNAPSHOT -Dpackaging=jar
+  - ls -l
+  - mvn install:install-file -Dfile=semoss.jar -DgroupId=org.semoss -DartifactId=semoss -Dversion=0.0.1-SNAPSHOT -Dpackaging=jar
   - cd ..
   
 variables:
