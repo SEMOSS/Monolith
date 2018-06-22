@@ -8,6 +8,7 @@ before_script:
   - apt-get install -y openjfx
   - wget https://repo.semoss.org/semoss/Semoss/-/jobs/artifacts/svn/dev/raw/target/semoss-0.0.1-SNAPSHOT.jar?job=build -P temp
   - cd temp
+  - ls -la
   - mvn install:install-file -Dfile=semoss-0.0.1-SNAPSHOT.jar -DgroupId=org.semoss -DartifactId=semoss -Dversion=0.0.1-SNAPSHOT -Dpackaging=jar
   - cd ..
   
