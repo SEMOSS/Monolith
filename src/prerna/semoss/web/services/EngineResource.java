@@ -238,7 +238,7 @@ public class EngineResource {
 		try {
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			User user = (User) session.getAttribute("semoss_user");
-			userId = user.getAccessToken(AuthProvider.CAC).getName();
+			userId = user.getAccessToken(AuthProvider.CAC).getId();
 		} catch(Exception e) {
 			Map<String, String> err = new HashMap<String, String>();
 			err.put("errorMessage", "Could not identify user");
