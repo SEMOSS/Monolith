@@ -2,6 +2,8 @@ package prerna.web.conf;
 
 import java.io.IOException;
 import java.security.cert.X509Certificate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
@@ -56,7 +58,8 @@ public class CACFilter implements Filter {
 								if(value.equals("topazbpm001.mhse2e.med.osd.mil")) {
 									// THIS IS FOR TOPAZ HITTING MHS
 									// GIVE IT ACCESS
-									token.setName(value);
+									token.setId(value);
+									token.setName("TOPAZ");
 									// now set the other properties
 									token.setToken_type(cert.getIssuerDN().getName());
 									token.setExpires_in((int) cert.getNotAfter().getTime());
@@ -72,7 +75,8 @@ public class CACFilter implements Filter {
 									String cacId = split[split.length-1];
 									if(cacId.length() >= 10) {
 										// valid CAC!!!
-										token.setName(cacId);
+										token.setId(cacId);
+										token.setName(Stream.of(split).limit(split.length-2).collect(Collectors.joining(" ")));
 										// now set the other properties
 										token.setToken_type(cert.getIssuerDN().getName());
 										token.setExpires_in((int) cert.getNotAfter().getTime());
@@ -94,12 +98,12 @@ public class CACFilter implements Filter {
 				if(token.getName() != null) {
 					LOGGER.info("Valid request coming from user " + token.getName());
 					user.setAccessToken(token);
-					session.setAttribute("semoss_user", user);
+					session.setAttribute(Constants.SESSION_USER, user);
 				}
 			}
 		}
 		
-		if(session.getAttribute("semoss_user") == null) {
+		if(session.getAttribute(Constants.SESSION_USER) == null) {
 			LOGGER.error("COULDN'T AUTHORIZE USER!");
 			return;
 		}
