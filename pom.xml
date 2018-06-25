@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.semoss</groupId>
 	<artifactId>monolith</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>${ci.version}</version>
 	<packaging>war</packaging>
 	<name>Monolith</name>
 	<description>SEMOSS Monolith</description>
@@ -32,6 +32,7 @@
 		<url>https://repo.semoss.org/semoss/Monolith</url>
 	</scm>
 	<properties>
+		<ci.version>0.0.1-SNAPSHOT</ci.version>
 		<project.build.sourceEncoding>cp1252</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>cp1252</project.reporting.outputEncoding>
 	</properties>
@@ -201,6 +202,17 @@
 			</snapshots>
 		</repository>
 		<repository>
+			<id>snapshot</id>
+			<name>Sonatype's Maven repository - SNAPSHOT</name>
+			<url>http://oss.sonatype.org/content/repositories/snapshots/</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+		<repository>
 			<id>LDS repository</id>
 			<name>LDS Maven repository</name>
 			<url>https://code.lds.org/nexus/content/groups/main-repo</url>
@@ -246,7 +258,7 @@
 		<dependency>
 			<groupId>org.semoss</groupId>
 			<artifactId>semoss</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
+			<version>${ci.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>jdk.tools</groupId>
