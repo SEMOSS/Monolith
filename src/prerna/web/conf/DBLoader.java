@@ -27,18 +27,16 @@
  *******************************************************************************/
 package prerna.web.conf;
 
-import java.io.File;
-
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
 import org.apache.log4j.PropertyConfigurator;
 
+import com.ibm.icu.util.StringTokenizer;
+
 import prerna.util.AbstractFileWatcher;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
-
-import com.ibm.icu.util.StringTokenizer;
 
 public class DBLoader implements ServletContextListener {
 
@@ -62,12 +60,12 @@ public class DBLoader implements ServletContextListener {
 		System.out.println("Setting log4j property: " + log4jConfig);
 		PropertyConfigurator.configure(log4jConfig);
 		
-		//Set Solr home variable (~SEMOSS_PROJ_HOME/Solr)
-		String solrHome = DIHelper.getInstance().getProperty("BaseFolder") + "/" + Constants.SOLR_HOME_DIR;
-		if((new File(solrHome)).exists()) {
-			System.out.println("Setting Solr home: " + solrHome);
-			System.setProperty("solr.solr.home", solrHome);
-		}
+//		//Set Solr home variable (~SEMOSS_PROJ_HOME/Solr)
+//		String solrHome = DIHelper.getInstance().getProperty("BaseFolder") + "/" + Constants.SOLR_HOME_DIR;
+//		if((new File(solrHome)).exists()) {
+//			System.out.println("Setting Solr home: " + solrHome);
+//			System.setProperty("solr.solr.home", solrHome);
+//		}
 		
 		//Load empty engine list into DIHelper, then load engines from db folder
 		System.out.println("Loading engines...");
