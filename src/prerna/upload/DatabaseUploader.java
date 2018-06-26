@@ -18,11 +18,9 @@ import java.util.UUID;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -39,13 +37,11 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.impl.SmssUtilities;
-import prerna.engine.impl.solr.SolrEngine;
 import prerna.nameserver.AddToMasterDB;
 import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
 import prerna.poi.main.HeadersException;
 import prerna.poi.main.MetaModelCreator;
-import prerna.poi.main.SolrEngineConnector;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.FileHelperUtil;
 import prerna.poi.main.helper.ImportOptions;
@@ -1268,91 +1264,91 @@ public class DatabaseUploader extends Uploader {
 		return Response.status(200).entity(gson.toJson(outputText)).build();
 	}
 	
-	@GET
-	@Path("/solr/ping")
-	@Produces("applicaiton/json")
-	public Response validSolrEngine(@QueryParam("solrURL") String solrURL , @QueryParam("coreName") String coreName) {
-		boolean isValid = SolrEngine.ping(solrURL, coreName);
-		return WebUtility.getResponse(isValid, 200);
-	}
-	
-	@POST
-	@Path("/solr/getMetamodel")
-	@Produces("applicaiton/json")
-	public Response getSolrMetadata(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		String solrURL = form.getFirst("solrURL");
-		String coreName = form.getFirst("coreName");
-		boolean isValid = SolrEngine.ping(solrURL, coreName);
-		if(isValid) {
-			Map<String, Object> schemaData = SolrEngine.getSchema(solrURL, coreName);
-			// we send a really weird object
-			// so going format this data into that format
-			List<String> columnHeaders = (List<String>) schemaData.get(SolrEngine.SCHEMA_HEADERS_KEY);
-			List<String> columnTypes = (List<String>) schemaData.get(SolrEngine.SCHEMA_DATA_TYPE_KEY);
-			String key = (String) schemaData.get(SolrEngine.SCHEMA_UNIQUE_HEADER_KEY);
-			String keyType = (String) schemaData.get(SolrEngine.SCHEMA_UNIQUE_HEADER_DATA_TYPE_KEY);
-
-			Map<String, Object> retMap = new HashMap<String, Object>();
-			Map<String, List<Map<String, Object>>> tableMap = new HashMap<String, List<Map<String, Object>>>();
-			retMap.put("tables", tableMap);
-			// we only have one table in our solr metamodel
-			List<Map<String, Object>> fieldList = new Vector<Map<String, Object>>();
-			// add the name of the "table" -> i.e. the unique field
-			// to all of the other fields
-			tableMap.put(key, fieldList);
-			int numFields = columnHeaders.size();
-			for(int i = 0; i < numFields; i++) {
-				Map<String, Object> fieldMap = new HashMap<String, Object>();
-				String field = columnHeaders.get(i);
-				fieldMap.put("name", field);
-				fieldMap.put("type", columnTypes.get(i));
-				if(field.equals(key)) {
-					fieldMap.put("isPK", true);
-				} else {
-					fieldMap.put("isPK", false);
-				}
-				fieldList.add(fieldMap);
-			}
-			
-			return WebUtility.getResponse(retMap, 200);
-		} else {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Unable to successfully connect to solr instance at " + solrURL);
-			return WebUtility.getResponse(errorMap, 400);
-		}
-	}
-	
-	@POST
-	@Path("/solr/loadSolrEngine")
-	@Produces("applicaiton/json")
-	public Response loadSolrEngine(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		String solrURL = form.getFirst("solrURL");
-		String coreName = form.getFirst("coreName");
-		boolean isValid = SolrEngine.ping(solrURL, coreName);
-		String appName = form.getFirst("dbName");
-		String appID = UUID.randomUUID().toString();
-		
-		if(isValid) {
-			appName = Utility.makeAlphaNumeric(appName);
-			SolrEngineConnector connector = new SolrEngineConnector();
-			try {
-				connector.processExistingSolrConnection(appName, appID, solrURL, coreName  );
-			} catch (IOException e) {
-				e.printStackTrace();
-				Map<String, Object> errorMap = new HashMap<String, Object>();
-				errorMap.put("errorMessage", e.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
-			}
-			boolean success = true;
-			Map<String, Object> ret = new HashMap<String, Object>();
-			ret.put("success", success);
-			return WebUtility.getResponse(ret, 200);
-		} else {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Unable to successfully connect to solr instance at " + solrURL);
-			return WebUtility.getResponse(errorMap, 400);
-		}
-	}
+//	@GET
+//	@Path("/solr/ping")
+//	@Produces("applicaiton/json")
+//	public Response validSolrEngine(@QueryParam("solrURL") String solrURL , @QueryParam("coreName") String coreName) {
+//		boolean isValid = SolrEngine.ping(solrURL, coreName);
+//		return WebUtility.getResponse(isValid, 200);
+//	}
+//	
+//	@POST
+//	@Path("/solr/getMetamodel")
+//	@Produces("applicaiton/json")
+//	public Response getSolrMetadata(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+//		String solrURL = form.getFirst("solrURL");
+//		String coreName = form.getFirst("coreName");
+//		boolean isValid = SolrEngine.ping(solrURL, coreName);
+//		if(isValid) {
+//			Map<String, Object> schemaData = SolrEngine.getSchema(solrURL, coreName);
+//			// we send a really weird object
+//			// so going format this data into that format
+//			List<String> columnHeaders = (List<String>) schemaData.get(SolrEngine.SCHEMA_HEADERS_KEY);
+//			List<String> columnTypes = (List<String>) schemaData.get(SolrEngine.SCHEMA_DATA_TYPE_KEY);
+//			String key = (String) schemaData.get(SolrEngine.SCHEMA_UNIQUE_HEADER_KEY);
+//			String keyType = (String) schemaData.get(SolrEngine.SCHEMA_UNIQUE_HEADER_DATA_TYPE_KEY);
+//
+//			Map<String, Object> retMap = new HashMap<String, Object>();
+//			Map<String, List<Map<String, Object>>> tableMap = new HashMap<String, List<Map<String, Object>>>();
+//			retMap.put("tables", tableMap);
+//			// we only have one table in our solr metamodel
+//			List<Map<String, Object>> fieldList = new Vector<Map<String, Object>>();
+//			// add the name of the "table" -> i.e. the unique field
+//			// to all of the other fields
+//			tableMap.put(key, fieldList);
+//			int numFields = columnHeaders.size();
+//			for(int i = 0; i < numFields; i++) {
+//				Map<String, Object> fieldMap = new HashMap<String, Object>();
+//				String field = columnHeaders.get(i);
+//				fieldMap.put("name", field);
+//				fieldMap.put("type", columnTypes.get(i));
+//				if(field.equals(key)) {
+//					fieldMap.put("isPK", true);
+//				} else {
+//					fieldMap.put("isPK", false);
+//				}
+//				fieldList.add(fieldMap);
+//			}
+//			
+//			return WebUtility.getResponse(retMap, 200);
+//		} else {
+//			Map<String, String> errorMap = new HashMap<String, String>();
+//			errorMap.put("errorMessage", "Unable to successfully connect to solr instance at " + solrURL);
+//			return WebUtility.getResponse(errorMap, 400);
+//		}
+//	}
+//	
+//	@POST
+//	@Path("/solr/loadSolrEngine")
+//	@Produces("applicaiton/json")
+//	public Response loadSolrEngine(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+//		String solrURL = form.getFirst("solrURL");
+//		String coreName = form.getFirst("coreName");
+//		boolean isValid = SolrEngine.ping(solrURL, coreName);
+//		String appName = form.getFirst("dbName");
+//		String appID = UUID.randomUUID().toString();
+//		
+//		if(isValid) {
+//			appName = Utility.makeAlphaNumeric(appName);
+//			SolrEngineConnector connector = new SolrEngineConnector();
+//			try {
+//				connector.processExistingSolrConnection(appName, appID, solrURL, coreName  );
+//			} catch (IOException e) {
+//				e.printStackTrace();
+//				Map<String, Object> errorMap = new HashMap<String, Object>();
+//				errorMap.put("errorMessage", e.getMessage());
+//				return WebUtility.getResponse(errorMap, 400);
+//			}
+//			boolean success = true;
+//			Map<String, Object> ret = new HashMap<String, Object>();
+//			ret.put("success", success);
+//			return WebUtility.getResponse(ret, 200);
+//		} else {
+//			Map<String, String> errorMap = new HashMap<String, String>();
+//			errorMap.put("errorMessage", "Unable to successfully connect to solr instance at " + solrURL);
+//			return WebUtility.getResponse(errorMap, 400);
+//		}
+//	}
 	
 	@POST
 	@Path("/rdbms/getMetadata2")
