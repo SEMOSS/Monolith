@@ -25,6 +25,7 @@ build_dev:
   only:
     - pushes
   script:
+    - mvn versions:use-latest-snapshots -Dincludes=org.semoss:semoss
     - mvn $MAVEN_CLI_OPTS clean install
   artifacts:
     paths:
