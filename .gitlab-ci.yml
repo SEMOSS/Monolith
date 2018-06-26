@@ -36,6 +36,7 @@ build_deploy:
   only:
   - web
   script:
+    - mvn versions:use-latest-snapshots -Dincludes=org.semoss:semoss
     - mvn $MAVEN_CLI_OPTS deploy -P deploy
   artifacts:
     paths:
