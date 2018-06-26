@@ -7,7 +7,7 @@
   </formats>
   <fileSets>
     <fileSet>
-      <directory>${project.build.directory}/${project.build.finalName}/WEB-INF/lib</directory>
+      <directory>${project.build.directory}/WEB-INF/lib</directory>
       <outputDirectory>WEB-INF/lib</outputDirectory>
     </fileSet>
   </fileSets>
