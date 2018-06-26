@@ -25,7 +25,7 @@ build_dev:
   only:
     - pushes
   script:
-    - mvn versions:use-latest-snapshots -Dincludes=org.semoss:semoss
+    - rm -rf .m2/repository/org/semoss
     - mvn $MAVEN_CLI_OPTS clean install
   artifacts:
     paths:
@@ -37,7 +37,7 @@ build_deploy:
   only:
   - web
   script:
-    - mvn versions:use-latest-snapshots -Dincludes=org.semoss:semoss
+    - rm -rf .m2/repository/org/semoss
     - mvn $MAVEN_CLI_OPTS deploy -P deploy
   artifacts:
     paths:
