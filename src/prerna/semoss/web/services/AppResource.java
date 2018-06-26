@@ -24,10 +24,10 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
+import prerna.auth.AbstractSecurityUtils;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
-import prerna.solr.SolrUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
@@ -134,7 +134,7 @@ public class AppResource {
 				return f;
 			} else {
 				// return stock image
-				f = SolrUtility.getStockImage(appId, id);
+				f = AbstractSecurityUtils.getStockImage(appId, id);
 				return f;
 			}
 		}

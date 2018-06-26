@@ -41,7 +41,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -74,8 +73,6 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.common.SolrDocument;
-import org.apache.solr.common.SolrDocumentList;
 import org.jsoup.Jsoup;
 
 import com.google.gson.Gson;
@@ -83,6 +80,7 @@ import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AuthProvider;
+import prerna.auth.SecurityQueryUtils;
 import prerna.auth.User;
 import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.api.IEngine;
@@ -95,9 +93,6 @@ import prerna.sablecc.PKQLRunner;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
-import prerna.solr.SolrIndexEngine;
-import prerna.solr.SolrIndexEngine.SOLR_PATHS;
-import prerna.solr.SolrIndexEngineQueryBuilder;
 import prerna.upload.DatabaseUploader;
 import prerna.upload.FileUploader;
 import prerna.upload.ImageUploader;
@@ -106,7 +101,6 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
-import prerna.util.insight.InsightScreenshot;
 import prerna.web.services.util.PixelWebUtility;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
@@ -215,22 +209,22 @@ public class NameServer {
 		return null;
 	}
 
-	// gets a particular insight
-	@GET
-	@Path("central/context/getInsight")
-	@Produces("application/xml")
-	public StreamingOutput getInsight(@QueryParam("insight") String uniqueId) {
-		// returns the insight
-		// typically is a JSON of the insight
-		SolrDocument results = null;
-		try {
-			results = SolrIndexEngine.getInstance().getInsight(uniqueId);
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
-			e1.printStackTrace();
-			return WebUtility.getSO("Error executing solr query");
-		}		
-		return WebUtility.getSO(results);
-	}
+//	// gets a particular insight
+//	@GET
+//	@Path("central/context/getInsight")
+//	@Produces("application/xml")
+//	public StreamingOutput getInsight(@QueryParam("insight") String uniqueId) {
+//		// returns the insight
+//		// typically is a JSON of the insight
+//		SolrDocument results = null;
+//		try {
+//			results = SolrIndexEngine.getInstance().getInsight(uniqueId);
+//		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
+//			e1.printStackTrace();
+//			return WebUtility.getSO("Error executing solr query");
+//		}		
+//		return WebUtility.getSO(results);
+//	}
 
 	/**
 	 * Get the basic information of all engines from solr.
@@ -378,14 +372,20 @@ public class NameServer {
 	@Path("central/context/getAutoCompleteResults")
 	@Produces("application/json")
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String searchString, @Context HttpServletRequest request) {
-		List<String> results = null;
-		try {
-			results = SolrIndexEngine.getInstance().executeAutoCompleteQuery(searchString);
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
-				| IOException e) {
-			e.printStackTrace();
+		List<String> searchResults = null;
+		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
+		if(securityEnabled) {
+			HttpSession session = request.getSession(false);
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
+			String userId = "-1";
+			if(user != null) {
+				userId = user.getAccessToken(user.getLogins().get(0)).getId();
+			}
+			searchResults = SecurityQueryUtils.predictUserInsightSearch(userId, searchString, "15", "0");
+		} else {
+			searchResults = SecurityQueryUtils.predictInsightSearch(searchString, "15", "0");
 		}
-		return WebUtility.getSO(results);
+		return WebUtility.getSO(searchResults);
 	}
 	
 	/**
@@ -397,141 +397,141 @@ public class NameServer {
 	@Path("central/context/getSearchInsightsResults")
 	@Produces("application/json")
 	public StreamingOutput getSearchInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		//text searched in search bar
-		String searchString = form.getFirst("searchString");
-		logger.info("Searching based on input: " + searchString);
-		
-		//sort field
-		String sortField = form.getFirst("sortField");
-		logger.info("Sorting field: " + sortField);
-
-		//sort (based on relevance, asc, desc)
-		String sortOrdering = form.getFirst("sortOrdering");
-		logger.info("Sorting order: " + sortOrdering);
-		
-		//offset for call
-		String offset = form.getFirst("offset");
-		logger.info("Offset is: " + offset);
-		
-		//offset for call
-		String limit = form.getFirst("limit");
-		logger.info("Limit is: " + limit);
-
-		Integer offsetInt = null;
-		Integer limitInt = null;
-		if(offset != null && !offset.isEmpty()) {
-			offsetInt = Integer.parseInt(offset);
-		}
-		if(limit != null && !limit.isEmpty()) {
-			limitInt = Integer.parseInt(limit);
-		}
-		
-		//filter based on the boxes checked in the facet filter (filtered with an exact filter)
-		String filterDataStr = form.getFirst("filterData");
-		Gson gson = new Gson();
-		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
-		Map<String, Object> results = null;
-		
-		//If security is enabled, remove the engines in the filters that aren't accessible - if none in filters, add all accessible engines to filter list
-		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
-		ArrayList<String> filterEngines = new ArrayList<String>();
-		String userId = "";
-		
-		if(securityEnabled) {
-			HttpSession session = request.getSession(false);
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			if(user!= null) {
-				userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-			}
-			
-			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
-			if(filterData.get(SolrIndexEngine.APP_ID) != null) {
-				filterEngines.addAll(filterData.get("core_engine"));
-			}
-			if(filterEngines.size() > 0) {
-				for(String s : filterEngines) {
-					if(!userEngines.contains(s)) {
-						filterData.get(SolrIndexEngine.APP_ID).remove(s);
-					}
-				}
-			} else {
-				filterEngines.addAll(userEngines);
-				if(filterEngines.size() > 0)  {
-					filterData.put(SolrIndexEngine.APP_ID, filterEngines);
-				}
-			}
-		}
-		
-		try {
-			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortField, sortOrdering, offsetInt, limitInt, filterData);
-			//serialize images from path
-			SolrDocumentList list = (SolrDocumentList) results.get("queryResponse");
-			String basePath = DIHelper.getInstance().getProperty("BaseFolder");
-			int imageCount = 0;
-			if (list != null) {
-				for (int i = 0; i < list.size(); i++) {
-					SolrDocument doc = list.get(i);
-					String imagePath = (String) doc.get("image");
-					if (imagePath != null && imagePath.length() > 0 && !imagePath.contains("data:image/:base64")) {
-						imageCount++;
-						long startTime = System.currentTimeMillis();
-						File file = new File(basePath + imagePath);
-						if (file.exists()) {
-							String image = InsightScreenshot.imageToString(basePath + imagePath);
-							long endTime = System.currentTimeMillis();
-							long duration = endTime - startTime;
-							//logger.info("Time to serialize an image " + duration);
-							doc.put("image", "data:image/png;base64," + image);
-						}
-					}
-				}
-			}
-			// logger.info("total images " + imageCount );
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
-				| IOException e1) {
-			e1.printStackTrace();
-			return WebUtility.getSO("Error executing solr query");
-		}
-		
-		if(securityEnabled) {
-			if(filterEngines.size() == 0) {
-				results = new HashMap<String, Object>();
-			}
-			
-			//Get the results based on just insight-level permissions
-			Map<String, Object> results2 = new HashMap<String, Object>();
-			ArrayList<String> insightIDs = new ArrayList<String>();
-			StringMap<ArrayList<String>> userInsights = permissions.getInsightPermissionsForUser(userId);
-			for(String engineName : userInsights.keySet()) {
-				if(!filterEngines.contains(engineName)) {
-					insightIDs.addAll(userInsights.get(engineName));
-				}
-			}
-			
-			if(!insightIDs.isEmpty()) {
-				filterData.clear();
-				filterData.put("id", insightIDs);
-				
-				try {
-					results2 = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortField, sortOrdering, offsetInt, limitInt, filterData);
-				} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
-					e1.printStackTrace();
-					return WebUtility.getSO("Error executing solr query");
-				}
-				
-				SolrDocumentList resultsFromDBSearch = (SolrDocumentList) results.get("queryResponse");
-				for(SolrDocument doc : ((SolrDocumentList)results2.get("queryResponse"))) {
-					if(resultsFromDBSearch.contains(doc)) {
-						continue;
-					}
-					resultsFromDBSearch.add(doc);
-				}
-				System.out.println(results2);
-				results.put("queryResponse", resultsFromDBSearch);
-			}
-		}
-		
-		return WebUtility.getSO(results);
+//		//text searched in search bar
+//		String searchString = form.getFirst("searchString");
+//		logger.info("Searching based on input: " + searchString);
+//		
+//		//sort field
+//		String sortField = form.getFirst("sortField");
+//		logger.info("Sorting field: " + sortField);
+//
+//		//sort (based on relevance, asc, desc)
+//		String sortOrdering = form.getFirst("sortOrdering");
+//		logger.info("Sorting order: " + sortOrdering);
+//		
+//		//offset for call
+//		String offset = form.getFirst("offset");
+//		logger.info("Offset is: " + offset);
+//		
+//		//offset for call
+//		String limit = form.getFirst("limit");
+//		logger.info("Limit is: " + limit);
+//
+//		Integer offsetInt = null;
+//		Integer limitInt = null;
+//		if(offset != null && !offset.isEmpty()) {
+//			offsetInt = Integer.parseInt(offset);
+//		}
+//		if(limit != null && !limit.isEmpty()) {
+//			limitInt = Integer.parseInt(limit);
+//		}
+//		
+//		//filter based on the boxes checked in the facet filter (filtered with an exact filter)
+//		String filterDataStr = form.getFirst("filterData");
+//		Gson gson = new Gson();
+//		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
+//		Map<String, Object> results = null;
+//		
+//		//If security is enabled, remove the engines in the filters that aren't accessible - if none in filters, add all accessible engines to filter list
+//		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
+//		ArrayList<String> filterEngines = new ArrayList<String>();
+//		String userId = "";
+//		
+//		if(securityEnabled) {
+//			HttpSession session = request.getSession(false);
+//			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+//			if(user!= null) {
+//				userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+//			}
+//			
+//			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
+//			if(filterData.get(SolrIndexEngine.APP_ID) != null) {
+//				filterEngines.addAll(filterData.get("core_engine"));
+//			}
+//			if(filterEngines.size() > 0) {
+//				for(String s : filterEngines) {
+//					if(!userEngines.contains(s)) {
+//						filterData.get(SolrIndexEngine.APP_ID).remove(s);
+//					}
+//				}
+//			} else {
+//				filterEngines.addAll(userEngines);
+//				if(filterEngines.size() > 0)  {
+//					filterData.put(SolrIndexEngine.APP_ID, filterEngines);
+//				}
+//			}
+//		}
+//		
+//		try {
+//			results = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortField, sortOrdering, offsetInt, limitInt, filterData);
+//			//serialize images from path
+//			SolrDocumentList list = (SolrDocumentList) results.get("queryResponse");
+//			String basePath = DIHelper.getInstance().getProperty("BaseFolder");
+//			int imageCount = 0;
+//			if (list != null) {
+//				for (int i = 0; i < list.size(); i++) {
+//					SolrDocument doc = list.get(i);
+//					String imagePath = (String) doc.get("image");
+//					if (imagePath != null && imagePath.length() > 0 && !imagePath.contains("data:image/:base64")) {
+//						imageCount++;
+//						long startTime = System.currentTimeMillis();
+//						File file = new File(basePath + imagePath);
+//						if (file.exists()) {
+//							String image = InsightScreenshot.imageToString(basePath + imagePath);
+//							long endTime = System.currentTimeMillis();
+//							long duration = endTime - startTime;
+//							//logger.info("Time to serialize an image " + duration);
+//							doc.put("image", "data:image/png;base64," + image);
+//						}
+//					}
+//				}
+//			}
+//			// logger.info("total images " + imageCount );
+//		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException
+//				| IOException e1) {
+//			e1.printStackTrace();
+//			return WebUtility.getSO("Error executing solr query");
+//		}
+//		
+//		if(securityEnabled) {
+//			if(filterEngines.size() == 0) {
+//				results = new HashMap<String, Object>();
+//			}
+//			
+//			//Get the results based on just insight-level permissions
+//			Map<String, Object> results2 = new HashMap<String, Object>();
+//			ArrayList<String> insightIDs = new ArrayList<String>();
+//			StringMap<ArrayList<String>> userInsights = permissions.getInsightPermissionsForUser(userId);
+//			for(String engineName : userInsights.keySet()) {
+//				if(!filterEngines.contains(engineName)) {
+//					insightIDs.addAll(userInsights.get(engineName));
+//				}
+//			}
+//			
+//			if(!insightIDs.isEmpty()) {
+//				filterData.clear();
+//				filterData.put("id", insightIDs);
+//				
+//				try {
+//					results2 = SolrIndexEngine.getInstance().executeSearchQuery(searchString, sortField, sortOrdering, offsetInt, limitInt, filterData);
+//				} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e1) {
+//					e1.printStackTrace();
+//					return WebUtility.getSO("Error executing solr query");
+//				}
+//				
+//				SolrDocumentList resultsFromDBSearch = (SolrDocumentList) results.get("queryResponse");
+//				for(SolrDocument doc : ((SolrDocumentList)results2.get("queryResponse"))) {
+//					if(resultsFromDBSearch.contains(doc)) {
+//						continue;
+//					}
+//					resultsFromDBSearch.add(doc);
+//				}
+//				System.out.println(results2);
+//				results.put("queryResponse", resultsFromDBSearch);
+//			}
+//		}
+//		return WebUtility.getSO(results);
+		return null;
 	}
 
 	/**
@@ -544,104 +544,23 @@ public class NameServer {
 	@Path("central/context/getFacetInsightsResults")
 	@Produces("application/json")
 	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString, @Context HttpServletRequest request) {
-		logger.info("Searching based on input: " + searchString);
-
-		List<String> facetList = new ArrayList<>();
-		facetList.add(SolrIndexEngine.APP_ID);
-		facetList.add(SolrIndexEngine.APP_NAME);
-		facetList.add(SolrIndexEngine.LAYOUT);
-		facetList.add(SolrIndexEngine.TAGS);
-
-		Map<String, Map<String, Long>> facetFieldMap = null;
-		try {
-			facetFieldMap = SolrIndexEngine.getInstance().executeQueryFacetResults(searchString, facetList, SOLR_PATHS.SOLR_INSIGHTS_PATH);
-		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException e) {
-			e.printStackTrace();
-		}
-		return WebUtility.getSO(facetFieldMap);
-
-	}
-
-//	/**
-//	 * GroupBy based based on info from search. This groups documents based on specified field 
-//	 * @param form - information passes in from the front end
-//	 * @return a string version of the results attained from the query/group by search
-//	 */
-//	// group based on info from the search
-//	@POST
-//	@Path("central/context/getGroupInsightsResults")
-//	@Produces("application/json")
-//	public StreamingOutput getGroupInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-//		//text searched in search bar
-//		String searchString = form.getFirst("searchString");
 //		logger.info("Searching based on input: " + searchString);
-//				
-//		//specifies the starting number for the list of insights to return
-//		String groupOffset = form.getFirst("groupOffset");
-//		logger.info("Group offset is: " + groupOffset);
-//		
-//		//specifies the number of insights to return
-//		String groupLimit = form.getFirst("groupLimit");
-//		logger.info("Group limit is: " + groupLimit);
 //
-//		String groupSort = form.getFirst("groupSort");
-//		logger.info("Group sort is: " + groupSort);
-//		
-//		//specifies the single field to group by
-//		String groupByField = form.getFirst("groupBy");
-//		logger.info("Group field is: " + groupByField);
+//		List<String> facetList = new ArrayList<>();
+//		facetList.add(SolrIndexEngine.APP_ID);
+//		facetList.add(SolrIndexEngine.APP_NAME);
+//		facetList.add(SolrIndexEngine.LAYOUT);
+//		facetList.add(SolrIndexEngine.TAGS);
 //
-//		Integer groupLimitInt = null;
-//		Integer groupOffsetInt = null;
-//		if(groupLimit != null && !groupLimit.isEmpty()) {
-//			groupLimitInt = Integer.parseInt(groupLimit);
-//		}
-//		if(groupOffset != null && !groupOffset.isEmpty()) {
-//			groupOffsetInt = Integer.parseInt(groupOffset);
-//		}
-//		
-//		//filter based on the boxes checked in the facet filter (filtered with an exact filter)
-//		String filterDataStr = form.getFirst("filterData");
-//		Gson gson = new Gson();
-//		Map<String, List<String>> filterData = gson.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
-//		
-//		//If security is enabled, remove the engines in the filters that aren't accessible - if none in filters, add all accessible engines to filter list
-//		if(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED))) {
-//			HttpSession session = request.getSession(false);
-//			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-//			String userId = "";
-//			if(user!= null) {
-//				userId = user.getId();
-//			}
-//			
-//			HashSet<String> userEngines = permissions.getUserAccessibleEngines(userId);
-//			ArrayList<String> filterEngines = new ArrayList<String>();
-//			if(filterData.get(SolrIndexEngine.APP_ID) != null) {
-//				filterEngines.addAll(filterData.get(SolrIndexEngine.APP_ID));
-//			}
-//			if(filterEngines.size() > 0) {
-//				for(String s : filterEngines) {
-//					if(!userEngines.contains(s)) {
-//						filterData.get(SolrIndexEngine.APP_ID).remove(s);
-//					}
-//				}
-//			} else {
-//				filterEngines.addAll(userEngines);
-//				if(filterEngines.size() > 0) {
-//					filterData.put(SolrIndexEngine.APP_ID, filterEngines);
-//				}
-//			}
-//		}
-//		
-//		Map<String, Object> groupFieldMap = null;
+//		Map<String, Map<String, Long>> facetFieldMap = null;
 //		try {
-//			groupFieldMap = SolrIndexEngine.getInstance().executeQueryGroupBy(searchString, groupOffsetInt, groupLimitInt, groupByField, groupSort, filterData);
-//		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException | IOException e) {
+//			facetFieldMap = SolrIndexEngine.getInstance().executeQueryFacetResults(searchString, facetList, SOLR_PATHS.SOLR_INSIGHTS_PATH);
+//		} catch (KeyManagementException | NoSuchAlgorithmException | KeyStoreException | SolrServerException e) {
 //			e.printStackTrace();
 //		}
-//
-//		return WebUtility.getSO(groupFieldMap);
-//	}
+//		return WebUtility.getSO(facetFieldMap);
+		return null;
+	}
 	
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
@@ -748,87 +667,87 @@ public class NameServer {
 	@POST
 	@Path("central/context/insights")
 	@Produces("application/json")
-	public Response getCentralContextInsights(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-			throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException, SolrServerException, IOException {
-		Gson gson = new Gson();
-		ArrayList<String> selectedUris;
-		try {
-			selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
-		} catch (ClassCastException e) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Can only run related insights on concepts and properties!");
-			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-		}
-
-		// TODO: need to change the format for this call!!!!!!!!!!
-		String type = Utility.getClassName(selectedUris.get(0));
-		if (type == null) {
-			// this occurs when a column is artificially created in a query
-			type = selectedUris.get(0);
-		}
-		
-		SolrIndexEngineQueryBuilder queryBuilder = new SolrIndexEngineQueryBuilder();
-		queryBuilder.setSearchString(type);
-		//TODO: should the params be different for this than the default search?
-		//TODO: need to test this out more
-		queryBuilder.setDefaultDisMaxWeighting();
-		// facet still requires a df
-		queryBuilder.setDefaultSearchField(SolrIndexEngine.INDEX_NAME);
-
-		List<String> facetList = new ArrayList<>();
-		facetList.add(SolrIndexEngine.APP_ID);
-		facetList.add(SolrIndexEngine.LAYOUT);
-		facetList.add(SolrIndexEngine.TAGS);
-		queryBuilder.setFacetField(facetList);
-		
-		// offset for call
-		String offset = form.getFirst("offset");
-		logger.info("Offset is: " + offset);
-
-		// offset for call
-		String limit = form.getFirst("limit");
-		logger.info("Limit is: " + limit);
-
-		Integer offsetInt = null;
-		Integer limitInt = null;
-		if (offset != null && !offset.isEmpty()) {
-			offsetInt = Integer.parseInt(offset);
-			queryBuilder.setOffset(offsetInt);
-		}
-		if (limit != null && !limit.isEmpty()) {
-			limitInt = Integer.parseInt(limit);
-			queryBuilder.setLimit(limitInt);
-		}
-
-		// filter based on the boxes checked in the facet filter (filtered with an exact filter)
-		String filterDataStr = form.getFirst("filterData");
-		Gson gsonVar = new Gson();
-		Map<String, List<String>> filterData = gsonVar.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
-		if (filterData != null && !filterData.isEmpty()) {
-			queryBuilder.setFilterOptions(filterData);
-		}
-		
-		// always sort by score and name desc
-		queryBuilder.setSort(SolrIndexEngine.SCORE, SolrIndexEngine.DESC);
-		queryBuilder.setSort(SolrIndexEngine.STORAGE_NAME, SolrIndexEngine.ASC);
-		
-		SolrDocumentList results = SolrIndexEngine.getInstance().queryDocument(queryBuilder);
-		// throw an error if there are no results
-		if (results == null) {
-			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "No related insights found!");
+	public Response getCentralContextInsights(MultivaluedMap<String, String> form, @Context HttpServletRequest request) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException, SolrServerException, IOException {
+//		Gson gson = new Gson();
+//		ArrayList<String> selectedUris;
+//		try {
+//			selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
+//		} catch (ClassCastException e) {
+//			Map<String, String> errorHash = new HashMap<String, String>();
+//			errorHash.put("errorMessage", "Can only run related insights on concepts and properties!");
 //			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-			return WebUtility.getResponse(errorHash, 400);
-		}
-		// query for facet results
-		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, facetList, SOLR_PATHS.SOLR_INSIGHTS_PATH);
-
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		retMap.put(SolrIndexEngine.NUM_FOUND, results.getNumFound());
-		retMap.put("results", results);
-		retMap.put("facet", facetCount);
-//		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-		return WebUtility.getResponse(retMap, 200);
+//		}
+//
+//		// TODO: need to change the format for this call!!!!!!!!!!
+//		String type = Utility.getClassName(selectedUris.get(0));
+//		if (type == null) {
+//			// this occurs when a column is artificially created in a query
+//			type = selectedUris.get(0);
+//		}
+//		
+//		SolrIndexEngineQueryBuilder queryBuilder = new SolrIndexEngineQueryBuilder();
+//		queryBuilder.setSearchString(type);
+//		//TODO: should the params be different for this than the default search?
+//		//TODO: need to test this out more
+//		queryBuilder.setDefaultDisMaxWeighting();
+//		// facet still requires a df
+//		queryBuilder.setDefaultSearchField(SolrIndexEngine.INDEX_NAME);
+//
+//		List<String> facetList = new ArrayList<>();
+//		facetList.add(SolrIndexEngine.APP_ID);
+//		facetList.add(SolrIndexEngine.LAYOUT);
+//		facetList.add(SolrIndexEngine.TAGS);
+//		queryBuilder.setFacetField(facetList);
+//		
+//		// offset for call
+//		String offset = form.getFirst("offset");
+//		logger.info("Offset is: " + offset);
+//
+//		// offset for call
+//		String limit = form.getFirst("limit");
+//		logger.info("Limit is: " + limit);
+//
+//		Integer offsetInt = null;
+//		Integer limitInt = null;
+//		if (offset != null && !offset.isEmpty()) {
+//			offsetInt = Integer.parseInt(offset);
+//			queryBuilder.setOffset(offsetInt);
+//		}
+//		if (limit != null && !limit.isEmpty()) {
+//			limitInt = Integer.parseInt(limit);
+//			queryBuilder.setLimit(limitInt);
+//		}
+//
+//		// filter based on the boxes checked in the facet filter (filtered with an exact filter)
+//		String filterDataStr = form.getFirst("filterData");
+//		Gson gsonVar = new Gson();
+//		Map<String, List<String>> filterData = gsonVar.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
+//		if (filterData != null && !filterData.isEmpty()) {
+//			queryBuilder.setFilterOptions(filterData);
+//		}
+//		
+//		// always sort by score and name desc
+//		queryBuilder.setSort(SolrIndexEngine.SCORE, SolrIndexEngine.DESC);
+//		queryBuilder.setSort(SolrIndexEngine.STORAGE_NAME, SolrIndexEngine.ASC);
+//		
+//		SolrDocumentList results = SolrIndexEngine.getInstance().queryDocument(queryBuilder);
+//		// throw an error if there are no results
+//		if (results == null) {
+//			Map<String, String> errorHash = new HashMap<String, String>();
+//			errorHash.put("errorMessage", "No related insights found!");
+////			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+//			return WebUtility.getResponse(errorHash, 400);
+//		}
+//		// query for facet results
+//		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, facetList, SOLR_PATHS.SOLR_INSIGHTS_PATH);
+//
+//		Map<String, Object> retMap = new HashMap<String, Object>();
+//		retMap.put(SolrIndexEngine.NUM_FOUND, results.getNumFound());
+//		retMap.put("results", results);
+//		retMap.put("facet", facetCount);
+////		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+//		return WebUtility.getResponse(retMap, 200);
+		return null;
 	}
 
 	private StreamingOutput getSOHTML() {
