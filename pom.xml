@@ -113,7 +113,9 @@
 						<configuration>
 							<webXml>WebContent/WEB-INF/web.xml</webXml>
 							<failOnMissingWebXml>true</failOnMissingWebXml>
-							<packagingExcludes>WEB-INF/lib/*.jar</packagingExcludes>
+							<packagingExcludes>
+								%regex[WEB-INF/lib/(?!semoss-${ci.version}).*.jar]
+							</packagingExcludes>
 						</configuration>
 					</plugin>
 					<plugin>
