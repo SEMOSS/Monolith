@@ -34,8 +34,8 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AuthProvider;
+import prerna.auth.SecurityUpdateUtils;
 import prerna.auth.User;
-import prerna.auth.UserPermissionsMasterDB;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.AddToMasterDB;
 import prerna.poi.main.CSVPropFileBuilder;
@@ -598,14 +598,15 @@ public class DatabaseUploader extends Uploader {
 
 			// add engine owner for permissions
 			if(this.securityEnabled) {
-				User user = (User) request.getSession().getAttribute("semoss_user");
-				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
-				} else {
+				User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+				if(user == null) {
 					Map<String, String> errorHash = new HashMap<String, String>();
-					errorHash.put("errorMessage", "Please log in to upload data.");
+					errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
+				List<AuthProvider> logins = user.getLogins();
+				for(AuthProvider ap : logins) {
+					addEngineOwner(options.getEngineID(), options.getDbName(), user.getAccessToken(ap).getId());
 				}
 			}
 
@@ -933,14 +934,15 @@ public class DatabaseUploader extends Uploader {
 
 			// add engine owner for permissions
 			if(this.securityEnabled) {
-				User user = (User) request.getSession().getAttribute("semoss_user");
-				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
-				} else {
+				User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+				if(user == null) {
 					Map<String, String> errorHash = new HashMap<String, String>();
-					errorHash.put("errorMessage", "Please log in to upload data.");
+					errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				}
+				List<AuthProvider> logins = user.getLogins();
+				for(AuthProvider ap : logins) {
+					addEngineOwner(options.getEngineID(), options.getDbName(), user.getAccessToken(ap).getId());
 				}
 			}
 
@@ -1031,13 +1033,9 @@ public class DatabaseUploader extends Uploader {
 					errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 					return Response.status(400).entity(gson.toJson(errorHash)).build();
 				}
-				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
-				} else {
-					Map<String, String> errorHash = new HashMap<String, String>();
-					errorHash.put("errorMessage", "Please log in to upload data.");
-					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				List<AuthProvider> logins = user.getLogins();
+				for(AuthProvider ap : logins) {
+					addEngineOwner(options.getEngineID(), options.getDbName(), user.getAccessToken(ap).getId());
 				}
 			}
 
@@ -1237,13 +1235,9 @@ public class DatabaseUploader extends Uploader {
 					errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 					return Response.status(400).entity(gson.toJson(errorHash)).build();
 				}
-				String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-				if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
-					addEngineOwner(options.getEngineID(), options.getDbName(), userId);
-				} else {
-					Map<String, String> errorHash = new HashMap<String, String>();
-					errorHash.put("errorMessage", "Please log in to upload data.");
-					return Response.status(400).entity(gson.toJson(errorHash)).build();
+				List<AuthProvider> logins = user.getLogins();
+				for(AuthProvider ap : logins) {
+					addEngineOwner(options.getEngineID(), options.getDbName(), user.getAccessToken(ap).getId());
 				}
 			}
 
@@ -1425,7 +1419,8 @@ public class DatabaseUploader extends Uploader {
 		
 		HashMap<String, String> databaseOptions = gson.fromJson(gson.toJson(details.get("databaseOptions")), new TypeToken<HashMap<String, String>>() {}.getType());
 		HashMap<String, String> options = gson.fromJson(gson.toJson(details.get("options")), new TypeToken<HashMap<String, Object>>() {}.getType());
-		options.put("dbName", Utility.makeAlphaNumeric(databaseOptions.get("databaseName")));
+		String appName = Utility.makeAlphaNumeric(databaseOptions.get("databaseName"));
+		options.put("dbName", appName);
 		ImportOptions importOptions = setupImportOptionsForExternalConnection(options, metamodel);
 
 		String appID = UUID.randomUUID().toString();
@@ -1438,13 +1433,9 @@ public class DatabaseUploader extends Uploader {
 				errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-			if(user != null && !userId.equals(Constants.ANONYMOUS_USER_ID)) {
-				addEngineOwner(appID, options.get("dbName"), userId);
-			} else {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Please log in to upload data.");
-				return Response.status(400).entity(gson.toJson(errorHash)).build();
+			List<AuthProvider> logins = user.getLogins();
+			for(AuthProvider ap : logins) {
+				addEngineOwner(appID, appName, user.getAccessToken(ap).getId());
 			}
 		}
 
@@ -1541,8 +1532,9 @@ public class DatabaseUploader extends Uploader {
 	}
 
 	public void addEngineOwner(String engineId, String engine, String userId) {
-		UserPermissionsMasterDB masterDB = new UserPermissionsMasterDB();
-		masterDB.addEngineAndOwner(engineId, engine, userId);
+		SecurityUpdateUtils.addEngineAndOwner(engineId, engine, userId);
+//		UserPermissionsMasterDB masterDB = new UserPermissionsMasterDB();
+//		masterDB.addEngineAndOwner(engineId, engine, userId);
 	}
 
 	@POST
