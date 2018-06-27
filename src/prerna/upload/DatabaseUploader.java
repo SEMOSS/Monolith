@@ -38,6 +38,8 @@ import prerna.auth.SecurityUpdateUtils;
 import prerna.auth.User;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.AddToMasterDB;
+import prerna.om.Insight;
+import prerna.om.InsightStore;
 import prerna.poi.main.CSVPropFileBuilder;
 import prerna.poi.main.ExcelPropFileBuilder;
 import prerna.poi.main.HeadersException;
@@ -47,6 +49,12 @@ import prerna.poi.main.helper.FileHelperUtil;
 import prerna.poi.main.helper.ImportOptions;
 import prerna.poi.main.helper.XLFileHelper;
 import prerna.rdf.main.ImportRDBMSProcessor;
+import prerna.sablecc2.om.GenRowStruct;
+import prerna.sablecc2.om.PixelDataType;
+import prerna.sablecc2.om.ReactorKeysEnum;
+import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.sablecc2.reactor.PixelPlanner;
+import prerna.sablecc2.reactor.app.upload.rdbms.csv.RdbmsExternalUploadReactor;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -943,7 +951,7 @@ public class DatabaseUploader extends Uploader {
 				List<AuthProvider> logins = user.getLogins();
 				for(AuthProvider ap : logins) {
 					addEngineOwner(options.getEngineID(), options.getDbName(), user.getAccessToken(ap).getId());
-				}
+			}
 			}
 
 			// run the processor
@@ -1391,15 +1399,14 @@ public class DatabaseUploader extends Uploader {
 	public Response connectExistingRDBMS(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		HashMap<String, Object> ret = new HashMap<String, Object>(1);
-		ImportDataProcessor importer = new ImportDataProcessor();
-		HashMap<String, Object> metamodel = new HashMap<String, Object>(2);
+		Map<String, Object> metamodel = new HashMap<String, Object>();
 		HashMap<String, Object> details = gson.fromJson(form.getFirst("details"), new TypeToken<HashMap<String, Object>>() {}.getType());		
 		HashMap<String, String> metamodelData = gson.fromJson(gson.toJson(details.get("metamodelData")), new TypeToken<HashMap<String, Object>>() {}.getType());
 		ArrayList<Object> nodes = gson.fromJson(gson.toJson(metamodelData.get("nodes")), new TypeToken<ArrayList<Object>>() {}.getType());
 		ArrayList<Object> relationships = gson.fromJson(gson.toJson(metamodelData.get("relationships")), new TypeToken<ArrayList<Object>>() {}.getType());
+		// reformat metamodel for new reactor
 		HashMap<String, ArrayList<String>> nodesAndProps = new HashMap<String, ArrayList<String>>(nodes.size());
-		ArrayList<String[]> nodeRelationships = new ArrayList<String[]>(relationships.size());
-
+		ArrayList<Map<String, Object>> nodeRelationships = new ArrayList<>(relationships.size());
 		for(Object o: nodes) {
 			ArrayList<String> props = new ArrayList<String>();
 			HashMap<String, Object> nodeHash = gson.fromJson(gson.toJson(o), new TypeToken<HashMap<String, Object>>() {}.getType());
@@ -1409,23 +1416,86 @@ public class DatabaseUploader extends Uploader {
 			}
 			nodesAndProps.put(nodeHash.get("node") + "." + nodeHash.get("primaryKey"), props); // Table1.idTable1 -> [prop1, prop2, ...]
 		}
-		metamodel.put("nodes", nodesAndProps);
-
+		metamodel.put(Constants.NODE_PROP, nodesAndProps);
 		for(Object o: relationships) {
 			HashMap<String, String> relationship = gson.fromJson(gson.toJson(o), new TypeToken<HashMap<String, String>>() {}.getType());
-			nodeRelationships.add(new String[] { relationship.get("sub"), relationship.get("pred"), relationship.get("obj") });
+			String fromTable = relationship.get("sub");
+			String relName = relationship.get("pred");
+			String toTable = relationship.get("obj");
+			Map<String, Object> relMap = new HashMap<>();
+			relMap.put(Constants.FROM_TABLE, fromTable);
+			relMap.put(Constants.REL_NAME, relName);
+			relMap.put(Constants.TO_TABLE, toTable);
+			nodeRelationships.add(relMap);
 		}
-		metamodel.put("relationships", nodeRelationships);
+		metamodel.put(Constants.RELATION, nodeRelationships);
 		
 		HashMap<String, String> databaseOptions = gson.fromJson(gson.toJson(details.get("databaseOptions")), new TypeToken<HashMap<String, String>>() {}.getType());
 		HashMap<String, String> options = gson.fromJson(gson.toJson(details.get("options")), new TypeToken<HashMap<String, Object>>() {}.getType());
-		String appName = Utility.makeAlphaNumeric(databaseOptions.get("databaseName"));
-		options.put("dbName", appName);
-		ImportOptions importOptions = setupImportOptionsForExternalConnection(options, metamodel);
+		options.put("dbName", Utility.makeAlphaNumeric(databaseOptions.get("databaseName")));
 
-		String appID = UUID.randomUUID().toString();
-		importOptions.setEngineID(appID);
-		// add engine owner for permissions
+		boolean success = true;
+			
+		// mocking inputs until FE makes full pixel call
+		RdbmsExternalUploadReactor reactor = new RdbmsExternalUploadReactor();
+		reactor.In();
+		// make an insight to set
+		// so we can pass the user
+		Insight dummyIn = new Insight();
+		InsightStore.getInstance().put(dummyIn);
+		//TODO do we need this? 
+		// InsightStore.getInstance().addToSessionHash(session.getId(),
+		// dummyIn.getInsightId());
+		// dummyIn.getVarStore().put(JobReactor.SESSION_KEY, new
+		// NounMetadata(session.getId(), PixelDataType.CONST_STRING));
+		// dummyIn.setUser(user);
+		reactor.setInsight(dummyIn);
+		PixelPlanner planner = new PixelPlanner();
+		planner.setVarStore(dummyIn.getVarStore());
+		reactor.setPixelPlanner(planner);
+		// add app name
+		GenRowStruct grs1 = new GenRowStruct();
+		grs1.add(new NounMetadata(Utility.makeAlphaNumeric(databaseOptions.get("databaseName")),
+				PixelDataType.CONST_STRING));
+		reactor.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs1);
+		// add db driver
+		GenRowStruct grs2 = new GenRowStruct();
+		grs2.add(new NounMetadata(options.get("driver"), PixelDataType.CONST_STRING));
+		reactor.getNounStore().addNoun(ReactorKeysEnum.DB_DRIVER_KEY.getKey(), grs2);
+		// add host
+		GenRowStruct grs3 = new GenRowStruct();
+		grs3.add(new NounMetadata(options.get("hostname"), PixelDataType.CONST_STRING));
+		reactor.getNounStore().addNoun(ReactorKeysEnum.HOST.getKey(), grs3);
+		// add port
+		GenRowStruct grs4 = new GenRowStruct();
+		grs4.add(new NounMetadata(options.get("port"), PixelDataType.CONST_STRING));
+		reactor.getNounStore().addNoun(ReactorKeysEnum.PORT.getKey(), grs4);
+		// add schema
+		GenRowStruct grs5 = new GenRowStruct();
+		grs5.add(new NounMetadata(options.get("schema"), PixelDataType.CONST_STRING));
+		reactor.getNounStore().addNoun(ReactorKeysEnum.SCHEMA.getKey(), grs5);
+		// add username
+		GenRowStruct grs6 = new GenRowStruct();
+		grs6.add(new NounMetadata(options.get("username"), PixelDataType.CONST_STRING));
+		reactor.getNounStore().addNoun(ReactorKeysEnum.USERNAME.getKey(), grs6);
+		// add password
+		GenRowStruct grs7 = new GenRowStruct();
+		grs7.add(new NounMetadata(options.get("password"), PixelDataType.CONST_STRING));
+		reactor.getNounStore().addNoun(ReactorKeysEnum.PASSWORD.getKey(), grs7);
+		// add additional paras
+		GenRowStruct grs8 = new GenRowStruct();
+		grs8.add(new NounMetadata(options.get("additionalParams"), PixelDataType.CONST_STRING));
+		reactor.getNounStore().addNoun(ReactorKeysEnum.ADDITIONAL_CONNECTION_PARAMS_KEY.getKey(), grs8);
+		// add metamodel
+		// additional paras
+		GenRowStruct grs9 = new GenRowStruct();
+		grs9.add(new NounMetadata(metamodel, PixelDataType.MAP));
+		reactor.getNounStore().addNoun(ReactorKeysEnum.METAMODEL.getKey(), grs9);
+
+		NounMetadata retNoun = reactor.execute();
+		
+		String appID = retNoun.getValue().toString();
+		String appName =Utility.makeAlphaNumeric(databaseOptions.get("databaseName"));
 		if(this.securityEnabled) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			if(user == null) {
@@ -1438,15 +1508,6 @@ public class DatabaseUploader extends Uploader {
 				addEngineOwner(appID, appName, user.getAccessToken(ap).getId());
 			}
 		}
-
-		boolean success = true;
-		try {
-			importer.runProcessor(importOptions);
-		} catch (Exception e) {
-			success = false;
-			e.printStackTrace();
-		}
-		
 		ret.put("success", success);
 		if(success) {
 			return Response.status(200).entity(gson.toJson(ret)).build();
