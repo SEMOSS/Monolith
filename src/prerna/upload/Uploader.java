@@ -80,10 +80,18 @@ public abstract class Uploader extends HttpServlet {
 		} else {
 			this.filePath = filePath + DIR_SEPARATOR;
 		}
+		File f = new File(this.filePath);
+		if(!f.exists() && !f.isDirectory()) {
+			f.mkdirs();
+		}
 	}
 
 	public void setTempFilePath(String tempFilePath){
 		this.tempFilePath = tempFilePath;
+		File tFile = new File(tempFilePath);
+		if(!tFile.exists() && !tFile.isDirectory()) {
+			tFile.mkdirs();
+		}
 	}
 
 	public void setSecurityEnabled(boolean securityEnabled) {
