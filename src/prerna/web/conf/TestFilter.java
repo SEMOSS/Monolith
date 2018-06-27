@@ -30,15 +30,23 @@ public class TestFilter implements Filter {
 
 		User user = new User();
 		AccessToken token = new AccessToken();
-		token.setProvider(AuthProvider.NATIVE);
-		token.setEmail("mahkhalil@deloitte.com");
-		token.setName("Maher");
-		token.setId("111");
+		token.setProvider(AuthProvider.CAC);
+		token.setEmail("admin@health.mil");
+		token.setName("CAC_ADMIN_USER");
+		token.setId("12345");
+		
+//		User user = new User();
+//		AccessToken token = new AccessToken();
+//		token.setProvider(AuthProvider.CAC);
+//		token.setEmail("readonly@health.mil");
+//		token.setName("CAC_READ_ONLY");
+//		token.setId("54321");
 		
 		user.setAccessToken(token);
 		session.setAttribute(Constants.SESSION_USER, user);
 
 		arg2.doFilter(arg0, arg1);
+		
 	}
 
 	@Override
