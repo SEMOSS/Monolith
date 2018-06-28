@@ -1714,17 +1714,18 @@
 				</exclusion>
 			</exclusions>
 		</dependency-->
-		<dependency>
+		<!-- cleanup -->
+		<!-- dependency>
 			<groupId>org.apache.solr</groupId>
 			<artifactId>solr-core</artifactId>
 			<version>4.7.0</version>
-			<!--exclusions>
+			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
 					<artifactId>*</artifactId>
 				</exclusion>
-			</exclusions-->
-		</dependency>
+			</exclusions>
+		</dependency -->
 		<!-- cleanup -->
 		<!--dependency>
 			<groupId>org.apache.solr</groupId>
@@ -1797,17 +1798,18 @@
 				</exclusion>
 			</exclusions>
 		</dependency-->
-		<dependency>
+		<!-- cleanup -->
+		<!-- dependency>
 			<groupId>org.apache.solr</groupId>
 			<artifactId>solr-solrj</artifactId>
 			<version>4.7.0</version>
-			<!--exclusions>
+			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
 					<artifactId>*</artifactId>
 				</exclusion>
-			</exclusions-->
-		</dependency>
+			</exclusions>
+		</dependency -->
 		<!-- cleanup -->
 		<!--dependency>
 			<groupId>org.apache.solr</groupId>
