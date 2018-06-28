@@ -27,10 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.IOException;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
@@ -43,11 +39,9 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.SolrServerException;
 
 import com.google.gson.Gson;
 
@@ -70,29 +64,29 @@ public class CentralNameServer {
 
 	// local call to get all insights related to a specific uri
 	// preferably we would also pass vert store and edge store... the more context the better. Don't have any of that for now though.
-	@POST
-	@Path("context/insights")
-	@Produces("application/json")
-	public Response getContextInsights(
-			MultivaluedMap<String, String> form, 
-			@Context HttpServletRequest request) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException, SolrServerException, IOException
-	{
-		String selectedUris = form.getFirst("selectedURI");
-		logger.info("LOCALLY have registered selected URIs as ::: " + selectedUris.toString());
-
-		// if we are going to a remote name server
-		if(centralApi!=null){
-			Hashtable params = new Hashtable();
-			params.put("selectedURI", selectedUris);
-//			return Response.status(200).entity(WebUtility.getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params))).build();
-			return WebUtility.getResponse(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params), 200);
-		}
-		else {
-			NameServer ns = new NameServer();
-			form.put("localMasterDbName", localDb);
-			return ns.getCentralContextInsights(form, request);
-		}
-	}	
+//	@POST
+//	@Path("context/insights")
+//	@Produces("application/json")
+//	public Response getContextInsights(
+//			MultivaluedMap<String, String> form, 
+//			@Context HttpServletRequest request) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException, SolrServerException, IOException
+//	{
+//		String selectedUris = form.getFirst("selectedURI");
+//		logger.info("LOCALLY have registered selected URIs as ::: " + selectedUris.toString());
+//
+//		// if we are going to a remote name server
+//		if(centralApi!=null){
+//			Hashtable params = new Hashtable();
+//			params.put("selectedURI", selectedUris);
+////			return Response.status(200).entity(WebUtility.getSO(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params))).build();
+//			return WebUtility.getResponse(Utility.retrieveResult(centralApi + "/api/engine/central/context/insights", params), 200);
+//		}
+//		else {
+//			NameServer ns = new NameServer();
+//			form.put("localMasterDbName", localDb);
+//			return ns.getCentralContextInsights(form, request);
+//		}
+//	}	
 
 	@POST
 	@Path("context/getConnectedConcepts")
