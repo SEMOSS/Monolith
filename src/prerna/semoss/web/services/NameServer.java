@@ -33,9 +33,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URLEncoder;
-import java.security.KeyManagementException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -72,7 +69,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
-import org.apache.solr.client.solrj.SolrServerException;
 import org.jsoup.Jsoup;
 
 import com.google.gson.Gson;
@@ -605,94 +601,94 @@ public class NameServer {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
-	// get all insights related to a specific uri
-	// preferably we would also pass vert store and edge store... the more
-	// context the better. Don't have any of that for now though.
-	@POST
-	@Path("central/context/insights")
-	@Produces("application/json")
-	public Response getCentralContextInsights(MultivaluedMap<String, String> form, @Context HttpServletRequest request) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException, SolrServerException, IOException {
-//		Gson gson = new Gson();
-//		ArrayList<String> selectedUris;
-//		try {
-//			selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
-//		} catch (ClassCastException e) {
-//			Map<String, String> errorHash = new HashMap<String, String>();
-//			errorHash.put("errorMessage", "Can only run related insights on concepts and properties!");
-//			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-//		}
-//
-//		// TODO: need to change the format for this call!!!!!!!!!!
-//		String type = Utility.getClassName(selectedUris.get(0));
-//		if (type == null) {
-//			// this occurs when a column is artificially created in a query
-//			type = selectedUris.get(0);
-//		}
-//		
-//		SolrIndexEngineQueryBuilder queryBuilder = new SolrIndexEngineQueryBuilder();
-//		queryBuilder.setSearchString(type);
-//		//TODO: should the params be different for this than the default search?
-//		//TODO: need to test this out more
-//		queryBuilder.setDefaultDisMaxWeighting();
-//		// facet still requires a df
-//		queryBuilder.setDefaultSearchField(SolrIndexEngine.INDEX_NAME);
-//
-//		List<String> facetList = new ArrayList<>();
-//		facetList.add(SolrIndexEngine.APP_ID);
-//		facetList.add(SolrIndexEngine.LAYOUT);
-//		facetList.add(SolrIndexEngine.TAGS);
-//		queryBuilder.setFacetField(facetList);
-//		
-//		// offset for call
-//		String offset = form.getFirst("offset");
-//		logger.info("Offset is: " + offset);
-//
-//		// offset for call
-//		String limit = form.getFirst("limit");
-//		logger.info("Limit is: " + limit);
-//
-//		Integer offsetInt = null;
-//		Integer limitInt = null;
-//		if (offset != null && !offset.isEmpty()) {
-//			offsetInt = Integer.parseInt(offset);
-//			queryBuilder.setOffset(offsetInt);
-//		}
-//		if (limit != null && !limit.isEmpty()) {
-//			limitInt = Integer.parseInt(limit);
-//			queryBuilder.setLimit(limitInt);
-//		}
-//
-//		// filter based on the boxes checked in the facet filter (filtered with an exact filter)
-//		String filterDataStr = form.getFirst("filterData");
-//		Gson gsonVar = new Gson();
-//		Map<String, List<String>> filterData = gsonVar.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
-//		if (filterData != null && !filterData.isEmpty()) {
-//			queryBuilder.setFilterOptions(filterData);
-//		}
-//		
-//		// always sort by score and name desc
-//		queryBuilder.setSort(SolrIndexEngine.SCORE, SolrIndexEngine.DESC);
-//		queryBuilder.setSort(SolrIndexEngine.STORAGE_NAME, SolrIndexEngine.ASC);
-//		
-//		SolrDocumentList results = SolrIndexEngine.getInstance().queryDocument(queryBuilder);
-//		// throw an error if there are no results
-//		if (results == null) {
-//			Map<String, String> errorHash = new HashMap<String, String>();
-//			errorHash.put("errorMessage", "No related insights found!");
+//	// get all insights related to a specific uri
+//	// preferably we would also pass vert store and edge store... the more
+//	// context the better. Don't have any of that for now though.
+//	@POST
+//	@Path("central/context/insights")
+//	@Produces("application/json")
+//	public Response getCentralContextInsights(MultivaluedMap<String, String> form, @Context HttpServletRequest request) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException, SolrServerException, IOException {
+////		Gson gson = new Gson();
+////		ArrayList<String> selectedUris;
+////		try {
+////			selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
+////		} catch (ClassCastException e) {
+////			Map<String, String> errorHash = new HashMap<String, String>();
+////			errorHash.put("errorMessage", "Can only run related insights on concepts and properties!");
 ////			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-//			return WebUtility.getResponse(errorHash, 400);
-//		}
-//		// query for facet results
-//		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, facetList, SOLR_PATHS.SOLR_INSIGHTS_PATH);
-//
-//		Map<String, Object> retMap = new HashMap<String, Object>();
-//		retMap.put(SolrIndexEngine.NUM_FOUND, results.getNumFound());
-//		retMap.put("results", results);
-//		retMap.put("facet", facetCount);
-////		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
-//		return WebUtility.getResponse(retMap, 200);
-		return null;
-	}
+////		}
+////
+////		// TODO: need to change the format for this call!!!!!!!!!!
+////		String type = Utility.getClassName(selectedUris.get(0));
+////		if (type == null) {
+////			// this occurs when a column is artificially created in a query
+////			type = selectedUris.get(0);
+////		}
+////		
+////		SolrIndexEngineQueryBuilder queryBuilder = new SolrIndexEngineQueryBuilder();
+////		queryBuilder.setSearchString(type);
+////		//TODO: should the params be different for this than the default search?
+////		//TODO: need to test this out more
+////		queryBuilder.setDefaultDisMaxWeighting();
+////		// facet still requires a df
+////		queryBuilder.setDefaultSearchField(SolrIndexEngine.INDEX_NAME);
+////
+////		List<String> facetList = new ArrayList<>();
+////		facetList.add(SolrIndexEngine.APP_ID);
+////		facetList.add(SolrIndexEngine.LAYOUT);
+////		facetList.add(SolrIndexEngine.TAGS);
+////		queryBuilder.setFacetField(facetList);
+////		
+////		// offset for call
+////		String offset = form.getFirst("offset");
+////		logger.info("Offset is: " + offset);
+////
+////		// offset for call
+////		String limit = form.getFirst("limit");
+////		logger.info("Limit is: " + limit);
+////
+////		Integer offsetInt = null;
+////		Integer limitInt = null;
+////		if (offset != null && !offset.isEmpty()) {
+////			offsetInt = Integer.parseInt(offset);
+////			queryBuilder.setOffset(offsetInt);
+////		}
+////		if (limit != null && !limit.isEmpty()) {
+////			limitInt = Integer.parseInt(limit);
+////			queryBuilder.setLimit(limitInt);
+////		}
+////
+////		// filter based on the boxes checked in the facet filter (filtered with an exact filter)
+////		String filterDataStr = form.getFirst("filterData");
+////		Gson gsonVar = new Gson();
+////		Map<String, List<String>> filterData = gsonVar.fromJson(filterDataStr, new TypeToken<Map<String, List<String>>>() {}.getType());
+////		if (filterData != null && !filterData.isEmpty()) {
+////			queryBuilder.setFilterOptions(filterData);
+////		}
+////		
+////		// always sort by score and name desc
+////		queryBuilder.setSort(SolrIndexEngine.SCORE, SolrIndexEngine.DESC);
+////		queryBuilder.setSort(SolrIndexEngine.STORAGE_NAME, SolrIndexEngine.ASC);
+////		
+////		SolrDocumentList results = SolrIndexEngine.getInstance().queryDocument(queryBuilder);
+////		// throw an error if there are no results
+////		if (results == null) {
+////			Map<String, String> errorHash = new HashMap<String, String>();
+////			errorHash.put("errorMessage", "No related insights found!");
+//////			return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
+////			return WebUtility.getResponse(errorHash, 400);
+////		}
+////		// query for facet results
+////		Map<String, Map<String, Long>> facetCount = SolrIndexEngine.getInstance().executeQueryFacetResults(type, facetList, SOLR_PATHS.SOLR_INSIGHTS_PATH);
+////
+////		Map<String, Object> retMap = new HashMap<String, Object>();
+////		retMap.put(SolrIndexEngine.NUM_FOUND, results.getNumFound());
+////		retMap.put("results", results);
+////		retMap.put("facet", facetCount);
+//////		return Response.status(200).entity(WebUtility.getSO(retMap)).build();
+////		return WebUtility.getResponse(retMap, 200);
+//		return null;
+//	}
 
 	private StreamingOutput getSOHTML() {
 		return new StreamingOutput() {
