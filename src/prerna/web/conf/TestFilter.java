@@ -28,25 +28,27 @@ public class TestFilter implements Filter {
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 
-		User user = new User();
-		AccessToken token = new AccessToken();
-		token.setProvider(AuthProvider.CAC);
-		token.setEmail("admin@health.mil");
-		token.setName("CAC_ADMIN_USER");
-		token.setId("12345");
-		
-//		User user = new User();
-//		AccessToken token = new AccessToken();
-//		token.setProvider(AuthProvider.CAC);
-//		token.setEmail("readonly@health.mil");
-//		token.setName("CAC_READ_ONLY");
-//		token.setId("54321");
-		
-		user.setAccessToken(token);
-		session.setAttribute(Constants.SESSION_USER, user);
+		User semossUser = new User();
+		Object user = session.getAttribute(Constants.SESSION_USER);
+		if(user != null) {
+			semossUser = (User) user;
+			AccessToken token = new AccessToken();
+			token.setProvider(AuthProvider.CAC);
+			token.setEmail("admin@health.mil");
+			token.setName("CAC_ADMIN_USER");
+			token.setId("12345");
+			
+//			AccessToken token = new AccessToken();
+//			token.setProvider(AuthProvider.CAC);
+//			token.setEmail("readonly@health.mil");
+//			token.setName("CAC_READ_ONLY");
+//			token.setId("54321");
+			
+			semossUser.setAccessToken(token);
+			session.setAttribute(Constants.SESSION_USER, semossUser);
+		}
 
 		arg2.doFilter(arg0, arg1);
-		
 	}
 
 	@Override
