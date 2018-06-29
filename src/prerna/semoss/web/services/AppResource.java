@@ -63,7 +63,9 @@ public class AppResource {
 		String appId = MasterDatabaseUtility.testEngineIdIfAlias(app);
 		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
 		if(propFileLoc == null && !app.equals("NEWSEMOSSAPP")) {
-			return null;
+			String imageDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "/images/stock/";
+			return new File(imageDir + "color-logo.png");
+//			return null;
 		}
 		Properties prop = Utility.loadProperties(propFileLoc);
 		app = prop.getProperty(Constants.ENGINE_ALIAS);
