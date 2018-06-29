@@ -1,26 +1,42 @@
 image: maven:3.5-jdk-8
 
 stages:
-  - build
-
-before_script:
-  - apt-get update
-  - apt-get install -y openjfx
-  - apt-get install -y gnupg2
-  - gpg2 --batch --import <(echo "$GPG_PRIVATE_KEY")
+  - setup
+  - build_semoss
+  - build_monolith
   
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
   MAVEN_CLI_OPTS: "-s ./settings.xml --batch-mode"
-
+  # Used for triggering SEMOSS pipeline
+  IMAGE: "registry.gitlab.com/finestructure/pipeline-trigger"
+  URL: "repo.semoss.org"
+  
 cache:
   paths:
     - .m2/repository/
   key: ${CI_BUILD_REF_NAME}
 
+setup:
+  stage: setup
+  script:
+    - apt-get update
+    - apt-get install -y openjfx
+    - apt-get install -y gnupg2
+    - gpg2 --batch --import <(echo "$GPG_PRIVATE_KEY")
+  
+build_semoss:
+  stage: build_semoss
+  image: $IMAGE
+  script:
+    - date +%s
+    # Set via secret variables in SEMOSS group
+    - trigger -h $URL -a $API_TOKEN -p $SEMOSS_PIPELINE_TOKEN -t $SEMOSS_TARGET_BRANCH $SEMOSS_PROJECT_ID
+    - date +%s
+  
 # Does not push to maven central
-build_dev:
-  stage: build
+build_monolith_dev:
+  stage: build_monolith
   # See https://docs.gitlab.com/ee/ci/yaml/#only-and-except-simplified
   only:
     - pushes
@@ -32,10 +48,11 @@ build_dev:
       - target/monolith-0.0.1-SNAPSHOT.war
 
 # Pushes to maven central
-build_deploy:
-  stage: build
+build_monolith_deploy:
+  stage: build_monolith
   only:
-  - web
+    - triggers
+    - web
   script:
     - rm -rf .m2/repository/org/semoss
     - mvn $MAVEN_CLI_OPTS deploy -P deploy
