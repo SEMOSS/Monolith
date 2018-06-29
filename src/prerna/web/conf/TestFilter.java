@@ -30,7 +30,7 @@ public class TestFilter implements Filter {
 
 		User semossUser = new User();
 		Object user = session.getAttribute(Constants.SESSION_USER);
-		if(user != null) {
+		if(user == null) {
 			semossUser = (User) user;
 			AccessToken token = new AccessToken();
 			token.setProvider(AuthProvider.CAC);
