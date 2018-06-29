@@ -31,7 +31,7 @@ public class TestFilter implements Filter {
 		User semossUser = new User();
 		Object user = session.getAttribute(Constants.SESSION_USER);
 		if(user == null) {
-			semossUser = (User) user;
+			semossUser = new User();
 			AccessToken token = new AccessToken();
 			token.setProvider(AuthProvider.CAC);
 			token.setEmail("admin@health.mil");
