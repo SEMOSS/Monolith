@@ -1,7 +1,6 @@
 image: maven:3.5-jdk-8
 
 stages:
-  - setup
   - build_semoss
   - build_monolith
   
@@ -16,14 +15,6 @@ cache:
   paths:
     - .m2/repository/
   key: ${CI_BUILD_REF_NAME}
-
-setup:
-  stage: setup
-  script:
-    - apt-get update
-    - apt-get install -y openjfx
-    - apt-get install -y gnupg2
-    - gpg2 --batch --import <(echo "$GPG_PRIVATE_KEY")
   
 build_semoss:
   stage: build_semoss
@@ -41,6 +32,8 @@ build_monolith_dev:
   only:
     - pushes
   script:
+    - apt-get update
+    - apt-get install -y openjfx
     - rm -rf .m2/repository/org/semoss
     - mvn $MAVEN_CLI_OPTS clean install
   artifacts:
@@ -54,6 +47,10 @@ build_monolith_deploy:
     - triggers
     - web
   script:
+    - apt-get update
+    - apt-get install -y openjfx
+    - apt-get install -y gnupg2
+    - gpg2 --batch --import <(echo "$GPG_PRIVATE_KEY")
     - rm -rf .m2/repository/org/semoss
     - mvn $MAVEN_CLI_OPTS deploy -P deploy
   artifacts:
