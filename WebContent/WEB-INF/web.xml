@@ -6,6 +6,22 @@
    </welcome-file-list>
    <!--
    <filter>
+      <filter-name>TestFilter</filter-name>
+      <filter-class>prerna.web.conf.TestFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>TestFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+   <filter>
+      <filter-name>UserRestrictionFilter</filter-name>
+      <filter-class>prerna.web.conf.UserRestrictionFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>UserRestrictionFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+   <filter>
       <filter-name>CACFilter</filter-name>
       <filter-class>prerna.web.conf.CACFilter</filter-class>
    </filter>
@@ -103,7 +119,7 @@
    </servlet-mapping>
    <context-param>
       <param-name>security-enabled</param-name>
-      <param-value>false</param-value>
+      <param-value>true</param-value>
    </context-param>
    <context-param>
       <description>Location to store uploaded file</description>
