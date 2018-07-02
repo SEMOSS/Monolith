@@ -386,7 +386,7 @@ public class NameServer {
 	
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
-	/////////////////////////////////// START SOLR /////////////////////////////////////
+	////////////////////////////// START SEARCH  BAR ///////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
 	
@@ -445,80 +445,18 @@ public class NameServer {
 			// filter insights based on what the user has access to
 			HttpSession session = request.getSession(false);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			List<String> userEngines = SecurityQueryUtils.getUserEngineIds(user);
-			queryResults = SecurityQueryUtils.getInsightDataByName(searchString, limit, offset, userEngines.toArray(new String[]{}));
+			queryResults = SecurityQueryUtils.searchUserInsightDataByName(user, searchString, limit, offset);
 		} else {
-			queryResults = SecurityQueryUtils.getInsightDataByName(searchString, limit, offset, MasterDatabaseUtility.getAllEngineIds().toArray(new String[]{}));
+			queryResults = SecurityQueryUtils.searchAllInsightDataByName(searchString, limit, offset);
 		}
 
 		return WebUtility.getSO(queryResults);
 	}
 
-	/**
-	 * Facet count based on info from search. This faceted instance count based on specified field 
-	 * @param form - information passes in from the front end
-	 * @return a string version of the results attained from the query/facet search
-	 */
-	// facet
-	@GET
-	@Path("central/context/getFacetInsightsResults")
-	@Produces("application/json")
-	public StreamingOutput getFacetInsightsResults(@QueryParam("searchTerm") String searchString,
-			@Context HttpServletRequest request) {
-		logger.info("Searching based on input: " + searchString);
-
-		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
-		List<Map<String, Object>> facetResults = null;
-		if (securityEnabled) {
-			// filter insights based on what the user has access to
-			HttpSession session = request.getSession(false);
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			List<String> userEngines = SecurityQueryUtils.getUserEngineIds(user);
-			facetResults = SecurityQueryUtils.getInsightFacetDataByName(searchString, userEngines.toArray(new String[userEngines.size()]));
-		} else {
-			facetResults = SecurityQueryUtils.getInsightFacetDataByName(searchString, MasterDatabaseUtility.getAllEngineIds().toArray(new String[]{}));
-		}
-
-		// prepare output in specific format for FE
-		Map<String, Object> results = new HashMap<String, Object>();
-		if (facetResults != null && !facetResults.isEmpty()) {
-			Map<String, Integer> dbCount = new HashMap<String, Integer>();
-			Map<String, Integer> layMap = new HashMap<String, Integer>();
-			for (Map<String, Object> data : facetResults) {
-				String engineName = data.get("ENGINEID") + "";
-				Integer layCount = new Integer(0);
-				if (!(data.get("COUNT(ENGINEID)") + "").trim().isEmpty()) {
-					layCount = new Integer((int) Float.parseFloat(data.get("COUNT(ENGINEID)").toString()));
-				}
-				String layout = data.get("LAYOUT") + "";
-
-				// update layout map - either add or update count
-				if (layMap.get(layout) == null) {
-					layMap.put(layout, layCount);
-				} else {
-					layMap.put(layout, layMap.get(layout) + layCount);
-				}
-
-				// same update for dbMap
-				if (dbCount.get(engineName) == null) {
-					dbCount.put(engineName, layCount);
-				} else {
-					dbCount.put(engineName, dbCount.get(engineName) + layCount);
-				}
-
-			}
-			results.put("core_engine", dbCount);
-			results.put("layout", layMap);
-			// TODO: add logic for getting tags
-			results.put("tags", new HashMap<String, String>());
-		}
-
-		return WebUtility.getSO(results);
-	}
 	
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////// END SOLR //////////////////////////////////////
+	/////////////////////////////// END SEARCH  BAR ////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
 
