@@ -373,11 +373,7 @@ public class NameServer {
 		if(securityEnabled) {
 			HttpSession session = request.getSession(false);
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
-			String userId = "-1";
-			if(user != null) {
-				userId = user.getAccessToken(user.getLogins().get(0)).getId();
-			}
-			searchResults = SecurityQueryUtils.predictUserInsightSearch(userId, searchString, "15", "0");
+			searchResults = SecurityQueryUtils.predictUserInsightSearch(user, searchString, "15", "0");
 		} else {
 			searchResults = SecurityQueryUtils.predictInsightSearch(searchString, "15", "0");
 		}
@@ -414,19 +410,12 @@ public class NameServer {
 		// accessible - if none in filters, add all accessible engines to filter
 		// list
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
-		String userId = "";
 		List<Map<String, Object>> queryResults = null;
 		if (securityEnabled) {
 			// filter insights based on what the user has access to
 			HttpSession session = request.getSession(false);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			if(user == null) {
-				WebUtility.getSO(new HashMap<String, Object>());
-			}
-			userId = user.getAccessToken(user.getLogins().get(0)).getId();
-			List<String> userEngines = SecurityQueryUtils.getUserEngines(userId);
-			// search for insights by that name with engine filter based on what
-			// the user has access to
+			List<String> userEngines = SecurityQueryUtils.getUserEngines(user);
 			queryResults = SecurityQueryUtils.getInsightDataByName(searchString, limit, offset, userEngines.toArray(new String[]{}));
 		} else {
 			queryResults = SecurityQueryUtils.getInsightDataByName(searchString, limit, offset, MasterDatabaseUtility.getAllEngineIds().toArray(new String[]{}));
@@ -448,18 +437,13 @@ public class NameServer {
 			@Context HttpServletRequest request) {
 		logger.info("Searching based on input: " + searchString);
 
-		String userId = "";
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		List<Map<String, Object>> facetResults = null;
 		if (securityEnabled) {
 			// filter insights based on what the user has access to
 			HttpSession session = request.getSession(false);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			if(user == null) {
-				WebUtility.getSO(new HashMap<String, Object>());
-			}
-			userId = user.getAccessToken(user.getLogins().get(0)).getId();
-			List<String> userEngines = SecurityQueryUtils.getUserEngines(userId);
+			List<String> userEngines = SecurityQueryUtils.getUserEngines(user);
 			facetResults = SecurityQueryUtils.getInsightFacetDataByName(searchString, userEngines.toArray(new String[userEngines.size()]));
 		} else {
 			facetResults = SecurityQueryUtils.getInsightFacetDataByName(searchString, MasterDatabaseUtility.getAllEngineIds().toArray(new String[]{}));
