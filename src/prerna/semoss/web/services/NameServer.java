@@ -115,7 +115,7 @@ public class NameServer {
 
 	// gets the engine resource necessary for all engine calls
 	@Path("e-{engine}")
-	public Object getLocalDatabase(@Context HttpServletRequest request, @PathParam("engine") String db, @QueryParam("api") String api) throws IOException {
+	public Object getLocalDatabase(@Context HttpServletRequest request, @PathParam("engine") String engineId, @QueryParam("api") String api) throws IOException {
 		// check if api has been passed
 		// if yes:
 		// check if remote engine has already been started and stored in context
@@ -125,53 +125,73 @@ public class NameServer {
 		// finally start the remote engine and store in context with api+engine
 		// name
 		// otherwise grab local engine
-		System.out.println(" Getting DB... " + db);
-		HttpSession session = request.getSession();
-		if(api != null && api.equalsIgnoreCase("undefined")) {
-			api = null;
-		}
-		IEngine engine = null;
-		if(api != null) {
-			String remoteEngineKey = api + ":" + db;
-			engine = (IEngine) session.getAttribute(remoteEngineKey);
-			if (engine == null && session.getAttribute(db) instanceof IEngine) {
-				engine = (IEngine) session.getAttribute(db);
+//		System.out.println(" Getting DB... " + db);
+//		HttpSession session = request.getSession();
+//		if(api != null && api.equalsIgnoreCase("undefined")) {
+//			api = null;
+//		}
+//		IEngine engine = null;
+//		if(api != null) {
+//			String remoteEngineKey = api + ":" + db;
+//			engine = (IEngine) session.getAttribute(remoteEngineKey);
+//			if (engine == null && session.getAttribute(db) instanceof IEngine) {
+//				engine = (IEngine) session.getAttribute(db);
+//			}
+//			if (engine == null && !api.equalsIgnoreCase("null")) { // this is a legit API
+//				addEngine(request, api, db);
+//				engine = (IEngine) session.getAttribute(remoteEngineKey);
+//			}
+//			else if(engine == null){ // this is when the api is null.. need to understand how
+//				engine = loadEngine(db);
+//				session.setAttribute(remoteEngineKey, engine);
+//			}
+//		} else {
+//			String remoteEngineKey = db;
+//			if(session.getAttribute(remoteEngineKey) instanceof IEngine) {
+//				engine = (IEngine) session.getAttribute(remoteEngineKey);			
+//			} else {
+//				engine = loadEngine(db);
+//				session.setAttribute(remoteEngineKey, engine);				
+//			}
+//		}
+//		// error at the end
+//		if(engine == null) {
+//			throw new IOException("The engine " + db + " at " + api + " cannot be found");
+//		}
+		
+		Object securityObj = DIHelper.getInstance().getLocalProp(Constants.SECURITY_ENABLED);
+		boolean security =  (securityObj instanceof Boolean && ((boolean) securityObj) ) || (Boolean.parseBoolean(securityObj.toString()));
+
+		if(security) {
+			HttpSession session = request.getSession(false);
+			if(session == null) {
+				return WebUtility.getSO("Not properly authenticated");
 			}
-			if (engine == null && !api.equalsIgnoreCase("null")) { // this is a legit API
-				addEngine(request, api, db);
-				engine = (IEngine) session.getAttribute(remoteEngineKey);
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
+			if(user == null) {
+				return WebUtility.getSO("Not properly authenticated");
 			}
-			else if(engine == null){ // this is when the api is null.. need to understand how
-				engine = loadEngine(db);
-				session.setAttribute(remoteEngineKey, engine);
+			engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
+			if(!SecurityQueryUtils.getUserEngineIds(user).contains(engineId)) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Database " + engineId + " does not exist or user does not have access to database");
+				return WebUtility.getResponse(errorMap, 400);
 			}
 		} else {
-			String remoteEngineKey = db;
-			if(session.getAttribute(remoteEngineKey) instanceof IEngine) {
-				engine = (IEngine) session.getAttribute(remoteEngineKey);			
-			} else {
-				engine = loadEngine(db);
-				session.setAttribute(remoteEngineKey, engine);				
+			engineId = MasterDatabaseUtility.testEngineIdIfAlias(engineId);
+			if(!MasterDatabaseUtility.getAllEngineIds().contains(engineId)) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Database " + engineId + " does not exist");
+				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
-		// error at the end
-		if(engine == null) {
-			throw new IOException("The engine " + db + " at " + api + " cannot be found");
-		}
+		
+		IEngine engine = Utility.getEngine(engineId);
 		EngineResource res = new EngineResource();
 		res.setEngine(engine);
 		return res;
 	}
 	
-	private IEngine loadEngine(String engineId) {
-		try {
-			engineId = MasterDatabaseUtility.testEngineIdIfAlias(engineId);
-		} catch(Exception e) {
-			return null;
-		}
-		return Utility.getEngine(engineId);
-	}
-
 	@Path("s-{engine}")
 	public Object getEngineProxy(@PathParam("engine") String db, @Context HttpServletRequest request) {
 		// this is the name server
@@ -231,12 +251,22 @@ public class NameServer {
 	@Path("all")
 	@Produces("application/json")
 	public StreamingOutput printEngines(@Context HttpServletRequest request) {
-		List<Map<String, String>> engines = null;
-		try {
-//			engines = SolrUtility.getAllEgnines();
-		} catch (Exception e1) {
-			e1.printStackTrace();
-			return WebUtility.getSO("Error executing solr query");
+		Object securityObj = DIHelper.getInstance().getLocalProp(Constants.SECURITY_ENABLED);
+		boolean security =  (securityObj instanceof Boolean && ((boolean) securityObj) ) || (Boolean.parseBoolean(securityObj.toString()));
+		
+		List<Map<String, Object>> engines = null;
+		if(security) {
+			HttpSession session = request.getSession(false);
+			if(session == null) {
+				return WebUtility.getSO("Not properly authenticated");
+			}
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
+			if(user == null) {
+				return WebUtility.getSO("Not properly authenticated");
+			}
+			engines = SecurityQueryUtils.getUserDatabaseList(user);
+		} else {
+			engines = SecurityQueryUtils.getAllDatabaseList();
 		}
 		
 		return WebUtility.getSO(engines);
