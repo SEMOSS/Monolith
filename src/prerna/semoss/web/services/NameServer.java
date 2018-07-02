@@ -415,7 +415,7 @@ public class NameServer {
 			// filter insights based on what the user has access to
 			HttpSession session = request.getSession(false);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			List<String> userEngines = SecurityQueryUtils.getUserEngines(user);
+			List<String> userEngines = SecurityQueryUtils.getUserEngineIds(user);
 			queryResults = SecurityQueryUtils.getInsightDataByName(searchString, limit, offset, userEngines.toArray(new String[]{}));
 		} else {
 			queryResults = SecurityQueryUtils.getInsightDataByName(searchString, limit, offset, MasterDatabaseUtility.getAllEngineIds().toArray(new String[]{}));
@@ -443,7 +443,7 @@ public class NameServer {
 			// filter insights based on what the user has access to
 			HttpSession session = request.getSession(false);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			List<String> userEngines = SecurityQueryUtils.getUserEngines(user);
+			List<String> userEngines = SecurityQueryUtils.getUserEngineIds(user);
 			facetResults = SecurityQueryUtils.getInsightFacetDataByName(searchString, userEngines.toArray(new String[userEngines.size()]));
 		} else {
 			facetResults = SecurityQueryUtils.getInsightFacetDataByName(searchString, MasterDatabaseUtility.getAllEngineIds().toArray(new String[]{}));
@@ -501,7 +501,7 @@ public class NameServer {
 		if(conceptLogicalNames == null || conceptLogicalNames.isEmpty()) {
 			return WebUtility.getSO("");
 		}
-		return WebUtility.getSO(MasterDatabaseUtility.getConnectedConceptsRDBMS(conceptLogicalNames));
+		return WebUtility.getSO(MasterDatabaseUtility.getConnectedConceptsRDBMS(conceptLogicalNames, null));
 	}
 	
 	@POST
