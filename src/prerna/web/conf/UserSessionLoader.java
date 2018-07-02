@@ -43,9 +43,6 @@ public class UserSessionLoader implements HttpSessionListener {
 			Set<String> copy = new HashSet<String>(insightIDs);
 			for(String insightId : copy) {
 				Insight insight = InsightStore.getInstance().get(insightId);
-				if(insight == null) {
-					continue;
-				}
 				LOGGER.info("Trying to drop insight " + insightId);
 				
 				InsightStore.getInstance().remove(insightId);
@@ -109,6 +106,9 @@ public class UserSessionLoader implements HttpSessionListener {
 				LOGGER.info("Successfully removed insight");
 			}
 			System.out.println("successfully removed insight information from session");
+			
+			// clear the current session store
+			insightIDs.removeAll(copy);
 		}
 	}
 	
