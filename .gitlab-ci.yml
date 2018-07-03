@@ -38,7 +38,7 @@ build_monolith_dev:
     - mvn $MAVEN_CLI_OPTS clean install
   artifacts:
     paths:
-      - target/monolith-0.0.1-SNAPSHOT.war
+      - target/monolith-${VERSION}-SNAPSHOT.war
 
 # Pushes to maven central
 build_monolith_deploy:
@@ -55,5 +55,5 @@ build_monolith_deploy:
     - mvn $MAVEN_CLI_OPTS deploy -P deploy
   artifacts:
     paths:
-      - target/monolith-0.0.1-SNAPSHOT.war
-      - target/monolith-0.0.1-SNAPSHOT-libraries.tar.gz
+      - target/monolith-${VERSION}-SNAPSHOT.war
+      - target/monolith-${VERSION}-SNAPSHOT-libraries.tar.gz
