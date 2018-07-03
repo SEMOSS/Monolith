@@ -51,8 +51,11 @@ build_monolith_deploy:
     - apt-get install -y openjfx
     - apt-get install -y gnupg2
     - gpg2 --batch --import <(echo "$GPG_PRIVATE_KEY")
+    # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
     - mvn $MAVEN_CLI_OPTS deploy -P deploy
+    # So that the cache takes up less space
+    - rm -rf .m2/repository/org/semoss
   artifacts:
     paths:
       - target/monolith-${VERSION}-SNAPSHOT.war
