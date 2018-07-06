@@ -34,8 +34,11 @@ build_monolith_dev:
   script:
     - apt-get update
     - apt-get install -y openjfx
+    # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
     - mvn $MAVEN_CLI_OPTS clean install -Dci.version=${VERSION}
+    # So that the cache takes up less space
+    - rm -rf .m2/repository/org/semoss
   artifacts:
     paths:
       - target/monolith-${VERSION}.war
