@@ -36,19 +36,47 @@ build_monolith_dev:
     - apt-get install -y openjfx
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
-    - mvn $MAVEN_CLI_OPTS clean install -Dci.version=${VERSION}
+    - mvn $MAVEN_CLI_OPTS clean install -Dci.version=${VERSION}-SNAPSHOT
     # So that the cache takes up less space
     - rm -rf .m2/repository/org/semoss
   artifacts:
     paths:
-      - target/monolith-${VERSION}.war
+      - target/monolith-${VERSION}-SNAPSHOT.war
 
 # Pushes to maven central
 build_monolith_deploy:
   stage: build_monolith
   only:
-    - triggers
-    - web
+    refs:
+      - triggers
+      - web
+  except:
+    variables:
+      - $RELEASE == "TRUE"
+  script:
+    - apt-get update
+    - apt-get install -y openjfx
+    - apt-get install -y gnupg2
+    - gpg2 --batch --import <(echo "$GPG_PRIVATE_KEY")
+    # So that the most up-to-date artifacts are pulled
+    - rm -rf .m2/repository/org/semoss
+    - mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${VERSION}-SNAPSHOT
+    # So that the cache takes up less space
+    - rm -rf .m2/repository/org/semoss
+  artifacts:
+    paths:
+      - target/monolith-${VERSION}-SNAPSHOT.war
+      - target/monolith-${VERSION}-SNAPSHOT-libraries.tar.gz
+
+# Releases to maven central
+build_monolith_release:
+  stage: build_monolith
+  # Only release if explicitly triggered on web and the RELEASE variable is set to TRUE
+  only:
+    refs:
+      - web
+    variables:
+      - $RELEASE == "TRUE"
   script:
     - apt-get update
     - apt-get install -y openjfx
