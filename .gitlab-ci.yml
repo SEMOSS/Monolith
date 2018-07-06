@@ -5,7 +5,7 @@ stages:
   - build_monolith
   
 variables:
-  MAVEN_OPTS: "-Dci.version=${VERSION} -Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
   MAVEN_CLI_OPTS: "-s ./settings.xml --batch-mode"
   # Used for triggering SEMOSS pipeline
   IMAGE: "registry.gitlab.com/finestructure/pipeline-trigger"
@@ -35,7 +35,7 @@ build_monolith_dev:
     - apt-get update
     - apt-get install -y openjfx
     - rm -rf .m2/repository/org/semoss
-    - mvn $MAVEN_CLI_OPTS clean install
+    - mvn $MAVEN_CLI_OPTS clean install -Dci.version=${VERSION}
   artifacts:
     paths:
       - target/monolith-${VERSION}.war
@@ -53,7 +53,7 @@ build_monolith_deploy:
     - gpg2 --batch --import <(echo "$GPG_PRIVATE_KEY")
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
-    - mvn $MAVEN_CLI_OPTS deploy -P deploy
+    - mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${VERSION}
     # So that the cache takes up less space
     - rm -rf .m2/repository/org/semoss
   artifacts:
