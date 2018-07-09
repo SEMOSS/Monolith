@@ -6,14 +6,6 @@
    </welcome-file-list>
    <!--
    <filter>
-      <filter-name>TestFilter</filter-name>
-      <filter-class>prerna.web.conf.TestFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>TestFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   <filter>
       <filter-name>UserRestrictionFilter</filter-name>
       <filter-class>prerna.web.conf.UserRestrictionFilter</filter-class>
    </filter>
@@ -30,6 +22,8 @@
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
    -->
+   
+   <!--
    <filter>
       <filter-name>UserDBFilter</filter-name>
       <filter-class>prerna.web.conf.UserDBFilter</filter-class>
@@ -46,6 +40,8 @@
       <filter-name>UserDBInsightFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
+   -->
+   
    <!--  Waffle it !! 
 	<filter>
 		<filter-name>SecurityFilter</filter-name>
@@ -93,10 +89,12 @@
 		<url-pattern>/*</url-pattern>
 	</filter-mapping>
 	End Waffle -->
+	<!--
    <absolute-ordering>
       <name>UserDBInsightFilter</name>
       <name>UserDBFilter</name>
    </absolute-ordering>
+   -->
    <servlet>
       <servlet-name>Resteasy</servlet-name>
       <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
@@ -119,7 +117,7 @@
    </servlet-mapping>
    <context-param>
       <param-name>security-enabled</param-name>
-      <param-value>true</param-value>
+      <param-value>false</param-value>
    </context-param>
    <context-param>
       <description>Location to store uploaded file</description>
