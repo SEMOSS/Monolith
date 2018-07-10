@@ -47,7 +47,10 @@ import prerna.poi.main.MetaModelCreator;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.FileHelperUtil;
 import prerna.poi.main.helper.ImportOptions;
-import prerna.poi.main.helper.XLFileHelper;
+import prerna.poi.main.helper.excel.ExcelBlock;
+import prerna.poi.main.helper.excel.ExcelWorkbookFilePreProcessor;
+import prerna.poi.main.helper.excel.ExcelRange;
+import prerna.poi.main.helper.excel.ExcelSheetPreProcessor;
 import prerna.rdf.main.ImportRDBMSProcessor;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
@@ -799,28 +802,66 @@ public class DatabaseUploader extends Uploader {
 				}
 				fileMetaModelData.put("fileName", file);
 				
-				XLFileHelper helper = new XLFileHelper();
-				helper.parse(files[i]);
+				// processing excel file data
+				// trying to determine data blocks within a sheet
 				
-				// store the suggested data types
-				String[] sheetNames = helper.getTables();
-				Map<String, Map<String, String>> dataTypes = new Hashtable<String, Map<String, String>>();
-				Map<String, Map<String, String>> additionalDataTypes = new Hashtable<String, Map<String, String>>();
-
-				for(String sheetName : sheetNames) {
-					Map[] predictionMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(helper.getHeaders(sheetName), helper.predictTypes(sheetName));
-					Map<String, String> sheetDataMap = predictionMaps[0];
-					Map<String, String> additionalTypesMap = predictionMaps[1];
+				ExcelWorkbookFilePreProcessor preProcessor = new ExcelWorkbookFilePreProcessor();
+				preProcessor.parse(files[i]);
+				preProcessor.determineTableRanges();
+				Map<String, ExcelSheetPreProcessor> sProcessors = preProcessor.getSheetProcessors();
+				for(String sheet : sProcessors.keySet()) {
+					ExcelSheetPreProcessor processor = sProcessors.get(sheet);
+					List<ExcelBlock> blocks = processor.getAllBlocks();
 					
-					dataTypes.put(sheetName, sheetDataMap);
-					additionalDataTypes.put(sheetName, additionalTypesMap);
-				}
-				fileMetaModelData.put("dataTypes", dataTypes);
-				fileMetaModelData.put("additionalDataTypes", additionalDataTypes);
+					Map<String, Object> rangeInfo = new HashMap<String, Object>();
+					
+					for(ExcelBlock block : blocks) {
+						List<ExcelRange> ranges = block.getRanges();
+						for(ExcelRange r : ranges) {
+							String rSyntax = r.getRangeSyntax();
+							String[] origHeaders = processor.getRangeHeaders(r);
+							String[] cleanedHeaders = processor.getCleanedRangeHeaders(r);
+							
+							Object[][] rangeTypes = block.getRangeTypes(r);
+							Map[] retMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(cleanedHeaders, rangeTypes);
+														
+							Map<String, Object> rangeMap = new HashMap<String, Object>();
+							rangeMap.put("headers", origHeaders);
+							rangeMap.put("cleanHeaders", cleanedHeaders);
+							rangeMap.put("dataTypes", retMaps[0]);
+							rangeMap.put("additionalDataTypes", retMaps[1]);
 
-				// store auto modified header names
-				Map<String, Map<String, String>> fileHeaderMods = helper.getChangedHeaders();
-				fileMetaModelData.put("headerModifications", fileHeaderMods);
+							rangeInfo.put(rSyntax, rangeMap);
+						}
+					}
+					
+					// add all ranges in the sheet
+					fileMetaModelData.put(sheet, rangeInfo);
+				}
+				preProcessor.clear();
+				
+//				XLFileHelper helper = new XLFileHelper();
+//				helper.parse(files[i]);
+//				
+//				// store the suggested data types
+//				String[] sheetNames = helper.getTables();
+//				Map<String, Map<String, String>> dataTypes = new Hashtable<String, Map<String, String>>();
+//				Map<String, Map<String, String>> additionalDataTypes = new Hashtable<String, Map<String, String>>();
+//
+//				for(String sheetName : sheetNames) {
+//					Map[] predictionMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(helper.getHeaders(sheetName), helper.predictTypes(sheetName));
+//					Map<String, String> sheetDataMap = predictionMaps[0];
+//					Map<String, String> additionalTypesMap = predictionMaps[1];
+//					
+//					dataTypes.put(sheetName, sheetDataMap);
+//					additionalDataTypes.put(sheetName, additionalTypesMap);
+//				}
+//				fileMetaModelData.put("dataTypes", dataTypes);
+//				fileMetaModelData.put("additionalDataTypes", additionalDataTypes);
+//
+//				// store auto modified header names
+//				Map<String, Map<String, String>> fileHeaderMods = helper.getChangedHeaders();
+//				fileMetaModelData.put("headerModifications", fileHeaderMods);
 				
 				// add the info to the metamodel data to send
 				metaModelData.add(fileMetaModelData);
