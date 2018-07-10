@@ -24,6 +24,10 @@ import prerna.cache.FileStore;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.FileHelperUtil;
 import prerna.poi.main.helper.XLFileHelper;
+import prerna.poi.main.helper.excel.ExcelBlock;
+import prerna.poi.main.helper.excel.ExcelWorkbookFilePreProcessor;
+import prerna.poi.main.helper.excel.ExcelRange;
+import prerna.poi.main.helper.excel.ExcelSheetPreProcessor;
 import prerna.web.services.util.WebUtility;
 
 public class FileUploader extends Uploader {
@@ -67,22 +71,70 @@ public class FileUploader extends Uploader {
 		String uniqueStorageId = FileStore.getInstance().put(fileLoc);
 		retObj.put("uniqueFileKey", uniqueStorageId);
 		if(fileLoc.endsWith(".xlsx") || fileLoc.endsWith(".xlsm")) {
-			XLFileHelper helper = new XLFileHelper();
-			helper.parse(fileLoc);
-
-			String[] sheets = helper.getTables();
-			for(int i = 0; i < sheets.length; i++) {
-				String sheetName = sheets[i];
-				String[] headers = helper.getHeaders(sheetName);
-				Map[] retMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(headers, helper.predictTypes(sheetName));
-
-				Map<String, Map> innerObj = new HashMap<String, Map>();
-				innerObj.put("dataTypes", retMaps[0]);
-				innerObj.put("additionalDataTypes", retMaps[1]);
-				retObj.put(sheetName, innerObj);
+			
+			// new approach
+			{
+				Map<String, Map<String, Object>> newPayload = new HashMap<String, Map<String, Object>>();
+				
+				ExcelWorkbookFilePreProcessor preProcessor = new ExcelWorkbookFilePreProcessor();
+				preProcessor.parse(fileLoc);
+				Map<String, ExcelSheetPreProcessor> sProcessors = preProcessor.getSheetProcessors();
+				for(String sheet : sProcessors.keySet()) {
+					ExcelSheetPreProcessor processor = sProcessors.get(sheet);
+					List<ExcelBlock> blocks = processor.getAllBlocks();
+					
+					Map<String, Object> rangeInfo = new HashMap<String, Object>();
+					
+					for(ExcelBlock block : blocks) {
+						List<ExcelRange> ranges = block.getRanges();
+						for(ExcelRange r : ranges) {
+							String rSyntax = r.getRangeSyntax();
+							String[] origHeaders = processor.getRangeHeaders(r);
+							String[] cleanedHeaders = processor.getCleanedRangeHeaders(r);
+							
+							Object[][] rangeTypes = block.getRangeTypes(r);
+							Map[] retMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(cleanedHeaders, rangeTypes);
+							Map<String, Map> typeMap = new HashMap<String, Map>();
+							typeMap.put("dataTypes", retMaps[0]);
+							typeMap.put("additionalDataTypes", retMaps[1]);
+							
+							Map<String, Object> rangeMap = new HashMap<String, Object>();
+							rangeMap.put("headers", origHeaders);
+							rangeMap.put("cleanHeaders", cleanedHeaders);
+							rangeMap.put("types", typeMap);
+							
+							rangeInfo.put(rSyntax, rangeMap);
+						}
+					}
+					
+					// add all ranges in the sheet
+					newPayload.put(sheet, rangeInfo);
+				}
+			
+				// put in return object
+				retObj.put("newPayload", newPayload);
+				preProcessor.clear();
 			}
 			
-			helper.clear();
+			// old
+			{
+				XLFileHelper helper = new XLFileHelper();
+				helper.parse(fileLoc);
+	
+				String[] sheets = helper.getTables();
+				for(int i = 0; i < sheets.length; i++) {
+					String sheetName = sheets[i];
+					String[] headers = helper.getHeaders(sheetName);
+					Map[] retMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(headers, helper.predictTypes(sheetName));
+	
+					Map<String, Map> innerObj = new HashMap<String, Map>();
+					innerObj.put("dataTypes", retMaps[0]);
+					innerObj.put("additionalDataTypes", retMaps[1]);
+					retObj.put(sheetName, innerObj);
+				}
+				
+				helper.clear();
+			}
 		} else {
 			String delimiter = inputData.get("delimiter");
 			// generate tinker frame from 
