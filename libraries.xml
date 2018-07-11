@@ -10,7 +10,7 @@
       <directory>${project.build.directory}/${project.build.finalName}/WEB-INF/lib</directory>
       <outputDirectory>WEB-INF/lib</outputDirectory>
 	  <excludes>
-        <exclude>semoss-0.0.1-SNAPSHOT.jar</exclude>
+        <exclude>semoss-${ci.version}.jar</exclude>
       </excludes>
     </fileSet>
   </fileSets>
