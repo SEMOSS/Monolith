@@ -105,7 +105,7 @@ public class FormResource {
 		try {
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			User user = (User) session.getAttribute("semoss_user");
-			x509Id = user.getAccessToken(AuthProvider.CAC).getName();
+			x509Id = user.getAccessToken(AuthProvider.CAC).getId();
 		} catch(Exception e) {
 			Map<String, String> err = new HashMap<String, String>();
 			err.put("errorMessage", "Could not identify user");
