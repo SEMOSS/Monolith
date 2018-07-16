@@ -47,10 +47,11 @@ import prerna.poi.main.MetaModelCreator;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.FileHelperUtil;
 import prerna.poi.main.helper.ImportOptions;
+import prerna.poi.main.helper.ImportOptions.DB_TYPE;
 import prerna.poi.main.helper.excel.ExcelBlock;
-import prerna.poi.main.helper.excel.ExcelWorkbookFilePreProcessor;
 import prerna.poi.main.helper.excel.ExcelRange;
 import prerna.poi.main.helper.excel.ExcelSheetPreProcessor;
+import prerna.poi.main.helper.excel.ExcelWorkbookFilePreProcessor;
 import prerna.rdf.main.ImportRDBMSProcessor;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
@@ -615,9 +616,14 @@ public class DatabaseUploader extends Uploader {
 					errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 					return Response.status(400).entity(gson.toJson(errorHash)).build();
 				}
-				List<AuthProvider> logins = user.getLogins();
-				for(AuthProvider ap : logins) {
-					addEngineOwner(options.getEngineID(), options.getDbName(), user.getAccessToken(ap).getId());
+				
+				DB_TYPE dbType = options.getDbType();
+				if(dbType == DB_TYPE.RDBMS) {
+					addEngineOwner(options.getEngineID(), options.getDbName(), "H2_DB", "", user);
+				} else if(dbType == DB_TYPE.TINKER) {
+					addEngineOwner(options.getEngineID(), options.getDbName(), "TINKER", "", user);
+				} else {
+					addEngineOwner(options.getEngineID(), options.getDbName(), "RDF", "", user);
 				}
 			}
 
@@ -989,10 +995,7 @@ public class DatabaseUploader extends Uploader {
 					errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 					return Response.status(400).entity(gson.toJson(errorHash)).build();
 				}
-				List<AuthProvider> logins = user.getLogins();
-				for(AuthProvider ap : logins) {
-					addEngineOwner(options.getEngineID(), options.getDbName(), user.getAccessToken(ap).getId());
-			}
+				addEngineOwner(options.getEngineID(), options.getDbName(), "H2_DB", "", user);
 			}
 
 			// run the processor
@@ -1082,10 +1085,7 @@ public class DatabaseUploader extends Uploader {
 					errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 					return Response.status(400).entity(gson.toJson(errorHash)).build();
 				}
-				List<AuthProvider> logins = user.getLogins();
-				for(AuthProvider ap : logins) {
-					addEngineOwner(options.getEngineID(), options.getDbName(), user.getAccessToken(ap).getId());
-				}
+				addEngineOwner(options.getEngineID(), options.getDbName(), "RDF", "", user);
 			}
 
 			// run the processor
@@ -1284,10 +1284,7 @@ public class DatabaseUploader extends Uploader {
 					errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 					return Response.status(400).entity(gson.toJson(errorHash)).build();
 				}
-				List<AuthProvider> logins = user.getLogins();
-				for(AuthProvider ap : logins) {
-					addEngineOwner(options.getEngineID(), options.getDbName(), user.getAccessToken(ap).getId());
-				}
+				addEngineOwner(options.getEngineID(), options.getDbName(), "RDF", "", user);
 			}
 
 			// run the importer
@@ -1533,22 +1530,9 @@ public class DatabaseUploader extends Uploader {
 		grs9.add(new NounMetadata(metamodel, PixelDataType.MAP));
 		reactor.getNounStore().addNoun(ReactorKeysEnum.METAMODEL.getKey(), grs9);
 
-		NounMetadata retNoun = reactor.execute();
+		// execute!
+		reactor.execute();
 		
-		String appID = retNoun.getValue().toString();
-		String appName =Utility.makeAlphaNumeric(databaseOptions.get("databaseName"));
-		if(this.securityEnabled) {
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			if(user == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
-				return Response.status(400).entity(gson.toJson(errorHash)).build();
-			}
-			List<AuthProvider> logins = user.getLogins();
-			for(AuthProvider ap : logins) {
-				addEngineOwner(appID, appName, user.getAccessToken(ap).getId());
-			}
-		}
 		ret.put("success", success);
 		if(success) {
 			return Response.status(200).entity(gson.toJson(ret)).build();
@@ -1633,10 +1617,11 @@ public class DatabaseUploader extends Uploader {
 		return filename;
 	}
 
-	public void addEngineOwner(String engineId, String engine, String userId) {
-		SecurityUpdateUtils.addEngineAndOwner(engineId, engine, userId);
-//		UserPermissionsMasterDB masterDB = new UserPermissionsMasterDB();
-//		masterDB.addEngineAndOwner(engineId, engine, userId);
+	public void addEngineOwner(String engineId, String engineName, String engineType, String engineCost, User user) {
+		List<AuthProvider> logins = user.getLogins();
+		for(AuthProvider ap : logins) {
+			SecurityUpdateUtils.addEngineOwner(engineId, user.getAccessToken(ap).getId());
+		}
 	}
 
 	@POST
