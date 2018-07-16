@@ -1487,6 +1487,10 @@ public class DatabaseUploader extends Uploader {
 		// dummyIn.getVarStore().put(JobReactor.SESSION_KEY, new
 		// NounMetadata(session.getId(), PixelDataType.CONST_STRING));
 		// dummyIn.setUser(user);
+		if (this.securityEnabled) {
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+			dummyIn.setUser(user);
+		}
 		reactor.setInsight(dummyIn);
 		PixelPlanner planner = new PixelPlanner();
 		planner.setVarStore(dummyIn.getVarStore());
