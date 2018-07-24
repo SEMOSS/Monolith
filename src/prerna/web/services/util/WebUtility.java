@@ -51,7 +51,7 @@ public class WebUtility {
 	private static final String CLASS_NAME = WebUtility.class.getName();
 	private static final Logger LOGGER = Logger.getLogger(CLASS_NAME);
 
-	protected static Gson getDefaultGson() {
+	private static Gson getDefaultGson() {
 		return GsonUtility.getDefaultGson();
 	}
 
