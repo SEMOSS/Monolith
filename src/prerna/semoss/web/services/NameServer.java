@@ -87,6 +87,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc2.PixelRunner;
+import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
 import prerna.upload.DatabaseUploader;
@@ -97,7 +98,6 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
-import prerna.web.services.util.PixelWebUtility;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
@@ -963,7 +963,7 @@ public class NameServer {
 			PixelRunner pixelRunner = jt.getRunner();
 
 			manager.flushJob(jobId);
-			return Response.status(200).entity(PixelWebUtility.collectPixelData(pixelRunner)).build();
+			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner)).build();
 		}
 	}
 	
