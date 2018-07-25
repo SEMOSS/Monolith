@@ -131,8 +131,12 @@ public class DatabaseUploader extends Uploader {
 			String errorMessage = "Database name \'" + dbName + "\' is invalid";
 			throw new IOException(errorMessage);
 		}
-		options.setDbName(Utility.makeAlphaNumeric(dbName));
-		options.setEngineID(UUID.randomUUID().toString());
+		if(importMethod == ImportOptions.IMPORT_METHOD.ADD_TO_EXISTING) {
+			options.setEngineID(dbName);
+		} else {
+			options.setDbName(Utility.makeAlphaNumeric(dbName));
+			options.setEngineID(UUID.randomUUID().toString());
+		}
 
 		// determine the db type
 		String dbType = inputData.get("dataOutputType");
