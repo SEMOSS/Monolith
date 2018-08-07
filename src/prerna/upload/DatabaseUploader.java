@@ -48,6 +48,7 @@ import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.FileHelperUtil;
 import prerna.poi.main.helper.ImportOptions;
 import prerna.poi.main.helper.ImportOptions.DB_TYPE;
+import prerna.poi.main.helper.ImportOptions.IMPORT_METHOD;
 import prerna.poi.main.helper.excel.ExcelBlock;
 import prerna.poi.main.helper.excel.ExcelRange;
 import prerna.poi.main.helper.excel.ExcelSheetPreProcessor;
@@ -57,8 +58,13 @@ import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.sablecc2.reactor.IReactor;
 import prerna.sablecc2.reactor.PixelPlanner;
+import prerna.sablecc2.reactor.app.upload.UploadInputUtility;
+import prerna.sablecc2.reactor.app.upload.gremlin.TinkerCsvUploadReactor;
+import prerna.sablecc2.reactor.app.upload.rdbms.csv.RdbmsCsvUploadReactor;
 import prerna.sablecc2.reactor.app.upload.rdbms.csv.RdbmsExternalUploadReactor;
+import prerna.sablecc2.reactor.app.upload.rdf.RdfCsvUploadReactor;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -633,7 +639,12 @@ public class DatabaseUploader extends Uploader {
 
 			// run the import
 			ImportDataProcessor importer = new ImportDataProcessor();
-			importer.runProcessor(options);
+			String appId = reactorImport(options, request);
+			if (appId != null) {
+				options.setEngineID(appId);
+			} else {
+				importer.runProcessor(options);
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
@@ -778,6 +789,218 @@ public class DatabaseUploader extends Uploader {
 	////////////////////////////////////////////// END CSV UPLOADING //////////////////////////////////////////////////////////
 	
 	////////////////////////////////////////////// START EXCEL UPLOADING //////////////////////////////////////////////////////////
+
+	private String reactorImport(ImportOptions options, HttpServletRequest request) {
+		// get upload inputs
+		DB_TYPE importDBType = options.getDbType();
+		IMPORT_METHOD importType = options.getImportMethod();
+
+		String fileLocations = options.getFileLocations();
+		String dbName = options.getDbName();
+		// return appId
+		String appId = null;
+		// create each specific reactor for upload type
+		IReactor reactor = getImportReactor(options);
+		
+		// if the reactor is supported, get the rest of the upload inputs
+		if (reactor != null) {
+			// create new metamodels for the reactor
+			// index based for each file
+			List<Map<String, Object>> newMetamodelList = createNewMetamodel(options);
+			// if importing multiple csvs add to existing
+			String[] csvFiles = fileLocations.split(";");
+			// set up insight to run reactor 
+			reactor.In();
+			// make an insight to set
+			// so we can pass the user
+
+			
+			// if create new
+			if (importType == IMPORT_METHOD.CREATE_NEW) {
+				for (int i = 0; i < csvFiles.length; i++) {
+					
+					String csvFileLocation = csvFiles[i];
+					
+					Insight dummyIn = new Insight();
+					InsightStore.getInstance().put(dummyIn);
+					
+					// TODO do we need this?
+					// InsightStore.getInstance().addToSessionHash(session.getId(),
+					// dummyIn.getInsightId());
+					// dummyIn.getVarStore().put(JobReactor.SESSION_KEY, new
+					// NounMetadata(session.getId(),
+					// PixelDataType.CONST_STRING));
+					// dummyIn.setUser(user);
+					if (this.securityEnabled) {
+						User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+						dummyIn.setUser(user);
+					}
+					reactor.setInsight(dummyIn);
+					PixelPlanner planner = new PixelPlanner();
+					planner.setVarStore(dummyIn.getVarStore());
+					reactor.setPixelPlanner(planner);
+					// if adding multiple csvs to an app
+					GenRowStruct grs = new GenRowStruct();
+					if (appId != null) {
+						grs = new GenRowStruct();
+						grs.add(new NounMetadata(appId, PixelDataType.CONST_STRING));
+						reactor.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs);
+						// add to existing
+						grs = new GenRowStruct();
+						grs.add(new NounMetadata(true, PixelDataType.BOOLEAN));
+						reactor.getNounStore().addNoun(ReactorKeysEnum.EXISTING.getKey(), grs);
+					} else {
+						// add app name
+						grs = new GenRowStruct();
+						grs.add(new NounMetadata(dbName, PixelDataType.CONST_STRING));
+						reactor.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs);
+					}
+
+					// add metamodel
+					grs = new GenRowStruct();
+					grs.add(new NounMetadata(newMetamodelList.get(i), PixelDataType.MAP));
+					reactor.getNounStore().addNoun(ReactorKeysEnum.METAMODEL.getKey(), grs);
+
+					// add file path
+					grs = new GenRowStruct();
+					grs.add(new NounMetadata(csvFileLocation, PixelDataType.CONST_STRING));
+					reactor.getNounStore().addNoun(ReactorKeysEnum.FILE_PATH.getKey(), grs);
+
+					// execute!
+					NounMetadata response = reactor.execute();
+					if (i == 0) {
+						// need to keep app id to override
+						appId = (String) response.getValue();
+					}
+					reactor = getImportReactor(options);
+				}
+			} else if(importType == IMPORT_METHOD.ADD_TO_EXISTING) {
+				for (int i = 0; i < csvFiles.length; i++) {
+					String csvFileLocation = csvFiles[i];
+					
+					Insight dummyIn = new Insight();
+					InsightStore.getInstance().put(dummyIn);
+					// TODO do we need this?
+					// InsightStore.getInstance().addToSessionHash(session.getId(),
+					// dummyIn.getInsightId());
+					// dummyIn.getVarStore().put(JobReactor.SESSION_KEY, new
+					// NounMetadata(session.getId(),
+					// PixelDataType.CONST_STRING));
+					// dummyIn.setUser(user);
+					if (this.securityEnabled) {
+						User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+						dummyIn.setUser(user);
+					}
+					reactor.setInsight(dummyIn);
+					PixelPlanner planner = new PixelPlanner();
+					planner.setVarStore(dummyIn.getVarStore());
+					reactor.setPixelPlanner(planner);
+					// if adding multiple csvs to an app
+					GenRowStruct grs = new GenRowStruct();
+					if (appId != null) {
+						grs = new GenRowStruct();
+						grs.add(new NounMetadata(appId, PixelDataType.CONST_STRING));
+						reactor.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs);
+
+					} else {
+						grs = new GenRowStruct();
+						grs.add(new NounMetadata(options.getDbName(), PixelDataType.CONST_STRING));
+						reactor.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs);
+					}
+					// add to existing
+					grs = new GenRowStruct();
+					grs.add(new NounMetadata(true, PixelDataType.BOOLEAN));
+					reactor.getNounStore().addNoun(ReactorKeysEnum.EXISTING.getKey(), grs);
+					
+					// add metamodel
+					grs = new GenRowStruct();
+					grs.add(new NounMetadata(newMetamodelList.get(i), PixelDataType.MAP));
+					reactor.getNounStore().addNoun(ReactorKeysEnum.METAMODEL.getKey(), grs);
+
+					// add file path
+					grs = new GenRowStruct();
+					grs.add(new NounMetadata(csvFileLocation, PixelDataType.CONST_STRING));
+					reactor.getNounStore().addNoun(ReactorKeysEnum.FILE_PATH.getKey(), grs);
+
+					// execute!
+					NounMetadata response = reactor.execute();
+					if (i == 0) {
+						// need to keep app id to override
+						appId = (String) response.getValue();
+					}
+					reactor = getImportReactor(options);
+				}
+				
+			}
+		}
+		return appId;
+	}
+
+	private IReactor getImportReactor(ImportOptions options) {
+		DB_TYPE importDBType = options.getDbType();
+		IMPORT_METHOD importType = options.getImportMethod();
+		IReactor reactor = null;
+		if (importDBType == DB_TYPE.RDBMS
+				&& (importType == IMPORT_METHOD.CREATE_NEW || importType == IMPORT_METHOD.ADD_TO_EXISTING)) {
+			reactor = new RdbmsCsvUploadReactor();
+		} else if (importDBType == DB_TYPE.RDF
+				&& (importType == IMPORT_METHOD.CREATE_NEW || importType == IMPORT_METHOD.ADD_TO_EXISTING)) {
+			reactor = new RdfCsvUploadReactor();
+			String baseURI = options.getBaseUrl();
+			GenRowStruct grs = new GenRowStruct();
+			grs = new GenRowStruct();
+			grs.add(new NounMetadata(baseURI, PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun(UploadInputUtility.CUSTOM_BASE_URI, grs);
+
+		} else if (importDBType == DB_TYPE.TINKER
+				&& (importType == IMPORT_METHOD.CREATE_NEW || importType == IMPORT_METHOD.ADD_TO_EXISTING)) {
+
+			reactor = new TinkerCsvUploadReactor();
+			GenRowStruct grs = new GenRowStruct();
+			grs = new GenRowStruct();
+			grs.add(new NounMetadata(options.getTinkerDriverType().toString(), PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun("tinkerDriver", grs);
+
+		}
+		return reactor;
+	}
+
+	private List<Map<String, Object>> createNewMetamodel(ImportOptions options) {
+		List<Map<String, Object>> newMetamodelList = new ArrayList<>();
+		Hashtable<String, String>[] metamodel = options.getMetamodelArray();
+		for (Hashtable<String, String> mm : metamodel) {
+			HashMap<String, Object> newMetamodel = new HashMap<>();
+			String relationStr = mm.get("RELATION");
+			String[] relations = relationStr.split(";");
+			ArrayList<Map<String, String>> relationships = new ArrayList<>();
+			for (String relStr : relations) {
+				String[] rel = relStr.split("@");
+				HashMap<String, String> relMap = new HashMap<>();
+				relMap.put(Constants.FROM_TABLE, rel[0]);
+				relMap.put(Constants.REL_NAME, rel[1]);
+				relMap.put(Constants.TO_TABLE, rel[2]);
+				relationships.add(relMap);
+			}
+			newMetamodel.put(Constants.RELATION, relationships);
+			String nodePropStr = mm.get("NODE_PROP");
+			String[] nodeProps = nodePropStr.split(";");
+			HashMap<String, List<String>> nodePropMap = new HashMap<>();
+			for (String nodeStr : nodeProps) {
+				String[] propSplit = nodeStr.split("%");
+				String node = propSplit[0];
+				String prop = propSplit[1];
+				List<String> properties = new ArrayList<>();
+				if (nodePropMap.containsKey(node)) {
+					properties = nodePropMap.get(node);
+				}
+				properties.add(prop);
+				nodePropMap.put(node, properties);
+			}
+			newMetamodel.put(Constants.NODE_PROP, nodePropMap);
+			newMetamodelList.add(newMetamodel);
+		}
+		return newMetamodelList;
+	}
 
 	@POST
 	@Path("/excel/uploadFile")
