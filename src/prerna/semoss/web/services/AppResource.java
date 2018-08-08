@@ -94,7 +94,12 @@ public class AppResource {
 	@Path("/insightImage/download")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
 	public Response downloadInsightImage(@Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
-		File exportFile = getInsightImageFile(app, id, request.getHeader("Referer"), params);
+		boolean securityEnabled = Boolean.parseBoolean((String)DIHelper.getInstance().getLocalProp(Constants.SECURITY_ENABLED));
+		String sessionId = null;
+		if(securityEnabled){
+			sessionId = request.getSession(false).getId();
+		}
+		File exportFile = getInsightImageFile(app, id, request.getHeader("Referer"), params, sessionId);
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
@@ -110,7 +115,7 @@ public class AppResource {
 	 * @param app
 	 * @return
 	 */
-	private File getInsightImageFile(String app, String id, String feUrl, String params) {
+	private File getInsightImageFile(String app, String id, String feUrl, String params, String sessionId) {
 		String appId = MasterDatabaseUtility.testEngineIdIfAlias(app);
 		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
 		Properties prop = Utility.loadProperties(propFileLoc);
@@ -130,7 +135,7 @@ public class AppResource {
 		} else {
 			// try making the image
 			if(feUrl != null) {
-				ImageCaptureReactor.runImageCapture(feUrl, appId, id, params);
+				ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
 			}
 			if(f.exists()) {
 				return f;
