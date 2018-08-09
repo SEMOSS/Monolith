@@ -30,6 +30,7 @@ package prerna.semoss.web.services;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
@@ -49,17 +50,14 @@ import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 
 import prerna.auth.AuthProvider;
+import prerna.auth.SecurityQueryUtils;
+import prerna.auth.SecurityUpdateUtils;
 import prerna.auth.User;
-import prerna.auth.UserPermissionsMasterDB;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 @Path("/authorization")
-public class AuthorizationResource
-{
-	@Context ServletContext context;
-	String output = "";
-	UserPermissionsMasterDB permissions = new UserPermissionsMasterDB();
+public class AuthorizationResource {
 	
 	/**
 	 * Check if the security is enabled in the application.
@@ -68,7 +66,7 @@ public class AuthorizationResource
 	@GET
 	@Produces("application/json")
 	@Path("securityEnabled")
-	public StreamingOutput isSecurityEnabled() {
+	public StreamingOutput isSecurityEnabled(@Context ServletContext context) {
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		return WebUtility.getSO(securityEnabled);
 	}
@@ -90,9 +88,9 @@ public class AuthorizationResource
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		User user = (User) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-		ArrayList<HashMap<String, Object>> ret = permissions.getGroupsAndMembersForUser(userId);
+		ArrayList<HashMap<String, Object>> ret = SecurityQueryUtils.getGroupsAndMembersForUser(userId);
 		
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -101,7 +99,7 @@ public class AuthorizationResource
 	@Produces("application/json")
 	@Path("searchForUser")
 	public StreamingOutput searchForUser(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm) {
-		ArrayList<StringMap<String>> ret = permissions.searchForUser(searchTerm.trim());
+		List<StringMap<String>> ret = SecurityQueryUtils.searchForUser(searchTerm.trim());
 		return WebUtility.getSO(ret);
 	}
 	
@@ -115,7 +113,7 @@ public class AuthorizationResource
 	@Path("getDatabases")
 	public Response getDatabases(@Context HttpServletRequest request) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		ArrayList<StringMap<String>> ret = new ArrayList<>(); 
+		List<Map<String, String>> ret = new ArrayList<>(); 
 		HttpSession session = request.getSession(false);
 		if(session == null){
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -123,9 +121,9 @@ public class AuthorizationResource
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		try{
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-			ret = permissions.getUserDatabases(userId, false);
+			ret = SecurityQueryUtils.getUserDatabases(userId, false);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
@@ -148,11 +146,11 @@ public class AuthorizationResource
 	@Path("/admin/getDatabases")
 	public Response getAdminDatabases(@Context HttpServletRequest request) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		ArrayList<StringMap<String>> ret = new ArrayList<>(); 
+		List<Map<String, String>> ret = new ArrayList<>(); 
 		try{
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-			ret = permissions.getUserDatabases(userId, true);
+			ret = SecurityQueryUtils.getUserDatabases(userId, true);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
@@ -177,10 +175,10 @@ public class AuthorizationResource
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		StringMap<ArrayList<StringMap<String>>>  ret = new StringMap<>();
 		try{
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId");
-			ret = permissions.getDatabaseUsersAndGroups(userId, engineId, true);
+			ret = SecurityQueryUtils.getDatabaseUsersAndGroups(userId, engineId, true);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
@@ -207,9 +205,9 @@ public class AuthorizationResource
 		StringMap<ArrayList<StringMap<String>>>  ret = new StringMap<>();
 		try{
 			String engineId = form.getFirst("engineId");
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-			ret = permissions.getDatabaseUsersAndGroups(userId, engineId, false);
+			ret = SecurityQueryUtils.getDatabaseUsersAndGroups(userId, engineId, false);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
@@ -228,14 +226,14 @@ public class AuthorizationResource
 	public Response addNewGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		ArrayList<String> users = gson.fromJson(form.getFirst("users"), ArrayList.class);
-		User user = (User) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-		Boolean success = permissions.addGroup(userId, form.getFirst("groupName").trim(), users);
+		Boolean success = SecurityUpdateUtils.addGroup(userId, form.getFirst("groupName").trim(), users);
 		
 		if(success) {
 			return WebUtility.getResponse(success, 200);
 		} else {
-			return WebUtility.getResponse(success, 200);
+			return WebUtility.getResponse(success, 400);
 		}
 	}
 	
@@ -244,9 +242,9 @@ public class AuthorizationResource
 	@Path("removeGroup")
 	public Response removeGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String groupId = form.getFirst("groupId").trim();
-		User user = (User) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-		Boolean success = permissions.removeGroup(userId, groupId);
+		Boolean success = SecurityUpdateUtils.removeGroup(userId, groupId);
 		
 		if(success) {
 			return WebUtility.getResponse(success, 200);
@@ -265,15 +263,15 @@ public class AuthorizationResource
 		ArrayList<String> toAdd = gson.fromJson(form.getFirst("add"), ArrayList.class);
 		ArrayList<String> toRemove = gson.fromJson(form.getFirst("remove"), ArrayList.class);
 		
-		User user = (User) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		
 		for(String add : toAdd) {
-			permissions.addUserToGroup(userId, groupId, add);
+			SecurityUpdateUtils.addUserToGroup(userId, groupId, add);
 		}
 		
 		for(String remove : toRemove) {
-			permissions.removeUserFromGroup(userId, groupId, remove);
+			SecurityUpdateUtils.removeUserFromGroup(userId, groupId, remove);
 		}
 		return WebUtility.getResponse(true, 200);
 	}
@@ -285,12 +283,12 @@ public class AuthorizationResource
 		Gson gson = new Gson();
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{ 
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId").trim();
 			StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
 			StringMap<ArrayList<StringMap<String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
-			permissions.savePermissions(userId, false, engineId, groups, users);
+			SecurityUpdateUtils.savePermissions(userId, false, engineId, groups, users);
 		} catch(IllegalArgumentException e){
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
@@ -309,7 +307,7 @@ public class AuthorizationResource
 	public Response isUserGroupAddedValid(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		try {
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String ret = "true";
 			
@@ -317,21 +315,25 @@ public class AuthorizationResource
 			String groupId = form.getFirst("groupIdAdd").trim();
 			String engineId = form.getFirst("engineId").trim();
 			
-			StringMap<ArrayList<String>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
-			ArrayList<String> groupsToAdd = groups.get("add");
-			ArrayList<String> groupsToRemove = groups.get("remove");
+			StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
+			ArrayList<StringMap<String>> groupsToAddMap = groups.get("add");
+			ArrayList<String> groupsToAdd = convertArrayMaptoArrayList(groupsToAddMap);
+			ArrayList<StringMap<String>> groupsToRemoveMap = groups.get("remove");
+			ArrayList<String> groupsToRemove = convertArrayMaptoArrayList(groupsToRemoveMap);
 			
-			StringMap<ArrayList<String>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
-			ArrayList<String> usersToAdd = users.get("add");
-			ArrayList<String> usersToRemove = users.get("remove");
+			StringMap<ArrayList<StringMap<String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
+			ArrayList<StringMap<String>> usersToAddMap = users.get("add");
+			ArrayList<String> usersToAdd = convertArrayMaptoArrayList(usersToAddMap);
+			ArrayList<StringMap<String>> usersToRemoveMap = users.get("remove");
+			ArrayList<String> usersToRemove = convertArrayMaptoArrayList(usersToRemoveMap);
 			
-			ArrayList<String> groupsFinal = permissions.getAllDbGroupsById(engineId, groupsToAdd, groupsToRemove);
-			ArrayList<String> usersFinal = permissions.getAllDbUsersById(engineId, usersToAdd, usersToRemove);
+			ArrayList<String> groupsFinal = SecurityQueryUtils.getAllDbGroupsById(engineId, groupsToAdd, groupsToRemove);
+			ArrayList<String> usersFinal = SecurityQueryUtils.getAllDbUsersById(engineId, usersToAdd, usersToRemove);
 			
 			if(!userId.isEmpty()){
-				ret = permissions.isUserWithDatabasePermissionAlready(userId, groupsFinal, usersFinal);
+				ret = SecurityQueryUtils.isUserWithDatabasePermissionAlready(userId, groupsFinal, usersFinal);
 			} else if(!groupId.isEmpty()){
-				ret = permissions.isGroupUsersWithDatabasePermissionAlready(groupId, groupsFinal, usersFinal);
+				ret = SecurityQueryUtils.isGroupUsersWithDatabasePermissionAlready(groupId, groupsFinal, usersFinal);
 			} 
 			
 			if(ret.equals("true")){
@@ -344,20 +346,28 @@ public class AuthorizationResource
 		}		
 	}
 	
+	private ArrayList<String> convertArrayMaptoArrayList(ArrayList<StringMap<String>> set){
+		ArrayList<String> array = new ArrayList<>();
+		for(StringMap<String> map : set){
+			array.add(map.get("id"));
+		}
+		return array;
+	}
+	
 	@POST
 	@Produces("application/json")
 	@Path("isUserAddedToGroupValid")
 	public Response isUserAddedToGroupValid(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 		try {
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String ret = "";
 			
 			String userIdAdd = form.getFirst("userIdAdd").trim();
 			String groupId = form.getFirst("groupId").trim();
 			
-			ret += permissions.isUserAddedToGroupValid(userIdAdd, groupId);
+			ret += SecurityQueryUtils.isUserAddedToGroupValid(userIdAdd, groupId);
 			
 			if(ret.equals("true")){
 				return WebUtility.getResponse(ret, 200);
@@ -370,23 +380,6 @@ public class AuthorizationResource
 	}
 	
 	@GET
-	@Produces("application/json")
-	@Path("getInsightPermissions")
-	public Response getInsightPermissions(@Context HttpServletRequest request, @QueryParam("database") String databaseName, @QueryParam("insight") String insightId) {
-		return WebUtility.getResponse(permissions.getUserPermissionsForInsight(databaseName, insightId), 200);
-	}
-	
-	
-	@GET
-	@Produces("application/json")
-	@Path("/admin/getAllSeedsForUser")
-	public Response getAllSeedsForUser(@Context HttpServletRequest request, @QueryParam("userId") String userId) {
-//		return Response.status(200).entity(WebUtility.getSO(permissions.getMetamodelSeedsForUser(userId, false))).build();
-		return WebUtility.getResponse(permissions.getMetamodelSeedsForUser(userId, false), 200);
-	}
-	
-	
-	@GET
 	@Path("/admin/isAdminUser")
 	public Response isAdminUser(@Context HttpServletRequest request) {
 		
@@ -397,10 +390,10 @@ public class AuthorizationResource
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		if(session.getAttribute("semoss_user") != null) {
-			User user = (User) request.getSession().getAttribute("semoss_user");
+		if(session.getAttribute(Constants.SESSION_USER) != null) {
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-			if(!userId.equals(Constants.ANONYMOUS_USER_ID) && permissions.isUserAdmin(userId)) {
+			if(!userId.equals(Constants.ANONYMOUS_USER_ID) && SecurityQueryUtils.isUserAdmin(userId)) {
 				return WebUtility.getResponse(true, 200);
 			}
 		}
@@ -414,10 +407,10 @@ public class AuthorizationResource
 	public Response getAllDbUsers(@Context HttpServletRequest request) {
 		ArrayList<StringMap<String>> ret = new ArrayList<>();
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		User user = (User) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		try{
-			ret = permissions.getAllDbUsers(userId);
+			ret = SecurityQueryUtils.getAllDbUsers(userId);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
 			errorRet.put("error", e.getMessage());
@@ -434,11 +427,11 @@ public class AuthorizationResource
 	public Response removeUserPermissionsbyDbId(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		boolean ret = false;
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		User user = (User) request.getSession().getAttribute("semoss_user");
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		String engineId = form.getFirst("engineId");
 		try{
-			ret = permissions.removeUserPermissionsbyDbId(userId, engineId);
+			ret = SecurityUpdateUtils.removeUserPermissionsbyDbId(userId, engineId);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
 			errorRet.put("error", e.getMessage());
@@ -463,10 +456,10 @@ public class AuthorizationResource
 		Gson gson = new Gson();
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			StringMap<String> userInfo = gson.fromJson(form.getFirst("user"), StringMap.class);
-			ret = permissions.editUser(userId, userInfo);
+			ret = SecurityUpdateUtils.editUser(userId, userInfo);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
 			errorRet.put("error", e.getMessage());
@@ -487,12 +480,12 @@ public class AuthorizationResource
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		
 		try{
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId").trim();
 			StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
 			StringMap<ArrayList<StringMap<String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
-			permissions.savePermissions(userId, true, engineId, groups, users);
+			SecurityUpdateUtils.savePermissions(userId, true, engineId, groups, users);
 		} catch(IllegalArgumentException e){
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
@@ -511,11 +504,11 @@ public class AuthorizationResource
 	public Response setDbVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId");
 			String visibility = form.getFirst("visibility");
-			permissions.setDbVisibility(userId, engineId, visibility);
+			SecurityUpdateUtils.setDbVisibility(userId, engineId, visibility);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
 			errorRet.put("error", e.getMessage());
@@ -534,11 +527,11 @@ public class AuthorizationResource
 	public Response setAdminDbPublic(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId");
 			String isPublic = form.getFirst("public");
-			permissions.setDbPublic(userId, engineId, isPublic, true);
+			SecurityUpdateUtils.setDbPublic(userId, engineId, isPublic, true);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
 			errorRet.put("error", e.getMessage());
@@ -557,11 +550,11 @@ public class AuthorizationResource
 	public Response setDbPublic(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId");
 			String isPublic = form.getFirst("public");
-			permissions.setDbPublic(userId, engineId, isPublic, false);
+			SecurityUpdateUtils.setDbPublic(userId, engineId, isPublic, false);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
 			errorRet.put("error", e.getMessage());
@@ -580,10 +573,10 @@ public class AuthorizationResource
 	public Response deleteUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
-			User user = (User) request.getSession().getAttribute("semoss_user");
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String adminId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String userId = form.getFirst("userId");
-			permissions.deleteUser(adminId, userId);
+			SecurityUpdateUtils.deleteUser(adminId, userId);
 			if(adminId.equals(userId)){
 				request.getSession().invalidate();
 			}
@@ -598,7 +591,31 @@ public class AuthorizationResource
 		}
 		return WebUtility.getResponse(true, 200);
 	}
+
+	///////////////////////////////////////////
+	///////////////////////////////////////////
+	///////////////////////////////////////////
+	///////////////////////////////////////////
+
+	/*
+	 * LEGACY CODE THAT DOESN'T HAVE AN EQUIVALENT IN NEW SECURITY SCHEME YET
+	 */
 	
+//	@GET
+//	@Produces("application/json")
+//	@Path("getInsightPermissions")
+//	public Response getInsightPermissions(@Context HttpServletRequest request, @QueryParam("database") String databaseName, @QueryParam("insight") String insightId) {
+//		return WebUtility.getResponse(permissions.getUserPermissionsForInsight(databaseName, insightId), 200);
+//	}
+//	
+//	
+//	@GET
+//	@Produces("application/json")
+//	@Path("/admin/getAllSeedsForUser")
+//	public Response getAllSeedsForUser(@Context HttpServletRequest request, @QueryParam("userId") String userId) {
+////		return Response.status(200).entity(WebUtility.getSO(permissions.getMetamodelSeedsForUser(userId, false))).build();
+//		return WebUtility.getResponse(permissions.getMetamodelSeedsForUser(userId, false), 200);
+//	}
 	
 //	@GET
 //	@Path("/startTeamSession")
