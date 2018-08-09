@@ -34,6 +34,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -47,13 +48,16 @@ import java.util.UUID;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -68,6 +72,8 @@ import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
+import prerna.auth.SecurityQueryUtils;
+import prerna.auth.SecurityUpdateUtils;
 import prerna.auth.User;
 import prerna.io.connector.IConnectorIOp;
 import prerna.io.connector.google.GoogleEntityResolver;
@@ -236,7 +242,6 @@ public class UserResource {
 		}
 	}
 
-	
 	@GET
 	@Path("logins")
 	public Response getAllLogins(@Context HttpServletRequest request) {
@@ -1249,5 +1254,170 @@ public class UserResource {
 //		}
 //		return formatter.toString();
 //	}
+	
+	
+	/////////////////////////////////////////////////////////////////
+	
+	/*
+	 * This portion of code is for semoss generated users
+	 */
+	
+	
+	/**
+	 * Authenticates an user that's trying to log in.
+	 * @param request
+	 * @return true if the information provided to log in is valid otherwise error.
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("login")
+	public Response authentication(@Context HttpServletRequest request) {
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+		try{
+			String username = request.getParameter("username");
+			String password = request.getParameter("password");
+			boolean emptyCredentials = username == null || password == null || username.isEmpty() || password.isEmpty();
+			boolean canLogin = !emptyCredentials && SecurityQueryUtils.logIn(username, password);
+			if(canLogin){
+				ret.put("success", "true");
+				ret.put("username", username);
+				String name = SecurityQueryUtils.getNameUser(username);
+				ret.put("name", name);
+				String id = SecurityQueryUtils.getUserId(username);
+				AccessToken authToken = new AccessToken();
+				authToken.setProvider(AuthProvider.NATIVE);
+				authToken.setId(id);
+				authToken.setName(username);
+				User newUser = new User();
+				newUser.setAccessToken(authToken);
+				//If there's another session destroy it.
+				HttpSession session =  request.getSession(false);
+				if(session != null){
+					request.getSession().invalidate();
+				}
+				//Create a new session and add an User object to it.
+				session =  request.getSession(true);
+				session.setAttribute(Constants.SESSION_USER, newUser);
+				//User print = (User) session.getAttribute(Constants.SESSION_USER);
+				//LOGGER.info("Logging in with: " + print);
+				
+				return WebUtility.getResponse(ret, 200);
+			} else {
+				ret.put("error", "The user name or password are invalid.");
+				return WebUtility.getResponse(ret, 401);
+			}
+		} catch(Exception e){
+			e.printStackTrace();
+			ret.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(ret, 500);
+		}
+	}
+	
+	/**
+	 * Logs user out when authenticated in a native way.
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/logout")
+	public Response logoutNative(@Context HttpServletRequest request) throws IOException {
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+		try{
+			if(request.getSession(false) != null){
+				HttpSession session =  request.getSession(false);
+				User print = (User) session.getAttribute(Constants.SESSION_USER);
+				//LOGGER.info("Logging out with: " + print);
+				request.getSession().invalidate();
+			} else {
+				ret.put("error", "User is not connected.");
+				return WebUtility.getResponse(ret, 401);
+			}
+		// Only disconnect a connected user.
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			ret.put("error", "Unexpected error.");
+			return WebUtility.getResponse(ret, 500);
+		}
+		ret.put("success", "true");
+		return WebUtility.getResponse(ret, 200);
+	}
 
+	/**
+	 * Create an user according to the information provided (user name, password, email)
+	 * @param request
+	 * @return true if the user is created otherwise error.
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("createUser")
+	public Response createUser(@Context HttpServletRequest request) {
+		Hashtable<String, String> ret = new Hashtable<String, String>();
+		try{
+			String username = request.getParameter("username");
+			String name = request.getParameter("name");
+			String password = request.getParameter("password");
+			String email = request.getParameter("email");
+			AccessToken newUser = new AccessToken();
+			newUser.setProvider(AuthProvider.NATIVE);
+			newUser.setEmail(email);
+			newUser.setName(name);
+			newUser.setUsername(username);
+			boolean userCreated = SecurityUpdateUtils.addNativeUser(newUser, password);
+			if(userCreated){
+				ret.put("success", "true");
+				ret.put("username", username);
+				return WebUtility.getResponse(ret, 200);
+			} else {
+				ret.put("error", "The user name or email aready exists.");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} catch (IllegalArgumentException e){
+			e.printStackTrace();
+			ret.put("error", e.getMessage());
+			return WebUtility.getResponse(ret, 500);
+		} catch (Exception e){
+			e.printStackTrace();
+			ret.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(ret, 500);
+		}
+	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("/isUserRegistrationOn/")
+	public Response isUserRegistrationOn(@Context HttpServletRequest request) throws IOException {	
+		boolean reg_allowed = Boolean.parseBoolean(socialData.getProperty("reg_allowed"));
+		return WebUtility.getResponse(reg_allowed, 200);	
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("/setUserRegistration/")
+	public Response setUserRegistration(@Context HttpServletRequest request) throws IOException {	
+		OutputStream output = null;
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		try {
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			if(SecurityQueryUtils.isUserAdmin(userId)){
+				String user_reg = request.getParameter("user_reg");
+				PropertiesConfiguration config = new PropertiesConfiguration(DIHelper.getInstance().getProperty("SOCIAL"));
+				socialData.setProperty("reg_allowed", user_reg);
+				config.setProperty("reg_allowed", user_reg);
+				config.save();
+			} else {
+				errorRet.put("error", "User is not allowed to perform this action.");
+				return WebUtility.getResponse(errorRet, 500);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		} finally {
+			if (output != null) {
+				output.close();
+			} 
+		}
+		return WebUtility.getResponse(true, 200);
+	}
+	
 }
