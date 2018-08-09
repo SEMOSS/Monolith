@@ -147,44 +147,6 @@ public class AppResource {
 		}
 	}
 	
-	
-	/*
-	 * Currently not used below...
-	 */
-	
-	@GET
-	@Path("/appWidget")
-	@Produces(MediaType.APPLICATION_OCTET_STREAM)
-	public Response getAppWidget(@PathParam("appName") String app, @QueryParam("widget") String widgetName, @QueryParam("file") String fileName) {
-		
-		final String basePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String appWidgetDirLoc = basePath + DIR_SEPARATOR + "db" + 
-				DIR_SEPARATOR + app + 
-				DIR_SEPARATOR + "version" + 
-				DIR_SEPARATOR + "widgets";
-
-		// Get widget file
-		String widgetFile = appWidgetDirLoc + DIR_SEPARATOR + widgetName + DIR_SEPARATOR + fileName;
-		File f = new File(widgetFile);
-		FileInputStream fis = null;
-		if (f.exists()) {
-			try {
-				fis = new FileInputStream(f);
-				byte[] byteArray = IOUtils.toByteArray(fis);
-				// return file
-				return Response.status(200).entity(byteArray).build();
-			} catch (IOException e) {
-				e.printStackTrace();
-			} finally {
-				closeStream(fis);
-			}
-		}
-		// return error
-		Map<String, String> errorMap = new HashMap<String, String>();
-		errorMap.put("errorMessage", "error sending widget file " + widgetName + "\\" + fileName);
-		return WebUtility.getResponse(errorMap, 400);
-	}
-
 	/////////////////////////////////////////////////////////////////
 	
 	/*
@@ -226,6 +188,46 @@ public class AppResource {
 		}
 	}
 	
+	///////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////
+
+	/*
+	 * Currently not used below...
+	 */
 	
-	
+	@GET
+	@Path("/appWidget")
+	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	public Response getAppWidget(@PathParam("appName") String app, @QueryParam("widget") String widgetName, @QueryParam("file") String fileName) {
+		final String basePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+		String appWidgetDirLoc = basePath + DIR_SEPARATOR + "db" + 
+				DIR_SEPARATOR + app + 
+				DIR_SEPARATOR + "version" + 
+				DIR_SEPARATOR + "widgets";
+
+		// Get widget file
+		String widgetFile = appWidgetDirLoc + DIR_SEPARATOR + widgetName + DIR_SEPARATOR + fileName;
+		File f = new File(widgetFile);
+		FileInputStream fis = null;
+		if (f.exists()) {
+			try {
+				fis = new FileInputStream(f);
+				byte[] byteArray = IOUtils.toByteArray(fis);
+				// return file
+				return Response.status(200).entity(byteArray).build();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				closeStream(fis);
+			}
+		}
+		// return error
+		Map<String, String> errorMap = new HashMap<String, String>();
+		errorMap.put("errorMessage", "error sending widget file " + widgetName + "\\" + fileName);
+		return WebUtility.getResponse(errorMap, 400);
+	}
+
 }
