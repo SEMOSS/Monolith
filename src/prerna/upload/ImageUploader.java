@@ -2,34 +2,41 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Properties;
+import java.util.Map;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
+import prerna.auth.SecurityQueryUtils;
+import prerna.auth.User;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
-import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class ImageUploader extends Uploader {
 	
 	@POST
 	@Path("/appImage")
 	@Produces("application/json")
-	public void uploadAppImage(@Context HttpServletRequest request) {
+	public Response uploadAppImage(@Context HttpServletRequest request) {
+		Map<String, String> returnMap = new HashMap<String, String>();
+		
 		List<FileItem> fileItems = processRequest(request);
 		// collect all of the data input on the form
 		FileItem imageFile = null;
+		String appId = null;
 		String appName = null;
 		
 		for(FileItem fi : fileItems) {
@@ -43,11 +50,33 @@ public class ImageUploader extends Uploader {
 			}
 		}
 
-		//TODO: account for user here
-		String appId = MasterDatabaseUtility.testEngineIdIfAlias(appName);
-		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
-		Properties prop = Utility.loadProperties(propFileLoc);
-		appName = prop.getProperty(Constants.ENGINE_ALIAS);
+		if(this.securityEnabled) {
+			HttpSession session = request.getSession(false);
+			if(session != null){
+				User user = ((User) session.getAttribute(Constants.SESSION_USER));
+				try {
+					appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appName);
+				} catch(Exception e) {
+					returnMap.put("errorMessage", e.getMessage());
+					return WebUtility.getResponse(returnMap, 401);
+				}
+				if(!SecurityQueryUtils.userCanEditEngine(user, appId)) {
+					throw new IllegalArgumentException("Database " + appId + " does not exist or user does not have access to database");
+				}
+				appName = SecurityQueryUtils.getEngineAliasForId(appId);
+			} else {
+				returnMap.put("errorMessage", "User session is invalid");
+				return WebUtility.getResponse(returnMap, 401);
+			}
+		} else {
+			appId = MasterDatabaseUtility.testEngineIdIfAlias(appName);
+			appName = MasterDatabaseUtility.getEngineAliasForId(appId);
+			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId);
+			if(!(new File(appDir).exists())) {
+				returnMap.put("errorMessage", "Could not find app directory");
+				return WebUtility.getResponse(returnMap, 401);
+			}
+		}
 		
 		// now that we have the app name
 		// and the image file
@@ -69,6 +98,89 @@ public class ImageUploader extends Uploader {
 			}
 		}
 		writeFile(imageFile, f);
+		
+		returnMap.put("message", "successfully updated app image");
+		return WebUtility.getResponse(returnMap, 200);
+	}
+	
+	@POST
+	@Path("/insightImage")
+	@Produces("application/json")
+	public Response uploadInsightImage(@Context HttpServletRequest request) {
+		Map<String, String> returnMap = new HashMap<String, String>();
+		
+		List<FileItem> fileItems = processRequest(request);
+		// collect all of the data input on the form
+		FileItem imageFile = null;
+		String appId = null;
+		String appName = null;
+		String insightId = null;
+		
+		for(FileItem fi : fileItems) {
+			String fieldName = fi.getFieldName();
+			String value = fi.getString();
+			if(fieldName.equals("file")) {
+				imageFile = fi;
+			}
+			if(fieldName.equals("app")) {
+				appName = value;
+			}
+			if(fieldName.equals("insightId")) {
+				insightId = value;
+			}
+		}
+
+		if(this.securityEnabled) {
+			HttpSession session = request.getSession(false);
+			if(session != null){
+				User user = ((User) session.getAttribute(Constants.SESSION_USER));
+				try {
+					appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appName);
+				} catch(Exception e) {
+					returnMap.put("errorMessage", e.getMessage());
+					return WebUtility.getResponse(returnMap, 401);
+				}
+				if(!SecurityQueryUtils.userCanEditInsight(user, appId, insightId)) {
+					throw new IllegalArgumentException("User does not have access to edit this insight within the app");
+				}
+				appName = SecurityQueryUtils.getEngineAliasForId(appId);
+			} else {
+				returnMap.put("errorMessage", "User session is invalid");
+				return WebUtility.getResponse(returnMap, 401);
+			}
+		} else {
+			appId = MasterDatabaseUtility.testEngineIdIfAlias(appName);
+			appName = MasterDatabaseUtility.getEngineAliasForId(appId);
+			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId);
+			if(!(new File(appDir).exists())) {
+				returnMap.put("errorMessage", "Could not find app directory");
+				return WebUtility.getResponse(returnMap, 401);
+			}
+		}
+		
+		// now that we have the app name
+		// and the image file
+		// we want to write it into the app location
+		String imageDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId;
+		File f = new File(imageDir);
+		if(!f.exists()) {
+			f.mkdirs();
+		}
+		String imageLoc = imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
+		f = new File(imageLoc);
+		// find all the existing image files
+		// and delete them
+		File[] oldImages = findImageFile(f.getParentFile());
+		// delete if any exist
+		if(oldImages != null) {
+			for(File oldI : oldImages) {
+				oldI.delete();
+			}
+		}
+		writeFile(imageFile, f);
+		
+		returnMap.put("message", "successfully updated insight image");
+		return WebUtility.getResponse(returnMap, 200);
 	}
 	
 	/**

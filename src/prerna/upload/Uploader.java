@@ -113,8 +113,7 @@ public abstract class Uploader extends HttpServlet {
 		}
 	}
 
-	protected List<FileItem> processRequest(@Context HttpServletRequest request)
-	{
+	protected List<FileItem> processRequest(@Context HttpServletRequest request) {
 		List<FileItem> fileItems = null;
 		try {
 			DiskFileItemFactory factory = new DiskFileItemFactory();
