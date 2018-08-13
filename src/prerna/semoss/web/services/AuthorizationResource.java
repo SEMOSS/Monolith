@@ -90,7 +90,7 @@ public class AuthorizationResource {
 		
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-		ArrayList<HashMap<String, Object>> ret = SecurityQueryUtils.getGroupsAndMembersForUser(userId);
+		List<Map<String, Object>> ret = SecurityQueryUtils.getGroupsAndMembersForUser(userId);
 		
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -99,7 +99,7 @@ public class AuthorizationResource {
 	@Produces("application/json")
 	@Path("searchForUser")
 	public StreamingOutput searchForUser(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm) {
-		List<StringMap<String>> ret = SecurityQueryUtils.searchForUser(searchTerm.trim());
+		List<Map<String, String>> ret = SecurityQueryUtils.searchForUser(searchTerm.trim());
 		return WebUtility.getSO(ret);
 	}
 	
@@ -173,7 +173,7 @@ public class AuthorizationResource {
 	@Path("/admin/getDatabaseUsersAndGroups")
 	public Response getAdminDatabaseUsersAndGroups(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		StringMap<ArrayList<StringMap<String>>>  ret = new StringMap<>();
+		Map<String, List<Map<String, String>>>  ret = new HashMap<>();
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
@@ -202,7 +202,7 @@ public class AuthorizationResource {
 	@Path("getDatabaseUsersAndGroups")
 	public Response getDatabaseUsersAndGroups(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		StringMap<ArrayList<StringMap<String>>>  ret = new StringMap<>();
+		Map<String, List<Map<String, String>>>  ret = new HashMap<>();
 		try{
 			String engineId = form.getFirst("engineId");
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
@@ -225,7 +225,7 @@ public class AuthorizationResource {
 	@Path("addGroup")
 	public Response addNewGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
-		ArrayList<String> users = gson.fromJson(form.getFirst("users"), ArrayList.class);
+		List<String> users = gson.fromJson(form.getFirst("users"), ArrayList.class);
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		Boolean success = SecurityUpdateUtils.addGroup(userId, form.getFirst("groupName").trim(), users);
@@ -260,8 +260,8 @@ public class AuthorizationResource {
 		Gson gson = new Gson();
 		
 		String groupId = form.getFirst("groupId").trim();
-		ArrayList<String> toAdd = gson.fromJson(form.getFirst("add"), ArrayList.class);
-		ArrayList<String> toRemove = gson.fromJson(form.getFirst("remove"), ArrayList.class);
+		List<String> toAdd = gson.fromJson(form.getFirst("add"), ArrayList.class);
+		List<String> toRemove = gson.fromJson(form.getFirst("remove"), ArrayList.class);
 		
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
@@ -286,8 +286,8 @@ public class AuthorizationResource {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId").trim();
-			StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
-			StringMap<ArrayList<StringMap<String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
+			Map<String, List<Map<String, String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
+			Map<String, List<Map<String, String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
 			SecurityUpdateUtils.savePermissions(userId, false, engineId, groups, users);
 		} catch(IllegalArgumentException e){
 			errorRet.put("error", e.getMessage());
@@ -315,20 +315,20 @@ public class AuthorizationResource {
 			String groupId = form.getFirst("groupIdAdd").trim();
 			String engineId = form.getFirst("engineId").trim();
 			
-			StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
-			ArrayList<StringMap<String>> groupsToAddMap = groups.get("add");
-			ArrayList<String> groupsToAdd = convertArrayMaptoArrayList(groupsToAddMap);
-			ArrayList<StringMap<String>> groupsToRemoveMap = groups.get("remove");
-			ArrayList<String> groupsToRemove = convertArrayMaptoArrayList(groupsToRemoveMap);
+			Map<String, List<Map<String, String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
+			List<Map<String, String>> groupsToAddMap = groups.get("add");
+			List<String> groupsToAdd = convertListMapToList(groupsToAddMap);
+			List<Map<String, String>> groupsToRemoveMap = groups.get("remove");
+			List<String> groupsToRemove = convertListMapToList(groupsToRemoveMap);
 			
-			StringMap<ArrayList<StringMap<String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
-			ArrayList<StringMap<String>> usersToAddMap = users.get("add");
-			ArrayList<String> usersToAdd = convertArrayMaptoArrayList(usersToAddMap);
-			ArrayList<StringMap<String>> usersToRemoveMap = users.get("remove");
-			ArrayList<String> usersToRemove = convertArrayMaptoArrayList(usersToRemoveMap);
+			Map<String, List<Map<String, String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
+			List<Map<String, String>> usersToAddMap = users.get("add");
+			List<String> usersToAdd = convertListMapToList(usersToAddMap);
+			List<Map<String, String>> usersToRemoveMap = users.get("remove");
+			List<String> usersToRemove = convertListMapToList(usersToRemoveMap);
 			
-			ArrayList<String> groupsFinal = SecurityQueryUtils.getAllDbGroupsById(engineId, groupsToAdd, groupsToRemove);
-			ArrayList<String> usersFinal = SecurityQueryUtils.getAllDbUsersById(engineId, usersToAdd, usersToRemove);
+			List<String> groupsFinal = SecurityQueryUtils.getAllDbGroupsById(engineId, groupsToAdd, groupsToRemove);
+			List<String> usersFinal = SecurityQueryUtils.getAllDbUsersById(engineId, usersToAdd, usersToRemove);
 			
 			if(!userId.isEmpty()){
 				ret = SecurityQueryUtils.isUserWithDatabasePermissionAlready(userId, groupsFinal, usersFinal);
@@ -346,9 +346,9 @@ public class AuthorizationResource {
 		}		
 	}
 	
-	private ArrayList<String> convertArrayMaptoArrayList(ArrayList<StringMap<String>> set){
-		ArrayList<String> array = new ArrayList<>();
-		for(StringMap<String> map : set){
+	private List<String> convertListMapToList(List<Map<String, String>> set){
+		List<String> array = new ArrayList<>();
+		for(Map<String, String> map : set){
 			array.add(map.get("id"));
 		}
 		return array;
@@ -405,8 +405,8 @@ public class AuthorizationResource {
 	@Path("/getAllDbUsers")
 	@Produces("application/json")
 	public Response getAllDbUsers(@Context HttpServletRequest request) {
-		ArrayList<StringMap<String>> ret = new ArrayList<>();
-		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		List<Map<String, String>> ret = new ArrayList<>();
+		Map<String, String> errorRet = new Hashtable<String, String>();
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		try{
@@ -426,7 +426,7 @@ public class AuthorizationResource {
 	@Produces("application/json")
 	public Response removeUserPermissionsbyDbId(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		boolean ret = false;
-		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		Map<String, String> errorRet = new Hashtable<String, String>();
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 		String engineId = form.getFirst("engineId");
@@ -454,11 +454,11 @@ public class AuthorizationResource {
 	public Response editUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		boolean ret = false;
 		Gson gson = new Gson();
-		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		Map<String, String> errorRet = new Hashtable<String, String>();
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
-			StringMap<String> userInfo = gson.fromJson(form.getFirst("user"), StringMap.class);
+			Map<String, String> userInfo = gson.fromJson(form.getFirst("user"), HashMap.class);
 			ret = SecurityUpdateUtils.editUser(userId, userInfo);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
@@ -477,14 +477,14 @@ public class AuthorizationResource {
 	@Path("/admin/savePermissions")
 	public Response savePermissionsAdmin(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
-		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		Map<String, String> errorRet = new Hashtable<String, String>();
 		
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
 			String engineId = form.getFirst("engineId").trim();
-			StringMap<ArrayList<StringMap<String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
-			StringMap<ArrayList<StringMap<String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
+			Map<String, List<Map<String, String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
+			Map<String, List<Map<String, String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
 			SecurityUpdateUtils.savePermissions(userId, true, engineId, groups, users);
 		} catch(IllegalArgumentException e){
 			errorRet.put("error", e.getMessage());
