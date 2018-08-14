@@ -34,6 +34,7 @@ import org.apache.log4j.PropertyConfigurator;
 
 import com.ibm.icu.util.StringTokenizer;
 
+import prerna.sablecc2.reactor.frame.r.util.RJavaTranslatorFactory;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -75,6 +76,13 @@ public class DBLoader implements ServletContextListener {
 		
 		//Set whether or not security is enabled in DIHelper to be used in PKQL processing
 		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, arg0.getServletContext().getInitParameter(Constants.SECURITY_ENABLED));
+		
+		//Just load R right away to avoid synchronization issues
+		try {
+			RJavaTranslatorFactory.initRConnection();
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public void loadEngines() {
