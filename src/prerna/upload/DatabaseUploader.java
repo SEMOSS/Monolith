@@ -820,6 +820,7 @@ public class DatabaseUploader extends Uploader {
 				for (int i = 0; i < csvFiles.length; i++) {
 					
 					String csvFileLocation = csvFiles[i];
+					csvFileLocation = csvFileLocation.replace("\\\\", "/");
 					
 					Insight dummyIn = new Insight();
 					InsightStore.getInstance().put(dummyIn);
@@ -983,18 +984,21 @@ public class DatabaseUploader extends Uploader {
 			}
 			newMetamodel.put(Constants.RELATION, relationships);
 			String nodePropStr = mm.get("NODE_PROP");
-			String[] nodeProps = nodePropStr.split(";");
 			HashMap<String, List<String>> nodePropMap = new HashMap<>();
-			for (String nodeStr : nodeProps) {
-				String[] propSplit = nodeStr.split("%");
-				String node = propSplit[0];
-				String prop = propSplit[1];
-				List<String> properties = new ArrayList<>();
-				if (nodePropMap.containsKey(node)) {
-					properties = nodePropMap.get(node);
+
+			if (nodePropStr.contains(";")) {
+				String[] nodeProps = nodePropStr.split(";");
+				for (String nodeStr : nodeProps) {
+					String[] propSplit = nodeStr.split("%");
+					String node = propSplit[0];
+					String prop = propSplit[1];
+					List<String> properties = new ArrayList<>();
+					if (nodePropMap.containsKey(node)) {
+						properties = nodePropMap.get(node);
+					}
+					properties.add(prop);
+					nodePropMap.put(node, properties);
 				}
-				properties.add(prop);
-				nodePropMap.put(node, properties);
 			}
 			newMetamodel.put(Constants.NODE_PROP, nodePropMap);
 			newMetamodelList.add(newMetamodel);
