@@ -27,8 +27,12 @@
  *******************************************************************************/
 package prerna.web.conf;
 
+import java.util.Map;
+
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
+
+import prerna.cluster.util.ZKClient;
 
 public class UserDBLoader implements ServletContextListener {
 
@@ -43,9 +47,25 @@ public class UserDBLoader implements ServletContextListener {
 		// TODO Auto-generated method stub
 		// given a particular user this would load the databases specific to this user
 		System.out.println("Initializing the context 2");
+		publish();
 		// need to think through this later
 		// this would add the user specific databases
 		// picks the users id from the session
 
+	}
+	
+	private void publish()
+	{
+		Map envMap = System.getenv();
+		
+		if(envMap.containsKey(ZKClient.ZK_SERVER) || envMap.containsKey(ZKClient.ZK_SERVER.toUpperCase()))
+		{
+			// we are in business
+			ZKClient client = ZKClient.getInstance();
+			client.publishDB("all");
+		}
+		// else
+		// nothing to do proceed
+		
 	}
 }
