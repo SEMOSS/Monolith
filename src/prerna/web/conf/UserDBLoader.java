@@ -62,7 +62,7 @@ public class UserDBLoader implements ServletContextListener {
 		{
 			// we are in business
 			ZKClient client = ZKClient.getInstance();
-			client.publishDB("all");
+			client.publishDB(client.host);
 		}
 		// else
 		// nothing to do proceed
