@@ -49,7 +49,6 @@ import javax.ws.rs.core.StreamingOutput;
 import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 
-import prerna.auth.AuthProvider;
 import prerna.auth.SecurityQueryUtils;
 import prerna.auth.SecurityUpdateUtils;
 import prerna.auth.User;
@@ -89,7 +88,7 @@ public class AuthorizationResource {
 		}
 		
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+		String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 		List<Map<String, Object>> ret = SecurityQueryUtils.getGroupsAndMembersForUser(userId);
 		
 		return WebUtility.getResponse(ret, 200);
@@ -122,7 +121,7 @@ public class AuthorizationResource {
 		}
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();;
 			ret = SecurityQueryUtils.getUserDatabases(userId, false);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e){
@@ -149,7 +148,7 @@ public class AuthorizationResource {
 		List<Map<String, String>> ret = new ArrayList<>(); 
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			ret = SecurityQueryUtils.getUserDatabases(userId, true);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e){
@@ -176,7 +175,7 @@ public class AuthorizationResource {
 		Map<String, List<Map<String, String>>>  ret = new HashMap<>();
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			String engineId = form.getFirst("engineId");
 			ret = SecurityQueryUtils.getDatabaseUsersAndGroups(userId, engineId, true);
 			return WebUtility.getResponse(ret, 200);
@@ -206,7 +205,7 @@ public class AuthorizationResource {
 		try{
 			String engineId = form.getFirst("engineId");
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			ret = SecurityQueryUtils.getDatabaseUsersAndGroups(userId, engineId, false);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e){
@@ -227,7 +226,7 @@ public class AuthorizationResource {
 		Gson gson = new Gson();
 		List<String> users = gson.fromJson(form.getFirst("users"), ArrayList.class);
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+		String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 		Boolean success = SecurityUpdateUtils.addGroup(userId, form.getFirst("groupName").trim(), users);
 		
 		if(success) {
@@ -243,7 +242,7 @@ public class AuthorizationResource {
 	public Response removeGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String groupId = form.getFirst("groupId").trim();
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+		String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 		Boolean success = SecurityUpdateUtils.removeGroup(userId, groupId);
 		
 		if(success) {
@@ -264,7 +263,7 @@ public class AuthorizationResource {
 		List<String> toRemove = gson.fromJson(form.getFirst("remove"), ArrayList.class);
 		
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+		String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 		
 		for(String add : toAdd) {
 			SecurityUpdateUtils.addUserToGroup(userId, groupId, add);
@@ -284,7 +283,7 @@ public class AuthorizationResource {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{ 
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			String engineId = form.getFirst("engineId").trim();
 			Map<String, List<Map<String, String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
 			Map<String, List<Map<String, String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
@@ -308,7 +307,7 @@ public class AuthorizationResource {
 		Gson gson = new Gson();
 		try {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			String ret = "true";
 			
 			userId = form.getFirst("userIdAdd").trim();
@@ -361,7 +360,7 @@ public class AuthorizationResource {
 		Gson gson = new Gson();
 		try {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			String ret = "";
 			
 			String userIdAdd = form.getFirst("userIdAdd").trim();
@@ -392,7 +391,7 @@ public class AuthorizationResource {
 		
 		if(session.getAttribute(Constants.SESSION_USER) != null) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			if(!userId.equals(Constants.ANONYMOUS_USER_ID) && SecurityQueryUtils.isUserAdmin(userId)) {
 				return WebUtility.getResponse(true, 200);
 			}
@@ -408,7 +407,7 @@ public class AuthorizationResource {
 		List<Map<String, String>> ret = new ArrayList<>();
 		Map<String, String> errorRet = new Hashtable<String, String>();
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+		String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 		try{
 			ret = SecurityQueryUtils.getAllDbUsers(userId);
 		} catch (IllegalArgumentException e){
@@ -428,7 +427,7 @@ public class AuthorizationResource {
 		boolean ret = false;
 		Map<String, String> errorRet = new Hashtable<String, String>();
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+		String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 		String engineId = form.getFirst("engineId");
 		try{
 			ret = SecurityUpdateUtils.removeUserPermissionsbyDbId(userId, engineId);
@@ -457,7 +456,7 @@ public class AuthorizationResource {
 		Map<String, String> errorRet = new Hashtable<String, String>();
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			Map<String, String> userInfo = gson.fromJson(form.getFirst("user"), HashMap.class);
 			ret = SecurityUpdateUtils.editUser(userId, userInfo);
 		} catch (IllegalArgumentException e){
@@ -481,7 +480,7 @@ public class AuthorizationResource {
 		
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			String engineId = form.getFirst("engineId").trim();
 			Map<String, List<Map<String, String>>> groups = gson.fromJson(form.getFirst("groups"), StringMap.class);
 			Map<String, List<Map<String, String>>> users = gson.fromJson(form.getFirst("users"), StringMap.class);
@@ -505,7 +504,7 @@ public class AuthorizationResource {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			String engineId = form.getFirst("engineId");
 			String visibility = form.getFirst("visibility");
 			SecurityUpdateUtils.setDbVisibility(userId, engineId, visibility);
@@ -528,7 +527,7 @@ public class AuthorizationResource {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			String engineId = form.getFirst("engineId");
 			String isPublic = form.getFirst("public");
 			SecurityUpdateUtils.setDbPublic(userId, engineId, isPublic, true);
@@ -551,7 +550,7 @@ public class AuthorizationResource {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			String engineId = form.getFirst("engineId");
 			String isPublic = form.getFirst("public");
 			SecurityUpdateUtils.setDbPublic(userId, engineId, isPublic, false);
@@ -574,7 +573,7 @@ public class AuthorizationResource {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String adminId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String adminId = user.getAccessToken(user.getLogins().get(0)).getId();
 			String userId = form.getFirst("userId");
 			SecurityUpdateUtils.deleteUser(adminId, userId);
 			if(adminId.equals(userId)){

@@ -288,14 +288,16 @@ public class UserResource {
 		} else {
 			semossUser = new User();
 			if(twitToken != null) {
-				semossUser.setAccessToken(twitToken);
+				semossUser.setGlobalAccessToken(twitToken);
 			}
 			if(googAppToken != null) {
-				semossUser.setAccessToken(googAppToken);
+				semossUser.setGlobalAccessToken(googAppToken);
 			}
 		}
 		semossUser.setAccessToken(token);
 		request.getSession().setAttribute(Constants.SESSION_USER, semossUser);
+		// add new users into the database
+		SecurityUpdateUtils.addOAuthUser(token);
 	}
 	
 	/**
@@ -848,6 +850,7 @@ public class UserResource {
 				params.put("client_secret", clientSecret);
 	
 				String url = "https://www.googleapis.com/oauth2/v4/token";
+				
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
 				if(accessToken == null) {
 					// not authenticated
@@ -859,11 +862,15 @@ public class UserResource {
 				// Shows how to make a google credential from an access token
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
 				accessToken.setProvider(AuthProvider.GOOGLE);
+
+				// fill the access token with the other properties so we can properly create the user
+				GoogleProfile.fillAccessToken(accessToken, null);
 				addAccessToken(accessToken, request);
 				
 				// this is just for testing...
 				// but i will get yelled at if i remove it so here it is...
-				performGoogleOps(request, ret);
+				// TODO: adding this todo to easily locate it
+//				performGoogleOps(request, ret);
 			} else {
 				ret.put("success", true);
 				ret.put("Already_Authenticated", true);
@@ -1287,17 +1294,8 @@ public class UserResource {
 				AccessToken authToken = new AccessToken();
 				authToken.setProvider(AuthProvider.NATIVE);
 				authToken.setId(id);
-				authToken.setName(username);
-				User newUser = new User();
-				newUser.setAccessToken(authToken);
-				//If there's another session destroy it.
-				HttpSession session =  request.getSession(false);
-				if(session != null){
-					request.getSession().invalidate();
-				}
-				//Create a new session and add an User object to it.
-				session =  request.getSession(true);
-				session.setAttribute(Constants.SESSION_USER, newUser);
+				authToken.setName(username);				
+				addAccessToken(authToken, request);
 				//User print = (User) session.getAttribute(Constants.SESSION_USER);
 				//LOGGER.info("Logging in with: " + print);
 				
@@ -1326,7 +1324,8 @@ public class UserResource {
 				HttpSession session =  request.getSession(false);
 				User print = (User) session.getAttribute(Constants.SESSION_USER);
 				//LOGGER.info("Logging out with: " + print);
-				request.getSession().invalidate();
+				print.dropAccessToken(AuthProvider.NATIVE.name().toUpperCase());
+				request.getSession().setAttribute(Constants.SESSION_USER, print);
 			} else {
 				ret.put("error", "User is not connected.");
 				return WebUtility.getResponse(ret, 401);
@@ -1397,7 +1396,7 @@ public class UserResource {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(AuthProvider.NATIVE).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			if(SecurityQueryUtils.isUserAdmin(userId)){
 				String user_reg = request.getParameter("user_reg");
 				PropertiesConfiguration config = new PropertiesConfiguration(DIHelper.getInstance().getProperty("SOCIAL"));
@@ -1418,6 +1417,26 @@ public class UserResource {
 			} 
 		}
 		return WebUtility.getResponse(true, 200);
+	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("/loginProperties/")
+	public Response loginProperties(@Context HttpServletRequest request) throws IOException {	
+		boolean nativeLogin = Boolean.parseBoolean(socialData.getProperty("native_login"));
+		boolean githubLogin = Boolean.parseBoolean(socialData.getProperty("github_login"));
+		boolean googleLogin = Boolean.parseBoolean(socialData.getProperty("google_login"));
+		boolean onedriveLogin = Boolean.parseBoolean(socialData.getProperty("onedrive_login"));
+		boolean dropboxLogin = Boolean.parseBoolean(socialData.getProperty("dropbox_login"));
+		boolean cacLogin = Boolean.parseBoolean(socialData.getProperty("cac_login"));
+		Map<String, Boolean> logins = new HashMap<>();
+		logins.put("native", nativeLogin);
+		logins.put("google", googleLogin);
+		logins.put("github", githubLogin);
+		logins.put("onedrive", onedriveLogin);
+		logins.put("dropbox", dropboxLogin);
+		logins.put("cac", cacLogin);
+		return WebUtility.getResponse(logins, 200);	
 	}
 	
 }
