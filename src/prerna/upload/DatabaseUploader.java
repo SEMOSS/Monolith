@@ -975,12 +975,14 @@ public class DatabaseUploader extends Uploader {
 			String[] relations = relationStr.split(";");
 			ArrayList<Map<String, String>> relationships = new ArrayList<>();
 			for (String relStr : relations) {
-				String[] rel = relStr.split("@");
-				HashMap<String, String> relMap = new HashMap<>();
-				relMap.put(Constants.FROM_TABLE, rel[0]);
-				relMap.put(Constants.REL_NAME, rel[1]);
-				relMap.put(Constants.TO_TABLE, rel[2]);
-				relationships.add(relMap);
+				if (relStr.contains("@")) {
+					String[] rel = relStr.split("@");
+					HashMap<String, String> relMap = new HashMap<>();
+					relMap.put(Constants.FROM_TABLE, rel[0]);
+					relMap.put(Constants.REL_NAME, rel[1]);
+					relMap.put(Constants.TO_TABLE, rel[2]);
+					relationships.add(relMap);
+				}
 			}
 			newMetamodel.put(Constants.RELATION, relationships);
 			String nodePropStr = mm.get("NODE_PROP");
