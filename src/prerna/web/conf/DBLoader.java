@@ -27,17 +27,31 @@
  *******************************************************************************/
 package prerna.web.conf;
 
+import static org.quartz.impl.StdSchedulerFactory.getDefaultScheduler;
+
+import java.util.List;
+import java.util.Set;
+
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
 import org.apache.log4j.PropertyConfigurator;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
 
 import com.ibm.icu.util.StringTokenizer;
 
+import prerna.engine.api.IEngine;
+import prerna.forms.AbstractFormBuilder;
+import prerna.nameserver.utility.MasterDatabaseUtility;
+import prerna.om.Insight;
+import prerna.om.InsightStore;
 import prerna.sablecc2.reactor.frame.r.util.RJavaTranslatorFactory;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.Utility;
+import prerna.util.insight.InsightUtility;
 
 public class DBLoader implements ServletContextListener {
 
@@ -112,6 +126,55 @@ public class DBLoader implements ServletContextListener {
 	
 	@Override
 	public void contextDestroyed(ServletContextEvent arg0) {
+		System.out.println("Start shutdown");
+
+		Set<String> insights = InsightStore.getInstance().getAllInsights();
+		for(String id : insights) {
+			Insight in = InsightStore.getInstance().get(id);
+			System.out.println("Closing insight " + id);
+			InsightUtility.dropInsight(in);
+		}
+		// we need to close all the engine ids
+		List<String> eIds = MasterDatabaseUtility.getAllEngineIds();
+		for(String id : eIds) {
+			// grab only loaded engines
+			IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(id);
+			if(engine != null) {
+				// if it is loaded, close it
+				System.out.println("Closing database " + id);
+				engine.closeDB();
+			}
+		}
 		
+		// these are not loaded in the normal fashion
+		// so specifically pull them to close
+		IEngine engine = Utility.getEngine(AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
+		if(engine != null) {
+			System.out.println("Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
+			engine.closeDB();
+		}
+		engine = Utility.getEngine(Constants.SECURITY_DB);
+		if(engine != null) {
+			System.out.println("Closing database " + Constants.SECURITY_DB);
+			engine.closeDB();
+		}
+		engine = Utility.getEngine(Constants.LOCAL_MASTER_DB_NAME);
+		if(engine != null) {
+			System.out.println("Closing database " + Constants.LOCAL_MASTER_DB_NAME);
+			engine.closeDB();
+		}
+		
+		try {
+			Scheduler scheduler = getDefaultScheduler();
+			if(scheduler != null) {
+				System.out.println("Closing scheduler");
+				scheduler.clear();
+			}
+		} catch (SchedulerException e) {
+			e.printStackTrace();
+		}
+		
+		System.out.println("Finished shutdown");
+
 	}
 }
