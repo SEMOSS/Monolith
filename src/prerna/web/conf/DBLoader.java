@@ -31,6 +31,7 @@ import static org.quartz.impl.StdSchedulerFactory.getDefaultScheduler;
 
 import java.util.List;
 import java.util.Set;
+import java.util.Vector;
 
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
@@ -55,8 +56,11 @@ import prerna.util.insight.InsightUtility;
 
 public class DBLoader implements ServletContextListener {
 
-	public static final String RDFMAP = "RDF-MAP";
-
+	private static final String RDFMAP = "RDF-MAP";
+	
+	// keep track of all the watcher threads to kill 
+	private static List<AbstractFileWatcher> watcherList = new Vector<AbstractFileWatcher>();
+	
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
 		System.out.println("Initializing application context..." + arg0.getServletContext().getContextPath());
@@ -117,6 +121,7 @@ public class DBLoader implements ServletContextListener {
 				{
 					Thread thread = new Thread(watcherInstance);
 					thread.start();
+					watcherList.add(watcherInstance);
 				}
 			}
 		} catch (Exception ex) {
@@ -134,6 +139,12 @@ public class DBLoader implements ServletContextListener {
 			System.out.println("Closing insight " + id);
 			InsightUtility.dropInsight(in);
 		}
+		
+		// close watchers
+		for(AbstractFileWatcher watcher : watcherList) {
+			watcher.shutdown();
+		}
+		
 		// we need to close all the engine ids
 		List<String> eIds = MasterDatabaseUtility.getAllEngineIds();
 		for(String id : eIds) {
@@ -152,18 +163,27 @@ public class DBLoader implements ServletContextListener {
 		if(engine != null) {
 			System.out.println("Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 			engine.closeDB();
+		} else {
+			System.out.println("Couldn't find database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		}
+		
 		engine = Utility.getEngine(Constants.SECURITY_DB);
 		if(engine != null) {
 			System.out.println("Closing database " + Constants.SECURITY_DB);
 			engine.closeDB();
+		} else {
+			System.out.println("Couldn't find database " + Constants.SECURITY_DB);
 		}
+		
 		engine = Utility.getEngine(Constants.LOCAL_MASTER_DB_NAME);
 		if(engine != null) {
 			System.out.println("Closing database " + Constants.LOCAL_MASTER_DB_NAME);
 			engine.closeDB();
+		} else {
+			System.out.println("Couldn't find database " + Constants.LOCAL_MASTER_DB_NAME);
 		}
 		
+		// close scheduler
 		try {
 			Scheduler scheduler = getDefaultScheduler();
 			if(scheduler != null) {
@@ -174,7 +194,13 @@ public class DBLoader implements ServletContextListener {
 			e.printStackTrace();
 		}
 		
+		// close r
+		try {
+			RJavaTranslatorFactory.stopRConnection();
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+		
 		System.out.println("Finished shutdown");
-
 	}
 }
