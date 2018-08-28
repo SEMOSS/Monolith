@@ -325,9 +325,9 @@ public class NameServer {
 		// Then there is a jobID to message if the user has turned on the stdout, then it has a stack of messages
 		// once the job is done, the stack is also cleared
 
-		HttpSession session;
-		String sessionId; 
-		User user;
+		HttpSession session = null;
+		String sessionId = null; 
+		User user = null;
 
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		//If security is enabled try to get an existing session.
@@ -337,7 +337,9 @@ public class NameServer {
 			if(session != null){
 				sessionId = session.getId();
 				user = ((User) session.getAttribute(Constants.SESSION_USER));
-			} else {
+			}
+			
+			if(user == null) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("error", "User session is invalid");
 				System.out.println("User session is invalid");

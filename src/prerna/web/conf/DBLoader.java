@@ -27,8 +27,6 @@
  *******************************************************************************/
 package prerna.web.conf;
 
-import static org.quartz.impl.StdSchedulerFactory.getDefaultScheduler;
-
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
@@ -37,7 +35,6 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
 import org.apache.log4j.PropertyConfigurator;
-import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 
 import com.ibm.icu.util.StringTokenizer;
@@ -47,6 +44,7 @@ import prerna.forms.AbstractFormBuilder;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.rpa.quartz.SchedulerUtil;
 import prerna.sablecc2.reactor.frame.r.util.RJavaTranslatorFactory;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.Constants;
@@ -185,11 +183,8 @@ public class DBLoader implements ServletContextListener {
 		
 		// close scheduler
 		try {
-			Scheduler scheduler = getDefaultScheduler();
-			if(scheduler != null) {
-				System.out.println("Closing scheduler");
-				scheduler.clear();
-			}
+			System.out.println("Closing scheduler");
+			SchedulerUtil.shutdownScheduler(true);
 		} catch (SchedulerException e) {
 			e.printStackTrace();
 		}
