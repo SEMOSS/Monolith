@@ -141,6 +141,7 @@ public class AppResource {
 				catch(Exception | NoSuchMethodError er) {
 					//Image Capture will not run. No image exists nor will be made. The exception kills the rest.
 					// return stock image
+					er.printStackTrace();
 					f = AbstractSecurityUtils.getStockImage(appId, id);
 					return f;
 				}
