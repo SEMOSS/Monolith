@@ -689,7 +689,8 @@ public class DatabaseUploader extends Uploader {
 		} 
 
 		String appId = options.getEngineID();
-		Map<String, String> retMap = UploadUtilities.getAppReturnData(appId);
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		Map<String, Object> retMap = UploadUtilities.getAppReturnData(user, appId);
 		return Response.status(200).entity(gson.toJson(retMap)).build();
 	}
 	
