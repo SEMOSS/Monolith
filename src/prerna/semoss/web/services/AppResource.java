@@ -135,7 +135,15 @@ public class AppResource {
 		} else {
 			// try making the image
 			if(feUrl != null) {
+				try {
 				ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
+				}
+				catch(Exception | NoSuchMethodError er) {
+					//Image Capture will not run. No image exists nor will be made. The exception kills the rest.
+					// return stock image
+					f = AbstractSecurityUtils.getStockImage(appId, id);
+					return f;
+				}
 			}
 			if(f.exists()) {
 				return f;
