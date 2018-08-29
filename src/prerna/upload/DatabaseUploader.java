@@ -61,6 +61,7 @@ import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.sablecc2.reactor.IReactor;
 import prerna.sablecc2.reactor.PixelPlanner;
 import prerna.sablecc2.reactor.app.upload.UploadInputUtility;
+import prerna.sablecc2.reactor.app.upload.UploadUtilities;
 import prerna.sablecc2.reactor.app.upload.gremlin.TinkerCsvUploadReactor;
 import prerna.sablecc2.reactor.app.upload.rdbms.csv.RdbmsCsvUploadReactor;
 import prerna.sablecc2.reactor.app.upload.rdbms.csv.RdbmsExternalUploadReactor;
@@ -687,8 +688,9 @@ public class DatabaseUploader extends Uploader {
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} 
 
-		String outputText = "CSV Loading was a success.";
-		return Response.status(200).entity(gson.toJson(outputText)).build();
+		String appId = options.getEngineID();
+		Map<String, String> retMap = UploadUtilities.getAppReturnData(appId);
+		return Response.status(200).entity(gson.toJson(retMap)).build();
 	}
 	
 //	@POST
@@ -871,7 +873,8 @@ public class DatabaseUploader extends Uploader {
 					NounMetadata response = reactor.execute();
 					if (i == 0) {
 						// need to keep app id to override
-						appId = (String) response.getValue();
+						Map<String, String> retMap = (Map) response.getValue();
+						appId = retMap.get("app_id");
 					}
 					reactor = getImportReactor(options);
 				}
@@ -927,7 +930,8 @@ public class DatabaseUploader extends Uploader {
 					NounMetadata response = reactor.execute();
 					if (i == 0) {
 						// need to keep app id to override
-						appId = (String) response.getValue();
+						Map<String, String> retMap = (Map) response.getValue();
+						appId = retMap.get("app_id");
 					}
 					reactor = getImportReactor(options);
 				}
