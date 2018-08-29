@@ -1280,8 +1280,10 @@ public class DatabaseUploader extends Uploader {
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
 
-		String outputText = "Excel Loading was a success.";
-		return Response.status(200).entity(gson.toJson(outputText)).build();
+		String appId = options.getEngineID();
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		Map<String, Object> retMap = UploadUtilities.getAppReturnData(user, appId);
+		return Response.status(200).entity(gson.toJson(retMap)).build();
 	}
 
 	@POST
@@ -1347,8 +1349,10 @@ public class DatabaseUploader extends Uploader {
 			}				
 		}
 
-		String outputText = "Excel Loading was a success.";
-		return Response.status(200).entity(gson.toJson(outputText)).build();
+		String appId = options.getEngineID();
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		Map<String, Object> retMap = UploadUtilities.getAppReturnData(user, appId);
+		return Response.status(200).entity(gson.toJson(retMap)).build();
 	}
 	
 //	@POST
