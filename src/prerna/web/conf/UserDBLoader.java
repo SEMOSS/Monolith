@@ -39,7 +39,8 @@ public class UserDBLoader implements ServletContextListener {
 	@Override
 	public void contextDestroyed(ServletContextEvent arg0) {
 		// TODO Auto-generated method stub
-
+		// unpublish
+		unpublish();
 	}
 
 	@Override
@@ -68,4 +69,25 @@ public class UserDBLoader implements ServletContextListener {
 		// nothing to do proceed
 		
 	}
+	
+	private void unpublish()
+	{
+		Map envMap = System.getenv();
+		
+		if(envMap.containsKey(ZKClient.ZK_SERVER) || envMap.containsKey(ZKClient.ZK_SERVER.toUpperCase()))
+		{
+			// we are in business
+			
+			ZKClient client = ZKClient.getInstance();
+			client.zkClient = null;
+			client = ZKClient.getInstance();
+			client.deleteDB(client.host);
+		}
+		// else
+		// nothing to do proceed
+		
+	}
+
+	
+	
 }
