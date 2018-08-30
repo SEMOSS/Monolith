@@ -565,7 +565,37 @@ public class AuthorizationResource {
 		}
 		return WebUtility.getResponse(true, 200);
 	}
-	
+
+	@POST
+	@Produces("application/json")
+	@Path("/admin/registerUser")
+	public Response registerUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		boolean success = false;
+		try{
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+			String adminId = user.getAccessToken(user.getLogins().get(0)).getId();
+			
+			String userId = form.getFirst("userId");
+			Boolean adminUser = Boolean.parseBoolean(form.getFirst("admin"));
+			if(SecurityQueryUtils.isUserAdmin(adminId)){
+				success = SecurityUpdateUtils.registerUser(userId, adminUser);
+			} else {
+				errorRet.put("error", "The user doesn't have the permissions to perform this action.");
+				return WebUtility.getResponse(errorRet, 400);
+			}
+		} catch (IllegalArgumentException e){
+			e.printStackTrace();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			e.printStackTrace();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		return WebUtility.getResponse(success, 200);
+	}
+
 	@POST
 	@Produces("application/json")
 	@Path("/admin/deleteUser")
