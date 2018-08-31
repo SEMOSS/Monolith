@@ -8,13 +8,50 @@ import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import prerna.engine.api.IEngine;
+import prerna.engine.api.IRawSelectWrapper;
+import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.util.Constants;
+import prerna.util.Utility;
 
 public class NoUserFilter implements Filter {
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		// TODO Auto-generated method stub
+		boolean security = Boolean.parseBoolean(arg0.getServletContext().getInitParameter(Constants.SECURITY_ENABLED));
+		if(security) {
+			IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
+			String q = "SELECT * FROM USER LIMIT 1";
+			IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
+			try {
+				boolean hasUser = wrapper.hasNext();
+				if(!hasUser) {
+					((HttpServletResponse) arg1).setStatus(302);
+					((HttpServletResponse) arg1).sendRedirect("http://localhost:8080/MyHTML/index.html");
+					return;
+				}
+				else if( ((HttpServletRequest) arg0).getSession(true).getAttribute("user") == null) {
+					((HttpServletRequest) arg0).getSession(true).setAttribute("user", true);
+					((HttpServletResponse) arg1).setStatus(302);
+					((HttpServletResponse) arg1).sendRedirect("http://localhost:8080/SemossWeb_AppUi/#!/");
+					return;
+				} else {
+					String requestUri = ((HttpServletRequest) arg0).getRequestURI();
+					if(requestUri.equals("/Monolith_Dev/")) {
+						((HttpServletRequest) arg0).getSession(true).setAttribute("user", true);
+						((HttpServletResponse) arg1).setStatus(302);
+						((HttpServletResponse) arg1).sendRedirect("http://localhost:8080/SemossWeb_AppUi/#!/");
+					}
+				}
+			} finally {
+				wrapper.cleanUp();
+			}
+		}
 		
+		arg2.doFilter(arg0, arg1);
 	}
 	
 	@Override
