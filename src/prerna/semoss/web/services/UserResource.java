@@ -363,7 +363,7 @@ public class UserResource {
 			if(user == null) {
 				ret.put("ERROR", "Log into your Microsoft account");
 			} else {
-				AccessToken msToken = user.getAccessToken(AuthProvider.AZURE_GRAPH);
+				AccessToken msToken = user.getAccessToken(AuthProvider.MS);
 				accessString = msToken.getAccess_token();
 				String url = "https://graph.microsoft.com/v1.0/me/";
 				String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
@@ -657,7 +657,7 @@ public class UserResource {
 
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.AZURE_GRAPH) == null) {
+			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.MS) == null) {
 				String [] outputs = AbstractHttpHelper.getCodes(queryString);
 
 				String prefix = "ms_";
@@ -687,7 +687,7 @@ public class UserResource {
 					return null;
 				}
 				
-				accessToken.setProvider(AuthProvider.AZURE_GRAPH);
+				accessToken.setProvider(AuthProvider.MS);
 				addAccessToken(accessToken, request);
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
@@ -699,13 +699,13 @@ public class UserResource {
 				ret.put("Already_Authenticated", true);
 				return WebUtility.getResponse(ret, 200);
 			}
-		} else if(userObj == null || userObj.getAccessToken(AuthProvider.AZURE_GRAPH) == null) {
+		} else if(userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getMSRedirect(request));
 		}
 		// else if user object is there and ms is there
-		else if(userObj != null && userObj.getAccessToken(AuthProvider.AZURE_GRAPH) != null) {
+		else if(userObj != null && userObj.getAccessToken(AuthProvider.MS) != null) {
 			ret.put("success", true);
 			return WebUtility.getResponse(ret, 200);
 		}
