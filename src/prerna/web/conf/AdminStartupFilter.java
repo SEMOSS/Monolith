@@ -19,9 +19,12 @@ import prerna.util.Utility;
 
 public class AdminStartupFilter implements Filter {
 
+	private static String initialRedirect;
+	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		ServletContext context = arg0.getServletContext();
+		
 		boolean security = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		if(security) {
 			IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
@@ -32,8 +35,12 @@ public class AdminStartupFilter implements Filter {
 				// if there are users, redirect to the main semoss page
 				// we do not want to allow the person to make any admin requests
 				if(hasUser) {
-					((HttpServletResponse) arg1).setStatus(302);
-					((HttpServletResponse) arg1).sendRedirect("http://localhost:8080/SemossWeb_AppUi/#!/");
+					if(initialRedirect != null) {
+						((HttpServletResponse) arg1).setHeader("redirect", initialRedirect);
+						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + initialRedirect);
+					} else {
+						((HttpServletResponse) arg1).sendError(404, "Page Not Found");
+					}
 					return;
 				}
 			} finally {
@@ -54,6 +61,10 @@ public class AdminStartupFilter implements Filter {
 	public void init(FilterConfig arg0) throws ServletException {
 		// TODO Auto-generated method stub
 		
+	}
+	
+	public static void setSuccessfulRedirectUrl(String initialRedirect) {
+		AdminStartupFilter.initialRedirect = initialRedirect;
 	}
 
 }
