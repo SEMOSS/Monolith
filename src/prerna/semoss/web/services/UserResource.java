@@ -246,8 +246,7 @@ public class UserResource {
 	@GET
 	@Path("logins")
 	public Response getAllLogins(@Context HttpServletRequest request) {
-
-		Map<AuthProvider, String> retMap = new HashMap<AuthProvider, String>();
+		Map<String, String> retMap = new HashMap<String, String>();
 		User semossUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if(semossUser == null) {
 			return WebUtility.getResponse(retMap, 200);
@@ -255,7 +254,7 @@ public class UserResource {
 		List<AuthProvider> logins = semossUser.getLogins();
 		for(AuthProvider p : logins) {
 			String name = semossUser.getAccessToken(p).getName();
-			retMap.put(p, name);
+			retMap.put(p.toString().toUpperCase(), name);
 		}
 		return WebUtility.getResponse(retMap, 200);
 	}
