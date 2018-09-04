@@ -1,10 +1,35 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<meta charset="ISO-8859-1">
-		<title>Monolith iz da bomb diggity!</title>
+		<!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script> -->
+
+		<script>
+			function registerAdmins() {
+				var xhttp = new XMLHttpRequest(),
+					endpoint = 'https://localhost/Monolith/adminconfig/setInitialAdmins',
+					inputs = document.getElementById('user-id');
+					ids = [inputs.value];
+				
+				xhttp.onreadystatechange = function() {
+					if (this.readyState == 4 && this.status == 200) {
+						alert(this.responseText);
+					}
+				};
+				xhttp.open('POST', endpoint, true);
+				xhttp.setRequestHeader('Content-type', 'application/json');
+				xhttp.send('ids=' + encodeURIComponent(JSON.stringify(ids)));
+			}
+		</script>
 	</head>
-	<body>
-		<p>Get back to work!</p>
+    <body>
+		<form action="javascript:registerAdmins()" style="position: absolute; left: 50%; margin-left: -115px; top: 50%; margin-top: -10px">
+			<div style="font-weight: bold; text-align: center">
+				Please set your initial admin
+			</div>
+			<br>
+			Admin ID:
+			<input id="user-id" type="text">
+			<input type="submit" value="Submit">
+		</form>
 	</body>
 </html>
