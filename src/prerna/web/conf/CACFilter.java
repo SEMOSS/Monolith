@@ -125,6 +125,9 @@ public class CACFilter implements Filter {
 					LOGGER.info("Valid request coming from user " + token.getName());
 					user.setAccessToken(token);
 					session.setAttribute(Constants.SESSION_USER, user);
+					
+					// add the user if they do not exist
+					SecurityUpdateUtils.addOAuthUser(token);
 				}
 			}
 		}
@@ -134,9 +137,6 @@ public class CACFilter implements Filter {
 			return;
 		}
 		
-		// add the user if they do not exist
-		SecurityUpdateUtils.addOAuthUser(token);
-
 		arg2.doFilter(arg0, arg1);
 	}
 
