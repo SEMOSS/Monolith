@@ -6,7 +6,7 @@ import javax.ws.rs.core.Response;
 
 import prerna.web.services.util.WebUtility;
 
-@Path("/adminConfig")
+@Path("/adminconfig")
 public class AdminConfigService {
 
 	@GET

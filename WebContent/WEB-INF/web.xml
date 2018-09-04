@@ -4,6 +4,26 @@
    <welcome-file-list>
       <welcome-file>index.html</welcome-file>
    </welcome-file-list>
+   
+   <!-- security filters for admin page
+   <filter>
+      <filter-name>NoUserFilter</filter-name>
+      <filter-class>prerna.web.conf.NoUserFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>NoUserFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+   <filter>
+      <filter-name>AdminStartupFilter</filter-name>
+      <filter-class>prerna.web.conf.AdminStartupFilter</filter-class>
+   </filter>
+    <filter-mapping>
+      <filter-name>AdminStartupFilter</filter-name>
+      <url-pattern>/adminconfig/*</url-pattern>
+   </filter-mapping>
+   -->
+   
    <!--
    <filter>
       <filter-name>UserRestrictionFilter</filter-name>
@@ -95,29 +115,45 @@
       <name>UserDBFilter</name>
    </absolute-ordering>
    -->
+   
+   <!-- servlets -->
    <servlet>
-      <servlet-name>Resteasy</servlet-name>
+      <servlet-name>MainApplication</servlet-name>
       <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
       <init-param>
          <param-name>javax.ws.rs.Application</param-name>
          <param-value>prerna.semoss.web.app.MonolithApplication</param-value>
       </init-param>
+      <init-param>
+	     <param-name>resteasy.servlet.mapping.prefix</param-name>
+	     <param-value>/api</param-value>
+	  </init-param>
    </servlet>
+   <servlet-mapping>
+      <servlet-name>MainApplication</servlet-name>
+      <url-pattern>/api/*</url-pattern>
+   </servlet-mapping>
+   <servlet>
+      <servlet-name>AdminApplication</servlet-name>
+      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+      <init-param>
+         <param-name>javax.ws.rs.Application</param-name>
+         <param-value>prerna.semoss.web.app.AdminApplication</param-value>
+      </init-param>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>AdminApplication</servlet-name>
+      <url-pattern>/adminconfig/*</url-pattern>
+   </servlet-mapping>
+
+   <!-- context params -->
    <context-param>
       <param-name>isLog4jAutoInitializationDisabled</param-name>
       <param-value>false</param-value>
    </context-param>
    <context-param>
-      <param-name>resteasy.servlet.mapping.prefix</param-name>
-      <param-value>/api</param-value>
-   </context-param>
-   <servlet-mapping>
-      <servlet-name>Resteasy</servlet-name>
-      <url-pattern>/api/*</url-pattern>
-   </servlet-mapping>
-   <context-param>
       <param-name>security-enabled</param-name>
-      <param-value>false</param-value>
+      <param-value>true</param-value>
    </context-param>
    <context-param>
       <description>Location to store uploaded file</description>
@@ -134,6 +170,7 @@
       <param-name>RDF-MAP</param-name>
       <param-value>C:\\workspace\\Semoss_Dev\\RDF_Map.prop</param-value>
    </context-param>  
+   <!-- listeners -->
    <listener>
       <listener-class>prerna.web.conf.DBLoader</listener-class>
    </listener>
