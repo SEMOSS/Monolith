@@ -32,6 +32,7 @@ public class NoUserFilter implements Filter {
 		ignoreDueToFE.add("auth/isUserRegistrationOn");
 		ignoreDueToFE.add("auth/logins");
 		ignoreDueToFE.add("auth/loginProperties");
+		ignoreDueToFE.add("auth/login");
 		for(AuthProvider v : AuthProvider.values()) {
 			ignoreDueToFE.add("auth/userinfo/" +  v.toString().toLowerCase());
 			ignoreDueToFE.add("auth/login/" +  v.toString().toLowerCase());
