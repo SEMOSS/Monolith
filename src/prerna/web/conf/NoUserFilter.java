@@ -55,6 +55,13 @@ public class NoUserFilter implements Filter {
 				
 				// no users at all registered, we need to send to the admin page
 				if(!hasUser) {
+					
+					// we need to store information in the session
+					// so that we can properly come back to the referer once an admin has been added
+					String referer = ((HttpServletRequest) arg0).getHeader("referer");
+					referer = referer + "#!/login";
+					((HttpServletRequest) arg0).getSession(true).setAttribute(AdminConfigService.ADMIN_REDIRECT_KEY, referer);
+
 					// this will be the deployment name of the app
 					String contextPath = context.getContextPath();
 					
@@ -62,12 +69,6 @@ public class NoUserFilter implements Filter {
 					String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length());
 					((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
 					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
-					
-					// we need to store information in the session
-					// so that we can properly come back to the referer once an admin has been added
-					String referer = ((HttpServletRequest) arg0).getHeader("referer");
-					referer = referer + "#!/login";
-					((HttpServletRequest) arg0).getSession(true).setAttribute(AdminConfigService.ADMIN_REDIRECT_KEY, referer);
 					return;
 				}
 				
