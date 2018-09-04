@@ -1,7 +1,9 @@
 package prerna.web.conf;
 
 import java.io.IOException;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -84,6 +86,26 @@ public class CACFilter implements Filter {
 										// now set the other properties
 										token.setToken_type(cert.getIssuerDN().getName());
 										token.setExpires_in((int) cert.getNotAfter().getTime());
+										
+										// try to get the email
+										try {
+											EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
+												for(Object alternative : altNames) {
+													if(alternative instanceof String) {
+														String altStr = alternative.toString();
+														// really simple email check...
+														if(altStr.contains("@")) {
+															token.setEmail(altStr);
+															break EMAIL_LOOP;
+														}
+													}
+												}
+											}
+										} catch (CertificateParsingException e) {
+											e.printStackTrace();
+										}
+										
+										
 										break CERT_LOOP;
 									} else {
 										continue;
