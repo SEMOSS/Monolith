@@ -22,6 +22,7 @@ import org.apache.log4j.Logger;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
+import prerna.auth.SecurityUpdateUtils;
 import prerna.auth.User;
 import prerna.util.Constants;
 
@@ -34,12 +35,15 @@ public class CACFilter implements Filter {
 		X509Certificate[] certs = (X509Certificate[]) arg0.getAttribute("javax.servlet.request.X509Certificate");
 		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 
+		User user = null;
+		AccessToken token = null;
+		
 		if(certs != null) {
-			User user = (User) session.getAttribute(Constants.SESSION_USER);
+			user = (User) session.getAttribute(Constants.SESSION_USER);
 			if(user == null) {
 				user = new User();
 
-				AccessToken token = new AccessToken();
+				token = new AccessToken();
 				token.setProvider(AuthProvider.CAC);
 				// loop thorugh all the certs
 				CERT_LOOP : for(int i = 0; i < certs.length; i++) {
@@ -107,6 +111,9 @@ public class CACFilter implements Filter {
 			LOGGER.error("COULDN'T AUTHORIZE USER!");
 			return;
 		}
+		
+		// add the user if they do not exist
+		SecurityUpdateUtils.addOAuthUser(token);
 
 		arg2.doFilter(arg0, arg1);
 	}
