@@ -73,6 +73,11 @@
 						<configuration>
 							<webXml>WebContent/WEB-INF/web.xml</webXml>
 							<failOnMissingWebXml>true</failOnMissingWebXml>
+							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
+							<warSourceIncludes>
+								index.html,
+								milkyway.jpg
+							</warSourceIncludes>
 						</configuration>
 					</plugin>
 					<plugin>
@@ -113,6 +118,11 @@
 						<configuration>
 							<webXml>WebContent/WEB-INF/web.xml</webXml>
 							<failOnMissingWebXml>true</failOnMissingWebXml>
+							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
+							<warSourceIncludes>
+								index.html,
+								milkyway.jpg
+							</warSourceIncludes>
 							<packagingExcludes>
 								%regex[WEB-INF/lib/(?!semoss-${ci.version}).*.jar]
 							</packagingExcludes>
