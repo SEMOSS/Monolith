@@ -153,7 +153,7 @@
    </context-param>
    <context-param>
       <param-name>security-enabled</param-name>
-      <param-value>true</param-value>
+      <param-value>false</param-value>
    </context-param>
    <context-param>
       <description>Location to store uploaded file</description>
