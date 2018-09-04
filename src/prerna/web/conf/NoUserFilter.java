@@ -15,10 +15,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.semoss.web.services.AdminConfigService;
 import prerna.util.Constants;
 import prerna.util.Utility;
 
@@ -30,6 +32,10 @@ public class NoUserFilter implements Filter {
 		ignoreDueToFE.add("auth/isUserRegistrationOn");
 		ignoreDueToFE.add("auth/logins");
 		ignoreDueToFE.add("auth/loginProperties");
+		for(AuthProvider v : AuthProvider.values()) {
+			ignoreDueToFE.add("auth/userinfo/" +  v.toString().toLowerCase());
+			ignoreDueToFE.add("auth/login/" +  v.toString().toLowerCase());
+		}
 	}
 	
 	@Override
@@ -55,8 +61,14 @@ public class NoUserFilter implements Filter {
 					// we redirect to the index.html page where we have pushed the admin page
 					String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length());
 					redirectUrl = redirectUrl + "/index.html";
-					((HttpServletResponse) arg1).setStatus(302);
-					((HttpServletResponse) arg1).sendRedirect(redirectUrl);
+					((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+					
+					// we need to store information in the session
+					// so that we can properly come back to the referer once an admin has been added
+					String referer = ((HttpServletRequest) arg0).getHeader("referer");
+					referer = referer + "#!/login";
+					((HttpServletRequest) arg0).getSession(true).setAttribute(AdminConfigService.ADMIN_REDIRECT_KEY, referer);
 					return;
 				}
 				
@@ -72,9 +84,10 @@ public class NoUserFilter implements Filter {
 						((HttpServletRequest) arg0).getSession(true).setAttribute("user", true);
 						((HttpServletResponse) arg1).setStatus(302);
 						
-						String referer = ((HttpServletRequest) arg0).getHeader("referer");
-						referer = referer + "#!/login";
-						((HttpServletResponse) arg1).sendRedirect(referer);
+						String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
+						redirectUrl = redirectUrl + "#!/login";
+						((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
 						return;
 					}
 					
@@ -86,9 +99,10 @@ public class NoUserFilter implements Filter {
 						if(user == null || user.getLogins().isEmpty()) {
 							((HttpServletResponse) arg1).setStatus(302);
 							
-							String referer = ((HttpServletRequest) arg0).getHeader("referer");
-							referer = referer + "#!/login";
-							((HttpServletResponse) arg1).sendRedirect(referer);
+							String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
+							redirectUrl = redirectUrl + "#!/login";
+							((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
 							return;
 						}
 					}
