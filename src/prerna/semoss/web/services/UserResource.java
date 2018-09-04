@@ -81,6 +81,7 @@ import prerna.io.connector.google.GoogleFileRetriever;
 import prerna.io.connector.google.GoogleLatLongGetter;
 import prerna.io.connector.google.GoogleListFiles;
 import prerna.io.connector.google.GoogleProfile;
+import prerna.io.connector.ms.MSProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
 import prerna.security.AbstractHttpHelper;
@@ -245,6 +246,7 @@ public class UserResource {
 	@GET
 	@Path("logins")
 	public Response getAllLogins(@Context HttpServletRequest request) {
+
 		Map<AuthProvider, String> retMap = new HashMap<AuthProvider, String>();
 		User semossUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if(semossUser == null) {
@@ -691,6 +693,7 @@ public class UserResource {
 				}
 				
 				accessToken.setProvider(AuthProvider.MS);
+				MSProfile.fillAccessToken(accessToken, null);
 				addAccessToken(accessToken, request);
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
