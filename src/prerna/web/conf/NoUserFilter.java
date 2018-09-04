@@ -1,6 +1,8 @@
 package prerna.web.conf;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Vector;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -22,9 +24,21 @@ import prerna.util.Utility;
 
 public class NoUserFilter implements Filter {
 
+	private static List<String> ignoreDueToFE = new Vector<String>();
+	static {
+		ignoreDueToFE.add("authorization/securityEnabled");
+		ignoreDueToFE.add("auth/isUserRegistrationOn");
+		ignoreDueToFE.add("auth/logins");
+		ignoreDueToFE.add("auth/loginProperties");
+	}
+	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		ServletContext context = arg0.getServletContext();
+		// this will be the full path of the request
+		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
+		String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
+		
 		boolean security = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		if(security) {
 			IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
@@ -35,9 +49,6 @@ public class NoUserFilter implements Filter {
 				
 				// no users at all registered, we need to send to the admin page
 				if(!hasUser) {
-					// this will be the full path of the request
-					// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-					String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
 					// this will be the deployment name of the app
 					String contextPath = context.getContextPath();
 					
@@ -49,46 +60,37 @@ public class NoUserFilter implements Filter {
 					return;
 				}
 				
-				// users are registered but dont know who this specific user is
-				// take them to the login page
-				else if( ((HttpServletRequest) arg0).getSession(true).getAttribute("user") == null) {
-					((HttpServletRequest) arg0).getSession(true).setAttribute("user", true);
-					((HttpServletResponse) arg1).setStatus(302);
-					((HttpServletResponse) arg1).sendRedirect("http://localhost:8080/SemossWeb_AppUi/#!/");
-					return;
-				} 
-				
-				// have the user + 
-				else {
-					// make sure someone didn't hack this
-					HttpSession session = ((HttpServletRequest) arg0).getSession(false);
-					User user = (User) session.getAttribute(Constants.SESSION_USER);
-					if(user == null || user.getLogins().isEmpty()) {
-						((HttpServletRequest) arg0).getSession(true).setAttribute("user", false);
+				// REALLY DISLIKE THIS CHECK!!!
+				else if(!isIgnored(fullUrl)) {
+					// due to FE being annoying
+					// we need to push a response for this one end point
+					// since security is embedded w/ normal semoss and not standalone
+					
+					// users are registered but dont know who this specific user is
+					// take them to the login page
+					if( ((HttpServletRequest) arg0).getSession(true).getAttribute("user") == null) {
+						((HttpServletRequest) arg0).getSession(true).setAttribute("user", true);
 						((HttpServletResponse) arg1).setStatus(302);
-						((HttpServletResponse) arg1).sendRedirect("http://localhost:8080/SemossWeb_AppUi/#!/");
+						
+						String referer = ((HttpServletRequest) arg0).getHeader("referer");
+						referer = referer + "#!/login";
+						((HttpServletResponse) arg1).sendRedirect(referer);
 						return;
 					}
 					
-					// now, also adding a check for an aliased endpoint...
-					// if we have aliased on the tomcat server itself
-					// as a redirect URL
-					// we should account for it
-					
-					// this will be the full path of the request
-					// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-					String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
-					// this will be the deployment name of the app
-					String contextPath = context.getContextPath();
-					// we redirect to the index.html page where we have pushed the admin page
-					String defaultUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + "/";
-					
-					// person is running host:port/Monolith_Dev
-					// this just means we should redirect
-					if(fullUrl.equals(defaultUrl)) {
-						((HttpServletRequest) arg0).getSession(true).setAttribute("user", true);
-						((HttpServletResponse) arg1).setStatus(302);
-						((HttpServletResponse) arg1).sendRedirect("http://localhost:8080/SemossWeb_AppUi/#!/");
+					// have the user redirect value
+					// need to make sure no one did any funny business and doesn't have an actual user object
+					else {
+						HttpSession session = ((HttpServletRequest) arg0).getSession(false);
+						User user = (User) session.getAttribute(Constants.SESSION_USER);
+						if(user == null || user.getLogins().isEmpty()) {
+							((HttpServletResponse) arg1).setStatus(302);
+							
+							String referer = ((HttpServletRequest) arg0).getHeader("referer");
+							referer = referer + "#!/login";
+							((HttpServletResponse) arg1).sendRedirect(referer);
+							return;
+						}
 					}
 				}
 			} finally {
@@ -109,6 +111,22 @@ public class NoUserFilter implements Filter {
 	public void init(FilterConfig arg0) throws ServletException {
 		// TODO Auto-generated method stub
 		
+	}
+	
+	/**
+	 * Due to how the FE security is set up
+	 * Need to ignore some URLs :(
+	 * I REALLY DISLIKE THIS!!!
+	 * @param fullUrl
+	 * @return
+	 */
+	private static boolean isIgnored(String fullUrl) {
+		for(String ignore : ignoreDueToFE) {
+			if(fullUrl.endsWith(ignore)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 }
