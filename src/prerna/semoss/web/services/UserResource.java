@@ -254,6 +254,10 @@ public class UserResource {
 		List<AuthProvider> logins = semossUser.getLogins();
 		for(AuthProvider p : logins) {
 			String name = semossUser.getAccessToken(p).getName();
+			if(name == null) {
+				// need to send something
+				name = "";
+			}
 			retMap.put(p.toString().toUpperCase(), name);
 		}
 		return WebUtility.getResponse(retMap, 200);
