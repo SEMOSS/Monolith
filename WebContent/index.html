@@ -11,14 +11,19 @@
 					inputs = document.getElementById('user-id');
 					ids = [inputs.value];
 				
-				// xhttp.onreadystatechange = function() {
-				// 	if (this.readyState == 4 && this.status == 200) {
-				// 		alert(this.responseText);
-				// 	}
-				// };
-				xhttp.open('POST', endpoint, true);
-				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-				xhttp.send('ids=' + encodeURIComponent(JSON.stringify(ids)));
+				if(inputs.value) {
+					xhttp.onreadystatechange = function() {
+						if (this.status == 302) {
+							var redir = this.getResponseHeader("redirect");
+							if(redir) {
+								window.location.replace(redir);
+							}
+						}
+					};
+					xhttp.open('POST', endpoint, true);
+					xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+					xhttp.send('ids=' + encodeURIComponent(JSON.stringify(ids)));
+				}
 			}
 		</script>
 	</head>
