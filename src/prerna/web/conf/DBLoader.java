@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 
+import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
@@ -46,6 +47,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.rpa.quartz.SchedulerUtil;
 import prerna.sablecc2.reactor.frame.r.util.RJavaTranslatorFactory;
+import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -61,14 +63,19 @@ public class DBLoader implements ServletContextListener {
 	
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
-		System.out.println("Initializing application context..." + arg0.getServletContext().getContextPath());
+		ServletContext context = arg0.getServletContext();
+		String contextPath = context.getContextPath();
+		
+		String rdfPropFile = context.getInitParameter(RDFMAP);
+		String securityEnabled = context.getInitParameter(Constants.SECURITY_ENABLED);
+		
+		System.out.println("Initializing application context..." + contextPath);
 		
 		//Set default file separator system variable
 		System.out.println("Changing file separator value to: '/'");
 		System.setProperty("file.separator", "/");
 		
 		//Load RDF_Map.prop file
-		String rdfPropFile = arg0.getServletContext().getInitParameter(RDFMAP);
 		System.out.println("Loading RDF_Map.prop: " + rdfPropFile);
 		DIHelper.getInstance().loadCoreProp(rdfPropFile);
 		
@@ -77,21 +84,13 @@ public class DBLoader implements ServletContextListener {
 		System.out.println("Setting log4j property: " + log4jConfig);
 		PropertyConfigurator.configure(log4jConfig);
 		
-//		//Set Solr home variable (~SEMOSS_PROJ_HOME/Solr)
-//		String solrHome = DIHelper.getInstance().getProperty("BaseFolder") + "/" + Constants.SOLR_HOME_DIR;
-//		if((new File(solrHome)).exists()) {
-//			System.out.println("Setting Solr home: " + solrHome);
-//			System.setProperty("solr.solr.home", solrHome);
-//		}
-		
 		//Load empty engine list into DIHelper, then load engines from db folder
 		System.out.println("Loading engines...");
 		String engines = "";
 		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engines);
 		loadEngines();
 		
-		//Set whether or not security is enabled in DIHelper to be used in PKQL processing
-		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, arg0.getServletContext().getInitParameter(Constants.SECURITY_ENABLED));
+		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, securityEnabled);
 		
 		//Just load R right away to avoid synchronization issues
 		try {
@@ -99,6 +98,10 @@ public class DBLoader implements ServletContextListener {
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
+		
+		// need to set the path
+		// important for taking the image with security
+		ImageCaptureReactor.setContextPath(contextPath);
 	}
 	
 	public void loadEngines() {
