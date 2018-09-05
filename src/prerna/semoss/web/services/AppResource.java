@@ -65,7 +65,6 @@ public class AppResource {
 		if(propFileLoc == null && !app.equals("NEWSEMOSSAPP")) {
 			String imageDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "/images/stock/";
 			return new File(imageDir + "color-logo.png");
-//			return null;
 		}
 		Properties prop = Utility.loadProperties(propFileLoc);
 		app = prop.getProperty(Constants.ENGINE_ALIAS);
@@ -99,6 +98,7 @@ public class AppResource {
 		if(securityEnabled){
 			sessionId = request.getSession(false).getId();
 		}
+		
 		File exportFile = getInsightImageFile(app, id, request.getHeader("Referer"), params, sessionId);
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
@@ -134,24 +134,16 @@ public class AppResource {
 			return f;
 		} else {
 			// try making the image
-			//TODO: TEMPORARY TILL WE GET SECURITY TO WORK WITH IMAGE CAPTURE!!!
-			//TODO: TEMPORARY TILL WE GET SECURITY TO WORK WITH IMAGE CAPTURE!!!
-			//TODO: TEMPORARY TILL WE GET SECURITY TO WORK WITH IMAGE CAPTURE!!!
-			//TODO: TEMPORARY TILL WE GET SECURITY TO WORK WITH IMAGE CAPTURE!!!
-			//TODO: TEMPORARY TILL WE GET SECURITY TO WORK WITH IMAGE CAPTURE!!!
-			//TODO: TEMPORARY TILL WE GET SECURITY TO WORK WITH IMAGE CAPTURE!!!
-			if(!AbstractSecurityUtils.securityEnabled()) {
-				if(feUrl != null) {
-					try {
-						ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
-					}
-					catch(Exception | NoSuchMethodError er) {
-						//Image Capture will not run. No image exists nor will be made. The exception kills the rest.
-						// return stock image
-						er.printStackTrace();
-						f = AbstractSecurityUtils.getStockImage(appId, id);
-						return f;
-					}
+			if(feUrl != null) {
+				try {
+					ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
+				}
+				catch(Exception | NoSuchMethodError er) {
+					//Image Capture will not run. No image exists nor will be made. The exception kills the rest.
+					// return stock image
+					er.printStackTrace();
+					f = AbstractSecurityUtils.getStockImage(appId, id);
+					return f;
 				}
 			}
 			if(f.exists()) {
