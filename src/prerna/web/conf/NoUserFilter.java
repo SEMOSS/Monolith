@@ -80,10 +80,11 @@ public class NoUserFilter implements Filter {
 					// we need to push a response for this one end point
 					// since security is embedded w/ normal semoss and not standalone
 					
+					HttpSession session = ((HttpServletRequest) arg0).getSession(true);
 					// users are registered but dont know who this specific user is
 					// take them to the login page
-					if( ((HttpServletRequest) arg0).getSession(true).getAttribute("user") == null) {
-						((HttpServletRequest) arg0).getSession(true).setAttribute("user", true);
+					if(session.getAttribute("user") == null) {
+						session.setAttribute("user", true);
 						((HttpServletResponse) arg1).setStatus(302);
 						
 						String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
@@ -96,11 +97,10 @@ public class NoUserFilter implements Filter {
 					// have the user redirect value
 					// need to make sure no one did any funny business and doesn't have an actual user object
 					else {
-						HttpSession session = ((HttpServletRequest) arg0).getSession(false);
 						User user = (User) session.getAttribute(Constants.SESSION_USER);
 						if(user == null || user.getLogins().isEmpty()) {
 							((HttpServletResponse) arg1).setStatus(302);
-							
+
 							String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
 							redirectUrl = redirectUrl + "#!/login";
 							((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
