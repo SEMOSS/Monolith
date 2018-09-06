@@ -74,6 +74,7 @@ import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.auth.AbstractSecurityUtils;
 import prerna.auth.SecurityQueryUtils;
 import prerna.auth.User;
 import prerna.engine.api.IEngine;
@@ -698,9 +699,7 @@ public class NameServer {
 	// gets the engine resource necessary for all engine calls
 	@Path("e-{engine}")
 	public Object getLocalDatabase(@Context HttpServletRequest request, @PathParam("engine") String engineId, @QueryParam("api") String api) throws IOException {
-		Object securityObj = DIHelper.getInstance().getLocalProp(Constants.SECURITY_ENABLED);
-		boolean security =  (securityObj instanceof Boolean && ((boolean) securityObj) ) || (Boolean.parseBoolean(securityObj.toString()));
-
+		boolean security = AbstractSecurityUtils.securityEnabled();
 		if(security) {
 			HttpSession session = request.getSession(false);
 			if(session == null) {
