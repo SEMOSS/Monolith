@@ -1,8 +1,6 @@
 package prerna.semoss.web.form;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
@@ -20,43 +18,66 @@ import javax.ws.rs.core.Response;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.engine.api.IEngine;
-import prerna.engine.impl.rdbms.RDBMSNativeEngine;
+import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.AbstractFormBuilder;
 import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
 import prerna.nameserver.utility.MasterDatabaseUtility;
+import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/form")
 public class FormResource {
 
+	private IEngine formEngine;
+	
 	@POST
 	@Path("/modifyUserAccess")
 	@Produces("application/json")
-	public Response modifyUserAccess(MultivaluedMap<String, String> form) {	
-		IEngine formBuilderEng = Utility.getEngine(FormBuilder.FORM_BUILDER_ENGINE_NAME);
-
+	public Response modifyUserAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String cacId;
+		try {
+			cacId = getCacId(request);
+		} catch (IOException e) {
+			Map<String, String> err = new HashMap<String, String>();
+			err.put("errorMessage", e.getMessage());
+			return WebUtility.getResponse(err, 400);
+		}
+		
+		try {
+			throwErrorIfNotAdmin(cacId);
+		} catch (IllegalAccessException e) {
+			Map<String, String> err = new HashMap<String, String>();
+			err.put("errorMessage", e.getMessage());
+			return WebUtility.getResponse(err, 400);
+		}
+		
 		String addOrRemove = form.getFirst("addOrRemove");
 		String userid = form.getFirst("userid");
+		String instancename = form.getFirst("instanceName");
+		//  this is only present if we are adding a user
+		String owner = form.getFirst("ownerStatus");
 		
         String query = null;
-        if (addOrRemove.equals("Remove")) {        
-        	query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '" + userid + "';";
+        if (addOrRemove.equals("Remove")) {
+        	if(instancename != null && !instancename.isEmpty() && !instancename.equals("null") && !instancename.equals("undefined")) {
+            	query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '" + userid + "' AND INSTANCE_NAME = '" + instancename + "';";
+        	} else {
+        		// remove all of user
+            	query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '" + userid + "';";
+        	}
         } else if (addOrRemove.equals("Add")) {
-    		String instancename = form.getFirst("instanceName");
-    		// this is a boolean being represented by a string true/false
-    		String owner = form.getFirst("ownerStatus");
-    		
         	query = "INSERT INTO FORMS_USER_ACCESS (USER_ID, INSTANCE_NAME, IS_SYS_ADMIN) VALUES ('" + userid + "','" + instancename + "','" + owner + "');";
         } else {
         	return WebUtility.getResponse("Error: need to specify Add or Remove", 400);
         }
         
-        // execute the insert statement
-    	formBuilderEng.insertData(query);
+		IEngine formEngine = getEngine();
+        // execute the query
+		formEngine.insertData(query);
     	// commit to engine
-    	formBuilderEng.commit();
+		formEngine.commit();
     	
 		return WebUtility.getResponse("success", 200);
 	}
@@ -64,7 +85,24 @@ public class FormResource {
 	@POST
 	@Path("/renameInstance")
 	@Produces("application/json")
-	public Response renameInstance(MultivaluedMap<String, String> form) {
+	public Response renameInstance(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String cacId;
+		try {
+			cacId = getCacId(request);
+		} catch (IOException e) {
+			Map<String, String> err = new HashMap<String, String>();
+			err.put("errorMessage", e.getMessage());
+			return WebUtility.getResponse(err, 400);
+		}
+		
+		try {
+			throwErrorIfNotAdmin(cacId);
+		} catch (IllegalAccessException e) {
+			Map<String, String> err = new HashMap<String, String>();
+			err.put("errorMessage", e.getMessage());
+			return WebUtility.getResponse(err, 400);
+		}
+		
 		String dbName = form.getFirst("dbName");
 		String origUri = form.getFirst("originalUri");
 		String newUri = form.getFirst("newUri");
@@ -73,8 +111,7 @@ public class FormResource {
 			deleteInstanceBoolean = Boolean.parseBoolean(form.getFirst("deleteInstanceBoolean"));
 		}
 		
-		IEngine coreEngine = Utility.getEngine(MasterDatabaseUtility.testEngineIdIfAlias(dbName));
-		
+		IEngine coreEngine = Utility.getEngine(MasterDatabaseUtility.testEngineIdIfAlias(dbName));		
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
 		formbuilder.modifyInstanceValue(origUri, newUri, deleteInstanceBoolean);
 		return WebUtility.getResponse("success", 200);
@@ -83,16 +120,31 @@ public class FormResource {
 	@POST
 	@Path("/certifyInstance")
 	@Produces("application/json")
-	public Response certifyInstance(MultivaluedMap<String, String> form) {
-		String userid = form.getFirst("userid");
+	public Response certifyInstance(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String cacId;
+		try {
+			cacId = getCacId(request);
+		} catch (IOException e) {
+			Map<String, String> err = new HashMap<String, String>();
+			err.put("errorMessage", e.getMessage());
+			return WebUtility.getResponse(err, 400);
+		}
+		
+		String dbName = form.getFirst("dbName");
 		String instanceType = form.getFirst("instanceType");
 		String instanceName = form.getFirst("instanceName");
-		String dbName = form.getFirst("dbName");
-
-		IEngine coreEngine = Utility.getEngine(MasterDatabaseUtility.testEngineIdIfAlias(dbName));
 		
+		try {
+			throwErrorIfNotSysAdmin(cacId, instanceName);
+		} catch (IllegalAccessException e) {
+			Map<String, String> err = new HashMap<String, String>();
+			err.put("errorMessage", e.getMessage());
+			return WebUtility.getResponse(err, 400);
+		}
+		
+		IEngine coreEngine = Utility.getEngine(MasterDatabaseUtility.testEngineIdIfAlias(dbName));		
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
-		formbuilder.setUser(userid);
+		formbuilder.setUser(cacId);
 		formbuilder.certifyInstance(instanceType, instanceName);
 		return WebUtility.getResponse("success", 200);
 	}	
@@ -101,53 +153,111 @@ public class FormResource {
 	@Path("/getUserInstanceAuth")
 	@Produces("applicaiton/json")
 	public Response getUserInstanceAuth(@Context HttpServletRequest request) throws InvalidNameException {
+		/*
+		 * Get the specific instances this user has access to
+		 */
+		
+		String cacId;
+		try {
+			cacId = getCacId(request);
+		} catch (IOException e) {
+			Map<String, String> err = new HashMap<String, String>();
+			err.put("errorMessage", e.getMessage());
+			return WebUtility.getResponse(err, 400);
+		}
+		
+		Map<String, String> userAccessableInstances = new HashMap<String, String>();
+
+		// map to store the valid instances for the given user
+		String query = "SELECT INSTANCE_NAME, IS_SYS_ADMIN FROM FORMS_USER_ACCESS WHERE USER_ID = '" + cacId + "';";
+		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(getEngine(), query);
+		while(wrapper.hasNext()) {
+			Object[] values = wrapper.next().getValues();
+			userAccessableInstances.put(values[0].toString(), values[1].toString());
+		}
+		
+		Map<String, Object> returnData = new Hashtable<String, Object>();
+		returnData.put("cac_id", cacId);
+		returnData.put("validInstances", userAccessableInstances);
+		return WebUtility.getResponse(returnData, 200);
+	}
+	
+	/**
+	 * Get the CAC ID for the user
+	 * @param request
+	 * @return
+	 * @throws IOException
+	 */
+	private String getCacId(@Context HttpServletRequest request) throws IOException {
 		String x509Id = null;
 		try {
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			User user = (User) session.getAttribute("semoss_user");
 			x509Id = user.getAccessToken(AuthProvider.CAC).getId();
 		} catch(Exception e) {
-			Map<String, String> err = new HashMap<String, String>();
-			err.put("errorMessage", "Could not identify user");
-			return WebUtility.getResponse(err, 400);
+			throw new IOException("Could not identify user");
 		}
 		if(x509Id == null) {
-			Map<String, String> err = new HashMap<String, String>();
-			err.put("errorMessage", "Could not identify user");
-			return WebUtility.getResponse(err, 400);
+			throw new IOException("Could not identify user");
 		}
 		
-		Map<String, String> userAccessableInstances = new HashMap<String, String>();
-
-		IEngine formBuilderEng = Utility.getEngine(FormBuilder.FORM_BUILDER_ENGINE_NAME);
-		// map to store the valid instances for the given user
-		String query = "SELECT INSTANCE_NAME, IS_SYS_ADMIN FROM FORMS_USER_ACCESS WHERE USER_ID = '" + x509Id + "';";
-		Map<String, Object> ret = (Map<String, Object>) formBuilderEng.execQuery(query);
-		Statement stmt = (Statement) ret.get(RDBMSNativeEngine.STATEMENT_OBJECT);
-		ResultSet rs = (ResultSet) ret.get(RDBMSNativeEngine.RESULTSET_OBJECT);
+		return x509Id;
+	}
+	
+	/**
+	 * Check that user is an admin
+	 * @param cacId
+	 * @throws IllegalAccessException
+	 */
+	private void throwErrorIfNotAdmin(String cacId) throws IllegalAccessException {
+		String isAdminQuery = "SELECT * FROM FORMS_USER_ACCESS "
+				+ "WHERE USER_ID='" + cacId + "' "
+				+ "AND INSTANCE_NAME='ADMIN' "
+				+ "LIMIT 1;";
+		
+		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(getEngine(), isAdminQuery);
 		try {
-			while(rs.next()) {
-				userAccessableInstances.put(rs.getString("INSTANCE_NAME"), rs.getString("IS_SYS_ADMIN"));
+			if(!wrapper.hasNext()) {
+				throw new IllegalAccessException("User is not an admin and cannot perform this operation");
 			}
-		} catch (SQLException e) {
-			e.printStackTrace();
 		} finally {
-			try {
-				if(rs != null) {
-					rs.close();
-				}
-				if(stmt != null) {
-					stmt.close();
-				}
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+			wrapper.cleanUp();
 		}
-
-		Map<String, Object> returnData = new Hashtable<String, Object>();
-		returnData.put("cac_id", x509Id);
-		returnData.put("validInstances", userAccessableInstances);
-
-		return WebUtility.getResponse(returnData, 200);
+	}
+	
+	/**
+	 * Check that user is an admin
+	 * @param cacId
+	 * @throws IllegalAccessException
+	 */
+	private void throwErrorIfNotSysAdmin(String cacId, String system) throws IllegalAccessException {
+		String isAdminQuery = "SELECT * FROM FORMS_USER_ACCESS "
+				+ "WHERE USER_ID='" + cacId + "' "
+				+ "AND INSTANCE_NAME='" + system + "' "
+				+ "AND IS_SYS_ADMIN=TRUE "
+				+ "LIMIT 1;";
+		
+		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(getEngine(), isAdminQuery);
+		try {
+			if(!wrapper.hasNext()) {
+				throw new IllegalAccessException("User is not an admin and cannot perform this operation");
+			}
+		} finally {
+			wrapper.cleanUp();
+		}
+	}
+	
+	
+	/**
+	 * Get the form engine
+	 * Since this is a resource, we just need to make sure we load
+	 * after DBLoader is done loading
+	 * @return
+	 */
+	public IEngine getEngine() {
+		if(formEngine == null) {
+			formEngine = Utility.getEngine(FormBuilder.FORM_BUILDER_ENGINE_NAME);
+		}
+		return formEngine;
 	}
 }
