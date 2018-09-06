@@ -841,6 +841,12 @@
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava-collections</artifactId>
 			<version>r03</version>
+			<exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>com.github.spullara.mustache.java</groupId>
@@ -2722,12 +2728,14 @@
 			<artifactId>jmespath-jackson</artifactId>
 			<version>0.2.0</version>
 		</dependency>
-		<!--  Google Sheets -->
+		<!-- cleanup -->
+		<!--  Google Sheets 
 		<dependency>
 		    <groupId>com.google.apis</groupId>
 		    <artifactId>google-api-services-sheets</artifactId>
 		    <version>v4-rev506-1.23.0</version>
 		</dependency>
+		-->
 		<!-- cleanup -->
 		<!--dependency>
 		    <groupId>com.google.gdata</groupId>
@@ -2740,11 +2748,11 @@
 		    <version>v3-rev105-1.23.0</version>
 		</dependency>  
 		<dependency>
-  <groupId>io.burt</groupId>
-  <artifactId>jmespath-jackson</artifactId>
-  <version>0.2.0</version>
-</dependency> 
- <dependency>
+		  <groupId>io.burt</groupId>
+		  <artifactId>jmespath-jackson</artifactId>
+		  <version>0.2.0</version>
+		</dependency> 
+		<dependency>
             <groupId>com.microsoft.azure</groupId>
             <artifactId>adal4j</artifactId>
             <version>1.1.1</version>
