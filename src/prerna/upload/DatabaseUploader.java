@@ -1,5 +1,6 @@
 package prerna.upload;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -27,8 +28,6 @@ import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.FileUtils;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -1903,13 +1902,12 @@ public class DatabaseUploader extends Uploader {
 				String filePath = files[i];
 				String file = filePath.substring(filePath.lastIndexOf("\\") + 1, filePath.lastIndexOf("."));
 				
+				BufferedReader br = new BufferedReader(new FileReader(filePath));
+				Map xray = gson.fromJson(br, Map.class);
+				
 				//.json file
-				JSONParser parser = new JSONParser();
-				Object obj = parser.parse(new FileReader(filePath));
-				JSONObject jsonObject = (JSONObject) obj;
-				returnObj.put(file, jsonObject.escape(jsonObject.toJSONString()));
 				//add json to local master 
-				String jsonStringEscaped = jsonObject.escape(jsonObject.toJSONString());
+				String jsonStringEscaped = gson.toJson(xray);
 				AddToMasterDB lm = new AddToMasterDB();
 				lm.addXrayConfig(jsonStringEscaped, cleanName.replace(".xray", ""));
 				
