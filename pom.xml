@@ -570,7 +570,8 @@
 				</exclusion>
 			</exclusions>
 		</dependency-->
-		<dependency>
+		<!-- cleanup -->
+		<!-- dependency>
 			<groupId>com.google.apis</groupId>
 			<artifactId>google-api-services-oauth2</artifactId>
 			<version>v2-rev80-1.19.0</version>
@@ -580,8 +581,9 @@
 					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-		<dependency>
+		</dependency -->
+		<!-- cleanup -->
+		<!-- dependency>
 			<groupId>com.google.apis</groupId>
 			<artifactId>google-api-services-plus</artifactId>
 			<version>v1-rev137-1.19.0</version>
@@ -591,7 +593,7 @@
 					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
+		</dependency -->
 		<!-- cleanup -->
 		<!--dependency>
 			<groupId>com.google.http-client</groupId>
@@ -616,7 +618,8 @@
 				</exclusion>
 			</exclusions>
 		</dependency-->
-		<dependency>
+		<!-- cleanup -->
+		<!-- dependency>
 			<groupId>com.google.oauth-client</groupId>
 			<artifactId>google-oauth-client</artifactId>
 			<version>1.23.0</version>
@@ -626,7 +629,7 @@
 					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
+		</dependency -->
 		<!-- cleanup -->
 		<!--dependency>
 			<groupId>gov.sandia.foundry</groupId>
@@ -1910,7 +1913,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.tika</groupId>
-			<artifactId>tika-app</artifactId>
+			<artifactId>tika-core</artifactId>
 			<version>1.18</version>
 			<exclusions>
 				<exclusion>
@@ -2742,11 +2745,12 @@
 		    <artifactId>core</artifactId>
 		    <version>1.47.1</version>
 		</dependency-->
-		<dependency>
+		<!-- cleanup -->
+		<!-- dependency>
 		    <groupId>com.google.apis</groupId>
 		    <artifactId>google-api-services-drive</artifactId>
 		    <version>v3-rev105-1.23.0</version>
-		</dependency>  
+		</dependency -->  
 		<dependency>
 		  <groupId>io.burt</groupId>
 		  <artifactId>jmespath-jackson</artifactId>
