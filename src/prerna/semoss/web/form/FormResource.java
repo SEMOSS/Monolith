@@ -24,6 +24,7 @@ import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -192,7 +193,7 @@ public class FormResource {
 		String x509Id = null;
 		try {
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
-			User user = (User) session.getAttribute("semoss_user");
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
 			x509Id = user.getAccessToken(AuthProvider.CAC).getId();
 		} catch(Exception e) {
 			throw new IOException("Could not identify user");
