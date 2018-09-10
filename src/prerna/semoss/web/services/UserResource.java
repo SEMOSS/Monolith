@@ -1405,8 +1405,7 @@ public class UserResource {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
-			if(SecurityQueryUtils.isUserAdmin(userId)){
+			if(SecurityQueryUtils.userIsAdmin(user)){
 				String user_reg = request.getParameter("user_reg");
 				PropertiesConfiguration config = new PropertiesConfiguration(DIHelper.getInstance().getProperty("SOCIAL"));
 				socialData.setProperty("reg_allowed", user_reg);
