@@ -17,6 +17,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.apache.log4j.LogManager;
@@ -133,7 +134,12 @@ public class CACFilter implements Filter {
 		}
 		
 		if(session.getAttribute(Constants.SESSION_USER) == null) {
-			LOGGER.error("COULDN'T AUTHORIZE USER!");
+			((HttpServletResponse) arg1).setStatus(302);
+
+			String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
+			redirectUrl = redirectUrl + "#!/login";
+			((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
 			return;
 		}
 		
