@@ -125,9 +125,21 @@ public class AppResource {
 		String fileLocation = "";
 		if(params != null && !params.isEmpty() && !params.equals("undefined")) {
 			String encodedParams = Utility.encodeURIComponent(params);
-			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "version" + DIR_SEPARATOR + id + encodedParams + DIR_SEPARATOR + "image.png";
+			fileLocation = baseFolder + 
+					DIR_SEPARATOR + "db" + 
+					DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + 
+					DIR_SEPARATOR + "version" +
+					DIR_SEPARATOR + id + 
+					DIR_SEPARATOR + "params" + 
+					DIR_SEPARATOR + encodedParams +
+					DIR_SEPARATOR + "image.png";
 		} else {
-			fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "version" + DIR_SEPARATOR + id + DIR_SEPARATOR + "image.png";
+			fileLocation = baseFolder + 
+					DIR_SEPARATOR + "db" + 
+					DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + 
+					DIR_SEPARATOR + "version" + 
+					DIR_SEPARATOR + id + 
+					DIR_SEPARATOR + "image.png";
 		}
 		File f = new File(fileLocation);
 		if(f.exists()) {
