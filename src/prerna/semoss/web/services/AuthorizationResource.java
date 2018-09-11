@@ -163,7 +163,7 @@ public class AuthorizationResource {
 		return WebUtility.getResponse(isAdmin, 200);
 	}
 	
-	// TODO: why is this not admin!!!
+	// TODO: why is this not /admin!!!
 	@GET
 	@Path("/getAllDbUsers")
 	@Produces("application/json")
@@ -184,9 +184,44 @@ public class AuthorizationResource {
 			return WebUtility.getResponse(retMap, 400);
 		}
 
-		List<Map<String, String>> ret = adminUtils.getAllUsers(user);
+		List<Map<String, Object>> ret = adminUtils.getAllUsers(user);
 		return WebUtility.getResponse(ret, 200);
 	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("/admin/deleteUser")
+	public Response deleteUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
+		if(adminUtils == null) {
+			Map<String, String> retMap = new Hashtable<String, String>();
+			retMap.put("error", "User does not have admin priviledges");
+			return WebUtility.getResponse(retMap, 400);
+		}
+
+		String userToDelete = form.getFirst("userId");
+		boolean success = adminUtils.deleteUser(userToDelete);
+		return WebUtility.getResponse(success, 200);
+	}
+	
+	
+	/////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////
+
 	
 	/**
 	 * Get databases the user has access to
@@ -246,31 +281,6 @@ public class AuthorizationResource {
 		return WebUtility.getResponse(success, 200);
 	}
 
-	@POST
-	@Produces("application/json")
-	@Path("/admin/deleteUser")
-	public Response deleteUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		try{
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String adminId = user.getAccessToken(user.getLogins().get(0)).getId();
-			String userId = form.getFirst("userId");
-			SecurityUpdateUtils.deleteUser(adminId, userId);
-			if(adminId.equals(userId)){
-				request.getSession().invalidate();
-			}
-		} catch (IllegalArgumentException e){
-			e.printStackTrace();
-			errorRet.put("error", e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e){
-			e.printStackTrace();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(true, 200);
-	}
-	
 	@POST
 	@Produces("application/json")
 	@Path("/admin/savePermissions")
@@ -473,7 +483,7 @@ public class AuthorizationResource {
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
-			Map<String, String> userInfo = gson.fromJson(form.getFirst("user"), HashMap.class);
+			Map<String, Object> userInfo = gson.fromJson(form.getFirst("user"), HashMap.class);
 			ret = SecurityUpdateUtils.editUser(userId, userInfo);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
