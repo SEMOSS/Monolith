@@ -188,6 +188,51 @@ public class AuthorizationResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	// TODO: why is this not /admin!!!
+	/**
+	 * Edit user properties 
+	 * @param request
+	 * @param form
+	 * @return true if the edition was performed
+	 */
+	@POST
+	@Path("/editUser")
+	@Produces("application/json")
+	public Response editUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
+		if(adminUtils == null) {
+			Map<String, String> retMap = new Hashtable<String, String>();
+			retMap.put("error", "User does not have admin priviledges");
+			return WebUtility.getResponse(retMap, 400);
+		}
+		
+		Gson gson = new Gson();
+		Map<String, Object> userInfo = gson.fromJson(form.getFirst("user"), Map.class);
+		boolean ret = false;
+		try {
+			ret = adminUtils.editUser(userInfo);
+		} catch(IllegalArgumentException e) {
+			Map<String, String> retMap = new Hashtable<String, String>();
+			retMap.put("error", e.getMessage());
+			return WebUtility.getResponse(retMap, 400);
+		}
+		if(ret = false) {
+			Map<String, String> retMap = new Hashtable<String, String>();
+			retMap.put("error", "Unknown error occured with updating user. Please try again.");
+			return WebUtility.getResponse(retMap, 400);
+		}
+		return WebUtility.getResponse(ret, 200);
+	}
+	
 	@POST
 	@Produces("application/json")
 	@Path("/admin/deleteUser")
@@ -467,37 +512,6 @@ public class AuthorizationResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
-	/**
-	 * Edit user properties 
-	 * @param request
-	 * @param form
-	 * @return true if the edition was performed
-	 */
-	@POST
-	@Path("/editUser")
-	@Produces("application/json")
-	public Response editUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		boolean ret = false;
-		Gson gson = new Gson();
-		Map<String, String> errorRet = new Hashtable<String, String>();
-		try{
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
-			Map<String, Object> userInfo = gson.fromJson(form.getFirst("user"), HashMap.class);
-			ret = SecurityUpdateUtils.editUser(userId, userInfo);
-		} catch (IllegalArgumentException e){
-			e.printStackTrace();
-			errorRet.put("error", e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e){
-			e.printStackTrace();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(ret, 200);
-	}
-	
-
 	
 	@POST
 	@Produces("application/json")
