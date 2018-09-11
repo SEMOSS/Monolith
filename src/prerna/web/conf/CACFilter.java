@@ -25,8 +25,8 @@ import org.apache.log4j.Logger;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
-import prerna.auth.SecurityUpdateUtils;
 import prerna.auth.User;
+import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.util.Constants;
 
 public class CACFilter implements Filter {
