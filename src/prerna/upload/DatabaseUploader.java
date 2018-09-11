@@ -33,8 +33,8 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AuthProvider;
-import prerna.auth.SecurityUpdateUtils;
 import prerna.auth.User;
+import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.AddToMasterDB;
 import prerna.om.Insight;
