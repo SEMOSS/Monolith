@@ -17,7 +17,7 @@ import javax.ws.rs.core.Response;
 
 import com.google.gson.Gson;
 
-import prerna.auth.SecurityUpdateUtils;
+import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.web.conf.AdminStartupFilter;
 import prerna.web.services.util.WebUtility;
 
