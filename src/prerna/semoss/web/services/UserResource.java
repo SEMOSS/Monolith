@@ -27,18 +27,13 @@
  *******************************************************************************/
 package prerna.semoss.web.services;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
@@ -58,13 +53,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.message.BasicNameValuePair;
 import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
 
@@ -73,6 +61,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.io.connector.IConnectorIOp;
@@ -95,9 +84,9 @@ public class UserResource {
 	
 	private static Properties socialData = null;
 
-	private static AccessToken twitToken = null;
-	private static AccessToken googAppToken = null; 
-	
+//	private static AccessToken twitToken = null;
+//	private static AccessToken googAppToken = null; 
+
 //	private static ArrayList<String> userEmails = new ArrayList<String>();
 //	static {
 //		String whitelistPath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "/db/" + Constants.SECURITY_DB + "/" + Constants.AUTH_WHITELIST_FILE;
@@ -133,11 +122,12 @@ public class UserResource {
 				fis = new FileInputStream(f);
 				socialData.load(fis);
 
-				loginTwitterApp();
-				loginGoogleApp();
+//				loginTwitterApp();
+//				loginGoogleApp();
 				// also make the twit token and such
-				AppTokens.getInstance().setAccessToken(twitToken);
-				AppTokens.getInstance().setAccessToken(googAppToken);
+//				AppTokens.getInstance().setAccessToken(twitToken);
+//				AppTokens.getInstance().setAccessToken(googAppToken);
+				AppTokens.setSocial(socialData);
 			}
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -156,92 +146,92 @@ public class UserResource {
 		}
 	}
 	
-	private static void loginTwitterApp() throws IOException {
-		// getting the bearer token on twitter for app authentication is a lot simpler
-		// need to just combine the id and secret
-		// base 64 and send as authorization
-		
-		InputStream is = null;
-		InputStreamReader isr = null;
-		BufferedReader rd = null;
-		if(twitToken == null) {
-			try {
-				String prefix = "twitter_";
-				String clientId = "***REMOVED***";
-				String clientSecret = "***REMOVED***";
-				if(socialData.containsKey(prefix+"client_id")) {
-					clientId = socialData.getProperty(prefix+"client_id");
-				}
-				if(socialData.containsKey(prefix+"secret_key")) {
-					clientSecret = socialData.getProperty(prefix+"secret_key");
-				}
-				
-				// make a joint string
-				String jointString = clientId + ":" + clientSecret;
-
-				// encde this base 64
-				String encodedJointString = new String(Base64.getEncoder().encode(jointString.getBytes()));
-				CloseableHttpClient httpclient = HttpClients.createDefault();
-				HttpPost httppost = new HttpPost("https://api.twitter.com/oauth2/token");
-				httppost.addHeader("Authorization", "Basic " + encodedJointString);
-
-				List<NameValuePair> paramList = new ArrayList<NameValuePair>();
-				paramList.add(new BasicNameValuePair("grant_type", "client_credentials"));
-				httppost.setEntity(new UrlEncodedFormEntity(paramList));
-
-				CloseableHttpResponse authResp = httpclient.execute(httppost);
-
-				System.out.println("Response Code " + authResp.getStatusLine().getStatusCode());
-
-				is = authResp.getEntity().getContent();
-				isr = new InputStreamReader(is);
-				rd = new BufferedReader(isr);
-				StringBuffer result = new StringBuffer();
-				String line = "";
-				while ((line = rd.readLine()) != null) {
-					result.append(line);
-				}
-
-				twitToken = AbstractHttpHelper.getJAccessToken(result.toString());
-				twitToken.setProvider(AuthProvider.TWITTER);
-			} catch(Exception ex) {
-				ex.printStackTrace();
-			} finally {
-				if(is != null) {
-					try {
-						is.close();
-					} catch(IOException e) {
-						// ignore
-					}
-				}
-				if(isr != null) {
-					try {
-						isr.close();
-					} catch(IOException e) {
-						// ignore
-					}
-				}
-				if(rd != null) {
-					try {
-						rd.close();
-					} catch(IOException e) {
-						// ignore
-					}
-				}
-			}
-			System.out.println("Access Token is.. " + twitToken.getAccess_token());
-		}
-	}
-	
-	private static void loginGoogleApp() {
-		// nothing big here
-		// set the name on accesstoken
-		if(googAppToken == null) {
-			googAppToken = new AccessToken();
-			googAppToken.setAccess_token(socialData.getProperty("google_maps_api"));
-			googAppToken.setProvider(AuthProvider.GOOGLE_MAP);
-		}
-	}
+//	private static void loginTwitterApp() {
+//		// getting the bearer token on twitter for app authentication is a lot simpler
+//		// need to just combine the id and secret
+//		// base 64 and send as authorization
+//		
+//		InputStream is = null;
+//		InputStreamReader isr = null;
+//		BufferedReader rd = null;
+//		if(twitToken == null) {
+//			try {
+//				String prefix = "twitter_";
+//				String clientId = "***REMOVED***";
+//				String clientSecret = "***REMOVED***";
+//				if(socialData.containsKey(prefix+"client_id")) {
+//					clientId = socialData.getProperty(prefix+"client_id");
+//				}
+//				if(socialData.containsKey(prefix+"secret_key")) {
+//					clientSecret = socialData.getProperty(prefix+"secret_key");
+//				}
+//				
+//				// make a joint string
+//				String jointString = clientId + ":" + clientSecret;
+//
+//				// encde this base 64
+//				String encodedJointString = new String(Base64.getEncoder().encode(jointString.getBytes()));
+//				CloseableHttpClient httpclient = HttpClients.createDefault();
+//				HttpPost httppost = new HttpPost("https://api.twitter.com/oauth2/token");
+//				httppost.addHeader("Authorization", "Basic " + encodedJointString);
+//
+//				List<NameValuePair> paramList = new ArrayList<NameValuePair>();
+//				paramList.add(new BasicNameValuePair("grant_type", "client_credentials"));
+//				httppost.setEntity(new UrlEncodedFormEntity(paramList));
+//
+//				CloseableHttpResponse authResp = httpclient.execute(httppost);
+//
+//				System.out.println("Response Code " + authResp.getStatusLine().getStatusCode());
+//
+//				is = authResp.getEntity().getContent();
+//				isr = new InputStreamReader(is);
+//				rd = new BufferedReader(isr);
+//				StringBuffer result = new StringBuffer();
+//				String line = "";
+//				while ((line = rd.readLine()) != null) {
+//					result.append(line);
+//				}
+//
+//				twitToken = AbstractHttpHelper.getJAccessToken(result.toString());
+//				twitToken.setProvider(AuthProvider.TWITTER);
+//			} catch(Exception ex) {
+//				ex.printStackTrace();
+//			} finally {
+//				if(is != null) {
+//					try {
+//						is.close();
+//					} catch(IOException e) {
+//						// ignore
+//					}
+//				}
+//				if(isr != null) {
+//					try {
+//						isr.close();
+//					} catch(IOException e) {
+//						// ignore
+//					}
+//				}
+//				if(rd != null) {
+//					try {
+//						rd.close();
+//					} catch(IOException e) {
+//						// ignore
+//					}
+//				}
+//			}
+//			System.out.println("Access Token is.. " + twitToken.getAccess_token());
+//		}
+//	}
+//	
+//	private static void loginGoogleApp() {
+//		// nothing big here
+//		// set the name on accesstoken
+//		if(googAppToken == null) {
+//			googAppToken = new AccessToken();
+//			googAppToken.setAccess_token(socialData.getProperty("google_maps_api"));
+//			googAppToken.setProvider(AuthProvider.GOOGLE_MAP);
+//		}
+//	}
 
 	@GET
 	@Path("logins")
@@ -295,12 +285,12 @@ public class UserResource {
 			semossUser = (User)user;
 		} else {
 			semossUser = new User();
-			if(twitToken != null) {
-				semossUser.setGlobalAccessToken(twitToken);
-			}
-			if(googAppToken != null) {
-				semossUser.setGlobalAccessToken(googAppToken);
-			}
+//			if(twitToken != null) {
+//				semossUser.setGlobalAccessToken(twitToken);
+//			}
+//			if(googAppToken != null) {
+//				semossUser.setGlobalAccessToken(googAppToken);
+//			}
 		}
 		semossUser.setAccessToken(token);
 		request.getSession().setAttribute(Constants.SESSION_USER, semossUser);
@@ -1369,7 +1359,7 @@ public class UserResource {
 			newUser.setEmail(email);
 			newUser.setName(name);
 			newUser.setUsername(username);
-			boolean userCreated = SecurityUpdateUtils.addNativeUser(newUser, password);
+			boolean userCreated = NativeUserSecurityUtils.addNativeUser(newUser, password);
 			if(userCreated){
 				ret.put("success", "true");
 				ret.put("username", username);
