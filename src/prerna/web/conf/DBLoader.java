@@ -92,12 +92,12 @@ public class DBLoader implements ServletContextListener {
 		
 		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, securityEnabled);
 		
-		//Just load R right away to avoid synchronization issues
-		try {
-			RJavaTranslatorFactory.initRConnection();
-		} catch(Exception e) {
-			e.printStackTrace();
-		}
+//		//Just load R right away to avoid synchronization issues
+//		try {
+//			RJavaTranslatorFactory.initRConnection();
+//		} catch(Exception e) {
+//			e.printStackTrace();
+//		}
 		
 		// need to set the path
 		// important for taking the image with security
