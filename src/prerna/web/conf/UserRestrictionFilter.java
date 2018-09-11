@@ -12,8 +12,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 import prerna.auth.AccessToken;
-import prerna.auth.SecurityQueryUtils;
 import prerna.auth.User;
+import prerna.auth.utils.SecurityQueryUtils;
 import prerna.util.Constants;
 
 public class UserRestrictionFilter implements Filter {
