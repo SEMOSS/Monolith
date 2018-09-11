@@ -18,8 +18,8 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
-import prerna.auth.SecurityQueryUtils;
 import prerna.auth.User;
+import prerna.auth.utils.SecurityQueryUtils;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.Constants;
