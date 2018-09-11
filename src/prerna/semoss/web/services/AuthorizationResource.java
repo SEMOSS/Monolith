@@ -50,11 +50,11 @@ import javax.ws.rs.core.StreamingOutput;
 import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 
-import prerna.auth.AbstractSecurityUtils;
-import prerna.auth.SecurityAdminUtils;
-import prerna.auth.SecurityQueryUtils;
-import prerna.auth.SecurityUpdateUtils;
 import prerna.auth.User;
+import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityQueryUtils;
+import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 

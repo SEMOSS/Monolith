@@ -24,7 +24,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
-import prerna.auth.AbstractSecurityUtils;
+import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
