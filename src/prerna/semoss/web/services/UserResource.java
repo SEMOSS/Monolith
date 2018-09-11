@@ -1283,13 +1283,13 @@ public class UserResource {
 			String username = request.getParameter("username");
 			String password = request.getParameter("password");
 			boolean emptyCredentials = username == null || password == null || username.isEmpty() || password.isEmpty();
-			boolean canLogin = !emptyCredentials && SecurityQueryUtils.logIn(username, password);
+			boolean canLogin = !emptyCredentials && NativeUserSecurityUtils.logIn(username, password);
 			if(canLogin){
 				ret.put("success", "true");
 				ret.put("username", username);
-				String name = SecurityQueryUtils.getNameUser(username);
+				String name = NativeUserSecurityUtils.getNameUser(username);
 				ret.put("name", name);
-				String id = SecurityQueryUtils.getUserId(username);
+				String id = NativeUserSecurityUtils.getUserId(username);
 				AccessToken authToken = new AccessToken();
 				authToken.setProvider(AuthProvider.NATIVE);
 				authToken.setId(id);
