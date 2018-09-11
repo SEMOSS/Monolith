@@ -83,14 +83,17 @@ public class DBLoader implements ServletContextListener {
 		String log4jConfig = DIHelper.getInstance().getProperty("LOG4J");
 		System.out.println("Setting log4j property: " + log4jConfig);
 		PropertyConfigurator.configure(log4jConfig);
+
+		// set security enabled within DIHelper first
+		// this is because secuirty database, on init, will
+		// load it as a boolean instead of us searching within DIHelper
+		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, securityEnabled);
 		
 		//Load empty engine list into DIHelper, then load engines from db folder
 		System.out.println("Loading engines...");
 		String engines = "";
 		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engines);
 		loadEngines();
-		
-		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, securityEnabled);
 		
 //		//Just load R right away to avoid synchronization issues
 //		try {
@@ -118,6 +121,7 @@ public class DBLoader implements ServletContextListener {
 				watcherInstance.setMonitor(monitor);
 				watcherInstance.setFolderToWatch(folder);
 				watcherInstance.setExtension(ext);
+				watcherInstance.init();
 				synchronized(monitor)
 				{
 					Thread thread = new Thread(watcherInstance);
