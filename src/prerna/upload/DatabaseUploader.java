@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
@@ -139,6 +140,8 @@ public class DatabaseUploader extends Uploader {
 			options.setEngineID(dbName);
 			options.setDbName(MasterDatabaseUtility.getEngineAliasForId(dbName));
 		} else {
+			// make a new id
+			options.setEngineID(UUID.randomUUID().toString());
 			options.setDbName(Utility.makeAlphaNumeric(dbName));
 		}
 
@@ -219,6 +222,8 @@ public class DatabaseUploader extends Uploader {
 			options.setEngineID(dbName);
 			options.setDbName(MasterDatabaseUtility.getEngineAliasForId(dbName));
 		} else {
+			// make a new id
+			options.setEngineID(UUID.randomUUID().toString());
 			options.setDbName(Utility.makeAlphaNumeric(dbName));
 		}
 
