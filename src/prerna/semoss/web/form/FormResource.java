@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.TreeMap;
 
 import javax.naming.InvalidNameException;
 import javax.servlet.http.HttpServletRequest;
@@ -167,7 +168,7 @@ public class FormResource {
 			return WebUtility.getResponse(err, 400);
 		}
 		
-		Map<String, String> userAccessableInstances = new HashMap<String, String>();
+		Map<String, String> userAccessableInstances = new TreeMap<String, String>();
 
 		// map to store the valid instances for the given user
 		String query = "SELECT INSTANCE_NAME, IS_SYS_ADMIN FROM FORMS_USER_ACCESS WHERE USER_ID = '" + cacId + "';";
