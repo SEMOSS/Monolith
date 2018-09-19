@@ -19,7 +19,7 @@
       <filter-class>prerna.web.conf.CACFilter</filter-class>
       <init-param>
 			<param-name>autoAdd</param-name>
-			<param-value>true</param-value>
+			<param-value>false</param-value>
 	  </init-param>
    </filter>
    <filter-mapping>
@@ -43,6 +43,17 @@
       <filter-name>AdminStartupFilter</filter-name>
       <url-pattern>/adminconfig/*</url-pattern>
    </filter-mapping>
+   <!-- IF YOU WANT THE ADMIN TO ADD EVERY USER, UNCOMMENT BELOW --> 
+   <!-- 
+   <filter>
+      <filter-name>UserExistsFilter</filter-name>
+      <filter-class>prerna.web.conf.UserExistsFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>UserExistsFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+    -->
    
    <!--  Waffle it !! 
 	<filter>

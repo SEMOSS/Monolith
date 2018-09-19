@@ -24,9 +24,6 @@ public class NoUserExistsFilter implements Filter {
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		ServletContext context = arg0.getServletContext();
-		// this will be the full path of the request
-		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-		String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
 		
 		boolean security = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		if(security) {
@@ -48,6 +45,10 @@ public class NoUserExistsFilter implements Filter {
 					// this will be the deployment name of the app
 					String contextPath = context.getContextPath();
 					
+					// this will be the full path of the request
+					// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
+					String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
+	
 					// we redirect to the index.html page where we have pushed the admin page
 					String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length());
 					((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
