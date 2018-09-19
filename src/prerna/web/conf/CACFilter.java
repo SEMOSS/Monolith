@@ -105,7 +105,6 @@ public class CACFilter implements Filter {
 											e.printStackTrace();
 										}
 
-
 										break CERT_LOOP;
 									} else {
 										continue;
