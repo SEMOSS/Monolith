@@ -3,6 +3,7 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -13,6 +14,7 @@ import javax.naming.ldap.Rdn;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -31,9 +33,15 @@ import prerna.util.Constants;
 public class CACFilter implements Filter {
 
 	private static final Logger LOGGER = LogManager.getLogger(CACFilter.class.getName()); 
+	private static final String AUTO_ADD = "autoAdd";
+	private static Boolean autoAdd = null;
 
+	private FilterConfig filterConfig;
+	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
+		setInitParams(arg0);
+		
 		X509Certificate[] certs = (X509Certificate[]) arg0.getAttribute("javax.servlet.request.X509Certificate");
 		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 
@@ -126,7 +134,9 @@ public class CACFilter implements Filter {
 					session.setAttribute(Constants.SESSION_USER, user);
 
 					// add the user if they do not exist
-					SecurityUpdateUtils.addOAuthUser(token);
+					if(CACFilter.autoAdd) {
+						SecurityUpdateUtils.addOAuthUser(token);
+					}
 				}
 			}
 		}
@@ -142,8 +152,19 @@ public class CACFilter implements Filter {
 
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
-		// TODO Auto-generated method stub
-
+		this.filterConfig = arg0;
+	}
+	
+	private void setInitParams(ServletRequest arg0) {
+		if(CACFilter.autoAdd == null) {
+			String autoAddStr = this.filterConfig.getInitParameter(AUTO_ADD);
+			if(autoAddStr != null) {
+				CACFilter.autoAdd = Boolean.parseBoolean(autoAddStr);
+			} else {
+				// Default value is true
+				CACFilter.autoAdd = true;
+			}
+		}
 	}
 
 }
