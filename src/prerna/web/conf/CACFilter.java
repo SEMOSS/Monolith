@@ -17,7 +17,6 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.apache.log4j.LogManager;
@@ -32,7 +31,7 @@ import prerna.util.Constants;
 public class CACFilter implements Filter {
 
 	private static final Logger LOGGER = LogManager.getLogger(CACFilter.class.getName()); 
-	
+
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		X509Certificate[] certs = (X509Certificate[]) arg0.getAttribute("javax.servlet.request.X509Certificate");
@@ -40,7 +39,7 @@ public class CACFilter implements Filter {
 
 		User user = null;
 		AccessToken token = null;
-		
+
 		if(certs != null) {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 			if(user == null) {
@@ -87,7 +86,7 @@ public class CACFilter implements Filter {
 										// now set the other properties
 										token.setToken_type(cert.getIssuerDN().getName());
 										token.setExpires_in((int) cert.getNotAfter().getTime());
-										
+
 										// try to get the email
 										try {
 											EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
@@ -105,8 +104,8 @@ public class CACFilter implements Filter {
 										} catch (CertificateParsingException e) {
 											e.printStackTrace();
 										}
-										
-										
+
+
 										break CERT_LOOP;
 									} else {
 										continue;
@@ -126,23 +125,13 @@ public class CACFilter implements Filter {
 					LOGGER.info("Valid request coming from user " + token.getName());
 					user.setAccessToken(token);
 					session.setAttribute(Constants.SESSION_USER, user);
-					
+
 					// add the user if they do not exist
 					SecurityUpdateUtils.addOAuthUser(token);
 				}
 			}
 		}
-		
-		if(session.getAttribute(Constants.SESSION_USER) == null) {
-			((HttpServletResponse) arg1).setStatus(302);
 
-			String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
-			redirectUrl = redirectUrl + "#!/login";
-			((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
-			return;
-		}
-		
 		arg2.doFilter(arg0, arg1);
 	}
 
