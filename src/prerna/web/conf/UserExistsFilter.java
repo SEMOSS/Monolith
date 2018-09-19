@@ -1,10 +1,7 @@
 package prerna.web.conf;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Vector;
 
-import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletContext;
@@ -15,25 +12,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.engine.api.IEngine;
+import prerna.engine.api.IRawSelectWrapper;
+import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
+import prerna.util.Utility;
 
-public class NoUserInSessionFilter implements Filter {
-
-	protected static List<String> ignoreDueToFE = new Vector<String>();
-	static {
-		ignoreDueToFE.add("authorization/securityEnabled");
-		ignoreDueToFE.add("auth/isUserRegistrationOn");
-		ignoreDueToFE.add("auth/logins");
-		ignoreDueToFE.add("auth/loginProperties");
-		ignoreDueToFE.add("auth/login");
-		ignoreDueToFE.add("auth/createUser");
-		for(AuthProvider v : AuthProvider.values()) {
-			ignoreDueToFE.add("auth/userinfo/" +  v.toString().toLowerCase());
-			ignoreDueToFE.add("auth/login/" +  v.toString().toLowerCase());
-		}
-	}
+public class UserExistsFilter extends NoUserInSessionFilter {
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
@@ -41,18 +27,18 @@ public class NoUserInSessionFilter implements Filter {
 
 		boolean security = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		if(security) {
+			HttpSession session = ((HttpServletRequest) arg0).getSession(true);
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
+
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 			String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
 
 			// REALLY DISLIKE THIS CHECK!!!
 			if(!isIgnored(fullUrl)) {
-				// due to FE being annoying
-				// we need to push a response for this one end point
-				// since security is embedded w/ normal semoss and not standalone
-
-				HttpSession session = ((HttpServletRequest) arg0).getSession(true);
-				User user = (User) session.getAttribute(Constants.SESSION_USER);
+				// how you got here without a user, i am unsure given the other filters
+				// but just in case
+				// i will redirect you to login
 				if(user == null || user.getLogins().isEmpty()) {
 					((HttpServletResponse) arg1).setStatus(302);
 
@@ -61,6 +47,27 @@ public class NoUserInSessionFilter implements Filter {
 					((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
 					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
 					return;
+				} else {
+					// okay, need to make sure the user is a valid one
+					IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
+					String q = "SELECT * FROM USER WHERE ID='" + user.getAccessToken(user.getLogins().get(0)).getId() + "'";
+					IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
+					try {
+						boolean hasUser = wrapper.hasNext();
+
+						// this user is not registered
+						// just take them to the login page again
+						if(!hasUser) {
+							((HttpServletResponse) arg1).setStatus(302);
+							String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
+							redirectUrl = redirectUrl + "#!/login";
+							((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+							return;
+						}
+					} finally {
+						wrapper.cleanUp();
+					}
 				}
 			}
 		}
@@ -79,21 +86,4 @@ public class NoUserInSessionFilter implements Filter {
 		// TODO Auto-generated method stub
 
 	}
-
-	/**
-	 * Due to how the FE security is set up
-	 * Need to ignore some URLs :(
-	 * I REALLY DISLIKE THIS!!!
-	 * @param fullUrl
-	 * @return
-	 */
-	protected static boolean isIgnored(String fullUrl) {
-		for(String ignore : ignoreDueToFE) {
-			if(fullUrl.endsWith(ignore)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 }
