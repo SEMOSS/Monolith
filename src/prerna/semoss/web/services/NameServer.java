@@ -105,7 +105,7 @@ import prerna.web.services.util.WebUtility;
 public class NameServer {
 
 	@Context
-	private ServletContext context;
+	protected ServletContext context;
 
 	@GET
 	@Path("/sessionTimeout")
