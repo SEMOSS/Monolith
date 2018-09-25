@@ -37,7 +37,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/app-{appName}")
 public class AppResource {
 
-	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
+	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	
 	@GET
 	@Path("/appImage/download")
@@ -59,7 +59,7 @@ public class AppResource {
 	 * @param app
 	 * @return
 	 */
-	private File getAppImageFile(String app) {
+	protected File getAppImageFile(String app) {
 		String appId = MasterDatabaseUtility.testEngineIdIfAlias(app);
 		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
 		if(propFileLoc == null && !app.equals("NEWSEMOSSAPP")) {
@@ -199,7 +199,7 @@ public class AppResource {
 	 * Close a file stream
 	 * @param fis
 	 */
-	private void closeStream(FileInputStream fis) {
+	protected void closeStream(FileInputStream fis) {
 		if(fis != null) {
 			try {
 				fis.close();
