@@ -37,7 +37,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/app-{appName}")
 public class AppResource {
 
-	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
+	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	
 	@GET
 	@Path("/appImage/download")
