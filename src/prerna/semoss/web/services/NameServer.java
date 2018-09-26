@@ -288,7 +288,7 @@ public class NameServer {
 
 	@GET
 	@Path("/appImage")
-	@Produces("image/*")
+	@Produces({"image/jpeg", "image/png"})
 	public Response getAppImage(@Context HttpServletRequest request, @QueryParam("app") String app) {
 		AppResource r = new AppResource();
 		return r.downloadAppImage(request, app);
@@ -296,7 +296,7 @@ public class NameServer {
 
 	@GET
 	@Path("/insightImage")
-	@Produces("image/*")
+	@Produces({"image/jpeg", "image/png"})
 	public Response getInsightImage(@Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId, @QueryParam("params") String params) {
 		AppResource r = new AppResource();
 		return r.downloadInsightImage(request, app, insightId, params);
