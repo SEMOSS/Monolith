@@ -126,8 +126,11 @@ public abstract class Uploader extends HttpServlet {
 			// maximum file size to be uploaded.
 			upload.setSizeMax(maxFileSize);
 
+//			long start = System.currentTimeMillis();
 			// Parse the request to get file items
 			fileItems = upload.parseRequest(request);
+//			long end = System.currentTimeMillis();
+//			System.out.println("Time to create temp = " + (end - start) + "ms");
 		} catch (FileUploadException e) {
 			e.printStackTrace();
 		} catch (Exception e) {
@@ -151,7 +154,10 @@ public abstract class Uploader extends HttpServlet {
 			// Get the uploaded file parameters
 			String fieldName = fi.getFieldName();
 			String fileName = fi.getName();
-			String value = fi.getString();
+			// keep this null
+			// dont want to grab the contents of the file 
+			// and push to a string
+			String value = null;
 			if (!fi.isFormField()) {
 				if(fileName.equals("")) {
 					continue;
@@ -164,7 +170,11 @@ public abstract class Uploader extends HttpServlet {
 						String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
 						value = this.filePath + fileName.substring(fileName.lastIndexOf(DIR_SEPARATOR) + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + "_____UNIQUE" + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
 						file = new File(value);
+						
+//						long start = System.currentTimeMillis();
 						writeFile(fi, file);
+//						long end = System.currentTimeMillis();
+//						System.out.println("Time to write file = " + (end - start) + "ms");
 						LOGGER.info("File item is the actual data. Saved Filename: " + fileName + "  to "+ file);
 					}
 				}
@@ -172,8 +182,10 @@ public abstract class Uploader extends HttpServlet {
 				LOGGER.info("File item type is " + fi.getFieldName() + fi.getString());
 			}
 			//need to handle multiple files getting selected for upload
-			if(inputData.get(fieldName) != null)
-			{
+			if(value == null) {
+				value = fi.getString();
+			}
+			if(inputData.get(fieldName) != null) {
 				value = inputData.get(fieldName) + ";" + value;
 			}
 			inputData.put(fieldName, value);
