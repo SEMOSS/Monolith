@@ -36,6 +36,7 @@ import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.AppResource;
 import prerna.semoss.web.services.AuthorizationResource;
 import prerna.semoss.web.services.NameServer;
+import prerna.semoss.web.services.ServerConfigurationResource;
 import prerna.semoss.web.services.UserResource;
 
 public class MonolithApplication extends Application {
@@ -48,6 +49,7 @@ public class MonolithApplication extends Application {
       singletons.add(new AppResource());
       singletons.add(new AuthorizationResource());
       singletons.add(new FormResource());
+      singletons.add(new ServerConfigurationResource());
    }
 
    @Override
