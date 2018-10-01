@@ -23,6 +23,7 @@ public class NoUserInSessionFilter implements Filter {
 
 	protected static List<String> ignoreDueToFE = new Vector<String>();
 	static {
+		ignoreDueToFE.add("config");
 		ignoreDueToFE.add("authorization/securityEnabled");
 		ignoreDueToFE.add("auth/isUserRegistrationOn");
 		ignoreDueToFE.add("auth/logins");
