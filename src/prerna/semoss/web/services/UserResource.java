@@ -265,7 +265,11 @@ public class UserResource {
 		} else {
 			User thisUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			removed = thisUser.dropAccessToken(provider.toUpperCase());
-			request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
+			if(thisUser.getLogins().isEmpty()) {
+				request.getSession().removeAttribute(Constants.SESSION_USER);
+			} else {
+				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
+			}
 		}
 		
 		Map<String, Boolean> ret = new Hashtable<String, Boolean>();
