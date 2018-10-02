@@ -263,7 +263,7 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/logout/{provider}")
-	public Response logout(@PathParam("provider") String provider, @Context HttpServletRequest request) throws IOException {
+	public Response logout(@PathParam("provider") String provider, @Context HttpServletRequest request, @Context HttpServletResponse repsonse) throws IOException {
 		boolean removed = false;
 		if(provider.equalsIgnoreCase("ALL")) {
 			// remove the user from session call it a day
@@ -274,6 +274,17 @@ public class UserResource {
 			removed = thisUser.dropAccessToken(provider.toUpperCase());
 			if(thisUser.getLogins().isEmpty()) {
 				request.getSession().removeAttribute(Constants.SESSION_USER);
+				
+				if(AbstractSecurityUtils.securityEnabled()) {
+					// well, you have logged out and we always require a login
+					// so i will redirect you
+					repsonse.setStatus(302);
+					String redirectUrl = request.getHeader("referer");
+					redirectUrl = redirectUrl + "#!/login";
+					((HttpServletResponse) repsonse).setHeader("redirect", redirectUrl);
+					((HttpServletResponse) repsonse).sendError(302, "Need to redirect to " + redirectUrl);
+					return null;
+				}
 			} else {
 				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
 			}
