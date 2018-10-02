@@ -31,7 +31,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.HashMap;
@@ -52,11 +51,16 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
@@ -628,7 +632,7 @@ public class UserResource {
 	}
 	
 	private String getGitRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "git_";
+		String prefix = "github_";
 		String clientId = socialData.getProperty(prefix+"client_id");
 		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
 		String scope = socialData.getProperty(prefix+"scope");
@@ -1456,30 +1460,44 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("/modifyLoginProperties/{provider}")
-	public Response modifyLoginProperties(@Context HttpServletRequest request) throws IOException {	
-		OutputStream output = null;
-		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		try {
+	public synchronized Response modifyLoginProperties(@PathParam("provider") String provider, MultivaluedMap<String, String> form, @Context HttpServletRequest request) throws IOException {	
+		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			if(SecurityQueryUtils.userIsAdmin(user)){
-				String user_reg = request.getParameter("user_reg");
-				PropertiesConfiguration config = new PropertiesConfiguration(DIHelper.getInstance().getProperty("SOCIAL"));
-				socialData.setProperty("native_registration", user_reg);
-				config.setProperty("native_registration", user_reg);
-				config.save();
-			} else {
-				errorRet.put("error", "User is not allowed to perform this action.");
-				return WebUtility.getResponse(errorRet, 500);
+			if(user == null) {
+				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);	
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		} finally {
-			if (output != null) {
-				output.close();
-			} 
+			if(SecurityQueryUtils.userIsAdmin(user)){
+				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);	
+			}
 		}
+		
+		Gson gson = new Gson();
+		String modStr = form.getFirst("modifications");
+		Map<String, String> mods = gson.fromJson(modStr, new TypeToken<Map<String, String>>() {}.getType());
+		
+		PropertiesConfiguration config = null;
+		try {
+			config = new PropertiesConfiguration(DIHelper.getInstance().getProperty("SOCIAL"));
+		} catch (ConfigurationException e1) {
+			e1.printStackTrace();
+			Hashtable<String, String> errorRet = new Hashtable<String, String>();
+			errorRet.put("error", "An unexpected error happened trying to access the properties. Please try again or reach out to server admin.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		for(String mod : mods.keySet()) {
+			config.setProperty(provider + "_" + mod, mods.get(mod));
+		}
+
+		try {
+			config.save();
+		} catch (ConfigurationException e1) {
+			e1.printStackTrace();
+			Hashtable<String, String> errorRet = new Hashtable<String, String>();
+			errorRet.put("error", "An unexpected error happened when saving the new login properties. Please try again or reach out to server admin.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
 		return WebUtility.getResponse(true, 200);
 	}
 	
