@@ -1500,14 +1500,4 @@ public class UserResource {
 		
 		return WebUtility.getResponse(true, 200);
 	}
-	
-	@GET
-	@Produces("application/json")
-	@Path("/isUserRegistrationOn/")
-	@Deprecated
-	public Response isUserRegistrationOn(@Context HttpServletRequest request) throws IOException {	
-		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
-		return WebUtility.getResponse(registration, 200);	
-	}
-	
 }
