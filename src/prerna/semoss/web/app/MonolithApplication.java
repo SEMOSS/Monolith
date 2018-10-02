@@ -32,6 +32,7 @@ import java.util.Set;
 
 import javax.ws.rs.core.Application;
 
+import prerna.cluster.RawSelectWrapperService;
 import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.AppResource;
 import prerna.semoss.web.services.AuthorizationResource;
@@ -50,6 +51,7 @@ public class MonolithApplication extends Application {
       singletons.add(new AuthorizationResource());
       singletons.add(new FormResource());
       singletons.add(new ServerConfigurationResource());
+      singletons.add(new RawSelectWrapperService());
    }
 
    @Override
