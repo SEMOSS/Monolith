@@ -39,6 +39,8 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 
 import javax.servlet.http.HttpServletRequest;
@@ -61,6 +63,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
@@ -430,7 +433,7 @@ public class UserResource {
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("/userinfo/git")
+	@Path("/userinfo/github")
 	public Response userinfoGithub(@Context HttpServletRequest request) {
 		Map<String, String> ret = new Hashtable<String, String>();
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
@@ -444,7 +447,7 @@ public class UserResource {
 				ret.put("ERROR", "Log into your Github account");
 				return WebUtility.getResponse(ret, 200);
 			} else {
-				AccessToken gitToken = user.getAccessToken(AuthProvider.GIT);
+				AccessToken gitToken = user.getAccessToken(AuthProvider.GITHUB);
 				accessString=gitToken.getAccess_token();
 			}
 		} catch (Exception e) {
@@ -485,7 +488,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 
 		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
+			if(userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
 				String[] outputs = AbstractHttpHelper.getCodes(queryString);
 
 				String prefix = "sf_";
@@ -505,7 +508,7 @@ public class UserResource {
 				String url = "https://login.salesforce.com/services/oauth2/token";
 				
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
-				accessToken.setProvider(AuthProvider.SALESFORCE);
+				accessToken.setProvider(AuthProvider.SF);
 				addAccessToken(accessToken, request);
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
@@ -517,12 +520,12 @@ public class UserResource {
 				return WebUtility.getResponse(ret, 200);
 			}
 		}
-		else if(userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
+		else if(userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSFRedirect(request));
 		} 
-		else if(userObj != null && userObj.getAccessToken(AuthProvider.SALESFORCE) != null) {
+		else if(userObj != null && userObj.getAccessToken(AuthProvider.SF) != null) {
 			ret.put("success", true);
 			return WebUtility.getResponse(ret, 200);
 		}
@@ -551,8 +554,8 @@ public class UserResource {
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("/login/git")
-	public Response loginGit(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	@Path("/login/github")
+	public Response loginGithub(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -564,10 +567,10 @@ public class UserResource {
 
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || userObj.getAccessToken(AuthProvider.GIT) == null) {
+			if(userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 				String [] outputs = AbstractHttpHelper.getCodes(queryString);
 
-				String prefix = "git_";
+				String prefix = "github_";
 				String clientId = socialData.getProperty(prefix+"client_id");
 				String clientSecret = socialData.getProperty(prefix+"secret_key");
 				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
@@ -590,7 +593,7 @@ public class UserResource {
 					response.sendRedirect(getGoogleRedirect(request));
 					return null;
 				}
-				accessToken.setProvider(AuthProvider.GIT);
+				accessToken.setProvider(AuthProvider.GITHUB);
 
 				// add specific Git values
 				GHMyself myGit = GitHub.connectUsingOAuth(accessToken.getAccess_token()).getMyself();
@@ -610,13 +613,13 @@ public class UserResource {
 				return WebUtility.getResponse(ret, 200);
 			}
 		}
-		else if(userObj == null || userObj.getAccessToken(AuthProvider.GIT) == null) {
+		else if(userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGitRedirect(request));
 		} 
 		// else if user object is there and git is there
-		else if(userObj != null && userObj.getAccessToken(AuthProvider.GIT) != null)
+		else if(userObj != null && userObj.getAccessToken(AuthProvider.GITHUB) != null)
 		{
 			ret.put("success", true);
 			return WebUtility.getResponse(ret, 200);
@@ -1163,7 +1166,7 @@ public class UserResource {
 		
 		if(queryString != null && queryString.contains("code="))
 		{
-			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GIT) == null)
+			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null)
 			{
 
 			String [] outputs = AbstractHttpHelper.getCodes(queryString);
@@ -1186,7 +1189,7 @@ public class UserResource {
 			String url = "https://github.com/login/oauth/access_token";
 				
 			AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
-			accessToken.setProvider(AuthProvider.GIT);
+			accessToken.setProvider(AuthProvider.GITHUB);
 			addAccessToken(accessToken, request);
 			
 			System.out.println("Access Token is.. " + accessToken.getAccess_token());
@@ -1204,7 +1207,7 @@ public class UserResource {
 
 			}
 		}
-		else if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GIT) == null)
+		else if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null)
 		{
 			// not authenticated
 
@@ -1383,18 +1386,77 @@ public class UserResource {
 		}
 	}
 	
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+
+	/*
+	 * Setting / Getting Information from the social properties
+	 * That is needed by the FE
+	 */
+	
 	@GET
 	@Produces("application/json")
-	@Path("/isUserRegistrationOn/")
-	public Response isUserRegistrationOn(@Context HttpServletRequest request) throws IOException {	
-		boolean reg_allowed = Boolean.parseBoolean(socialData.getProperty("reg_allowed"));
-		return WebUtility.getResponse(reg_allowed, 200);	
+	@Path("/loginsAllowed/")
+	public Response loginsAllowed(@Context HttpServletRequest request) throws IOException {	
+		boolean nativeLogin = Boolean.parseBoolean(socialData.getProperty("native_login"));
+		boolean githubLogin = Boolean.parseBoolean(socialData.getProperty("github_login"));
+		boolean googleLogin = Boolean.parseBoolean(socialData.getProperty("google_login"));
+		boolean onedriveLogin = Boolean.parseBoolean(socialData.getProperty("ms_login"));
+		boolean dropboxLogin = Boolean.parseBoolean(socialData.getProperty("dropbox_login"));
+		boolean cacLogin = Boolean.parseBoolean(socialData.getProperty("cac_login"));
+		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
+		Map<String, Boolean> logins = new HashMap<>();
+		logins.put("native", nativeLogin);
+		logins.put("google", googleLogin);
+		logins.put("github", githubLogin);
+		logins.put("ms", onedriveLogin);
+		logins.put("dropbox", dropboxLogin);
+		logins.put("cac", cacLogin);
+		logins.put("registration", registration);
+		return WebUtility.getResponse(logins, 200);	
+	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("/loginProperties/")
+	public Response loginProperties(@Context HttpServletRequest request) throws IOException {
+		if(AbstractSecurityUtils.securityEnabled()) {
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+			if(user == null) {
+				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);	
+			}
+			if(SecurityQueryUtils.userIsAdmin(user)){
+				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);	
+			}
+		}
+		
+		// you have access - lets send all the info
+		
+		Map<String, Map<String, String>> loginApps = new TreeMap<String, Map<String, String>>();
+		
+		Set<String> propSet = socialData.stringPropertyNames();
+		for(String prop : propSet) {
+			String[] split =  prop.toString().split("_", 2);
+			String type = split[0];
+			String type_key = split[1];
+			
+			if(!loginApps.containsKey(type)) {
+				loginApps.put(type, new TreeMap<String, String>());
+			}
+			
+			loginApps.get(type).put(type_key, socialData.getProperty(prop).toString());
+		}
+		
+		return WebUtility.getResponse(loginApps, 200);	
 	}
 	
 	@POST
 	@Produces("application/json")
-	@Path("/setUserRegistration/")
-	public Response setUserRegistration(@Context HttpServletRequest request) throws IOException {	
+	@Path("/modifyLoginProperties/{provider}")
+	public Response modifyLoginProperties(@Context HttpServletRequest request) throws IOException {	
 		OutputStream output = null;
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try {
@@ -1402,8 +1464,8 @@ public class UserResource {
 			if(SecurityQueryUtils.userIsAdmin(user)){
 				String user_reg = request.getParameter("user_reg");
 				PropertiesConfiguration config = new PropertiesConfiguration(DIHelper.getInstance().getProperty("SOCIAL"));
-				socialData.setProperty("reg_allowed", user_reg);
-				config.setProperty("reg_allowed", user_reg);
+				socialData.setProperty("native_registration", user_reg);
+				config.setProperty("native_registration", user_reg);
 				config.save();
 			} else {
 				errorRet.put("error", "User is not allowed to perform this action.");
@@ -1423,22 +1485,11 @@ public class UserResource {
 	
 	@GET
 	@Produces("application/json")
-	@Path("/loginProperties/")
-	public Response loginProperties(@Context HttpServletRequest request) throws IOException {	
-		boolean nativeLogin = Boolean.parseBoolean(socialData.getProperty("native_login"));
-		boolean githubLogin = Boolean.parseBoolean(socialData.getProperty("github_login"));
-		boolean googleLogin = Boolean.parseBoolean(socialData.getProperty("google_login"));
-		boolean onedriveLogin = Boolean.parseBoolean(socialData.getProperty("onedrive_login"));
-		boolean dropboxLogin = Boolean.parseBoolean(socialData.getProperty("dropbox_login"));
-		boolean cacLogin = Boolean.parseBoolean(socialData.getProperty("cac_login"));
-		Map<String, Boolean> logins = new HashMap<>();
-		logins.put("native", nativeLogin);
-		logins.put("google", googleLogin);
-		logins.put("github", githubLogin);
-		logins.put("onedrive", onedriveLogin);
-		logins.put("dropbox", dropboxLogin);
-		logins.put("cac", cacLogin);
-		return WebUtility.getResponse(logins, 200);	
+	@Path("/isUserRegistrationOn/")
+	@Deprecated
+	public Response isUserRegistrationOn(@Context HttpServletRequest request) throws IOException {	
+		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
+		return WebUtility.getResponse(registration, 200);	
 	}
 	
 }
