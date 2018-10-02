@@ -84,10 +84,13 @@ public class AuthorizationResource {
 	/**
 	 * Check if the security is enabled in the application.
 	 * @return true or false
+	 * @deprecated >>>> REPLACED WITH /config endpoint
+	 * THIS IS STILL CALLED IN PLAYSHEETS SO NOT REMOVING
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("securityEnabled")
+	@Deprecated
 	public StreamingOutput isSecurityEnabled(@Context ServletContext context) {
 		return WebUtility.getSO(AbstractSecurityUtils.securityEnabled());
 	}
