@@ -27,7 +27,7 @@ public class NoUserInSessionFilter implements Filter {
 		ignoreDueToFE.add("authorization/securityEnabled");
 		ignoreDueToFE.add("auth/isUserRegistrationOn");
 		ignoreDueToFE.add("auth/logins");
-		ignoreDueToFE.add("auth/loginProperties");
+		ignoreDueToFE.add("auth/loginsAllowed");
 		ignoreDueToFE.add("auth/login");
 		ignoreDueToFE.add("auth/createUser");
 		for(AuthProvider v : AuthProvider.values()) {
