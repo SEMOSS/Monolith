@@ -118,29 +118,17 @@ public class AuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getDatabases")
-	public Response getDatabases(@Context HttpServletRequest request) {
-		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		List<Map<String, String>> ret = new ArrayList<>(); 
-		HttpSession session = request.getSession(false);
-		if(session == null){
+	public Response getUserDatabaseSettings(@Context HttpServletRequest request) {
+		User user = null;
+		try {
+			user = getUser(request);
+		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		try{
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(user.getLogins().get(0)).getId();;
-			ret = SecurityQueryUtils.getUserDatabases(userId, false);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalArgumentException e){
-			e.printStackTrace();
-			errorRet.put("error", e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		} catch (Exception e){
-			e.printStackTrace();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
+		
+		return WebUtility.getResponse(SecurityQueryUtils.getAllUserDatabaseSettings(user), 200);
 	}
 	
 	//////////////////////////////////////////////
@@ -187,7 +175,7 @@ public class AuthorizationResource {
 			return WebUtility.getResponse(retMap, 400);
 		}
 
-		List<Map<String, Object>> ret = adminUtils.getAllUsers(user);
+		List<Map<String, Object>> ret = adminUtils.getAllUsers();
 		return WebUtility.getResponse(ret, 200);
 	}
 	
@@ -279,23 +267,24 @@ public class AuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("/admin/getDatabases")
-	public Response getAdminDatabases(@Context HttpServletRequest request) {
-		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		List<Map<String, String>> ret = new ArrayList<>(); 
-		try{
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
-			ret = SecurityQueryUtils.getUserDatabases(userId, true);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalArgumentException e){
-			e.printStackTrace();
-			errorRet.put("error", e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		} catch (Exception e){
-			e.printStackTrace();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
+	public Response getAdminDatabaseSettings(@Context HttpServletRequest request) {
+		User user = null;
+		try {
+			user = getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
 		}
+		
+		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
+		if(adminUtils == null) {
+			Map<String, String> retMap = new Hashtable<String, String>();
+			retMap.put("error", "User does not have admin priviledges");
+			return WebUtility.getResponse(retMap, 400);
+		}
+		
+		return WebUtility.getResponse(adminUtils.getAllUserDatabaseSettings(), 200);
 	}
 
 	
