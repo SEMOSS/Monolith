@@ -25,7 +25,7 @@
  * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * 	GNU General Public License for more details.
  *******************************************************************************/
-package prerna.semoss.web.services;
+package prerna.semoss.web.services.local;
 
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -68,6 +68,7 @@ import prerna.sablecc2.reactor.PixelPlanner;
 import prerna.sablecc2.reactor.job.JobReactor;
 import prerna.sablecc2.reactor.legacy.playsheets.GetPlaysheetParamsReactor;
 import prerna.sablecc2.reactor.legacy.playsheets.RunPlaysheetReactor;
+import prerna.semoss.web.services.local.EngineResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
