@@ -89,7 +89,7 @@ public class CACReader {
 								String value = rdn.getValue().toString();
 
 								String[] split = value.split("\\.");
-								if(split.length == 3 || split.length == 4) {
+								if(split.length > 3) {
 									// no idea if middle name is always there or not
 									// just gonna validate the cac has length 10
 									String cacId = split[split.length-1];
