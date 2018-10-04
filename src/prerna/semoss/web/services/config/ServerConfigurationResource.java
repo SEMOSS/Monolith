@@ -1,4 +1,4 @@
-package prerna.semoss.web.services;
+package prerna.semoss.web.services.config;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,6 +11,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.semoss.web.services.config.ServerConfigurationResource;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
