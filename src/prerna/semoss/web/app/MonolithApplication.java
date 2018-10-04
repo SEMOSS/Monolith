@@ -34,11 +34,11 @@ import javax.ws.rs.core.Application;
 
 import prerna.cluster.RawSelectWrapperService;
 import prerna.semoss.web.form.FormResource;
-import prerna.semoss.web.services.AppResource;
-import prerna.semoss.web.services.AuthorizationResource;
-import prerna.semoss.web.services.NameServer;
-import prerna.semoss.web.services.ServerConfigurationResource;
-import prerna.semoss.web.services.UserResource;
+import prerna.semoss.web.services.config.ServerConfigurationResource;
+import prerna.semoss.web.services.local.AppResource;
+import prerna.semoss.web.services.local.AuthorizationResource;
+import prerna.semoss.web.services.local.NameServer;
+import prerna.semoss.web.services.local.UserResource;
 
 public class MonolithApplication extends Application {
 	

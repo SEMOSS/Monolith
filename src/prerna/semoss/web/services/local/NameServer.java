@@ -25,7 +25,7 @@
  * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * 	GNU General Public License for more details.
  *******************************************************************************/
-package prerna.semoss.web.services;
+package prerna.semoss.web.services.local;
 
 import java.io.File;
 import java.io.IOException;
@@ -88,6 +88,8 @@ import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
+import prerna.semoss.web.services.remote.CentralNameServer;
+import prerna.semoss.web.services.remote.EngineRemoteResource;
 import prerna.upload.DatabaseUploader;
 import prerna.upload.FileUploader;
 import prerna.upload.ImageUploader;

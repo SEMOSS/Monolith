@@ -25,7 +25,7 @@
  * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * 	GNU General Public License for more details.
  *******************************************************************************/
-package prerna.semoss.web.services;
+package prerna.semoss.web.services.local;
 
 import java.io.IOException;
 import java.util.ArrayList;
