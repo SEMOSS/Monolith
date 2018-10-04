@@ -14,8 +14,6 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import prerna.algorithm.api.ITableDataFrame;
-import prerna.ds.h2.H2Frame;
-import prerna.ds.r.RDataTable;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc2.om.PixelDataType;
@@ -67,18 +65,7 @@ public class UserSessionLoader implements HttpSessionListener {
 					if(nType == PixelDataType.FRAME) {
 						ITableDataFrame dm = (ITableDataFrame) noun.getValue();
 						dm.setLogger(LOGGER);
-						//TODO: expose a delete on the frame to hide this crap
-						// drop the existing tables/connections if present
-						if(dm instanceof H2Frame) {
-							H2Frame frame = (H2Frame)dm;
-							frame.dropTable();
-							if(!frame.isInMem()) {
-								frame.dropOnDiskTemporalSchema();
-							}
-						} else if(dm instanceof RDataTable) {
-							RDataTable frame = (RDataTable)dm;
-							frame.closeConnection();
-						}
+						dm.close();
 					}
 				}
 				LOGGER.info("Successfully removed all frames from insight");
