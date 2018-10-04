@@ -1,4 +1,4 @@
-package prerna.semoss.web.services;
+package prerna.semoss.web.services.config;
 
 
 import java.io.IOException;

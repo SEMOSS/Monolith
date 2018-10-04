@@ -1,4 +1,4 @@
-package prerna.semoss.web.services;
+package prerna.semoss.web.services.local;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -24,7 +24,10 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
+import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityQueryUtils;
+import prerna.engine.api.IEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
@@ -38,6 +41,39 @@ import prerna.web.services.util.WebUtility;
 public class AppResource {
 
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
+	
+	/**
+	 * Utility method to get the app only if person has access to it
+	 * @param user
+	 * @param appId
+	 * @return
+	 * @throws IllegalAccessException
+	 */
+	private IEngine getApp(User user, String appId) throws IllegalAccessException {
+		if(AbstractSecurityUtils.securityEnabled()) {
+			appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
+			if(!SecurityQueryUtils.getUserEngineIds(user).contains(appId)) {
+				throw new IllegalAccessException("App " + appId + " does not exist or user does not have access to database");
+			}
+		} else {
+			appId = MasterDatabaseUtility.testEngineIdIfAlias(appId);
+			if(!MasterDatabaseUtility.getAllEngineIds().contains(appId)) {
+				throw new IllegalAccessException("App " + appId + " does not exist");
+			}
+		}
+		
+		return Utility.getEngine(appId);
+	}
+	
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	/*
+	 * Code below is around app images and insight images
+	 */
 	
 	@GET
 	@Path("/appImage/download")
@@ -171,7 +207,7 @@ public class AppResource {
 	/////////////////////////////////////////////////////////////////
 	
 	/*
-	 * Utility methods
+	 * Image utility methods
 	 */
 	
 	/**
