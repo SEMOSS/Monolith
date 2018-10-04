@@ -3,7 +3,6 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -14,7 +13,6 @@ import javax.naming.ldap.Rdn;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -83,8 +81,9 @@ public class CACFilter implements Filter {
 
 
 								String[] split = value.split("\\.");
-								if(split.length == 3 || split.length == 4) {
-									// no idea if middle name is always there or not
+								if(split.length >= 3 ) {
+									// need to account for middle name present
+									// and any other distinction like Jr. after the last name
 									// just gonna validate the cac has length 10
 									String cacId = split[split.length-1];
 									if(cacId.length() >= 10) {
