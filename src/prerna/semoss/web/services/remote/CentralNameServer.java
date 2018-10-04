@@ -25,7 +25,7 @@
  * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * 	GNU General Public License for more details.
  *******************************************************************************/
-package prerna.semoss.web.services;
+package prerna.semoss.web.services.remote;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,6 +45,8 @@ import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import prerna.semoss.web.services.local.NameServer;
+import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;

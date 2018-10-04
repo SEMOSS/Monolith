@@ -17,12 +17,15 @@ import javax.smartcardio.CardChannel;
 import javax.smartcardio.CardTerminal;
 import javax.smartcardio.TerminalFactory;
 
+import prerna.test.TestUtilityMethods;
 import prerna.util.DIHelper;
 import sun.security.pkcs11.SunPKCS11;
 
 public class CACReader {
 
 	public static void main(String[] args) {
+		TestUtilityMethods.loadDIHelper("C:\\workspace\\Semoss_Dev\\RDF_Map.prop");
+
 		try {
 			BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 			System.out.print("Enter PIN: ");
@@ -68,17 +71,21 @@ public class CACReader {
 					X509Certificate cert0 = (X509Certificate) keyStore.getCertificate(alias.toString());
 					System.out.println("I am: " + cert0.getSubjectDN().getName());
 					System.out.println(cert0.getIssuerDN().getName());
+					for(List<?> x : cert0.getSubjectAlternativeNames()) {
+						for(Object x2 : x) {
+							System.out.println(">>>> " + x2 + " , " + x2.getClass().getName()  );
+						}
+					}
 
-					X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias.toString());
-
-					String dn = cert.getSubjectX500Principal().getName();
+					String dn = cert0.getSubjectX500Principal().getName();
 					LdapName ldapDN = new LdapName(dn);
 					for(Rdn rdn: ldapDN.getRdns()) {
 						if(rdn.getType().equals("CN")) {
 							ret = rdn.getValue().toString();
-							System.out.println(rdn.getType() + " -> " + rdn.getValue() + "\n");
+							System.out.println(rdn.getType() + " -> " + rdn.getValue());
 						}
 					}
+					System.out.println("");
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
