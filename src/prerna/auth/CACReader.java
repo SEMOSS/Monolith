@@ -6,14 +6,17 @@ import java.io.InputStreamReader;
 import java.security.KeyStore;
 import java.security.Provider;
 import java.security.Security;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
 import javax.smartcardio.Card;
-import javax.smartcardio.CardChannel;
 import javax.smartcardio.CardTerminal;
 import javax.smartcardio.TerminalFactory;
 
@@ -35,81 +38,112 @@ public class CACReader {
 			CACReader t = new CACReader();
 			
 			t.showTerminals();
-			t.getCACName(pin);
+			t.processCAC(pin);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	public String getCACName(String pin) {
-		String ret = "";
-		
+	public void processCAC(String pin) {
 		if(pin == null || pin.isEmpty()) {
-			return ret;
+			return;
 		}
 		
 		try {
-			KeyStore keyStore;
+			/*
+			 * Load the information to get the CAC data
+			 */
 			String config = "showInfo = true" 
 					+ "\nlibrary = " + DIHelper.getInstance().getProperty("BaseFolder") + "\\config\\CACauth\\opensc-pkcs11.dll"
 					+ "\nname = SmartCard";
 			SunPKCS11 providerMSCAPI = new SunPKCS11(new ByteArrayInputStream(config.getBytes("UTF-8")));
 			Provider p = providerMSCAPI;
 			Security.addProvider(p);
-	
-			System.out.println(p.getName());
 			
-			keyStore = KeyStore.getInstance("PKCS11", p);
-
+			KeyStore keyStore = KeyStore.getInstance("PKCS11", p);
 			KeyStore.PasswordProtection pp = new KeyStore.PasswordProtection(pin.toCharArray());
 			keyStore.load(null, pp.getPassword());
+			
 			System.out.println("-----------------------");
-			Enumeration xaliasesEnum = keyStore.aliases();
+			System.out.println("-----------------------");
+			System.out.println("-----------------------");
+			System.out.println("STARTING PROCESS");
+			System.out.println("-----------------------");
+			System.out.println("-----------------------");
+			System.out.println("-----------------------");
+			Enumeration<String> xaliasesEnum = keyStore.aliases();
 			while (xaliasesEnum.hasMoreElements()) {
 				Object alias = xaliasesEnum.nextElement();
 				try {
-					X509Certificate cert0 = (X509Certificate) keyStore.getCertificate(alias.toString());
-					System.out.println("I am: " + cert0.getSubjectDN().getName());
-					System.out.println(cert0.getIssuerDN().getName());
-					for(List<?> x : cert0.getSubjectAlternativeNames()) {
-						for(Object x2 : x) {
-							System.out.println(">>>> " + x2 + " , " + x2.getClass().getName()  );
-						}
-					}
+					X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias.toString());
 
-					String dn = cert0.getSubjectX500Principal().getName();
-					LdapName ldapDN = new LdapName(dn);
-					for(Rdn rdn: ldapDN.getRdns()) {
-						if(rdn.getType().equals("CN")) {
-							ret = rdn.getValue().toString();
-							System.out.println(rdn.getType() + " -> " + rdn.getValue());
+					String fullName = cert.getSubjectX500Principal().getName();
+					System.out.println("-----------------------");
+					System.out.println("PROCESSING CERT >>>");
+					System.out.println("REQUEST COMING FROM " + fullName);
+					LdapName ldapDN;
+					try {
+						ldapDN = new LdapName(fullName);
+						for(Rdn rdn: ldapDN.getRdns()) {
+							if(rdn.getType().equals("CN")) {
+								String value = rdn.getValue().toString();
+
+								String[] split = value.split("\\.");
+								if(split.length == 3 || split.length == 4) {
+									// no idea if middle name is always there or not
+									// just gonna validate the cac has length 10
+									String cacId = split[split.length-1];
+									if(cacId.length() >= 10) {
+										// valid CAC!!!
+										System.out.println("I HAVE CAC ID  :::: " +  cacId);
+										System.out.println("I HAVE NAME  :::: " +  Stream.of(split).limit(split.length-2).collect(Collectors.joining(" ")));
+										System.out.println("I HAVE TYPE  :::: " +  cert.getIssuerDN().getName());
+										System.out.println("I HAVE EXPIRATION  :::: " +  (int) cert.getNotAfter().getTime());
+
+										// try to get the email
+										try {
+											EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
+												for(Object alternative : altNames) {
+													if(alternative instanceof String) {
+														String altStr = alternative.toString();
+														// really simple email check...
+														if(altStr.contains("@")) {
+															System.out.println("I HAVE EMAIL  :::: " + altStr);
+															break EMAIL_LOOP;
+														}
+													}
+												}
+											}
+										} catch (CertificateParsingException e) {
+											e.printStackTrace();
+										}
+									} else {
+										System.out.println("IGNORE THIS VALUE  ::: " + value +  " , WITH CAC ID  :::  " + cacId);
+										continue;
+									}
+								} else {
+									System.out.println("IGNORE THIS VALUE  ::: " + value);
+									continue;
+								}
+							}
 						}
+						System.out.println("COMPLETED PROCESSING CERT >>>");
+					} catch (InvalidNameException e) {
+						System.out.println("ERROR WITH PARSING CAC INFORMATION!");
+						e.printStackTrace();
 					}
-					System.out.println("");
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
 			}
-			
-//			System.out.println("-----------------------");
-//			
-//			Enumeration<String> aliasesEnum = keyStore.aliases();
-//			if(aliasesEnum.hasMoreElements()) {
-//				String alias = (String) aliasesEnum.nextElement();
-//				System.out.println("Alias: " + alias);
-//				X509Certificate cert = (X509Certificate) keyStore.getCertificate(alias);
-//
-//				String dn = cert.getSubjectX500Principal().getName();
-//				LdapName ldapDN = new LdapName(dn);
-//				for(Rdn rdn: ldapDN.getRdns()) {
-//					System.out.println(rdn.getType() + " -> " + rdn.getValue());
-//				}
-//			}
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
 		
-		return ret;
+		System.out.println("-----------------------");
+		System.out.println("-----------------------");
+		System.out.println("-----------------------");
+		System.out.println("FINISHED PROCESS");
 	}
 	
 	public void showTerminals() {
