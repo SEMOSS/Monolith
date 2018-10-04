@@ -15,7 +15,7 @@ import javax.servlet.http.HttpServletResponse;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
-import prerna.semoss.web.services.AdminConfigService;
+import prerna.semoss.web.services.config.AdminConfigService;
 import prerna.util.Constants;
 import prerna.util.Utility;
 
