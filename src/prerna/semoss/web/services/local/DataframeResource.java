@@ -1,4 +1,4 @@
-package prerna.semoss.web.services;
+package prerna.semoss.web.services.local;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +39,7 @@ import prerna.poi.main.InsightFilesToDatabaseReader;
 import prerna.query.querystruct.selectors.IQuerySelector;
 import prerna.query.querystruct.selectors.QueryColumnSelector;
 import prerna.sablecc2.reactor.imports.FileMeta;
+import prerna.semoss.web.services.local.DataframeResource;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
