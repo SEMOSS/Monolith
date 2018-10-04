@@ -32,7 +32,7 @@ import java.util.Set;
 
 import javax.ws.rs.core.Application;
 
-import prerna.semoss.web.services.AdminConfigService;
+import prerna.semoss.web.services.config.AdminConfigService;
 
 public class AdminApplication extends Application {
 	
