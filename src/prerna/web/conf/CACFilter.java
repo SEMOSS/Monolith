@@ -81,7 +81,7 @@ public class CACFilter implements Filter {
 
 
 								String[] split = value.split("\\.");
-								if(split.length >= 3 ) {
+								if(split.length >= 3) {
 									// need to account for middle name present
 									// and any other distinction like Jr. after the last name
 									// just gonna validate the cac has length 10
