@@ -637,33 +637,33 @@ public class DatabaseUploader extends Uploader {
 						addEngineOwner(options.getEngineID(), options.getDbName(), "RDF", "", user);
 					}
 				}
-				
-				// for the above case
-				// the reactor does this already
-				try {
-					Date currDate = Calendar.getInstance().getTime();
-					SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmssZ");
-					String dateName = sdf.format(currDate);
-
-					String dbName = options.getDbName();
-					String[] fileNames = options.getFileLocations().split(";");
-					String dbLocation = SmssUtilities.getUniqueName(Utility.cleanString(dbName, true).toString(), options.getEngineID());
-					for(int i = 0; i < propFileArr.length; i++) {
-						String fileName = new File(fileNames[i]).getName().replace(".csv", "");
-						FileUtils.writeStringToFile(new File(
-								DIHelper.getInstance().getProperty("BaseFolder")
-								.concat(File.separator).concat("db").concat(File.separator)
-								.concat(dbLocation).concat(File.separator)
-								.concat(dbName.toString()).concat("_").concat(fileName)
-								.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
-					}
-				} catch (IOException e) {
-					e.printStackTrace();
-					Map<String, String> errorHash = new HashMap<String, String>();
-					errorHash.put("errorMessage", "Failure to write CSV Prop File based on user-defined metamodel.");
-					return Response.status(400).entity(gson.toJson(errorHash)).build();
-				} 
 			}
+			
+			// reactors output a json
+			// this is the old prop file format
+			try {
+				Date currDate = Calendar.getInstance().getTime();
+				SimpleDateFormat sdf = new SimpleDateFormat("yyMMddHHmmssZ");
+				String dateName = sdf.format(currDate);
+
+				String dbName = options.getDbName();
+				String[] fileNames = options.getFileLocations().split(";");
+				String dbLocation = SmssUtilities.getUniqueName(Utility.cleanString(dbName, true).toString(), options.getEngineID());
+				for(int i = 0; i < propFileArr.length; i++) {
+					String fileName = new File(fileNames[i]).getName().replace(".csv", "");
+					FileUtils.writeStringToFile(new File(
+							DIHelper.getInstance().getProperty("BaseFolder")
+							.concat(File.separator).concat("db").concat(File.separator)
+							.concat(dbLocation).concat(File.separator)
+							.concat(dbName.toString()).concat("_").concat(fileName)
+							.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+				Map<String, String> errorHash = new HashMap<String, String>();
+				errorHash.put("errorMessage", "Failure to write CSV Prop File based on user-defined metamodel.");
+				return Response.status(400).entity(gson.toJson(errorHash)).build();
+			} 
 		} catch (IOException e) {
 			e.printStackTrace();
 			Map<String, String> errorHash = new HashMap<String, String>();
