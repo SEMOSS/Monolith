@@ -31,6 +31,7 @@ import org.apache.commons.io.FileUtils;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.algorithm.api.SemossDataType;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
@@ -552,6 +553,7 @@ public class DatabaseUploader extends Uploader {
 
 			Hashtable<String, String>[] propHashArr = new Hashtable[size];
 			propFileArr = new String[size];
+			Map[] dataTypes = new Map[size];
 
 			boolean allEmpty = true;
 			for(int i = 0; i < size; i++) {
@@ -596,6 +598,7 @@ public class DatabaseUploader extends Uploader {
 				Map<String, String> additionalMods = gson.fromJson(itemForFile.get("additionalInfo"), Map.class);
 				propHashArr[i] = propWriter.getPropHash(itemForFile.get("csvStartLineCount"), itemForFile.get("csvEndLineCount"), additionalMods); 
 				propFileArr[i] = propWriter.getPropFile();
+				dataTypes[i] = propWriter.getDataTypeHash();
 			}
 			
 			// if no meta data specified, send an error
@@ -606,6 +609,8 @@ public class DatabaseUploader extends Uploader {
 			}
 			// set it in the options
 			options.setMetamodelArray(propHashArr);
+			options.setDataTypes(dataTypes);
+			
 			////////////////////// end logic to process metamodel for csv flat table //////////////////////
 
 			// run the import
@@ -706,6 +711,9 @@ public class DatabaseUploader extends Uploader {
 			// create new metamodels for the reactor 
 			// index based for each file
 			List<Map<String, Object>> newMetamodelList = createNewMetamodel(options);
+			// get property data types for each file
+			Map[] dataTypes = options.getDataTypes();
+			
 			// if importing multiple files add to existing
 			String[] inputFiles = fileLocations.split(";");
 			
@@ -742,8 +750,35 @@ public class DatabaseUploader extends Uploader {
 
 				// add metamodel
 				grs = new GenRowStruct();
-				grs.add(new NounMetadata(newMetamodelList.get(i), PixelDataType.MAP));
+				Map<String, Object> metamodel = newMetamodelList.get(i);
+				grs.add(new NounMetadata(metamodel, PixelDataType.MAP));
 				reactor.getNounStore().addNoun(ReactorKeysEnum.METAMODEL.getKey(), grs);
+
+				// add dataTypes
+				grs = new GenRowStruct();
+				Map dataTypesMap = dataTypes[i];
+				if (dataTypesMap != null) {
+					Map<String, Object> nodeMap = (Map<String, Object>) metamodel.get(Constants.NODE_PROP);
+					// add each concept as a string
+					for (String concept : nodeMap.keySet()) {
+						dataTypesMap.put(concept, SemossDataType.STRING.toString());
+					}
+					// check relationships in case concept does not have properties
+					// add missing concept as a string
+					if (metamodel.get(Constants.RELATION) != null) {
+						List<Map<String, Object>> edgeList = (List<Map<String, Object>>) metamodel.get(Constants.RELATION);
+						// process each relationship
+						for (Map relMap : edgeList) {
+							String fromConcept = (String) relMap.get(Constants.FROM_TABLE);
+							dataTypesMap.put(fromConcept, SemossDataType.STRING.toString());
+							String toConcept = (String) relMap.get(Constants.TO_TABLE);
+							dataTypesMap.put(toConcept, SemossDataType.STRING.toString());
+						}
+					}
+					
+				}
+				grs.add(new NounMetadata(dataTypesMap, PixelDataType.MAP));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.DATA_TYPE_MAP.getKey(), grs);
 
 				// add file path
 				grs = new GenRowStruct();
