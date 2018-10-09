@@ -77,6 +77,8 @@ import com.google.gson.reflect.TypeToken;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.cluster.util.AZClient;
+import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.insights.admin.DBAdminResource;
@@ -292,11 +294,27 @@ public class NameServer {
 	@GET
 	@Path("/insightImage")
 	@Produces({"image/jpeg", "image/png"})
+	// TODO >>>timb: need to add rest enpoint to pull before anything else
 	public Response getInsightImage(@Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId, @QueryParam("params") String params) {
 		AppResource r = new AppResource();
 		return r.downloadInsightImage(request, app, insightId, params);
 	}
 
+	@GET
+	@Path("/pullApp")
+	@Produces("application/json")
+	public Response pullApp(@Context HttpServletRequest request, @QueryParam("app") String app) throws IOException, InterruptedException {
+		boolean pulled = false;
+		Map<String, Object> returnMap = new HashMap<>();
+		if (ClusterUtil.IS_CLUSTER) {
+			AZClient.getInstance().pullApp(app);
+			pulled = true;
+		}
+		returnMap.put("pulled", pulled);
+		returnMap.put("success", true);
+		return WebUtility.getResponse(returnMap, 200);
+	}
+	
 	///////////////////////////////////////////////
 	///////////////////////////////////////////////
 	///////////////////////////////////////////////
