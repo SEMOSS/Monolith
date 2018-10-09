@@ -27,7 +27,9 @@
  *******************************************************************************/
 package prerna.web.conf;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
@@ -40,6 +42,10 @@ import org.quartz.SchedulerException;
 
 import com.ibm.icu.util.StringTokenizer;
 
+import prerna.auth.utils.SecurityQueryUtils;
+import prerna.cluster.util.AZClient;
+import prerna.cluster.util.ClusterUtil;
+import prerna.cluster.util.PullAppRunner;
 import prerna.engine.api.IEngine;
 import prerna.forms.AbstractFormBuilder;
 import prerna.nameserver.utility.MasterDatabaseUtility;
@@ -51,6 +57,7 @@ import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.SMSSWebWatcher;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
 
@@ -92,9 +99,9 @@ public class DBLoader implements ServletContextListener {
 		//Load empty engine list into DIHelper, then load engines from db folder
 		System.out.println("Loading engines...");
 		String engines = "";
-		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engines);
+		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engines);	
 		loadEngines();
-		
+				
 //		//Just load R right away to avoid synchronization issues
 //		try {
 //			RJavaTranslatorFactory.initRConnection();
@@ -105,6 +112,27 @@ public class DBLoader implements ServletContextListener {
 		// need to set the path
 		// important for taking the image with security
 		ImageCaptureReactor.setContextPath(contextPath);
+	}
+	
+	// TODO >>>timb: is this right?
+	// Need to pull apps when in cluster
+	// TODO >>>timb: this will need to be removed potentially when we move to rest
+	private void pullEngines(String folder) {
+		List<Map<String, Object>> retList = SecurityQueryUtils.getAllDatabaseList();
+		for (Map<String, Object> appData : retList) {
+			String appId = appData.get("app_id").toString();
+			try {
+				AZClient.getInstance().pullApp(appId);
+				String alias = MasterDatabaseUtility.getEngineAliasForId(appId);
+				SMSSWebWatcher.catalogDB(alias + "__" + appId + ".smss", folder);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	public void loadEngines() {
@@ -122,6 +150,9 @@ public class DBLoader implements ServletContextListener {
 				watcherInstance.setFolderToWatch(folder);
 				watcherInstance.setExtension(ext);
 				watcherInstance.init();
+				if (ClusterUtil.IS_CLUSTER && watcherClass.equals("prerna.util.SMSSWebWatcher")) {
+					pullEngines(folder);
+				}
 				synchronized(monitor)
 				{
 					Thread thread = new Thread(watcherInstance);
