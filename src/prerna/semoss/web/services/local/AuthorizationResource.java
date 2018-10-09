@@ -300,7 +300,7 @@ public class AuthorizationResource {
 			String newUserId = form.getFirst("userId");
 			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
 
-			if(SecurityQueryUtils.userIsAdmin(user)){
+			if(SecurityAdminUtils.userIsAdmin(user)){
 				success = SecurityUpdateUtils.registerUser(newUserId, newUserAdmin);
 			} else {
 				errorRet.put("error", "The user doesn't have the permissions to perform this action.");
