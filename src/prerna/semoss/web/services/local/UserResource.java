@@ -1455,6 +1455,11 @@ public class UserResource {
 		
 		Set<String> propSet = socialData.stringPropertyNames();
 		for(String prop : propSet) {
+			if(!prop.contains("_")) {
+				// bad format
+				// ignore
+				continue;
+			}
 			String[] split =  prop.toString().split("_", 2);
 			String type = split[0];
 			String type_key = split[1];
