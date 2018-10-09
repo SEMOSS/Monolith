@@ -300,18 +300,28 @@ public class NameServer {
 		return r.downloadInsightImage(request, app, insightId, params);
 	}
 
-	@GET
+	@POST
 	@Path("/pullApp")
 	@Produces("application/json")
-	public Response pullApp(@Context HttpServletRequest request, @QueryParam("app") String app) throws IOException, InterruptedException {
-		boolean pulled = false;
+	public Response pullApp(@Context HttpServletRequest request, @QueryParam("app") String app) {
 		Map<String, Object> returnMap = new HashMap<>();
 		if (ClusterUtil.IS_CLUSTER) {
-			AZClient.getInstance().pullApp(app);
-			pulled = true;
+			try {
+				AZClient.getInstance().pullApp(app);
+				returnMap.put("pulled", true);
+				returnMap.put("success", true);
+				returnMap.put("message", "Successfully pulled app");
+				return WebUtility.getResponse(returnMap, 200);
+			} catch (IOException | InterruptedException e) {
+				returnMap.put("pulled", false);
+				returnMap.put("success", false);
+				returnMap.put("message", "Failed to load app");
+				return WebUtility.getResponse(returnMap, 400);
+			}
 		}
-		returnMap.put("pulled", pulled);
+		returnMap.put("pulled", false);
 		returnMap.put("success", true);
+		returnMap.put("message", "App is local");
 		return WebUtility.getResponse(returnMap, 200);
 	}
 	
