@@ -63,7 +63,7 @@ public class ServerConfigurationResource {
 	@GET
 	@Path("/")
 	@Produces("application/json")
-	public Response getTimeoutValue(@Context HttpServletRequest request) {
+	public Response getServerConfig(@Context HttpServletRequest request) {
 		return WebUtility.getResponse(getConfig(request), 200);
 	}
 	
