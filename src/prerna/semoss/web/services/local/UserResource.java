@@ -69,6 +69,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.NativeUserSecurityUtils;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.io.connector.IConnectorIOp;
@@ -1443,7 +1444,7 @@ public class UserResource {
 			if(user == null) {
 				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);	
 			}
-			if(SecurityQueryUtils.userIsAdmin(user)){
+			if(!SecurityAdminUtils.userIsAdmin(user)){
 				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);	
 			}
 		}
@@ -1477,7 +1478,7 @@ public class UserResource {
 			if(user == null) {
 				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);	
 			}
-			if(SecurityQueryUtils.userIsAdmin(user)){
+			if(SecurityAdminUtils.userIsAdmin(user)){
 				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);	
 			}
 		}
