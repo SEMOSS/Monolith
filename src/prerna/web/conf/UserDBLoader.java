@@ -55,6 +55,8 @@ public class UserDBLoader implements ServletContextListener {
 
 	}
 	
+	// TODO >>>timb: need to pull dbs in here for now until we get to lazy load
+	// TODO >>>timb: or in user resource pull on login
 	private void publish()
 	{
 		Map envMap = System.getenv();
@@ -63,6 +65,8 @@ public class UserDBLoader implements ServletContextListener {
 		{
 			// we are in business
 			ZKClient client = ZKClient.getInstance();
+			// TODO >>>timb: this needs to be done with check on the env var
+			// client.publishContainer(System.getenv("hostname") + "@" + client.host);
 			client.publishContainer(client.host);
 		}
 		// else
