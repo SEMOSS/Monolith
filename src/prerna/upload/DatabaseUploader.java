@@ -66,6 +66,7 @@ import prerna.sablecc2.reactor.app.upload.gremlin.TinkerCsvUploadReactor;
 import prerna.sablecc2.reactor.app.upload.rdbms.csv.RdbmsCsvUploadReactor;
 import prerna.sablecc2.reactor.app.upload.rdbms.csv.RdbmsExternalUploadReactor;
 import prerna.sablecc2.reactor.app.upload.rdf.RdfCsvUploadReactor;
+import prerna.sablecc2.reactor.qs.source.ExternalJdbcSchemaReactor;
 import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -1096,7 +1097,7 @@ public class DatabaseUploader extends Uploader {
 			}
 			nodesAndProps.put(nodeHash.get("node") + "." + nodeHash.get("primaryKey"), props); // Table1.idTable1 -> [prop1, prop2, ...]
 		}
-		metamodel.put(Constants.NODE_PROP, nodesAndProps);
+		metamodel.put(ExternalJdbcSchemaReactor.TABLES_KEY, nodesAndProps);
 		for(Object o: relationships) {
 			HashMap<String, String> relationship = gson.fromJson(gson.toJson(o), new TypeToken<HashMap<String, String>>() {}.getType());
 			String fromTable = relationship.get("sub");
@@ -1108,7 +1109,7 @@ public class DatabaseUploader extends Uploader {
 			relMap.put(Constants.TO_TABLE, toTable);
 			nodeRelationships.add(relMap);
 		}
-		metamodel.put(Constants.RELATION, nodeRelationships);
+		metamodel.put(ExternalJdbcSchemaReactor.RELATIONS_KEY, nodeRelationships);
 		
 		HashMap<String, String> databaseOptions = gson.fromJson(gson.toJson(details.get("databaseOptions")), new TypeToken<HashMap<String, String>>() {}.getType());
 		HashMap<String, String> options = gson.fromJson(gson.toJson(details.get("options")), new TypeToken<HashMap<String, Object>>() {}.getType());
