@@ -77,8 +77,6 @@ import com.google.gson.reflect.TypeToken;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.cluster.util.AZClient;
-import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.insights.admin.DBAdminResource;
@@ -298,31 +296,6 @@ public class NameServer {
 	public Response getInsightImage(@Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId, @QueryParam("params") String params) {
 		AppResource r = new AppResource();
 		return r.downloadInsightImage(request, app, insightId, params);
-	}
-
-	@POST
-	@Path("/pullApp")
-	@Produces("application/json")
-	public Response pullApp(@Context HttpServletRequest request, @QueryParam("app") String app) {
-		Map<String, Object> returnMap = new HashMap<>();
-		if (ClusterUtil.IS_CLUSTER) {
-			try {
-				AZClient.getInstance().pullApp(app);
-				returnMap.put("pulled", true);
-				returnMap.put("success", true);
-				returnMap.put("message", "Successfully pulled app");
-				return WebUtility.getResponse(returnMap, 200);
-			} catch (IOException | InterruptedException e) {
-				returnMap.put("pulled", false);
-				returnMap.put("success", false);
-				returnMap.put("message", "Failed to load app");
-				return WebUtility.getResponse(returnMap, 400);
-			}
-		}
-		returnMap.put("pulled", false);
-		returnMap.put("success", true);
-		returnMap.put("message", "App is local");
-		return WebUtility.getResponse(returnMap, 200);
 	}
 	
 	///////////////////////////////////////////////
