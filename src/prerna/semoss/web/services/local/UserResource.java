@@ -124,6 +124,10 @@ public class UserResource {
 //	}
 	
 	static {
+		loadSocialProperties();
+	}
+	
+	private static void loadSocialProperties() {
 		FileInputStream fis = null;
 		File f = new File(DIHelper.getInstance().getProperty("SOCIAL"));
 		try {
@@ -1510,6 +1514,7 @@ public class UserResource {
 
 		try {
 			config.save();
+			loadSocialProperties();
 		} catch (ConfigurationException e1) {
 			e1.printStackTrace();
 			Hashtable<String, String> errorRet = new Hashtable<String, String>();
