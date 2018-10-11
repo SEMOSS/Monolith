@@ -2465,11 +2465,6 @@
 		</dependency-->
 		<!-- sql database connectors -->
 		<dependency>
-			<groupId>org.mariadb.jdbc</groupId>
-			<artifactId>mariadb-java-client</artifactId>
-			<version>1.1.7</version>
-		</dependency>
-		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
 			<version>1.4.195</version>
@@ -2826,6 +2821,16 @@
 		    <groupId>org.seleniumhq.selenium</groupId>
 		    <artifactId>selenium-java</artifactId>
 		    <version>3.4.0</version>
+		    <exclusions>
+				<exclusion>
+					<groupId>net.java.dev.jna</groupId>
+					<artifactId>jna</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>net.java.dev.jna</groupId>
+					<artifactId>jna-platform</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 			<dependency>
 		    <groupId>net.lingala.zip4j</groupId>
@@ -2836,6 +2841,16 @@
 		    <groupId>org.apache.jclouds</groupId>
 		    <artifactId>jclouds-all</artifactId>
 		    <version>2.1.0</version>
+		    <exclusions>
+				<exclusion>
+					<groupId>net.java.dev.jna</groupId>
+					<artifactId>jna</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>net.java.dev.jna</groupId>
+					<artifactId>jna-platform</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 		    <groupId>io.minio</groupId>
