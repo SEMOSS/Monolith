@@ -161,7 +161,7 @@
    <context-param>
       <description>Location to store uploaded file</description>
       <param-name>file-upload</param-name>
-      <param-value>C:\\workspace\\Semoss\\</param-value>
+      <param-value>C:\\workspace\\Semoss_Dev\\</param-value>
    </context-param>
    <context-param>
       <description>Temporary - Location to store uploaded file</description>
@@ -171,7 +171,7 @@
    <context-param>
       <description>The place where the core RDF Map gets picked from</description>
       <param-name>RDF-MAP</param-name>
-      <param-value>C:\\workspace\\Semoss\\RDF_Map.prop</param-value>
+      <param-value>C:\\workspace\\Semoss_Dev\\RDF_Map.prop</param-value>
    </context-param>  
    <!-- listeners -->
    <listener>
