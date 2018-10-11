@@ -33,6 +33,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.security.Principal;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
@@ -61,6 +62,8 @@ import org.kohsuke.github.GitHub;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.sun.jna.platform.win32.Secur32;
+import com.sun.jna.platform.win32.Secur32Util;
 
 import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
@@ -70,7 +73,6 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.io.connector.IConnectorIOp;
 import prerna.io.connector.google.GoogleEntityResolver;
@@ -86,6 +88,7 @@ import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
+import waffle.servlet.WindowsPrincipal;
 
 @Path("/auth")
 public class UserResource {
@@ -1516,5 +1519,26 @@ public class UserResource {
 		}
 		
 		return WebUtility.getResponse(true, 200);
+	}
+	
+	
+	@GET
+	@Produces("text/plain")
+	@Path("/whoami")
+	public Response show(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+		HttpSession session = request.getSession();
+		System.err.println(" came into user resource");
+		Principal principal = request.getUserPrincipal();
+		String output = "";
+		output = request.getRemoteUser() + "\n" + request.getUserPrincipal().getName() + "\n";
+		output = output + "Session " + request.getSession().getId() + "\n";
+		output = output + "Impersonation " + Secur32Util.getUserNameEx(Secur32.EXTENDED_NAME_FORMAT.NameSamCompatible);
+		if (principal instanceof WindowsPrincipal) {
+			WindowsPrincipal windowsPrincipal = (WindowsPrincipal) principal;
+			for(waffle.windows.auth.WindowsAccount account : windowsPrincipal.getGroups().values()) {
+				output = output + account.getFqn() + account.getSidString() + "\n";
+			}
+		}
+		return WebUtility.getResponse(output, 200);
 	}
 }
