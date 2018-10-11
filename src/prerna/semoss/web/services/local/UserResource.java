@@ -42,6 +42,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -62,8 +63,6 @@ import org.kohsuke.github.GitHub;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.sun.jna.platform.win32.Secur32;
-import com.sun.jna.platform.win32.Secur32Util;
 
 import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
@@ -1526,18 +1525,21 @@ public class UserResource {
 	@Produces("text/plain")
 	@Path("/whoami")
 	public Response show(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		HttpSession session = request.getSession();
-		System.err.println(" came into user resource");
 		Principal principal = request.getUserPrincipal();
-		String output = "";
-		output = request.getRemoteUser() + "\n" + request.getUserPrincipal().getName() + "\n";
-		output = output + "Session " + request.getSession().getId() + "\n";
-		output = output + "Impersonation " + Secur32Util.getUserNameEx(Secur32.EXTENDED_NAME_FORMAT.NameSamCompatible);
+		Map<String, Object> output = new HashMap<String, Object>();
+		output.put("name", principal.getName());
 		if (principal instanceof WindowsPrincipal) {
 			WindowsPrincipal windowsPrincipal = (WindowsPrincipal) principal;
+			List<Map<String, Object>> gropus = new Vector<Map<String, Object>>();
 			for(waffle.windows.auth.WindowsAccount account : windowsPrincipal.getGroups().values()) {
-				output = output + account.getFqn() + account.getSidString() + "\n";
+				Map<String, Object> m = new HashMap<String, Object>();
+				m.put("name", account.getName());
+				m.put("domain", account.getDomain());
+				m.put("fqn", account.getFqn());
+				m.put("sid", account.getSidString());
+				gropus.add(m);
 			}
+			output.put("groups", gropus);
 		}
 		return WebUtility.getResponse(output, 200);
 	}
