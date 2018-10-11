@@ -26,6 +26,70 @@
       <filter-name>CACFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
+
+   <!-- WAFFLE IT -->
+   <!--
+   <filter>
+      <filter-name>SecurityFilter</filter-name>
+      <filter-class>waffle.servlet.NegotiateSecurityFilter</filter-class>
+      <init-param>
+         <param-name>principalFormat</param-name>
+         <param-value>fqn</param-value>
+      </init-param>
+      <init-param>
+         <param-name>roleFormat</param-name>
+         <param-value>both</param-value>
+      </init-param>
+      <init-param>
+         <param-name>allowGuestLogin</param-name>
+         <param-value>true</param-value>
+      </init-param>
+      <init-param>
+         <param-name>impersonate</param-name>
+         <param-value>true</param-value>
+      </init-param>
+      <init-param>
+         <param-name>securityFilterProviders</param-name>
+         <param-value>
+            waffle.servlet.spi.BasicSecurityFilterProvider
+            waffle.servlet.spi.NegotiateSecurityFilterProvider
+         </param-value>
+      </init-param>
+      <init-param>
+         <param-name>securityFilterProviders</param-name>
+         <param-value>
+            waffle.servlet.spi.BasicSecurityFilterProvider
+            waffle.servlet.spi.NegotiateSecurityFilterProvider
+         </param-value>
+      </init-param>
+      <init-param>
+         <param-name>waffle.servlet.spi.NegotiateSecurityFilterProvider/protocols
+         </param-name>
+         <param-value>
+            Negotiate
+            NTLM
+         </param-value>
+      </init-param>
+   </filter>
+   <filter-mapping>
+      <filter-name>SecurityFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+   <filter>
+      <filter-name>WaffleFilter</filter-name>
+      <filter-class>prerna.web.conf.WaffleFilter</filter-class>
+      <init-param>
+			<param-name>autoAdd</param-name>
+			<param-value>true</param-value>
+	  </init-param>
+   </filter>
+   <filter-mapping>
+      <filter-name>WaffleFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+   -->
+   <!-- End Waffle -->
+
    <filter>
       <filter-name>NoUserInSessionFilter</filter-name>
       <filter-class>prerna.web.conf.NoUserInSessionFilter</filter-class>
@@ -54,60 +118,6 @@
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
     -->
-   
-   <!--  Waffle it !! 
-	<filter>
-		<filter-name>SecurityFilter</filter-name>
-		<filter-class>waffle.servlet.NegotiateSecurityFilter</filter-class>
-		<init-param>
-			<param-name>principalFormat</param-name>
-			<param-value>fqn</param-value>
-		</init-param>
-		<init-param>
-			<param-name>roleFormat</param-name>
-			<param-value>both</param-value>
-		</init-param>
-		<init-param>
-			<param-name>allowGuestLogin</param-name>
-			<param-value>true</param-value>
-		</init-param>
-		<init-param>
-			<param-name>impersonate</param-name>
-			<param-value>true</param-value>
-		</init-param>
-		<init-param>
-			<param-name>securityFilterProviders</param-name>
-			<param-value>
-	          waffle.servlet.spi.BasicSecurityFilterProvider
-	          waffle.servlet.spi.NegotiateSecurityFilterProvider
-	      </param-value>
-		</init-param>
-		<init-param>
-			<param-name>securityFilterProviders</param-name>
-			<param-value>
-	          waffle.servlet.spi.BasicSecurityFilterProvider
-	          waffle.servlet.spi.NegotiateSecurityFilterProvider
-	      </param-value>
-		</init-param>
-		<init-param>
-			<param-name>waffle.servlet.spi.NegotiateSecurityFilterProvider/protocols</param-name>
-			<param-value>
-	          Negotiate
-	          NTLM
-	      </param-value>
-		</init-param>
-	</filter>
-	<filter-mapping>
-		<filter-name>SecurityFilter</filter-name>
-		<url-pattern>/*</url-pattern>
-	</filter-mapping>
-	End Waffle -->
-	<!--
-   <absolute-ordering>
-      <name>UserDBInsightFilter</name>
-      <name>UserDBFilter</name>
-   </absolute-ordering>
-   -->
    
    <!-- servlets -->
    <servlet>
@@ -146,12 +156,12 @@
    </context-param>
    <context-param>
       <param-name>security-enabled</param-name>
-      <param-value>false</param-value>
+      <param-value>true</param-value>
    </context-param>
    <context-param>
       <description>Location to store uploaded file</description>
       <param-name>file-upload</param-name>
-      <param-value>C:\\workspace\\Semoss_Dev\\</param-value>
+      <param-value>C:\\workspace\\Semoss\\</param-value>
    </context-param>
    <context-param>
       <description>Temporary - Location to store uploaded file</description>
@@ -161,7 +171,7 @@
    <context-param>
       <description>The place where the core RDF Map gets picked from</description>
       <param-name>RDF-MAP</param-name>
-      <param-value>C:\\workspace\\Semoss_Dev\\RDF_Map.prop</param-value>
+      <param-value>C:\\workspace\\Semoss\\RDF_Map.prop</param-value>
    </context-param>  
    <!-- listeners -->
    <listener>
