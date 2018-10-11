@@ -1485,7 +1485,7 @@ public class UserResource {
 			if(user == null) {
 				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);	
 			}
-			if(SecurityAdminUtils.userIsAdmin(user)){
+			if(!SecurityAdminUtils.userIsAdmin(user)){
 				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);	
 			}
 		}
@@ -1522,7 +1522,7 @@ public class UserResource {
 	
 	
 	@GET
-	@Produces("text/plain")
+	@Produces("application/json")
 	@Path("/whoami")
 	public Response show(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Principal principal = request.getUserPrincipal();
