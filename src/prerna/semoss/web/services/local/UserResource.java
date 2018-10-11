@@ -131,7 +131,7 @@ public class UserResource {
 		FileInputStream fis = null;
 		File f = new File(DIHelper.getInstance().getProperty("SOCIAL"));
 		try {
-			if(socialData == null && f.exists()) {
+			if(f.exists()) {
 				socialData = new Properties();
 				fis = new FileInputStream(f);
 				socialData.load(fis);
