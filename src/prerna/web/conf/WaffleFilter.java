@@ -30,22 +30,18 @@ public class WaffleFilter implements Filter {
 		setInitParams(arg0);
 		
 		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
-
 		Principal principal = ((HttpServletRequest) arg0).getUserPrincipal();
 		String id = principal.getName();
 		String name = id.substring(id.lastIndexOf('\\')+1);
 		
-		AccessToken token = null;
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
 		if(user == null) {
 			user = new User();
 
-			token = new AccessToken();
+			AccessToken token = new AccessToken();
 			token.setProvider(AuthProvider.WINDOWS_USER);
-		
 			token.setId(id);
 			token.setName(name);
-			
 			// add the user if they do not exist
 			if(WaffleFilter.autoAdd) {
 				SecurityUpdateUtils.addOAuthUser(token);
