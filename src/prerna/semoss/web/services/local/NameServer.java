@@ -283,7 +283,7 @@ public class NameServer {
 
 	@GET
 	@Path("/appImage")
-	@Produces({"image/jpeg", "image/png"})
+	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response getAppImage(@Context HttpServletRequest request, @QueryParam("app") String app) {
 		AppResource r = new AppResource();
 		return r.downloadAppImage(request, app);
@@ -291,7 +291,7 @@ public class NameServer {
 
 	@GET
 	@Path("/insightImage")
-	@Produces({"image/jpeg", "image/png"})
+	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	// TODO >>>timb: need to add rest enpoint to pull before anything else
 	public Response getInsightImage(@Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId, @QueryParam("params") String params) {
 		AppResource r = new AppResource();

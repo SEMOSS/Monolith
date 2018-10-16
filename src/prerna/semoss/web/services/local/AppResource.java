@@ -77,7 +77,7 @@ public class AppResource {
 	
 	@GET
 	@Path("/appImage/download")
-	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response downloadAppImage(@Context HttpServletRequest request, @PathParam("appName") String app) {
 		File exportFile = getAppImageFile(app);
 		if(exportFile != null && exportFile.exists()) {
@@ -127,7 +127,7 @@ public class AppResource {
 	
 	@GET
 	@Path("/insightImage/download")
-	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response downloadInsightImage(@Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
 		boolean securityEnabled = Boolean.parseBoolean((String)DIHelper.getInstance().getLocalProp(Constants.SECURITY_ENABLED));
 		String sessionId = null;
@@ -158,7 +158,7 @@ public class AppResource {
 		app = prop.getProperty(Constants.ENGINE_ALIAS);
 		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = "";
+		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "version";
 		if(params != null && !params.isEmpty() && !params.equals("undefined")) {
 			String encodedParams = Utility.encodeURIComponent(params);
 			fileLocation = baseFolder + 
@@ -167,18 +167,16 @@ public class AppResource {
 					DIR_SEPARATOR + "version" +
 					DIR_SEPARATOR + id + 
 					DIR_SEPARATOR + "params" + 
-					DIR_SEPARATOR + encodedParams +
-					DIR_SEPARATOR + "image.png";
+					DIR_SEPARATOR + encodedParams;
 		} else {
 			fileLocation = baseFolder + 
 					DIR_SEPARATOR + "db" + 
 					DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + 
 					DIR_SEPARATOR + "version" + 
-					DIR_SEPARATOR + id + 
-					DIR_SEPARATOR + "image.png";
-		}
-		File f = new File(fileLocation);
-		if(f.exists()) {
+					DIR_SEPARATOR + id;
+			}
+		File f = findImageFile(fileLocation);
+		if(f != null && f.exists()) {
 			return f;
 		} else {
 			// try making the image
@@ -194,7 +192,7 @@ public class AppResource {
 					return f;
 				}
 			}
-			if(f.exists()) {
+			if(f != null && f.exists()) {
 				return f;
 			} else {
 				// return stock image
