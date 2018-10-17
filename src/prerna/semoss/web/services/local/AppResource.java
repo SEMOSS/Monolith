@@ -27,6 +27,7 @@ import org.apache.commons.io.filefilter.WildcardFileFilter;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
@@ -180,16 +181,18 @@ public class AppResource {
 			return f;
 		} else {
 			// try making the image
-			if(feUrl != null) {
-				try {
-					ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
-				}
-				catch(Exception | NoSuchMethodError er) {
-					//Image Capture will not run. No image exists nor will be made. The exception kills the rest.
-					// return stock image
-					er.printStackTrace();
-					f = AbstractSecurityUtils.getStockImage(appId, id);
-					return f;
+			if (!ClusterUtil.IS_CLUSTER) {
+				if(feUrl != null) {
+					try {
+						ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
+					}
+					catch(Exception | NoSuchMethodError er) {
+						//Image Capture will not run. No image exists nor will be made. The exception kills the rest.
+						// return stock image
+						er.printStackTrace();
+						f = AbstractSecurityUtils.getStockImage(appId, id);
+						return f;
+					}
 				}
 			}
 			if(f != null && f.exists()) {
