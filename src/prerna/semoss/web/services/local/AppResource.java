@@ -162,20 +162,13 @@ public class AppResource {
 		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "version";
 		if(params != null && !params.isEmpty() && !params.equals("undefined")) {
 			String encodedParams = Utility.encodeURIComponent(params);
-			fileLocation = baseFolder + 
-					DIR_SEPARATOR + "db" + 
-					DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + 
-					DIR_SEPARATOR + "version" +
+			fileLocation = fileLocation + 
 					DIR_SEPARATOR + id + 
 					DIR_SEPARATOR + "params" + 
 					DIR_SEPARATOR + encodedParams;
 		} else {
-			fileLocation = baseFolder + 
-					DIR_SEPARATOR + "db" + 
-					DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + 
-					DIR_SEPARATOR + "version" + 
-					DIR_SEPARATOR + id;
-			}
+			fileLocation = fileLocation + DIR_SEPARATOR + id;
+		}
 		File f = findImageFile(fileLocation);
 		if(f != null && f.exists()) {
 			return f;
@@ -195,6 +188,9 @@ public class AppResource {
 					}
 				}
 			}
+			// the image capture ran
+			// let us try to see if there is a file now...
+			f = findImageFile(fileLocation);
 			if(f != null && f.exists()) {
 				return f;
 			} else {
