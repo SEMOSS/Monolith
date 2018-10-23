@@ -534,22 +534,15 @@ public class UserResource {
 				addAccessToken(accessToken, request);
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
-				ret.put("success", true);
-				return WebUtility.getResponse(ret, 200);
-			} else {
-				ret.put("success", true);
-				ret.put("Already_Authenticated", true);
-				return WebUtility.getResponse(ret, 200);
 			}
 		}
-		else if(userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
+		
+		if(userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSFRedirect(request));
-		} 
-		else if(userObj != null && userObj.getAccessToken(AuthProvider.SF) != null) {
-			ret.put("success", true);
-			return WebUtility.getResponse(ret, 200);
+		} else {
+			setMainPageRedirect(response);
 		}
 		return null;
 	}
@@ -627,24 +620,15 @@ public class UserResource {
 				addAccessToken(accessToken, request);
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
-				ret.put("success", true);
-				return WebUtility.getResponse(ret, 200);
-			} else {
-				ret.put("success", true);
-				ret.put("Already_Authenticated", true);
-				return WebUtility.getResponse(ret, 200);
 			}
 		}
-		else if(userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
+		
+		if(userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGitRedirect(request));
-		} 
-		// else if user object is there and git is there
-		else if(userObj != null && userObj.getAccessToken(AuthProvider.GITHUB) != null)
-		{
-			ret.put("success", true);
-			return WebUtility.getResponse(ret, 200);
+		} else {
+			setMainPageRedirect(response);
 		}
 		return null;
 	}
@@ -719,25 +703,17 @@ public class UserResource {
 				addAccessToken(accessToken, request);
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
-
-				ret.put("success", true);
-				return WebUtility.getResponse(ret, 200);
-			} else {
-				ret.put("success", true);
-				ret.put("Already_Authenticated", true);
-				return WebUtility.getResponse(ret, 200);
 			}
-		} else if(userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
+		}
+		
+		if(userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getMSRedirect(request));
 		}
-		// else if user object is there and ms is there
-		else if(userObj != null && userObj.getAccessToken(AuthProvider.MS) != null) {
-			ret.put("success", true);
-			return WebUtility.getResponse(ret, 200);
-		}
-
+		// at this point, you are authenticated
+		// redirect to main page
+		setMainPageRedirect(response);
 		return null;
 	}
 	
@@ -803,23 +779,15 @@ public class UserResource {
 				addAccessToken(accessToken, request);
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());			
-				ret.put("success", true);
-				return WebUtility.getResponse(ret, 200);
-			} else {
-				ret.put("success", true);
-				ret.put("Already_Authenticated", true);
-				return WebUtility.getResponse(ret, 200);
 			}
 		}
-		else if(userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
+		
+		if(userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getDBRedirect(request));
-		}
-		// else if user object is there and dropbox is there
-		else if(userObj != null && userObj.getAccessToken(AuthProvider.DROPBOX) != null) {
-			ret.put("success", true);
-			return WebUtility.getResponse(ret, 200);
+		} else {
+			setMainPageRedirect(response);
 		}
 		return null;
 	}
@@ -879,6 +847,7 @@ public class UserResource {
 	
 				String url = "https://www.googleapis.com/oauth2/v4/token";
 				
+				//https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
 				if(accessToken == null) {
 					// not authenticated
@@ -886,40 +855,29 @@ public class UserResource {
 					response.sendRedirect(getGoogleRedirect(request));
 					return null;
 				}
-				//https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
-				// Shows how to make a google credential from an access token
-				System.out.println("Access Token is.. " + accessToken.getAccess_token());
 				accessToken.setProvider(AuthProvider.GOOGLE);
 
 				// fill the access token with the other properties so we can properly create the user
 				GoogleProfile.fillAccessToken(accessToken, null);
 				addAccessToken(accessToken, request);
 				
+				// Shows how to make a google credential from an access token
+				System.out.println("Access Token is.. " + accessToken.getAccess_token());
+				
 				// this is just for testing...
 				// but i will get yelled at if i remove it so here it is...
 				// TODO: adding this todo to easily locate it
 //				performGoogleOps(request, ret);
-			} else {
-				ret.put("success", true);
-				ret.put("Already_Authenticated", true);
-				return WebUtility.getResponse(ret, 200);
 			}
-			
-			ret.put("success", true);
-			return WebUtility.getResponse(ret, 200);
 		}
 		// else if the user object is there, but there is no google
-		else if(userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
+		if(userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGoogleRedirect(request));
+		} else {
+			setMainPageRedirect(response);
 		}
-		// else if user object is there and google is there
-		else if(userObj != null && userObj.getAccessToken(AuthProvider.GOOGLE) != null) {
-			ret.put("success", true);
-			return WebUtility.getResponse(ret, 200);
-		}
-		
 		return null;
 	}
 	
@@ -1042,18 +1000,14 @@ public class UserResource {
 				addAccessToken(accessToken, request);
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());			
-				ret.put("success", true);
-				return WebUtility.getResponse(ret, 200);
-			} else {
-				ret.put("success", true);
-				ret.put("Already_Authenticated", true);
-				return WebUtility.getResponse(ret, 200);
 			}
-		}
-		else if(userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null)
-		{
+		} 
+		
+		if(userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getProducthuntRedirect(request));
+		} else {
+			setMainPageRedirect(response);
 		}
 		return null;
 	}
@@ -1117,18 +1071,13 @@ public class UserResource {
 				addAccessToken(accessToken, request);
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
-
-				ret.put("success", true);
-				return WebUtility.getResponse(ret, 200);
-			} else {
-				ret.put("success", true);
-				ret.put("Already_Authenticated", true);
-				return WebUtility.getResponse(ret, 200);
 			}
-		}
+		} 
 		else if(userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getInRedirect(request));
+		} else {
+			setMainPageRedirect(response);
 		}
 		return null;
 	}
@@ -1186,55 +1135,41 @@ public class UserResource {
 		//https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
 		String queryString = request.getQueryString();
 		
-		if(queryString != null && queryString.contains("code="))
-		{
-			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null)
-			{
+		if(queryString != null && queryString.contains("code=")) {
+			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null) {
 
-			String [] outputs = AbstractHttpHelper.getCodes(queryString);
-			
-			String prefix = "git_";
-			
-			String clientId = socialData.getProperty(prefix+"client_id");
-			String clientSecret = socialData.getProperty(prefix+"secret_key");
-			String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-			
-			System.out.println(">> " + request.getQueryString());
-			
-			Hashtable params = new Hashtable();
-			params.put("client_id", clientId);
-			params.put("redirect_uri", redirectUri);
-			params.put("code", outputs[0]);
-			params.put("state", outputs[1]);
-			params.put("client_secret", clientSecret);
+				String [] outputs = AbstractHttpHelper.getCodes(queryString);
 
-			String url = "https://github.com/login/oauth/access_token";
-				
-			AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
-			accessToken.setProvider(AuthProvider.GITHUB);
-			addAccessToken(accessToken, request);
-			
-			System.out.println("Access Token is.. " + accessToken.getAccess_token());
-			
-			ret.put("success", true);
-	//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
-			return WebUtility.getResponse(ret, 200);
-			}
-			else
-			{
-				ret.put("success", true);
-				ret.put("Already_Authenticated", true);
-				//		return Response.status(200).entity(WebUtility.getSO(ret)).build();
-				return WebUtility.getResponse(ret, 200);
+				String prefix = "git_";
 
+				String clientId = socialData.getProperty(prefix+"client_id");
+				String clientSecret = socialData.getProperty(prefix+"secret_key");
+				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
+
+				System.out.println(">> " + request.getQueryString());
+
+				Hashtable params = new Hashtable();
+				params.put("client_id", clientId);
+				params.put("redirect_uri", redirectUri);
+				params.put("code", outputs[0]);
+				params.put("state", outputs[1]);
+				params.put("client_secret", clientSecret);
+
+				String url = "https://github.com/login/oauth/access_token";
+
+				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
+				accessToken.setProvider(AuthProvider.GITHUB);
+				addAccessToken(accessToken, request);
+
+				System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
-		else if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null)
-		{
+		else if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
-
 			response.setStatus(302);
 			response.sendRedirect(getGitRedirect(request));
+		} else {
+			setMainPageRedirect(response);
 		}
 		return null;
 	}
@@ -1523,6 +1458,19 @@ public class UserResource {
 		}
 		
 		return WebUtility.getResponse(true, 200);
+	}
+	
+	/**
+	 * Redirect the login back to the main app page
+	 * @param response
+	 */
+	private void setMainPageRedirect(@Context HttpServletResponse response) {
+		response.setStatus(302);
+		try {
+			response.sendRedirect(socialData.getProperty("redirect"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	
