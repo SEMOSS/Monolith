@@ -77,9 +77,14 @@ public class FormResource {
         
 		IEngine formEngine = getEngine();
         // execute the query
-		formEngine.insertData(query);
-    	// commit to engine
-		formEngine.commit();
+		try {
+			formEngine.insertData(query);
+			// commit to engine
+			formEngine.commit();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return WebUtility.getResponse("An error occured to update the user's access!", 400);
+		}
     	
 		return WebUtility.getResponse("success", 200);
 	}
