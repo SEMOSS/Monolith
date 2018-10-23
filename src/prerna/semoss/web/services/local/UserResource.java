@@ -536,7 +536,9 @@ public class UserResource {
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
-		
+
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if(userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -623,6 +625,8 @@ public class UserResource {
 			}
 		}
 		
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if(userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -706,6 +710,8 @@ public class UserResource {
 			}
 		}
 		
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if(userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -782,6 +788,8 @@ public class UserResource {
 			}
 		}
 		
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if(userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -870,7 +878,9 @@ public class UserResource {
 //				performGoogleOps(request, ret);
 			}
 		}
-		// else if the user object is there, but there is no google
+
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if(userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -1001,8 +1011,10 @@ public class UserResource {
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());			
 			}
-		} 
-		
+		}
+
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if(userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getProducthuntRedirect(request));
@@ -1072,8 +1084,11 @@ public class UserResource {
 
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			}
-		} 
-		else if(userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
+		}
+		
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getInRedirect(request));
 		} else {
@@ -1164,7 +1179,10 @@ public class UserResource {
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
-		else if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null) {
+		
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGitRedirect(request));
