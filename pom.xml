@@ -77,7 +77,8 @@
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
 								index.html,
-								milkyway.jpg
+								milkyway.jpg,
+								startUpFail.html
 							</warSourceIncludes>
 						</configuration>
 					</plugin>
