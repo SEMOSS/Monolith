@@ -5,6 +5,16 @@
       <welcome-file>index.html</welcome-file>
    </welcome-file-list>
    
+   <!-- general check that the databases loaded properly -->
+   <filter>
+      <filter-name>StartUpSuccessFilter</filter-name>
+      <filter-class>prerna.web.conf.StartUpSuccessFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>StartUpSuccessFilter</filter-name>
+      <url-pattern>/*</url-pattern>
+   </filter-mapping>
+   
    <!-- security filters for admin page -->
    <filter>
       <filter-name>NoUserExistsFilter</filter-name>
