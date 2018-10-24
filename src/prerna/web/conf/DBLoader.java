@@ -105,6 +105,17 @@ public class DBLoader implements ServletContextListener {
 		// need to set the path
 		// important for taking the image with security
 		ImageCaptureReactor.setContextPath(contextPath);
+		
+		// if there was an issue starting up the server
+		// we should do it here so that we can redirect the user
+		{
+			IEngine localmaster = (IEngine) DIHelper.getInstance().getLocalProp(Constants.LOCAL_MASTER_DB_NAME);
+			IEngine security = (IEngine) DIHelper.getInstance().getLocalProp(Constants.SECURITY_DB);
+			if(localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected()) {
+				// you have messed up!!!
+				StartUpSuccessFilter.setStartUpSuccess(false);
+			}
+		}
 	}
 		
 	public void loadEngines() {

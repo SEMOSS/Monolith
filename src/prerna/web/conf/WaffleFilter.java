@@ -30,14 +30,15 @@ public class WaffleFilter implements Filter {
 		setInitParams(arg0);
 		
 		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
-		Principal principal = ((HttpServletRequest) arg0).getUserPrincipal();
-		String id = principal.getName();
-		String name = id.substring(id.lastIndexOf('\\')+1);
-		
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
 		if(user == null) {
 			user = new User();
 
+			// grab the waffle elements
+			Principal principal = ((HttpServletRequest) arg0).getUserPrincipal();
+			String id = principal.getName();
+			String name = id.substring(id.lastIndexOf('\\')+1);
+			
 			AccessToken token = new AccessToken();
 			token.setProvider(AuthProvider.WINDOWS_USER);
 			token.setId(id);
