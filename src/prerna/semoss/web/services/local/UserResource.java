@@ -530,6 +530,12 @@ public class UserResource {
 				String url = "https://login.salesforce.com/services/oauth2/token";
 				
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				if(accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getSFRedirect(request));
+					return null;
+				}
 				accessToken.setProvider(AuthProvider.SF);
 				addAccessToken(accessToken, request);
 
@@ -607,7 +613,7 @@ public class UserResource {
 				if(accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
-					response.sendRedirect(getGoogleRedirect(request));
+					response.sendRedirect(getGithubRedirect(request));
 					return null;
 				}
 				accessToken.setProvider(AuthProvider.GITHUB);
@@ -630,14 +636,14 @@ public class UserResource {
 		if(userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(getGitRedirect(request));
+			response.sendRedirect(getGithubRedirect(request));
 		} else {
 			setMainPageRedirect(response);
 		}
 		return null;
 	}
 	
-	private String getGitRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
+	private String getGithubRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "github_";
 		String clientId = socialData.getProperty(prefix+"client_id");
 		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
@@ -698,7 +704,7 @@ public class UserResource {
 				if(accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
-					response.sendRedirect(getGoogleRedirect(request));
+					response.sendRedirect(getMSRedirect(request));
 					return null;
 				}
 				
@@ -715,11 +721,10 @@ public class UserResource {
 		if(userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(getMSRedirect(request));
+			response.sendRedirect(getGithubRedirect(request));
+		} else {
+			setMainPageRedirect(response);
 		}
-		// at this point, you are authenticated
-		// redirect to main page
-		setMainPageRedirect(response);
 		return null;
 	}
 	
@@ -781,6 +786,12 @@ public class UserResource {
 				String url = "https://www.dropbox.com/oauth2/token";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				if(accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getDBRedirect(request));
+					return null;
+				}
 				accessToken.setProvider(AuthProvider.DROPBOX);
 				addAccessToken(accessToken, request);
 
@@ -1006,6 +1017,12 @@ public class UserResource {
 				String url = "https://api.producthunt.com/v1/oauth/token";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				if(accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getProducthuntRedirect(request));
+					return null;
+				}
 				accessToken.setProvider(AuthProvider.PRODUCT_HUNT);
 				addAccessToken(accessToken, request);
 
@@ -1079,9 +1096,14 @@ public class UserResource {
 				String url = "https://www.linkedin.com/oauth/v2/accessToken";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				if(accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getInRedirect(request));
+					return null;
+				}
 				accessToken.setProvider(AuthProvider.IN);
 				addAccessToken(accessToken, request);
-
 				System.out.println("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
@@ -1185,7 +1207,7 @@ public class UserResource {
 		if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(getGitRedirect(request));
+			response.sendRedirect(getGithubRedirect(request));
 		} else {
 			setMainPageRedirect(response);
 		}
