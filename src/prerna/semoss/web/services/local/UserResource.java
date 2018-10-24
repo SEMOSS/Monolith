@@ -721,7 +721,7 @@ public class UserResource {
 		if(userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(getGithubRedirect(request));
+			response.sendRedirect(getMSRedirect(request));
 		} else {
 			setMainPageRedirect(response);
 		}
