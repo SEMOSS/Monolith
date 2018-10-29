@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,13 +34,21 @@ import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.conf.util.CACTrackingUtil;
 
 public class CACFilter implements Filter {
 
 	private static final Logger LOGGER = LogManager.getLogger(CACFilter.class.getName()); 
-	private static final String AUTO_ADD = "autoAdd";
-	private static Boolean autoAdd = null;
 
+	// filter init params
+	private static final String AUTO_ADD = "autoAdd";
+	private static final String COUNT_USER_ENTRY = "countUserEntry";
+	private static final String COUNT_USER_ENTRY_DATABASE = "countUserEntryDb";
+
+	// realization of init params
+	private static Boolean autoAdd = null;
+	private CACTrackingUtil tracker = null;
+	
 	private FilterConfig filterConfig;
 	
 	@Override
@@ -156,7 +165,9 @@ public class CACFilter implements Filter {
 					}
 				}
 
-				// normal flow
+				// if we have the token
+				// and it has values filled in
+				// we know we can populate the user
 				if(token.getName() != null) {
 					LOGGER.info("Valid request coming from user " + token.getName());
 					user.setAccessToken(token);
@@ -165,6 +176,12 @@ public class CACFilter implements Filter {
 					// add the user if they do not exist
 					if(CACFilter.autoAdd) {
 						SecurityUpdateUtils.addOAuthUser(token);
+					}
+					
+					// new user has entered!
+					// do we need to count?
+					if(tracker != null) {
+						tracker.addToQueue(LocalDate.now());
 					}
 				}
 			}
@@ -192,6 +209,32 @@ public class CACFilter implements Filter {
 			} else {
 				// Default value is true
 				CACFilter.autoAdd = true;
+			}
+			
+			boolean countUsers = false;
+			String countUsersStr = this.filterConfig.getInitParameter(COUNT_USER_ENTRY);
+			if(countUsersStr != null) {
+				countUsers = Boolean.parseBoolean(countUsersStr);
+			} else {
+				countUsers = false;
+			}
+			
+			if(countUsers) {
+				String countDatabaseId = this.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
+				if(countDatabaseId == null) {
+					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+				}
+				try {
+					tracker = CACTrackingUtil.getInstance(countDatabaseId);
+				} catch(Exception e) {
+					LOGGER.info(e.getMessage());
+					LOGGER.info(e.getMessage());
+					LOGGER.info(e.getMessage());
+					LOGGER.info(e.getMessage());
+				}
 			}
 		}
 	}
