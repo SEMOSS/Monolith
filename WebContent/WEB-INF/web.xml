@@ -31,6 +31,14 @@
 			<param-name>autoAdd</param-name>
 			<param-value>true</param-value>
 	  </init-param>
+	  <init-param>
+			<param-name>countUserEntry</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>countUserEntryDb</param-name>
+			<param-value>USER_ACCESS__9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
+	  </init-param>
    </filter>
    <filter-mapping>
       <filter-name>CACFilter</filter-name>
