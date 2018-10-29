@@ -3,6 +3,7 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -26,7 +27,12 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.ds.util.RdbmsQueryBuilder;
+import prerna.engine.api.IRawSelectWrapper;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
+import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
+import prerna.util.Utility;
 
 public class CACFilter implements Filter {
 
@@ -53,80 +59,104 @@ public class CACFilter implements Filter {
 
 				token = new AccessToken();
 				token.setProvider(AuthProvider.CAC);
-				// loop thorugh all the certs
+				// loop through all the certs
 				CERT_LOOP : for(int i = 0; i < certs.length; i++) {
 					X509Certificate cert = certs[i];
 
 					String fullName = cert.getSubjectX500Principal().getName();
 					System.out.println("REQUEST COMING FROM " + fullName);
-					System.out.println("REQUEST COMING FROM " + fullName);
+					
 					LdapName ldapDN;
 					try {
 						ldapDN = new LdapName(fullName);
 						for(Rdn rdn: ldapDN.getRdns()) {
-							if(rdn.getType().equals("CN")) {
-								String value = rdn.getValue().toString();
-
-								if(value.equals("topazbpm001.mhse2e.med.osd.mil")) {
-									// THIS IS FOR TOPAZ HITTING MHS
-									// GIVE IT ACCESS
-									token.setId(value);
-									token.setName("TOPAZ");
-									// now set the other properties
-									token.setToken_type(cert.getIssuerDN().getName());
-									token.setExpires_in((int) cert.getNotAfter().getTime());
-									LOGGER.info("Request coming from TOPAZ");
-									break CERT_LOOP;
-								}
-
-
-								String[] split = value.split("\\.");
-								if(split.length >= 3) {
-									// need to account for middle name present
-									// and any other distinction like Jr. after the last name
-									// just gonna validate the cac has length 10
-									String cacId = split[split.length-1];
-									if(cacId.length() >= 10) {
-										// valid CAC!!!
-										token.setId(cacId);
-										token.setName(Stream.of(split).limit(split.length-2).collect(Collectors.joining(" ")));
-										// now set the other properties
-										token.setToken_type(cert.getIssuerDN().getName());
-										token.setExpires_in((int) cert.getNotAfter().getTime());
-
-										// try to get the email
-										try {
-											EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
-												for(Object alternative : altNames) {
-													if(alternative instanceof String) {
-														String altStr = alternative.toString();
-														// really simple email check...
-														if(altStr.contains("@")) {
-															token.setEmail(altStr);
-															break EMAIL_LOOP;
-														}
-													}
-												}
-											}
-										} catch (CertificateParsingException e) {
-											e.printStackTrace();
-										}
-
-										break CERT_LOOP;
-									} else {
-										continue;
-									}
-								} else {
-									continue;
-								}
+							// only care about CN
+							if(!rdn.getType().equals("CN")) {
+								// try next rdn
+								continue;
 							}
-						}
+							
+							// get the full value
+							String value = rdn.getValue().toString();
+
+							// account for topaz
+							if(value.equals("topazbpm001.mhse2e.med.osd.mil")) {
+								// THIS IS FOR TOPAZ HITTING MHS
+								// GIVE IT ACCESS
+								token.setId(value);
+								token.setName("TOPAZ");
+								// now set the other properties
+								token.setToken_type(cert.getIssuerDN().getName());
+								token.setExpires_in((int) cert.getNotAfter().getTime());
+								LOGGER.info("Request coming from TOPAZ");
+								break CERT_LOOP;
+							}
+
+							// make sure we have a valid user
+							// that means the value ends with a dod number
+							// and its the users name where each portion is period separated
+							// must have at least first name and last name and dod number
+							// need to account for middle name present
+							// and any other distinction like Jr. after the last name
+							String[] split = value.split("\\.");
+							if(split.length < 3) {
+								// didn't pass
+								// try next rdn
+								continue;
+							}
+							
+							// just going to validate the cac has length 10
+							String cacId = split[split.length-1];
+							if(cacId.length() < 10) {
+								// didn't pass
+								// try next rdn
+								continue;
+							}
+							
+							// if we got to here, we have a valid cac!
+							String name = Stream.of(split).limit(split.length-1).collect(Collectors.joining(" "));
+							// we also need to get the email since that is what we will store
+							String email = null;
+
+							try {
+								EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
+									for(Object alternative : altNames) {
+										if(alternative instanceof String) {
+											String altStr = alternative.toString();
+											// really simple email check...
+											if(altStr.contains("@")) {
+												email = altStr;
+												break EMAIL_LOOP;
+											}
+										}
+									}
+								}
+							} catch (CertificateParsingException e) {
+								e.printStackTrace();
+							}
+
+							// lets make sure we have all the stuff
+							if(email != null & name != null) {
+								// we have everything!
+								// this is the only time we populate the token
+								// and then exit the cert loop
+								
+								token.setId(email);
+								token.setEmail(email);
+								token.setName(name);
+								
+								// if we get here, we have a valid cac
+								updateCacUsersStorage(cacId, email);
+								break CERT_LOOP;
+							}
+						} // end rdn loop
 					} catch (InvalidNameException e) {
 						LOGGER.error("ERROR WITH PARSING CAC INFORMATION!");
 						e.printStackTrace();
 					}
 				}
 
+				// normal flow
 				if(token.getName() != null) {
 					LOGGER.info("Valid request coming from user " + token.getName());
 					user.setAccessToken(token);
@@ -166,4 +196,48 @@ public class CACFilter implements Filter {
 		}
 	}
 
+	@Deprecated
+	/**
+	 * We only have this because we need to update the way we store these users
+	 */
+	private void updateCacUsersStorage(String previousId, String email) {
+		String cleanEmail = RdbmsQueryBuilder.escapeForSQLStatement(email);
+		RDBMSNativeEngine securityDb = (RDBMSNativeEngine) Utility.getEngine(Constants.SECURITY_DB);
+		
+		// let us not try to run this multiple times...
+		String requireUpdateQuery = "SELECT * FROM USER WHERE ID='" + previousId +"'";
+		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(securityDb, requireUpdateQuery);
+		try {
+			// if we have next
+			// that means we need to update
+			// from id to email
+			if(wrapper.hasNext()) {
+				// need to update all the places the user id is used
+				String updateQuery = "UPDATE USER SET ID='" +  cleanEmail +"', EMAIL='" + cleanEmail + "' WHERE ID='" + previousId + "'";
+				try {
+					securityDb.insertData(updateQuery);
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+				
+				// need to update all the places the user id is used
+				updateQuery = "UPDATE ENGINEPERMISSION SET USERID='" +  cleanEmail +"' WHERE USERID='" + previousId + "'";
+				try {
+					securityDb.insertData(updateQuery);
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+				
+				// need to update all the places the user id is used
+				updateQuery = "UPDATE USERINSIGHTPERMISSION SET USERID='" +  cleanEmail +"' WHERE USERID='" + previousId + "'";
+				try {
+					securityDb.insertData(updateQuery);
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			} 
+		} finally {
+			wrapper.cleanUp();
+		}
+	}
 }
