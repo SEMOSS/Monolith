@@ -34,7 +34,6 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
@@ -51,7 +50,6 @@ import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
@@ -79,20 +77,6 @@ public class AuthorizationResource {
 		}
 		
 		return user;
-	}
-	
-	/**
-	 * Check if the security is enabled in the application.
-	 * @return true or false
-	 * @deprecated >>>> REPLACED WITH /config endpoint
-	 * THIS IS STILL CALLED IN PLAYSHEETS SO NOT REMOVING
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("securityEnabled")
-	@Deprecated
-	public StreamingOutput isSecurityEnabled(@Context ServletContext context) {
-		return WebUtility.getSO(AbstractSecurityUtils.securityEnabled());
 	}
 	
 	//////////////////////////////////////////////
@@ -338,6 +322,70 @@ public class AuthorizationResource {
 		return WebUtility.getResponse(true, 200);
 	}
 	
+	@POST
+	@Produces("application/json")
+	@Path("setDbVisibility")
+	public Response setDbVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String engineId = form.getFirst("engineId");
+		boolean isPublic = Boolean.parseBoolean(form.getFirst("visibility"));
+		try {
+			SecurityUpdateUtils.setDbVisibility(user, engineId, isPublic);
+		} catch(IllegalArgumentException e) {
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		return WebUtility.getResponse(true, 200);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("setDbPublic")
+	public Response getDatabaseUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String engineId = form.getFirst("engineId");
+		
+		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
+		try {
+			SecurityUpdateUtils.setDbGlobal(user, engineId, isPublic);
+		} catch(IllegalArgumentException e) {
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		return WebUtility.getResponse(true, 200);
+	} 
 	
 	/////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////
@@ -561,30 +609,6 @@ public class AuthorizationResource {
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 		}
 		return WebUtility.getResponse(ret, 200);
-	}
-	
-	
-	@POST
-	@Produces("application/json")
-	@Path("setDbVisibility")
-	public Response setDbVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		Hashtable<String, String> errorRet = new Hashtable<String, String>();
-		try{
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
-			String engineId = form.getFirst("engineId");
-			String visibility = form.getFirst("visibility");
-			SecurityUpdateUtils.setDbVisibility(userId, engineId, visibility);
-		} catch (IllegalArgumentException e){
-			e.printStackTrace();
-			errorRet.put("error", e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e){
-			e.printStackTrace();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(true, 200);
 	}
 	
 	/////////////////////////////////////////////////
