@@ -571,10 +571,10 @@ public class AuthorizationResource {
 		Hashtable<String, String> errorRet = new Hashtable<String, String>();
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-//			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
+			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
 			String engineId = form.getFirst("engineId");
 			String visibility = form.getFirst("visibility");
-			SecurityUpdateUtils.setDbVisibility(user, engineId, Boolean.parseBoolean(visibility));
+			SecurityUpdateUtils.setDbVisibility(userId, engineId, visibility);
 		} catch (IllegalArgumentException e){
 			e.printStackTrace();
 			errorRet.put("error", e.getMessage());
