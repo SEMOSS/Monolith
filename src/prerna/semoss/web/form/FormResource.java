@@ -18,6 +18,7 @@ import javax.ws.rs.core.Response;
 
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.ds.util.RdbmsQueryBuilder;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.AbstractFormBuilder;
@@ -64,13 +65,19 @@ public class FormResource {
         String query = null;
         if (addOrRemove.equals("Remove")) {
         	if(instancename != null && !instancename.isEmpty() && !instancename.equals("null") && !instancename.equals("undefined")) {
-            	query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '" + userid + "' AND INSTANCE_NAME = '" + instancename + "';";
+            	query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '" + 
+            			RdbmsQueryBuilder.escapeForSQLStatement(userid) + 
+            			"' AND INSTANCE_NAME = '" + 
+            			RdbmsQueryBuilder.escapeForSQLStatement(instancename) + "';";
         	} else {
         		// remove all of user
-            	query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '" + userid + "';";
+            	query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '" + RdbmsQueryBuilder.escapeForSQLStatement(userid) + "';";
         	}
         } else if (addOrRemove.equals("Add")) {
-        	query = "INSERT INTO FORMS_USER_ACCESS (USER_ID, INSTANCE_NAME, IS_SYS_ADMIN) VALUES ('" + userid + "','" + instancename + "','" + owner + "');";
+        	query = "INSERT INTO FORMS_USER_ACCESS (USER_ID, INSTANCE_NAME, IS_SYS_ADMIN) VALUES ('" + 
+        			RdbmsQueryBuilder.escapeForSQLStatement(userid) + "','" + 
+        			RdbmsQueryBuilder.escapeForSQLStatement(instancename) + "','" + 
+        			RdbmsQueryBuilder.escapeForSQLStatement(owner) + "');";
         } else {
         	return WebUtility.getResponse("Error: need to specify Add or Remove", 400);
         }
@@ -176,7 +183,7 @@ public class FormResource {
 		Map<String, String> userAccessableInstances = new TreeMap<String, String>();
 
 		// map to store the valid instances for the given user
-		String query = "SELECT INSTANCE_NAME, IS_SYS_ADMIN FROM FORMS_USER_ACCESS WHERE USER_ID = '" + cacId + "';";
+		String query = "SELECT INSTANCE_NAME, IS_SYS_ADMIN FROM FORMS_USER_ACCESS WHERE USER_ID = '" + RdbmsQueryBuilder.escapeForSQLStatement(cacId) + "';";
 		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(getEngine(), query);
 		while(wrapper.hasNext()) {
 			Object[] values = wrapper.next().getValues();
@@ -218,7 +225,7 @@ public class FormResource {
 	 */
 	private void throwErrorIfNotAdmin(String cacId) throws IllegalAccessException {
 		String isAdminQuery = "SELECT * FROM FORMS_USER_ACCESS "
-				+ "WHERE USER_ID='" + cacId + "' "
+				+ "WHERE USER_ID='" + RdbmsQueryBuilder.escapeForSQLStatement(cacId) + "' "
 				+ "AND INSTANCE_NAME='ADMIN' "
 				+ "LIMIT 1;";
 		
@@ -239,8 +246,8 @@ public class FormResource {
 	 */
 	private void throwErrorIfNotSysAdmin(String cacId, String system) throws IllegalAccessException {
 		String isAdminQuery = "SELECT * FROM FORMS_USER_ACCESS "
-				+ "WHERE USER_ID='" + cacId + "' "
-				+ "AND INSTANCE_NAME='" + system + "' "
+				+ "WHERE USER_ID='" + RdbmsQueryBuilder.escapeForSQLStatement(cacId) + "' "
+				+ "AND INSTANCE_NAME='" + RdbmsQueryBuilder.escapeForSQLStatement(system) + "' "
 				+ "AND IS_SYS_ADMIN=TRUE "
 				+ "LIMIT 1;";
 		
