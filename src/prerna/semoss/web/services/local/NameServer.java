@@ -70,10 +70,6 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.jsoup.Jsoup;
 
-import com.google.gson.Gson;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
-
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
@@ -88,6 +84,7 @@ import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
+import prerna.sablecc2.reactor.frame.py.PyExecutorThread;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.semoss.web.services.remote.EngineRemoteResource;
 import prerna.upload.DatabaseUploader;
@@ -102,6 +99,10 @@ import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
 import prerna.web.services.util.WebUtility;
+
+import com.google.gson.Gson;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
 
 @Path("/engine")
 public class NameServer {
@@ -325,6 +326,7 @@ public class NameServer {
 		HttpSession session = null;
 		String sessionId = null; 
 		User user = null;
+		PyExecutorThread jepThread = null;
 
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		//If security is enabled try to get an existing session.
@@ -334,6 +336,11 @@ public class NameServer {
 			if(session != null){
 				sessionId = session.getId();
 				user = ((User) session.getAttribute(Constants.SESSION_USER));
+				
+				// need to see if the user is enabling python here.. I will assume it is here
+				if(session.getAttribute("PYTHON") != null)
+					jepThread = (PyExecutorThread)session.getAttribute("PYTHON");
+				
 			}
 			
 			if(user == null) {
@@ -390,6 +397,7 @@ public class NameServer {
 		synchronized(insight) {
 			// set the user
 			insight.setUser(user);
+			insight.setPy(jepThread);
 			JobManager manager = JobManager.getManager();
 			JobThread jt = null;
 			if(insightId.equals(tempInsightId)) {
@@ -1055,4 +1063,5 @@ public class NameServer {
 		//			return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
 		return WebUtility.getResponse(MasterDatabaseUtility.getAllLogicalNamesFromConceptualRDBMS(conceptualName, null), 200);
 	}
+	
 }
