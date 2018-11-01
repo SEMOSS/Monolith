@@ -56,15 +56,13 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import jodd.util.URLDecoder;
+
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
-import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
@@ -82,13 +80,16 @@ import prerna.io.connector.google.GoogleProfile;
 import prerna.io.connector.ms.MSProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
+import prerna.sablecc2.reactor.frame.py.PyExecutorThread;
 import prerna.security.AbstractHttpHelper;
-import prerna.test.PyExecutorThread;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 @Path("/auth")
 public class UserResource {
