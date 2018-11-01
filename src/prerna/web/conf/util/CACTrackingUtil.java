@@ -30,7 +30,7 @@ public class CACTrackingUtil {
 	}
 
 	public static CACTrackingUtil getInstance(String trackingEngineId) {
-		if(singletonStore.containsKey(trackingEngineId)) {
+		if(!singletonStore.containsKey(trackingEngineId)) {
 			IEngine engine = Utility.getEngine(trackingEngineId);
 			if(engine == null) {
 				throw new IllegalArgumentException("Could not find tracking engine");
@@ -91,7 +91,7 @@ class CountUpdater implements Runnable {
 					// we need to update our query + lastDateExists
 					this.updateQuery = "UPDATE " + TABLE + 
 							" SET " + COUNT_COL + " = " + COUNT_COL + " + 1 "
-							+ "WHERE " + DATE_COL + "=" + lastDateExists;
+							+ "WHERE " + DATE_COL + "='" + lastDateExists + "'";
 				} else {
 					try {
 						engine.insertData(this.updateQuery);
