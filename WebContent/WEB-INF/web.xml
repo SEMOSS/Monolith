@@ -37,7 +37,7 @@
 	  </init-param>
 	  <init-param>
 			<param-name>countUserEntryDb</param-name>
-			<param-value>USER_ACCESS__9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
+			<param-value>9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
 	  </init-param>
    </filter>
    <filter-mapping>
@@ -107,7 +107,6 @@
    </filter-mapping>
    -->
    <!-- End Waffle -->
-
    <filter>
       <filter-name>NoUserInSessionFilter</filter-name>
       <filter-class>prerna.web.conf.NoUserInSessionFilter</filter-class>
@@ -179,7 +178,7 @@
    <context-param>
       <description>Location to store uploaded file</description>
       <param-name>file-upload</param-name>
-      <param-value>C:\\workspace\\Semoss_Dev\\</param-value>
+      <param-value>C:\\workspace\\Semoss\\</param-value>
    </context-param>
    <context-param>
       <description>Temporary - Location to store uploaded file</description>
@@ -189,7 +188,7 @@
    <context-param>
       <description>The place where the core RDF Map gets picked from</description>
       <param-name>RDF-MAP</param-name>
-      <param-value>C:\\workspace\\Semoss_Dev\\RDF_Map.prop</param-value>
+      <param-value>C:\\workspace\\Semoss\\RDF_Map.prop</param-value>
    </context-param>  
    <!-- listeners -->
    <listener>
