@@ -83,6 +83,7 @@ import prerna.io.connector.ms.MSProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
 import prerna.security.AbstractHttpHelper;
+import prerna.test.PyExecutorThread;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -275,6 +276,11 @@ public class UserResource {
 		if(provider.equalsIgnoreCase("ALL")) {
 			// remove the user from session call it a day
 			request.getSession().removeAttribute(Constants.SESSION_USER);
+			if(AbstractSecurityUtils.securityEnabled() && DIHelper.getInstance().getProperty("PYTHON" ) != null && DIHelper.getInstance().getProperty("PYTHON").equalsIgnoreCase("true"))
+			{
+				PyExecutorThread pyThread = (PyExecutorThread) request.getSession().getAttribute("PYTHON");
+				killPy(pyThread);
+			}
 			removed = true;
 		} else {
 			User thisUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
@@ -282,7 +288,9 @@ public class UserResource {
 			if(thisUser.getLogins().isEmpty()) {
 				request.getSession().removeAttribute(Constants.SESSION_USER);
 				
+				
 				if(AbstractSecurityUtils.securityEnabled()) {
+					
 					// well, you have logged out and we always require a login
 					// so i will redirect you
 					repsonse.setStatus(302);
@@ -290,16 +298,40 @@ public class UserResource {
 					redirectUrl = redirectUrl + "#!/login";
 					((HttpServletResponse) repsonse).setHeader("redirect", redirectUrl);
 					((HttpServletResponse) repsonse).sendError(302, "Need to redirect to " + redirectUrl);
+					
+					
+					// kill the python thread here
+					if(DIHelper.getInstance().getProperty("PYTHON" ) != null && DIHelper.getInstance().getProperty("PYTHON").equalsIgnoreCase("true"))
+					{
+						PyExecutorThread pyThread = (PyExecutorThread) request.getSession().getAttribute("PYTHON");
+						killPy(pyThread);
+					}
+					
+					
 					return null;
 				}
 			} else {
 				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
 			}
+			
+			// need some kind of check to see if this user has ANY access token anymore.. if not just remove theuser completely
 		}
 		
 		Map<String, Boolean> ret = new Hashtable<String, Boolean>();
 		ret.put("success", removed);
 		return WebUtility.getResponse(ret, 200);		
+	}
+	
+	private void killPy(PyExecutorThread py)
+	{
+		py.process = "stop";
+		System.out.println(">>>>>> KILLING THREAD FOR USER <<<<<");
+		Object monitor = py.getMonitor();
+		synchronized(monitor)
+		{
+			monitor.notify();
+		}
+		System.out.println(">>>>>> COMPLETE <<<<<");
 	}
 	
 	/**
@@ -314,6 +346,11 @@ public class UserResource {
 			semossUser = (User)user;
 		} else {
 			semossUser = new User();
+			
+			// also add the python thread to this user
+			if(DIHelper.getInstance().getProperty("PYTHON" ) != null && DIHelper.getInstance().getProperty("PYTHON").equalsIgnoreCase("true"))
+				request.getSession().setAttribute("PYTHON", getJep());
+
 //			if(twitToken != null) {
 //				semossUser.setGlobalAccessToken(twitToken);
 //			}
@@ -326,6 +363,15 @@ public class UserResource {
 		// add new users into the database
 		SecurityUpdateUtils.addOAuthUser(token);
 	}
+	
+	private PyExecutorThread getJep()
+	{
+		System.out.println(">>>STARTING PYTHON THREAD FOR USER<<<");
+		PyExecutorThread py = new PyExecutorThread();
+		py.start();
+		return py;
+	}
+
 	
 	/**
 	 * Gets user info for GoogleDrive
