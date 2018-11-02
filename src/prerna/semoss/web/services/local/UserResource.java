@@ -44,6 +44,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.Vector;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -56,13 +57,15 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import jodd.util.URLDecoder;
-
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
@@ -87,9 +90,6 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 @Path("/auth")
 public class UserResource {
@@ -597,7 +597,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getSFRedirect(request));
 		} else {
-			setMainPageRedirect(response);
+			setMainPageRedirect(request, response);
 		}
 		return null;
 	}
@@ -685,7 +685,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getGithubRedirect(request));
 		} else {
-			setMainPageRedirect(response);
+			setMainPageRedirect(request, response);
 		}
 		return null;
 	}
@@ -770,7 +770,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getMSRedirect(request));
 		} else {
-			setMainPageRedirect(response);
+			setMainPageRedirect(request, response);
 		}
 		return null;
 	}
@@ -853,7 +853,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getDBRedirect(request));
 		} else {
-			setMainPageRedirect(response);
+			setMainPageRedirect(request, response);
 		}
 		return null;
 	}
@@ -944,7 +944,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getGoogleRedirect(request));
 		} else {
-			setMainPageRedirect(response);
+			setMainPageRedirect(request, response);
 		}
 		return null;
 	}
@@ -1083,7 +1083,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getProducthuntRedirect(request));
 		} else {
-			setMainPageRedirect(response);
+			setMainPageRedirect(request, response);
 		}
 		return null;
 	}
@@ -1161,7 +1161,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getInRedirect(request));
 		} else {
-			setMainPageRedirect(response);
+			setMainPageRedirect(request, response);
 		}
 		return null;
 	}
@@ -1256,7 +1256,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getGithubRedirect(request));
 		} else {
-			setMainPageRedirect(response);
+			setMainPageRedirect(request, response);
 		}
 		return null;
 	}
@@ -1328,7 +1328,7 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("login")
-	public Response authentication(@Context HttpServletRequest request) {
+	public Response loginNative(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Hashtable<String, String> ret = new Hashtable<String, String>();
 		try{
 			String username = request.getParameter("username");
@@ -1349,7 +1349,8 @@ public class UserResource {
 				//User print = (User) session.getAttribute(Constants.SESSION_USER);
 				//LOGGER.info("Logging in with: " + print);
 				
-				return WebUtility.getResponse(ret, 200);
+				setMainPageRedirect(request, response);
+				return null;
 			} else {
 				ret.put("error", "The user name or password are invalid.");
 				return WebUtility.getResponse(ret, 401);
@@ -1551,15 +1552,16 @@ public class UserResource {
 	 * Redirect the login back to the main app page
 	 * @param response
 	 */
-	private void setMainPageRedirect(@Context HttpServletResponse response) {
+	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		response.setStatus(302);
 		try {
+			Cookie cookie = new Cookie("JSESSIONID", request.getSession().getId());
+			response.addCookie(cookie);
 			response.sendRedirect(socialData.getProperty("redirect"));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
-	
 	
 	@GET
 	@Produces("application/json")
