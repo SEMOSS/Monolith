@@ -7,6 +7,8 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 import prerna.engine.api.IEngine;
+import prerna.engine.api.IRawSelectWrapper;
+import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Utility;
 
 public class CACTrackingUtil {
@@ -52,6 +54,7 @@ class CountUpdater implements Runnable {
 	private static final String TABLE = "DAILY_USER_COUNT";
 	private static final String COUNT_COL = "USER_COUNT";
 	private static final String DATE_COL = "DATE_RECORDED";
+	private static final String GET_LATEST_DATE_QUERY = "SELECT MAX(" + DATE_COL + ") FROM " + TABLE;
 
 	// this is how we will keep the last date so we 
 	// do not need to query if this date exists every time
@@ -65,6 +68,23 @@ class CountUpdater implements Runnable {
 	public CountUpdater(IEngine engine, BlockingQueue<LocalDate> queue) {
 		this.engine = engine;
 		this.queue = queue;
+		
+		// since the server could go down
+		// need to get the last "lastDateExists"
+		// so we do not have duplicates
+		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, GET_LATEST_DATE_QUERY);
+		try {
+			if(wrapper.hasNext()) {
+				this.lastDateExists = wrapper.next().getValues()[0].toString();
+				// we need to update our query + lastDateExists
+				this.updateQuery = "UPDATE " + TABLE + 
+						" SET " + COUNT_COL + " = " + COUNT_COL + " + 1 "
+						+ "WHERE " + DATE_COL + "='" + lastDateExists + "'";
+
+			}
+		} finally {
+			wrapper.cleanUp();
+		}
 	}
 
 	public void run() {
