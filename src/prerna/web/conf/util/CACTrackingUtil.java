@@ -75,12 +75,15 @@ class CountUpdater implements Runnable {
 		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, GET_LATEST_DATE_QUERY);
 		try {
 			if(wrapper.hasNext()) {
-				this.lastDateExists = wrapper.next().getValues()[0].toString();
-				// we need to update our query + lastDateExists
-				this.updateQuery = "UPDATE " + TABLE + 
-						" SET " + COUNT_COL + " = " + COUNT_COL + " + 1 "
-						+ "WHERE " + DATE_COL + "='" + lastDateExists + "'";
+				Object value = wrapper.next().getValues()[0];
+				if(value != null) {
+					this.lastDateExists = value.toString();
+					// we need to update our query + lastDateExists
+					this.updateQuery = "UPDATE " + TABLE + 
+							" SET " + COUNT_COL + " = " + COUNT_COL + " + 1 "
+							+ "WHERE " + DATE_COL + "='" + lastDateExists + "'";
 
+				}
 			}
 		} finally {
 			wrapper.cleanUp();
