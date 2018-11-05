@@ -150,6 +150,9 @@ public class CACFilter implements Filter {
 								// this is the only time we populate the token
 								// and then exit the cert loop
 								
+								// lower case the email
+								email = email.toLowerCase();
+								
 								token.setId(email);
 								token.setEmail(email);
 								token.setName(name);
@@ -180,7 +183,7 @@ public class CACFilter implements Filter {
 					
 					// new user has entered!
 					// do we need to count?
-					if(tracker != null) {
+					if(tracker != null && !token.getName().equals("TOPAZ")) {
 						tracker.addToQueue(LocalDate.now());
 					}
 				}
