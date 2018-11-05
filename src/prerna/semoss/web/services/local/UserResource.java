@@ -597,7 +597,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getSFRedirect(request));
 		} else {
-			setMainPageRedirect(request, response);
+			setMainPageRedirect(request, response, null);
 		}
 		return null;
 	}
@@ -685,7 +685,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getGithubRedirect(request));
 		} else {
-			setMainPageRedirect(request, response);
+			setMainPageRedirect(request, response, null);
 		}
 		return null;
 	}
@@ -770,7 +770,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getMSRedirect(request));
 		} else {
-			setMainPageRedirect(request, response);
+			setMainPageRedirect(request, response, null);
 		}
 		return null;
 	}
@@ -853,7 +853,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getDBRedirect(request));
 		} else {
-			setMainPageRedirect(request, response);
+			setMainPageRedirect(request, response, null);
 		}
 		return null;
 	}
@@ -944,7 +944,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getGoogleRedirect(request));
 		} else {
-			setMainPageRedirect(request, response);
+			setMainPageRedirect(request, response, null);
 		}
 		return null;
 	}
@@ -1083,7 +1083,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getProducthuntRedirect(request));
 		} else {
-			setMainPageRedirect(request, response);
+			setMainPageRedirect(request, response, null);
 		}
 		return null;
 	}
@@ -1161,7 +1161,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getInRedirect(request));
 		} else {
-			setMainPageRedirect(request, response);
+			setMainPageRedirect(request, response, null);
 		}
 		return null;
 	}
@@ -1256,7 +1256,7 @@ public class UserResource {
 			response.setStatus(302);
 			response.sendRedirect(getGithubRedirect(request));
 		} else {
-			setMainPageRedirect(request, response);
+			setMainPageRedirect(request, response, null);
 		}
 		return null;
 	}
@@ -1333,7 +1333,9 @@ public class UserResource {
 		try{
 			String username = request.getParameter("username");
 			String password = request.getParameter("password");
-			boolean emptyCredentials = username == null || password == null || username.isEmpty() || password.isEmpty();
+			String redirect = request.getParameter("redirect");
+			
+			boolean emptyCredentials = (username == null || password == null || username.isEmpty() || password.isEmpty());
 			boolean canLogin = !emptyCredentials && NativeUserSecurityUtils.logIn(username, password);
 			if(canLogin){
 				ret.put("success", "true");
@@ -1346,11 +1348,8 @@ public class UserResource {
 				authToken.setId(id);
 				authToken.setName(username);				
 				addAccessToken(authToken, request);
-				//User print = (User) session.getAttribute(Constants.SESSION_USER);
-				//LOGGER.info("Logging in with: " + print);
 				
-				setMainPageRedirect(request, response);
-				return null;
+				setMainPageRedirect(request, response, null);
 			} else {
 				ret.put("error", "The user name or password are invalid.");
 				return WebUtility.getResponse(ret, 401);
@@ -1360,6 +1359,8 @@ public class UserResource {
 			ret.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}
+		
+		return null;
 	}
 	
 	/**
@@ -1552,12 +1553,16 @@ public class UserResource {
 	 * Redirect the login back to the main app page
 	 * @param response
 	 */
-	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response, String redirect) {
 		response.setStatus(302);
 		try {
 			Cookie cookie = new Cookie("JSESSIONID", request.getSession().getId());
 			response.addCookie(cookie);
-			response.sendRedirect(socialData.getProperty("redirect"));
+			if(redirect == null) {
+				response.sendRedirect(socialData.getProperty("redirect"));
+			} else {
+				response.sendRedirect(redirect);
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
