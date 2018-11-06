@@ -148,6 +148,11 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		throw new IllegalStateException("Only overriding this method for reference.");	
 	}
 	
+	@Override
+	public String getQuery() {
+		throw new IllegalStateException("Only overriding this method for reference.");	
+	}
+	
 	/**
 	 * Set query requires appId, wrapperId, and query
 	 * @param request
