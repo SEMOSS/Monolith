@@ -1184,13 +1184,13 @@ public class DatabaseUploader extends Uploader {
 	@Produces("application/json")
 	public Response testExistingRDBMSConnection(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
-		String driver = form.getFirst("driver");
-		String hostname = form.getFirst("hostname");
-		String port = form.getFirst("port");
-		String username = form.getFirst("username");
-		String password = form.getFirst("password");
-		String schema = form.getFirst("schema");
-		String additionalProperties = form.getFirst("additionalParams");
+		String driver = form.getFirst(ReactorKeysEnum.DB_DRIVER_KEY.getKey());
+		String hostname = form.getFirst(ReactorKeysEnum.HOST.getKey());
+		String port = form.getFirst(ReactorKeysEnum.PORT.getKey());
+		String username = form.getFirst(ReactorKeysEnum.USERNAME.getKey());
+		String password = form.getFirst(ReactorKeysEnum.PASSWORD.getKey());
+		String schema = form.getFirst(ReactorKeysEnum.SCHEMA.getKey());
+		String additionalProperties = form.getFirst(ReactorKeysEnum.ADDITIONAL_CONNECTION_PARAMS_KEY.getKey());
 		HashMap<String, Object> ret = new HashMap<String, Object>();
 
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
