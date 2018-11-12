@@ -357,7 +357,7 @@ public class AuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setDbPublic")
-	public Response getDatabaseUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response setDbPublic(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = getUser(request);
