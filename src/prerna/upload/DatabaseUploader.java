@@ -71,7 +71,7 @@ import prerna.ui.components.ImportDataProcessor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
-import prerna.util.sql.SQLQueryUtil;
+import prerna.util.sql.RdbmsTypeEnum;
 import prerna.web.services.util.WebUtility;
 
 public class DatabaseUploader extends Uploader {
@@ -157,9 +157,9 @@ public class DatabaseUploader extends Uploader {
 			String rdbmsDriverType = inputData.get("rdbmsOutputType");
 			if(rdbmsDriverType == null || rdbmsDriverType.isEmpty()) {
 				// default to h2
-				options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.H2_DB);
+				options.setRDBMSDriverType(RdbmsTypeEnum.H2_DB);
 			} else {
-				options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.valueOf(rdbmsDriverType.toUpperCase()));
+				options.setRDBMSDriverType(RdbmsTypeEnum.getEnumFromString(rdbmsDriverType));
 			}
 
 			// if rdbms, also need to know if user wants duplicates or not in table
@@ -240,9 +240,9 @@ public class DatabaseUploader extends Uploader {
 				String rdbmsDriverType = form.getFirst("rdbmsOutputType");
 				if(rdbmsDriverType == null || rdbmsDriverType.isEmpty()) {
 					// default to h2
-					options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.H2_DB);
+					options.setRDBMSDriverType(RdbmsTypeEnum.H2_DB);
 				} else {
-					options.setRDBMSDriverType(SQLQueryUtil.DB_TYPE.valueOf(rdbmsDriverType.toUpperCase()));
+					options.setRDBMSDriverType(RdbmsTypeEnum.getEnumFromString(rdbmsDriverType));
 				}
 
 				// if rdbms, also need to know if user wants duplicates or not in table
