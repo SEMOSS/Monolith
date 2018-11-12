@@ -25,9 +25,9 @@ import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.FileHelperUtil;
 import prerna.poi.main.helper.XLFileHelper;
 import prerna.poi.main.helper.excel.ExcelBlock;
-import prerna.poi.main.helper.excel.ExcelWorkbookFilePreProcessor;
 import prerna.poi.main.helper.excel.ExcelRange;
 import prerna.poi.main.helper.excel.ExcelSheetPreProcessor;
+import prerna.poi.main.helper.excel.ExcelWorkbookFilePreProcessor;
 import prerna.web.services.util.WebUtility;
 
 public class FileUploader extends Uploader {
@@ -39,6 +39,22 @@ public class FileUploader extends Uploader {
 	 * However, this is only used to push the file to the BE server, the actual
 	 * processing of the file to create/add to a data frame occurs through PKQL
 	 */
+	
+	@POST
+	@Path("baseUpload")
+	public Response uploadFile(@Context HttpServletRequest request) {
+		try {
+			List<FileItem> fileItems = processRequest(request);
+			// collect all of the data input on the form
+			Hashtable<String, String> inputData = getInputData(fileItems);
+			return WebUtility.getResponse(inputData, 200);
+		} catch(Exception e) {
+			e.printStackTrace();
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Error moving file to server");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+	}
 
 	@POST
 	@Path("determineDataTypesForFile")
