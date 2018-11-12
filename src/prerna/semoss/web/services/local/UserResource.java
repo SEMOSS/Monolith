@@ -1409,9 +1409,10 @@ public class UserResource {
 			String email = request.getParameter("email");
 			AccessToken newUser = new AccessToken();
 			newUser.setProvider(AuthProvider.NATIVE);
+			newUser.setId(username);
+			newUser.setUsername(username);
 			newUser.setEmail(email);
 			newUser.setName(name);
-			newUser.setUsername(username);
 			boolean userCreated = NativeUserSecurityUtils.addNativeUser(newUser, password);
 			if(userCreated){
 				ret.put("success", "true");
