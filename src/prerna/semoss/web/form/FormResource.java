@@ -271,6 +271,7 @@ public class FormResource {
 	public IEngine getEngine() {
 		if(formEngine == null) {
 			formEngine = Utility.getEngine(FormBuilder.FORM_BUILDER_ENGINE_NAME);
+			AbstractFormBuilder.generateFormPermissionTable(formEngine);
 		}
 		return formEngine;
 	}
