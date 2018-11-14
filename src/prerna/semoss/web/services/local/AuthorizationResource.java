@@ -421,7 +421,38 @@ public class AuthorizationResource {
 		}
 		
 		return WebUtility.getResponse(addedRequests, 200);
-	} 
+	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("myRequests")
+	public Response getMyRequests(@Context HttpServletRequest request) {
+		User user = null;
+		try {
+			user = getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		List<Map<String, Object>> userRequests = null;
+		try {
+			userRequests = SecurityQueryUtils.getUserAccessRequests(user);
+		} catch(IllegalArgumentException e) {
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		return WebUtility.getResponse(userRequests, 200);
+	}
 	
 	/////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////
