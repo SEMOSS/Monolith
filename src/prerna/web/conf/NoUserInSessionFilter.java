@@ -52,8 +52,11 @@ public class NoUserInSessionFilter implements Filter {
 				// we need to push a response for this one end point
 				// since security is embedded w/ normal semoss and not standalone
 
-				HttpSession session = ((HttpServletRequest) arg0).getSession(true);
-				User user = (User) session.getAttribute(Constants.SESSION_USER);
+				HttpSession session = ((HttpServletRequest) arg0).getSession(false);
+				User user = null;
+				if(session != null) {
+					user = (User) session.getAttribute(Constants.SESSION_USER);
+				}
 				if(user == null || user.getLogins().isEmpty()) {
 					((HttpServletResponse) arg1).setStatus(302);
 

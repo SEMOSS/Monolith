@@ -24,6 +24,9 @@
       <filter-name>NoUserExistsFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
+   
+   <!-- CAC FILTER -->
+   <!-- 
    <filter>
       <filter-name>CACFilter</filter-name>
       <filter-class>prerna.web.conf.CACFilter</filter-class>
@@ -44,7 +47,8 @@
       <filter-name>CACFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
-
+   -->
+   
    <!-- WAFFLE IT -->
    <!--
    <filter>
