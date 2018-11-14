@@ -253,7 +253,11 @@ public class UserResource {
 	@Path("logins")
 	public Response getAllLogins(@Context HttpServletRequest request) {
 		Map<String, String> retMap = new HashMap<String, String>();
-		User semossUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if(session != null) {
+			semossUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
 		if(semossUser == null) {
 			return WebUtility.getResponse(retMap, 200);
 		}
