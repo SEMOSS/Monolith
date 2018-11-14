@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -11,7 +12,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.semoss.web.services.config.ServerConfigurationResource;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
@@ -34,7 +34,8 @@ public class ServerConfigurationResource {
 				if(config == null) {
 					config = new HashMap<String, Object>();
 					// session timeout
-					config.put("timeout", (double) request.getSession().getMaxInactiveInterval() / 60);
+					HttpSession session = request.getSession();
+					config.put("timeout", (double) session.getMaxInactiveInterval() / 60);
 					
 					// r enabled
 					boolean useR = true;
@@ -54,6 +55,11 @@ public class ServerConfigurationResource {
 						localMode = Boolean.parseBoolean(localModeStr);
 					}
 					config.put("localDeployment", localMode);
+					
+					// do not keep this session
+					if(session.isNew()) {
+						session.invalidate();
+					}
 				}
 			}
 		}
