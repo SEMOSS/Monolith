@@ -21,7 +21,9 @@ import prerna.util.Constants;
 
 public class NoUserInSessionFilter implements Filter {
 
+	private static final String NO_USER_HTML = "/noUserFail.html";
 	protected static List<String> ignoreDueToFE = new Vector<String>();
+	
 	static {
 		ignoreDueToFE.add("config");
 		ignoreDueToFE.add("auth/logins");
@@ -56,9 +58,19 @@ public class NoUserInSessionFilter implements Filter {
 					((HttpServletResponse) arg1).setStatus(302);
 
 					String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
-					redirectUrl = redirectUrl + "#!/login";
-					((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+					// if no referrer
+					// then a person hit the endpoint directly
+					if(redirectUrl == null) {
+						// this will be the deployment name of the app
+						String contextPath = context.getContextPath();
+						redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_USER_HTML;
+						((HttpServletResponse) arg1).setStatus(302);
+						((HttpServletResponse) arg1).sendRedirect(redirectUrl);
+					} else {
+						redirectUrl = redirectUrl + "#!/login";
+						((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+					}
 					return;
 				}
 			}
