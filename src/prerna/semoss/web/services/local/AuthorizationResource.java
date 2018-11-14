@@ -387,6 +387,42 @@ public class AuthorizationResource {
 		return WebUtility.getResponse(true, 200);
 	} 
 	
+	@POST
+	@Produces("application/json")
+	@Path("requestAccess")
+	public Response requestAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		// what engine are you requesting permission from
+		String engineId = form.getFirst("engineId");
+		// what is the permission of the ask
+		int requestedPermission = Integer.parseInt(form.getFirst("permission"));
+		
+		boolean addedRequests = true;
+		try {
+			addedRequests = SecurityUpdateUtils.makeRequest(user, engineId, requestedPermission);
+		} catch(IllegalArgumentException e) {
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		return WebUtility.getResponse(addedRequests, 200);
+	} 
+	
 	/////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////
