@@ -37,6 +37,22 @@ public class ThemeResource {
 	}
 	
 	@GET
+	@Path("/getActiveAdminTheme")
+	@Produces("application/json")
+	public Response getActiveAdminTheme(@Context HttpServletRequest request) {
+		try {
+			checkInit();
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		Object activeTheme = AdminThemeUtils.getActiveAdminTheme();
+		return WebUtility.getResponse(activeTheme, 200);
+	}
+	
+	@GET
 	@Path("/getAdminThemes")
 	@Produces("application/json")
 	public Response getAdminThemes(@Context HttpServletRequest request) {
@@ -224,5 +240,7 @@ public class ThemeResource {
 			return WebUtility.getResponse(success, 400);
 		}
 	}
+	
+
 
 }
