@@ -1,5 +1,6 @@
 package prerna.semoss.web.services.local;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,23 +15,47 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import prerna.auth.User;
+import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.theme.AbstractThemeUtils;
 import prerna.theme.AdminThemeUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/themes")
 public class ThemeResource {
 
+	/**
+	 * Get the user
+	 * @param request
+	 * @return
+	 * @throws IllegalAccessException 
+	 * @throws IOException
+	 */
+	private static void checkInit() throws IllegalAccessException {
+		if(!AbstractThemeUtils.isInitalized()) {
+			throw new IllegalAccessException("Theming database was not found to perform these operations");
+		}
+	}
+	
 	@GET
 	@Path("/getAdminThemes")
 	@Produces("application/json")
 	public Response getAdminThemes(@Context HttpServletRequest request) {
-		User user = null;
 		try {
-			user = ResourceUtility.getUser(request);
+			checkInit();
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = null;
+		if(AbstractSecurityUtils.securityEnabled()) {
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
 		}
 		
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
@@ -47,13 +72,22 @@ public class ThemeResource {
 	@Path("/createAdminTheme")
 	@Produces("application/json")
 	public Response createAdminTheme(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
 		try {
-			user = ResourceUtility.getUser(request);
+			checkInit();
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = null;
+		if(AbstractSecurityUtils.securityEnabled()) {
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
 		}
 		
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
@@ -78,13 +112,22 @@ public class ThemeResource {
 	@Path("/editAdminTheme")
 	@Produces("application/json")
 	public Response editAdminTheme(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
 		try {
-			user = ResourceUtility.getUser(request);
+			checkInit();
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = null;
+		if(AbstractSecurityUtils.securityEnabled()) {
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
 		}
 		
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
@@ -110,13 +153,22 @@ public class ThemeResource {
 	@Path("/deleteAdminTheme")
 	@Produces("application/json")
 	public Response deleteAdminTheme(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
 		try {
-			user = ResourceUtility.getUser(request);
+			checkInit();
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = null;
+		if(AbstractSecurityUtils.securityEnabled()) {
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
 		}
 		
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
@@ -139,13 +191,22 @@ public class ThemeResource {
 	@Path("/setActiveAdminTheme")
 	@Produces("application/json")
 	public Response setActiveAdminTheme(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
 		try {
-			user = ResourceUtility.getUser(request);
+			checkInit();
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = null;
+		if(AbstractSecurityUtils.securityEnabled()) {
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
 		}
 		
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
