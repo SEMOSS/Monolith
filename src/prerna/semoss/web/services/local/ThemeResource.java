@@ -17,8 +17,8 @@ import prerna.auth.User;
 import prerna.theme.AdminThemeUtils;
 import prerna.web.services.util.WebUtility;
 
-@Path("/theme")
-public class ThemingResource {
+@Path("/themes")
+public class ThemeResource {
 
 	@GET
 	@Path("/getAdminThemes")
