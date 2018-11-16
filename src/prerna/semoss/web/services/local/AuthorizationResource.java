@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -35,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -58,29 +56,6 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/authorization")
 public class AuthorizationResource {
-	
-	/**
-	 * Get the user
-	 * @param request
-	 * @return
-	 * @throws IOException
-	 */
-	private User getUser(@Context HttpServletRequest request) throws IllegalAccessException {
-		HttpSession session = request.getSession(false);
-		if(session == null){
-			throw new IllegalAccessException("User session is invalid");
-		}
-		
-		User user = (User) session.getAttribute(Constants.SESSION_USER);
-		if(user == null) {
-			throw new IllegalAccessException("User session is invalid");
-		}
-		
-		return user;
-	}
-	
-	//////////////////////////////////////////////
-	//////////////////////////////////////////////
 	
 	/*
 	 * General methods
@@ -105,7 +80,7 @@ public class AuthorizationResource {
 	public Response getUserDatabaseSettings(@Context HttpServletRequest request) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -127,7 +102,7 @@ public class AuthorizationResource {
 	public Response isAdminUser(@Context HttpServletRequest request) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -145,7 +120,7 @@ public class AuthorizationResource {
 	public Response getAllUsers(@Context HttpServletRequest request) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -176,7 +151,7 @@ public class AuthorizationResource {
 	public Response editUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -214,7 +189,7 @@ public class AuthorizationResource {
 	public Response deleteUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -244,7 +219,7 @@ public class AuthorizationResource {
 	public Response getAdminDatabaseSettings(@Context HttpServletRequest request) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -267,7 +242,7 @@ public class AuthorizationResource {
 	public Response setAdminDbPublic(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -296,7 +271,7 @@ public class AuthorizationResource {
 	public Response setDbGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -328,7 +303,7 @@ public class AuthorizationResource {
 	public Response setDbVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -360,7 +335,7 @@ public class AuthorizationResource {
 	public Response setDbPublic(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -393,7 +368,7 @@ public class AuthorizationResource {
 	public Response requestAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -429,7 +404,7 @@ public class AuthorizationResource {
 	public Response getMyRequests(@Context HttpServletRequest request) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
@@ -724,7 +699,7 @@ public class AuthorizationResource {
 	public Response getGroupsAndMembers(@Context HttpServletRequest request) {
 		User user = null;
 		try {
-			user = getUser(request);
+			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", e.getMessage());
