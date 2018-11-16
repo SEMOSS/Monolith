@@ -38,6 +38,7 @@ import prerna.semoss.web.services.config.ServerConfigurationResource;
 import prerna.semoss.web.services.local.AppResource;
 import prerna.semoss.web.services.local.AuthorizationResource;
 import prerna.semoss.web.services.local.NameServer;
+import prerna.semoss.web.services.local.ThemingResource;
 import prerna.semoss.web.services.local.UserResource;
 
 public class MonolithApplication extends Application {
@@ -49,6 +50,7 @@ public class MonolithApplication extends Application {
       singletons.add(new NameServer());
       singletons.add(new AppResource());
       singletons.add(new AuthorizationResource());
+      singletons.add(new ThemingResource());
       singletons.add(new FormResource());
       singletons.add(new ServerConfigurationResource());
       singletons.add(new RawSelectWrapperService());
