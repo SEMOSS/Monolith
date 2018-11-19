@@ -277,49 +277,55 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/logout/{provider}")
 	public Response logout(@PathParam("provider") String provider, @Context HttpServletRequest request, @Context HttpServletResponse repsonse) throws IOException {
+		boolean noUser = false;
 		boolean removed = false;
+		
+		HttpSession session = request.getSession();
+		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
+		
 		if(provider.equalsIgnoreCase("ALL")) {
 			// remove the user from session call it a day
 			request.getSession().removeAttribute(Constants.SESSION_USER);
-			if(AbstractSecurityUtils.securityEnabled() && DIHelper.getInstance().getProperty("PYTHON" ) != null && DIHelper.getInstance().getProperty("PYTHON").equalsIgnoreCase("true"))
-			{
-				PyExecutorThread pyThread = (PyExecutorThread) request.getSession().getAttribute("PYTHON");
-				killPy(pyThread);
-			}
 			removed = true;
+			noUser = true;
 		} else {
-			User thisUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			removed = thisUser.dropAccessToken(provider.toUpperCase());
 			if(thisUser.getLogins().isEmpty()) {
-				request.getSession().removeAttribute(Constants.SESSION_USER);
-				
-				
-				if(AbstractSecurityUtils.securityEnabled()) {
-					
-					// well, you have logged out and we always require a login
-					// so i will redirect you
-					repsonse.setStatus(302);
-					String redirectUrl = request.getHeader("referer");
-					redirectUrl = redirectUrl + "#!/login";
-					((HttpServletResponse) repsonse).setHeader("redirect", redirectUrl);
-					((HttpServletResponse) repsonse).sendError(302, "Need to redirect to " + redirectUrl);
-					
-					
-					// kill the python thread here
-					if(DIHelper.getInstance().getProperty("PYTHON" ) != null && DIHelper.getInstance().getProperty("PYTHON").equalsIgnoreCase("true"))
-					{
-						PyExecutorThread pyThread = (PyExecutorThread) request.getSession().getAttribute("PYTHON");
-						killPy(pyThread);
-					}
-					
-					
-					return null;
-				}
+				noUser = true;
 			} else {
 				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
 			}
+		}
+		
+		// if there are no users and there is security
+		// redirect the user
+		// and invalidate the session
+		if(noUser && AbstractSecurityUtils.securityEnabled()) {
+			session.removeAttribute(Constants.SESSION_USER);
+			// well, you have logged out and we always require a login
+			// so i will redirect you
+			repsonse.setStatus(302);
+			String redirectUrl = request.getHeader("referer");
+			redirectUrl = redirectUrl + "#!/login";
+			repsonse.setHeader("redirect", redirectUrl);
+			repsonse.sendError(302, "Need to redirect to " + redirectUrl);
 			
-			// need some kind of check to see if this user has ANY access token anymore.. if not just remove theuser completely
+			// remove the cookie from the browser
+			// for the session id
+			Cookie cookie = new Cookie("JSESSIONID", null);
+			cookie.setPath("/");
+			repsonse.addCookie(cookie);
+
+			// invalidate the session
+			session.invalidate();
+			
+			// kill the user python thread here
+			if(DIHelper.getInstance().getProperty("PYTHON" ) != null && DIHelper.getInstance().getProperty("PYTHON").equalsIgnoreCase("true")) {
+				PyExecutorThread pyThread = (PyExecutorThread) request.getSession().getAttribute("PYTHON");
+				killPy(pyThread);
+			}
+			
+			return null;
 		}
 		
 		Map<String, Boolean> ret = new Hashtable<String, Boolean>();
