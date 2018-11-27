@@ -85,7 +85,7 @@ public class DBLoader implements ServletContextListener {
 		PropertyConfigurator.configure(log4jConfig);
 
 		// set security enabled within DIHelper first
-		// this is because secuirty database, on init, will
+		// this is because security database, on init, will
 		// load it as a boolean instead of us searching within DIHelper
 		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, securityEnabled);
 		
