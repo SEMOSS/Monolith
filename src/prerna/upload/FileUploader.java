@@ -92,7 +92,7 @@ public class FileUploader extends Uploader {
 				LOGGER.info("Saved Filename: " + fileName + "  to "+ file);
 				
 				Map<String, String> fileMap = new HashMap<String, String>();
-				fileMap.put("fileName", fieldName);
+				fileMap.put("fileName", fileName);
 				fileMap.put("fileLocation", fileLocation);
 				retData.add(fileMap);
 			}
