@@ -9,6 +9,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
@@ -46,7 +47,7 @@ public class FileUploader extends Uploader {
 		try {
 			List<FileItem> fileItems = processRequest(request);
 			// collect all of the data input on the form
-			Hashtable<String, String> inputData = getInputData(fileItems);
+			List<Map<String, String>> inputData = getBaseUploadData(fileItems);
 			return WebUtility.getResponse(inputData, 200);
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -55,6 +56,54 @@ public class FileUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
+	
+	/**
+	 * Method to parse just files and move to the server
+	 * @param fileItems		a list of maps containing the file name and file location
+	 * @return
+	 */
+	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems) {
+		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
+
+		// collect all of the data input on the form
+		List<Map<String, String>> retData = new Vector<Map<String, String>>();
+
+		while(iteratorFileItems.hasNext()) 
+		{
+			FileItem fi = (FileItem) iteratorFileItems.next();
+			if (!fi.isFormField()) {
+				// Get the uploaded file parameters
+				String fieldName = fi.getFieldName();
+				String fileName = fi.getName();
+				
+				// we need the key to be file
+				if(!fieldName.equals("file")) {
+					// delete the field
+					fi.delete();
+					continue;
+				}
+				
+				Date date = new Date();
+				String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
+				String fileLocation = this.filePath + fileName.substring(fileName.lastIndexOf(DIR_SEPARATOR) + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + "_____UNIQUE" + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
+				File file = new File(fileLocation);
+				
+				writeFile(fi, file);
+				LOGGER.info("Saved Filename: " + fileName + "  to "+ file);
+				
+				Map<String, String> fileMap = new HashMap<String, String>();
+				fileMap.put("fileName", fieldName);
+				fileMap.put("fileLocation", fileLocation);
+				retData.add(fileMap);
+			}
+			
+			// delete the field
+			fi.delete();
+		}
+
+		return retData;
+	}
+	
 
 	@POST
 	@Path("determineDataTypesForFile")
