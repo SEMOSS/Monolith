@@ -70,6 +70,10 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.jsoup.Jsoup;
 
+import com.google.gson.Gson;
+import com.google.gson.internal.StringMap;
+import com.google.gson.reflect.TypeToken;
+
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
@@ -99,10 +103,6 @@ import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
 import prerna.web.services.util.WebUtility;
-
-import com.google.gson.Gson;
-import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
 
 @Path("/engine")
 public class NameServer {
@@ -338,9 +338,9 @@ public class NameServer {
 				user = ((User) session.getAttribute(Constants.SESSION_USER));
 				
 				// need to see if the user is enabling python here.. I will assume it is here
-				if(session.getAttribute("PYTHON") != null)
-					jepThread = (PyExecutorThread)session.getAttribute("PYTHON");
-				
+				if(session.getAttribute(Constants.PYTHON) != null) {
+					jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
+				}
 			}
 			
 			if(user == null) {
