@@ -84,6 +84,7 @@ import prerna.io.connector.ms.MSProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
 import prerna.sablecc2.reactor.frame.py.PyExecutorThread;
+import prerna.sablecc2.reactor.frame.py.PyUtils;
 import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
@@ -316,33 +317,20 @@ public class UserResource {
 			cookie.setPath("/");
 			repsonse.addCookie(cookie);
 
-			// invalidate the session
-			session.invalidate();
-			
 			// kill the user python thread here
-			if(DIHelper.getInstance().getProperty("PYTHON" ) != null && DIHelper.getInstance().getProperty("PYTHON").equalsIgnoreCase("true")) {
-				PyExecutorThread pyThread = (PyExecutorThread) request.getSession().getAttribute("PYTHON");
-				killPy(pyThread);
+			if(PyUtils.pyEnabled()) {
+				PyExecutorThread pyThread = (PyExecutorThread) session.getAttribute(Constants.PYTHON);
+				PyUtils.getInstance().killPyThread(pyThread);
 			}
 			
+			// invalidate the session
+			session.invalidate();
 			return null;
 		}
 		
 		Map<String, Boolean> ret = new Hashtable<String, Boolean>();
 		ret.put("success", removed);
 		return WebUtility.getResponse(ret, 200);		
-	}
-	
-	private void killPy(PyExecutorThread py)
-	{
-		py.process = "stop";
-		System.out.println(">>>>>> KILLING THREAD FOR USER <<<<<");
-		Object monitor = py.getMonitor();
-		synchronized(monitor)
-		{
-			monitor.notify();
-		}
-		System.out.println(">>>>>> COMPLETE <<<<<");
 	}
 	
 	/**
@@ -352,37 +340,23 @@ public class UserResource {
 	 */
 	private void addAccessToken(AccessToken token, HttpServletRequest request) {
 		User semossUser = null;
-		Object user = request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession();
+		Object user = session.getAttribute(Constants.SESSION_USER);
 		if(user != null) {
 			semossUser = (User)user;
 		} else {
 			semossUser = new User();
 			
 			// also add the python thread to this user
-			if(DIHelper.getInstance().getProperty("PYTHON" ) != null && DIHelper.getInstance().getProperty("PYTHON").equalsIgnoreCase("true"))
-				request.getSession().setAttribute("PYTHON", getJep());
-
-//			if(twitToken != null) {
-//				semossUser.setGlobalAccessToken(twitToken);
-//			}
-//			if(googAppToken != null) {
-//				semossUser.setGlobalAccessToken(googAppToken);
-//			}
+			if(PyUtils.pyEnabled()) {
+				session.setAttribute(Constants.PYTHON, PyUtils.getInstance().getJep());
+			}
 		}
 		semossUser.setAccessToken(token);
 		request.getSession().setAttribute(Constants.SESSION_USER, semossUser);
 		// add new users into the database
 		SecurityUpdateUtils.addOAuthUser(token);
 	}
-	
-	private PyExecutorThread getJep()
-	{
-		System.out.println(">>>STARTING PYTHON THREAD FOR USER<<<");
-		PyExecutorThread py = new PyExecutorThread();
-		py.start();
-		return py;
-	}
-
 	
 	/**
 	 * Gets user info for GoogleDrive
