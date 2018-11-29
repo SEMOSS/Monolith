@@ -241,6 +241,42 @@ public class ThemeResource {
 		}
 	}
 	
+	@POST
+	@Path("/setAllAdminThemesInactive")
+	@Produces("application/json")
+	public Response setAllAdminThemesInactive(@Context HttpServletRequest request) {
+		try {
+			checkInit();
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = null;
+		if(AbstractSecurityUtils.securityEnabled()) {
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		}
+		
+		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
+		if(instance == null) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User is not an admin");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		boolean success = instance.setAllThemesInactive();
+		if (success) {
+			return WebUtility.getResponse(success, 200);
+		} else {
+			return WebUtility.getResponse(success, 400);
+		}
+	}
 
 
 }
