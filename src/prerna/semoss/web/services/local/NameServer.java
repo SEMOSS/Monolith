@@ -408,10 +408,12 @@ public class NameServer {
 			jobId = jt.getJobId();
 			session.setAttribute(jobId+"", "TRUE");
 			String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
-			expression = job + expression;
-
-			jt.setInsight(insight);
+			// add the job first
+			// so we can do things like logging
+			jt.addPixel(job);
+			// then add the expression
 			jt.addPixel(expression);
+			jt.setInsight(insight);
 			jt.run();
 			PixelRunner pixelRunner = jt.getRunner();
 
@@ -478,10 +480,11 @@ public class NameServer {
 				jobId = jt.getJobId();
 				session.setAttribute(jobId+"", "TRUE");
 				String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
-				expression = job + expression;
-
-				jt.setInsight(insight);
+				// so we can do things like logging
+				jt.addPixel(job);
+				// then add the expression
 				jt.addPixel(expression);
+				jt.setInsight(insight);
 				jt.start();
 				dataReturn.put("jobId", jobId);
 			}
