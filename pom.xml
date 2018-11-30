@@ -76,7 +76,7 @@
 							<attachClasses>true</attachClasses>
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
-								index.html,
+								setAdmin.html,
 								milkyway.jpg,
 								startUpFail.html
 							</warSourceIncludes>
