@@ -181,7 +181,7 @@
 		function registerAdmins() {
 			var xhttp = new XMLHttpRequest(),
 				origin = window.location.href;
-			endpoint = origin + 'adminconfig/setInitialAdmins',
+			endpoint = origin.substring(0, origin.lastIndexOf('/')+1) + 'adminconfig/setInitialAdmins',
 				inputs = document.getElementById('user-id');
 			ids = [inputs.value];
 
