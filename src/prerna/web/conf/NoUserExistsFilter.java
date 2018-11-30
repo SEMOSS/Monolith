@@ -21,6 +21,7 @@ import prerna.util.Utility;
 
 public class NoUserExistsFilter implements Filter {
 
+	private static final String SET_ADMIN_HTML = "/setAdmin.html";
 	private static boolean userDefined = false;
 	
 	@Override
@@ -57,7 +58,7 @@ public class NoUserExistsFilter implements Filter {
 						String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
 		
 						// we redirect to the index.html page where we have pushed the admin page
-						String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length());
+						String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + SET_ADMIN_HTML;
 						((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
 						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
 						return;
