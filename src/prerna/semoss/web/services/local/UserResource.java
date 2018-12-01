@@ -1555,6 +1555,50 @@ public class UserResource {
 	
 	@GET
 	@Produces("application/json")
+	@Path("/cookie")
+	public void manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+	
+		//https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
+		Cookie[] cookies = request.getCookies();
+		boolean done = false;
+	    String sessionId = "";
+	    if (cookies != null) {
+	        for (Cookie c : cookies) {
+	            if (c.getName().equals("JSESSIONID")) {
+	                sessionId = c.getValue();
+	                System.out.println("Session id " + sessionId);
+
+	                Cookie k = new Cookie("JSESSIONID", sessionId);
+	        	    // cool blink show if you enable the lower one
+	        	    //k.setPath(request.getContextPath());
+	        	    //k.setPath("/appui");
+	        	    //response.addCookie(k);
+	        		
+	        	    k.setPath(request.getContextPath());
+	        	    response.addCookie(k);
+	        	    break;
+	            }
+	        }
+	    }
+
+	    System.out.println("Session id set to " + sessionId);
+	    
+	    Cookie p = new Cookie("USER", "prabhuk");
+	    p.setPath(request.getContextPath());
+	    response.addCookie(p);
+	    
+	    try {
+			response.sendRedirect("http://localhost:9090/Monolith/api/engine/all");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	    
+	    
+	}
+	
+	@GET
+	@Produces("application/json")
 	@Path("/whoami")
 	public Response show(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Principal principal = request.getUserPrincipal();
