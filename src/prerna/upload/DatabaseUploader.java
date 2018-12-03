@@ -1184,24 +1184,14 @@ public class DatabaseUploader extends Uploader {
 	@Produces("application/json")
 	public Response testExistingRDBMSConnection(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
-		String driver = form.getFirst("driver");
-		String hostname = form.getFirst("hostName");
+		String driver = form.getFirst(ReactorKeysEnum.DB_DRIVER_KEY.getKey());
+		String hostname = form.getFirst(ReactorKeysEnum.HOST.getKey());
 		String port = form.getFirst(ReactorKeysEnum.PORT.getKey());
 		String username = form.getFirst(ReactorKeysEnum.USERNAME.getKey());
 		String password = form.getFirst(ReactorKeysEnum.PASSWORD.getKey());
 		String schema = form.getFirst(ReactorKeysEnum.SCHEMA.getKey());
 		String additionalProperties = form.getFirst(ReactorKeysEnum.ADDITIONAL_CONNECTION_PARAMS_KEY.getKey());
 		HashMap<String, Object> ret = new HashMap<String, Object>();
-		
-//		Gson gson = new Gson();
-//		String driver = form.getFirst(ReactorKeysEnum.DB_DRIVER_KEY.getKey());
-//		String hostname = form.getFirst(ReactorKeysEnum.HOST.getKey());
-//		String port = form.getFirst(ReactorKeysEnum.PORT.getKey());
-//		String username = form.getFirst(ReactorKeysEnum.USERNAME.getKey());
-//		String password = form.getFirst(ReactorKeysEnum.PASSWORD.getKey());
-//		String schema = form.getFirst(ReactorKeysEnum.SCHEMA.getKey());
-//		String additionalProperties = form.getFirst(ReactorKeysEnum.ADDITIONAL_CONNECTION_PARAMS_KEY.getKey());
-//		HashMap<String, Object> ret = new HashMap<String, Object>();
 
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
 		String test = importer.checkConnectionParams(driver, hostname, port, username, password, schema, additionalProperties);
