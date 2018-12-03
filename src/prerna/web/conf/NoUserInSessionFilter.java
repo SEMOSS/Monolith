@@ -55,9 +55,9 @@ public class NoUserInSessionFilter implements Filter {
 				// since security is embedded w/ normal semoss and not standalone
 
 				HttpSession session = ((HttpServletRequest) arg0).getSession(false);
-				System.out.println("Session ID >> " + session.getId());
 				User user = null;
 				if(session != null) {
+					System.out.println("Session ID >> " + session.getId());
 					user = (User) session.getAttribute(Constants.SESSION_USER);
 				}
 				if(user == null || user.getLogins().isEmpty()) {
