@@ -27,11 +27,9 @@ import org.apache.commons.io.filefilter.WildcardFileFilter;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
-import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
@@ -174,20 +172,23 @@ public class AppResource {
 			return f;
 		} else {
 			// try making the image
-			if (!ClusterUtil.IS_CLUSTER) {
-				if(feUrl != null) {
-					try {
-						ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
-					}
-					catch(Exception | NoSuchMethodError er) {
-						//Image Capture will not run. No image exists nor will be made. The exception kills the rest.
-						// return stock image
-						er.printStackTrace();
-						f = AbstractSecurityUtils.getStockImage(appId, id);
-						return f;
-					}
-				}
-			}
+			// JK! this is super annoying when running a bunch of 
+			// insights at the same time which is what happens 
+			// currently on the app home page
+//			if (!ClusterUtil.IS_CLUSTER) {
+//				if(feUrl != null) {
+//					try {
+//						ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
+//					}
+//					catch(Exception | NoSuchMethodError er) {
+//						//Image Capture will not run. No image exists nor will be made. The exception kills the rest.
+//						// return stock image
+//						er.printStackTrace();
+//						f = AbstractSecurityUtils.getStockImage(appId, id);
+//						return f;
+//					}
+//				}
+//			}
 			// the image capture ran
 			// let us try to see if there is a file now...
 			f = findImageFile(fileLocation);
