@@ -27,7 +27,7 @@ public class NoUserInSessionFilter implements Filter {
 
 	private static final String LOGIN = "login";
 	private static final String SHARE = "share";	
-	
+
 	private static final String NO_USER_HTML = "/noUserFail.html";
 	protected static List<String> ignoreDueToFE = new Vector<String>();
 
@@ -52,6 +52,7 @@ public class NoUserInSessionFilter implements Filter {
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 			String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
+			String contextPath = ((HttpServletRequest) arg0).getContextPath();
 
 			// REALLY DISLIKE THIS CHECK!!!
 			if(!isIgnored(fullUrl)) {
@@ -65,21 +66,19 @@ public class NoUserInSessionFilter implements Filter {
 					//System.out.println("Session ID >> " + session.getId());
 					user = (User) session.getAttribute(Constants.SESSION_USER);
 				}
-				
+
 				// if no user
 				if(user == null || user.getLogins().isEmpty()) {
 					// do a condition here if the session id request parameter is available
 					// eventually this will be that and the tableau
 					HttpServletRequest req = (HttpServletRequest) arg0; 
 					if(req.getParameter("JSESSIONID") != null) {
-						String cookiePath = req.getContextPath();
-						
 						String sessionId = req.getParameter("JSESSIONID");
 						// create the cookie add it and sent it back
 						Cookie k = new Cookie("JSESSIONID", sessionId);
-						k.setPath(cookiePath);
+						k.setPath(contextPath);
 						((HttpServletResponse)arg1).addCookie(k);
-						
+
 						// in case there are other JSESSIONID
 						// cookies, reset the value to the correct sessionId
 						Cookie[] cookies = req.getCookies();
@@ -91,20 +90,12 @@ public class NoUserInSessionFilter implements Filter {
 								}
 							}
 						}
-						
+
 						// add the hash cookie
 						String hash = req.getParameter("hash");
 						Cookie h = new Cookie("HASH", hash);
-						h.setHttpOnly(true);
-						h.setPath(cookiePath);
+						h.setPath(contextPath);
 						((HttpServletResponse)arg1).addCookie(h);
-						
-						// lastly, store a cookie that says we are the ones who are doing a redirect
-						// we will check for this cookie later on
-						Cookie r = new Cookie("R", true + "");
-						r.setHttpOnly(true);
-						r.setPath(cookiePath);
-						((HttpServletResponse)arg1).addCookie(r);
 
 						// and now redirect back to the URL
 						((HttpServletResponse)arg1).sendRedirect(fullUrl+"?"+req.getQueryString());
@@ -116,14 +107,14 @@ public class NoUserInSessionFilter implements Filter {
 					{
 						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
 					}
-					
+
 					// invalidate the session if necessary
 					if(session != null) {
 						session.invalidate();
 					}
 					return;
 				}
-				
+
 				// so we have a user
 				// let us look at the cookies
 				// are we redirecting based on the above
@@ -142,59 +133,52 @@ public class NoUserInSessionFilter implements Filter {
 				// well, we are the shared session
 				if(hashId != null) {
 					// is this the first time we are hooking up the shared session?
-					if(user.isShareSession(session.getId())) {
-						String insightId = ((HttpServletRequest)arg0).getParameter("i");
-						String secret = ((HttpServletRequest)arg0).getParameter("s");
+					if(!user.isShareSession(session.getId())) {
+						// tricky tricky
+						// if you have a hash id but not shared
+						// you are trying to get in when you shouldn't
+						setInvalidEntryRedirect(context, arg0, arg1, SHARE);
+						return;
+					}
 
-						// not enough input
-						if(insightId == null || secret == null) {
+					String insightId = ((HttpServletRequest)arg0).getParameter("i");
+					String secret = ((HttpServletRequest)arg0).getParameter("s");
+
+					// not enough input
+					if(insightId == null || secret == null) {
+						setInvalidEntryRedirect(context, arg0, arg1, SHARE);
+						return;
+					}
+
+					// we have the required input, but is it valid
+					InsightToken token = user.getInsight(insightId);
+					try {
+						MessageDigest md = MessageDigest.getInstance("MD5");
+						String finalData = token.getSalt()+secret;
+						byte [] digest = md.digest(finalData.getBytes());
+						StringBuffer sb = new StringBuffer();
+						for (int i = 0; i < digest.length; i++) {
+							sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
+						}
+						if(hashId == null || !hashId.equals(sb+"")) {
+							// bad input 
 							setInvalidEntryRedirect(context, arg0, arg1, SHARE);
 							return;
-						}
-						
-						// we have the required input, but is it valid
-						InsightToken token = user.getInsight(insightId);
-						try {
-							MessageDigest md = MessageDigest.getInstance("MD5");
-							String finalData = token.getSalt()+secret;
-							byte [] digest = md.digest(finalData.getBytes());
-							StringBuffer sb = new StringBuffer();
-							for (int i = 0; i < digest.length; i++) {
-							  sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
-							}
-							if(hashId == null || !hashId.equals(sb+"")) {
-								// bad input 
-								setInvalidEntryRedirect(context, arg0, arg1, SHARE);
-								return;
-							} 
-							
-							// this session has been ratified so remove the session and move the user forward
-							user.removeShare(session.getId());
-							// remove the R cookie since the user has validated this session
-							if (cookies != null) {
-								for (Cookie c : cookies) {
-									if (c.getName().equals("R")) {
-										c.setMaxAge(0);
-										break;
-									}
-								}
-							}
-						} catch (NoSuchAlgorithmException e) {
-							e.printStackTrace();
-						}
-					} else {
-						// this is a shared session
-						// but did someone first share
-						// and someone else is trying to steal it
-						if (cookies != null) {
-							for (Cookie c : cookies) {
-								if (c.getName().equals("R")) {
-									// sneaky sneaky...
-									setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
-									return;
-								}
+						} 
+
+						// this session has been ratified so remove the session and move the user forward
+						user.removeShare(session.getId());
+						// remove the hash cookie since the user has validated this session
+						for (Cookie c : cookies) {
+							if (c.getName().equals("HASH")) {
+								c.setMaxAge(0);
+								c.setPath(contextPath);
+								((HttpServletResponse)arg1).addCookie(c);
+								break;
 							}
 						}
+					} catch (NoSuchAlgorithmException e) {
+						e.printStackTrace();
 					}
 				}
 			}
