@@ -3,7 +3,6 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Vector;
 
@@ -26,6 +25,9 @@ import prerna.util.Constants;
 
 public class NoUserInSessionFilter implements Filter {
 
+	private static final String LOGIN = "login";
+	private static final String SHARE = "share";	
+	
 	private static final String NO_USER_HTML = "/noUserFail.html";
 	protected static List<String> ignoreDueToFE = new Vector<String>();
 
@@ -64,140 +66,136 @@ public class NoUserInSessionFilter implements Filter {
 					user = (User) session.getAttribute(Constants.SESSION_USER);
 				}
 				
-				if(user == null || user.getLogins().isEmpty()) 
-				{
-					//System.out.println("Url set to" + fullUrl);
-					//printHeaders((HttpServletRequest) arg0);
-
+				// if no user
+				if(user == null || user.getLogins().isEmpty()) {
 					// do a condition here if the session id request parameter is available
 					// eventually this will be that and the tableau
-					if(((HttpServletRequest)arg0).getParameter("JSESSIONID") != null) {
-						
-						// need to check the secret here
-						
-						HttpServletRequest req = (HttpServletRequest)arg0; 
+					HttpServletRequest req = (HttpServletRequest) arg0; 
+					if(req.getParameter("JSESSIONID") != null) {
+						String cookiePath = req.getContextPath();
 						
 						String sessionId = req.getParameter("JSESSIONID");
 						// create the cookie add it and sent it back
 						Cookie k = new Cookie("JSESSIONID", sessionId);
-						// cool blink show if you enable the lower one
-						//k.setPath(request.getContextPath());
-						//k.setPath("/appui");
-						//response.addCookie(k);
-
-						k.setPath(req.getContextPath());
+						k.setPath(cookiePath);
 						((HttpServletResponse)arg1).addCookie(k);
-
-						// I need some routine to remove this.. this is just a hack
-						//fullUrl = fullUrl.replace("JSESSIONID", "random");
-
+						
+						// in case there are other JSESSIONID
+						// cookies, reset the value to the correct sessionId
 						Cookie[] cookies = req.getCookies();
 						if (cookies != null) {
 							for (Cookie c : cookies) {
 								if (c.getName().equals("JSESSIONID")) {
 									c.setValue(sessionId);
-									//System.out.println("Session id " + sessionId);
 									((HttpServletResponse)arg1).addCookie(c);
 								}
 							}
 						}
-						// lastly add the hash cookie
+						
+						// add the hash cookie
 						String hash = req.getParameter("hash");
 						Cookie h = new Cookie("HASH", hash);
-						// cool blink show if you enable the lower one
-						//k.setPath(request.getContextPath());
-						//k.setPath("/appui");
-						//response.addCookie(k);
-
-						h.setPath(req.getContextPath());
+						h.setHttpOnly(true);
+						h.setPath(cookiePath);
 						((HttpServletResponse)arg1).addCookie(h);
 						
-						
+						// lastly, store a cookie that says we are the ones who are doing a redirect
+						// we will check for this cookie later on
+						Cookie r = new Cookie("R", true + "");
+						r.setHttpOnly(true);
+						r.setPath(cookiePath);
+						((HttpServletResponse)arg1).addCookie(r);
+
+						// and now redirect back to the URL
 						((HttpServletResponse)arg1).sendRedirect(fullUrl+"?"+req.getQueryString());
-						
-						// invalidate the current session to get rid of the session id
-						session.invalidate();
 						return;
 					}
-					else
+					// no jsession id as a param
+					// just a normal redirect
+					else 
 					{
-						((HttpServletResponse) arg1).setStatus(302);
-						String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
-						// if no referrer
-						// then a person hit the endpoint directly
-						if(redirectUrl == null) {
-							// this will be the deployment name of the app
-							String contextPath = context.getContextPath();
-							redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_USER_HTML;
-							((HttpServletResponse) arg1).setStatus(302);
-							((HttpServletResponse) arg1).sendRedirect(redirectUrl);
-						} else {
-							redirectUrl = redirectUrl + "#!/login";
-							((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
-						}
-						
-						// invalidate the current session to get rid of the session id
+						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+					}
+					
+					// invalidate the session if necessary
+					if(session != null) {
 						session.invalidate();
-						return;
+					}
+					return;
+				}
+				
+				// so we have a user
+				// let us look at the cookies
+				// are we redirecting based on the above
+				// or it is the main session
+				String hashId = null;
+				Cookie[] cookies = ((HttpServletRequest)arg0).getCookies();
+				if (cookies != null) {
+					for (Cookie c : cookies) {
+						if (c.getName().equals("HASH")) {
+							hashId = c.getValue();
+							break;
+						}
 					}
 				}
-				// else
-				// see if the cookie is there and if so
-				else if(user.isShareSession(session.getId()) )
-				{
-					// the user is valid now see if this user was the one who gave access to do this 
-					// if the request has param has a secret 
-					// if not redirect to another url.. 
-					HttpServletRequest req = (HttpServletRequest)arg0; 
-					
-					String insightId = req.getParameter("i");
-					String secret = req.getParameter("s");
-					String hashId = null;
-					
-					Cookie[] cookies = req.getCookies();
-					if (cookies != null) {
-						for (Cookie c : cookies) {
-							if (c.getName().equals("HASH")) {
-								hashId = c.getValue();
-								break;
+
+				// well, we are the shared session
+				if(hashId != null) {
+					// is this the first time we are hooking up the shared session?
+					if(user.isShareSession(session.getId())) {
+						String insightId = ((HttpServletRequest)arg0).getParameter("i");
+						String secret = ((HttpServletRequest)arg0).getParameter("s");
+
+						// not enough input
+						if(insightId == null || secret == null) {
+							setInvalidEntryRedirect(context, arg0, arg1, SHARE);
+							return;
+						}
+						
+						// we have the required input, but is it valid
+						InsightToken token = user.getInsight(insightId);
+						try {
+							MessageDigest md = MessageDigest.getInstance("MD5");
+							String finalData = token.getSalt()+secret;
+							byte [] digest = md.digest(finalData.getBytes());
+							StringBuffer sb = new StringBuffer();
+							for (int i = 0; i < digest.length; i++) {
+							  sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
+							}
+							if(hashId == null || !hashId.equals(sb+"")) {
+								// bad input 
+								setInvalidEntryRedirect(context, arg0, arg1, SHARE);
+								return;
+							} 
+							
+							// this session has been ratified so remove the session and move the user forward
+							user.removeShare(session.getId());
+							// remove the R cookie since the user has validated this session
+							if (cookies != null) {
+								for (Cookie c : cookies) {
+									if (c.getName().equals("R")) {
+										c.setMaxAge(0);
+										break;
+									}
+								}
+							}
+						} catch (NoSuchAlgorithmException e) {
+							e.printStackTrace();
+						}
+					} else {
+						// this is a shared session
+						// but did someone first share
+						// and someone else is trying to steal it
+						if (cookies != null) {
+							for (Cookie c : cookies) {
+								if (c.getName().equals("R")) {
+									// sneaky sneaky...
+									setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+									return;
+								}
 							}
 						}
 					}
-					
-					// ok now is the hasid routine
-					InsightToken token = user.getInsight(insightId);
-					
-					try {
-						//response.sendRedirect("http://localhost:9090/Monolith/api/engine/all");
-						MessageDigest md = MessageDigest.getInstance("MD5");
-						
-						String finalData = token.getSalt()+secret;
-						
-						byte [] digest = md.digest(finalData.getBytes()) ;//.toString().getBytes();
-
-						StringBuffer sb = new StringBuffer();
-						for (int i = 0; i < digest.length; i++) {
-						  sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
-						}
-						
-						if(hashId == null || !hashId.equals(sb+""))
-						{
-							// user has failed
-							System.out.println("This should send the redirect to password wrong page so may be back to itself");
-						}
-						else // this session has been ratified so remove the session and move the user forward
-							user.removeShare(session.getId());
-					} catch (NoSuchAlgorithmException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-				// else if the session is still on.. and they are trying to game
-				// send to error
-				else
-				{
-					System.out.println("Need to catch this.. ");
 				}
 			}
 		}
@@ -205,12 +203,29 @@ public class NoUserInSessionFilter implements Filter {
 		arg2.doFilter(arg0, arg1);
 	}
 
-	private void printHeaders(HttpServletRequest req) {
-		Enumeration <String> headerNames = req.getHeaderNames();
-		while(headerNames.hasMoreElements()) {
-			String thisHeader = headerNames.nextElement();
-			String headerValue = req.getHeader(thisHeader);
-			System.out.println(thisHeader + "<<>> " + headerValue );
+	/**
+	 * Method to determine where to redirect the user
+	 * @param context
+	 * @param arg0
+	 * @param arg1
+	 * @throws IOException
+	 */
+	private void setInvalidEntryRedirect(ServletContext context, ServletRequest arg0, ServletResponse arg1, String endpoint) throws IOException {
+		String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
+		((HttpServletResponse) arg1).setStatus(302);
+		String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
+		// if no referrer
+		// then a person hit the endpoint directly
+		if(redirectUrl == null) {
+			// this will be the deployment name of the app
+			String contextPath = context.getContextPath();
+			redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_USER_HTML;
+			((HttpServletResponse) arg1).setStatus(302);
+			((HttpServletResponse) arg1).sendRedirect(redirectUrl);
+		} else {
+			redirectUrl = redirectUrl + "#!/" + endpoint;
+			((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
 		}
 	}
 
