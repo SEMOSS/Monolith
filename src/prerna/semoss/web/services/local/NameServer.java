@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -78,6 +79,7 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.ds.py.PyExecutorThread;
+import prerna.ds.py.PyUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.insights.admin.DBAdminResource;
@@ -106,6 +108,8 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/engine")
 public class NameServer {
+
+	private PyExecutorThread jepThread;
 
 	@Context
 	protected ServletContext context;
@@ -353,6 +357,9 @@ public class NameServer {
 			session = request.getSession(true);
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 			sessionId = session.getId();
+			if(this.jepThread == null)
+				this.jepThread = PyUtils.getInstance().getJep();
+			jepThread = this.jepThread;
 		}
 
 		String jobId = "";
@@ -760,6 +767,7 @@ public class NameServer {
 		cns.setCentralApi(url);
 		return cns;
 	}
+	
 
 	/**
 	 * Get the basic information of all engines from solr.
@@ -1066,5 +1074,113 @@ public class NameServer {
 		//			return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
 		return WebUtility.getResponse(MasterDatabaseUtility.getAllLogicalNamesFromConceptualRDBMS(conceptualName, null), 200);
 	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("/redi")
+	public StreamingOutput manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response, @QueryParam("insight") String insightId) {
+	
+		// when it comes here it is already http
+		
+		//https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
+
+	    /*
+	     * When the user clicks on connect to tableau.. I need to give the user a link
+	     * to that insight primarily
+	     * the question is do I land on the same insight or a different one
+	     * that link should have insight id and session id
+	     * 
+	     * a. Launches a new browser with this redirect along with pseudo session id, session id hashed with insight id
+	     * b. Redirects the user to a URL with the insight id and the pseudo session id / or something that sits in the user object. some random number
+	     * c. We pick the session.. go to the user object to see if the secret can be verified. Basically you take the session id which came in hash it with the insight id to see if it is allowable
+	     * d. We redirect the user to the embedded URL for the insight >>
+	     * e. We need someway to repull the recipe 
+	     * 
+	     * I need first something that will take me to http and then from there on take me into my insight
+	     * 
+	     * need to go to mancookie first in auth > mancookie in engine which prints a URL with session id and the 
+	     * 
+	     * 
+	     */
+		
+		if(request.getContextPath().startsWith("http://"))
+		{
+
+			// get the session
+			HttpSession session = request.getSession();
+			User user = (User)session.getAttribute(Constants.SESSION_USER);
+	
+			// need to set this random in some place in user
+			String random = Utility.getRandomString(10);
+	
+			// add the random to the insight id
+			
+			// Create a hash of the insight id
+			
+			// send the hash with the redirect as a parameter
+			
+			// 
+			
+			String sessionId = session.getId();
+	
+	        Cookie k = new Cookie("JSESSIONID", sessionId);
+		    // cool blink show if you enable the lower one
+		    //k.setPath(request.getContextPath());
+		    //k.setPath("/appui");
+		    //response.addCookie(k);
+			
+		    k.setPath(request.getContextPath());
+		    response.addCookie(k);
+	
+		    /*
+			Cookie[] cookies = request.getCookies();
+			boolean done = false;
+		    String sessionId = "";
+		    if (cookies != null) {
+		        for (Cookie c : cookies) {
+		            if (c.getName().equals("JSESSIONID")) {
+		                sessionId = c.getValue();
+		                System.out.println("Session id " + sessionId);
+	
+		                Cookie k = new Cookie("JSESSIONID", sessionId);
+		        	    // cool blink show if you enable the lower one
+		        	    //k.setPath(request.getContextPath());
+		        	    //k.setPath("/appui");
+		        	    //response.addCookie(k);
+		        		
+		        	    k.setPath(request.getContextPath());
+		        	    response.addCookie(k);
+		        	    break;
+		            }
+		        }
+		    }
+		*/
+	
+		    System.out.println("Session id set to " + sessionId);
+		    
+		   /* Cookie p = new Cookie("USER", "prabhuk");
+		    p.setPath(request.getContextPath());
+		    response.addCookie(p);
+		   */ 
+		   
+		    
+		    try {
+				//response.sendRedirect("http://localhost:9090/Monolith/api/engine/all");
+				response.sendRedirect("http://localhost:9090/Monolith/api/engine/all");
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		    
+		    return null;
+		}	    
+		else
+		{
+			// need to write some output message 
+			return getSOHTML(new Hashtable<String, String>());
+		}
+		
+	}
+
 	
 }
