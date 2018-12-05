@@ -307,7 +307,7 @@ public class NameServer {
 	@POST
 	@Path("/runPixel")
 	@Produces("application/json")
-	public Response runPixelSync(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
+	public Response runPixelSync(@Context HttpServletRequest request){
 		// I need to do a couple of things here
 		// I need to get the basic blocking queue as a singleton
 		// create a thread
@@ -358,8 +358,8 @@ public class NameServer {
 		String jobId = "";
 		final String tempInsightId = "TempInsightNotStored";
 
-		String insightId = form.getFirst("insightId");
-		String expression = form.getFirst("expression");
+		String insightId = request.getParameter("insightId");
+		String expression = request.getParameter("expression");
 		Insight insight = null;
 
 		// figure out the type of insight
@@ -425,7 +425,7 @@ public class NameServer {
 	@POST
 	@Path("runPixelAsync")
 	@Produces("application/json")
-	public Response runPixelAsync(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response runPixelAsync(@Context HttpServletRequest request) {
 		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
 		HttpSession session = null;
 		User user = null;
@@ -440,8 +440,8 @@ public class NameServer {
 		String jobId = "";
 		Map<String, String> dataReturn = new HashMap<String, String>();
 
-		String insightId = form.getFirst("insightId");
-		String expression = form.getFirst("expression");
+		String insightId = request.getParameter("insightId");
+		String expression = request.getParameter("expression");
 		Insight insight = null;
 
 		// figure out the type of insight
