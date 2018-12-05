@@ -33,6 +33,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -53,22 +55,23 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
+
+import jodd.util.URLDecoder;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
-import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
+import prerna.auth.InsightToken;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.NativeUserSecurityUtils;
@@ -89,8 +92,12 @@ import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 @Path("/auth")
 public class UserResource {
@@ -1556,8 +1563,129 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/cookie")
-	public void manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+	public StreamingOutput manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response, @QueryParam("i") String insightId, @QueryParam("s") String secret) {
 	
+		//https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
+
+	    /*
+	     * When the user clicks on connect to tableau.. I need to give the user a link
+	     * to that insight primarily
+	     * the question is do I land on the same insight or a different one
+	     * that link should have insight id and session id
+	     * 
+	     * a. Launches a new browser with this redirect along with pseudo session id, session id hashed with insight id
+	     * b. Redirects the user to a URL with the insight id and the pseudo session id / or something that sits in the user object. some random number
+	     * c. We pick the session.. go to the user object to see if the secret can be verified. Basically you take the session id which came in hash it with the insight id to see if it is allowable
+	     * d. We redirect the user to the embedded URL for the insight >>
+	     * e. We need someway to repull the recipe 
+	     * 
+	     * I need first something that will take me to http and then from there on take me into my insight
+	     * 
+	     */
+
+		// get the session
+		HttpSession session = request.getSession();
+		User user = (User)session.getAttribute(Constants.SESSION_USER);
+
+		// need to set this random in some place in user
+		String random = Utility.getRandomString(10);
+
+		// add the random to the insight id
+		
+		// Create a hash of the insight id
+		
+		// send the hash with the redirect as a parameter
+		
+		// 
+		
+		String sessionId = session.getId();
+
+        Cookie k = new Cookie("JSESSIONID", sessionId);
+	    // cool blink show if you enable the lower one
+	    //k.setPath(request.getContextPath());
+	    //k.setPath("/appui");
+	    //response.addCookie(k);
+		
+	    k.setPath(request.getContextPath());
+	    response.addCookie(k);
+
+	    /*
+		Cookie[] cookies = request.getCookies();
+		boolean done = false;
+	    String sessionId = "";
+	    if (cookies != null) {
+	        for (Cookie c : cookies) {
+	            if (c.getName().equals("JSESSIONID")) {
+	                sessionId = c.getValue();
+	                System.out.println("Session id " + sessionId);
+
+	                Cookie k = new Cookie("JSESSIONID", sessionId);
+	        	    // cool blink show if you enable the lower one
+	        	    //k.setPath(request.getContextPath());
+	        	    //k.setPath("/appui");
+	        	    //response.addCookie(k);
+	        		
+	        	    k.setPath(request.getContextPath());
+	        	    response.addCookie(k);
+	        	    break;
+	            }
+	        }
+	    }
+	*/
+
+	    System.out.println("Session id set to " + sessionId);
+	    
+	   /* Cookie p = new Cookie("USER", "prabhuk");
+	    p.setPath(request.getContextPath());
+	    response.addCookie(p);
+	   */ 
+	   
+	    InsightToken token = new InsightToken();
+	    
+	    Hashtable outputHash = new Hashtable();
+	    
+	    try {
+			//response.sendRedirect("http://localhost:9090/Monolith/api/engine/all");
+		    MessageDigest md = MessageDigest.getInstance("MD5");
+		    // create the insight token and add to the user
+		    // the user has secret and salt
+		    token.setSecret(secret);
+		    user.addInsight(insightId, token);
+		    
+		    String finalData = token.getSalt()+token.getSecret();
+		    
+		    byte [] digest = md.digest(finalData.getBytes()) ;//.toString().getBytes();
+
+			StringBuffer sb = new StringBuffer();
+	        for (int i = 0; i < digest.length; i++) {
+	          sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
+	        }
+			
+		    
+	    	//String redir = "http://localhost:9090/Monolith/api/engine/all?JSESSIONID=" + sessionId;
+	        String redir = "?JSESSIONID=" + sessionId+"&hash=" + sb+"&i="+ insightId;
+	    	System.out.println("Redirect URL " + redir);
+	    	outputHash.put("PARAM", redir);
+
+	    	// also tell the system that this session is not fully validated so if someone comes without secret on this session
+	    	// dont allow
+	    	user.addShare(sessionId);
+			//response.sendRedirect(redir);
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	    
+	    return WebUtility.getSO(outputHash);
+	}
+	
+	// redirect the user after setting session
+	@GET
+	@Produces("application/json")
+	@Path("/red")
+	public void red(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+	
+		
 		//https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
 		Cookie[] cookies = request.getCookies();
 		boolean done = false;
@@ -1596,6 +1724,7 @@ public class UserResource {
 	    
 	    
 	}
+
 	
 	@GET
 	@Produces("application/json")
