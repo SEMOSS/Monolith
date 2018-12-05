@@ -61,13 +61,15 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import jodd.util.URLDecoder;
-
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
@@ -95,9 +97,6 @@ import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 @Path("/auth")
 public class UserResource {
@@ -355,7 +354,9 @@ public class UserResource {
 			semossUser = new User();
 			
 			// also add the python thread to this user
-			if(PyUtils.pyEnabled()) {
+			// if security is not on, we have a single py thread for the entire instance
+			// and we dont want to override those variables due to user login
+			if(AbstractSecurityUtils.securityEnabled() && PyUtils.pyEnabled()) {
 				session.setAttribute(Constants.PYTHON, PyUtils.getInstance().getJep());
 			}
 		}
