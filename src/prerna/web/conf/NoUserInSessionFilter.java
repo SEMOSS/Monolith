@@ -98,7 +98,7 @@ public class NoUserInSessionFilter implements Filter {
 						((HttpServletResponse)arg1).addCookie(h);
 
 						// and now redirect back to the URL
-						((HttpServletResponse)arg1).sendRedirect(fullUrl+"?"+req.getQueryString());
+						setInvalidEntryRedirect(context, arg0, arg1, SHARE+"?"+req.getQueryString());
 						return;
 					}
 					// no jsession id as a param
@@ -106,13 +106,12 @@ public class NoUserInSessionFilter implements Filter {
 					else 
 					{
 						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+						// invalidate the session if necessary
+						if(session != null) {
+							session.invalidate();
+						}
+						return;
 					}
-
-					// invalidate the session if necessary
-					if(session != null) {
-						session.invalidate();
-					}
-					return;
 				}
 
 				// so we have a user
