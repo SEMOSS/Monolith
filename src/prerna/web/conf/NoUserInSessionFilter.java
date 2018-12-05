@@ -140,8 +140,12 @@ public class NoUserInSessionFilter implements Filter {
 						return;
 					}
 
-					String insightId = ((HttpServletRequest)arg0).getParameter("i");
-					String secret = ((HttpServletRequest)arg0).getParameter("s");
+					// use a wrapper otherwise
+					// POST data consumed will be destroyed
+					// when we get to the actual request method
+					MultiReadHttpServletRequest wrapper = new MultiReadHttpServletRequest(((HttpServletRequest)arg0));
+					String insightId = wrapper.getParameter("i");
+					String secret = wrapper.getParameter("s");
 
 					// not enough input
 					if(insightId == null || secret == null) {
@@ -176,6 +180,9 @@ public class NoUserInSessionFilter implements Filter {
 								break;
 							}
 						}
+						
+						arg2.doFilter(wrapper, arg1);
+						return;
 					} catch (NoSuchAlgorithmException e) {
 						e.printStackTrace();
 					}
