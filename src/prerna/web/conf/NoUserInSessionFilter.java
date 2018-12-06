@@ -29,7 +29,7 @@ public class NoUserInSessionFilter implements Filter {
 	private static final String LOGIN = "login";
 	private static final String SHARE = "share";	
 
-	private static final String NO_USER_HTML = "/noUserFail";
+	private static final String NO_USER_HTML = "/noUserFail/";
 	protected static List<String> ignoreDueToFE = new Vector<String>();
 
 	static {

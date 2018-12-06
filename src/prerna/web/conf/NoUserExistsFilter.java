@@ -21,7 +21,7 @@ import prerna.util.Utility;
 
 public class NoUserExistsFilter implements Filter {
 
-	private static final String SET_ADMIN_HTML = "/setAdmin";
+	private static final String SET_ADMIN_HTML = "/setAdmin/";
 	private static boolean userDefined = false;
 	
 	@Override
