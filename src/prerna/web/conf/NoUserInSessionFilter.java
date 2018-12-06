@@ -99,7 +99,15 @@ public class NoUserInSessionFilter implements Filter {
 						((HttpServletResponse)arg1).addCookie(h);
 
 						// and now redirect back to the URL
-						setInvalidEntryRedirect(context, arg0, arg1, SHARE+"?"+req.getQueryString());
+						// if get, we can do it
+						if(req.getMethod().equalsIgnoreCase("GET")){
+							((HttpServletResponse) arg1).setStatus(302);
+							((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
+						} else {
+							// BE cannot redirect a POST
+							// send back an error and have the client remake the post
+							setInvalidEntryRedirect(context, arg0, arg1, SHARE+"?"+req.getQueryString());
+						}
 						return;
 					}
 					// no jsession id as a param
