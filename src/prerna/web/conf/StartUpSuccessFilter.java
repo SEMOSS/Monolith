@@ -15,7 +15,7 @@ import javax.servlet.http.HttpServletResponse;
 public class StartUpSuccessFilter implements Filter {
 
 	private static boolean startUpSuccess = true;
-	private static final String FAIL_HTML = "/startUpFail";
+	private static final String FAIL_HTML = "/startUpFail/";
 	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
