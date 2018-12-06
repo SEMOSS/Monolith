@@ -196,7 +196,7 @@
 				xhttp.onreadystatechange = function () {
 					if (this.readyState === 4) {
 						var headers = [], headerTypes = [], tableauData = {}, i,
-							response = this;
+							response = JSON.parse(this.responseText);
 
 						for (i = 0; i < response.pixelReturn[1].output.headers.length; i++) {
 							headers.push(response.pixelReturn[1].output.headers[i].displayName);
