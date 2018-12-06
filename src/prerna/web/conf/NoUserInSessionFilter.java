@@ -22,6 +22,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
 import prerna.auth.User;
 import prerna.util.Constants;
+import prerna.web.requests.MultiReadHttpServletRequest;
 
 public class NoUserInSessionFilter implements Filter {
 
