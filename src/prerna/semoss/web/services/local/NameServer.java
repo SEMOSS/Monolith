@@ -332,7 +332,7 @@ public class NameServer {
 		User user = null;
 		PyExecutorThread jepThread = null;
 
-		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		//If security is enabled try to get an existing session.
 		//Otherwise get a session with the default user.
 		if(securityEnabled){
