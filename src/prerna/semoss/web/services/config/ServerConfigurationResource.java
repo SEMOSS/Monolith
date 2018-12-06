@@ -11,8 +11,12 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
+import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.ds.py.PyUtils;
+import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.UserResource;
+import prerna.theme.AdminThemeUtils;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.services.util.WebUtility;
@@ -29,13 +33,20 @@ public class ServerConfigurationResource {
 	 * @return
 	 */
 	private static Map<String, Object> getConfig(@Context HttpServletRequest request) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			// ignore
+		}
+		
 		if(config == null) {
 			// make thread safe
 			synchronized(ServerConfigurationResource.class) {
 				if(config == null) {
 					config = new HashMap<String, Object>();
 					// session timeout
-					HttpSession session = request.getSession();
+					HttpSession session = request.getSession(true);
 					config.put("timeout", (double) session.getMaxInactiveInterval() / 60);
 					
 					// r enabled
@@ -61,13 +72,24 @@ public class ServerConfigurationResource {
 					config.put("localDeployment", localMode);
 					
 					// do not keep this session
-					if(session.isNew()) {
+					// if no user and it is new
+					if(session.isNew() && user == null) {
 						session.invalidate();
 					}
 				}
 			}
 		}
-		return config;
+		
+		Map<String, Object> myConfiguration = new HashMap<String, Object>();
+		myConfiguration.putAll(config);
+		// append values that can change without restarting the server
+		// logins allowed
+		myConfiguration.put("loginsAllowed", UserResource.getLoginsAllowed());
+		// current logins
+		myConfiguration.put("logins", User.getLoginNames(user));
+		// themes
+		myConfiguration.put("theme", AdminThemeUtils.getActiveAdminTheme());
+		return myConfiguration;
 	}
 	
 	@GET
