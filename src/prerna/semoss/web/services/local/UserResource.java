@@ -71,7 +71,6 @@ import com.google.gson.reflect.TypeToken;
 
 import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
-import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
 import prerna.auth.User;
@@ -102,35 +101,7 @@ import waffle.servlet.WindowsPrincipal;
 public class UserResource {
 	
 	private static Properties socialData = null;
-
-//	private static AccessToken twitToken = null;
-//	private static AccessToken googAppToken = null; 
-
-//	private static ArrayList<String> userEmails = new ArrayList<String>();
-//	static {
-//		String whitelistPath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "/db/" + Constants.SECURITY_DB + "/" + Constants.AUTH_WHITELIST_FILE;
-//		try {
-//			File whitelistFile = new File(whitelistPath);
-//			if(whitelistFile.exists()) {
-//				Scanner whitelist = new Scanner(new FileReader(whitelistFile));
-//				while(whitelist.hasNext()) {
-//					userEmails.add(whitelist.nextLine().trim());
-//				}
-//				whitelist.close();
-//			}
-//		} catch (FileNotFoundException e) {
-//			e.printStackTrace();
-//		}
-//		loadConnectors();
-//	}
-//	
-//	private boolean checkWhitelistForEmail(String email) {
-//		if(userEmails.isEmpty() || userEmails.contains(email)) {
-//			return true;
-//		} else {
-//			return false;
-//		}
-//	}
+	private static Map<String, Boolean> loginsAllowed;
 	
 	static {
 		loadSocialProperties();
@@ -144,13 +115,7 @@ public class UserResource {
 				socialData = new Properties();
 				fis = new FileInputStream(f);
 				socialData.load(fis);
-
-//				loginTwitterApp();
-//				loginGoogleApp();
-				// also make the twit token and such
-//				AppTokens.getInstance().setAccessToken(twitToken);
-//				AppTokens.getInstance().setAccessToken(googAppToken);
-				AppTokens.setSocial(socialData);
+				setLoginsAllowed();
 			}
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -169,114 +134,37 @@ public class UserResource {
 		}
 	}
 	
-//	private static void loginTwitterApp() {
-//		// getting the bearer token on twitter for app authentication is a lot simpler
-//		// need to just combine the id and secret
-//		// base 64 and send as authorization
-//		
-//		InputStream is = null;
-//		InputStreamReader isr = null;
-//		BufferedReader rd = null;
-//		if(twitToken == null) {
-//			try {
-//				String prefix = "twitter_";
-//				String clientId = "***REMOVED***";
-//				String clientSecret = "***REMOVED***";
-//				if(socialData.containsKey(prefix+"client_id")) {
-//					clientId = socialData.getProperty(prefix+"client_id");
-//				}
-//				if(socialData.containsKey(prefix+"secret_key")) {
-//					clientSecret = socialData.getProperty(prefix+"secret_key");
-//				}
-//				
-//				// make a joint string
-//				String jointString = clientId + ":" + clientSecret;
-//
-//				// encde this base 64
-//				String encodedJointString = new String(Base64.getEncoder().encode(jointString.getBytes()));
-//				CloseableHttpClient httpclient = HttpClients.createDefault();
-//				HttpPost httppost = new HttpPost("https://api.twitter.com/oauth2/token");
-//				httppost.addHeader("Authorization", "Basic " + encodedJointString);
-//
-//				List<NameValuePair> paramList = new ArrayList<NameValuePair>();
-//				paramList.add(new BasicNameValuePair("grant_type", "client_credentials"));
-//				httppost.setEntity(new UrlEncodedFormEntity(paramList));
-//
-//				CloseableHttpResponse authResp = httpclient.execute(httppost);
-//
-//				System.out.println("Response Code " + authResp.getStatusLine().getStatusCode());
-//
-//				is = authResp.getEntity().getContent();
-//				isr = new InputStreamReader(is);
-//				rd = new BufferedReader(isr);
-//				StringBuffer result = new StringBuffer();
-//				String line = "";
-//				while ((line = rd.readLine()) != null) {
-//					result.append(line);
-//				}
-//
-//				twitToken = AbstractHttpHelper.getJAccessToken(result.toString());
-//				twitToken.setProvider(AuthProvider.TWITTER);
-//			} catch(Exception ex) {
-//				ex.printStackTrace();
-//			} finally {
-//				if(is != null) {
-//					try {
-//						is.close();
-//					} catch(IOException e) {
-//						// ignore
-//					}
-//				}
-//				if(isr != null) {
-//					try {
-//						isr.close();
-//					} catch(IOException e) {
-//						// ignore
-//					}
-//				}
-//				if(rd != null) {
-//					try {
-//						rd.close();
-//					} catch(IOException e) {
-//						// ignore
-//					}
-//				}
-//			}
-//			System.out.println("Access Token is.. " + twitToken.getAccess_token());
-//		}
-//	}
-//	
-//	private static void loginGoogleApp() {
-//		// nothing big here
-//		// set the name on accesstoken
-//		if(googAppToken == null) {
-//			googAppToken = new AccessToken();
-//			googAppToken.setAccess_token(socialData.getProperty("google_maps_api"));
-//			googAppToken.setProvider(AuthProvider.GOOGLE_MAP);
-//		}
-//	}
-
+	private static void setLoginsAllowed() {
+		boolean nativeLogin = Boolean.parseBoolean(socialData.getProperty("native_login"));
+		boolean githubLogin = Boolean.parseBoolean(socialData.getProperty("github_login"));
+		boolean googleLogin = Boolean.parseBoolean(socialData.getProperty("google_login"));
+		boolean onedriveLogin = Boolean.parseBoolean(socialData.getProperty("ms_login"));
+		boolean dropboxLogin = Boolean.parseBoolean(socialData.getProperty("dropbox_login"));
+		boolean cacLogin = Boolean.parseBoolean(socialData.getProperty("cac_login"));
+		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
+		UserResource.loginsAllowed = new HashMap<String, Boolean>();
+		UserResource.loginsAllowed.put("native", nativeLogin);
+		UserResource.loginsAllowed.put("google", googleLogin);
+		UserResource.loginsAllowed.put("github", githubLogin);
+		UserResource.loginsAllowed.put("ms", onedriveLogin);
+		UserResource.loginsAllowed.put("dropbox", dropboxLogin);
+		UserResource.loginsAllowed.put("cac", cacLogin);
+		UserResource.loginsAllowed.put("registration", registration);
+	}
+	
+	public static Map<String, Boolean> getLoginsAllowed() {
+		return UserResource.loginsAllowed;
+	}
+	
 	@GET
 	@Path("logins")
 	public Response getAllLogins(@Context HttpServletRequest request) {
-		Map<String, String> retMap = new HashMap<String, String>();
 		HttpSession session = request.getSession(false);
 		User semossUser = null;
 		if(session != null) {
 			semossUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		if(semossUser == null) {
-			return WebUtility.getResponse(retMap, 200);
-		}
-		List<AuthProvider> logins = semossUser.getLogins();
-		for(AuthProvider p : logins) {
-			String name = semossUser.getAccessToken(p).getName();
-			if(name == null) {
-				// need to send something
-				name = "";
-			}
-			retMap.put(p.toString().toUpperCase(), name);
-		}
+		Map<String, String> retMap = User.getLoginNames(semossUser);
 		return WebUtility.getResponse(retMap, 200);
 	}
 	
@@ -1440,22 +1328,7 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/loginsAllowed/")
 	public Response loginsAllowed(@Context HttpServletRequest request) throws IOException {	
-		boolean nativeLogin = Boolean.parseBoolean(socialData.getProperty("native_login"));
-		boolean githubLogin = Boolean.parseBoolean(socialData.getProperty("github_login"));
-		boolean googleLogin = Boolean.parseBoolean(socialData.getProperty("google_login"));
-		boolean onedriveLogin = Boolean.parseBoolean(socialData.getProperty("ms_login"));
-		boolean dropboxLogin = Boolean.parseBoolean(socialData.getProperty("dropbox_login"));
-		boolean cacLogin = Boolean.parseBoolean(socialData.getProperty("cac_login"));
-		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
-		Map<String, Boolean> logins = new HashMap<>();
-		logins.put("native", nativeLogin);
-		logins.put("google", googleLogin);
-		logins.put("github", githubLogin);
-		logins.put("ms", onedriveLogin);
-		logins.put("dropbox", dropboxLogin);
-		logins.put("cac", cacLogin);
-		logins.put("registration", registration);
-		return WebUtility.getResponse(logins, 200);	
+		return WebUtility.getResponse(UserResource.loginsAllowed, 200);	
 	}
 	
 	@GET
