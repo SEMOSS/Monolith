@@ -198,7 +198,7 @@
 						var headers = [], headerTypes = [], tableauData = {}, i,
 							response = JSON.parse(this.responseText);
 
-						if (!reponse) {
+						if (!response) {
 							return;
 						}
 
@@ -272,8 +272,7 @@
 				});
 				return params;
 			}
-
-debugger;
+			
 			var params = getUrlParams();
 			
 			if (params['hash']) {
