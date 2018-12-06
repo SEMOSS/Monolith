@@ -357,8 +357,9 @@ public class NameServer {
 			session = request.getSession(true);
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 			sessionId = session.getId();
-			if(this.jepThread == null)
+			if(PyUtils.pyEnabled() && this.jepThread == null) {
 				this.jepThread = PyUtils.getInstance().getJep();
+			}
 			jepThread = this.jepThread;
 		}
 
