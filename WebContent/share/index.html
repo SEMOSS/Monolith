@@ -191,12 +191,16 @@
 			endpoint += '&hash=' + hash;
 			endpoint += '&s=' + secret;
 			endpoint += '&JSESSIONID=' + session;
-	debugger;
+
 			if (insightId && hash && secret && session && endpoint) {
 				xhttp.onreadystatechange = function () {
 					if (this.readyState === 4) {
 						var headers = [], headerTypes = [], tableauData = {}, i,
 							response = JSON.parse(this.responseText);
+
+						if (!reponse) {
+							return;
+						}
 
 						for (i = 0; i < response.pixelReturn[1].output.headers.length; i++) {
 							headers.push(response.pixelReturn[1].output.headers[i].displayName);
@@ -210,7 +214,7 @@
 						};
 
 						tableau.connectionData = JSON.stringify([tableauData.headers, tableauData.values, tableauData.headerTypes]);
-						tableau.connectionName = 'Insight_' + scope.tableauShare.insightId;
+						tableau.connectionName = 'Insight_' + insightId;
 						tableau.submit();
 					}
 				};
@@ -261,26 +265,31 @@
 
 	<script>
 		function initialize() {
-			var url = new URL(window.location.href),
-				hash = url.searchParams.get('hash'),
-				secret = url.searchParams.get('s'),
-				insight = url.searchParams.get('i'),
-				session = url.searchParams.get('JSESSIONID');
+			function getUrlParams() {
+				var params = {}, 
+					parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value) {
+					params[key] = value;
+				});
+				return params;
+			}
+
+debugger;
+			var params = getUrlParams();
 			
-			if (hash) {
-				document.getElementById("share_hash").value = decodeURIComponent(hash);
+			if (params['hash']) {
+				document.getElementById("share_hash").value = decodeURIComponent(params['hash']);
 			}
 
-			if (secret) {
-				document.getElementById("share_secret").value = decodeURIComponent(secret);
+			if (params['s']) {
+				document.getElementById("share_secret").value = decodeURIComponent(params['s']);
 			}
 
-			if (insight) {
-				document.getElementById("share_insight").value = decodeURIComponent(insight);
+			if (params['i']) {
+				document.getElementById("share_insight").value = decodeURIComponent(params['i']);
 			}
 
-			if (session) {
-				document.getElementById("share_session").value = decodeURIComponent(session);
+			if (params['JSESSIONID']) {
+				document.getElementById("share_session").value = decodeURIComponent(params['JSESSIONID']);
 			}
 		}
 
