@@ -186,11 +186,11 @@
 				secret = document.getElementById('share_secret').value,
 				session = document.getElementById('share_session').value,
 				endpoint = origin.substring(0, origin.lastIndexOf('/') - 5) + 'api/share/i-' + insightId +'/getTableData';
-
+			
 			endpoint += '?i=' + insightId;
 			endpoint += '&hash=' + hash;
-			endpoint += '&s=' + secret;
 			endpoint += '&JSESSIONID=' + session;
+			endpoint += '&s=' + secret;
 
 			if (insightId && hash && secret && session && endpoint) {
 				xhttp.onreadystatechange = function () {
@@ -214,7 +214,7 @@
 						};
 
 						tableau.connectionData = JSON.stringify([tableauData.headers, tableauData.values, tableauData.headerTypes]);
-						tableau.connectionName = 'Insight_' + insightId;
+						tableau.connectionName = origin + '&s=validated';
 						tableau.submit();
 					}
 				};
@@ -252,7 +252,7 @@
 					Secret:
 				</div>
 				<div class="smss-form-field">
-					<input class="smss-input" id="share_secret" type="text">
+					<input class="smss-input" id="share_secret" type="password">
 				</div>
 			</div>
 			<div class="smss-form-container">
