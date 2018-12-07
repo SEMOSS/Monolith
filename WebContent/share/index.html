@@ -273,22 +273,35 @@
 				return params;
 			}
 			
+			var present = true;
 			var params = getUrlParams();
 			
 			if (params['hash']) {
 				document.getElementById("share_hash").value = decodeURIComponent(params['hash']);
+			} else {
+				present = false; 
 			}
 
 			if (params['s']) {
 				document.getElementById("share_secret").value = decodeURIComponent(params['s']);
+			} else {
+				present = false; 
 			}
 
 			if (params['i']) {
 				document.getElementById("share_insight").value = decodeURIComponent(params['i']);
+			} else {
+				present = false; 
 			}
 
 			if (params['JSESSIONID']) {
 				document.getElementById("share_session").value = decodeURIComponent(params['JSESSIONID']);
+			} else {
+				present = false; 
+			}
+			
+			if(present) {
+				connectTableau();
 			}
 		}
 
