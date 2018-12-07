@@ -27,7 +27,6 @@ import prerna.web.requests.MultiReadHttpServletRequest;
 public class NoUserInSessionFilter implements Filter {
 
 	private static final String LOGIN = "login";
-	private static final String SHARE = "share";	
 
 	private static final String NO_USER_HTML = "/noUserFail/";
 	protected static List<String> ignoreDueToFE = new Vector<String>();
@@ -106,7 +105,7 @@ public class NoUserInSessionFilter implements Filter {
 						} else {
 							// BE cannot redirect a POST
 							// send back an error and have the client remake the post
-							setInvalidEntryRedirect(context, arg0, arg1, SHARE+"?"+req.getQueryString());
+							setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
 						}
 						return;
 					}
@@ -145,7 +144,7 @@ public class NoUserInSessionFilter implements Filter {
 						// tricky tricky
 						// if you have a hash id but not shared
 						// you are trying to get in when you shouldn't
-						setInvalidEntryRedirect(context, arg0, arg1, SHARE);
+						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
 						return;
 					}
 
@@ -158,7 +157,7 @@ public class NoUserInSessionFilter implements Filter {
 
 					// not enough input
 					if(insightId == null || secret == null) {
-						setInvalidEntryRedirect(context, arg0, arg1, SHARE);
+						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
 						return;
 					}
 
@@ -174,7 +173,7 @@ public class NoUserInSessionFilter implements Filter {
 						}
 						if(hashId == null || !hashId.equals(sb+"")) {
 							// bad input 
-							setInvalidEntryRedirect(context, arg0, arg1, SHARE);
+							setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
 							return;
 						} 
 
