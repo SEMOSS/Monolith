@@ -124,8 +124,10 @@
 							<attachClasses>true</attachClasses>
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
-								index.html,
-								milkyway.jpg
+								setAdmin/**,
+								startUpFail/**,
+								noUserFail/**,
+								share/**,
 							</warSourceIncludes>
 							<packagingExcludes>
 								%regex[WEB-INF/lib/(?!semoss-${ci.version}).*.jar]
