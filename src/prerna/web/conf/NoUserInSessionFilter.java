@@ -79,6 +79,8 @@ public class NoUserInSessionFilter implements Filter {
 						k.setPath(contextPath);
 						((HttpServletResponse)arg1).addCookie(k);
 
+						Cookie route = null;
+						
 						// in case there are other JSESSIONID
 						// cookies, reset the value to the correct sessionId
 						Cookie[] cookies = req.getCookies();
@@ -87,10 +89,16 @@ public class NoUserInSessionFilter implements Filter {
 								if (c.getName().equals("JSESSIONID")) {
 									c.setValue(sessionId);
 									((HttpServletResponse)arg1).addCookie(c);
+								} else if(c.getName().equals("route")) {
+									route = c;
 								}
 							}
 						}
 
+						if(route != null) {
+							((HttpServletResponse)arg1).addCookie(route);
+						}
+						
 						// add the hash cookie
 						String hash = req.getParameter("hash");
 						Cookie h = new Cookie("HASH", hash);
