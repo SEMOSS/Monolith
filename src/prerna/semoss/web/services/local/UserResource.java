@@ -1534,10 +1534,19 @@ public class UserResource {
 	        for (int i = 0; i < digest.length; i++) {
 	          sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
 	        }
-			
-		    
 	    	//String redir = "http://localhost:9090/Monolith/api/engine/all?JSESSIONID=" + sessionId;
 	        String redir = "?JSESSIONID=" + sessionId+"&hash=" + sb+"&i="+ insightId;
+	        
+	        // add the route if this is server deployment
+	        Cookie[] curCookies = request.getCookies();
+	        if(curCookies != null) {
+	        	for(Cookie c : curCookies) {
+	        		if(c.getName().equals("route")) {
+	        			redir += "&route=" + c.getValue();
+	        		}
+	        	}
+	        }
+	        
 	    	System.out.println("Redirect URL " + redir);
 	    	outputHash.put("PARAM", redir);
 
