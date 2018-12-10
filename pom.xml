@@ -76,13 +76,10 @@
 							<attachClasses>true</attachClasses>
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
-								setAdmin/index.html,
-								setAdmin/milkyway.jpg,
-								startUpFail/index.html,
-								noUserFail/index.html,
-								share/index.html,
-								share/resource/tableauConnector/config.js,
-								share/resource/tableauConnector/connectors.js
+								setAdmin/**,
+								startUpFail/**,
+								noUserFail/**,
+								share/**,
 							</warSourceIncludes>
 						</configuration>
 					</plugin>
