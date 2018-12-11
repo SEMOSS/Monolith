@@ -79,7 +79,7 @@
 								setAdmin/**,
 								startUpFail/**,
 								noUserFail/**,
-								share/**,
+								share/**
 							</warSourceIncludes>
 						</configuration>
 					</plugin>
