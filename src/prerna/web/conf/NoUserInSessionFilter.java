@@ -95,6 +95,7 @@ public class NoUserInSessionFilter implements Filter {
 						String route = req.getParameter("route");
 						if(route != null) {
 							Cookie c = new Cookie("route", route);
+							c.setPath(contextPath);
 							((HttpServletResponse)arg1).addCookie(c);
 						}
 						
