@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 
 import javax.servlet.Filter;
@@ -107,6 +108,12 @@ public class NoUserInSessionFilter implements Filter {
 						// if get, we can do it
 						if(req.getMethod().equalsIgnoreCase("GET")){
 							((HttpServletResponse) arg1).setStatus(302);
+							
+							Map<String, String> envMap = System.getenv();
+							if(envMap.containsKey("MONOLITH_PREFIX")) {
+								fullUrl = fullUrl.replace(contextPath, envMap.get("MONOLITH_PREFIX"));
+							}
+							
 							((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
 						} else {
 							// BE cannot redirect a POST
