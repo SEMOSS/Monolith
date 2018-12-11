@@ -185,12 +185,16 @@
 				hash = document.getElementById('share_hash').value,
 				secret = document.getElementById('share_secret').value,
 				session = document.getElementById('share_session').value,
+				route = document.getElementById('share_route').value,
 				endpoint = origin.substring(0, origin.lastIndexOf('/') - 5) + 'api/share/i-' + insightId +'/getTableData';
 			
 			endpoint += '?i=' + insightId;
 			endpoint += '&hash=' + hash;
 			endpoint += '&JSESSIONID=' + session;
 			endpoint += '&s=' + secret;
+			if(route && route !== "") {
+				endpoint += '&route=' + route;
+			}
 
 			if (insightId && hash && secret && session && endpoint) {
 				xhttp.onreadystatechange = function () {
@@ -254,6 +258,10 @@
 				<div class="smss-form-field">
 					<input class="smss-input" id="share_secret" type="password">
 				</div>
+				<!-- hidden field for route -->
+				<div class="smss-form-field">
+					<input class="smss-input" id="share_route" type="hidden">
+				</div>
 			</div>
 			<div class="smss-form-container">
 				<div class="smss-form-field smss-center">
@@ -298,6 +306,10 @@
 				document.getElementById("share_session").value = decodeURIComponent(params['JSESSIONID']);
 			} else {
 				present = false; 
+			}
+
+			if(params['route']) {
+				document.getElementById("share_route").value = decodeURIComponent(params['route']);
 			}
 			
 			if(present) {
