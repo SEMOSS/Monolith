@@ -10,6 +10,24 @@
 			font-weight: 300;
 			overflow: hidden;
 		}
+		
+		table, th, td {
+			border: 1px solid black;
+			border-collapse: collapse;
+		}
+		
+		table {
+			width: 100%
+		}
+		
+		th, td {
+			font-size: 12px;
+			padding: 15px;
+		}
+		
+		th {
+			text-align: left;
+		}
 
 		* {
 			-webkit-box-sizing: border-box;
@@ -168,7 +186,7 @@
 			position: relative;
 			display: block;
 			margin: 0 auto;
-			max-width: 300px;
+			max-width: 500px;
 			width: 80%;
 			border: 1px solid #E7E7E7;
 			border: 1px solid var(--color-grey3);
@@ -208,7 +226,7 @@
 		      action="javascript:registerAdmins(this)">
 			<div class="smss-form-container">
 				<div class="smss-form-label">
-					Please set your initial admin
+					Please set your initial admin:
 				</div>
 				<div class="smss-form-field">
 					<input class="smss-input"
@@ -223,6 +241,38 @@
 				       type="submit"
 				       value="Submit">
 			</div>
+			
+			<div class="smss-form-container">
+				<div class="smss-form-label">
+					Utilize this table to determine what value to enter
+				</div>
+			</div>
+			<table>
+				<tr>
+					<th>Login Type</th>
+					<th>Input Value</th>
+				</tr>
+				<tr>
+					<td>Google OAuth</td>
+					<td>Email</td>
+				</tr>
+				<tr>
+					<td>Microsoft OAuth</td>
+					<td>Email</td>
+				</tr>
+				<tr>
+					<td>Native Login / Password</td>
+					<td>Username (must match one you will enter on registration page)</td>
+				</tr>
+				<tr>
+					<td>X.509 Certificates</td>
+					<td>Email</td>
+				</tr>
+				<tr>
+					<td>Waffle</td>
+					<td>Username (e.g. US\jsmith)</td>
+				</tr>
+			</table>
 		</form>
 	</div>
 </body>
