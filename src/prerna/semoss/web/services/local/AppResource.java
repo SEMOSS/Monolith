@@ -128,7 +128,7 @@ public class AppResource {
 	@Path("/insightImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response downloadInsightImage(@Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
-		boolean securityEnabled = Boolean.parseBoolean((String)DIHelper.getInstance().getLocalProp(Constants.SECURITY_ENABLED));
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		String sessionId = null;
 		if(securityEnabled){
 			sessionId = request.getSession(false).getId();
