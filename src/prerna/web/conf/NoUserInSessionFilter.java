@@ -22,6 +22,7 @@ import javax.servlet.http.HttpSession;
 import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
 import prerna.auth.User;
+import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.util.Constants;
 import prerna.web.requests.MultiReadHttpServletRequest;
 
@@ -48,8 +49,7 @@ public class NoUserInSessionFilter implements Filter {
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		ServletContext context = arg0.getServletContext();
 
-		boolean security = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
-		if(security) {
+		if(AbstractSecurityUtils.securityEnabled()) {
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 			String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();

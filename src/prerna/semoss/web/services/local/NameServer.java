@@ -117,34 +117,40 @@ public class NameServer {
 	// uploader functionality
 	@Path("/uploadDatabase")
 	public Uploader uploadDatabase(@Context HttpServletRequest request) {
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
+
 		Uploader upload = new DatabaseUploader();
 		String filePath = context.getInitParameter("file-upload");
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
-		upload.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
+		upload.setSecurityEnabled(securityEnabled);
 		return upload;
 	}
 
 	@Path("/uploadFile")
 	public Uploader uploadFile(@Context HttpServletRequest request) {
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
+
 		Uploader upload = new FileUploader();
 		String filePath = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR) + "\\" + DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER);
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
-		upload.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
+		upload.setSecurityEnabled(securityEnabled);
 		return upload;
 	}
 
 	@Path("/uploadImage")
 	public Uploader uploadImage(@Context HttpServletRequest request) {
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
+
 		Uploader upload = new ImageUploader();
 		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "\\db";
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
-		upload.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
+		upload.setSecurityEnabled(securityEnabled);
 		return upload;
 	}
 
@@ -164,7 +170,8 @@ public class NameServer {
 	@Path("/dbAdmin")
 	public Object modifyInsight(@Context HttpServletRequest request) {
 		DBAdminResource questionAdmin = new DBAdminResource();
-		questionAdmin.setSecurityEnabled(Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED)));
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
+		questionAdmin.setSecurityEnabled(securityEnabled);
 		return questionAdmin;
 	}
 
@@ -434,7 +441,7 @@ public class NameServer {
 	@Path("runPixelAsync")
 	@Produces("application/json")
 	public Response runPixelAsync(@Context HttpServletRequest request) {
-		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		HttpSession session = null;
 		User user = null;
 		if(securityEnabled){
@@ -779,11 +786,9 @@ public class NameServer {
 	@Path("all")
 	@Produces("application/json")
 	public StreamingOutput printEngines(@Context HttpServletRequest request) {
-		Object securityObj = DIHelper.getInstance().getLocalProp(Constants.SECURITY_ENABLED);
-		boolean security =  (securityObj instanceof Boolean && ((boolean) securityObj) ) || (Boolean.parseBoolean(securityObj.toString()));
-
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		List<Map<String, Object>> engines = null;
-		if(security) {
+		if(securityEnabled) {
 			HttpSession session = request.getSession(false);
 			if(session == null) {
 				return WebUtility.getSO("Not properly authenticated");
@@ -955,7 +960,7 @@ public class NameServer {
 	@Produces("application/json")
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String searchString, @Context HttpServletRequest request) {
 		List<String> searchResults = null;
-		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		if(securityEnabled) {
 			HttpSession session = request.getSession(false);
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
@@ -990,7 +995,7 @@ public class NameServer {
 		// If security is enabled, remove the engines in the filters that aren't
 		// accessible - if none in filters, add all accessible engines to filter
 		// list
-		boolean securityEnabled = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		List<Map<String, Object>> queryResults = null;
 		if (securityEnabled) {
 			// filter insights based on what the user has access to
