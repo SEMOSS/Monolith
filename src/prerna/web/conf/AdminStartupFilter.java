@@ -5,12 +5,12 @@ import java.io.IOException;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 
+import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -23,10 +23,7 @@ public class AdminStartupFilter implements Filter {
 	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		ServletContext context = arg0.getServletContext();
-		
-		boolean security = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
-		if(security) {
+		if(AbstractSecurityUtils.securityEnabled()) {
 			IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
 			String q = "SELECT * FROM USER LIMIT 1";
 			IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
