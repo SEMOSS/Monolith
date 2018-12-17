@@ -33,6 +33,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -56,6 +57,9 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/authorization")
 public class AuthorizationResource {
+	
+	@Context
+	protected ServletContext context;
 	
 	/*
 	 * General methods
@@ -268,7 +272,14 @@ public class AuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setDbPublic")
-	public Response setDbGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response setDbPublic(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		boolean onlyAdmin = Boolean.parseBoolean(context.getInitParameter(Constants.ADMIN_SET_PUBLIC));
+		if(onlyAdmin) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "For this instance, only admins are allowed to set specific apps global");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -279,6 +290,7 @@ public class AuthorizationResource {
 		}
 		
 		String engineId = form.getFirst("engineId");
+		
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		try {
 			SecurityUpdateUtils.setDbGlobal(user, engineId, isPublic);
@@ -295,7 +307,7 @@ public class AuthorizationResource {
 		}
 		
 		return WebUtility.getResponse(true, 200);
-	}
+	} 
 	
 	@POST
 	@Produces("application/json")
@@ -328,39 +340,6 @@ public class AuthorizationResource {
 		
 		return WebUtility.getResponse(true, 200);
 	}
-	
-	@POST
-	@Produces("application/json")
-	@Path("setDbPublic")
-	public Response setDbPublic(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-		
-		String engineId = form.getFirst("engineId");
-		
-		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
-		try {
-			SecurityUpdateUtils.setDbGlobal(user, engineId, isPublic);
-		} catch(IllegalArgumentException e) {
-			e.printStackTrace();
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e){
-			e.printStackTrace();
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		
-		return WebUtility.getResponse(true, 200);
-	} 
 	
 	@POST
 	@Produces("application/json")
