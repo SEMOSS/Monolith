@@ -68,7 +68,10 @@ public class DBLoader implements ServletContextListener {
 		
 		String rdfPropFile = context.getInitParameter(RDFMAP);
 		String securityEnabled = context.getInitParameter(Constants.SECURITY_ENABLED);
-		
+		String adminSetPublicOnly = context.getInitParameter(Constants.ADMIN_SET_PUBLIC);
+		if(adminSetPublicOnly == null) {
+			context.setInitParameter(Constants.ADMIN_SET_PUBLIC, "false");
+		}
 		System.out.println("Initializing application context..." + contextPath);
 		
 		//Set default file separator system variable
@@ -88,7 +91,8 @@ public class DBLoader implements ServletContextListener {
 		// this is because security database, on init, will
 		// load it as a boolean instead of us searching within DIHelper
 		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, securityEnabled);
-		
+		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
+
 		//Load empty engine list into DIHelper, then load engines from db folder
 		System.out.println("Loading engines...");
 		String engines = "";
