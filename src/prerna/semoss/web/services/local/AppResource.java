@@ -51,7 +51,7 @@ public class AppResource {
 	private IEngine getApp(User user, String appId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
-			if(!SecurityQueryUtils.getUserEngineIds(user).contains(appId)) {
+			if(!SecurityQueryUtils.userCanViewEngine(user, appId)) {
 				throw new IllegalAccessException("App " + appId + " does not exist or user does not have access to database");
 			}
 		} else {
