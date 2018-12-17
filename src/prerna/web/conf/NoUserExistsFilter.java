@@ -5,13 +5,13 @@ import java.io.IOException;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -26,11 +26,7 @@ public class NoUserExistsFilter implements Filter {
 	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		ServletContext context = arg0.getServletContext();
-		
-		boolean security = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
-		if(security) {
-			
+		if(AbstractSecurityUtils.securityEnabled()) {
 			// i do not want to run this query for every single call
 			// just gets annoying 
 			if(!NoUserExistsFilter.userDefined) {
@@ -51,7 +47,7 @@ public class NoUserExistsFilter implements Filter {
 						((HttpServletRequest) arg0).getSession(true).setAttribute(AdminConfigService.ADMIN_REDIRECT_KEY, referer);
 	
 						// this will be the deployment name of the app
-						String contextPath = context.getContextPath();
+						String contextPath = arg0.getServletContext().getContextPath();
 						
 						// this will be the full path of the request
 						// like http://localhost:8080/Monolith_Dev/api/engine/runPixel

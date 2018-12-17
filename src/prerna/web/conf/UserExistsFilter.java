@@ -4,7 +4,6 @@ import java.io.IOException;
 
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -13,6 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import prerna.auth.User;
+import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -23,10 +23,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		ServletContext context = arg0.getServletContext();
-
-		boolean security = Boolean.parseBoolean(context.getInitParameter(Constants.SECURITY_ENABLED));
-		if(security) {
+		if(AbstractSecurityUtils.securityEnabled()) {
 			HttpSession session = ((HttpServletRequest) arg0).getSession(true);
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
 
