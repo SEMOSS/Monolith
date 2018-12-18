@@ -62,6 +62,13 @@ public class ServerConfigurationResource {
 		
 					// security enabled
 					config.put("security", AbstractSecurityUtils.securityEnabled());
+					// r enabled
+					boolean adminSetPublic = false;
+					String adminSetPublicStr =  DIHelper.getInstance().getProperty(Constants.ADMIN_SET_PUBLIC);
+					if(adminSetPublicStr != null) {
+						adminSetPublic = Boolean.parseBoolean(adminSetPublicStr);
+					}
+					config.put("adminSetPublic", adminSetPublic);
 					
 					// local mode
 					boolean localMode = false;
