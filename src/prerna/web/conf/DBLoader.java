@@ -72,7 +72,7 @@ public class DBLoader implements ServletContextListener {
 		if(adminSetPublicOnly == null) {
 			adminSetPublicOnly = "false";
 		}
-		context.setInitParameter(Constants.ADMIN_SET_PUBLIC, "false");
+		context.setInitParameter(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
 
 		System.out.println("Initializing application context..." + contextPath);
 		
