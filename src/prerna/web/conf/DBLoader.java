@@ -70,8 +70,10 @@ public class DBLoader implements ServletContextListener {
 		String securityEnabled = context.getInitParameter(Constants.SECURITY_ENABLED);
 		String adminSetPublicOnly = context.getInitParameter(Constants.ADMIN_SET_PUBLIC);
 		if(adminSetPublicOnly == null) {
-			context.setInitParameter(Constants.ADMIN_SET_PUBLIC, "false");
+			adminSetPublicOnly = "false";
 		}
+		context.setInitParameter(Constants.ADMIN_SET_PUBLIC, "false");
+
 		System.out.println("Initializing application context..." + contextPath);
 		
 		//Set default file separator system variable
