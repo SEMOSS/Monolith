@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.web.conf;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
@@ -155,7 +156,7 @@ public class DBLoader implements ServletContextListener {
 	public void contextDestroyed(ServletContextEvent arg0) {
 		System.out.println("Start shutdown");
 
-		Set<String> insights = InsightStore.getInstance().getAllInsights();
+		Set<String> insights = new HashSet<String>(InsightStore.getInstance().getAllInsights());
 		for(String id : insights) {
 			Insight in = InsightStore.getInstance().get(id);
 			System.out.println("Closing insight " + id);

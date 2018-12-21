@@ -87,6 +87,7 @@ import prerna.io.connector.google.GoogleLatLongGetter;
 import prerna.io.connector.google.GoogleListFiles;
 import prerna.io.connector.google.GoogleProfile;
 import prerna.io.connector.ms.MSProfile;
+import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
 import prerna.security.AbstractHttpHelper;
@@ -254,6 +255,17 @@ public class UserResource {
 		SecurityUpdateUtils.addOAuthUser(token);
 	}
 	
+	
+	//////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * User info method calls
+	 */
+	
+	
 	/**
 	 * Gets user info for GoogleDrive
 	 */
@@ -417,6 +429,18 @@ public class UserResource {
 		}
 		return WebUtility.getResponse(ret, 200);
 	}
+	
+	//////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////
+	
+	/**
+	 * Login methods + redirect methods
+	 */
+	
 
 	/**
 	 * Logs user in through salesforce
@@ -497,6 +521,82 @@ public class UserResource {
 		return redirectUrl;
 	}
 
+	/**
+	 * Logs user in through survey monkey
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/surveymonkey")
+	public Response loginSurveyMonkey(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		/*
+		 * Try to log in the user
+		 * If they are not logged in
+		 * Redirect the FE
+		 */
+		
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+
+		String queryString = request.getQueryString();
+		if(queryString != null && queryString.contains("code=")) {
+			if(userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+
+				String prefix = "surveymonkey_";
+				String clientId = socialData.getProperty(prefix+"client_id");
+				String clientSecret = socialData.getProperty(prefix+"secret_key");
+				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
+
+				System.out.println(">> " + request.getQueryString());
+
+				Hashtable params = new Hashtable();
+				params.put("client_id", clientId);
+				params.put("grant_type", "authorization_code");
+				params.put("redirect_uri", redirectUri);
+				params.put("code", URLDecoder.decode(outputs[0]));
+				params.put("client_secret", clientSecret);
+
+				String url = "https://api.surveymonkey.com/oauth/token";
+				
+				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				if(accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getSurveyMonkeyRedirect(request));
+					return null;
+				}
+				accessToken.setProvider(AuthProvider.SURVEYMONKEY);
+				MonkeyProfile.fillAccessToken(accessToken, null);
+				addAccessToken(accessToken, request);
+
+				System.out.println("Access Token is.. " + accessToken.getAccess_token());
+			}
+		}
+
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getSurveyMonkeyRedirect(request));
+		} else {
+			setMainPageRedirect(request, response, null);
+		}
+		return null;
+	}
+	
+	private String getSurveyMonkeyRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
+		String prefix = "surveymonkey_";
+		String clientId = socialData.getProperty(prefix+"client_id");
+		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
+		
+		String redirectUrl = "https://api.surveymonkey.com/oauth/authorize?" +
+		"client_id=" + clientId +
+		"&response_type=code" +
+		"&redirect_uri=" + redirectUri;
+
+		System.out.println("Sending redirect.. " + redirectUrl);
+		return redirectUrl;
+	}
 
 	/**
 	 * Logs user in through git
@@ -1195,7 +1295,7 @@ public class UserResource {
 	
 	/////////////////////////////////////////////////////////////////
 	
-	/*
+	/**
 	 * This portion of code is for semoss generated users
 	 */
 	
@@ -1319,7 +1419,7 @@ public class UserResource {
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
 
-	/*
+	/**
 	 * Setting / Getting Information from the social properties
 	 * That is needed by the FE
 	 */
@@ -1433,6 +1533,17 @@ public class UserResource {
 			e.printStackTrace();
 		}
 	}
+	
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+
+	/**
+	 * Sharing session
+	 */
+	
 	
 	@GET
 	@Produces("application/json")
@@ -1561,53 +1672,6 @@ public class UserResource {
 	    
 	    return WebUtility.getSO(outputHash);
 	}
-	
-	// redirect the user after setting session
-	@GET
-	@Produces("application/json")
-	@Path("/red")
-	public void red(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-	
-		
-		//https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
-		Cookie[] cookies = request.getCookies();
-		boolean done = false;
-	    String sessionId = "";
-	    if (cookies != null) {
-	        for (Cookie c : cookies) {
-	            if (c.getName().equals("JSESSIONID")) {
-	                sessionId = c.getValue();
-	                System.out.println("Session id " + sessionId);
-
-	                Cookie k = new Cookie("JSESSIONID", sessionId);
-	        	    // cool blink show if you enable the lower one
-	        	    //k.setPath(request.getContextPath());
-	        	    //k.setPath("/appui");
-	        	    //response.addCookie(k);
-	        		
-	        	    k.setPath(request.getContextPath());
-	        	    response.addCookie(k);
-	        	    break;
-	            }
-	        }
-	    }
-
-	    System.out.println("Session id set to " + sessionId);
-	    
-	    Cookie p = new Cookie("USER", "prabhuk");
-	    p.setPath(request.getContextPath());
-	    response.addCookie(p);
-	    
-	    try {
-			response.sendRedirect("http://localhost:9090/Monolith/api/engine/all");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	    
-	    
-	}
-
 	
 	@GET
 	@Produces("application/json")
