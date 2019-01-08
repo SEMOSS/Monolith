@@ -317,7 +317,7 @@ public class NameServer {
 
 	@POST
 	@Path("/runPixel")
-	@Produces("application/json")
+	@Produces("application/json;charset=utf-8")
 	public Response runPixelSync(@Context HttpServletRequest request){
 		// I need to do a couple of things here
 		// I need to get the basic blocking queue as a singleton
@@ -439,7 +439,7 @@ public class NameServer {
 
 	@POST
 	@Path("runPixelAsync")
-	@Produces("application/json")
+	@Produces("application/json;charset=utf-8")
 	public Response runPixelAsync(@Context HttpServletRequest request) {
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		HttpSession session = null;
