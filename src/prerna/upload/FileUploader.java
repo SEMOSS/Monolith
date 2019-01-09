@@ -18,6 +18,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
@@ -85,7 +86,22 @@ public class FileUploader extends Uploader {
 				
 				Date date = new Date();
 				String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-				String fileLocation = this.filePath + fileName.substring(fileName.lastIndexOf(DIR_SEPARATOR) + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + "_____UNIQUE" + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
+				String fileLocation = null;
+				// account for upload of an h2
+				// the connection url requires it to end with .mv.db
+				// otherwise it errors
+				if(fileName.endsWith(".mv.db")) {
+					fileLocation = this.filePath + FilenameUtils.getBaseName(fileName).trim().replace(".mv",  "").replace(" ", "_") 
+							+ "_____UNIQUE" 
+							+ modifiedDate
+							+ ".mv.db";
+				} else {
+					fileLocation = this.filePath + FilenameUtils.getBaseName(fileName).trim().replace(" ", "_") 
+							+ "_____UNIQUE" 
+							+ modifiedDate
+							+ "."
+							+ FilenameUtils.getExtension(fileName);
+				}
 				File file = new File(fileLocation);
 				
 				writeFile(fi, file);
