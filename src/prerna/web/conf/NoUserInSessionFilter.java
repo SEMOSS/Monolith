@@ -34,6 +34,12 @@ public class NoUserInSessionFilter implements Filter {
 	protected static List<String> ignoreDueToFE = new Vector<String>();
 
 	static {
+		// allow these for successful dropping of
+		// sessions when browser is closed/refreshed
+		// these do their own session checks
+		ignoreDueToFE.add("engine/cleanSession");
+		ignoreDueToFE.add("engine/cancelCleanSession");
+
 		ignoreDueToFE.add("config");
 		ignoreDueToFE.add("auth/logins");
 		ignoreDueToFE.add("auth/loginsAllowed");
