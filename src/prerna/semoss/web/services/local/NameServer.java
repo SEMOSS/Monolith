@@ -43,6 +43,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.Cookie;
@@ -118,21 +119,22 @@ public class NameServer {
 	private static final String CANCEL_INVALIDATION = "cancelInvalidation";
 
 	private PyExecutorThread jepThread;
-	
+
 	@Context
 	protected ServletContext context;
 
 	////////////////////////////////////////////////////////////////////////////////
-	
+
 	/*
 	 * End points for cleanup of the thread to account for closing/opening
 	 */
-	
+
 	@POST
 	@Path("/cleanSession")
 	public Response cleanSession(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		if(session == null) {
+			LOGGER.info("Invalid session for cleaning");
 			return Response.status(400).entity("Invalid session").build();
 		}
 		LOGGER.info("Start invalidation of session");
@@ -150,47 +152,50 @@ public class NameServer {
 				InsightUtility.dropInsight(insight);
 			}
 			LOGGER.info("Successfully removed insight information from session");
-			
+
 			// clear the current session store
 			insightIDs.removeAll(copy);
 		}
-		
+
+		// wait 10 seconds
 		try {
-			Thread.sleep(7 * 1000);
-		} catch(InterruptedException e) {
-			e.printStackTrace();
+			Thread.sleep(10000);
+		} catch (InterruptedException e1) {
+			e1.printStackTrace();
 		}
-		
-		// in case during the time this was called
-		// the session has been invalidated by some other means
-		// like a logout
+
 		String output = null;
 		if(request.isRequestedSessionIdValid()) {
 			// did the FE at any point cancel this clean?
-			Boolean cancelInvlidation = (Boolean) session.getAttribute(CANCEL_INVALIDATION);
-			// we never actually set this to true or false
-			// it is either null or not, but w/e
-			if(cancelInvlidation == null || !cancelInvlidation) {
+			AtomicInteger aInt = (AtomicInteger) session.getAttribute(CANCEL_INVALIDATION);
+			if(aInt == null) {
 				// kill the entire session
 				LOGGER.info("Invalidating session");
-
 				session.invalidate();
 				output = "invalidated";
 			} else {
-				LOGGER.info("Cancelled invalidating session");
-
-				// just remove the attribute
-				session.removeAttribute(CANCEL_INVALIDATION);
-				output = "cancelled";
+				int value = aInt.getAndDecrement();
+				if(value < 0) {
+					// kill the entire session
+					LOGGER.info("Invalidating session");
+					session.invalidate();
+					output = "invalidated";
+				} else {
+					LOGGER.info("Cancelled invalidating session");
+					output = "cancelled";
+				}
 			}
 		} else {
+			// in case during the time this was called
+			// the session has been invalidated by some other means
+			// like a logout
 			LOGGER.info("Session has already been invalidated");
 			output = "invalidated";
 		}
-		
+
 		return Response.status(200).entity(output).build();
 	}
-	
+
 	@POST
 	@Path("/cancelCleanSession")
 	public Response cancelCleanSession(@Context HttpServletRequest request) {
@@ -199,7 +204,11 @@ public class NameServer {
 			return Response.status(400).entity("Invalid session").build();
 		}
 		LOGGER.info("Cancelling invalidation...");
-		session.setAttribute(CANCEL_INVALIDATION, true);
+		AtomicInteger aInt = (AtomicInteger) session.getAttribute(CANCEL_INVALIDATION);
+		if(aInt == null) {
+			aInt = new AtomicInteger(1);
+			session.setAttribute(CANCEL_INVALIDATION, aInt);
+		}
 		return Response.status(200).entity("cancel").build();
 	}
 	
