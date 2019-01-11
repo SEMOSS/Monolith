@@ -155,7 +155,7 @@ public class NameServer {
 		}
 		
 		try {
-			Thread.sleep(1000);
+			Thread.sleep(10 * 1000);
 		} catch(InterruptedException e) {
 			e.printStackTrace();
 		}
