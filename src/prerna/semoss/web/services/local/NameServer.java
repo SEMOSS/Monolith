@@ -38,9 +38,11 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.Cookie;
@@ -69,6 +71,8 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 import org.jsoup.Jsoup;
 
 import com.google.gson.Gson;
@@ -101,6 +105,7 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
+import prerna.util.insight.InsightUtility;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
@@ -109,10 +114,82 @@ import prerna.web.services.util.WebUtility;
 @Path("/engine")
 public class NameServer {
 
-	private PyExecutorThread jepThread;
+	private static final Logger LOGGER = LogManager.getLogger(NameServer.class.getName());
+	private static final String CANCEL_INVALIDATION = "cancelInvalidation";
 
+	private PyExecutorThread jepThread;
+	
 	@Context
 	protected ServletContext context;
+
+	////////////////////////////////////////////////////////////////////////////////
+	
+	/*
+	 * End points for cleanup of the thread to account for closing/opening
+	 */
+	
+	@POST
+	@Path("/cleanSession")
+	public Response cleanSession(@Context HttpServletRequest request) {
+		HttpSession session = request.getSession(false);
+		if(session == null) {
+			return Response.status(400).entity("Invalid session").build();
+		}
+		String sessionId = session.getId();
+		// clear up insight store
+		InsightStore inStore = InsightStore.getInstance();
+		Set<String> insightIDs = inStore.getInsightIDsForSession(sessionId);
+		if(insightIDs != null) {
+			Set<String> copy = new HashSet<String>(insightIDs);
+			for(String insightId : copy) {
+				Insight insight = InsightStore.getInstance().get(insightId);
+				if(insight == null) {
+					continue;
+				}
+				InsightUtility.dropInsight(insight);
+			}
+			LOGGER.info("successfully removed insight information from session");
+			
+			// clear the current session store
+			insightIDs.removeAll(copy);
+		}
+		
+		try {
+			Thread.sleep(1000);
+		} catch(InterruptedException e) {
+			e.printStackTrace();
+		}
+		
+		// did the FE at any point cancel this clean?
+		Boolean cancelInvlidation = (Boolean) session.getAttribute(CANCEL_INVALIDATION);
+		// we never actually set this to true or false
+		// it is either null or not, but w/e
+		String output = null;
+		if(cancelInvlidation == null || !cancelInvlidation) {
+			// kill the entire session
+			session.invalidate();
+			output = "invalidated";
+		} else {
+			// just remove the attribute
+			session.removeAttribute(CANCEL_INVALIDATION);
+			output = "cancelled";
+		}
+		
+		return Response.status(200).entity(output).build();
+	}
+	
+	@POST
+	@Path("/cancelCleanSession")
+	public Response cancelCleanSession(@Context HttpServletRequest request) {
+		HttpSession session = request.getSession(false);
+		if(session == null) {
+			return Response.status(400).entity("Invalid session").build();
+		}
+		session.setAttribute(CANCEL_INVALIDATION, true);
+		return Response.status(200).entity("cancel").build();
+	}
+	
+	////////////////////////////////////////////////////////////////////////////////
 
 	// uploader functionality
 	@Path("/uploadDatabase")
