@@ -80,7 +80,6 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
-import prerna.ds.py.PyExecutorThread;
 import prerna.ds.py.PyUtils;
 import prerna.io.connector.IConnectorIOp;
 import prerna.io.connector.google.GoogleEntityResolver;
