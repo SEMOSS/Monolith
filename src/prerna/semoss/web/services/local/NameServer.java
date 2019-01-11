@@ -135,6 +135,7 @@ public class NameServer {
 		if(session == null) {
 			return Response.status(400).entity("Invalid session").build();
 		}
+		LOGGER.info("Start invalidation of session");
 		String sessionId = session.getId();
 		// clear up insight store
 		InsightStore inStore = InsightStore.getInstance();
@@ -155,28 +156,36 @@ public class NameServer {
 		}
 		
 		try {
-			Thread.sleep(10 * 1000);
+			Thread.sleep(7 * 1000);
 		} catch(InterruptedException e) {
 			e.printStackTrace();
 		}
 		
-		// did the FE at any point cancel this clean?
-		Boolean cancelInvlidation = (Boolean) session.getAttribute(CANCEL_INVALIDATION);
-		// we never actually set this to true or false
-		// it is either null or not, but w/e
+		// in case during the time this was called
+		// the session has been invalidated by some other means
+		// like a logout
 		String output = null;
-		if(cancelInvlidation == null || !cancelInvlidation) {
-			// kill the entire session
-			LOGGER.info("Invalidating session");
+		if(request.isRequestedSessionIdValid()) {
+			// did the FE at any point cancel this clean?
+			Boolean cancelInvlidation = (Boolean) session.getAttribute(CANCEL_INVALIDATION);
+			// we never actually set this to true or false
+			// it is either null or not, but w/e
+			if(cancelInvlidation == null || !cancelInvlidation) {
+				// kill the entire session
+				LOGGER.info("Invalidating session");
 
-			session.invalidate();
-			output = "invalidated";
+				session.invalidate();
+				output = "invalidated";
+			} else {
+				LOGGER.info("Cancelled invalidating session");
+
+				// just remove the attribute
+				session.removeAttribute(CANCEL_INVALIDATION);
+				output = "cancelled";
+			}
 		} else {
-			LOGGER.info("Cancelled invalidating session");
-
-			// just remove the attribute
-			session.removeAttribute(CANCEL_INVALIDATION);
-			output = "cancelled";
+			LOGGER.info("Session has already been invalidated");
+			output = "invalidated";
 		}
 		
 		return Response.status(200).entity(output).build();
