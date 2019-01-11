@@ -63,6 +63,8 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
 
@@ -100,6 +102,8 @@ import waffle.servlet.WindowsPrincipal;
 
 @Path("/auth")
 public class UserResource {
+	
+	private static final Logger LOGGER = LogManager.getLogger(UserResource.class.getName());
 	
 	private static Properties socialData = null;
 	private static Map<String, Boolean> loginsAllowed;
@@ -197,6 +201,8 @@ public class UserResource {
 		// redirect the user
 		// and invalidate the session
 		if(noUser && AbstractSecurityUtils.securityEnabled()) {
+			LOGGER.info("User is no longer logged in");
+			LOGGER.info("Removing user object from session");
 			session.removeAttribute(Constants.SESSION_USER);
 			// well, you have logged out and we always require a login
 			// so i will redirect you
@@ -208,16 +214,11 @@ public class UserResource {
 			
 			// remove the cookie from the browser
 			// for the session id
+			LOGGER.info("Removing session token");
 			Cookie cookie = new Cookie("JSESSIONID", null);
 			cookie.setPath("/");
 			repsonse.addCookie(cookie);
 
-			// kill the user python thread here
-			if(PyUtils.pyEnabled()) {
-				PyExecutorThread pyThread = (PyExecutorThread) session.getAttribute(Constants.PYTHON);
-				PyUtils.getInstance().killPyThread(pyThread);
-			}
-			
 			// invalidate the session
 			session.invalidate();
 			return null;

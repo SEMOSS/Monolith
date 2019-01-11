@@ -62,7 +62,7 @@ import prerna.sablecc2.reactor.IReactor;
 import prerna.sablecc2.reactor.PixelPlanner;
 import prerna.sablecc2.reactor.app.upload.UploadInputUtility;
 import prerna.sablecc2.reactor.app.upload.UploadUtilities;
-import prerna.sablecc2.reactor.app.upload.gremlin.TinkerCsvUploadReactor;
+import prerna.sablecc2.reactor.app.upload.gremlin.file.TinkerCsvUploadReactor;
 import prerna.sablecc2.reactor.app.upload.rdbms.csv.RdbmsCsvUploadReactor;
 import prerna.sablecc2.reactor.app.upload.rdbms.external.ExternalJdbcSchemaReactor;
 import prerna.sablecc2.reactor.app.upload.rdbms.external.RdbmsExternalUploadReactor;
