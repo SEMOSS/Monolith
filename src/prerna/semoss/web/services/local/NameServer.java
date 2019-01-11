@@ -148,7 +148,7 @@ public class NameServer {
 				}
 				InsightUtility.dropInsight(insight);
 			}
-			LOGGER.info("successfully removed insight information from session");
+			LOGGER.info("Successfully removed insight information from session");
 			
 			// clear the current session store
 			insightIDs.removeAll(copy);
@@ -167,9 +167,13 @@ public class NameServer {
 		String output = null;
 		if(cancelInvlidation == null || !cancelInvlidation) {
 			// kill the entire session
+			LOGGER.info("Invalidating session");
+
 			session.invalidate();
 			output = "invalidated";
 		} else {
+			LOGGER.info("Cancelled invalidating session");
+
 			// just remove the attribute
 			session.removeAttribute(CANCEL_INVALIDATION);
 			output = "cancelled";
@@ -185,6 +189,7 @@ public class NameServer {
 		if(session == null) {
 			return Response.status(400).entity("Invalid session").build();
 		}
+		LOGGER.info("Cancelling invalidation...");
 		session.setAttribute(CANCEL_INVALIDATION, true);
 		return Response.status(200).entity("cancel").build();
 	}
