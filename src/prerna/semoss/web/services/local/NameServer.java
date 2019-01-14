@@ -43,7 +43,6 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.Cookie;
@@ -117,7 +116,8 @@ public class NameServer {
 
 	private static final Logger LOGGER = LogManager.getLogger(NameServer.class.getName());
 	private static final String CANCEL_INVALIDATION = "cancelInvalidation";
-
+	private Object lock = new Object();
+	
 	private PyExecutorThread jepThread;
 
 	@Context
@@ -132,6 +132,10 @@ public class NameServer {
 	@POST
 	@Path("/cleanSession")
 	public Response cleanSession(@Context HttpServletRequest request) {
+		// need to compare when this method was called
+		// to a potential cancellation
+		Date execTime = new Date();
+
 		HttpSession session = request.getSession(false);
 		if(session == null) {
 			LOGGER.info("Invalid session for cleaning");
@@ -167,22 +171,25 @@ public class NameServer {
 		String output = null;
 		if(request.isRequestedSessionIdValid()) {
 			// did the FE at any point cancel this clean?
-			AtomicInteger aInt = (AtomicInteger) session.getAttribute(CANCEL_INVALIDATION);
-			if(aInt == null) {
+			Date cancelTime = null;
+			synchronized(lock) {
+				cancelTime = (Date) session.getAttribute(CANCEL_INVALIDATION);
+			}
+			if(cancelTime == null) {
 				// kill the entire session
 				LOGGER.info("Invalidating session");
 				session.invalidate();
 				output = "invalidated";
 			} else {
-				int value = aInt.getAndDecrement();
-				if(value < 0) {
+				boolean isCancelled = execTime.before(cancelTime);
+				if(isCancelled) {
+					LOGGER.info("Cancelled invalidating session");
+					output = "cancelled";
+				} else {
 					// kill the entire session
 					LOGGER.info("Invalidating session");
 					session.invalidate();
 					output = "invalidated";
-				} else {
-					LOGGER.info("Cancelled invalidating session");
-					output = "cancelled";
 				}
 			}
 		} else {
@@ -204,10 +211,9 @@ public class NameServer {
 			return Response.status(400).entity("Invalid session").build();
 		}
 		LOGGER.info("Cancelling invalidation...");
-		AtomicInteger aInt = (AtomicInteger) session.getAttribute(CANCEL_INVALIDATION);
-		if(aInt == null) {
-			aInt = new AtomicInteger(1);
-			session.setAttribute(CANCEL_INVALIDATION, aInt);
+		Date d = new Date();
+		synchronized(lock) {
+			session.setAttribute(CANCEL_INVALIDATION, d);
 		}
 		return Response.status(200).entity("cancel").build();
 	}
