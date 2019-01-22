@@ -131,6 +131,7 @@ public class NameServer {
 
 	@POST
 	@Path("/cleanSession")
+	@Produces("application/json;charset=utf-8")
 	public Response cleanSession(@Context HttpServletRequest request) {
 		// need to compare when this method was called
 		// to a potential cancellation
@@ -139,7 +140,9 @@ public class NameServer {
 		HttpSession session = request.getSession(false);
 		if(session == null) {
 			LOGGER.info("Invalid session for cleaning");
-			return Response.status(400).entity("Invalid session").build();
+			Map<String, String> ret = new HashMap<String, String>();
+			ret.put("output", "Invalid session");
+			return WebUtility.getResponse(ret, 400);
 		}
 		LOGGER.info("Start invalidation of session");
 		String sessionId = session.getId();
@@ -200,22 +203,30 @@ public class NameServer {
 			output = "invalidated";
 		}
 
-		return Response.status(200).entity(output).build();
+		Map<String, String> ret = new HashMap<String, String>();
+		ret.put("output", output);
+		return WebUtility.getResponse(ret, 200);
 	}
 
 	@POST
 	@Path("/cancelCleanSession")
+	@Produces("application/json;charset=utf-8")
 	public Response cancelCleanSession(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		if(session == null) {
-			return Response.status(400).entity("Invalid session").build();
+			Map<String, String> ret = new HashMap<String, String>();
+			ret.put("output", "Invalid session");
+			return WebUtility.getResponse(ret, 400);
 		}
 		LOGGER.info("Cancelling invalidation...");
 		Date d = new Date();
 		synchronized(lock) {
 			session.setAttribute(CANCEL_INVALIDATION, d);
 		}
-		return Response.status(200).entity("cancel").build();
+		
+		Map<String, String> ret = new HashMap<String, String>();
+		ret.put("output", "cancel");
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
