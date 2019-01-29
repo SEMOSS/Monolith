@@ -1321,12 +1321,16 @@ public class UserResource {
 				ret.put("success", "true");
 				ret.put("username", username);
 				String name = NativeUserSecurityUtils.getNameUser(username);
+				String email = NativeUserSecurityUtils.getUserEmail(username);
+
 				ret.put("name", name);
+				ret.put("email", email);
 				String id = NativeUserSecurityUtils.getUserId(username);
 				AccessToken authToken = new AccessToken();
 				authToken.setProvider(AuthProvider.NATIVE);
 				authToken.setId(id);
-				authToken.setName(username);				
+				authToken.setName(username);	
+				authToken.setEmail(email);
 				addAccessToken(authToken, request);
 				
 				setMainPageRedirect(request, response, null);
