@@ -383,6 +383,33 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		// Set return values
 		return WebUtility.getResponse(numRecords, 200);
 	}
+	
+	@Override
+	public long getNumRows() {
+		throw new IllegalStateException("Only overriding this method for reference.");	
+	}
+	
+	/**
+	 * Get num rows requires appId and wrapperId
+	 * @param request
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("/getNumRows")
+	public Response getNumRows(@Context HttpServletRequest request) {
+		
+		// Grab parameters
+		String appId = request.getParameter(APP_ID);
+		String wrapperId = request.getParameter(WRAPPER_ID);
+		
+		// Perform action
+		IRawSelectWrapper wrapper = getRawSelectWrapper(appId, wrapperId);
+		long numRecords = wrapper.getNumRows();
+		
+		// Set return values
+		return WebUtility.getResponse(numRecords, 200);
+	}
 
 	@Override
 	public void reset() {
