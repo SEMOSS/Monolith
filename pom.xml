@@ -1906,7 +1906,8 @@
 				</exclusion>
 			</exclusions>
 		</dependency-->
-		<dependency>
+		<!-- cleanup -->
+		<!--dependency>
 			<groupId>net.sf.supercsv</groupId>
 			<artifactId>super-csv</artifactId>
 			<version>2.1.0</version>
@@ -1916,7 +1917,7 @@
 					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
+		</dependency-->
 		<dependency>
 			<groupId>org.apache.tika</groupId>
 			<artifactId>tika-core</artifactId>
