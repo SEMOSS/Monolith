@@ -6,10 +6,12 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import prerna.auth.User;
@@ -90,6 +92,43 @@ public class InsightAuthorizationResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	
+	/**
+	 * Get the user insight permissions for a given insight
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("addInsightUserPermission")
+	public Response addInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String newUserId = form.getFirst("id");
+		String appId = form.getFirst("appId");
+		String insightId = form.getFirst("insightId");
+		String permission = form.getFirst("permission");
+
+		try {
+			SecurityInsightUtils.addInsightUser(user, newUserId, appId, insightId, permission);
+		} catch (Exception e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
 	
 	
 }
