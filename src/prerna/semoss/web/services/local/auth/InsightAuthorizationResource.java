@@ -28,6 +28,41 @@ public class InsightAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
+	@Path("getUserInsightPermission")
+	public Response getUserInsightPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String appId = form.getFirst("appId");
+		String insightId = form.getFirst("insightId");
+		
+		String permission = SecurityInsightUtils.getUserInsightPermission(user, appId, insightId);
+		if(permission == null) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User does not have access to this insight");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		Map<String, String> ret = new HashMap<String, String>();
+		ret.put("permission", permission);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	
+	/**
+	 * Get the user insight permissions for a given insight
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
 	@Path("getInsightUsers")
 	public Response getInsightUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
@@ -60,5 +95,7 @@ public class InsightAuthorizationResource {
 		
 		return WebUtility.getResponse(ret, 200);
 	}
+	
+	
 	
 }
