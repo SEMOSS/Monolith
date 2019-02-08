@@ -81,6 +81,7 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.ds.py.PyExecutorThread;
 import prerna.ds.py.PyUtils;
@@ -1081,9 +1082,9 @@ public class NameServer {
 		if(securityEnabled) {
 			HttpSession session = request.getSession(false);
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
-			searchResults = SecurityQueryUtils.predictUserInsightSearch(user, searchString, "15", "0");
+			searchResults = SecurityInsightUtils.predictUserInsightSearch(user, searchString, "15", "0");
 		} else {
-			searchResults = SecurityQueryUtils.predictInsightSearch(searchString, "15", "0");
+			searchResults = SecurityInsightUtils.predictInsightSearch(searchString, "15", "0");
 		}
 		return WebUtility.getSO(searchResults);
 	}
@@ -1118,9 +1119,9 @@ public class NameServer {
 			// filter insights based on what the user has access to
 			HttpSession session = request.getSession(false);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			queryResults = SecurityQueryUtils.searchUserInsightDataByName(user, searchString, limit, offset);
+			queryResults = SecurityInsightUtils.searchUserInsightDataByName(user, searchString, limit, offset);
 		} else {
-			queryResults = SecurityQueryUtils.searchAllInsightDataByName(searchString, limit, offset);
+			queryResults = SecurityInsightUtils.searchAllInsightDataByName(searchString, limit, offset);
 		}
 
 		return WebUtility.getSO(queryResults);
