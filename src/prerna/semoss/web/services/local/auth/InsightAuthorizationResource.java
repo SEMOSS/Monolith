@@ -5,11 +5,11 @@ import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.POST;
+import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import prerna.auth.User;
@@ -26,10 +26,10 @@ public class InsightAuthorizationResource {
 	 * @param form
 	 * @return
 	 */
-	@POST
+	@GET
 	@Produces("application/json")
 	@Path("getUserInsightPermission")
-	public Response getUserInsightPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response getUserInsightPermission(@Context HttpServletRequest request, @QueryParam("appId") String appId, @QueryParam("insightId") String insightId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -38,9 +38,6 @@ public class InsightAuthorizationResource {
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
-		String appId = form.getFirst("appId");
-		String insightId = form.getFirst("insightId");
 		
 		String permission = SecurityInsightUtils.getUserInsightPermission(user, appId, insightId);
 		if(permission == null) {
@@ -61,10 +58,10 @@ public class InsightAuthorizationResource {
 	 * @param form
 	 * @return
 	 */
-	@POST
+	@GET
 	@Produces("application/json")
 	@Path("getInsightUsers")
-	public Response getInsightUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId, @QueryParam("insightId") String insightId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -73,9 +70,6 @@ public class InsightAuthorizationResource {
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
-		String appId = form.getFirst("appId");
-		String insightId = form.getFirst("insightId");
 		
 		// can the user view this insight to see the permissions
 		if(!SecurityInsightUtils.userCanViewInsight(user, appId, insightId)) {
