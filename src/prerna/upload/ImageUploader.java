@@ -19,6 +19,7 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
 import prerna.auth.User;
+import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
@@ -140,7 +141,7 @@ public class ImageUploader extends Uploader {
 					returnMap.put("errorMessage", e.getMessage());
 					return WebUtility.getResponse(returnMap, 401);
 				}
-				if(!SecurityQueryUtils.userCanEditInsight(user, appId, insightId)) {
+				if(!SecurityInsightUtils.userCanEditInsight(user, appId, insightId)) {
 					throw new IllegalArgumentException("User does not have access to edit this insight within the app");
 				}
 				appName = SecurityQueryUtils.getEngineAliasForId(appId);
