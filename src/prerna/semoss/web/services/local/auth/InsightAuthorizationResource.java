@@ -198,4 +198,40 @@ public class InsightAuthorizationResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	/**
+	 * Remove user permission for an insight
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setInsightGlobal")
+	public Response setInsightGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String appId = form.getFirst("appId");
+		String insightId = form.getFirst("insightId");
+		boolean isPublic = Boolean.parseBoolean(form.getFirst("isPublic"));
+		
+		try {
+			SecurityInsightUtils.setInsightGlobalWithinApp(user, appId, insightId, isPublic);
+		} catch (Exception e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
 }
