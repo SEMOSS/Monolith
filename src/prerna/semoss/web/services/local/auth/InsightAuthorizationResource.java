@@ -126,7 +126,7 @@ public class InsightAuthorizationResource {
 	}
 	
 	/**
-	 * Add a user to an insight
+	 * Edit user permission for an insight
 	 * @param request
 	 * @param form
 	 * @return
@@ -151,6 +151,42 @@ public class InsightAuthorizationResource {
 
 		try {
 			SecurityInsightUtils.editInsightUserPermission(user, existingUserId, appId, insightId, newPermission);
+		} catch (Exception e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Remove user permission for an insight
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("removeInsightUserPermission")
+	public Response removeInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String existingUserId = form.getFirst("id");
+		String appId = form.getFirst("appId");
+		String insightId = form.getFirst("insightId");
+
+		try {
+			SecurityInsightUtils.removeInsightUser(user, existingUserId, appId, insightId);
 		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ERROR_KEY, e.getMessage());
