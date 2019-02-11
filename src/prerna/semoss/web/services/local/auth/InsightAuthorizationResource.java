@@ -22,6 +22,8 @@ import prerna.web.services.util.WebUtility;
 @Path("/auth/insight")
 public class InsightAuthorizationResource {
 
+	private static String ERROR_KEY = "errorMessage";
+	
 	/**
 	 * Get the user insight permissions for a given insight
 	 * @param request
@@ -37,14 +39,14 @@ public class InsightAuthorizationResource {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
+			errorMap.put(ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		String permission = SecurityInsightUtils.getUserInsightPermission(user, appId, insightId);
 		if(permission == null) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User does not have access to this insight");
+			errorMap.put(ERROR_KEY, "User does not have access to this insight");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -69,14 +71,7 @@ public class InsightAuthorizationResource {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-		
-		// can the user view this insight to see the permissions
-		if(!SecurityInsightUtils.userCanViewInsight(user, appId, insightId)) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "App/Insight id are invalid or user does not have access to view this insight");
+			errorMap.put(ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -85,7 +80,7 @@ public class InsightAuthorizationResource {
 			ret = SecurityInsightUtils.getInsightUsers(user, appId, insightId);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
+			errorMap.put(ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -108,7 +103,7 @@ public class InsightAuthorizationResource {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
+			errorMap.put(ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -121,7 +116,7 @@ public class InsightAuthorizationResource {
 			SecurityInsightUtils.addInsightUser(user, newUserId, appId, insightId, permission);
 		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", e.getMessage());
+			errorMap.put(ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -138,14 +133,14 @@ public class InsightAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("addInsightUserPermission")
+	@Path("editInsightUserPermission")
 	public Response editInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
+			errorMap.put(ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -158,7 +153,7 @@ public class InsightAuthorizationResource {
 			SecurityInsightUtils.editInsightUserPermission(user, existingUserId, appId, insightId, newPermission);
 		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", e.getMessage());
+			errorMap.put(ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
