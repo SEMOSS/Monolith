@@ -43,7 +43,7 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String permission = SecurityInsightUtils.getUserInsightPermission(user, appId, insightId);
+		String permission = SecurityInsightUtils.getActualUserInsightPermission(user, appId, insightId);
 		if(permission == null) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ERROR_KEY, "User does not have access to this insight");
