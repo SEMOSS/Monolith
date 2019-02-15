@@ -73,6 +73,7 @@ import com.google.gson.reflect.TypeToken;
 
 import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
+import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
 import prerna.auth.User;
@@ -109,6 +110,7 @@ public class UserResource {
 	
 	static {
 		loadSocialProperties();
+		AppTokens.setSocial(socialData);
 	}
 	
 	private static void loadSocialProperties() {
