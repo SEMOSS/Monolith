@@ -14,8 +14,11 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import com.google.gson.Gson;
+
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.cluster.util.ClusterUtil;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.web.services.util.WebUtility;
 
@@ -51,6 +54,46 @@ public class AdminInsightAuthorizationResource {
 		}
 		
 		List<Map<String, Object>> ret = adminUtils.getAppInsights(appId);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Get the user insight permissions for a given insight
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("deleteAppInsights")
+	public Response deleteAppInsights(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		try {
+			adminUtils = performAdminCheck(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String appId = form.getFirst("appId");
+		Gson gson = new Gson();
+		List<String> insightIds = gson.fromJson(form.getFirst("insightId"), List.class);
+		
+		try {
+			adminUtils.deleteAppInsights(appId, insightIds);
+			
+			// since modifying insight list
+			// need to push to cloud storage
+			ClusterUtil.reactorPushApp(appId);
+		} catch (Exception e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
