@@ -39,6 +39,29 @@ public class AdminInsightAuthorizationResource {
 	 */
 	@GET
 	@Produces("application/json")
+	@Path("getAppInsights")
+	public Response getAppInsights(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+		SecurityAdminUtils adminUtils = null;
+		try {
+			adminUtils = performAdminCheck(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		List<Map<String, Object>> ret = adminUtils.getAppInsights(appId);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Get the user insight permissions for a given insight
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
 	@Path("getInsightUsers")
 	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId, @QueryParam("insightId") String insightId) {
 		SecurityAdminUtils adminUtils = null;
