@@ -167,7 +167,7 @@ public class NameServer {
 
 		// wait 10 seconds
 		try {
-			Thread.sleep(10000);
+			Thread.sleep(10_000);
 		} catch (InterruptedException e1) {
 			e1.printStackTrace();
 		}
