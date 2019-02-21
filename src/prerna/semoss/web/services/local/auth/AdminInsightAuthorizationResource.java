@@ -15,44 +15,21 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import prerna.auth.User;
-import prerna.auth.utils.SecurityInsightUtils;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.web.services.util.WebUtility;
 
-@Path("/auth/insight")
-public class InsightAuthorizationResource {
+@Path("/auth/admin/insight")
+public class AdminInsightAuthorizationResource {
 
-	/**
-	 * Get the user insight permissions for a given insight
-	 * @param request
-	 * @param form
-	 * @return
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("getUserInsightPermission")
-	public Response getUserInsightPermission(@Context HttpServletRequest request, @QueryParam("appId") String appId, @QueryParam("insightId") String insightId) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+	private SecurityAdminUtils performAdminCheck(@Context HttpServletRequest request) throws IllegalAccessException {
+		User user = ResourceUtility.getUser(request);
+		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
+		if(adminUtils == null) {
+			throw new IllegalArgumentException("User is not an admin");
 		}
-		
-		String permission = SecurityInsightUtils.getActualUserInsightPermission(user, appId, insightId);
-		if(permission == null) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User does not have access to this insight");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-		
-		Map<String, String> ret = new HashMap<String, String>();
-		ret.put("permission", permission);
-		return WebUtility.getResponse(ret, 200);
+		return adminUtils;
 	}
-	
 	
 	/**
 	 * Get the user insight permissions for a given insight
@@ -64,18 +41,18 @@ public class InsightAuthorizationResource {
 	@Produces("application/json")
 	@Path("getInsightUsers")
 	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId, @QueryParam("insightId") String insightId) {
-		User user = null;
+		SecurityAdminUtils adminUtils = null;
 		try {
-			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityInsightUtils.getInsightUsers(user, appId, insightId);
+			ret = adminUtils.getInsightUsers(appId, insightId);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -96,12 +73,12 @@ public class InsightAuthorizationResource {
 	@Produces("application/json")
 	@Path("addInsightUserPermission")
 	public Response addInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
+		SecurityAdminUtils adminUtils = null;
 		try {
-			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -111,7 +88,7 @@ public class InsightAuthorizationResource {
 		String permission = form.getFirst("permission");
 
 		try {
-			SecurityInsightUtils.addInsightUser(user, newUserId, appId, insightId, permission);
+			adminUtils.addInsightUser(newUserId, appId, insightId, permission);
 		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -133,12 +110,12 @@ public class InsightAuthorizationResource {
 	@Produces("application/json")
 	@Path("editInsightUserPermission")
 	public Response editInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
+		SecurityAdminUtils adminUtils = null;
 		try {
-			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -148,7 +125,7 @@ public class InsightAuthorizationResource {
 		String newPermission = form.getFirst("permission");
 
 		try {
-			SecurityInsightUtils.editInsightUserPermission(user, existingUserId, appId, insightId, newPermission);
+			adminUtils.editInsightUserPermission(existingUserId, appId, insightId, newPermission);
 		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -170,12 +147,12 @@ public class InsightAuthorizationResource {
 	@Produces("application/json")
 	@Path("removeInsightUserPermission")
 	public Response removeInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
+		SecurityAdminUtils adminUtils = null;
 		try {
-			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -184,7 +161,7 @@ public class InsightAuthorizationResource {
 		String insightId = form.getFirst("insightId");
 
 		try {
-			SecurityInsightUtils.removeInsightUser(user, existingUserId, appId, insightId);
+			adminUtils.removeInsightUser(existingUserId, appId, insightId);
 		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -206,12 +183,12 @@ public class InsightAuthorizationResource {
 	@Produces("application/json")
 	@Path("setInsightGlobal")
 	public Response setInsightGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
+		SecurityAdminUtils adminUtils = null;
 		try {
-			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -220,7 +197,7 @@ public class InsightAuthorizationResource {
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("isPublic"));
 		
 		try {
-			SecurityInsightUtils.setInsightGlobalWithinApp(user, appId, insightId, isPublic);
+			adminUtils.setInsightGlobalWithinApp(appId, insightId, isPublic);
 		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());

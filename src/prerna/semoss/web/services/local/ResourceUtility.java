@@ -11,6 +11,8 @@ import prerna.util.Constants;
 
 public class ResourceUtility {
 
+	public static String ERROR_KEY = "errorMessage";
+	
 	/**
 	 * Get the user
 	 * @param request
