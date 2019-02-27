@@ -19,6 +19,7 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 
 import prerna.auth.User;
+import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.engine.impl.SmssUtilities;
@@ -61,7 +62,7 @@ public class ImageUploader extends Uploader {
 					returnMap.put("errorMessage", e.getMessage());
 					return WebUtility.getResponse(returnMap, 401);
 				}
-				if(!SecurityQueryUtils.userCanEditEngine(user, appId)) {
+				if(!SecurityAppUtils.userCanEditEngine(user, appId)) {
 					throw new IllegalArgumentException("Database " + appId + " does not exist or user does not have access to database");
 				}
 				appName = SecurityQueryUtils.getEngineAliasForId(appId);
