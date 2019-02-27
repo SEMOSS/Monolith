@@ -26,6 +26,7 @@ import org.apache.commons.io.filefilter.WildcardFileFilter;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.SmssUtilities;
@@ -51,7 +52,7 @@ public class AppResource {
 	private IEngine getApp(User user, String appId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
-			if(!SecurityQueryUtils.userCanViewEngine(user, appId)) {
+			if(!SecurityAppUtils.userCanViewEngine(user, appId)) {
 				throw new IllegalAccessException("App " + appId + " does not exist or user does not have access to database");
 			}
 		} else {
