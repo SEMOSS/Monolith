@@ -3,9 +3,12 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Vector;
+import java.util.stream.Collectors;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -98,11 +101,15 @@ public class NoUserInSessionFilter implements Filter {
 							}
 						}
 
-						String route = req.getParameter("route");
-						if(route != null) {
-							Cookie c = new Cookie("route", route);
-							c.setPath(contextPath);
-							((HttpServletResponse)arg1).addCookie(c);
+						Set<String> routes = Collections.list(req.getParameterNames())
+								.stream().filter(s -> s.startsWith("route"))
+								.collect(Collectors.toSet());
+						if(routes != null && !routes.isEmpty()) {
+							for(String r : routes) {
+								Cookie c = new Cookie(r, req.getParameter(r));
+								c.setPath(contextPath);
+								((HttpServletResponse)arg1).addCookie(c);
+							}
 						}
 						
 						// add the hash cookie
