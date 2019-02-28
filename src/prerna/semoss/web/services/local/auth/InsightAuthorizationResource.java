@@ -14,7 +14,9 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import prerna.auth.AccessPermission;
 import prerna.auth.User;
+import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.web.services.util.WebUtility;
@@ -110,6 +112,17 @@ public class InsightAuthorizationResource {
 		String insightId = form.getFirst("insightId");
 		String permission = form.getFirst("permission");
 
+		// add the person with read only access if they do not have access to the app
+		if(SecurityAppUtils.getUserAppPermission(newUserId, appId) == null) {
+			try {
+				SecurityAppUtils.addAppUser(user, newUserId, appId, AccessPermission.READ_ONLY.getPermission());
+			} catch(Exception e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		}
+		
 		try {
 			SecurityInsightUtils.addInsightUser(user, newUserId, appId, insightId, permission);
 		} catch (Exception e) {
