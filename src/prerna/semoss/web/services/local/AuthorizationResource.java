@@ -50,6 +50,7 @@ import com.google.gson.internal.StringMap;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.util.Constants;
@@ -293,7 +294,7 @@ public class AuthorizationResource {
 		
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		try {
-			SecurityUpdateUtils.setDbGlobal(user, engineId, isPublic);
+			SecurityAppUtils.setAppGlobal(user, engineId, isPublic);
 		} catch(IllegalArgumentException e) {
 			e.printStackTrace();
 			Map<String, String> errorRet = new HashMap<String, String>();
