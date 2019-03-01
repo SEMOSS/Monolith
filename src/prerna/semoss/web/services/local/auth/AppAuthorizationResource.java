@@ -1,8 +1,10 @@
 package prerna.semoss.web.services.local.auth;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -16,11 +18,15 @@ import javax.ws.rs.core.Response;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAppUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/app")
 public class AppAuthorizationResource {
 
+	@Context
+	protected ServletContext context;
+	
 	/**
 	 * Get the user insight permissions for a given insight
 	 * @param request
@@ -49,6 +55,37 @@ public class AppAuthorizationResource {
 		
 		Map<String, String> ret = new HashMap<String, String>();
 		ret.put("permission", permission);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Get the user app permissions for a given insight
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getAppUsers")
+	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		List<Map<String, Object>> ret = null;
+		try {
+			ret = SecurityAppUtils.getAppUsers(user, appId);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
 		return WebUtility.getResponse(ret, 200);
 	}
 	
@@ -158,4 +195,43 @@ public class AppAuthorizationResource {
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("setAppGlobal")
+	public Response setDbPublic(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		boolean onlyAdmin = Boolean.parseBoolean(context.getInitParameter(Constants.ADMIN_SET_PUBLIC));
+		if(onlyAdmin) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "For this instance, only admins are allowed to set specific apps global");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String engineId = form.getFirst("appId");
+		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
+		try {
+			SecurityAppUtils.setAppGlobal(user, engineId, isPublic);
+		} catch(IllegalArgumentException e) {
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		return WebUtility.getResponse(true, 200);
+	} 
 }
