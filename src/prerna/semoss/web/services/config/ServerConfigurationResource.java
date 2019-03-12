@@ -70,6 +70,16 @@ public class ServerConfigurationResource {
 					}
 					config.put("adminSetPublic", adminSetPublic);
 					
+					// max file transfer size
+					String fileTransferMax = DIHelper.getInstance().getProperty(Constants.FILE_TRANSFER_LIMIT);
+					if(fileTransferMax != null) {
+						try {
+							config.put("file-limit", Integer.parseInt(fileTransferMax));
+						} catch(Exception e) {
+							// ignore
+						}
+					}
+					
 					// local mode
 					boolean localMode = false;
 					String localModeStr =  DIHelper.getInstance().getProperty(Constants.LOCAL_DEPLOYMENT);
