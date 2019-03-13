@@ -96,7 +96,8 @@ import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
-import prerna.util.Utility;
+import prerna.web.conf.DBLoader;
+import prerna.web.conf.NoUserInSessionFilter;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
 
@@ -216,7 +217,7 @@ public class UserResource {
 			// remove the cookie from the browser
 			// for the session id
 			LOGGER.info("Removing session token");
-			Cookie cookie = new Cookie("JSESSIONID", null);
+			Cookie cookie = new Cookie(DBLoader.getSessionIdKey(), null);
 			cookie.setPath("/");
 			repsonse.addCookie(cookie);
 
@@ -1528,7 +1529,7 @@ public class UserResource {
 	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response, String redirect) {
 		response.setStatus(302);
 		try {
-			Cookie cookie = new Cookie("JSESSIONID", request.getSession().getId());
+			Cookie cookie = new Cookie(DBLoader.getSessionIdKey(), request.getSession().getId());
 			response.addCookie(cookie);
 			if(redirect == null) {
 				response.sendRedirect(socialData.getProperty("redirect"));
@@ -1555,7 +1556,6 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/cookie")
 	public StreamingOutput manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response, @QueryParam("i") String insightId, @QueryParam("s") String secret) {
-	
 		//https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
 
 	    /*
@@ -1576,103 +1576,56 @@ public class UserResource {
 
 		// get the session
 		HttpSession session = request.getSession();
-		User user = (User)session.getAttribute(Constants.SESSION_USER);
-
-		// need to set this random in some place in user
-		String random = Utility.getRandomString(10);
-
-		// add the random to the insight id
-		
-		// Create a hash of the insight id
-		
-		// send the hash with the redirect as a parameter
-		
-		// 
-		
 		String sessionId = session.getId();
+		User user = (User) session.getAttribute(Constants.SESSION_USER);
 
-        Cookie k = new Cookie("JSESSIONID", sessionId);
-	    // cool blink show if you enable the lower one
-	    //k.setPath(request.getContextPath());
-	    //k.setPath("/appui");
-	    //response.addCookie(k);
-		
+        Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
 	    k.setPath(request.getContextPath());
 	    response.addCookie(k);
 
-	    /*
-		Cookie[] cookies = request.getCookies();
-		boolean done = false;
-	    String sessionId = "";
-	    if (cookies != null) {
-	        for (Cookie c : cookies) {
-	            if (c.getName().equals("JSESSIONID")) {
-	                sessionId = c.getValue();
-	                System.out.println("Session id " + sessionId);
-
-	                Cookie k = new Cookie("JSESSIONID", sessionId);
-	        	    // cool blink show if you enable the lower one
-	        	    //k.setPath(request.getContextPath());
-	        	    //k.setPath("/appui");
-	        	    //response.addCookie(k);
-	        		
-	        	    k.setPath(request.getContextPath());
-	        	    response.addCookie(k);
-	        	    break;
-	            }
-	        }
-	    }
-	*/
-
 	    System.out.println("Session id set to " + sessionId);
 	    
-	   /* Cookie p = new Cookie("USER", "prabhuk");
-	    p.setPath(request.getContextPath());
-	    response.addCookie(p);
-	   */ 
-	   
 	    InsightToken token = new InsightToken();
-	    
 	    Hashtable outputHash = new Hashtable();
-	    
 	    try {
-			//response.sendRedirect("http://localhost:9090/Monolith/api/engine/all");
 		    MessageDigest md = MessageDigest.getInstance("MD5");
 		    // create the insight token and add to the user
 		    // the user has secret and salt
 		    token.setSecret(secret);
 		    user.addInsight(insightId, token);
 		    
-		    String finalData = token.getSalt()+token.getSecret();
+		    String finalData = token.getSalt() + token.getSecret();
 		    
-		    byte [] digest = md.digest(finalData.getBytes()) ;//.toString().getBytes();
-
+		    byte [] digest = md.digest(finalData.getBytes()); //.toString().getBytes();
 			StringBuffer sb = new StringBuffer();
 	        for (int i = 0; i < digest.length; i++) {
 	          sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
 	        }
 	    	//String redir = "http://localhost:9090/Monolith/api/engine/all?JSESSIONID=" + sessionId;
-	        String redir = "?JSESSIONID=" + sessionId+"&hash=" + sb+"&i="+ insightId;
+	        String redir = "?" + DBLoader.getSessionIdKey() + "=" + sessionId + "&hash=" + sb + "&i=" + insightId;
 	        
 	        // add the route if this is server deployment
-	        Cookie[] curCookies = request.getCookies();
-	        if(curCookies != null) {
-	        	for(Cookie c : curCookies) {
-	        		if(c.getName().equals("route")) {
-	        			redir += "&route=" + c.getValue();
-	        		}
-	        	}
+	        Map<String, String> envMap = System.getenv();
+	        // the environment variable for this box will tell me which route variable 
+	        // is for this specific box
+	        if(envMap.containsKey(NoUserInSessionFilter.MONOLITH_ROUTE)) {
+	        	String routeCookieName = envMap.get(NoUserInSessionFilter.MONOLITH_ROUTE);
+	        	Cookie[] curCookies = request.getCookies();
+		        if(curCookies != null) {
+		        	for(Cookie c : curCookies) {
+		        		if(c.getName().equals(routeCookieName)) {
+		        			redir += "&" + c.getName() + "=" + c.getValue();
+		        		}
+		        	}
+		        }
 	        }
 	        
 	    	System.out.println("Redirect URL " + redir);
 	    	outputHash.put("PARAM", redir);
-
 	    	// also tell the system that this session is not fully validated so if someone comes without secret on this session
 	    	// dont allow
 	    	user.addShare(sessionId);
-			//response.sendRedirect(redir);
 		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	    

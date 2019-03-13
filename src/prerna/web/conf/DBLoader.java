@@ -35,7 +35,10 @@ import java.util.Vector;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
+import javax.servlet.SessionCookieConfig;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 import org.quartz.SchedulerException;
 
@@ -57,7 +60,9 @@ import prerna.util.insight.InsightUtility;
 
 public class DBLoader implements ServletContextListener {
 
+	private static final Logger LOGGER = LogManager.getLogger(DBLoader.class.getName());
 	private static final String RDFMAP = "RDF-MAP";
+	private static String SESSION_ID_KEY = "JSESSIONID";
 	
 	// keep track of all the watcher threads to kill 
 	private static List<AbstractFileWatcher> watcherList = new Vector<AbstractFileWatcher>();
@@ -75,19 +80,27 @@ public class DBLoader implements ServletContextListener {
 		}
 		context.setInitParameter(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
 
-		System.out.println("Initializing application context..." + contextPath);
+		// get the session id key
+		if(context.getSessionCookieConfig() != null) {
+			SessionCookieConfig cookieConfig = context.getSessionCookieConfig();
+			if(cookieConfig != null && cookieConfig.getName() != null) {
+				DBLoader.SESSION_ID_KEY = cookieConfig.getName();
+			}
+		}
+		
+		LOGGER.info("Initializing application context..." + contextPath);
 		
 		//Set default file separator system variable
-		System.out.println("Changing file separator value to: '/'");
+		LOGGER.info("Changing file separator value to: '/'");
 		System.setProperty("file.separator", "/");
 		
 		//Load RDF_Map.prop file
-		System.out.println("Loading RDF_Map.prop: " + rdfPropFile);
+		LOGGER.info("Loading RDF_Map.prop: " + rdfPropFile);
 		DIHelper.getInstance().loadCoreProp(rdfPropFile);
 		
 		//Set log4j prop
 		String log4jConfig = DIHelper.getInstance().getProperty("LOG4J");
-		System.out.println("Setting log4j property: " + log4jConfig);
+		LOGGER.info("Setting log4j property: " + log4jConfig);
 		PropertyConfigurator.configure(log4jConfig);
 
 		// set security enabled within DIHelper first
@@ -95,9 +108,10 @@ public class DBLoader implements ServletContextListener {
 		// load it as a boolean instead of us searching within DIHelper
 		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, securityEnabled);
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
+		DIHelper.getInstance().setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
 
 		//Load empty engine list into DIHelper, then load engines from db folder
-		System.out.println("Loading engines...");
+		LOGGER.info("Loading engines...");
 		String engines = "";
 		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engines);	
 		loadEngines();
@@ -154,12 +168,12 @@ public class DBLoader implements ServletContextListener {
 	
 	@Override
 	public void contextDestroyed(ServletContextEvent arg0) {
-		System.out.println("Start shutdown");
+		LOGGER.info("Start shutdown");
 
 		Set<String> insights = new HashSet<String>(InsightStore.getInstance().getAllInsights());
 		for(String id : insights) {
 			Insight in = InsightStore.getInstance().get(id);
-			System.out.println("Closing insight " + id);
+			LOGGER.info("Closing insight " + id);
 			InsightUtility.dropInsight(in);
 		}
 		
@@ -175,7 +189,7 @@ public class DBLoader implements ServletContextListener {
 			IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(id);
 			if(engine != null) {
 				// if it is loaded, close it
-				System.out.println("Closing database " + id);
+				LOGGER.info("Closing database " + id);
 				engine.closeDB();
 			}
 		}
@@ -184,31 +198,31 @@ public class DBLoader implements ServletContextListener {
 		// so specifically pull them to close
 		IEngine engine = Utility.getEngine(AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		if(engine != null) {
-			System.out.println("Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
+			LOGGER.info("Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 			engine.closeDB();
 		} else {
-			System.out.println("Couldn't find database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
+			LOGGER.info("Couldn't find database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		}
 		
 		engine = Utility.getEngine(Constants.SECURITY_DB);
 		if(engine != null) {
-			System.out.println("Closing database " + Constants.SECURITY_DB);
+			LOGGER.info("Closing database " + Constants.SECURITY_DB);
 			engine.closeDB();
 		} else {
-			System.out.println("Couldn't find database " + Constants.SECURITY_DB);
+			LOGGER.info("Couldn't find database " + Constants.SECURITY_DB);
 		}
 		
 		engine = Utility.getEngine(Constants.LOCAL_MASTER_DB_NAME);
 		if(engine != null) {
-			System.out.println("Closing database " + Constants.LOCAL_MASTER_DB_NAME);
+			LOGGER.info("Closing database " + Constants.LOCAL_MASTER_DB_NAME);
 			engine.closeDB();
 		} else {
-			System.out.println("Couldn't find database " + Constants.LOCAL_MASTER_DB_NAME);
+			LOGGER.info("Couldn't find database " + Constants.LOCAL_MASTER_DB_NAME);
 		}
 		
 		// close scheduler
 		try {
-			System.out.println("Closing scheduler");
+			LOGGER.info("Closing scheduler");
 			SchedulerUtil.shutdownScheduler(true);
 		} catch (SchedulerException e) {
 			e.printStackTrace();
@@ -221,6 +235,14 @@ public class DBLoader implements ServletContextListener {
 			e.printStackTrace();
 		}
 		
-		System.out.println("Finished shutdown");
+		LOGGER.info("Finished shutdown");
+	}
+	
+	/**
+	 * Get the user defined session id key
+	 * @return
+	 */
+	public static String getSessionIdKey() {
+		return DBLoader.SESSION_ID_KEY;
 	}
 }
