@@ -178,22 +178,25 @@
 		}
 	</style>
 	<script>
+		// this will store the route types		
 		function connectTableau() {
 			var xhttp = new XMLHttpRequest(),
 				origin = window.location.href;
 				insightId = document.getElementById('share_insight').value,
 				hash = document.getElementById('share_hash').value,
 				secret = document.getElementById('share_secret').value,
+				sessionKey = document.getElementById('share_session_key').value,
 				session = document.getElementById('share_session').value,
+				routeKey = document.getElementById('share_route_key').value,
 				route = document.getElementById('share_route').value,
 				endpoint = origin.substring(0, origin.lastIndexOf('/') - 5) + 'api/share/i-' + insightId +'/getTableData';
 			
 			endpoint += '?i=' + insightId;
 			endpoint += '&hash=' + hash;
-			endpoint += '&JSESSIONID=' + session;
+			endpoint += '&' + sessionKey + '=' + session;
 			endpoint += '&s=' + secret;
-			if(route && route !== "") {
-				endpoint += '&route=' + route;
+			if(route && route !== '' && routeKey && routeKey !== '') {
+				endpoint += '&' + routeKey + '=' + route;
 			}
 
 			if (insightId && hash && secret && session && endpoint) {
@@ -235,13 +238,16 @@
 		<form class="share__box" action="javascript:connectTableau(this)">
 			<div class="smss-form-container">
 				<div class="smss-form-label">
-					JSessionID:
+					Session Value:
+				</div>
+				<div class="smss-form-field">
+					<input class="smss-input" id="share_session_key" type="hidden">
 				</div>
 				<div class="smss-form-field">
 					<input class="smss-input" id="share_session" type="text">
 				</div>
 				<div class="smss-form-label">
-					Hash:
+					Hash Value:
 				</div>
 				<div class="smss-form-field">
 					<input class="smss-input" id="share_hash" type="text">
@@ -253,12 +259,14 @@
 					<input class="smss-input" id="share_insight" type="text">
 				</div>
 				<div class="smss-form-label">
-					Secret:
+					Secret Password:
 				</div>
 				<div class="smss-form-field">
 					<input class="smss-input" id="share_secret" type="password">
 				</div>
-				<!-- hidden field for route -->
+				<div class="smss-form-field">
+					<input class="smss-input" class="smss-input" id="share_route_key" type="hidden">
+				</div>
 				<div class="smss-form-field">
 					<input class="smss-input" id="share_route" type="hidden">
 				</div>
@@ -281,38 +289,33 @@
 				return params;
 			}
 			
+			var count = 0;
 			var present = true;
 			var params = getUrlParams();
 			
-			if (params['hash']) {
-				document.getElementById("share_hash").value = decodeURIComponent(params['hash']);
-			} else {
-				present = false; 
-			}
-
-			if (params['s']) {
-				document.getElementById("share_secret").value = decodeURIComponent(params['s']);
-			} else {
-				present = false; 
-			}
-
-			if (params['i']) {
-				document.getElementById("share_insight").value = decodeURIComponent(params['i']);
-			} else {
-				present = false; 
-			}
-
-			if (params['JSESSIONID']) {
-				document.getElementById("share_session").value = decodeURIComponent(params['JSESSIONID']);
-			} else {
-				present = false; 
-			}
-
-			if(params['route']) {
-				document.getElementById("share_route").value = decodeURIComponent(params['route']);
-			}
 			
-			if(present) {
+			for(param in params) {
+				if (param === 'hash') {
+					document.getElementById('share_hash').value = decodeURIComponent(params['hash']);
+					count++;
+				} else if (param === 's') {
+					document.getElementById('share_secret').value = decodeURIComponent(params['s']);
+					count++;
+				} else if (param === 'i') {
+					document.getElementById('share_insight').value = decodeURIComponent(params['i']);
+					count++;
+				} else if (param.startsWith('monolith') || param === 'JSESSIONID') {
+					document.getElementById('share_session_key').value = decodeURIComponent(param);
+					document.getElementById('share_session').value = decodeURIComponent(params[param]);
+					count++;
+				} else if(param.startsWith('route')) {
+					document.getElementById('share_route_key').value = decodeURIComponent(param);
+					document.getElementById('share_route').value = decodeURIComponent(params[param]);
+					count++;
+				}
+			}
+					
+			if(count >= 4) {
 				connectTableau();
 			}
 		}
