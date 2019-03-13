@@ -31,6 +31,9 @@ import prerna.web.requests.MultiReadHttpServletRequest;
 
 public class NoUserInSessionFilter implements Filter {
 
+	public static final String MONOLITH_ROUTE = "MONOLITH_ROUTE";
+	public static final String MONOLITH_PREFIX = "MONOLITH_PREFIX";
+	
 	private static final String LOGIN = "login";
 
 	private static final String NO_USER_HTML = "/noUserFail/";
@@ -82,10 +85,10 @@ public class NoUserInSessionFilter implements Filter {
 					// do a condition here if the session id request parameter is available
 					// eventually this will be that and the tableau
 					HttpServletRequest req = (HttpServletRequest) arg0; 
-					if(req.getParameter("JSESSIONID") != null) {
-						String sessionId = req.getParameter("JSESSIONID");
+					if(req.getParameter(DBLoader.getSessionIdKey()) != null) {
+						String sessionId = req.getParameter(DBLoader.getSessionIdKey());
 						// create the cookie add it and sent it back
-						Cookie k = new Cookie("JSESSIONID", sessionId);
+						Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
 						k.setPath(contextPath);
 						((HttpServletResponse)arg1).addCookie(k);
 
@@ -94,7 +97,7 @@ public class NoUserInSessionFilter implements Filter {
 						Cookie[] cookies = req.getCookies();
 						if (cookies != null) {
 							for (Cookie c : cookies) {
-								if (c.getName().equals("JSESSIONID")) {
+								if (c.getName().equals(DBLoader.getSessionIdKey())) {
 									c.setValue(sessionId);
 									((HttpServletResponse)arg1).addCookie(c);
 								}
@@ -123,9 +126,10 @@ public class NoUserInSessionFilter implements Filter {
 						if(req.getMethod().equalsIgnoreCase("GET")){
 							((HttpServletResponse) arg1).setStatus(302);
 							
+							// modify the prefix if necessary
 							Map<String, String> envMap = System.getenv();
-							if(envMap.containsKey("MONOLITH_PREFIX")) {
-								fullUrl = fullUrl.replace(contextPath, envMap.get("MONOLITH_PREFIX"));
+							if(envMap.containsKey(MONOLITH_PREFIX)) {
+								fullUrl = fullUrl.replace(contextPath, envMap.get(MONOLITH_PREFIX));
 							}
 							
 							((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
