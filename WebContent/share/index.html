@@ -304,14 +304,13 @@
 				} else if (param === 'i') {
 					document.getElementById('share_insight').value = decodeURIComponent(params['i']);
 					count++;
-				} else if (param.startsWith('monolith') || param === 'JSESSIONID') {
+				} else if (param.indexOf('monolith') === 0 || param === 'JSESSIONID') {
 					document.getElementById('share_session_key').value = decodeURIComponent(param);
 					document.getElementById('share_session').value = decodeURIComponent(params[param]);
 					count++;
-				} else if(param.startsWith('route')) {
+				} else if(param.indexOf('route') === 0) {
 					document.getElementById('share_route_key').value = decodeURIComponent(param);
 					document.getElementById('share_route').value = decodeURIComponent(params[param]);
-					count++;
 				}
 			}
 					
