@@ -408,7 +408,7 @@ public class DatabaseUploader extends Uploader {
 		Gson gson = new Gson();
 		
 		//process request
-		List<FileItem> fileItems = processRequest(request);
+		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
 		
@@ -890,7 +890,7 @@ public class DatabaseUploader extends Uploader {
 		Gson gson = new Gson();
 		
 		//process request
-		List<FileItem> fileItems = processRequest(request);
+		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
 		
@@ -978,7 +978,7 @@ public class DatabaseUploader extends Uploader {
 	@Produces("application/json")
 	public Response uploadExcelPOIFormat(@Context HttpServletRequest request) 
 	{
-		List<FileItem> fileItems = processRequest(request);
+		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
 		System.out.println(inputData);
@@ -1223,7 +1223,7 @@ public class DatabaseUploader extends Uploader {
 		Gson gson = new Gson();
 
 		//process request
-		List<FileItem> fileItems = processRequest(request);
+		List<FileItem> fileItems = processRequest(request, null);
 		String cleanName = fileItems.get(0).getName();
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
@@ -1279,7 +1279,7 @@ public class DatabaseUploader extends Uploader {
 	public Response processExcelFile(@Context HttpServletRequest request)
 	{
 		Gson gson = new Gson();
-		List<FileItem> fileItems = processRequest(request);
+		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
 		System.out.println(inputData);
@@ -1425,7 +1425,7 @@ public class DatabaseUploader extends Uploader {
 	@Path("/nlp/upload")
 	@Produces("application/json")
 	public Response uploadNLPFile(@Context HttpServletRequest request) {
-		List<FileItem> fileItems = processRequest(request);
+		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
 		System.out.println(inputData);
