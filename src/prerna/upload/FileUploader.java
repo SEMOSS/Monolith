@@ -14,6 +14,7 @@ import java.util.Vector;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
@@ -36,17 +37,17 @@ public class FileUploader extends Uploader {
 
 	private static final Logger LOGGER = LogManager.getLogger(FileUploader.class);
 	/*
-	 * Moving a file onto the BE cannot be performed through PKQL
+	 * Moving a file onto the BE cannot be performed through pixel
 	 * Thus, we still expose "drag and drop" of a file through a rest call
 	 * However, this is only used to push the file to the BE server, the actual
-	 * processing of the file to create/add to a data frame occurs through PKQL
+	 * processing of the file to create/add to a data frame occurs through pixel
 	 */
 	
 	@POST
 	@Path("baseUpload")
-	public Response uploadFile(@Context HttpServletRequest request) {
+	public Response uploadFile(@Context HttpServletRequest request, @QueryParam("insightId") String insightId) {
 		try {
-			List<FileItem> fileItems = processRequest(request);
+			List<FileItem> fileItems = processRequest(request, insightId);
 			// collect all of the data input on the form
 			List<Map<String, String>> inputData = getBaseUploadData(fileItems);
 			return WebUtility.getResponse(inputData, 200);
@@ -125,7 +126,7 @@ public class FileUploader extends Uploader {
 	@Path("determineDataTypesForFile")
 	public Response determineDataTypesForFile(@Context HttpServletRequest request) {
 		try {
-			List<FileItem> fileItems = processRequest(request);
+			List<FileItem> fileItems = processRequest(request, null);
 			// collect all of the data input on the form
 			Hashtable<String, String> inputData = getInputData(fileItems);
 			Map<String, Object> retObj = generateDataTypes(inputData);
