@@ -41,12 +41,14 @@ import javax.ws.rs.core.Context;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
+import org.apache.commons.fileupload.ProgressListener;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import prerna.cache.ICache;
+import prerna.om.InsightStore;
 import prerna.poi.main.HeadersException;
 import prerna.poi.main.helper.CSVFileHelper;
 
@@ -113,7 +115,7 @@ public abstract class Uploader extends HttpServlet {
 		}
 	}
 
-	protected List<FileItem> processRequest(@Context HttpServletRequest request) {
+	protected List<FileItem> processRequest(@Context HttpServletRequest request, String insightId) {
 		List<FileItem> fileItems = null;
 		try {
 			DiskFileItemFactory factory = new DiskFileItemFactory();
@@ -126,11 +128,23 @@ public abstract class Uploader extends HttpServlet {
 			// maximum file size to be uploaded.
 			upload.setSizeMax(maxFileSize);
 
-//			long start = System.currentTimeMillis();
+			// make sure the insight id is valid if present
+			if(insightId != null) {
+				if(InsightStore.getInstance().get(insightId) == null) {
+					// this is an invalid insight id
+					// null it out
+					// no logging for you
+					insightId = null;
+				}
+			}
+			ProgressListener progressListener = new FileUploadProgressListener(insightId);
+			upload.setProgressListener(progressListener);
+
+			//			long start = System.currentTimeMillis();
 			// Parse the request to get file items
 			fileItems = upload.parseRequest(request);
-//			long end = System.currentTimeMillis();
-//			System.out.println("Time to create temp = " + (end - start) + "ms");
+			//			long end = System.currentTimeMillis();
+			//			System.out.println("Time to create temp = " + (end - start) + "ms");
 		} catch (FileUploadException e) {
 			e.printStackTrace();
 		} catch (Exception e) {
