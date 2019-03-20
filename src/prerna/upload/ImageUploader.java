@@ -35,7 +35,7 @@ public class ImageUploader extends Uploader {
 	public Response uploadAppImage(@Context HttpServletRequest request) {
 		Map<String, String> returnMap = new HashMap<String, String>();
 		
-		List<FileItem> fileItems = processRequest(request);
+		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		FileItem imageFile = null;
 		String appId = null;
@@ -111,7 +111,7 @@ public class ImageUploader extends Uploader {
 	public Response uploadInsightImage(@Context HttpServletRequest request) {
 		Map<String, String> returnMap = new HashMap<String, String>();
 		
-		List<FileItem> fileItems = processRequest(request);
+		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		FileItem imageFile = null;
 		String appId = null;
