@@ -23,6 +23,7 @@ public class FileUploadProgressListener implements ProgressListener {
 		} else {
 			this.logger = LogManager.getLogger(CLASS_NAME);
 		}
+		this.logger.info("Starting to upload files");
 	}
 	
 	@Override
