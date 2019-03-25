@@ -257,32 +257,6 @@ public class UserResource {
 		request.getSession().setAttribute(Constants.SESSION_USER, semossUser);
 		// add new users into the database
 		SecurityUpdateUtils.addOAuthUser(token);
-
-		// TODO >>>timb: WORKSPACE - DONE - call logic to pull workspace here, or make it a reactor
-		String workspaceId = WorkspaceAssetUtils.getUserWorkspaceApp(token);
-		if (workspaceId == null) {
-			try {
-				WorkspaceAssetUtils.createUserWorkspaceApp(token);
-			} catch (Exception e) {
-				// TODO >>>timb: WORKSPACE - How to deal with this exception properly?
-				e.printStackTrace();
-			}
-		}
-		
-		String assetsId = WorkspaceAssetUtils.getUserAssetApp(token);
-		if (assetsId == null) {
-			try {
-				WorkspaceAssetUtils.createUserAssetApp(token);
-			} catch (Exception e) {
-				// TODO >>>timb: WORKSPACE - How to deal with this exception properly?
-				e.printStackTrace();
-			}
-		}
-		
-		// TODO >>>timb: WORKSPACE - Need to have a default app or random one if user is not defined
-		// TODO >>>timb: WORKSPACE - DONE - Logic here will be use new SecurityQueryUtils methods to find out whether the app has been created for a user
-		// TODO >>>timb: WORKSPACE - DONE - If not, then use util method in WorkspaceAssetUtils to create an empty app (for now)
-		// TODO >>>timb: WORKSPACE - DONE - And register as that user's workspace/asset using the new methods in SecurityUpdateUtils
 	}
 	
 	
