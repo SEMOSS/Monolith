@@ -1169,12 +1169,6 @@
 		    <artifactId>jython</artifactId>
 		    <version>2.7.1b3</version>
 		</dependency>
-		<!-- jsonrpc4j -->
-		<dependency>
-			<groupId>com.github.briandilley.jsonrpc4j</groupId>
-			<artifactId>jsonrpc4j</artifactId>
-			<version>1.5.3</version>
-		</dependency>
 		<dependency>
 			<groupId>org.codehaus.jet</groupId>
 			<artifactId>jet-regression</artifactId>
@@ -2657,12 +2651,12 @@
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
-			<version>2.9.0</version>
+			<version>2.9.5</version>
 		</dependency>
 		<dependency>
 		    <groupId>com.fasterxml.jackson.core</groupId>
 		    <artifactId>jackson-annotations</artifactId>
-		    <version>2.9.0</version>
+		    <version>2.9.5</version>
 		</dependency>
 		<dependency>
 			<groupId>com.amazon.redshift</groupId>
@@ -2683,11 +2677,12 @@
 			<version>1.58</version>
 		</dependency-->
 		<!--  Netty Socket IO -->
-		<dependency>
+		<!-- cleanup -->		
+		<!--dependency>
 			<groupId>com.corundumstudio.socketio</groupId>
 			<artifactId>netty-socketio</artifactId>
 			<version>1.7.12</version>
-		</dependency>
+		</dependency-->
 		<!--  SOCKET IO Java Client -->
 		<!-- cleanup -->
 		<!--dependency>
@@ -2906,5 +2901,49 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<dependency>
+			<groupId>org.wikidata.wdtk</groupId>
+			<artifactId>wdtk-wikibaseapi</artifactId>
+			<version>0.9.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+				<dependency>
+		    <groupId>org.wikidata.wdtk</groupId>
+		    <artifactId>wdtk-datamodel</artifactId>
+		    <version>0.9.0</version>
+		    <exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+		    <groupId>org.wikidata.wdtk</groupId>
+		    <artifactId>wdtk-util</artifactId>
+		    <version>0.9.0</version>
+		    <exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+		    <groupId>org.apache.commons</groupId>
+		    <artifactId>commons-compress</artifactId>
+		    <version>1.16.1</version>
+		    <exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>	
 	</dependencies>
 </project>
