@@ -14,6 +14,7 @@ import javax.ws.rs.core.Response;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.ds.py.PyUtils;
+import prerna.sablecc2.reactor.cluster.VersionReactor;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.theme.AdminThemeUtils;
@@ -78,6 +79,14 @@ public class ServerConfigurationResource {
 						} catch(Exception e) {
 							// ignore
 						}
+					}
+					
+					// version of the application
+					try {
+						Map<String, String> versionMap = VersionReactor.getVersionMap();
+						config.put("version", versionMap);
+					} catch(Exception e) {
+						// ignore
 					}
 					
 					// local mode
