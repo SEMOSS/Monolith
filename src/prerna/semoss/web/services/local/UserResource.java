@@ -83,6 +83,7 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.auth.utils.WorkspaceAssetUtils;
 import prerna.ds.py.PyUtils;
+import prerna.engine.impl.r.RUserRserve;
 import prerna.io.connector.IConnectorIOp;
 import prerna.io.connector.google.GoogleEntityResolver;
 import prerna.io.connector.google.GoogleFileRetriever;
@@ -185,6 +186,18 @@ public class UserResource {
 		
 		HttpSession session = request.getSession();
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
+		
+		// Stop R
+		if (thisUser != null) {
+			RUserRserve rserve = thisUser.getRcon();
+			if (rserve != null) {
+				try {
+					rserve.stopR();
+				} catch (Exception e) {
+					LOGGER.warn("Unable to stop R.");
+				}
+			}
+		}
 		
 		if(provider.equalsIgnoreCase("ALL")) {
 			// remove the user from session call it a day
