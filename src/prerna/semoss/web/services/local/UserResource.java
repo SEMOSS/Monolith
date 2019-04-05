@@ -81,9 +81,8 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
-import prerna.auth.utils.WorkspaceAssetUtils;
 import prerna.ds.py.PyUtils;
-import prerna.engine.impl.r.RUserRserve;
+import prerna.engine.impl.r.IRUserConnection;
 import prerna.io.connector.IConnectorIOp;
 import prerna.io.connector.google.GoogleEntityResolver;
 import prerna.io.connector.google.GoogleFileRetriever;
@@ -188,8 +187,8 @@ public class UserResource {
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
 		
 		// Stop R
-		if (thisUser != null) {
-			RUserRserve rserve = thisUser.getRcon();
+		if (thisUser != null) { // TODO >>>timb: RCP - Here remove the call to stop R on logout; and remove stopR method from the RUserRserve (these will go in RCP)
+			IRUserConnection rserve = thisUser.getRcon();
 			if (rserve != null) {
 				try {
 					rserve.stopR();
