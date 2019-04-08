@@ -187,7 +187,7 @@ public class UserResource {
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
 		
 		// Stop R
-		if (thisUser != null) { // TODO >>>timb: RCP - Here remove the call to stop R on logout; and remove stopR method from the RUserRserve (these will go in RCP)
+		if (thisUser != null) {
 			IRUserConnection rserve = thisUser.getRcon();
 			if (rserve != null) {
 				try {
