@@ -33,7 +33,9 @@ import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.log4j.Logger;
@@ -79,13 +81,17 @@ public class WebUtility {
 		return null;
 	}
 
-	public static Response getResponse(Object vec, int status) {
+	public static Response getResponse(Object vec, int status, NewCookie... cookies) {
 		if(vec != null) {
 			Gson gson = getDefaultGson();
 			try {
 				final byte[] output = gson.toJson(vec).getBytes("UTF8");
 				int length = output.length;
-				return Response.status(status).entity(WebUtility.getSO(output)).header("Content-Length", length).build();
+				ResponseBuilder builder = Response.status(status).entity(WebUtility.getSO(output)).header("Content-Length", length);
+				if(cookies != null && cookies.length > 0) {
+					builder.cookie(cookies);
+				}
+				return builder.build();
 			} catch (UnsupportedEncodingException e) {
 				e.printStackTrace();
 			}
