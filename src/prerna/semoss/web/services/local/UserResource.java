@@ -58,6 +58,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
@@ -165,15 +166,30 @@ public class UserResource {
 	}
 	
 	@GET
-	@Path("logins")
+	@Path("/logins")
 	public Response getAllLogins(@Context HttpServletRequest request) {
+		List<NewCookie> newCookies = new Vector<NewCookie>();
 		HttpSession session = request.getSession(false);
 		User semossUser = null;
 		if(session != null) {
 			semossUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
+		
+		if(semossUser == null) {
+			// not authenticated
+			// remove any cookies we shouldn't have
+			Cookie[] cookies = request.getCookies();
+			for(Cookie c : cookies) {
+				if(DBLoader.getSessionIdKey().equals(c.getName())) {
+					// we need to null this out
+					NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(), c.getComment(), 0, c.getSecure());
+					newCookies.add(nullC);
+				}
+			}
+		}
+		
 		Map<String, String> retMap = User.getLoginNames(semossUser);
-		return WebUtility.getResponse(retMap, 200);
+		return WebUtility.getResponse(retMap, 200, newCookies.toArray(new NewCookie[]{}));
 	}
 	
 	@GET
@@ -230,9 +246,21 @@ public class UserResource {
 			// remove the cookie from the browser
 			// for the session id
 			LOGGER.info("Removing session token");
-			Cookie cookie = new Cookie(DBLoader.getSessionIdKey(), null);
-			cookie.setPath("/");
-			repsonse.addCookie(cookie);
+			Cookie[] cookies = request.getCookies();
+			for(Cookie c : cookies) {
+				if(DBLoader.getSessionIdKey().equals(c.getName())) {
+					// we need to null this out
+					Cookie nullC = new Cookie(c.getName(), c.getValue());
+					nullC.setPath(c.getPath());
+					nullC.setSecure(c.getSecure());
+					nullC.setVersion(c.getVersion());
+					if(c.getDomain() != null) {
+						nullC.setDomain(c.getDomain());
+					}
+					nullC.setMaxAge(0);
+					repsonse.addCookie(nullC);
+				}
+			}
 
 			// invalidate the session
 			session.invalidate();
@@ -1447,7 +1475,7 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/loginsAllowed/")
-	public Response loginsAllowed(@Context HttpServletRequest request) throws IOException {	
+	public Response loginsAllowed(@Context HttpServletRequest request) throws IOException {
 		return WebUtility.getResponse(UserResource.loginsAllowed, 200);	
 	}
 	
