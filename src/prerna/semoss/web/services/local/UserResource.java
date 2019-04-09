@@ -179,11 +179,13 @@ public class UserResource {
 			// not authenticated
 			// remove any cookies we shouldn't have
 			Cookie[] cookies = request.getCookies();
-			for(Cookie c : cookies) {
-				if(DBLoader.getSessionIdKey().equals(c.getName())) {
-					// we need to null this out
-					NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(), c.getComment(), 0, c.getSecure());
-					newCookies.add(nullC);
+			if(cookies != null) {
+				for(Cookie c : cookies) {
+					if(DBLoader.getSessionIdKey().equals(c.getName())) {
+						// we need to null this out
+						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(), c.getComment(), 0, c.getSecure());
+						newCookies.add(nullC);
+					}
 				}
 			}
 		}
@@ -247,18 +249,20 @@ public class UserResource {
 			// for the session id
 			LOGGER.info("Removing session token");
 			Cookie[] cookies = request.getCookies();
-			for(Cookie c : cookies) {
-				if(DBLoader.getSessionIdKey().equals(c.getName())) {
-					// we need to null this out
-					Cookie nullC = new Cookie(c.getName(), c.getValue());
-					nullC.setPath(c.getPath());
-					nullC.setSecure(c.getSecure());
-					nullC.setVersion(c.getVersion());
-					if(c.getDomain() != null) {
-						nullC.setDomain(c.getDomain());
+			if(cookies != null) {
+				for(Cookie c : cookies) {
+					if(DBLoader.getSessionIdKey().equals(c.getName())) {
+						// we need to null this out
+						Cookie nullC = new Cookie(c.getName(), c.getValue());
+						nullC.setPath(c.getPath());
+						nullC.setSecure(c.getSecure());
+						nullC.setVersion(c.getVersion());
+						if(c.getDomain() != null) {
+							nullC.setDomain(c.getDomain());
+						}
+						nullC.setMaxAge(0);
+						repsonse.addCookie(nullC);
 					}
-					nullC.setMaxAge(0);
-					repsonse.addCookie(nullC);
 				}
 			}
 
