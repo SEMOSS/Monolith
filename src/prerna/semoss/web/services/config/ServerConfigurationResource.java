@@ -139,11 +139,13 @@ public class ServerConfigurationResource {
 			// since FE only calls this method on browser startup
 			// clean up any invalid cookies on the browser
 			Cookie[] cookies = request.getCookies();
-			for(Cookie c : cookies) {
-				if(DBLoader.getSessionIdKey().equals(c.getName())) {
-					// we need to null this out
-					NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(), c.getComment(), 0, c.getSecure());
-					newCookies.add(nullC);
+			if(cookies != null) {
+				for(Cookie c : cookies) {
+					if(DBLoader.getSessionIdKey().equals(c.getName())) {
+						// we need to null this out
+						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(), c.getComment(), 0, c.getSecure());
+						newCookies.add(nullC);
+					}
 				}
 			}
 		}
