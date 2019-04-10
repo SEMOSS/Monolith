@@ -11,6 +11,7 @@ import javax.servlet.http.HttpSessionListener;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
+import prerna.auth.SyncUserAppsThread;
 import prerna.ds.py.PyExecutorThread;
 import prerna.ds.py.PyUtils;
 import prerna.om.Insight;
@@ -30,6 +31,9 @@ public class UserSessionLoader implements HttpSessionListener {
 	public void sessionDestroyed(HttpSessionEvent sessionEvent) {
 		HttpSession session = sessionEvent.getSession();
 		String sessionId = session.getId();
+		
+		// back up the workspace and asset apps
+		SyncUserAppsThread.execute(session);
 		
 		// clear up insight store
 		InsightStore inStore = InsightStore.getInstance();
