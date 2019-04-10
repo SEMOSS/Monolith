@@ -45,6 +45,9 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.Vector;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -208,10 +211,21 @@ public class UserResource {
 		if (thisUser != null) {
 			IRUserConnection rserve = thisUser.getRcon();
 			if (rserve != null) {
+				ExecutorService executor = Executors.newSingleThreadExecutor();
 				try {
-					rserve.stopR();
-				} catch (Exception e) {
-					LOGGER.warn("Unable to stop R.");
+					executor.submit(new Callable<Void>() {
+						@Override
+						public Void call() throws Exception {
+							try {
+								rserve.stopR();
+							} catch (Exception e) {
+								LOGGER.warn("Unable to stop R.");
+							}
+							return null;
+						}
+					});			
+				} finally {
+					executor.shutdown();
 				}
 			}
 		}
