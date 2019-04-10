@@ -81,6 +81,7 @@ import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
 import prerna.auth.User;
+import prerna.auth.SyncUserAppsThread;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -236,11 +237,23 @@ public class UserResource {
 			removed = true;
 			noUser = true;
 		} else {
-			removed = thisUser.dropAccessToken(provider.toUpperCase());
+			AuthProvider token = AuthProvider.valueOf(provider.toUpperCase());
+			String assetEngineId = null;
+			String workspaceEngineId = null;
+			
+			if(thisUser.getLogins().size() == 1) {
+				assetEngineId = thisUser.getAssetEngineId(token);
+				workspaceEngineId = thisUser.getWorkspaceEngineId(token);
+			}
+			removed = thisUser.dropAccessToken(token);
 			if(thisUser.getLogins().isEmpty()) {
 				noUser = true;
 			} else {
 				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
+				
+				SyncUserAppsThread sync = new SyncUserAppsThread(workspaceEngineId, assetEngineId); 
+				Thread t = new Thread(sync);
+				t.start();
 			}
 		}
 		
@@ -279,6 +292,10 @@ public class UserResource {
 					}
 				}
 			}
+			
+			// put the map in the space
+			session.setAttribute(Constants.USER_WORKSPACE_IDS, thisUser.getWorkspaceEngineMap());
+			session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
 
 			// invalidate the session
 			session.invalidate();
