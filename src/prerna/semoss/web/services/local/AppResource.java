@@ -28,6 +28,7 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
@@ -97,6 +98,9 @@ public class AppResource {
 	 */
 	protected File getAppImageFile(String app) {
 		String appId = MasterDatabaseUtility.testEngineIdIfAlias(app);
+		if(ClusterUtil.IS_CLUSTER){
+			return 	ClusterUtil.getImage(app);
+		}
 		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
 		if(propFileLoc == null && !app.equals("NEWSEMOSSAPP")) {
 			String imageDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "/images/stock/";

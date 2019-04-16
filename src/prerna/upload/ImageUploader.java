@@ -2,6 +2,8 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FilenameFilter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,8 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.cluster.util.CloudClient;
+import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.Constants;
@@ -84,15 +88,26 @@ public class ImageUploader extends Uploader {
 		// and the image file
 		// we want to write it into the app location
 		String imageDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version";
+		String imageLoc = imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
+
+		if(ClusterUtil.IS_CLUSTER){
+			imageDir=ClusterUtil.IMAGES_FOLDER_PATH+ DIR_SEPARATOR + "apps";	
+			imageLoc = imageDir + DIR_SEPARATOR + appId + "." + imageFile.getContentType().split("/")[1];
+		}
 		File f = new File(imageDir);
 		if(!f.exists()) {
 			f.mkdirs();
 		}
-		String imageLoc = imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
 		f = new File(imageLoc);
 		// find all the existing image files
 		// and delete them
-		File[] oldImages = findImageFile(f.getParentFile());
+		File[] oldImages = null;
+		if(ClusterUtil.IS_CLUSTER){
+			FilenameFilter appIdFilter = new WildcardFileFilter(appId+"*");
+			oldImages = f.getParentFile().listFiles(appIdFilter);
+		} else{
+			 oldImages = findImageFile(f.getParentFile());
+		}
 		// delete if any exist
 		if(oldImages != null) {
 			for(File oldI : oldImages) {
@@ -100,7 +115,14 @@ public class ImageUploader extends Uploader {
 			}
 		}
 		writeFile(imageFile, f);
-		
+		try {
+			if(ClusterUtil.IS_CLUSTER){
+			CloudClient.getClient().pushImageFolder();
+			}
+		} catch (IOException | InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		returnMap.put("message", "successfully updated app image");
 		return WebUtility.getResponse(returnMap, 200);
 	}
