@@ -115,6 +115,9 @@ import prerna.web.services.util.WebUtility;
 @Path("/engine")
 public class NameServer {
 
+	// get the directory separator
+	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
+	
 	private static final Logger LOGGER = LogManager.getLogger(NameServer.class.getName());
 	private static final String CANCEL_INVALIDATION = "cancelInvalidation";
 	private Object lock = new Object();
@@ -251,7 +254,7 @@ public class NameServer {
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 
 		Uploader upload = new FileUploader();
-		String filePath = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR) + "\\" + DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER);
+		String filePath = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR) + DIR_SEPARATOR + DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER);
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
@@ -264,7 +267,7 @@ public class NameServer {
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 
 		Uploader upload = new ImageUploader();
-		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "\\db";
+		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + "db";
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
