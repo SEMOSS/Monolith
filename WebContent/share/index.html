@@ -209,9 +209,9 @@
 							return;
 						}
 
-						for (i = 0; i < response.pixelReturn[1].output.headers.length; i++) {
-							headers.push(response.pixelReturn[1].output.headers[i].displayName);
-							headerTypes.push(response.pixelReturn[1].output.headers[i].dataType);
+						for (i = 0; i < response.pixelReturn[1].output.headerInfo.headers.length; i++) {
+							headers.push(response.pixelReturn[1].output.headerInfo.headers[i].displayName);
+							headerTypes.push(response.pixelReturn[1].output.headerInfo.headers[i].dataType);
 						}
 
 						tableauData = {
