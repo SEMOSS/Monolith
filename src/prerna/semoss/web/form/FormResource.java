@@ -58,7 +58,7 @@ public class FormResource {
 		
 		String addOrRemove = form.getFirst("addOrRemove");
 		String userid = form.getFirst("userid");
-		String instancename = form.getFirst("instanceName");
+		String instancename = Utility.cleanString(form.getFirst("instanceName"), true);
 		//  this is only present if we are adding a user
 		String owner = form.getFirst("ownerStatus");
 		
