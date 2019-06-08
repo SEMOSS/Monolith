@@ -80,8 +80,8 @@ import prerna.auth.AccessToken;
 import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
-import prerna.auth.User;
 import prerna.auth.SyncUserAppsThread;
+import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -195,6 +195,9 @@ public class UserResource {
 		}
 		
 		Map<String, String> retMap = User.getLoginNames(semossUser);
+		if(retMap.isEmpty() && AbstractSecurityUtils.anonymousUsersEnabled()) {
+			retMap.put("ANNONYMOUS", "Not Logged In");
+		}
 		return WebUtility.getResponse(retMap, 200, newCookies.toArray(new NewCookie[]{}));
 	}
 	
@@ -329,6 +332,7 @@ public class UserResource {
 			}
 		}
 		semossUser.setAccessToken(token);
+		semossUser.setAnonymous(false);
 		request.getSession().setAttribute(Constants.SESSION_USER, semossUser);
 		// add new users into the database
 		SecurityUpdateUtils.addOAuthUser(token);
