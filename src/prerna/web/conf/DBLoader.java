@@ -73,13 +73,21 @@ public class DBLoader implements ServletContextListener {
 		String contextPath = context.getContextPath();
 		
 		String rdfPropFile = context.getInitParameter(RDFMAP);
+		// see if security is enabled
 		String securityEnabled = context.getInitParameter(Constants.SECURITY_ENABLED);
+		// see if only admins can set an engine as public
 		String adminSetPublicOnly = context.getInitParameter(Constants.ADMIN_SET_PUBLIC);
 		if(adminSetPublicOnly == null) {
 			adminSetPublicOnly = "false";
 		}
 		context.setInitParameter(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
-
+		// see if we allow anonymous users
+		String anonymousUsersEnabled = context.getInitParameter(Constants.ANONYMOUS_USER_ALLOWED);
+		if(anonymousUsersEnabled == null) {
+			anonymousUsersEnabled = "false";
+		}
+		context.setInitParameter(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
+		
 		// get the session id key
 		if(context.getSessionCookieConfig() != null) {
 			SessionCookieConfig cookieConfig = context.getSessionCookieConfig();
@@ -108,6 +116,7 @@ public class DBLoader implements ServletContextListener {
 		// load it as a boolean instead of us searching within DIHelper
 		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, securityEnabled);
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
+		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
 		DIHelper.getInstance().setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
 
 		//Load empty engine list into DIHelper, then load engines from db folder
