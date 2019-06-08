@@ -81,7 +81,7 @@ public class NoUserInSessionFilter implements Filter {
 				}
 
 				// if no user
-				if(user == null || user.getLogins().isEmpty()) {
+				if(user == null || (!AbstractSecurityUtils.anonymousUsersEnabled() && user.getLogins().isEmpty()) ) {
 					// do a condition here if the session id request parameter is available
 					// eventually this will be that and the tableau
 					HttpServletRequest req = (HttpServletRequest) arg0; 
@@ -91,7 +91,6 @@ public class NoUserInSessionFilter implements Filter {
 						Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
 						k.setPath(contextPath);
 						((HttpServletResponse)arg1).addCookie(k);
-
 						// in case there are other JSESSIONID
 						// cookies, reset the value to the correct sessionId
 						Cookie[] cookies = req.getCookies();
