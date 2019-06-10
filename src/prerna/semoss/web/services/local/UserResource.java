@@ -195,9 +195,6 @@ public class UserResource {
 		}
 		
 		Map<String, String> retMap = User.getLoginNames(semossUser);
-		if(retMap.isEmpty() && AbstractSecurityUtils.anonymousUsersEnabled()) {
-			retMap.put("ANNONYMOUS", "Not Logged In");
-		}
 		return WebUtility.getResponse(retMap, 200, newCookies.toArray(new NewCookie[]{}));
 	}
 	
