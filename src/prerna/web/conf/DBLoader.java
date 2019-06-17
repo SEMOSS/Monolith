@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2015 Defense Health Agency (DHA)
+' * Copyright 2015 Defense Health Agency (DHA)
  *
  * If your use of this software does not include any GPLv2 components:
  * 	Licensed under the Apache License, Version 2.0 (the "License");
@@ -75,19 +75,29 @@ public class DBLoader implements ServletContextListener {
 		String rdfPropFile = context.getInitParameter(RDFMAP);
 		// see if security is enabled
 		String securityEnabled = context.getInitParameter(Constants.SECURITY_ENABLED);
+		
 		// see if only admins can set an engine as public
 		String adminSetPublicOnly = context.getInitParameter(Constants.ADMIN_SET_PUBLIC);
 		if(adminSetPublicOnly == null) {
 			adminSetPublicOnly = "false";
 		}
 		context.setInitParameter(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
+		
+		// see if admin can determine who can publish
+		String adminSetPublisher = context.getInitParameter(Constants.ADMIN_SET_PUBLISHER);
+		if(adminSetPublisher == null) {
+			adminSetPublisher = "false";
+		}
+		context.setInitParameter(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
+		
 		// see if we allow anonymous users
 		String anonymousUsersEnabled = context.getInitParameter(Constants.ANONYMOUS_USER_ALLOWED);
 		if(anonymousUsersEnabled == null) {
 			anonymousUsersEnabled = "false";
 		}
 		context.setInitParameter(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
-		
+				
+				
 		// get the session id key
 		if(context.getSessionCookieConfig() != null) {
 			SessionCookieConfig cookieConfig = context.getSessionCookieConfig();
@@ -110,12 +120,13 @@ public class DBLoader implements ServletContextListener {
 		String log4jConfig = DIHelper.getInstance().getProperty("LOG4J");
 		LOGGER.info("Setting log4j property: " + log4jConfig);
 		PropertyConfigurator.configure(log4jConfig);
-
+		
 		// set security enabled within DIHelper first
 		// this is because security database, on init, will
 		// load it as a boolean instead of us searching within DIHelper
 		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, securityEnabled);
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
+		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
 		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
 		DIHelper.getInstance().setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
 
@@ -124,7 +135,7 @@ public class DBLoader implements ServletContextListener {
 		String engines = "";
 		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engines);	
 		loadEngines();
-				
+		
 //		//Just load R right away to avoid synchronization issues
 //		try {
 //			RJavaTranslatorFactory.initRConnection();
