@@ -23,7 +23,12 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
+import prerna.auth.User;
+import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cache.FileStore;
+import prerna.om.Insight;
+import prerna.om.InsightStore;
 import prerna.poi.main.helper.CSVFileHelper;
 import prerna.poi.main.helper.FileHelperUtil;
 import prerna.poi.main.helper.XLFileHelper;
@@ -46,6 +51,34 @@ public class FileUploader extends Uploader {
 	@POST
 	@Path("baseUpload")
 	public Response uploadFile(@Context HttpServletRequest request, @QueryParam("insightId") String insightId) {
+		if(AbstractSecurityUtils.securityEnabled()) {
+			Insight in = InsightStore.getInstance().get(insightId);
+			if(in == null) {
+				HashMap<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Session could not be validated in order to upload files");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+			
+			User user = in.getUser();
+			if(user == null) {
+				HashMap<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Session could not be validated in order to upload files");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+			
+			if(user.isAnonymous()) {
+				HashMap<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Must be logged in to upload files ");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+			
+			if(AbstractSecurityUtils.adminSetPublisher() && !SecurityQueryUtils.userIsPublisher(user)) {
+				HashMap<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "User does not have permission to publish data");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		}
+		
 		try {
 			List<FileItem> fileItems = processRequest(request, insightId);
 			// collect all of the data input on the form
