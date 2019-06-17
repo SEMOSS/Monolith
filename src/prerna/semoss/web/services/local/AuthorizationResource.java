@@ -49,6 +49,7 @@ import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 
 import prerna.auth.User;
+import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityQueryUtils;
@@ -431,7 +432,7 @@ public class AuthorizationResource {
 			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
 
 			if(SecurityAdminUtils.userIsAdmin(user)){
-				success = SecurityUpdateUtils.registerUser(newUserId, newUserAdmin);
+				success = SecurityUpdateUtils.registerUser(newUserId, newUserAdmin, !AbstractSecurityUtils.adminSetPublisher());
 			} else {
 				errorRet.put("error", "The user doesn't have the permissions to perform this action.");
 				return WebUtility.getResponse(errorRet, 400);

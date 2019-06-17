@@ -48,8 +48,9 @@
       <filter-name>AnonymousUserFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
+   
    <!-- CAC FILTER -->
-   <!-- 
+   <!--  
    <filter>
       <filter-name>CACFilter</filter-name>
       <filter-class>prerna.web.conf.CACFilter</filter-class>
@@ -70,8 +71,8 @@
       <filter-name>CACFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
-   -->
-   
+    -->
+    
    <!-- WAFFLE IT -->
    <!--
    <filter>
@@ -207,8 +208,12 @@
       <param-value>false</param-value>
    </context-param>
    <context-param>
-      <param-name>anonymous-users-allowed</param-name>
+      <param-name>admin-set-publisher</param-name>
       <param-value>false</param-value>
+   </context-param>
+   <context-param>
+      <param-name>anonymous-users-allowed</param-name>
+      <param-value>true</param-value>
    </context-param>
    <context-param>
       <description>Location to store uploaded file</description>
