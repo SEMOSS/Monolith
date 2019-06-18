@@ -22,7 +22,7 @@ public class AnonymousUserFilter implements Filter {
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		if(AbstractSecurityUtils.securityEnabled() && AbstractSecurityUtils.anonymousUsersEnabled()) {
+		if(AbstractSecurityUtils.anonymousUsersEnabled()) {
 			HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 	
 			User semossUser = new User();
