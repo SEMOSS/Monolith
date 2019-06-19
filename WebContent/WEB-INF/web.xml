@@ -40,6 +40,7 @@
    </filter-mapping>
    
    <!--  allow anonymous users -->
+   <!-- 
    <filter>
       <filter-name>AnonymousUserFilter</filter-name>
       <filter-class>prerna.web.conf.AnonymousUserFilter</filter-class>
@@ -48,7 +49,7 @@
       <filter-name>AnonymousUserFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
-
+   -->
    <!-- CAC FILTER -->
    <!--  
    <filter>
@@ -236,6 +237,9 @@
    </listener>
    <listener>
       <listener-class>prerna.web.conf.UserDBLoader</listener-class>
+   </listener>
+   <listener>
+      <listener-class>prerna.web.conf.SessionCounter</listener-class>
    </listener>
    <session-config>
       <session-timeout>120</session-timeout>
