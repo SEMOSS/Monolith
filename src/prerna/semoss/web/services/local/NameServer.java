@@ -80,6 +80,7 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
@@ -107,6 +108,7 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
+import prerna.web.conf.SessionCounter;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
@@ -129,6 +131,31 @@ public class NameServer {
 
 	////////////////////////////////////////////////////////////////////////////////
 
+	@GET
+	@Path("/active")
+	@Produces("application/json;charset=utf-8")
+	public Response getActiveSessions(@Context HttpServletRequest request) {
+		if(AbstractSecurityUtils.securityEnabled()) {
+			User user;
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", "User session is invalid");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+			if(!SecurityAdminUtils.userIsAdmin(user)) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", "User is not an admin");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		}
+
+		Map<String, Integer> ret = new HashMap<String, Integer>();
+		ret.put("activeSessions", SessionCounter.getActiveSessions());
+		return WebUtility.getResponse(ret, 200);
+	}
+	
 	/*
 	 * End points for cleanup of the thread to account for closing/opening
 	 */
