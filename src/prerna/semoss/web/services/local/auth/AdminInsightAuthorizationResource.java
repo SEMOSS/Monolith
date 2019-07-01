@@ -16,24 +16,14 @@ import javax.ws.rs.core.Response;
 
 import com.google.gson.Gson;
 
-import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/insight")
-public class AdminInsightAuthorizationResource {
+public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 
-	private SecurityAdminUtils performAdminCheck(@Context HttpServletRequest request) throws IllegalAccessException {
-		User user = ResourceUtility.getUser(request);
-		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
-		if(adminUtils == null) {
-			throw new IllegalArgumentException("User is not an admin");
-		}
-		return adminUtils;
-	}
-	
 	/**
 	 * Get the user insight permissions for a given insight
 	 * @param request
