@@ -25,6 +25,27 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 	protected ServletContext context;
 	
 	/**
+	 * Get the apps the user has access to
+	 * @param request
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getApps")
+	public Response getUserApps(@Context HttpServletRequest request) {
+		SecurityAdminUtils adminUtils = null;
+		try {
+			adminUtils = performAdminCheck(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		return WebUtility.getResponse(adminUtils.getAllDatabaseSettings(), 200);
+	}
+	
+	/**
 	 * Get the app users and their permissions
 	 * @param request
 	 * @param form
