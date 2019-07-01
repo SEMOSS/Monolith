@@ -17,6 +17,7 @@ import javax.ws.rs.core.Response;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAppUtils;
+import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
@@ -27,6 +28,27 @@ public class AppAuthorizationResource {
 
 	@Context
 	protected ServletContext context;
+	
+	/**
+	 * Get the apps the user has access to
+	 * @param request
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getApps")
+	public Response getUserApps(@Context HttpServletRequest request) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		return WebUtility.getResponse(SecurityQueryUtils.getAllUserDatabaseSettings(user), 200);
+	}
 	
 	/**
 	 * Get the user app permission level
@@ -197,6 +219,12 @@ public class AppAuthorizationResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	/**
+	 * Get the app as being global (read only) for the entire semoss instance
+	 * @param request
+	 * @param form
+	 * @return
+	 */
 	@POST
 	@Produces("application/json")
 	@Path("setAppGlobal")
@@ -238,10 +266,16 @@ public class AppAuthorizationResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	/**
+	 * Set the app visibility for the user to be seen
+	 * @param request
+	 * @param form
+	 * @return
+	 */
 	@POST
 	@Produces("application/json")
 	@Path("setAppVisibility")
-	public Response setDbVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response setAppVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
