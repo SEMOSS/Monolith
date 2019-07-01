@@ -41,6 +41,7 @@ import prerna.semoss.web.services.local.NameServer;
 import prerna.semoss.web.services.local.ShareInsightResource;
 import prerna.semoss.web.services.local.ThemeResource;
 import prerna.semoss.web.services.local.UserResource;
+import prerna.semoss.web.services.local.auth.AdminAppAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AppAuthorizationResource;
 import prerna.semoss.web.services.local.auth.InsightAuthorizationResource;
@@ -57,6 +58,7 @@ public class MonolithApplication extends Application {
       // authorization resources
       singletons.add(new AuthorizationResource());
       singletons.add(new AppAuthorizationResource());
+      singletons.add(new AdminAppAuthorizationResource());
       singletons.add(new InsightAuthorizationResource());
       singletons.add(new AdminInsightAuthorizationResource());
       // other
