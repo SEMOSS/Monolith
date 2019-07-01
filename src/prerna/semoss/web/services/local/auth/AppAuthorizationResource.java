@@ -17,6 +17,7 @@ import javax.ws.rs.core.Response;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAppUtils;
+import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -235,5 +236,37 @@ public class AppAuthorizationResource {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
-	} 
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("setAppVisibility")
+	public Response setDbVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String appId = form.getFirst("appId");
+		boolean isPublic = Boolean.parseBoolean(form.getFirst("visibility"));
+		try {
+			SecurityUpdateUtils.setDbVisibility(user, appId, isPublic);
+		} catch(IllegalArgumentException e) {
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			e.printStackTrace();
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		return WebUtility.getResponse(true, 200);
+	}
 }
