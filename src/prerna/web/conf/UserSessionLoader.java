@@ -12,17 +12,20 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import prerna.auth.SyncUserAppsThread;
+import prerna.cache.ICache;
 import prerna.ds.py.PyExecutorThread;
 import prerna.ds.py.PyUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.insight.InsightUtility;
 
 @WebListener
 public class UserSessionLoader implements HttpSessionListener {
 	
 	private static final Logger LOGGER = LogManager.getLogger(UserSessionLoader.class.getName());
+	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 
 	public void sessionCreated(HttpSessionEvent sessionEvent) {
 
@@ -54,6 +57,9 @@ public class UserSessionLoader implements HttpSessionListener {
 			// clear the current session store
 			insightIDs.removeAll(copy);
 		}
+		
+		String sessionStorage = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR) + DIR_SEPARATOR + sessionId;
+		ICache.deleteFolder(sessionStorage);
 		
 		// now drop the thread
 		if(PyUtils.pyEnabled()) {
