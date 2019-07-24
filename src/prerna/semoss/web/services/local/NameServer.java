@@ -43,6 +43,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -59,6 +60,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
@@ -92,6 +94,7 @@ import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.ThreadStore;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
@@ -281,8 +284,6 @@ public class NameServer {
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 
 		Uploader upload = new FileUploader();
-		String filePath = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR) + DIR_SEPARATOR + DIHelper.getInstance().getProperty(Constants.CSV_INSIGHT_CACHE_FOLDER);
-		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
 		upload.setSecurityEnabled(securityEnabled);
@@ -444,18 +445,17 @@ public class NameServer {
 	@GET
 	@Path("/appImage")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response getAppImage(@Context HttpServletRequest request, @QueryParam("app") String app) {
+	public Response getAppImage(@Context final Request coreRequest, @Context HttpServletRequest request, @QueryParam("app") String app) {
 		AppResource r = new AppResource();
-		return r.downloadAppImage(request, app);
+		return r.downloadAppImage(coreRequest, request, app);
 	}
 
 	@GET
 	@Path("/insightImage")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	// TODO >>>timb: need to add rest enpoint to pull before anything else
-	public Response getInsightImage(@Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId, @QueryParam("params") String params) {
+	public Response getInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request, @QueryParam("app") String app, @QueryParam("rdbmsId") String insightId, @QueryParam("params") String params) {
 		AppResource r = new AppResource();
-		return r.downloadInsightImage(request, app, insightId, params);
+		return r.downloadInsightImage(coreRequest, request, app, insightId, params);
 	}
 	
 	///////////////////////////////////////////////
@@ -519,8 +519,6 @@ public class NameServer {
 		}
 
 		String jobId = "";
-		final String tempInsightId = "TempInsightNotStored";
-
 		String insightId = request.getParameter("insightId");
 		String expression = request.getParameter("expression");
 		Insight insight = null;
@@ -528,9 +526,9 @@ public class NameServer {
 		// figure out the type of insight
 		// first is temp
 		if(insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
-			insightId = tempInsightId;
+			insightId = "TempInsightNotStored_" + UUID.randomUUID().toString();
 			insight = new Insight();
-			insight.setInsightId(tempInsightId);
+			insight.setInsightId(insightId);
 			//insight.setUser(user);
 		} else if (insightId.equals("new")) { // need to make a new insight here
 			insight = new Insight();
@@ -562,18 +560,20 @@ public class NameServer {
 			insight.setUser(user);
 			insight.setPy(jepThread);
 			JobManager manager = JobManager.getManager();
-			JobThread jt = null;
-			if(insightId.equals(tempInsightId)) {
-				jt = manager.makeJob();
-			} else {
-				jt = manager.makeJob(insightId);
-			}
+			JobThread jt = manager.makeJob(insightId);
 			jobId = jt.getJobId();
 			session.setAttribute(jobId+"", "TRUE");
-			String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
-			// add the job first
-			// so we can do things like logging
-			jt.addPixel(job);
+			
+			// set in thread
+			ThreadStore.setInsightId(insightId);
+			ThreadStore.setSessionId(sessionId);
+			ThreadStore.setJobId(jobId);
+			ThreadStore.setUser(user);
+
+//			String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
+//			// add the job first
+//			// so we can do things like logging
+//			jt.addPixel(job);
 			// then add the expression
 			jt.addPixel(expression);
 			jt.setInsight(insight);
@@ -642,9 +642,9 @@ public class NameServer {
 				JobThread jt = manager.makeJob();
 				jobId = jt.getJobId();
 				session.setAttribute(jobId+"", "TRUE");
-				String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
-				// so we can do things like logging
-				jt.addPixel(job);
+//				String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
+//				// so we can do things like logging
+//				jt.addPixel(job);
 				// then add the expression
 				jt.addPixel(expression);
 				jt.setInsight(insight);
