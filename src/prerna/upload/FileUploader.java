@@ -1,11 +1,9 @@
 package prerna.upload;
 
 import java.io.File;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -26,16 +24,9 @@ import org.apache.log4j.Logger;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.cache.FileStore;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.poi.main.helper.CSVFileHelper;
-import prerna.poi.main.helper.FileHelperUtil;
-import prerna.poi.main.helper.XLFileHelper;
-import prerna.poi.main.helper.excel.ExcelBlock;
-import prerna.poi.main.helper.excel.ExcelRange;
-import prerna.poi.main.helper.excel.ExcelSheetPreProcessor;
-import prerna.poi.main.helper.excel.ExcelWorkbookFilePreProcessor;
+import prerna.om.ThreadStore;
 import prerna.web.services.util.WebUtility;
 
 public class FileUploader extends Uploader {
@@ -51,14 +42,14 @@ public class FileUploader extends Uploader {
 	@POST
 	@Path("baseUpload")
 	public Response uploadFile(@Context HttpServletRequest request, @QueryParam("insightId") String insightId) {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			Insight in = InsightStore.getInstance().get(insightId);
-			if(in == null) {
-				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "Session could not be validated in order to upload files");
-				return WebUtility.getResponse(errorMap, 400);
-			}
+		Insight in = InsightStore.getInstance().get(insightId);
+		if(in == null) {
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Session could not be validated in order to upload files");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 			
+		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = in.getUser();
 			if(user == null) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
@@ -79,16 +70,20 @@ public class FileUploader extends Uploader {
 			}
 		}
 		
+		ThreadStore.setSessionId(request.getSession().getId());
 		try {
 			List<FileItem> fileItems = processRequest(request, insightId);
 			// collect all of the data input on the form
-			List<Map<String, String>> inputData = getBaseUploadData(fileItems);
+			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in);
+			// clear the thread store
 			return WebUtility.getResponse(inputData, 200);
 		} catch(Exception e) {
 			e.printStackTrace();
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "Error moving file to server");
 			return WebUtility.getResponse(errorMap, 400);
+		} finally {
+			ThreadStore.remove();
 		}
 	}
 	
@@ -97,7 +92,13 @@ public class FileUploader extends Uploader {
 	 * @param fileItems		a list of maps containing the file name and file location
 	 * @return
 	 */
-	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems) {
+	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in) {
+		String filePath = in.getInsightFolder();
+		File fileDir = new File(filePath);
+		if(!fileDir.exists()) {
+			fileDir.mkdirs();
+		}
+		
 		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
 
 		// collect all of the data input on the form
@@ -109,7 +110,7 @@ public class FileUploader extends Uploader {
 			if (!fi.isFormField()) {
 				// Get the uploaded file parameters
 				String fieldName = fi.getFieldName();
-				String fileName = fi.getName();
+				String name = fi.getName();
 				
 				// we need the key to be file
 				if(!fieldName.equals("file")) {
@@ -118,32 +119,48 @@ public class FileUploader extends Uploader {
 					continue;
 				}
 				
+				String fileLocation = null;
+				String fileSuffix = null;
+				
 				Date date = new Date();
 				String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-				String fileLocation = null;
 				// account for upload of an h2
 				// the connection url requires it to end with .mv.db
 				// otherwise it errors
-				if(fileName.endsWith(".mv.db")) {
-					fileLocation = this.filePath + FilenameUtils.getBaseName(fileName).trim().replace(".mv",  "").replace(" ", "_") 
-							+ "_____UNIQUE" 
-							+ modifiedDate
-							+ ".mv.db";
+				if(name.endsWith(".mv.db")) {
+					fileSuffix = FilenameUtils.getBaseName(name).trim().replace(".mv",  "").replace(" ", "_") 
+							+ "_____UNIQUE" + modifiedDate + ".mv.db";
 				} else {
-					fileLocation = this.filePath + FilenameUtils.getBaseName(fileName).trim().replace(" ", "_") 
-							+ "_____UNIQUE" 
-							+ modifiedDate
-							+ "."
-							+ FilenameUtils.getExtension(fileName);
+					fileSuffix = FilenameUtils.getBaseName(name).trim().replace(" ", "_") 
+							+ "_____UNIQUE" + modifiedDate + "." + FilenameUtils.getExtension(name);
 				}
+				fileLocation = filePath + DIR_SEPARATOR + fileSuffix;
 				File file = new File(fileLocation);
 				
 				writeFile(fi, file);
-				LOGGER.info("Saved Filename: " + fileName + "  to "+ file);
+				LOGGER.info("Saved Filename: " + name + "  to "+ file);
 				
 				Map<String, String> fileMap = new HashMap<String, String>();
-				fileMap.put("fileName", fileName);
-				fileMap.put("fileLocation", fileLocation);
+				fileMap.put("fileName", name);
+				fileMap.put("fileLocation", Insight.INSIGHT_FILE_KEY +  DIR_SEPARATOR + fileSuffix);
+				retData.add(fileMap);
+			} else if(fi.getName().equals("file")) { 
+				// its a file, but not in a form
+				// i.e. this is a person copy/pasting 
+				// the values directly 
+				LOGGER.info("Writing Input To File");
+				Date date = new Date();
+				String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
+				
+				String fileSuffix = "FileString_" + modifiedDate;;
+				String fileLocation = filePath + DIR_SEPARATOR + fileSuffix;
+				File file = new File(fileLocation);
+				writeFile(fi, file);
+				LOGGER.info("Saved Pasted Data To "+ file);
+				
+				Map<String, String> fileMap = new HashMap<String, String>();
+				fileMap.put("fileName", "FileString_" + modifiedDate);
+				fileMap.put("fileLocation", Insight.INSIGHT_FILE_KEY +  DIR_SEPARATOR + fileSuffix);
 				retData.add(fileMap);
 			}
 			
@@ -152,184 +169,5 @@ public class FileUploader extends Uploader {
 		}
 
 		return retData;
-	}
-	
-
-	@POST
-	@Path("determineDataTypesForFile")
-	public Response determineDataTypesForFile(@Context HttpServletRequest request) {
-		try {
-			List<FileItem> fileItems = processRequest(request, null);
-			// collect all of the data input on the form
-			Hashtable<String, String> inputData = getInputData(fileItems);
-			Map<String, Object> retObj = generateDataTypes(inputData);
-			return WebUtility.getResponse(retObj, 200);
-		} catch(Exception e) {
-			e.printStackTrace();
-			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Error processing new data");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-	}
-
-
-	/**
-	 * 
-	 * @param inputData
-	 * @return
-	 * @throws IOException
-	 */
-	protected static Map<String, Object> generateDataTypes(Map<String, String> inputData) throws IOException {
-		Map<String, Object> retObj = new HashMap<String, Object>();
-
-		String fileLoc = inputData.get("file");
-		String uniqueStorageId = FileStore.getInstance().put(fileLoc);
-		retObj.put("uniqueFileKey", uniqueStorageId);
-		if(fileLoc.endsWith(".xlsx") || fileLoc.endsWith(".xlsm")) {
-			
-			// new approach
-			{
-				Map<String, Map<String, Object>> newPayload = new HashMap<String, Map<String, Object>>();
-				
-				ExcelWorkbookFilePreProcessor preProcessor = new ExcelWorkbookFilePreProcessor();
-				preProcessor.parse(fileLoc);
-				Map<String, ExcelSheetPreProcessor> sProcessors = preProcessor.getSheetProcessors();
-				for(String sheet : sProcessors.keySet()) {
-					ExcelSheetPreProcessor processor = sProcessors.get(sheet);
-					List<ExcelBlock> blocks = processor.getAllBlocks();
-					
-					Map<String, Object> rangeInfo = new HashMap<String, Object>();
-					
-					for(ExcelBlock block : blocks) {
-						List<ExcelRange> ranges = block.getRanges();
-						for(ExcelRange r : ranges) {
-							String rSyntax = r.getRangeSyntax();
-							String[] origHeaders = processor.getRangeHeaders(r);
-							String[] cleanedHeaders = processor.getCleanedRangeHeaders(r);
-							
-							Object[][] rangeTypes = block.getRangeTypes(r);
-							Map[] retMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(cleanedHeaders, rangeTypes);
-							Map<String, Map> typeMap = new HashMap<String, Map>();
-							typeMap.put("dataTypes", retMaps[0]);
-							typeMap.put("additionalDataTypes", retMaps[1]);
-							
-							Map<String, Object> rangeMap = new HashMap<String, Object>();
-							rangeMap.put("headers", origHeaders);
-							rangeMap.put("cleanHeaders", cleanedHeaders);
-							rangeMap.put("types", typeMap);
-							
-							rangeInfo.put(rSyntax, rangeMap);
-						}
-					}
-					
-					// add all ranges in the sheet
-					newPayload.put(sheet, rangeInfo);
-				}
-			
-				// put in return object
-				retObj.put("newPayload", newPayload);
-				preProcessor.clear();
-			}
-			
-			// old
-			{
-				XLFileHelper helper = new XLFileHelper();
-				helper.parse(fileLoc);
-	
-				String[] sheets = helper.getTables();
-				for(int i = 0; i < sheets.length; i++) {
-					String sheetName = sheets[i];
-					String[] headers = helper.getHeaders(sheetName);
-					Map[] retMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(headers, helper.predictTypes(sheetName));
-	
-					Map<String, Map> innerObj = new HashMap<String, Map>();
-					innerObj.put("dataTypes", retMaps[0]);
-					innerObj.put("additionalDataTypes", retMaps[1]);
-					retObj.put(sheetName, innerObj);
-				}
-				
-				helper.clear();
-			}
-		} else {
-			String delimiter = inputData.get("delimiter");
-			// generate tinker frame from 
-			if(inputData.get("delimiter") == null || inputData.get("delimiter").isEmpty()) {
-				delimiter = "\t";
-			}
-
-			CSVFileHelper helper = new CSVFileHelper();
-			helper.setDelimiter(delimiter.charAt(0));
-			helper.parse(fileLoc);
-
-			String[] headers = helper.getHeaders();
-			Map[] retMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(headers, helper.predictTypes());
-
-			Map<String, Map> innerObj = new HashMap<String, Map>();
-			innerObj.put("dataTypes", retMaps[0]);
-			innerObj.put("additionalDataTypes", retMaps[1]);
-			retObj.put(CSV_FILE_KEY, innerObj);
-			retObj.put("delimiter", delimiter);
-			helper.clear();
-		}
-
-		return retObj;
-	}
-
-
-	/**
-	 * Extract the data to generate the file being passed from the user to the BE server
-	 */
-	@Override
-	protected Hashtable<String, String> getInputData(List<FileItem> fileItems) 
-	{
-		// Process the uploaded file items
-		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
-
-		// collect all of the data input on the form
-		Hashtable<String, String> inputData = new Hashtable<String, String>();
-		File file;
-
-		while(iteratorFileItems.hasNext()) 
-		{
-			FileItem fi = (FileItem) iteratorFileItems.next();
-			// Get the uploaded file parameters
-			String fieldName = fi.getFieldName();
-			String fileName = fi.getName();
-			String value = fi.getString();
-			if (!fi.isFormField()) {
-				if(fileName.equals("")) {
-					continue;
-				}
-				else {
-					if(fieldName.equals("file")) {
-						// need to clean the fileName to not have ";" since we split on that in upload data
-						fileName = fileName.replace(";", "");
-						Date date = new Date();
-						String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-						value = filePath + "\\\\" + fileName.substring(fileName.lastIndexOf("\\") + 1, fileName.lastIndexOf(".")).replace(" ", "") + "_____UNIQUE" + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
-						file = new File(value);
-						writeFile(fi, file);
-						LOGGER.info("Saved Filename: " + fileName + "  to "+ file);
-					}
-				}
-			} else if(fieldName.equals("file")) { // its a file, but not in a form
-				System.err.println("Writing input string into file...");
-				Date date = new Date();
-				String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-				value = filePath + "\\\\FileString_" + modifiedDate;
-				file = new File(value);
-				writeFile(fi, file);
-				LOGGER.info( "Created new file...");
-			}
-			//need to handle multiple files getting selected for upload
-			if(inputData.get(fieldName) != null)
-			{
-				value = inputData.get(fieldName) + ";" + value;
-			}
-			inputData.put(fieldName, value);
-			fi.delete();
-		}
-
-		return inputData;
 	}
 }
