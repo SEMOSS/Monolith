@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,9 +17,13 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.CacheControl;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.ResponseBuilder;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
@@ -79,11 +84,24 @@ public class AppResource {
 	@GET
 	@Path("/appImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response downloadAppImage(@Context HttpServletRequest request, @PathParam("appName") String app) {
+	public Response downloadAppImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appName") String app) {
 		File exportFile = getAppImageFile(app);
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
-			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
+			// want to cache this on browser if user has access
+			CacheControl cc = new CacheControl();
+			cc.setMaxAge(86400);
+			cc.setPrivate(true);
+		    EntityTag etag = new EntityTag(Integer.toString(exportFile.hashCode()));
+		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
+
+		    // cached resource did not change
+		    if(builder != null) {
+		        return builder.build();
+		    }
+		    
+			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
+					.cacheControl(cc).tag(etag).lastModified(new Date(exportFile.lastModified())).build();
 		} else {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "error sending image file");
@@ -132,7 +150,7 @@ public class AppResource {
 	@GET
 	@Path("/insightImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response downloadInsightImage(@Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
+	public Response downloadInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		String sessionId = null;
 		if(securityEnabled){
@@ -142,7 +160,20 @@ public class AppResource {
 		File exportFile = getInsightImageFile(app, id, request.getHeader("Referer"), params, sessionId);
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
-			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
+			// want to cache this on browser if user has access
+			CacheControl cc = new CacheControl();
+			cc.setMaxAge(86400);
+			cc.setPrivate(true);
+		    EntityTag etag = new EntityTag(Integer.toString(exportFile.hashCode()));
+		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
+
+		    // cached resource did not change
+		    if(builder != null) {
+		        return builder.build();
+		    }
+		    
+			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
+					.cacheControl(cc).tag(etag).lastModified(new Date(exportFile.lastModified())).build();
 		} else {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "error sending image file");
