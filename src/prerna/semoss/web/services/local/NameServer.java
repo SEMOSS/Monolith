@@ -570,10 +570,10 @@ public class NameServer {
 			ThreadStore.setJobId(jobId);
 			ThreadStore.setUser(user);
 
-//			String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
+			String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
 //			// add the job first
 //			// so we can do things like logging
-//			jt.addPixel(job);
+			jt.addPixel(job);
 			// then add the expression
 			jt.addPixel(expression);
 			jt.setInsight(insight);
