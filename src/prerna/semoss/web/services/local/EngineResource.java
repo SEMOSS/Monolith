@@ -65,6 +65,7 @@ import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.sablecc2.reactor.PixelPlanner;
+import prerna.sablecc2.reactor.job.JobReactor;
 import prerna.sablecc2.reactor.legacy.playsheets.GetPlaysheetParamsReactor;
 import prerna.sablecc2.reactor.legacy.playsheets.RunPlaysheetReactor;
 import prerna.util.Constants;
@@ -206,7 +207,7 @@ public class EngineResource {
 		Insight dummyIn = new Insight();
 		InsightStore.getInstance().put(dummyIn);
 		InsightStore.getInstance().addToSessionHash(session.getId(), dummyIn.getInsightId());
-//		dummyIn.getVarStore().put(JobReactor.SESSION_KEY, new NounMetadata(session.getId(), PixelDataType.CONST_STRING));
+		dummyIn.getVarStore().put(JobReactor.SESSION_KEY, new NounMetadata(session.getId(), PixelDataType.CONST_STRING));
 		dummyIn.setUser(user);
 		playsheetRunReactor.setInsight(dummyIn);
 		PixelPlanner planner = new PixelPlanner();
