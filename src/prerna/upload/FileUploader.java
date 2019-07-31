@@ -144,7 +144,7 @@ public class FileUploader extends Uploader {
 				fileMap.put("fileName", name);
 				fileMap.put("fileLocation", Insight.INSIGHT_FILE_KEY +  DIR_SEPARATOR + fileSuffix);
 				retData.add(fileMap);
-			} else if(fi.getName().equals("file")) { 
+			} else if(fi.getFieldName().equals("file")) { 
 				// its a file, but not in a form
 				// i.e. this is a person copy/pasting 
 				// the values directly 
