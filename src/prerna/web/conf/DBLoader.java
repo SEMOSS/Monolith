@@ -96,7 +96,12 @@ public class DBLoader implements ServletContextListener {
 			anonymousUsersEnabled = "false";
 		}
 		context.setInitParameter(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
-				
+		// see if anonymous users can upload data
+		String anonymousUsersUploadData = context.getInitParameter(Constants.ANONYMOUS_USER_UPLOAD_DATA);
+		if(anonymousUsersUploadData == null) {
+			anonymousUsersUploadData = "false";
+		}
+		context.setInitParameter(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
 				
 		// get the session id key
 		if(context.getSessionCookieConfig() != null) {
@@ -128,6 +133,7 @@ public class DBLoader implements ServletContextListener {
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
 		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
+		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
 		DIHelper.getInstance().setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
 
 		//Load empty engine list into DIHelper, then load engines from db folder
