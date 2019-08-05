@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -59,13 +60,25 @@ public class FileUploader extends Uploader {
 			
 			if(user.isAnonymous() && !AbstractSecurityUtils.anonymousUserUploadData()) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "Must be logged in to upload files ");
+				errorMap.put("errorMessage", "Must be logged in to upload files");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+			
+			if(user.isAnonymous() && in.isSavedInsight()) {
+				HashMap<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Must be logged in to upload files to a saved insight");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+			
+			if(in.isSavedInsight() && !SecurityInsightUtils.userCanEditInsight(user, in.getEngineId(), in.getRdbmsId())) {
+				HashMap<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "User does not edit access for this insight");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			
 			if(AbstractSecurityUtils.adminSetPublisher() && !SecurityQueryUtils.userIsPublisher(user)) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "User does not have permission to publish data");
+				errorMap.put("errorMessage", "User does not have permission to publish data. Please reach out to the admin to get proper access");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
