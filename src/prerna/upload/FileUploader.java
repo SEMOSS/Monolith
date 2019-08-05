@@ -57,7 +57,7 @@ public class FileUploader extends Uploader {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			
-			if(user.isAnonymous()) {
+			if(user.isAnonymous() && !AbstractSecurityUtils.anonymousUserUploadData()) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "Must be logged in to upload files ");
 				return WebUtility.getResponse(errorMap, 400);
