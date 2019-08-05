@@ -216,6 +216,10 @@
       <param-name>anonymous-users-allowed</param-name>
       <param-value>false</param-value>
    </context-param>
+      <context-param>
+      <param-name>anonymous-users-upload-data</param-name>
+      <param-value>false</param-value>
+   </context-param>
    <context-param>
       <description>Location to store uploaded file</description>
       <param-name>file-upload</param-name>
