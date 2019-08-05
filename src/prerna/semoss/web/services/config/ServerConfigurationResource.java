@@ -70,7 +70,9 @@ public class ServerConfigurationResource {
 		
 					// security enabled
 					config.put("security", AbstractSecurityUtils.securityEnabled());
-					// r enabled
+					config.put("anonymousUsers", AbstractSecurityUtils.anonymousUsersEnabled());
+					config.put("anonymousUserUploadData", AbstractSecurityUtils.anonymousUserUploadData());
+					// admin set public enabled
 					boolean adminSetPublic = false;
 					String adminSetPublicStr =  (String) DIHelper.getInstance().getLocalProp(Constants.ADMIN_SET_PUBLIC);
 					if(adminSetPublicStr != null) {
