@@ -963,11 +963,12 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
 				
 				System.out.println(">> " + request.getQueryString());
-				
+				//I need to decode the return code from google since the default param's are encoded on the post of getAccessToken
+				String codeDecode = URLDecoder.decode(outputs[0]);
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
 				params.put("redirect_uri", redirectUri);
-				params.put("code", outputs[0]);
+				params.put("code", codeDecode);
 				params.put("grant_type", "authorization_code");
 				params.put("client_secret", clientSecret);
 	
@@ -1607,6 +1608,7 @@ public class UserResource {
 		response.setStatus(302);
 		try {
 			Cookie cookie = new Cookie(DBLoader.getSessionIdKey(), request.getSession().getId());
+			//cookie.setPath("/dev");
 			response.addCookie(cookie);
 			if(redirect == null) {
 				response.sendRedirect(socialData.getProperty("redirect"));
