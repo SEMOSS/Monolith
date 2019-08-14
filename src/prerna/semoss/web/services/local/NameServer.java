@@ -98,6 +98,7 @@ import prerna.om.ThreadStore;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
+import prerna.sablecc2.PixelUtility;
 import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
 import prerna.semoss.web.services.remote.CentralNameServer;
@@ -110,6 +111,7 @@ import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
+import prerna.util.gson.GsonUtility;
 import prerna.util.insight.InsightUtility;
 import prerna.web.conf.SessionCounter;
 import prerna.web.services.util.ResponseHashSingleton;
@@ -585,6 +587,84 @@ public class NameServer {
 		}
 	}
 
+	@POST
+	@Path("/getPipeline")
+	@Produces("application/json;charset=utf-8")
+	public Response getPixelPipelinePlan(@Context HttpServletRequest request){
+		HttpSession session = null;
+		String sessionId = null; 
+		User user = null;
+		PyExecutorThread jepThread = null;
+
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
+		//If security is enabled try to get an existing session.
+		//Otherwise get a session with the default user.
+		if(securityEnabled){
+			session = request.getSession(false);
+			if(session != null){
+				sessionId = session.getId();
+				user = ((User) session.getAttribute(Constants.SESSION_USER));
+				
+				// need to see if the user is enabling python here.. I will assume it is here
+				if(session.getAttribute(Constants.PYTHON) != null) {
+					jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
+				}
+			}
+			
+			if(user == null) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", "User session is invalid");
+				System.out.println("User session is invalid");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		} else {
+			session = request.getSession(true);
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+			sessionId = session.getId();
+			if(PyUtils.pyEnabled() && this.jepThread == null) {
+				this.jepThread = PyUtils.getInstance().getJep();
+			}
+			jepThread = this.jepThread;
+		}
+
+		String insightId = request.getParameter("insightId");
+		String expression = request.getParameter("expression");
+		Insight insight = InsightStore.getInstance().get(insightId);
+		if (insight == null) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Could not find the insight id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		// make sure we have the correct session trying to get this id
+		// #soMuchSecurity
+		//			Set<String> sessionStore = InsightStore.getInstance().getInsightIDsForSession(sessionId);
+		//			if(sessionStore == null || !sessionStore.contains(insightId)) {
+		//				Map<String, String> errorMap = new HashMap<String, String>();
+		//				errorMap.put("errorMessage", "Trying to access insight id from incorrect session");
+		//				return WebUtility.getResponse(errorMap, 400);
+		//			}
+		synchronized(insight) {
+			// set the user
+			insight.setUser(user);
+			insight.setPy(jepThread);
+			
+			// set in thread
+			ThreadStore.setInsightId(insightId);
+			ThreadStore.setSessionId(sessionId);
+			ThreadStore.setUser(user);
+			
+			try {
+				return Response.status(200).entity(
+						GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline(insight, expression))
+						).build();
+			} catch(Exception e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", e.getMessage());
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		}
+	}
+	
 	@POST
 	@Path("runPixelAsync")
 	@Produces("application/json;charset=utf-8")
