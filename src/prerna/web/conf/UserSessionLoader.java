@@ -63,7 +63,6 @@ public class UserSessionLoader implements HttpSessionListener {
 		
 		// now drop the thread
 		if(PyUtils.pyEnabled()) {
-			LOGGER.info("Drop session py thread");
 			PyExecutorThread pyThread = (PyExecutorThread) session.getAttribute(Constants.PYTHON);
 			PyUtils.getInstance().killPyThread(pyThread);
 		}
