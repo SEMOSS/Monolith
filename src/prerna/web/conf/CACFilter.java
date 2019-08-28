@@ -159,7 +159,7 @@ public class CACFilter implements Filter {
 								token.setName(name);
 								
 								// if we get here, we have a valid cac
-								updateCacUsersStorage(cacId, email);
+//								updateCacUsersStorage(cacId, email);
 								break CERT_LOOP;
 							}
 						} // end rdn loop
@@ -243,48 +243,48 @@ public class CACFilter implements Filter {
 		}
 	}
 
-	@Deprecated
-	/**
-	 * We only have this because we need to update the way we store these users
-	 */
-	private void updateCacUsersStorage(String previousId, String email) {
-		String cleanEmail = RdbmsQueryBuilder.escapeForSQLStatement(email);
-		RDBMSNativeEngine securityDb = (RDBMSNativeEngine) Utility.getEngine(Constants.SECURITY_DB);
-		
-		// let us not try to run this multiple times...
-		String requireUpdateQuery = "SELECT * FROM USER WHERE ID='" + previousId +"'";
-		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(securityDb, requireUpdateQuery);
-		try {
-			// if we have next
-			// that means we need to update
-			// from id to email
-			if(wrapper.hasNext()) {
-				// need to update all the places the user id is used
-				String updateQuery = "UPDATE USER SET ID='" +  cleanEmail +"', EMAIL='" + cleanEmail + "' WHERE ID='" + previousId + "'";
-				try {
-					securityDb.insertData(updateQuery);
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
-				
-				// need to update all the places the user id is used
-				updateQuery = "UPDATE ENGINEPERMISSION SET USERID='" +  cleanEmail +"' WHERE USERID='" + previousId + "'";
-				try {
-					securityDb.insertData(updateQuery);
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
-				
-				// need to update all the places the user id is used
-				updateQuery = "UPDATE USERINSIGHTPERMISSION SET USERID='" +  cleanEmail +"' WHERE USERID='" + previousId + "'";
-				try {
-					securityDb.insertData(updateQuery);
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
-			} 
-		} finally {
-			wrapper.cleanUp();
-		}
-	}
+//	@Deprecated
+//	/**
+//	 * We only have this because we need to update the way we store these users
+//	 */
+//	private void updateCacUsersStorage(String previousId, String email) {
+//		String cleanEmail = RdbmsQueryBuilder.escapeForSQLStatement(email);
+//		RDBMSNativeEngine securityDb = (RDBMSNativeEngine) Utility.getEngine(Constants.SECURITY_DB);
+//		
+//		// let us not try to run this multiple times...
+//		String requireUpdateQuery = "SELECT * FROM USER WHERE ID='" + previousId +"'";
+//		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(securityDb, requireUpdateQuery);
+//		try {
+//			// if we have next
+//			// that means we need to update
+//			// from id to email
+//			if(wrapper.hasNext()) {
+//				// need to update all the places the user id is used
+//				String updateQuery = "UPDATE USER SET ID='" +  cleanEmail +"', EMAIL='" + cleanEmail + "' WHERE ID='" + previousId + "'";
+//				try {
+//					securityDb.insertData(updateQuery);
+//				} catch (SQLException e) {
+//					e.printStackTrace();
+//				}
+//				
+//				// need to update all the places the user id is used
+//				updateQuery = "UPDATE ENGINEPERMISSION SET USERID='" +  cleanEmail +"' WHERE USERID='" + previousId + "'";
+//				try {
+//					securityDb.insertData(updateQuery);
+//				} catch (SQLException e) {
+//					e.printStackTrace();
+//				}
+//				
+//				// need to update all the places the user id is used
+//				updateQuery = "UPDATE USERINSIGHTPERMISSION SET USERID='" +  cleanEmail +"' WHERE USERID='" + previousId + "'";
+//				try {
+//					securityDb.insertData(updateQuery);
+//				} catch (SQLException e) {
+//					e.printStackTrace();
+//				}
+//			} 
+//		} finally {
+//			wrapper.cleanUp();
+//		}
+//	}
 }
