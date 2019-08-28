@@ -78,7 +78,6 @@ import org.jsoup.Jsoup;
 
 import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
-import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -1170,9 +1169,6 @@ public class NameServer {
 		return WebUtility.getSO(resultHash);
 	}
 
-
-
-
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////// START SEARCH  BAR ///////////////////////////////////
@@ -1243,70 +1239,70 @@ public class NameServer {
 	/////////////////////////////// END SEARCH  BAR ////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
-
-	@POST
-	@Path("central/context/getConnectedConcepts2")
-	@Produces("application/json")
-	public StreamingOutput getConnectedConcepts(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		Gson gson = new Gson();
-		List<String> conceptLogicalNames = gson.fromJson(form.getFirst("conceptURI"), new TypeToken<List<String>>() {}.getType());
-		if(conceptLogicalNames == null || conceptLogicalNames.isEmpty()) {
-			return WebUtility.getSO("");
-		}
-		return WebUtility.getSO(MasterDatabaseUtility.getConnectedConceptsRDBMS(conceptLogicalNames, null));
-	}
-
-	@POST
-	@Path("central/context/conceptProperties")
-	@Produces("application/json")
-	public Response getConceptProperties(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-	{
-		Gson gson = new Gson();
-		List<String> conceptLogicalNames = gson.fromJson(form.getFirst("conceptURI"), new TypeToken<List<String>>() {}.getType());
-		if(conceptLogicalNames == null || conceptLogicalNames.isEmpty()) {
-			//				return Response.status(200).entity(WebUtility.getSO("")).build();
-			return WebUtility.getResponse("", 200);
-		}
-		//			return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getConceptProperties(conceptLogicalNames, null))).build();
-		return WebUtility.getResponse(MasterDatabaseUtility.getConceptPropertiesRDBMS(conceptLogicalNames, null), 200);
-	}
-
-	@POST
-	@Path("central/context/conceptLogicals")
-	@Produces("application/json")
-	public Response getAllLogicalNamesFromConceptual(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-	{
-		Gson gson = new Gson();
-		List<String> conceptualName = gson.fromJson(form.getFirst("conceptURI"), new TypeToken<List<String>>() {}.getType());
-		if(conceptualName == null || conceptualName.isEmpty()) {
-			//				return Response.status(200).entity(WebUtility.getSO("")).build();
-			return WebUtility.getResponse("", 200);
-		}
-		int size = conceptualName.size();
-
-		//			List<String> parentConceptualName = gson.fromJson(form.getFirst("parentConcept"), new TypeToken<List<String>>() {}.getType());
-		//			if(parentConceptualName != null) {
-		//				// TODO: yell at FE
-		//				// ugh, FE, why do you send parent as the string "undefined"
-		//				// ugh, BE, how to tell FE that the prim key that is generated for metamodel view is fake
-		//				List<String> cleanParentConceptualName = new Vector<String>();
-		//				for(int i = 0; i < size; i++) {
-		//					String val = parentConceptualName.get(i);
-		//					if(val == null) {
-		//						cleanParentConceptualName.add(null);
-		//					} else if(val.equals("undefined") || val.startsWith(TinkerFrame.PRIM_KEY) || val.isEmpty()) {
-		//						cleanParentConceptualName.add(null);
-		//					} else {
-		//						cleanParentConceptualName.add(val);
-		//					}
-		//				}
-		//				
-		//				// override reference to parent conceptual name
-		//				// can just keep it as null when we pass back the info to the FE
-		//				parentConceptualName = cleanParentConceptualName;
-		//			}
-		//			return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
-		return WebUtility.getResponse(MasterDatabaseUtility.getAllLogicalNamesFromConceptualRDBMS(conceptualName), 200);
-	}
+//
+//	@POST
+//	@Path("central/context/getConnectedConcepts2")
+//	@Produces("application/json")
+//	public StreamingOutput getConnectedConcepts(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+//		Gson gson = new Gson();
+//		List<String> conceptLogicalNames = gson.fromJson(form.getFirst("conceptURI"), new TypeToken<List<String>>() {}.getType());
+//		if(conceptLogicalNames == null || conceptLogicalNames.isEmpty()) {
+//			return WebUtility.getSO("");
+//		}
+//		return WebUtility.getSO(MasterDatabaseUtility.getConnectedConceptsRDBMS(conceptLogicalNames, null));
+//	}
+//
+//	@POST
+//	@Path("central/context/conceptProperties")
+//	@Produces("application/json")
+//	public Response getConceptProperties(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+//	{
+//		Gson gson = new Gson();
+//		List<String> conceptLogicalNames = gson.fromJson(form.getFirst("conceptURI"), new TypeToken<List<String>>() {}.getType());
+//		if(conceptLogicalNames == null || conceptLogicalNames.isEmpty()) {
+//			//				return Response.status(200).entity(WebUtility.getSO("")).build();
+//			return WebUtility.getResponse("", 200);
+//		}
+//		//			return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getConceptProperties(conceptLogicalNames, null))).build();
+//		return WebUtility.getResponse(MasterDatabaseUtility.getConceptProperties(conceptLogicalNames, null), 200);
+//	}
+//
+//	@POST
+//	@Path("central/context/conceptLogicals")
+//	@Produces("application/json")
+//	public Response getAllLogicalNamesFromConceptual(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
+//	{
+//		Gson gson = new Gson();
+//		List<String> conceptualName = gson.fromJson(form.getFirst("conceptURI"), new TypeToken<List<String>>() {}.getType());
+//		if(conceptualName == null || conceptualName.isEmpty()) {
+//			//				return Response.status(200).entity(WebUtility.getSO("")).build();
+//			return WebUtility.getResponse("", 200);
+//		}
+//		int size = conceptualName.size();
+//
+//		//			List<String> parentConceptualName = gson.fromJson(form.getFirst("parentConcept"), new TypeToken<List<String>>() {}.getType());
+//		//			if(parentConceptualName != null) {
+//		//				// TODO: yell at FE
+//		//				// ugh, FE, why do you send parent as the string "undefined"
+//		//				// ugh, BE, how to tell FE that the prim key that is generated for metamodel view is fake
+//		//				List<String> cleanParentConceptualName = new Vector<String>();
+//		//				for(int i = 0; i < size; i++) {
+//		//					String val = parentConceptualName.get(i);
+//		//					if(val == null) {
+//		//						cleanParentConceptualName.add(null);
+//		//					} else if(val.equals("undefined") || val.startsWith(TinkerFrame.PRIM_KEY) || val.isEmpty()) {
+//		//						cleanParentConceptualName.add(null);
+//		//					} else {
+//		//						cleanParentConceptualName.add(val);
+//		//					}
+//		//				}
+//		//				
+//		//				// override reference to parent conceptual name
+//		//				// can just keep it as null when we pass back the info to the FE
+//		//				parentConceptualName = cleanParentConceptualName;
+//		//			}
+//		//			return Response.status(200).entity(WebUtility.getSO(DatabasePkqlService.getAllLogicalNamesFromConceptual(conceptualName, parentConceptualName))).build();
+//		return WebUtility.getResponse(MasterDatabaseUtility.getAllLogicalNamesFromConceptualRDBMS(conceptualName), 200);
+//	}
 	
 }
