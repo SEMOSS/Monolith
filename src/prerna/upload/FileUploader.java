@@ -158,7 +158,7 @@ public class FileUploader extends Uploader {
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
 				fileMap.put("fileName", savedName);
-				fileMap.put("fileLocation", filePath +  DIR_SEPARATOR + savedName);
+				fileMap.put("fileLocation", "$IF" +  DIR_SEPARATOR + savedName);
 				retData.add(fileMap);
 			} else if(fi.getFieldName().equals("file")) { 
 				// its a file, but not in a form
@@ -179,7 +179,7 @@ public class FileUploader extends Uploader {
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
 				fileMap.put("fileName", savedName);
-				fileMap.put("fileLocation", filePath +  DIR_SEPARATOR + savedName);
+				fileMap.put("fileLocation", "$IF" + DIR_SEPARATOR + savedName);
 				retData.add(fileMap);
 			}
 			// delete the field
