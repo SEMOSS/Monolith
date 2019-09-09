@@ -506,7 +506,6 @@ public class NameServer {
 			if(user == null) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("error", "User session is invalid");
-				System.out.println("User session is invalid");
 				return WebUtility.getResponse(errorMap, 401);
 			}
 		} else {
