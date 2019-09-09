@@ -40,7 +40,8 @@ public class FileUploader extends Uploader {
 	
 	@POST
 	@Path("baseUpload")
-	public Response uploadFile(@Context HttpServletRequest request, @QueryParam("insightId") String insightId) {
+	public Response uploadFile(@Context HttpServletRequest request, @QueryParam("insightId") String insightId,
+			@QueryParam("filePath") String relativePath, @QueryParam("app") boolean appDir) {
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
 			HashMap<String, String> errorMap = new HashMap<String, String>();
@@ -85,7 +86,7 @@ public class FileUploader extends Uploader {
 		try {
 			List<FileItem> fileItems = processRequest(request, insightId);
 			// collect all of the data input on the form
-			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in);
+			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, appDir);
 			// clear the thread store
 			return WebUtility.getResponse(inputData, 200);
 		} catch(Exception e) {
@@ -101,12 +102,24 @@ public class FileUploader extends Uploader {
 	/**
 	 * Method to parse just files and move to the server
 	 * @param fileItems		a list of maps containing the file name and file location
+	 * @param appDir 
 	 * @return
 	 */
-	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in) {
-		String filePath = in.getInsightFolder();
+	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, boolean appDir) {
+		// get base asset folder
+		String assetFolder = null;
+		if (appDir) {
+			assetFolder = in.getAppFolder();
+		} else {
+			assetFolder = in.getInsightFolder();
+		}
+		String filePath = assetFolder;
+		// add relative path
+		if (relativePath != null) {
+			filePath = assetFolder + DIR_SEPARATOR + relativePath;
+		}
 		File fileDir = new File(filePath);
-		if(!fileDir.exists()) {
+		if (!fileDir.exists()) {
 			fileDir.mkdirs();
 		}
 		
@@ -158,7 +171,7 @@ public class FileUploader extends Uploader {
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
 				fileMap.put("fileName", savedName);
-				fileMap.put("fileLocation", Insight.getInsightRelativeFolderKey(in) + DIR_SEPARATOR + savedName);
+				fileMap.put("fileLocation", filePath + DIR_SEPARATOR + savedName);
 				retData.add(fileMap);
 			} else if(fi.getFieldName().equals("file")) { 
 				// its a file, but not in a form
@@ -179,7 +192,7 @@ public class FileUploader extends Uploader {
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
 				fileMap.put("fileName", savedName);
-				fileMap.put("fileLocation", Insight.getInsightRelativeFolderKey(in) + DIR_SEPARATOR + savedName);
+				fileMap.put("fileLocation", filePath + DIR_SEPARATOR + savedName);
 				retData.add(fileMap);
 			}
 			// delete the field
