@@ -41,8 +41,8 @@ public class ShareInsightResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
-		ShareInsight share = new ShareInsight(in);
-		return share;
+		RunInsight runner = new RunInsight(in);
+		return runner;
 	}
 	
 }

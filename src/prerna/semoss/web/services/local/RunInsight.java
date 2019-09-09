@@ -13,20 +13,41 @@ import javax.ws.rs.core.Response;
 import prerna.om.Insight;
 import prerna.web.requests.OverrideParametersServletRequest;
 
-public class ShareInsight {
+public class RunInsight {
 
-	private Insight in;
+	private Insight in = null;
+	private boolean drop = false;
 	
-	public ShareInsight(Insight in) {
+	public RunInsight(Insight in) {
 		this.in = in;
 	}
 
+	public void dropInsight(boolean drop) {
+		this.drop = drop;
+	}
+	
 	@GET
 	@Path("/getTableData")
 	@Produces("application/json")
 	public Response getInsightData(@Context HttpServletRequest request) {
 		String pixel = "QueryAll()|Collect(-1);FrameHeaders();";
-		
+		return runPixel(request, pixel);
+	}
+	
+	/**
+	 * Utility method to execute the pixel on the insight
+	 * @param request
+	 * @param pixel
+	 * @return
+	 */
+	private Response runPixel(@Context HttpServletRequest request, String pixel) {
+		if(this.drop) {
+			if(pixel.endsWith(";")) {
+				pixel = pixel + "DropInsight();";
+			} else {
+				pixel = pixel + ";DropInsight();";
+			}
+		}
 		NameServer ns = new NameServer();
 		OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
 		Map<String, String> paramMap = new HashMap<String, String>();
@@ -35,5 +56,4 @@ public class ShareInsight {
 		requestWrapper.setParameters(paramMap);
 		return ns.runPixelSync(requestWrapper);
 	}
-	
 }
