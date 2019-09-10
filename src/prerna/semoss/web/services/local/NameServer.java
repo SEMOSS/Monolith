@@ -128,8 +128,6 @@ public class NameServer {
 	private static final String CANCEL_INVALIDATION = "cancelInvalidation";
 	private Object lock = new Object();
 	
-	private PyExecutorThread jepThread;
-
 	@Context
 	protected ServletContext context;
 
@@ -496,11 +494,6 @@ public class NameServer {
 			if(session != null){
 				sessionId = session.getId();
 				user = ((User) session.getAttribute(Constants.SESSION_USER));
-				
-				// need to see if the user is enabling python here.. I will assume it is here
-				if(session.getAttribute(Constants.PYTHON) != null) {
-					jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
-				}
 			}
 			
 			if(user == null) {
@@ -512,10 +505,14 @@ public class NameServer {
 			session = request.getSession(true);
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 			sessionId = session.getId();
-			if(PyUtils.pyEnabled() && this.jepThread == null) {
-				this.jepThread = PyUtils.getInstance().getJep();
-			}
-			jepThread = this.jepThread;
+		}
+		// need to see if the user is enabling python here.. I will assume it is here
+		if(session.getAttribute(Constants.PYTHON) != null) {
+			jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
+		}
+		if(PyUtils.pyEnabled() && jepThread == null) {
+			jepThread = PyUtils.getInstance().getJep();
+			session.setAttribute(Constants.PYTHON, jepThread);
 		}
 
 		String jobId = "";
@@ -602,11 +599,6 @@ public class NameServer {
 			if(session != null){
 				sessionId = session.getId();
 				user = ((User) session.getAttribute(Constants.SESSION_USER));
-				
-				// need to see if the user is enabling python here.. I will assume it is here
-				if(session.getAttribute(Constants.PYTHON) != null) {
-					jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
-				}
 			}
 			
 			if(user == null) {
@@ -619,10 +611,14 @@ public class NameServer {
 			session = request.getSession(true);
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 			sessionId = session.getId();
-			if(PyUtils.pyEnabled() && this.jepThread == null) {
-				this.jepThread = PyUtils.getInstance().getJep();
-			}
-			jepThread = this.jepThread;
+		}
+		// need to see if the user is enabling python here.. I will assume it is here
+		if(session.getAttribute(Constants.PYTHON) != null) {
+			jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
+		}
+		if(PyUtils.pyEnabled() && jepThread == null) {
+			jepThread = PyUtils.getInstance().getJep();
+			session.setAttribute(Constants.PYTHON, jepThread);
 		}
 
 		String insightId = request.getParameter("insightId");
