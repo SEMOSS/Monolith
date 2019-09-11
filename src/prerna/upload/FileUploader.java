@@ -44,7 +44,7 @@ public class FileUploader extends Uploader {
 	@POST
 	@Path("baseUpload")
 	public Response uploadFile(@Context HttpServletRequest request, @QueryParam("insightId") String insightId,
-			@QueryParam("filePath") String relativePath, @QueryParam("appId") String appId) {
+			@QueryParam("path") String relativePath, @QueryParam("appId") String appId) {
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
 			HashMap<String, String> errorMap = new HashMap<String, String>();
