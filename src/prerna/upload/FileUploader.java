@@ -24,7 +24,6 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
@@ -83,13 +82,13 @@ public class FileUploader extends Uploader {
 				errorMap.put("errorMessage", "User does not have permission to publish data. Please reach out to the admin to get proper access");
 				return WebUtility.getResponse(errorMap, 400);
 			}
-//			if (appId != null) {
-//				if (!SecurityAppUtils.userCanEditEngine(in.getUser(), appId)) {
-//					HashMap<String, String> errorMap = new HashMap<String, String>();
-//					errorMap.put("errorMessage", "User does not have permission for this app.");
-//					return WebUtility.getResponse(errorMap, 400);
-//				}
-//			}
+			if (appId != null && !appId.equalsIgnoreCase("user")) {
+				if (!SecurityAppUtils.userCanEditEngine(in.getUser(), appId)) {
+					HashMap<String, String> errorMap = new HashMap<String, String>();
+					errorMap.put("errorMessage", "User does not have permission for this app.");
+					return WebUtility.getResponse(errorMap, 400);
+				}
+			}
 		}
 		
 		ThreadStore.setSessionId(request.getSession().getId());
