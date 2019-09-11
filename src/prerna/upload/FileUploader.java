@@ -21,8 +21,10 @@ import org.apache.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
@@ -41,7 +43,7 @@ public class FileUploader extends Uploader {
 	@POST
 	@Path("baseUpload")
 	public Response uploadFile(@Context HttpServletRequest request, @QueryParam("insightId") String insightId,
-			@QueryParam("filePath") String relativePath, @QueryParam("app") boolean appDir) {
+			@QueryParam("filePath") String relativePath, @QueryParam("appId") String appId) {
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
 			HashMap<String, String> errorMap = new HashMap<String, String>();
@@ -80,13 +82,20 @@ public class FileUploader extends Uploader {
 				errorMap.put("errorMessage", "User does not have permission to publish data. Please reach out to the admin to get proper access");
 				return WebUtility.getResponse(errorMap, 400);
 			}
+			if (appId != null) {
+				if (!SecurityAppUtils.userCanEditEngine(in.getUser(), appId)) {
+					HashMap<String, String> errorMap = new HashMap<String, String>();
+					errorMap.put("errorMessage", "User does not have permission for this app.");
+					return WebUtility.getResponse(errorMap, 400);
+				}
+			}
 		}
 		
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
 			List<FileItem> fileItems = processRequest(request, insightId);
 			// collect all of the data input on the form
-			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, appDir);
+			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, appId);
 			// clear the thread store
 			return WebUtility.getResponse(inputData, 200);
 		} catch(Exception e) {
@@ -105,11 +114,12 @@ public class FileUploader extends Uploader {
 	 * @param appDir 
 	 * @return
 	 */
-	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, boolean appDir) {
+	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String appId) {
 		// get base asset folder
 		String assetFolder = null;
-		if (appDir) {
-			assetFolder = in.getAppFolder();
+		if (appId != null) {
+			String appName = MasterDatabaseUtility.getEngineAliasForId(appId);
+			assetFolder = in.getAppFolder(appName, appId);
 		} else {
 			assetFolder = in.getInsightFolder();
 		}
