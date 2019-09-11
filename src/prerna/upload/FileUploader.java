@@ -83,13 +83,13 @@ public class FileUploader extends Uploader {
 				errorMap.put("errorMessage", "User does not have permission to publish data. Please reach out to the admin to get proper access");
 				return WebUtility.getResponse(errorMap, 400);
 			}
-			if (appId != null) {
-				if (!SecurityAppUtils.userCanEditEngine(in.getUser(), appId)) {
-					HashMap<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put("errorMessage", "User does not have permission for this app.");
-					return WebUtility.getResponse(errorMap, 400);
-				}
-			}
+//			if (appId != null) {
+//				if (!SecurityAppUtils.userCanEditEngine(in.getUser(), appId)) {
+//					HashMap<String, String> errorMap = new HashMap<String, String>();
+//					errorMap.put("errorMessage", "User does not have permission for this app.");
+//					return WebUtility.getResponse(errorMap, 400);
+//				}
+//			}
 		}
 		
 		ThreadStore.setSessionId(request.getSession().getId());
@@ -119,8 +119,7 @@ public class FileUploader extends Uploader {
 		// get base asset folder
 		String assetFolder = null;
 		if (appId != null) {
-			String appName = MasterDatabaseUtility.getEngineAliasForId(appId);
-			assetFolder = AssetUtility.getAppAssetFolder(appName, appId);
+			assetFolder = AssetUtility.getAssetBasePath(in, appId);
 		} else {
 			assetFolder = in.getInsightFolder();
 		}
