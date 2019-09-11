@@ -28,6 +28,7 @@ import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
+import prerna.util.AssetUtility;
 import prerna.web.services.util.WebUtility;
 
 public class FileUploader extends Uploader {
@@ -119,7 +120,7 @@ public class FileUploader extends Uploader {
 		String assetFolder = null;
 		if (appId != null) {
 			String appName = MasterDatabaseUtility.getEngineAliasForId(appId);
-			assetFolder = in.getAppFolder(appName, appId);
+			assetFolder = AssetUtility.getAppAssetFolder(appName, appId);
 		} else {
 			assetFolder = in.getInsightFolder();
 		}
