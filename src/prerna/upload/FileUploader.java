@@ -117,7 +117,7 @@ public class FileUploader extends Uploader {
 	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String appId) {
 		// get base asset folder
 		String assetFolder = null;
-		String fePath = in.getAppInsightFolderKey();
+		String fePath = Insight.getInsightRelativeFolderKey(in);
 		if (appId != null) {
 			assetFolder = AssetUtility.getAssetBasePath(in, appId);
 			fePath = in.getAppRelativeFolderKey();
