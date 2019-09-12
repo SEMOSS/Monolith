@@ -33,7 +33,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URLEncoder;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
@@ -426,10 +425,7 @@ public class NameServer {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		Date date = new Date();
-		String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-		String exportName = "SEMOSS_Export_" + modifiedDate + "." + FilenameUtils.getExtension(filePath);
-
+		String exportName = FilenameUtils.getName(filePath);
 		return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName).build();
 	}
 
@@ -510,9 +506,22 @@ public class NameServer {
 		if(session.getAttribute(Constants.PYTHON) != null) {
 			jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
 		}
+		// need to see if the user is enabling python here.. I will assume it is here
+		if(session.getAttribute(Constants.PYTHON) != null) {
+			jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
+		}
 		if(PyUtils.pyEnabled() && jepThread == null) {
-			jepThread = PyUtils.getInstance().getJep();
-			session.setAttribute(Constants.PYTHON, jepThread);
+			// i do not want to make more than 1 py thread per session
+			// and this method is called many times 
+			synchronized(sessionId) {
+				if(session.getAttribute(Constants.PYTHON) != null) {
+					jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
+				}
+				if(jepThread == null) {
+					jepThread = PyUtils.getInstance().getJep();
+					session.setAttribute(Constants.PYTHON, jepThread);
+				}
+			}
 		}
 
 		String jobId = "";
@@ -617,8 +626,17 @@ public class NameServer {
 			jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
 		}
 		if(PyUtils.pyEnabled() && jepThread == null) {
-			jepThread = PyUtils.getInstance().getJep();
-			session.setAttribute(Constants.PYTHON, jepThread);
+			// i do not want to make more than 1 py thread per session
+			// and this method is called many times 
+			synchronized(sessionId) {
+				if(session.getAttribute(Constants.PYTHON) != null) {
+					jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
+				}
+				if(jepThread == null) {
+					jepThread = PyUtils.getInstance().getJep();
+					session.setAttribute(Constants.PYTHON, jepThread);
+				}
+			}
 		}
 
 		String insightId = request.getParameter("insightId");
