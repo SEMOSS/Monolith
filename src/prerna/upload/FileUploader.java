@@ -117,8 +117,10 @@ public class FileUploader extends Uploader {
 	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String appId) {
 		// get base asset folder
 		String assetFolder = null;
+		String fePath = in.getAppInsightFolderKey();
 		if (appId != null) {
 			assetFolder = AssetUtility.getAssetBasePath(in, appId);
+			fePath = in.getAppRelativeFolderKey();
 		} else {
 			assetFolder = in.getInsightFolder();
 		}
@@ -126,6 +128,7 @@ public class FileUploader extends Uploader {
 		// add relative path
 		if (relativePath != null) {
 			filePath = assetFolder + DIR_SEPARATOR + relativePath;
+			fePath += relativePath;
 		}
 		File fileDir = new File(filePath);
 		if (!fileDir.exists()) {
@@ -180,7 +183,7 @@ public class FileUploader extends Uploader {
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
 				fileMap.put("fileName", savedName);
-				fileMap.put("fileLocation", filePath + DIR_SEPARATOR + savedName);
+				fileMap.put("fileLocation", fePath + DIR_SEPARATOR + savedName);
 				retData.add(fileMap);
 			} else if(fi.getFieldName().equals("file")) { 
 				// its a file, but not in a form
@@ -201,7 +204,7 @@ public class FileUploader extends Uploader {
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
 				fileMap.put("fileName", savedName);
-				fileMap.put("fileLocation", filePath + DIR_SEPARATOR + savedName);
+				fileMap.put("fileLocation", fePath + DIR_SEPARATOR + savedName);
 				retData.add(fileMap);
 			}
 			// delete the field
