@@ -128,7 +128,7 @@ public class FileUploader extends Uploader {
 		// add relative path
 		if (relativePath != null) {
 			filePath = assetFolder + DIR_SEPARATOR + relativePath;
-			fePath += relativePath;
+			fePath += DIR_SEPARATOR + relativePath;
 		}
 		File fileDir = new File(filePath);
 		if (!fileDir.exists()) {
