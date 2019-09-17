@@ -1238,9 +1238,9 @@ public class NameServer {
 			// filter insights based on what the user has access to
 			HttpSession session = request.getSession(false);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			queryResults = SecurityInsightUtils.searchUserInsights(user, null, searchString, limit, offset);
+			queryResults = SecurityInsightUtils.searchUserInsights(user, null, searchString, null, limit, offset);
 		} else {
-			queryResults = SecurityInsightUtils.searchInsights(null, searchString, limit, offset);
+			queryResults = SecurityInsightUtils.searchInsights(null, searchString, null, limit, offset);
 		}
 
 		return WebUtility.getSO(queryResults);
