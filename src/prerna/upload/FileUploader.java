@@ -119,8 +119,8 @@ public class FileUploader extends Uploader {
 		String assetFolder = null;
 		String fePath = Insight.getInsightRelativeFolderKey(in);
 		if (appId != null) {
-			assetFolder = AssetUtility.getAssetBasePath(in, appId);
-			fePath = in.getAppRelativeFolderKey();
+			assetFolder = AssetUtility.getAssetBasePath(in, appId, true);
+			fePath = Insight.getAppRelativeFolderKey();
 		} else {
 			assetFolder = in.getInsightFolder();
 		}
