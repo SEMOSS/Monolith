@@ -179,7 +179,7 @@ public class ImageUploader extends Uploader {
 				
 				if(user.isAnonymous()) {
 					HashMap<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put("errorMessage", "Must be logged in to upload files");
+					errorMap.put("errorMessage", "Must be logged in to upload an insight image");
 					return WebUtility.getResponse(errorMap, 400);
 				}
 				
