@@ -60,19 +60,32 @@ public class ImageUploader extends Uploader {
 			HttpSession session = request.getSession(false);
 			if(session != null){
 				User user = ((User) session.getAttribute(Constants.SESSION_USER));
+				if(user == null) {
+					HashMap<String, String> errorMap = new HashMap<String, String>();
+					errorMap.put("errorMessage", "Session could not be validated in order to upload the app image");
+					return WebUtility.getResponse(errorMap, 400);
+				}
+				
+				if(user.isAnonymous()) {
+					HashMap<String, String> errorMap = new HashMap<String, String>();
+					errorMap.put("errorMessage", "Must be logged in to upload an app image");
+					return WebUtility.getResponse(errorMap, 400);
+				}
+				
 				try {
 					appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appName);
 				} catch(Exception e) {
 					returnMap.put("errorMessage", e.getMessage());
-					return WebUtility.getResponse(returnMap, 401);
+					return WebUtility.getResponse(returnMap, 400);
 				}
 				if(!SecurityAppUtils.userCanEditEngine(user, appId)) {
-					throw new IllegalArgumentException("Database " + appId + " does not exist or user does not have access to database");
+					returnMap.put("errorMessage", "User does not have access to this app or the app id does not exist");
+					return WebUtility.getResponse(returnMap, 400);
 				}
 				appName = SecurityQueryUtils.getEngineAliasForId(appId);
 			} else {
 				returnMap.put("errorMessage", "User session is invalid");
-				return WebUtility.getResponse(returnMap, 401);
+				return WebUtility.getResponse(returnMap, 400);
 			}
 		} else {
 			appId = MasterDatabaseUtility.testEngineIdIfAlias(appName);
@@ -80,7 +93,7 @@ public class ImageUploader extends Uploader {
 			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId);
 			if(!(new File(appDir).exists())) {
 				returnMap.put("errorMessage", "Could not find app directory");
-				return WebUtility.getResponse(returnMap, 401);
+				return WebUtility.getResponse(returnMap, 400);
 			}
 		}
 		
@@ -158,19 +171,32 @@ public class ImageUploader extends Uploader {
 			HttpSession session = request.getSession(false);
 			if(session != null){
 				User user = ((User) session.getAttribute(Constants.SESSION_USER));
+				if(user == null) {
+					HashMap<String, String> errorMap = new HashMap<String, String>();
+					errorMap.put("errorMessage", "Session could not be validated in order to upload the insight image");
+					return WebUtility.getResponse(errorMap, 400);
+				}
+				
+				if(user.isAnonymous()) {
+					HashMap<String, String> errorMap = new HashMap<String, String>();
+					errorMap.put("errorMessage", "Must be logged in to upload files");
+					return WebUtility.getResponse(errorMap, 400);
+				}
+				
 				try {
 					appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appName);
 				} catch(Exception e) {
 					returnMap.put("errorMessage", e.getMessage());
-					return WebUtility.getResponse(returnMap, 401);
+					return WebUtility.getResponse(returnMap, 400);
 				}
 				if(!SecurityInsightUtils.userCanEditInsight(user, appId, insightId)) {
-					throw new IllegalArgumentException("User does not have access to edit this insight within the app");
+					returnMap.put("errorMessage", "User does not have access to edit this insight within the app");
+					return WebUtility.getResponse(returnMap, 400);
 				}
 				appName = SecurityQueryUtils.getEngineAliasForId(appId);
 			} else {
 				returnMap.put("errorMessage", "User session is invalid");
-				return WebUtility.getResponse(returnMap, 401);
+				return WebUtility.getResponse(returnMap, 400);
 			}
 		} else {
 			appId = MasterDatabaseUtility.testEngineIdIfAlias(appName);
@@ -178,7 +204,7 @@ public class ImageUploader extends Uploader {
 			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId);
 			if(!(new File(appDir).exists())) {
 				returnMap.put("errorMessage", "Could not find app directory");
-				return WebUtility.getResponse(returnMap, 401);
+				return WebUtility.getResponse(returnMap, 400);
 			}
 		}
 		
