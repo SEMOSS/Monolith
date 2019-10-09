@@ -221,6 +221,11 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		throw new IllegalStateException("Only overriding this method for reference.");			
 	}
 	
+	@Override
+	public IEngine getEngine() {
+		throw new IllegalStateException("Only overriding this method for reference.");			
+	}
+	
 	/**
 	 * Set engine requires appId and wrapperId
 	 * @param request
