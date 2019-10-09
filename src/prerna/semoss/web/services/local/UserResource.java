@@ -1425,7 +1425,7 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 500);
 		}
 		
-		return null;
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	/**
