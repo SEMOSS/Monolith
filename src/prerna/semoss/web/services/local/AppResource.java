@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -105,16 +107,37 @@ public class AppResource {
 
 	@GET
 	@Path("/appLanding")
-	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response getAppLandingPage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String app) {
-		File exportFile = getAppImageFile(app);
-		if(exportFile != null && exportFile.exists()) {
-			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
+	@Produces(MediaType.TEXT_HTML)
+	public Response getAppLandingPage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String appId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			canAccessApp(user, appId);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
+		Properties prop = Utility.loadProperties(propFileLoc);
+		String appName = prop.getProperty(Constants.ENGINE_ALIAS);
+		
+		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version/assets/landing.html";
+		File landingPageFile = new File(fileLocation);
+		if(landingPageFile != null && landingPageFile.exists()) {
 			// want to cache this on browser if user has access
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(86400);
 			cc.setPrivate(true);
-		    EntityTag etag = new EntityTag(Integer.toString(exportFile.hashCode()));
+		    EntityTag etag = new EntityTag(Integer.toString(landingPageFile.hashCode()));
 		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
 		    // cached resource did not change
@@ -122,15 +145,20 @@ public class AppResource {
 		        return builder.build();
 		    }
 		    
-			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
-					.cacheControl(cc).tag(etag).lastModified(new Date(exportFile.lastModified())).build();
+		    try {
+				String html = new String(Files.readAllBytes(Paths.get(landingPageFile.getAbsolutePath())));
+				return Response.status(200).entity(html).cacheControl(cc).tag(etag).lastModified(new Date(landingPageFile.lastModified())).build();
+			} catch (IOException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Unable to load landing html file");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 		} else {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "error sending image file");
+			errorMap.put("errorMessage", "No custom landing page found");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	} 
-	
 	
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -169,6 +197,7 @@ public class AppResource {
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(86400);
 			cc.setPrivate(true);
+			cc.setMustRevalidate(true);
 		    EntityTag etag = new EntityTag(Integer.toString(exportFile.hashCode()));
 		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -244,7 +273,6 @@ public class AppResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		String sessionId = null;
 		if(securityEnabled){
@@ -258,6 +286,7 @@ public class AppResource {
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(86400);
 			cc.setPrivate(true);
+			cc.setMustRevalidate(true);
 		    EntityTag etag = new EntityTag(Integer.toString(exportFile.hashCode()));
 		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -280,14 +309,13 @@ public class AppResource {
 	 * @param app
 	 * @return
 	 */
-	private File getInsightImageFile(String app, String id, String feUrl, String params, String sessionId) {
-		String appId = MasterDatabaseUtility.testEngineIdIfAlias(app);
+	private File getInsightImageFile(String appId, String id, String feUrl, String params, String sessionId) {
 		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
 		Properties prop = Utility.loadProperties(propFileLoc);
-		app = prop.getProperty(Constants.ENGINE_ALIAS);
+		String appName = prop.getProperty(Constants.ENGINE_ALIAS);
 		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "version";
+		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version";
 		if(params != null && !params.isEmpty() && !params.equals("undefined")) {
 			String encodedParams = Utility.encodeURIComponent(params);
 			fileLocation = fileLocation + 
