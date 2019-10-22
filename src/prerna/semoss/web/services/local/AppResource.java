@@ -32,6 +32,7 @@ import org.apache.commons.io.filefilter.WildcardFileFilter;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAppUtils;
+import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
@@ -43,19 +44,12 @@ import prerna.util.Utility;
 import prerna.util.insight.TextToGraphic;
 import prerna.web.services.util.WebUtility;
 
-@Path("/app-{appName}")
+@Path("/app-{appId}")
 public class AppResource {
 
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	
-	/**
-	 * Utility method to get the app only if person has access to it
-	 * @param user
-	 * @param appId
-	 * @return
-	 * @throws IllegalAccessException
-	 */
-	private IEngine getApp(User user, String appId) throws IllegalAccessException {
+	private boolean canAccessApp(User user, String appId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
 			if(!SecurityAppUtils.userCanViewEngine(user, appId)) {
@@ -68,8 +62,75 @@ public class AppResource {
 			}
 		}
 		
+		return true;
+	}
+	
+	private boolean canAccessInsight(User user, String appId, String insightId) throws IllegalAccessException {
+		if(AbstractSecurityUtils.securityEnabled()) {
+			appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
+			if(!SecurityInsightUtils.userCanViewInsight(user, appId, insightId)) {
+				throw new IllegalAccessException("Insight does not exist or user does not have access to view");
+			}
+		} else {
+			appId = MasterDatabaseUtility.testEngineIdIfAlias(appId);
+			if(!MasterDatabaseUtility.getAllEngineIds().contains(appId)) {
+				throw new IllegalAccessException("App " + appId + " does not exist");
+			}
+		}
+		
+		return true;
+	}
+	
+	/**
+	 * Utility method to get the app only if person has access to it
+	 * @param user
+	 * @param appId
+	 * @return
+	 * @throws IllegalAccessException
+	 */
+	private IEngine getApp(User user, String appId) throws IllegalAccessException {
+		canAccessApp(user, appId);
 		return Utility.getEngine(appId);
 	}
+		
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	/*
+	* Code below is around retrieving app assets
+	*/
+
+	@GET
+	@Path("/appLanding")
+	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
+	public Response getAppLandingPage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String app) {
+		File exportFile = getAppImageFile(app);
+		if(exportFile != null && exportFile.exists()) {
+			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
+			// want to cache this on browser if user has access
+			CacheControl cc = new CacheControl();
+			cc.setMaxAge(86400);
+			cc.setPrivate(true);
+		    EntityTag etag = new EntityTag(Integer.toString(exportFile.hashCode()));
+		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
+
+		    // cached resource did not change
+		    if(builder != null) {
+		        return builder.build();
+		    }
+		    
+			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
+					.cacheControl(cc).tag(etag).lastModified(new Date(exportFile.lastModified())).build();
+		} else {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "error sending image file");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+	} 
+	
 	
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -84,10 +145,26 @@ public class AppResource {
 	@GET
 	@Path("/appImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response downloadAppImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appName") String app) {
-		File exportFile = getAppImageFile(app);
+	public Response downloadAppImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String appId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			canAccessApp(user, appId);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		File exportFile = getAppImageFile(appId);
 		if(exportFile != null && exportFile.exists()) {
-			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
+			String exportName = appId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(86400);
@@ -150,16 +227,33 @@ public class AppResource {
 	@GET
 	@Path("/insightImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response downloadInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appName") String app, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
+	public Response downloadInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String appId, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			canAccessInsight(user, appId, id);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		String sessionId = null;
 		if(securityEnabled){
 			sessionId = request.getSession(false).getId();
 		}
 		
-		File exportFile = getInsightImageFile(app, id, request.getHeader("Referer"), params, sessionId);
+		File exportFile = getInsightImageFile(appId, id, request.getHeader("Referer"), params, sessionId);
 		if(exportFile != null && exportFile.exists()) {
-			String exportName = app + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
+			String exportName = appId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
 			CacheControl cc = new CacheControl();
 			cc.setMaxAge(86400);
@@ -292,7 +386,7 @@ public class AppResource {
 	@GET
 	@Path("/appWidget")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
-	public Response getAppWidget(@PathParam("appName") String app, @QueryParam("widget") String widgetName, @QueryParam("file") String fileName) {
+	public Response getAppWidget(@PathParam("appId") String app, @QueryParam("widget") String widgetName, @QueryParam("file") String fileName) {
 		final String basePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String appWidgetDirLoc = basePath + DIR_SEPARATOR + "db" + 
 				DIR_SEPARATOR + app + 
