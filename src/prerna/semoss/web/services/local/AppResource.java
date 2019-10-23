@@ -106,7 +106,7 @@ public class AppResource {
 	*/
 
 	@GET
-	@Path("/appLanding")
+	@Path("/landing")
 	@Produces(MediaType.TEXT_HTML)
 	public Response getAppLandingPage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String appId) {
 		User user = null;
@@ -131,23 +131,24 @@ public class AppResource {
 		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version/assets/landing.html";
-		File landingPageFile = new File(fileLocation);
-		if(landingPageFile != null && landingPageFile.exists()) {
-			// want to cache this on browser if user has access
-			CacheControl cc = new CacheControl();
-			cc.setMaxAge(86400);
-			cc.setPrivate(true);
-		    EntityTag etag = new EntityTag(Integer.toString(landingPageFile.hashCode()));
-		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
-
-		    // cached resource did not change
-		    if(builder != null) {
-		        return builder.build();
-		    }
-		    
+		File file = new File(fileLocation);
+		if(file != null && file.exists()) {
 		    try {
-				String html = new String(Files.readAllBytes(Paths.get(landingPageFile.getAbsolutePath())));
-				return Response.status(200).entity(html).cacheControl(cc).tag(etag).lastModified(new Date(landingPageFile.lastModified())).build();
+		    	String html = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
+				
+				// want to cache this on browser if user has access
+				CacheControl cc = new CacheControl();
+				cc.setMaxAge(1);
+				cc.setPrivate(true);
+			    EntityTag etag = new EntityTag(Integer.toString(html.hashCode()));
+			    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
+
+			    // cached resource did not change
+			    if(builder != null) {
+			        return builder.build();
+			    }
+				
+				return Response.status(200).entity(html).cacheControl(cc).tag(etag).lastModified(new Date(file.lastModified())).build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "Unable to load landing html file");
@@ -159,6 +160,62 @@ public class AppResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	} 
+	
+	@GET
+	@Path("/{relPath}")
+	@Produces({MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM})
+	public Response getAppFile(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String appId, @PathParam("relPath") String relPath) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			canAccessApp(user, appId);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String propFileLoc = DIHelper.getInstance().getProperty(appId + "_" + Constants.STORE);
+		Properties prop = Utility.loadProperties(propFileLoc);
+		String appName = prop.getProperty(Constants.ENGINE_ALIAS);
+		
+		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version/assets/" + relPath;
+		File file = new File(fileLocation);
+		if(file != null && file.exists()) {
+		    try {
+				String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
+				
+				// want to cache this on browser if user has access
+				CacheControl cc = new CacheControl();
+				cc.setMaxAge(1);
+				cc.setPrivate(true);
+			    EntityTag etag = new EntityTag(Integer.toString(contents.hashCode()));
+			    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
+
+			    // cached resource did not change
+			    if(builder != null) {
+			        return builder.build();
+			    }
+				
+				return Response.status(200).entity(contents).cacheControl(cc).tag(etag).lastModified(new Date(file.lastModified())).build();
+			} catch (IOException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Unable to load file");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		} else {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "No file found");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+	}
 	
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
