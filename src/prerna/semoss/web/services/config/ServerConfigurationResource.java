@@ -98,6 +98,18 @@ public class ServerConfigurationResource {
 						// ignore
 					}
 					
+					// send the default frame type
+					String defaultFrameType = DIHelper.getInstance().getProperty(Constants.DEFAULT_FRAME_TYPE);
+					if(defaultFrameType != null) {
+						try {
+							config.put("defaultFrameType", defaultFrameType);
+						} catch(Exception e) {
+							// ignore
+						}
+					} else {
+						config.put("defaultFrameType", "GRID");
+					}
+					
 					// local mode
 					boolean localMode = false;
 					String localModeStr =  DIHelper.getInstance().getProperty(Constants.LOCAL_DEPLOYMENT);
