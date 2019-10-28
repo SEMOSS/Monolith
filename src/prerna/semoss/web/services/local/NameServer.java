@@ -1243,7 +1243,7 @@ public class NameServer {
 			} catch(Exception e) {
 				e.printStackTrace();
 				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "Invalid fitler map");
+				errorMap.put("errorMessage", "Invalid filter map");
 				return WebUtility.getSO(errorMap);
 			}
 		}
