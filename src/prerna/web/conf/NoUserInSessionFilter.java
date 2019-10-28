@@ -26,11 +26,18 @@ import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.web.requests.MultiReadHttpServletRequest;
 
 public class NoUserInSessionFilter implements Filter {
 
+	// this is so if you are making a direct BE request
+	// after you sign in
+	// we can redirect you back to the original call
+	// instead of taking you to the base SemossWeb URL
+	public static final String ENDPOINT_REDIRECT_KEY = "ENDPOINT_REDIRECT_KEY";
+	
 	public static final String MONOLITH_ROUTE = "MONOLITH_ROUTE";
 	public static final String MONOLITH_PREFIX = "MONOLITH_PREFIX";
 	
@@ -144,10 +151,10 @@ public class NoUserInSessionFilter implements Filter {
 					else 
 					{
 						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
-						// invalidate the session if necessary
-						if(session != null) {
-							session.invalidate();
-						}
+//						// invalidate the session if necessary
+//						if(session != null) {
+//							session.invalidate();
+//						}
 						return;
 					}
 				}
@@ -245,11 +252,17 @@ public class NoUserInSessionFilter implements Filter {
 		// if no referrer
 		// then a person hit the endpoint directly
 		if(redirectUrl == null) {
+			((HttpServletRequest) arg0).getSession(true).setAttribute(ENDPOINT_REDIRECT_KEY, fullUrl);
 			// this will be the deployment name of the app
-			String contextPath = context.getContextPath();
-			redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_USER_HTML;
+			String loginRedirect = UserResource.getLoginRedirect();
 			((HttpServletResponse) arg1).setStatus(302);
-			((HttpServletResponse) arg1).sendRedirect(redirectUrl);
+			if(loginRedirect != null) {
+				((HttpServletResponse) arg1).sendRedirect(loginRedirect);
+			} else {
+				String contextPath = context.getContextPath();
+				redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_USER_HTML;
+				((HttpServletResponse) arg1).sendRedirect(redirectUrl);
+			}
 		} else {
 			redirectUrl = redirectUrl + "#!/" + endpoint;
 			((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
