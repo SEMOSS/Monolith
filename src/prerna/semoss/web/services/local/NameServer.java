@@ -1222,6 +1222,8 @@ public class NameServer {
 	@Path("central/context/getSearchInsightsResults")
 	@Produces("application/json")
 	public StreamingOutput getSearchInsightsResults(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		Gson gson = new Gson();
+		
 		// text searched in search bar
 		String searchString = form.getFirst("searchString");
 		// offset for call
@@ -1229,6 +1231,23 @@ public class NameServer {
 		// offset for call
 		String limit = form.getFirst("limit");
 
+		List<String> appIds = null;
+		List<String> tags = null;
+		
+		String filterStr = form.getFirst("filterData");
+		if(filterStr != null) {
+			try {
+				Map<String, List<String>> filterMap = gson.fromJson(filterStr, Map.class);
+				appIds = filterMap.get("app_id");
+				tags = filterMap.get("tags");
+			} catch(Exception e) {
+				e.printStackTrace();
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Invalid fitler map");
+				return WebUtility.getSO(errorMap);
+			}
+		}
+		
 		// If security is enabled, remove the engines in the filters that aren't
 		// accessible - if none in filters, add all accessible engines to filter
 		// list
@@ -1238,9 +1257,9 @@ public class NameServer {
 			// filter insights based on what the user has access to
 			HttpSession session = request.getSession(false);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			queryResults = SecurityInsightUtils.searchUserInsights(user, null, searchString, null, limit, offset);
+			queryResults = SecurityInsightUtils.searchUserInsights(user, appIds, searchString, tags, limit, offset);
 		} else {
-			queryResults = SecurityInsightUtils.searchInsights(null, searchString, null, limit, offset);
+			queryResults = SecurityInsightUtils.searchInsights(appIds, searchString, tags, limit, offset);
 		}
 
 		return WebUtility.getSO(queryResults);
