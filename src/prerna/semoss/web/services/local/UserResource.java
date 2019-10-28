@@ -147,6 +147,14 @@ public class UserResource {
 		}
 	}
 	
+	/**
+	 * Method to get the redirect URL if defined in the social properties
+	 * @return 
+	 */
+	public static String getLoginRedirect() {
+		return socialData.getProperty("redirect") + "/login";
+	}
+	
 	private static void setLoginsAllowed() {
 		boolean nativeLogin = Boolean.parseBoolean(socialData.getProperty("native_login"));
 		boolean githubLogin = Boolean.parseBoolean(socialData.getProperty("github_login"));
@@ -201,7 +209,7 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/logout/{provider}")
-	public Response logout(@PathParam("provider") String provider, @Context HttpServletRequest request, @Context HttpServletResponse repsonse) throws IOException {
+	public Response logout(@PathParam("provider") String provider, @Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		boolean noUser = false;
 		boolean removed = false;
 		
@@ -266,11 +274,11 @@ public class UserResource {
 			session.removeAttribute(Constants.SESSION_USER);
 			// well, you have logged out and we always require a login
 			// so i will redirect you
-			repsonse.setStatus(302);
+			response.setStatus(302);
 			String redirectUrl = request.getHeader("referer");
 			redirectUrl = redirectUrl + "#!/login";
-			repsonse.setHeader("redirect", redirectUrl);
-			repsonse.sendError(302, "Need to redirect to " + redirectUrl);
+			response.setHeader("redirect", redirectUrl);
+			response.sendError(302, "Need to redirect to " + redirectUrl);
 			
 			// remove the cookie from the browser
 			// for the session id
@@ -288,7 +296,7 @@ public class UserResource {
 							nullC.setDomain(c.getDomain());
 						}
 						nullC.setMaxAge(0);
-						repsonse.addCookie(nullC);
+						response.addCookie(nullC);
 					}
 				}
 			}
@@ -536,10 +544,7 @@ public class UserResource {
 		 */
 		
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		Hashtable<String, Object> ret = new Hashtable<String, Object>();
-
 		String queryString = request.getQueryString();
-
 		if(queryString != null && queryString.contains("code=")) {
 			if(userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
 				String[] outputs = AbstractHttpHelper.getCodes(queryString);
@@ -580,9 +585,10 @@ public class UserResource {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSFRedirect(request));
-		} else {
-			setMainPageRedirect(request, response, null);
+			return null;
 		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 	
@@ -615,7 +621,6 @@ public class UserResource {
 		 */
 		
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
 			if(userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
@@ -658,9 +663,10 @@ public class UserResource {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSurveyMonkeyRedirect(request));
-		} else {
-			setMainPageRedirect(request, response, null);
+			return null;
 		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 	
@@ -692,9 +698,7 @@ public class UserResource {
 		 * Redirect the FE
 		 */
 
-		Map<String, Object> ret = new Hashtable<String, Object>();
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
 			if(userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
@@ -744,9 +748,10 @@ public class UserResource {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGithubRedirect(request));
-		} else {
-			setMainPageRedirect(request, response, null);
+			return null;
 		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 	
@@ -780,9 +785,7 @@ public class UserResource {
 		 * Redirect the FE
 		 */
 
-		Map<String, Object> ret = new Hashtable<String, Object>();
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
 			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.MS) == null) {
@@ -829,9 +832,10 @@ public class UserResource {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getMSRedirect(request));
-		} else {
-			setMainPageRedirect(request, response, null);
-		}
+			return null;
+		} 
+
+		setMainPageRedirect(request, response);
 		return null;
 	}
 	
@@ -868,9 +872,7 @@ public class UserResource {
 		 * Redirect the FE
 		 */
 		
-		Map<String, Object> ret = new Hashtable<String, Object>();
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
 			if(userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
@@ -912,9 +914,10 @@ public class UserResource {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getDBRedirect(request));
-		} else {
-			setMainPageRedirect(request, response, null);
-		}
+			return null;
+		} 
+
+		setMainPageRedirect(request, response);
 		return null;
 	}
 	
@@ -949,9 +952,7 @@ public class UserResource {
 		 * Redirect the FE
 		 */
 
-		Map<String, Object> ret = new Hashtable<String, Object>();
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
 			if(userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
@@ -1004,9 +1005,10 @@ public class UserResource {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGoogleRedirect(request));
-		} else {
-			setMainPageRedirect(request, response, null);
+			return null;
 		}
+
+		setMainPageRedirect(request, response);
 		return null;
 	}
 	
@@ -1099,7 +1101,6 @@ public class UserResource {
 		 * Redirect the FE
 		 */
 		
-		Map<String, Object> ret = new Hashtable<String, Object>();
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		
 		String queryString = request.getQueryString();
@@ -1143,9 +1144,10 @@ public class UserResource {
 		if(userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getProducthuntRedirect(request));
-		} else {
-			setMainPageRedirect(request, response, null);
+			return null;
 		}
+
+		setMainPageRedirect(request, response);
 		return null;
 	}
 	
@@ -1179,9 +1181,7 @@ public class UserResource {
 		 * Redirect the FE
 		 */
 		
-		Map<String, Object> ret = new Hashtable<String, Object>();
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		
 		String queryString = request.getQueryString();
 		if(queryString != null && queryString.contains("code=")) {
 			if(userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
@@ -1221,9 +1221,9 @@ public class UserResource {
 		if(userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getInRedirect(request));
-		} else {
-			setMainPageRedirect(request, response, null);
-		}
+		} 
+
+		setMainPageRedirect(request, response);
 		return null;
 	}
 	
@@ -1268,18 +1268,14 @@ public class UserResource {
 	@Path("/login/twitter")
 	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
 	{
-		// redirect if query string not there
-		Object userObj = request.getSession().getAttribute(Constants.SESSION_USER);
-		Hashtable<String, Object> ret = new Hashtable<String, Object>();
-		
 		// getting the bearer token on twitter for app authentication is a lot simpler
 		// need to just combine the id and secret
 		// base 64 and send as authorization
 		
-		
 		//https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
+	
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String queryString = request.getQueryString();
-		
 		if(queryString != null && queryString.contains("code=")) {
 			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null) {
 
@@ -1303,6 +1299,13 @@ public class UserResource {
 				String url = "https://github.com/login/oauth/access_token";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
+				if(accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getTwitterRedirect(request));
+					return null;
+				}
+				
 				accessToken.setProvider(AuthProvider.GITHUB);
 				addAccessToken(accessToken, request);
 
@@ -1315,10 +1318,11 @@ public class UserResource {
 		if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(getGithubRedirect(request));
-		} else {
-			setMainPageRedirect(request, response, null);
+			response.sendRedirect(getTwitterRedirect(request));
+			return null;
 		}
+
+		setMainPageRedirect(request, response);
 		return null;
 	}
 	
@@ -1395,6 +1399,7 @@ public class UserResource {
 			String username = request.getParameter("username");
 			String password = request.getParameter("password");
 			String redirect = request.getParameter("redirect");
+			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("enableRedirect") + "");
 			
 			boolean emptyCredentials = (username == null || password == null || username.isEmpty() || password.isEmpty());
 			boolean canLogin = !emptyCredentials && NativeUserSecurityUtils.logIn(username, password);
@@ -1414,7 +1419,9 @@ public class UserResource {
 				authToken.setEmail(email);
 				addAccessToken(authToken, request);
 				
-				setMainPageRedirect(request, response, null);
+				if(!disableRedirect) {
+					setMainPageRedirect(request, response, redirect);
+				}
 			} else {
 				ret.put("error", "The user name or password are invalid.");
 				return WebUtility.getResponse(ret, 401);
@@ -1604,20 +1611,50 @@ public class UserResource {
 	 * Redirect the login back to the main app page
 	 * @param response
 	 */
-	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response, String redirect) {
+	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+		setMainPageRedirect(request, response, null);
+	}
+	
+	/**
+	 * Redirect the login back to the main app page
+	 * @param response
+	 */
+	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response, String customRedirect) {
+		// see if we have a location to redirect the user
+		// if so, we will send them back to that URL
+		// otherwise, we send them back to the FE
+		HttpSession session = request.getSession();
+		boolean useCustom = customRedirect != null && !customRedirect.isEmpty();
+		boolean endpoint = session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY) != null;
 		response.setStatus(302);
 		try {
 			Cookie cookie = new Cookie(DBLoader.getSessionIdKey(), request.getSession().getId());
 			//cookie.setPath("/dev");
 			response.addCookie(cookie);
-			if(redirect == null) {
-				response.sendRedirect(socialData.getProperty("redirect"));
+			if(useCustom) {
+				response.setHeader("redirect", customRedirect);
+				response.sendError(302, "Need to redirect to " + customRedirect);
+			} else if(endpoint) {
+				String redirectUrl = session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY) + "";
+				response.setHeader("redirect", redirectUrl);
+				response.sendError(302, "Need to redirect to " + redirectUrl);
 			} else {
-				response.sendRedirect(redirect);
+				response.sendRedirect(socialData.getProperty("redirect"));
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	/**
+	 * Set the information in the JSON return after logging in
+	 * @param token
+	 * @param ret
+	 */
+	private void setAccessTokenDetails(AccessToken token, Map<String, String> ret) {
+		ret.put("name", token.getName());
+		ret.put("email", token.getEmail());
+		ret.put("type", token.getToken_type());
 	}
 	
 	//////////////////////////////////////////////////////////////////////
