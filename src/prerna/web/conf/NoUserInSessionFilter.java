@@ -21,6 +21,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import javax.ws.rs.core.Context;
 
 import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
@@ -159,6 +160,18 @@ public class NoUserInSessionFilter implements Filter {
 					}
 				}
 
+				// is the user logging in, but was previously at a different page?
+				// this is because even if i set the redirect URL in the 
+				// {@link UserResource#setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response)}
+				// is sent to the pop-up for OAuth login
+				String endpointRedirectUrl = (String) session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY);
+				if(endpointRedirectUrl != null && !endpointRedirectUrl.isEmpty()) {
+					((HttpServletResponse) arg1).setHeader("redirect", endpointRedirectUrl);
+					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + endpointRedirectUrl);
+					session.removeAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY);
+					return;
+				}
+				
 				// so we have a user
 				// let us look at the cookies
 				// are we redirecting based on the above
