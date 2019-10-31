@@ -50,6 +50,32 @@ build_monolith_dev:
     paths:
       - target/monolith-${VERSION}-SNAPSHOT.war
 
+# Does not push to maven central
+# Pushes to sonar
+build_monolith_sonar:
+  stage: build_monolith
+  # See https://docs.gitlab.com/ee/ci/yaml/#only-and-except-simplified
+  only:
+    refs:
+      - schedules
+  except:
+    variables:
+      - $RELEASE == "TRUE"
+  script:
+    - apt-get update
+    - apt-get install -y openjfx
+    # So that the most up-to-date artifacts are pulled
+    - rm -rf .m2/repository/org/semoss
+    - mvn $MAVEN_CLI_OPTS clean install -Dci.version=${VERSION}-SNAPSHOT
+    - mvn sonar:sonar -Dsonar.projectKey=$PROJECT_KEY -Dsonar.projectVersion=${VERSION}-SNAPSHOT -Dsonar.host.url=$HOST_URL -Dsonar.login=$LOGIN_KEY
+    # So that the cache takes up less space
+    - rm -rf .m2/repository/org/semoss
+  artifacts:
+    paths:
+      - target/monolith-${VERSION}-SNAPSHOT.war
+      - target/sonar
+
+
 # Pushes to maven central
 build_monolith_deploy:
   stage: build_monolith
