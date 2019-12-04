@@ -231,20 +231,22 @@ public class AppResource {
 	@Path("/appImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response downloadAppImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String appId) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-		try {
-			canAccessApp(user, appId);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+		if(AbstractSecurityUtils.securityEnabled()) {
+			User user = null;
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", "User session is invalid");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+			try {
+				canAccessApp(user, appId);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
 		}
 		
 		File exportFile = getAppImageFile(appId);
@@ -314,28 +316,27 @@ public class AppResource {
 	@Path("/insightImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response downloadInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String appId, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-		try {
-			canAccessInsight(user, appId, id);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-		
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		String sessionId = null;
-		if(securityEnabled){
+		if(AbstractSecurityUtils.securityEnabled()) {
+			User user = null;
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", "User session is invalid");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+			try {
+				canAccessInsight(user, appId, id);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
+			
 			sessionId = request.getSession(false).getId();
-		}
-		
+		}		
+
 		File exportFile = getInsightImageFile(appId, id, request.getHeader("Referer"), params, sessionId);
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = appId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
