@@ -506,10 +506,6 @@ public class NameServer {
 		if(session.getAttribute(Constants.PYTHON) != null) {
 			jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
 		}
-		// need to see if the user is enabling python here.. I will assume it is here
-		if(session.getAttribute(Constants.PYTHON) != null) {
-			jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
-		}
 		if(PyUtils.pyEnabled() && jepThread == null) {
 			// i do not want to make more than 1 py thread per session
 			// and this method is called many times 
