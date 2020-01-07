@@ -557,7 +557,7 @@ public class NameServer {
 			//				return WebUtility.getResponse(errorMap, 400);
 			//			}
 		}
-		synchronized(insight) {
+//		synchronized(insight) {
 			// set the user
 			insight.setUser(user);
 			insight.setPy(jepThread);
@@ -584,7 +584,7 @@ public class NameServer {
 
 			manager.flushJob(jobId);
 			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner)).build();
-		}
+//		}
 	}
 
 	@POST
@@ -722,24 +722,22 @@ public class NameServer {
 			//				return WebUtility.getResponse(errorMap, 400);
 			//			}
 		}
-		if(insight != null)
-		{
-			synchronized(insight) {
-				insight.setUser(user);
-				JobManager manager = JobManager.getManager();
-				JobThread jt = manager.makeJob();
-				jobId = jt.getJobId();
-				session.setAttribute(jobId+"", "TRUE");
+		
+//		synchronized(insight) {
+			insight.setUser(user);
+			JobManager manager = JobManager.getManager();
+			JobThread jt = manager.makeJob();
+			jobId = jt.getJobId();
+			session.setAttribute(jobId+"", "TRUE");
 //				String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
 //				// so we can do things like logging
 //				jt.addPixel(job);
-				// then add the expression
-				jt.addPixel(expression);
-				jt.setInsight(insight);
-				jt.start();
-				dataReturn.put("jobId", jobId);
-			}
-		}		
+			// then add the expression
+			jt.addPixel(expression);
+			jt.setInsight(insight);
+			jt.start();
+			dataReturn.put("jobId", jobId);
+//		}
 		return WebUtility.getResponse(dataReturn, 200);
 	}
 
