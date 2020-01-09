@@ -663,6 +663,7 @@ public class NameServer {
 						GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline(insight, expression))
 						).build();
 			} catch(Exception e) {
+				e.printStackTrace();
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", e.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
