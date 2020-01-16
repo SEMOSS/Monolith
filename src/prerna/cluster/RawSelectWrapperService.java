@@ -448,4 +448,16 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		return WebUtility.getResponse(ret, 200);
 	}
 
+	@Override
+	public boolean flushable() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public String flush() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }
