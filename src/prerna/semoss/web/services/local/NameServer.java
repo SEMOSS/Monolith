@@ -261,6 +261,21 @@ public class NameServer {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	@GET
+	@Path("/insights")
+	@Produces("application/json;charset=utf-8")
+	public Response getInsights(@Context HttpServletRequest request) {
+		HttpSession session = request.getSession(false);
+		if(session == null) {
+			Map<String, String> ret = new HashMap<String, String>();
+			ret.put("output", "Invalid session");
+			return WebUtility.getResponse(ret, 400);
+		}
+		String sessionId = session.getId();
+		Set<String> ids = InsightStore.getInstance().getInsightIDsForSession(sessionId);
+		return WebUtility.getResponse(ids, 200);
+	}
+	
 	////////////////////////////////////////////////////////////////////////////////
 
 	// uploader functionality
