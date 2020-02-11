@@ -25,6 +25,7 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.util.Constants;
 import prerna.util.insight.InsightUtility;
 import prerna.web.conf.DBLoader;
 import prerna.web.conf.SessionCounter;
@@ -173,33 +174,38 @@ public class SessionResource {
 		String redirectUrl = request.getHeader("referer");
 		response.setStatus(302);
 
-		HttpSession session = request.getSession(false);
-		if(session == null) {
-			// redirect to the login page
-			redirectUrl = redirectUrl + "#!/login";
+		// redirect to login/logout page
+		if(DBLoader.useLogoutPage()) {
+			LOGGER.info("Session ended. Redirect to logout page");
+
+			String scheme = request.getScheme();             // http
+		    String serverName = request.getServerName();     // hostname.com
+		    int serverPort = request.getServerPort();        // 8080
+		    String contextPath = request.getContextPath();   // /Monolith
+			
+		    redirectUrl = "";
+		    redirectUrl += scheme + "://" + serverName;
+		    if (serverPort != 80 && serverPort != 443) {
+		    	redirectUrl += ":" + serverPort;
+		    }
+		    redirectUrl += contextPath + "/logout/";
 			response.setHeader("redirect", redirectUrl);
 			response.sendError(302, "Need to redirect to " + redirectUrl);
 		} else {
-			// redirect to login/logout page
-			if(DBLoader.useLogoutPage()) {
-				String scheme = request.getScheme();             // http
-			    String serverName = request.getServerName();     // hostname.com
-			    int serverPort = request.getServerPort();        // 8080
-			    String contextPath = request.getContextPath();   // /Monolith
-				
-			    redirectUrl = "";
-			    redirectUrl += scheme + "://" + serverName;
-			    if (serverPort != 80 && serverPort != 443) {
-			    	redirectUrl += ":" + serverPort;
-			    }
-			    redirectUrl += contextPath + "/logout/";
-				response.setHeader("redirect", redirectUrl);
-				response.sendError(302, "Need to redirect to " + redirectUrl);
-			} else {
-				redirectUrl = redirectUrl + "#!/login";
-				response.setHeader("redirect", redirectUrl);
-				response.sendError(302, "Need to redirect to " + redirectUrl);
-			}
+			LOGGER.info("Session ended. Redirect to login page");
+
+			redirectUrl = redirectUrl + "#!/login";
+			response.setHeader("redirect", redirectUrl);
+			response.sendError(302, "Need to redirect to " + redirectUrl);
+		}
+		
+		HttpSession session = request.getSession(false);
+		if(session != null) {
+			LOGGER.info("User is no longer logged in");
+			LOGGER.info("Removing user object from session");
+			session.removeAttribute(Constants.SESSION_USER);
+			
+			session.invalidate();
 		}
 	}
 	
