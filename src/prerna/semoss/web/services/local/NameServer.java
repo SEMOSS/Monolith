@@ -111,6 +111,7 @@ import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.gson.GsonUtility;
 import prerna.util.insight.InsightUtility;
+import prerna.web.conf.DBLoader;
 import prerna.web.conf.SessionCounter;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
@@ -259,6 +260,43 @@ public class NameServer {
 		Map<String, String> ret = new HashMap<String, String>();
 		ret.put("output", "cancel");
 		return WebUtility.getResponse(ret, 200);
+	}
+	
+	@GET
+	@Path("/invalidateSession")
+	@Produces("application/json;charset=utf-8")
+	public void invalidateSession(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		String redirectUrl = request.getHeader("referer");
+		response.setStatus(302);
+
+		HttpSession session = request.getSession(false);
+		if(session == null) {
+			// redirect to the login page
+			redirectUrl = redirectUrl + "#!/login";
+			response.setHeader("redirect", redirectUrl);
+			response.sendError(302, "Need to redirect to " + redirectUrl);
+		} else {
+			// redirect to login/logout page
+			if(DBLoader.useLogoutPage()) {
+				String scheme = request.getScheme();             // http
+			    String serverName = request.getServerName();     // hostname.com
+			    int serverPort = request.getServerPort();        // 8080
+			    String contextPath = request.getContextPath();   // /Monolith
+				
+			    redirectUrl = "";
+			    redirectUrl += scheme + "://" + serverName;
+			    if (serverPort != 80 && serverPort != 443) {
+			    	redirectUrl += ":" + serverPort;
+			    }
+			    redirectUrl += contextPath + "/logout/";
+				response.setHeader("redirect", redirectUrl);
+				response.sendError(302, "Need to redirect to " + redirectUrl);
+			} else {
+				redirectUrl = redirectUrl + "#!/login";
+				response.setHeader("redirect", redirectUrl);
+				response.sendError(302, "Need to redirect to " + redirectUrl);
+			}
+		}
 	}
 	
 	@GET
