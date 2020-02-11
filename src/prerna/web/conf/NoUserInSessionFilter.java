@@ -151,10 +151,10 @@ public class NoUserInSessionFilter implements Filter {
 					else 
 					{
 						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
-//						// invalidate the session if necessary
-//						if(session != null) {
-//							session.invalidate();
-//						}
+						// invalidate the session if necessary
+						if(session != null) {
+							session.invalidate();
+						}
 						return;
 					}
 				}
