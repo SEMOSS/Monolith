@@ -124,10 +124,11 @@
 							<attachClasses>true</attachClasses>
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
-								setAdmin/**,
-								startUpFail/**,
+								logout/**,
 								noUserFail/**,
+								setAdmin/**,
 								share/**,
+								startUpFail/**,
 							</warSourceIncludes>
 							<packagingExcludes>
 								%regex[WEB-INF/lib/(?!semoss-${ci.version}).*.jar]
@@ -916,17 +917,6 @@
 			<groupId>com.github.spullara.mustache.java</groupId>
 			<artifactId>compiler</artifactId>
 			<version>0.9.2</version>
-		</dependency>
-		<dependency>
-			<groupId>com.h2database</groupId>
-			<artifactId>h2</artifactId>
-			<version>1.4.185</version>
-			<exclusions>
-				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<!-- cleanup -->
 		<dependency>
@@ -1958,7 +1948,7 @@
 		<dependency>
 			<groupId>com.univocity</groupId>
 			<artifactId>univocity-parsers</artifactId>
-			<version>2.4.1</version>
+			<version>2.8.4</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
