@@ -80,6 +80,10 @@ public class ServerConfigurationResource {
 					}
 					config.put("adminSetPublic", adminSetPublic);
 					
+					// return a boolean if we want to use a dedicated logout page 
+					// instead of redirecting to the login page
+					config.put("useLogoutPage", DBLoader.useLogoutPage());
+
 					// max file transfer size
 					String fileTransferMax = DIHelper.getInstance().getProperty(Constants.FILE_TRANSFER_LIMIT);
 					if(fileTransferMax != null) {
