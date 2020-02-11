@@ -63,7 +63,8 @@ public class DBLoader implements ServletContextListener {
 	private static final Logger LOGGER = LogManager.getLogger(DBLoader.class.getName());
 	private static final String RDFMAP = "RDF-MAP";
 	private static String SESSION_ID_KEY = "JSESSIONID";
-	
+	private static boolean USE_LOGOUT_PAGE = false;
+
 	// keep track of all the watcher threads to kill 
 	private static List<AbstractFileWatcher> watcherList = new Vector<AbstractFileWatcher>();
 	
@@ -102,7 +103,15 @@ public class DBLoader implements ServletContextListener {
 			anonymousUsersUploadData = "false";
 		}
 		context.setInitParameter(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
-				
+		
+		// see if we redirect to logout page or back to login screen
+		String useLogoutPage = context.getInitParameter(Constants.USE_LOGOUT_PAGE);
+		if(useLogoutPage == null) {
+			useLogoutPage = "false";
+		}
+		context.setInitParameter(Constants.USE_LOGOUT_PAGE, useLogoutPage);
+		DBLoader.USE_LOGOUT_PAGE = Boolean.parseBoolean(useLogoutPage);
+		
 		// get the session id key
 		if(context.getSessionCookieConfig() != null) {
 			SessionCookieConfig cookieConfig = context.getSessionCookieConfig();
@@ -134,6 +143,7 @@ public class DBLoader implements ServletContextListener {
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
 		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
 		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
+		DIHelper.getInstance().setLocalProperty(Constants.USE_LOGOUT_PAGE, useLogoutPage);
 		DIHelper.getInstance().setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
 
 		//Load empty engine list into DIHelper, then load engines from db folder
@@ -270,5 +280,14 @@ public class DBLoader implements ServletContextListener {
 	 */
 	public static String getSessionIdKey() {
 		return DBLoader.SESSION_ID_KEY;
+	}
+	
+	/**
+	 * Get if we should redirect to a dedicated logout page
+	 * Or back to the login page
+	 * @return
+	 */
+	public static boolean useLogoutPage() {
+		return DBLoader.USE_LOGOUT_PAGE;
 	}
 }
