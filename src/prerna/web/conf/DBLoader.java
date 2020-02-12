@@ -51,8 +51,8 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.rpa.quartz.SchedulerUtil;
 import prerna.sablecc2.reactor.frame.r.util.RJavaTranslatorFactory;
-import prerna.sablecc2.reactor.utils.ImageCaptureReactor;
 import prerna.util.AbstractFileWatcher;
+import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
@@ -161,7 +161,7 @@ public class DBLoader implements ServletContextListener {
 		
 		// need to set the path
 		// important for taking the image with security
-		ImageCaptureReactor.setContextPath(contextPath);
+		ChromeDriverUtility.setContextPath(contextPath);
 		
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
