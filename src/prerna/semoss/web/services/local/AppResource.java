@@ -50,6 +50,8 @@ import prerna.web.services.util.WebUtility;
 public class AppResource {
 
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
+	private static String defaultEmbedLogo = null;
+	private static boolean noLogo = false;
 	
 	private boolean canAccessApp(User user, String appId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
@@ -152,12 +154,12 @@ public class AppResource {
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "Unable to load landing html file");
-				return WebUtility.getResponse(errorMap, 400);
+				return WebUtility.getResponse(errorMap, 404);
 			}
 		} else {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "No custom landing page found");
-			return WebUtility.getResponse(errorMap, 400);
+			return WebUtility.getResponse(errorMap, 404);
 		}
 	} 
 	
@@ -208,14 +210,93 @@ public class AppResource {
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "Unable to load file");
-				return WebUtility.getResponse(errorMap, 400);
+				return WebUtility.getResponse(errorMap, 404);
 			}
 		} else {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "No file found");
-			return WebUtility.getResponse(errorMap, 400);
+			return WebUtility.getResponse(errorMap, 404);
 		}
 	}
+	
+	@GET
+	@Path("/embedLogo")
+	@Produces({MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM})
+	public Response getEmbedUrl(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String appId, @QueryParam("insightId") String insightId) {
+		User user = null;
+		if(AbstractSecurityUtils.securityEnabled()) {
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", "User session is invalid");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+			try {
+				canAccessApp(user, appId);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("error", e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		}
+		
+		//TODO: ALLOW APP SPECIFIC EMBED IMAGES 
+		//TODO: ALLOW INSIGHT SPECIFIC EMBED IMAGES
+		
+		String embedLogo = getEmbedLogo();
+		if(AppResource.noLogo) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "no defualt logo");
+			return WebUtility.getResponse(errorMap, 404);
+		}
+			
+		File file = new File(embedLogo);
+		if(file != null && file.exists()) {
+		    try {
+				String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
+				
+				// want to cache this on browser if user has access
+				CacheControl cc = new CacheControl();
+				cc.setMaxAge(1);
+				cc.setPrivate(true);
+			    EntityTag etag = new EntityTag(Integer.toString(contents.hashCode()));
+			    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
+
+			    // cached resource did not change
+			    if(builder != null) {
+			        return builder.build();
+			    }
+				
+				return Response.status(200).entity(contents).cacheControl(cc).tag(etag).lastModified(new Date(file.lastModified())).build();
+			} catch (IOException e) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put("errorMessage", "Unable to load file");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		} else {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", "Default logo file not found");
+			return WebUtility.getResponse(errorMap, 404);
+		}
+	}
+	
+	private static String getEmbedLogo() {
+		if(AppResource.defaultEmbedLogo == null) {
+			String embedFileName = DIHelper.getInstance().getProperty(Constants.EMBED_URL_LOGO);
+			if(embedFileName.equalsIgnoreCase("NONE")) {
+				AppResource.noLogo = true;
+				AppResource.defaultEmbedLogo = "NONE";
+			} else {
+				String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+				String embedFolder = baseFolder + DIR_SEPARATOR + "images" + DIR_SEPARATOR + "embed";
+				AppResource.defaultEmbedLogo = embedFolder + DIR_SEPARATOR + embedFileName;
+				AppResource.noLogo = false;
+			}
+		}
+		return AppResource.defaultEmbedLogo;
+	}
+	
 	
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -357,8 +438,8 @@ public class AppResource {
 					.cacheControl(cc).tag(etag).lastModified(new Date(exportFile.lastModified())).build();
 		} else {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "error sending image file");
-			return WebUtility.getResponse(errorMap, 400);
+			errorMap.put("errorMessage", "Error sending image file");
+			return WebUtility.getResponse(errorMap, 404);
 		}
 	}
 	
