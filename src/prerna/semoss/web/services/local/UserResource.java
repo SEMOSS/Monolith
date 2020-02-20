@@ -262,6 +262,10 @@ public class UserResource {
 				SyncUserAppsThread sync = new SyncUserAppsThread(workspaceEngineId, assetEngineId); 
 				Thread t = new Thread(sync);
 				t.start();
+				
+				// put the new map for the user space
+				session.setAttribute(Constants.USER_WORKSPACE_IDS, thisUser.getWorkspaceEngineMap());
+				session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
 			}
 		}
 		
@@ -317,10 +321,6 @@ public class UserResource {
 				}
 			}
 			
-			// put the map in the space
-			session.setAttribute(Constants.USER_WORKSPACE_IDS, thisUser.getWorkspaceEngineMap());
-			session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
-
 			// invalidate the session
 			session.invalidate();
 			return null;
