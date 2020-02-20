@@ -63,8 +63,9 @@ public class DBLoader implements ServletContextListener {
 	private static final Logger LOGGER = LogManager.getLogger(DBLoader.class.getName());
 	private static final String RDFMAP = "RDF-MAP";
 	private static String SESSION_ID_KEY = "JSESSIONID";
-	private static boolean USE_LOGOUT_PAGE = false;
-
+	private static boolean useLogoutPage = false;
+	private static String customLogoutUrl = null;
+	
 	// keep track of all the watcher threads to kill 
 	private static List<AbstractFileWatcher> watcherList = new Vector<AbstractFileWatcher>();
 	
@@ -110,7 +111,15 @@ public class DBLoader implements ServletContextListener {
 			useLogoutPage = "false";
 		}
 		context.setInitParameter(Constants.USE_LOGOUT_PAGE, useLogoutPage);
-		DBLoader.USE_LOGOUT_PAGE = Boolean.parseBoolean(useLogoutPage);
+		DBLoader.useLogoutPage = Boolean.parseBoolean(useLogoutPage);
+		
+		// see if we redirect to logout page or back to login screen
+		String customLogoutUrl = context.getInitParameter(Constants.CUSTOM_LOGOUT_URL);
+		if(customLogoutUrl != null && !customLogoutUrl.trim().isEmpty()) {
+			String trimmedUrl = customLogoutUrl.trim();
+			context.setInitParameter(Constants.CUSTOM_LOGOUT_URL, trimmedUrl);
+			DBLoader.customLogoutUrl = trimmedUrl;
+		}
 		
 		// get the session id key
 		if(context.getSessionCookieConfig() != null) {
@@ -288,6 +297,10 @@ public class DBLoader implements ServletContextListener {
 	 * @return
 	 */
 	public static boolean useLogoutPage() {
-		return DBLoader.USE_LOGOUT_PAGE;
+		return DBLoader.useLogoutPage;
+	}
+	
+	public static String getCustomLogoutUrl() {
+		return DBLoader.customLogoutUrl;
 	}
 }
