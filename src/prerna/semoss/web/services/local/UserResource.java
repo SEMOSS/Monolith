@@ -279,25 +279,32 @@ public class UserResource {
 			// well, you have logged out and we always require a login
 			// so i will redirect you
 			response.setStatus(302);
-			String redirectUrl = request.getHeader("referer");
-			if(DBLoader.useLogoutPage()) {
-				String scheme = request.getScheme();             // http
-			    String serverName = request.getServerName();     // hostname.com
-			    int serverPort = request.getServerPort();        // 8080
-			    String contextPath = request.getContextPath();   // /Monolith
-				
-			    redirectUrl = "";
-			    redirectUrl += scheme + "://" + serverName;
-			    if (serverPort != 80 && serverPort != 443) {
-			    	redirectUrl += ":" + serverPort;
-			    }
-			    redirectUrl += contextPath + "/logout/";
-				response.setHeader("redirect", redirectUrl);
-				response.sendError(302, "Need to redirect to " + redirectUrl);
+			
+			String customUrl = DBLoader.getCustomLogoutUrl();
+			if(customUrl != null && !customUrl.isEmpty()) {
+				response.setHeader("redirect", customUrl);
+				response.sendError(302, "Need to redirect to " + customUrl);
 			} else {
-				redirectUrl = redirectUrl + "#!/login";
-				response.setHeader("redirect", redirectUrl);
-				response.sendError(302, "Need to redirect to " + redirectUrl);
+				String redirectUrl = request.getHeader("referer");
+				if(DBLoader.useLogoutPage()) {
+					String scheme = request.getScheme();             // http
+				    String serverName = request.getServerName();     // hostname.com
+				    int serverPort = request.getServerPort();        // 8080
+				    String contextPath = request.getContextPath();   // /Monolith
+					
+				    redirectUrl = "";
+				    redirectUrl += scheme + "://" + serverName;
+				    if (serverPort != 80 && serverPort != 443) {
+				    	redirectUrl += ":" + serverPort;
+				    }
+				    redirectUrl += contextPath + "/logout/";
+					response.setHeader("redirect", redirectUrl);
+					response.sendError(302, "Need to redirect to " + redirectUrl);
+				} else {
+					redirectUrl = redirectUrl + "#!/login";
+					response.setHeader("redirect", redirectUrl);
+					response.sendError(302, "Need to redirect to " + redirectUrl);
+				}
 			}
 			
 			// remove the cookie from the browser
