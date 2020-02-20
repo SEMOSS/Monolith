@@ -249,6 +249,11 @@
       <param-name>use-logout-page</param-name>
       <param-value>false</param-value>
    </context-param>
+   <!-- requires use-logout-page to be true -->
+   <context-param>
+      <param-name>custom-logout-url</param-name>
+      <param-value></param-value>
+   </context-param>
    <context-param>
       <description>Location to store uploaded file</description>
       <param-name>file-upload</param-name>
