@@ -178,19 +178,25 @@ public class SessionResource {
 		if(DBLoader.useLogoutPage()) {
 			LOGGER.info("Session ended. Redirect to logout page");
 
-			String scheme = request.getScheme();             // http
-		    String serverName = request.getServerName();     // hostname.com
-		    int serverPort = request.getServerPort();        // 8080
-		    String contextPath = request.getContextPath();   // /Monolith
-			
-		    redirectUrl = "";
-		    redirectUrl += scheme + "://" + serverName;
-		    if (serverPort != 80 && serverPort != 443) {
-		    	redirectUrl += ":" + serverPort;
-		    }
-		    redirectUrl += contextPath + "/logout/";
-			response.setHeader("redirect", redirectUrl);
-			response.sendError(302, "Need to redirect to " + redirectUrl);
+			String customUrl = DBLoader.getCustomLogoutUrl();
+			if(customUrl != null && !customUrl.isEmpty()) {
+				response.setHeader("redirect", customUrl);
+				response.sendError(302, "Need to redirect to " + customUrl);
+			} else {
+				String scheme = request.getScheme();             // http
+			    String serverName = request.getServerName();     // hostname.com
+			    int serverPort = request.getServerPort();        // 8080
+			    String contextPath = request.getContextPath();   // /Monolith
+				
+			    redirectUrl = "";
+			    redirectUrl += scheme + "://" + serverName;
+			    if (serverPort != 80 && serverPort != 443) {
+			    	redirectUrl += ":" + serverPort;
+			    }
+			    redirectUrl += contextPath + "/logout/";
+				response.setHeader("redirect", redirectUrl);
+				response.sendError(302, "Need to redirect to " + redirectUrl);
+			}
 		} else {
 			LOGGER.info("Session ended. Redirect to login page");
 
