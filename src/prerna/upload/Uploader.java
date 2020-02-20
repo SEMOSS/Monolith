@@ -66,7 +66,7 @@ public abstract class Uploader extends HttpServlet {
 	public static final String CSV_FILE_KEY = "CSV";
 	public static final String CSV_HELPER_MESSAGE = "HTML_RESPONSE";
 
-	protected int maxFileSize = 10000000 * 1024;
+	protected int maxFileSize = 10_000_000 * 1024;
 	protected int maxMemSize = 8 * 1024;
 	protected String filePath;
 	protected String tempFilePath = "";
@@ -127,7 +127,8 @@ public abstract class Uploader extends HttpServlet {
 			ServletFileUpload upload = new ServletFileUpload(factory);
 			// maximum file size to be uploaded.
 			upload.setSizeMax(maxFileSize);
-
+			// set encoding as well for the request
+			upload.setHeaderEncoding("UTF-8"); 
 			// make sure the insight id is valid if present
 			if(insightId != null) {
 				if(InsightStore.getInstance().get(insightId) == null) {
