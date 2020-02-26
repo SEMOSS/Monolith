@@ -164,7 +164,7 @@ public class AppResource {
 	} 
 	
 	@GET
-	@Path("/{relPath}")
+	@Path("/downloadAppAsset/{relPath}")
 	@Produces({MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM})
 	public Response getAppFile(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String appId, @PathParam("relPath") String relPath) {
 		User user = null;
