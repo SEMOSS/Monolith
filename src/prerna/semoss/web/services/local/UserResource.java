@@ -27,15 +27,20 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
@@ -65,17 +70,22 @@ import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import jodd.util.URLDecoder;
+
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
-import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
@@ -86,6 +96,7 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.ds.py.PyExecutorThread;
 import prerna.ds.py.PyUtils;
 import prerna.engine.impl.r.IRUserConnection;
 import prerna.io.connector.IConnectorIOp;
@@ -102,10 +113,14 @@ import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.git.GitRepoUtils;
 import prerna.web.conf.DBLoader;
 import prerna.web.conf.NoUserInSessionFilter;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 @Path("/auth")
 public class UserResource {
@@ -239,6 +254,15 @@ public class UserResource {
 			}
 		}
 		
+		// stop python too 
+		if(PyUtils.pyEnabled()) {
+			PyExecutorThread pyThread = (PyExecutorThread) session.getAttribute(Constants.PYTHON);
+			PyUtils.getInstance().killPyThread(pyThread);
+			if(thisUser != null)
+				PyUtils.getInstance().killTempTupleSpace(thisUser);
+		}
+
+		
 		if(provider.equalsIgnoreCase("ALL")) {
 			// remove the user from session call it a day
 			request.getSession().removeAttribute(Constants.SESSION_USER);
@@ -356,8 +380,15 @@ public class UserResource {
 			// if security is not on, we have a single py thread for the entire instance
 			// and we dont want to override those variables due to user login
 			if(AbstractSecurityUtils.securityEnabled() && PyUtils.pyEnabled()) {
+				
 				session.setAttribute(Constants.PYTHON, PyUtils.getInstance().getJep());
 			}
+			/*if(session.getAttribute("USER_TUPLE") == null)
+			{		
+				String tupleSpace = PyUtils.getInstance().getTempTupleSpace(token.getName(), DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR));
+				semossUser.setTupleSpace(tupleSpace);
+				session.setAttribute("USER_TUPLE", tupleSpace);
+			}*/
 		}
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
@@ -752,6 +783,7 @@ public class UserResource {
 				}
 				accessToken.setProvider(AuthProvider.GITHUB);
 
+				GitRepoUtils.addCertForDomain(url);
 				// add specific Git values
 				GHMyself myGit = GitHub.connectUsingOAuth(accessToken.getAccess_token()).getMyself();
 				accessToken.setId(myGit.getId() + "");
@@ -769,6 +801,7 @@ public class UserResource {
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if(userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
+			GitRepoUtils.addCertForDomain("https://github.com");
 			response.setStatus(302);
 			response.sendRedirect(getGithubRedirect(request));
 			return null;
