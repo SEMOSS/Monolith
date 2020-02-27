@@ -60,6 +60,7 @@ import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.ClientProtocolException;
@@ -365,7 +366,7 @@ public class NameServer {
 		if(session.getAttribute(Constants.PYTHON) != null) {
 			jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
 		}
-		if(PyUtils.pyEnabled() && jepThread == null) {
+		if(PyUtils.pyEnabled() && (jepThread == null || session.getAttribute("USER_TUPLE") == null)) {
 			// i do not want to make more than 1 py thread per session
 			// and this method is called many times 
 			synchronized(sessionId) {
@@ -375,6 +376,10 @@ public class NameServer {
 				if(jepThread == null) {
 					jepThread = PyUtils.getInstance().getJep();
 					session.setAttribute(Constants.PYTHON, jepThread);
+				}
+				if(session.getAttribute("USER_TUPLE") == null)
+				{		
+					session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
 				}
 			}
 		}
@@ -417,6 +422,14 @@ public class NameServer {
 			// set the user
 			insight.setUser(user);
 			insight.setPy(jepThread);
+			
+			if(insight.getTupleSpace() == null)
+			{
+				// try to see if the insight directory has been created in the tuplespace
+				String curTupleSpace = session.getAttribute("USER_TUPLE")+"";
+				insight.setTupleSpace(createInsightTupleSpace(curTupleSpace, insightId));
+			}
+			
 			JobManager manager = JobManager.getManager();
 			JobThread jt = manager.makeJob(insightId);
 			jobId = jt.getJobId();
@@ -636,6 +649,7 @@ public class NameServer {
 		String jobId = form.getFirst("jobId");
 		//		HttpSession session = request.getSession(true);
 		//		if(session.getAttribute(jobId) != null) {
+		//if(jobId != null)
 		dataReturn = JobManager.getManager().getStdOut(jobId);
 		//		}
 		return WebUtility.getSO(dataReturn);
@@ -1114,6 +1128,26 @@ public class NameServer {
 		}
 
 		return WebUtility.getSO(queryResults);
+	}
+	
+	private String createInsightTupleSpace(String baseFolder, String insightId)
+	{
+		baseFolder = baseFolder.replace("\\","/");
+		String insightSpecificFolder = baseFolder + "/" + insightId;
+		File file = new File(insightSpecificFolder);
+		if(!file.exists())
+		{
+			file.mkdir();
+			String command = "addFolder@@" + insightSpecificFolder;
+			File cmdFile = new File(baseFolder + "/" + insightId +".admin");
+			try {
+				FileUtils.writeStringToFile(cmdFile, command);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return insightSpecificFolder;
 	}
 
 
