@@ -12,6 +12,7 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import prerna.auth.SyncUserAppsThread;
+import prerna.auth.User;
 import prerna.cache.ICache;
 import prerna.ds.py.PyExecutorThread;
 import prerna.ds.py.PyUtils;
@@ -65,6 +66,9 @@ public class UserSessionLoader implements HttpSessionListener {
 		if(PyUtils.pyEnabled()) {
 			PyExecutorThread pyThread = (PyExecutorThread) session.getAttribute(Constants.PYTHON);
 			PyUtils.getInstance().killPyThread(pyThread);
+			User user = (User)session.getAttribute(Constants.SESSION_USER);
+			if(user != null)
+				PyUtils.getInstance().killTempTupleSpace(user);
 		}
 	}
 	
