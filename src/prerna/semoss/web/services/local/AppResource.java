@@ -268,7 +268,8 @@ public class AppResource {
 			        return builder.build();
 			    }
 				
-				return Response.status(200).entity(contents).cacheControl(cc).tag(etag).lastModified(new Date(file.lastModified())).build();
+			    String mimeType = Files.probeContentType(file.toPath());
+				return Response.status(200).entity(contents).type(mimeType).cacheControl(cc).tag(etag).lastModified(new Date(file.lastModified())).build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "Unable to load file");
