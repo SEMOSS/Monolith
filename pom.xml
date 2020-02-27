@@ -3082,5 +3082,10 @@
 		    <version>2.3.2</version>
 		</dependency>
 		end of hive -->
+		<dependency>
+		    <groupId>de.ruedigermoeller</groupId>
+		    <artifactId>fst</artifactId>
+		    <version>2.56</version>
+		</dependency>
 	</dependencies>
 </project>
