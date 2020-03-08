@@ -161,6 +161,26 @@
    </filter-mapping>
    -->
    <!-- End Waffle -->
+   <!-- Allow Token Filter -->
+   <!--  
+   <filter>
+      <filter-name>NoUserInSessionTrustedTokenFilter</filter-name>
+      <filter-class>prerna.web.conf.NoUserInSessionTrustedTokenFilter</filter-class>
+	  <init-param>
+			<param-name>trustedTokenPrefix</param-name>
+			<param-value>sencha</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>trustedTokenDomain</param-name>
+			<param-value>*</param-value>
+	  </init-param>
+   </filter>
+   <filter-mapping>
+      <filter-name>NoUserInSessionTrustedTokenFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+   -->
+   <!-- This is the main filter for security -->
    <filter>
       <filter-name>NoUserInSessionFilter</filter-name>
       <filter-class>prerna.web.conf.NoUserInSessionFilter</filter-class>
@@ -174,10 +194,11 @@
       <filter-name>AdminStartupFilter</filter-name>
       <filter-class>prerna.web.conf.AdminStartupFilter</filter-class>
    </filter>
-    <filter-mapping>
+   <filter-mapping>
       <filter-name>AdminStartupFilter</filter-name>
       <url-pattern>/adminconfig/*</url-pattern>
    </filter-mapping>
+   
    <!-- IF YOU WANT THE ADMIN TO ADD EVERY USER, UNCOMMENT BELOW --> 
    <!-- 
    <filter>
@@ -188,7 +209,7 @@
       <filter-name>UserExistsFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
-    -->
+   -->
    
    <!-- servlets -->
    <servlet>
@@ -252,7 +273,7 @@
    <!-- requires use-logout-page to be true -->
    <context-param>
       <param-name>custom-logout-url</param-name>
-      <param-value></param-value>
+      <param-value>http://google.com</param-value>
    </context-param>
    <context-param>
       <description>Location to store uploaded file</description>
@@ -267,7 +288,7 @@
    <context-param>
       <description>The place where the core RDF Map gets picked from</description>
       <param-name>RDF-MAP</param-name>
-      <param-value>C:\\workspace\\Semoss_Dev\\RDF_Map.prop</param-value>
+      <param-value>C:/workspace/Semoss_Dev/RDF_Map.prop</param-value>
    </context-param>  
    <!-- listeners -->
    <listener>
@@ -279,6 +300,11 @@
    <listener>
       <listener-class>prerna.web.conf.SessionCounter</listener-class>
    </listener>
+   <!-- 
+   <listener>
+      <listener-class>NoUserInSessionTrustedTokenListener</listener-class>
+   </listener>
+   -->
    <session-config>
       <session-timeout>120</session-timeout>
       <cookie-config>
