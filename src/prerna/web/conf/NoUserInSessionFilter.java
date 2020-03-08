@@ -140,21 +140,33 @@ public class NoUserInSessionFilter implements Filter {
 
 						// and now redirect back to the URL
 						// if get, we can do it
-						if(req.getMethod().equalsIgnoreCase("GET")){
-							((HttpServletResponse) arg1).setStatus(302);
-							
+						String method = req.getMethod();
+						if(method.equalsIgnoreCase("GET")) {
 							// modify the prefix if necessary
 							Map<String, String> envMap = System.getenv();
 							if(envMap.containsKey(MONOLITH_PREFIX)) {
 								fullUrl = fullUrl.replace(contextPath, envMap.get(MONOLITH_PREFIX));
 							}
 							
+							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
 							((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
+							return;
+						} else if(method.equalsIgnoreCase("POST")) {
+							// modify the prefix if necessary
+							Map<String, String> envMap = System.getenv();
+							if(envMap.containsKey(MONOLITH_PREFIX)) {
+								fullUrl = fullUrl.replace(contextPath, envMap.get(MONOLITH_PREFIX));
+							}
+							
+							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
+							((HttpServletResponse) arg1).setHeader("Location", fullUrl);
+							return;
 						} else {
-							// BE cannot redirect a POST
-							// send back an error and have the client remake the post
+							// don't know what i am redirecting 
+							// send back an error and have the client remake the request
 							setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
 						}
+						
 						return;
 					}
 					// no jsession id as a param
