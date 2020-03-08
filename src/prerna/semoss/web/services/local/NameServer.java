@@ -79,7 +79,9 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.ds.py.FilePyTranslator;
 import prerna.ds.py.PyExecutorThread;
+import prerna.ds.py.PyTranslator;
 import prerna.ds.py.PyUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
@@ -340,7 +342,11 @@ public class NameServer {
 		HttpSession session = null;
 		String sessionId = null; 
 		User user = null;
+		
+		PyTranslator pyt = null;
+		Insight insight = null;
 		PyExecutorThread jepThread = null;
+
 
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		//If security is enabled try to get an existing session.
@@ -364,30 +370,39 @@ public class NameServer {
 		}
 		// need to see if the user is enabling python here.. I will assume it is here
 		if(session.getAttribute(Constants.PYTHON) != null) {
-			jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
+			pyt = (PyTranslator)session.getAttribute(Constants.PYTHON);
 		}
-		if(PyUtils.pyEnabled() && (jepThread == null || session.getAttribute("USER_TUPLE") == null)) {
+		
+		
+		if(PyUtils.pyEnabled() && pyt == null) {
 			// i do not want to make more than 1 py thread per session
 			// and this method is called many times 
 			synchronized(sessionId) {
-				if(session.getAttribute(Constants.PYTHON) != null) {
-					jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
+				boolean useFilePy = DIHelper.getInstance().getProperty("USE_PY_FILE") != null  &&  DIHelper.getInstance().getProperty("USE_PY_FILE").equalsIgnoreCase("true");
+				if(!useFilePy)
+				{
+					if(session.getAttribute(Constants.PYTHON) != null) {
+						pyt = (PyTranslator)session.getAttribute(Constants.PYTHON);
+					}
+					if(jepThread == null) {
+						jepThread = PyUtils.getInstance().getJep();
+						pyt = new PyTranslator();
+						pyt.setPy(jepThread);
+					}
 				}
-				if(jepThread == null) {
-					jepThread = PyUtils.getInstance().getJep();
-					session.setAttribute(Constants.PYTHON, jepThread);
-				}
-				if(session.getAttribute("USER_TUPLE") == null)
+				// check to see if the py translator needs to be set ?
+				else if(useFilePy && session.getAttribute("USER_TUPLE") == null)
 				{		
 					session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
+					pyt = new FilePyTranslator();
 				}
+				session.setAttribute(Constants.PYTHON, pyt);
 			}
 		}
 
 		String jobId = "";
 		String insightId = request.getParameter("insightId");
 		String expression = request.getParameter("expression");
-		Insight insight = null;
 
 		// figure out the type of insight
 		// first is temp
@@ -418,10 +433,12 @@ public class NameServer {
 			//				return WebUtility.getResponse(errorMap, 400);
 			//			}
 		}
-//		synchronized(insight) {
+			//		synchronized(insight) {
 			// set the user
 			insight.setUser(user);
-			insight.setPy(jepThread);
+			//if(jepThread != null)
+			//	insight.setPy(jepThread);
+			insight.setPyTranslator(pyt);
 			
 			if(insight.getTupleSpace() == null)
 			{
@@ -464,7 +481,8 @@ public class NameServer {
 		String sessionId = null; 
 		User user = null;
 		PyExecutorThread jepThread = null;
-
+		PyTranslator pyt = null;
+		
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		//If security is enabled try to get an existing session.
 		//Otherwise get a session with the default user.
@@ -488,19 +506,36 @@ public class NameServer {
 		}
 		// need to see if the user is enabling python here.. I will assume it is here
 		if(session.getAttribute(Constants.PYTHON) != null) {
-			jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
+			pyt = (PyTranslator)session.getAttribute(Constants.PYTHON);
 		}
-		if(PyUtils.pyEnabled() && jepThread == null) {
+		if(PyUtils.pyEnabled() && pyt == null) {
 			// i do not want to make more than 1 py thread per session
 			// and this method is called many times 
 			synchronized(sessionId) {
 				if(session.getAttribute(Constants.PYTHON) != null) {
-					jepThread = (PyExecutorThread)session.getAttribute(Constants.PYTHON);
+					pyt = (PyTranslator)session.getAttribute(Constants.PYTHON);
 				}
-				if(jepThread == null) {
-					jepThread = PyUtils.getInstance().getJep();
-					session.setAttribute(Constants.PYTHON, jepThread);
+				
+				boolean useFilePy = DIHelper.getInstance().getProperty("USE_PY_FILE") != null  &&  DIHelper.getInstance().getProperty("USE_PY_FILE").equalsIgnoreCase("true");
+				if(!useFilePy)
+				{
+					if(session.getAttribute(Constants.PYTHON) != null) {
+						pyt = (PyTranslator)session.getAttribute(Constants.PYTHON);
+					}
+					if(jepThread == null) {
+						jepThread = PyUtils.getInstance().getJep();
+						pyt = new PyTranslator();
+						pyt.setPy(jepThread);
+					}
 				}
+				// check to see if the py translator needs to be set ?
+				else if(useFilePy && session.getAttribute("USER_TUPLE") == null)
+				{		
+					session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
+					pyt = new FilePyTranslator();
+				}
+				session.setAttribute(Constants.PYTHON, pyt);
+				
 			}
 		}
 
@@ -524,6 +559,7 @@ public class NameServer {
 			// set the user
 			insight.setUser(user);
 			insight.setPy(jepThread);
+			insight.setPyTranslator(pyt);
 			
 			// set in thread
 			ThreadStore.setInsightId(insightId);
