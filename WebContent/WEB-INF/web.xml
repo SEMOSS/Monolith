@@ -302,7 +302,7 @@
    </listener>
    <!-- 
    <listener>
-      <listener-class>NoUserInSessionTrustedTokenListener</listener-class>
+      <listener-class>prerna.web.conf.NoUserInSessionTrustedTokenListener</listener-class>
    </listener>
    -->
    <session-config>
