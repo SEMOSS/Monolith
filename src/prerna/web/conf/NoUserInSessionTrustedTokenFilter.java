@@ -1,20 +1,15 @@
 package prerna.web.conf;
 
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Collections;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Vector;
-import java.util.stream.Collectors;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -23,57 +18,29 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
-import prerna.auth.InsightToken;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.semoss.web.services.local.UserResource;
+import prerna.auth.utils.SecurityQueryUtils;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
-import prerna.web.requests.MultiReadHttpServletRequest;
 
 public class NoUserInSessionTrustedTokenFilter implements Filter {
 
-	// this is so if you are making a direct BE request
-	// after you sign in
-	// we can redirect you back to the original call
-	// instead of taking you to the base SemossWeb URL
-	public static final String ENDPOINT_REDIRECT_KEY = "ENDPOINT_REDIRECT_KEY";
-	
-	public static final String MONOLITH_ROUTE = "MONOLITH_ROUTE";
-	public static final String MONOLITH_PREFIX = "MONOLITH_PREFIX";
-	
-	private static final String LOGIN = "login";
+	private static String TRUSTED_TOKEN_PREFIX = "trustedTokenPrefix";
+	private static String TRUSTED_TOKEN_DOMAIN = "trustedTokenDomain";
 
-	private static final String NO_USER_HTML = "/noUserFail/";
-	protected static List<String> ignoreDueToFE = new Vector<String>();
-	
+	private static String tokenName = null;
+	private static List<String> trustedDomains = null;
+
 	// maps from the IP the user is coming in with the cookie
-	private static Map ipMapper = new Hashtable();
+	private static Map<String, String> sessionMapper = new Hashtable<String, String>();
 
-	static {
-		// allow these for successful dropping of
-		// sessions when browser is closed/refreshed
-		// these do their own session checks
-		ignoreDueToFE.add("engine/cleanSession");
-		ignoreDueToFE.add("engine/cancelCleanSession");
-
-		ignoreDueToFE.add("config");
-		ignoreDueToFE.add("auth/logins");
-		ignoreDueToFE.add("auth/loginsAllowed");
-		//ignoreDueToFE.add("auth/login");
-		ignoreDueToFE.add("auth/createUser");
-		for(AuthProvider v : AuthProvider.values()) {
-			ignoreDueToFE.add("auth/userinfo/" +  v.toString().toLowerCase());
-			ignoreDueToFE.add("auth/login/" +  v.toString().toLowerCase());
-		}
-	}
+	private FilterConfig filterConfig;
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-
-
-		ServletContext context = arg0.getServletContext();
+		setInitParams(arg0);
 
 		if(AbstractSecurityUtils.securityEnabled()) {
 			// this will be the full path of the request
@@ -81,186 +48,98 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 			String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
 			String contextPath = ((HttpServletRequest) arg0).getContextPath();
 			HttpSession session = ((HttpServletRequest) arg0).getSession(false);
-			//if(session != null)
-			//	System.err.println(" Session id is " + session.getId());
 
-			// additional requirement
-			// the front end comes with
-			// api/engine/redirect?insight=something something&prefix_token = something
-			// need to see if there is a user if not, we redirect to the new url
-			// user is not available ipmapper has it, all set good to go
-			// user is there
-			// first time when this url comes - I dont have a session
-			// so do the filter get back and then redirect to this url
-			
-			// REALLY DISLIKE THIS CHECK!!!
-			// eventually I need to take this off
-			if(!isIgnored(fullUrl)) {
-				// due to FE being annoying
-				// we need to push a response for this one end point
-				// since security is embedded w/ normal semoss and not standalone
+			User user = null;
+			if(session != null) {
+				user = (User) session.getAttribute(Constants.SESSION_USER);
+			}
 
-				User user = null;
-				if(session != null) {
-					//System.out.println("Session ID >> " + session.getId());
-					user = (User) session.getAttribute(Constants.SESSION_USER);
-				}
+			// if we have a user, there is nothing to do
+			if(user == null) {
 				
-
-				// if no user
-				// need to make a check in terms of am I a part of trusted host scheme
-				// basically the RDF_map will have a list of IPs for trusted host who can make a call
-				// when that IP makes a call, we will transfer the session and give the user over
-				// RDF_MAP
-				// Trusted_token	true // says this instance will work with trusted token
-				// Trusted_host <list of ips to accept request from>
-				// Token_Prefix this is an optional piece - I am not going to implement right now
-				boolean isTrustedDomain = DIHelper.getInstance().getProperty("TRUSTED_TOKEN") != null;
+				// the front end comes with
+				// fullUrl?prefix_token=userId
+				// check if the ip address is allowed
+				// check if the userId actually exists
+				// if first time, add the user
+				// if not, redirect the GET/POST call
 				
-				if(isTrustedDomain)
-				{				
-					HttpServletRequest req = (HttpServletRequest) arg0; 
-					String ipAddress = req.getHeader("X-FORWARDED-FOR");  
-					if (ipAddress == null) {  
-					    ipAddress = req.getRemoteAddr();  
-					}
-	
-					String tokenName = DIHelper.getInstance().getProperty("TRUSTED_TOKEN_PREFIX");
-	
-					// if cookie is there - and session id is sent
-					// associate with the session id
-					String sessionId = null;
-					if(req.getMethod().equalsIgnoreCase("GET"))
-						sessionId = req.getParameter(tokenName);
-					
-					
-					if(sessionId != null && !ipMapper.containsKey(sessionId)) // && user != null
-					{
-						String [] trustedIPs = DIHelper.getInstance().getProperty("TRUSTED_TOKEN_DOMAIN").split(";");
-						boolean allow = false;
-						for(int ipIndex = 0;ipIndex < trustedIPs.length;ipIndex++)
-						{
-							// let us do allow all as well
-							if(ipAddress.equalsIgnoreCase(trustedIPs[ipIndex]) || trustedIPs[ipIndex].equalsIgnoreCase("*"))
-							{
-								allow = true;
-								break;
+				HttpServletRequest req = (HttpServletRequest) arg0;
+				// grab the token id
+				// if the token exists
+				String userId = req.getParameter(tokenName);
+				if(userId != null) {
+					if(!sessionMapper.containsKey(userId)) {
+						// grab the ip address
+						String ipAddress = req.getHeader("X-FORWARDED-FOR");
+						if (ipAddress == null) {  
+							ipAddress = req.getRemoteAddr();  
+						}
+						// check if the ip address is allowed
+						boolean allow = trustedDomains.contains("*");
+						if(!allow) {
+							for(String domain : trustedDomains) {
+								if(ipAddress.matches(domain)) {
+									allow = true;
+									break;
+								}
 							}
 						}
-						
-						if(allow)
-						{
-							// this is the case where you associate
-							String cookieId = null;
-								
-							// try to see if I can get the session id directly
-							// if the user is coming in the first time
-							// create the session
-							/*if(session.isNew())
-							{
-								session.invalidate();
-								session = null;
-							}*/
-							if(session == null)
-							{
+						if(allow && SecurityQueryUtils.checkUserExist(userId)) {
+							// you are allowed
+							// i just have to check if the token id exists
+							// and id you do, i make the user object
+							if(session == null) {
 								session = req.getSession(true);
-								//session.setAttribute(Constants.SESSION_USER, user);	
 							}
-							cookieId = session.getId();
-							if(sessionId != null)
-								ipMapper.put(sessionId, cookieId);
-							
-							/*Cookie[] cookies = req.getCookies();
-							if (cookies != null) {
-								for (Cookie c : cookies) {
-									if (c.getName().equals(DBLoader.getSessionIdKey())) {
-										cookieId = c.getValue();
-										System.err.println("Cookie is set to.. " + cookieId);
-										ipMapper.put(sessionId, cookieId);
-										//break;
-									}
-								}
-							}*/
-						} 
-					}
-					else if(sessionId != null && ipMapper.containsKey(sessionId))
-					{
-						
+							user = new User();
+							AccessToken token = new AccessToken();
+							token.setProvider(AuthProvider.WINDOWS_USER);
+							token.setId(userId);
+							user.setAccessToken(token);
+							session.setAttribute(Constants.SESSION_USER, user);
+
+							String sessionId = session.getId();
+							sessionMapper.put(userId, sessionId);
+						}
+					} else {
 						// this is the class where you redirect
-						// I dont think 
-						
-						String cookieId = (String)ipMapper.get(sessionId);
-						Cookie k = new Cookie(DBLoader.getSessionIdKey(), cookieId);
+						String redirectSessionId = (String) sessionMapper.get(userId);
+						// add the session id cookie
+						Cookie k = new Cookie(DBLoader.getSessionIdKey(), redirectSessionId);
 						k.setPath(contextPath);
 						((HttpServletResponse)arg1).addCookie(k);
-						
+						// replace any other session id cookies
 						Cookie[] cookies = req.getCookies();
 						if (cookies != null) {
 							System.err.println("Forcing session value !");
 							for (Cookie c : cookies) {
 								if (c.getName().equals(DBLoader.getSessionIdKey())) {
-									if(c.getName().equalsIgnoreCase(DBLoader.getSessionIdKey()))
-										c.setValue(cookieId);
-									//System.err.println("Cookie is set to.. " + cookieId);
-									ipMapper.put(sessionId, cookieId);
-									//break;
+									if(c.getName().equalsIgnoreCase(DBLoader.getSessionIdKey())) {
+										c.setValue(redirectSessionId);
+									}
 								}
 							}
 						}
 						
-						if(req.getMethod().equalsIgnoreCase("GET")){
-							((HttpServletResponse) arg1).setStatus(302);
-							
-							// modify the prefix if necessary
-							Map<String, String> envMap = System.getenv();
-							if(envMap.containsKey(MONOLITH_PREFIX)) {
-								fullUrl = fullUrl.replace(contextPath, envMap.get(MONOLITH_PREFIX));
-							}
-						    String queryString = req.getQueryString();
-						    queryString = queryString.replace(tokenName, "dummy");
-						    ((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + queryString);
-						    
-						    return;
-						} 					
+						String method = req.getMethod();
+						if(method.equalsIgnoreCase("GET")) {
+							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+							((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
+							return;
+						} else if(method.equalsIgnoreCase("POST")) {
+							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
+							((HttpServletResponse) arg1).setHeader("Location", fullUrl);
+							return;
+						}
 					}
-					// else this is the regular flow - let us the user go through it
 				}
 			}
+//			else {
+//				System.out.println("Have user = " + user.getAccessToken(user.getPrimaryLogin()).getId());
+//			}
 		}
 		arg2.doFilter(arg0, arg1);
-
-	}
-
-	/**
-	 * Method to determine where to redirect the user
-	 * @param context
-	 * @param arg0
-	 * @param arg1
-	 * @throws IOException
-	 */
-	private void setInvalidEntryRedirect(ServletContext context, ServletRequest arg0, ServletResponse arg1, String endpoint) throws IOException {
-		String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
-		((HttpServletResponse) arg1).setStatus(302);
-		String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
-		// if no referrer
-		// then a person hit the endpoint directly
-		if(redirectUrl == null) {
-			((HttpServletRequest) arg0).getSession(true).setAttribute(ENDPOINT_REDIRECT_KEY, fullUrl);
-			// this will be the deployment name of the app
-			String loginRedirect = UserResource.getLoginRedirect();
-			((HttpServletResponse) arg1).setStatus(302);
-			if(loginRedirect != null) {
-				((HttpServletResponse) arg1).sendRedirect(loginRedirect);
-			} else {
-				String contextPath = context.getContextPath();
-				redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_USER_HTML;
-				((HttpServletResponse) arg1).sendRedirect(redirectUrl);
-			}
-		} else {
-			redirectUrl = redirectUrl + "#!/" + endpoint;
-			((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
-		}
 	}
 
 	@Override
@@ -268,27 +147,41 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 		// TODO Auto-generated method stub
 
 	}
+	
+	/**
+	 * Remove the session from the mapper
+	 * @param sessionId
+	 */
+	public static void removeSession(String sessionId) {
+		Iterator<String> iterator = NoUserInSessionTrustedTokenFilter.sessionMapper.keySet().iterator();
+		while(iterator.hasNext()) {
+			String key = iterator.next();
+			if(NoUserInSessionTrustedTokenFilter.sessionMapper.get(key).equals(sessionId)) {
+				// remove this
+				iterator.remove();
+			}
+		}
+	}
 
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
-		// TODO Auto-generated method stub
-
+		this.filterConfig = arg0;
 	}
 
-	/**
-	 * Due to how the FE security is set up
-	 * Need to ignore some URLs :(
-	 * I REALLY DISLIKE THIS!!!
-	 * @param fullUrl
-	 * @return
-	 */
-	protected static boolean isIgnored(String fullUrl) {
-		for(String ignore : ignoreDueToFE) {
-			if(fullUrl.endsWith(ignore)) {
-				return true;
+	private void setInitParams(ServletRequest arg0) {
+		// the token name
+		if(NoUserInSessionTrustedTokenFilter.tokenName == null) {
+			NoUserInSessionTrustedTokenFilter.tokenName = this.filterConfig.getInitParameter(NoUserInSessionTrustedTokenFilter.TRUSTED_TOKEN_PREFIX);
+		}
+
+		// the token domains
+		if(NoUserInSessionTrustedTokenFilter.trustedDomains == null) {
+			String [] trustedIPs = this.filterConfig.getInitParameter(NoUserInSessionTrustedTokenFilter.TRUSTED_TOKEN_DOMAIN).split(";");
+			NoUserInSessionTrustedTokenFilter.trustedDomains = new Vector<String>();
+			for(String trustedIP : trustedIPs) {
+				NoUserInSessionTrustedTokenFilter.trustedDomains.add(trustedIP.toLowerCase());
 			}
 		}
-		return false;
 	}
 
 }

@@ -27,20 +27,15 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
@@ -70,22 +65,17 @@ import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import jodd.util.URLDecoder;
-
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.message.BasicNameValuePair;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
@@ -118,9 +108,6 @@ import prerna.web.conf.DBLoader;
 import prerna.web.conf.NoUserInSessionFilter;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 @Path("/auth")
 public class UserResource {
