@@ -86,7 +86,9 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.ds.py.FilePyTranslator;
 import prerna.ds.py.PyExecutorThread;
+import prerna.ds.py.PyTranslator;
 import prerna.ds.py.PyUtils;
 import prerna.engine.impl.r.IRUserConnection;
 import prerna.io.connector.IConnectorIOp;
@@ -243,8 +245,9 @@ public class UserResource {
 		
 		// stop python too 
 		if(PyUtils.pyEnabled()) {
-			PyExecutorThread pyThread = (PyExecutorThread) session.getAttribute(Constants.PYTHON);
-			PyUtils.getInstance().killPyThread(pyThread);
+			PyTranslator pyt= (PyTranslator) session.getAttribute(Constants.PYTHON);
+			if(!(pyt instanceof prerna.ds.py.FilePyTranslator))	
+				PyUtils.getInstance().killPyThread(pyt.getPy());
 			if(thisUser != null)
 				PyUtils.getInstance().killTempTupleSpace(thisUser);
 		}
@@ -362,13 +365,36 @@ public class UserResource {
 			semossUser = (User)user;
 		} else {
 			semossUser = new User();
-			
+			PyTranslator pyt = null;
 			// also add the python thread to this user
 			// if security is not on, we have a single py thread for the entire instance
 			// and we dont want to override those variables due to user login
 			if(AbstractSecurityUtils.securityEnabled() && PyUtils.pyEnabled()) {
 				
-				session.setAttribute(Constants.PYTHON, PyUtils.getInstance().getJep());
+				if(session.getAttribute(Constants.PYTHON) != null) {
+					pyt = (PyTranslator)session.getAttribute(Constants.PYTHON);
+				}
+				
+				boolean useFilePy = DIHelper.getInstance().getProperty("USE_PY_FILE") != null  &&  DIHelper.getInstance().getProperty("USE_PY_FILE").equalsIgnoreCase("true");
+				if(!useFilePy)
+				{
+					PyExecutorThread jepThread = null;
+					if(session.getAttribute(Constants.PYTHON) != null) {
+						pyt = (PyTranslator)session.getAttribute(Constants.PYTHON);
+					}
+					if(jepThread == null) {
+						jepThread = PyUtils.getInstance().getJep();
+						pyt = new PyTranslator();
+						pyt.setPy(jepThread);
+					}
+				}
+				// check to see if the py translator needs to be set ?
+				else if(useFilePy && session.getAttribute("USER_TUPLE") == null)
+				{		
+					session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(semossUser, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
+					pyt = new FilePyTranslator();
+				}
+				session.setAttribute(Constants.PYTHON, pyt);
 			}
 			/*if(session.getAttribute("USER_TUPLE") == null)
 			{		
