@@ -14,7 +14,8 @@ import org.apache.log4j.Logger;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.cache.ICache;
-import prerna.ds.py.PyExecutorThread;
+import prerna.ds.py.FilePyTranslator;
+import prerna.ds.py.PyTranslator;
 import prerna.ds.py.PyUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -64,11 +65,17 @@ public class UserSessionLoader implements HttpSessionListener {
 		
 		// now drop the thread
 		if(PyUtils.pyEnabled()) {
-			PyExecutorThread pyThread = (PyExecutorThread) session.getAttribute(Constants.PYTHON);
-			PyUtils.getInstance().killPyThread(pyThread);
-			User user = (User)session.getAttribute(Constants.SESSION_USER);
-			if(user != null)
-				PyUtils.getInstance().killTempTupleSpace(user);
+			PyTranslator pyThread = (PyTranslator) session.getAttribute(Constants.PYTHON);
+			
+			if(!(pyThread instanceof FilePyTranslator))
+				PyUtils.getInstance().killPyThread(pyThread.getPy());
+			else
+			{
+				User user = (User)session.getAttribute(Constants.SESSION_USER);
+				if(user != null)
+					PyUtils.getInstance().killTempTupleSpace(user);
+			}
+			LOGGER.info("Dropped all python");
 		}
 	}
 	
