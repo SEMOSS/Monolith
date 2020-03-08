@@ -162,7 +162,7 @@
    -->
    <!-- End Waffle -->
    <!-- Allow Token Filter -->
-   <!--  
+   <!-- 
    <filter>
       <filter-name>NoUserInSessionTrustedTokenFilter</filter-name>
       <filter-class>prerna.web.conf.NoUserInSessionTrustedTokenFilter</filter-class>
@@ -179,7 +179,7 @@
       <filter-name>NoUserInSessionTrustedTokenFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
-   -->
+   --> 
    <!-- This is the main filter for security -->
    <filter>
       <filter-name>NoUserInSessionFilter</filter-name>
@@ -273,7 +273,7 @@
    <!-- requires use-logout-page to be true -->
    <context-param>
       <param-name>custom-logout-url</param-name>
-      <param-value>http://google.com</param-value>
+      <param-value></param-value>
    </context-param>
    <context-param>
       <description>Location to store uploaded file</description>
