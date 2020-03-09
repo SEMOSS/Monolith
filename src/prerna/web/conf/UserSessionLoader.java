@@ -66,14 +66,17 @@ public class UserSessionLoader implements HttpSessionListener {
 		// now drop the thread
 		if(PyUtils.pyEnabled()) {
 			PyTranslator pyThread = (PyTranslator) session.getAttribute(Constants.PYTHON);
-			
-			if(!(pyThread instanceof FilePyTranslator))
-				PyUtils.getInstance().killPyThread(pyThread.getPy());
-			else
-			{
-				User user = (User)session.getAttribute(Constants.SESSION_USER);
-				if(user != null)
-					PyUtils.getInstance().killTempTupleSpace(user);
+			if(pyThread != null ) {
+				if(!(pyThread instanceof FilePyTranslator)) {
+					if(pyThread.getPy() != null) {
+						PyUtils.getInstance().killPyThread(pyThread.getPy());
+					}
+				} else {
+					User user = (User)session.getAttribute(Constants.SESSION_USER);
+					if(user != null) {
+						PyUtils.getInstance().killTempTupleSpace(user);
+					}
+				}
 			}
 			LOGGER.info("Dropped all python");
 		}
