@@ -96,6 +96,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 							AccessToken token = new AccessToken();
 							token.setProvider(AuthProvider.WINDOWS_USER);
 							token.setId(userId);
+							token.setName(userId);
 							user.setAccessToken(token);
 							session.setAttribute(Constants.SESSION_USER, user);
 
