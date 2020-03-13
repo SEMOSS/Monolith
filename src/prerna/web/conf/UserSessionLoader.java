@@ -77,8 +77,8 @@ public class UserSessionLoader implements HttpSessionListener {
 						PyUtils.getInstance().killTempTupleSpace(user);
 					}
 				}
+				LOGGER.info("Dropped all python");
 			}
-			LOGGER.info("Dropped all python");
 		}
 	}
 	
