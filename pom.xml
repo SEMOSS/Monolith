@@ -2502,6 +2502,12 @@
 			<groupId>org.neo4j</groupId>
 			<artifactId>neo4j-tinkerpop-api-impl</artifactId>
 			<version>0.9-3.4.0</version>
+			<exclusions>
+               <exclusion>  <!-- declare the exclusion here -->
+			    <groupId>org.bouncycastle</groupId>
+			    <artifactId>bcpkix-jdk15on</artifactId>            
+            </exclusion>
+           </exclusions>  
 		</dependency>
 		<!-- neo4j jdbc driver used for remote neo4j engine -->
 		<dependency>
@@ -2777,16 +2783,16 @@
 		    <artifactId>google-api-services-drive</artifactId>
 		    <version>v3-rev105-1.23.0</version>
 		</dependency -->  
-		<dependency>
+		<!-- dependency>
             <groupId>com.microsoft.azure</groupId>
             <artifactId>adal4j</artifactId>
             <version>1.1.1</version>
-        </dependency>
-          <dependency>
+        </dependency-->
+          <!-- dependency>
             <groupId>com.nimbusds</groupId>
             <artifactId>oauth2-oidc-sdk</artifactId>
             <version>4.5</version>
-        </dependency>
+        </dependency-->
 		<!-- jsoup HTML parser library @ https://jsoup.org/ -->
 		<!--dependency>
 		  <groupId>org.jsoup</groupId>
@@ -2980,9 +2986,14 @@
 		    <artifactId>clickhouse-jdbc</artifactId>
 		    <version>0.2</version>
 		</dependency>
-		<dependency>
+		<!--dependency>
 		    <groupId>com.amazonaws</groupId>
 		    <artifactId>aws-java-sdk</artifactId>
+		    <version>1.11.690</version>
+		</dependency-->
+		<dependency>
+		    <groupId>com.amazonaws</groupId>
+		    <artifactId>aws-java-sdk-s3</artifactId>
 		    <version>1.11.690</version>
 		</dependency>
 		<dependency>
