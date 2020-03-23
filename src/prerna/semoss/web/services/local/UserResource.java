@@ -90,6 +90,7 @@ import prerna.ds.py.FilePyTranslator;
 import prerna.ds.py.PyExecutorThread;
 import prerna.ds.py.PyTranslator;
 import prerna.ds.py.PyUtils;
+import prerna.ds.py.TCPPyTranslator;
 import prerna.engine.impl.r.IRUserConnection;
 import prerna.io.connector.IConnectorIOp;
 import prerna.io.connector.google.GoogleEntityResolver;
@@ -101,10 +102,12 @@ import prerna.io.connector.ms.MSProfile;
 import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
+import prerna.pyserve.NettyClient;
 import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.Utility;
 import prerna.util.git.GitRepoUtils;
 import prerna.web.conf.DBLoader;
 import prerna.web.conf.NoUserInSessionFilter;
@@ -243,13 +246,20 @@ public class UserResource {
 			}
 		}
 		
+
 		// stop python too 
 		if(PyUtils.pyEnabled()) {
 			PyTranslator pyt= (PyTranslator) session.getAttribute(Constants.PYTHON);
-			if(!(pyt instanceof prerna.ds.py.FilePyTranslator))	
+			if(pyt instanceof prerna.ds.py.PyTranslator)	
 				PyUtils.getInstance().killPyThread(pyt.getPy());
-			if(thisUser != null)
+			if(pyt instanceof FilePyTranslator && thisUser != null)
 				PyUtils.getInstance().killTempTupleSpace(thisUser);
+			if(pyt instanceof TCPPyTranslator)
+			{
+				NettyClient nc = thisUser.getPyServe();
+				String dir = (String)session.getAttribute("USER_TUPLE");
+				nc.stopPyServe(dir);
+			}
 		}
 
 		
@@ -347,6 +357,7 @@ public class UserResource {
 			return null;
 		}
 		
+		
 		Map<String, Boolean> ret = new Hashtable<String, Boolean>();
 		ret.put("success", removed);
 		return WebUtility.getResponse(ret, 200);		
@@ -376,6 +387,10 @@ public class UserResource {
 				}
 				
 				boolean useFilePy = DIHelper.getInstance().getProperty("USE_PY_FILE") != null  &&  DIHelper.getInstance().getProperty("USE_PY_FILE").equalsIgnoreCase("true");
+				boolean useTCP = DIHelper.getInstance().getProperty("USE_TCP_PY") != null  &&  DIHelper.getInstance().getProperty("USE_TCP_PY").equalsIgnoreCase("true");
+				
+				
+				
 				if(!useFilePy)
 				{
 					PyExecutorThread jepThread = null;
@@ -389,10 +404,31 @@ public class UserResource {
 					}
 				}
 				// check to see if the py translator needs to be set ?
+				// check to see if the py translator needs to be set ?
 				else if(useFilePy && session.getAttribute("USER_TUPLE") == null)
 				{		
-					session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(semossUser, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
-					pyt = new FilePyTranslator();
+					if(useTCP)
+					{
+						String port = DIHelper.getInstance().getProperty("FORCE_PORT"); // this means someone has started it for debug
+						if(port == null)
+						{
+							port = Utility.findOpenPort();
+							session.setAttribute("USER_TUPLE", PyUtils.getInstance().startPyServe(semossUser, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), port));
+							NettyClient nc = new NettyClient();
+							nc.connect("127.0.0.1", Integer.parseInt(port), false);
+							Thread t = new Thread(nc);
+							t.start();
+							semossUser.setPyServe(nc);
+							pyt = new TCPPyTranslator();
+							((TCPPyTranslator)pyt).nc = nc;
+						}
+						session.setAttribute("PORT", port);
+					}
+					else
+					{
+						session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(semossUser, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
+						pyt = new FilePyTranslator();
+					}
 				}
 				session.setAttribute(Constants.PYTHON, pyt);
 			}
