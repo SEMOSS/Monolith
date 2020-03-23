@@ -83,6 +83,7 @@ import prerna.ds.py.FilePyTranslator;
 import prerna.ds.py.PyExecutorThread;
 import prerna.ds.py.PyTranslator;
 import prerna.ds.py.PyUtils;
+import prerna.ds.py.TCPPyTranslator;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.insights.admin.DBAdminResource;
@@ -90,6 +91,7 @@ import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
+import prerna.pyserve.NettyClient;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
@@ -346,6 +348,7 @@ public class NameServer {
 		PyTranslator pyt = null;
 		Insight insight = null;
 		PyExecutorThread jepThread = null;
+		String port = null;
 
 
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
@@ -371,6 +374,7 @@ public class NameServer {
 		// need to see if the user is enabling python here.. I will assume it is here
 		if(session.getAttribute(Constants.PYTHON) != null) {
 			pyt = (PyTranslator)session.getAttribute(Constants.PYTHON);
+			port = (String)session.getAttribute("PORT");
 		}
 		
 		
@@ -379,6 +383,7 @@ public class NameServer {
 			// and this method is called many times 
 			synchronized(sessionId) {
 				boolean useFilePy = DIHelper.getInstance().getProperty("USE_PY_FILE") != null  &&  DIHelper.getInstance().getProperty("USE_PY_FILE").equalsIgnoreCase("true");
+				boolean useTCP = DIHelper.getInstance().getProperty("USE_TCP_PY") != null  &&  DIHelper.getInstance().getProperty("USE_TCP_PY").equalsIgnoreCase("true");
 				if(!useFilePy)
 				{
 					if(session.getAttribute(Constants.PYTHON) != null) {
@@ -393,8 +398,28 @@ public class NameServer {
 				// check to see if the py translator needs to be set ?
 				else if(useFilePy && session.getAttribute("USER_TUPLE") == null)
 				{		
-					session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
-					pyt = new FilePyTranslator();
+					if(useTCP)
+					{
+						port = DIHelper.getInstance().getProperty("FORCE_PORT"); // this means someone has started it for debug
+						if(port == null)
+						{
+							port = Utility.findOpenPort();
+							session.setAttribute("USER_TUPLE", PyUtils.getInstance().startPyServe(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), port));
+							NettyClient nc = new NettyClient();
+							nc.connect("127.0.0.1", Integer.parseInt(port), false);
+							Thread t = new Thread(nc);
+							t.start();
+							user.setPyServe(nc);
+							pyt = new TCPPyTranslator();
+							((TCPPyTranslator)pyt).nc = nc;
+						}
+						session.setAttribute("PORT", port);
+					}
+					else
+					{
+						session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
+						pyt = new FilePyTranslator();
+					}
 				}
 				session.setAttribute(Constants.PYTHON, pyt);
 			}
@@ -440,7 +465,7 @@ public class NameServer {
 			//	insight.setPy(jepThread);
 			insight.setPyTranslator(pyt);
 			
-			if(insight.getTupleSpace() == null)
+			if(insight.getTupleSpace() == null && session.getAttribute("USER_TUPLE") != null)
 			{
 				// try to see if the insight directory has been created in the tuplespace
 				String curTupleSpace = session.getAttribute("USER_TUPLE")+"";
@@ -482,6 +507,7 @@ public class NameServer {
 		User user = null;
 		PyExecutorThread jepThread = null;
 		PyTranslator pyt = null;
+		String port = null;
 		
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		//If security is enabled try to get an existing session.
@@ -508,6 +534,10 @@ public class NameServer {
 		if(session.getAttribute(Constants.PYTHON) != null) {
 			pyt = (PyTranslator)session.getAttribute(Constants.PYTHON);
 		}
+		
+		if(session.getAttribute("PORT") != null)
+			port = (String)session.getAttribute("PORT");
+		
 		if(PyUtils.pyEnabled() && pyt == null) {
 			// i do not want to make more than 1 py thread per session
 			// and this method is called many times 
@@ -517,6 +547,7 @@ public class NameServer {
 				}
 				
 				boolean useFilePy = DIHelper.getInstance().getProperty("USE_PY_FILE") != null  &&  DIHelper.getInstance().getProperty("USE_PY_FILE").equalsIgnoreCase("true");
+				boolean useTCP = DIHelper.getInstance().getProperty("USE_TCP_PY") != null  &&  DIHelper.getInstance().getProperty("USE_TCP_PY").equalsIgnoreCase("true");
 				if(!useFilePy)
 				{
 					if(session.getAttribute(Constants.PYTHON) != null) {
@@ -531,8 +562,28 @@ public class NameServer {
 				// check to see if the py translator needs to be set ?
 				else if(useFilePy && session.getAttribute("USER_TUPLE") == null)
 				{		
-					session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
-					pyt = new FilePyTranslator();
+					if(useTCP)
+					{
+						port = DIHelper.getInstance().getProperty("FORCE_PORT"); // this means someone has started it for debug
+						if(port == null)
+						{
+							port = Utility.findOpenPort();
+							session.setAttribute("USER_TUPLE", PyUtils.getInstance().startPyServe(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), port));
+							NettyClient nc = new NettyClient();
+							nc.connect("127.0.0.1", Integer.parseInt(port), false);
+							Thread t = new Thread(nc);
+							t.start();
+							user.setPyServe(nc);
+							pyt = new TCPPyTranslator();
+							((TCPPyTranslator)pyt).nc = nc;
+						}
+						session.setAttribute("PORT", port);
+					}
+					else
+					{
+						session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
+						pyt = new FilePyTranslator();
+					}
 				}
 				session.setAttribute(Constants.PYTHON, pyt);
 				
@@ -560,7 +611,7 @@ public class NameServer {
 			insight.setUser(user);
 			insight.setPy(jepThread);
 			insight.setPyTranslator(pyt);
-			
+
 			// set in thread
 			ThreadStore.setInsightId(insightId);
 			ThreadStore.setSessionId(sessionId);
