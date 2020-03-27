@@ -207,6 +207,30 @@ public class AuthorizationResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	@GET
+	@Path("/getAllUserDbs")
+	@Produces("application/json")
+	public Response getAllUserDbs(@Context HttpServletRequest request, @QueryParam("userId") String userId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
+		if(adminUtils == null) {
+			Map<String, String> retMap = new Hashtable<String, String>();
+			retMap.put("error", "User does not have admin priviledges");
+			return WebUtility.getResponse(retMap, 400);
+		}
+
+		List<Map<String, Object>> ret = adminUtils.getAllUserDbs(userId);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
 	@POST
 	@Produces("application/json")
 	@Path("requestAccess")
