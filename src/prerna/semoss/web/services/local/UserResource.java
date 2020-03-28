@@ -388,6 +388,7 @@ public class UserResource {
 				
 				boolean useFilePy = DIHelper.getInstance().getProperty("USE_PY_FILE") != null  &&  DIHelper.getInstance().getProperty("USE_PY_FILE").equalsIgnoreCase("true");
 				boolean useTCP = DIHelper.getInstance().getProperty("USE_TCP_PY") != null  &&  DIHelper.getInstance().getProperty("USE_TCP_PY").equalsIgnoreCase("true");
+				useTCP = useFilePy; // forcing it to be same as TCP
 				
 				
 				
