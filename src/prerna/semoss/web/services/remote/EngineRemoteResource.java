@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.Hashtable;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.POST;
@@ -41,7 +42,6 @@ import javax.ws.rs.core.StreamingOutput;
 
 import prerna.engine.api.IConstructWrapper;
 import prerna.engine.api.IEngine;
-import prerna.engine.api.IEngineWrapper;
 import prerna.engine.api.IRemoteQueryable;
 import prerna.engine.impl.rdf.SesameJenaSelectWrapper;
 import prerna.rdf.engine.wrappers.AbstractWrapper;
@@ -109,17 +109,21 @@ public class EngineRemoteResource {
 		// sets this wrapper in the memory
 		System.out.println("Executing GRAPH Query " + query);
 		
-		IConstructWrapper sjw = WrapperManager.getInstance().getCWrapper(coreEngine, query);
-		
-		/*
-		SesameJenaConstructWrapper sjw = new SesameJenaConstructWrapper();
-		sjw.setQuery(query);
-		sjw.setEngine(coreEngine);
-		sjw.execute();
-		*/
-		// need someway to get an indirection for now hardcoded
-		((IRemoteQueryable)sjw).setRemoteAPI(uriBase + coreEngine.getEngineId());
-		QueryResultHash.getInstance().addObject((SesameConstructWrapper)sjw);		
+		IConstructWrapper sjw = null;
+		try {
+			sjw = WrapperManager.getInstance().getCWrapper(coreEngine, query);
+			/*
+			SesameJenaConstructWrapper sjw = new SesameJenaConstructWrapper();
+			sjw.setQuery(query);
+			sjw.setEngine(coreEngine);
+			sjw.execute();
+			*/
+			// need someway to get an indirection for now hardcoded
+			((IRemoteQueryable)sjw).setRemoteAPI(uriBase + coreEngine.getEngineId());
+			QueryResultHash.getInstance().addObject((SesameConstructWrapper)sjw);		
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		
 		return WebUtility.getSO(sjw);
 	}
@@ -130,12 +134,17 @@ public class EngineRemoteResource {
 	public Object execSelectQuery(@FormParam("query") String query) {
 		// TODO Auto-generated method stub
 		System.out.println("Executing Select Query  " + query);
-		AbstractWrapper sjsw = (AbstractWrapper) WrapperManager.getInstance().getSWrapper(coreEngine, query);
-		sjsw.setRemote(true);
-		// need someway to get an indirection for now hardcoded
-		((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineId());
-		QueryResultHash.getInstance().addObject(sjsw);		
-	
+		AbstractWrapper sjsw = null;
+		try {
+			sjsw = (AbstractWrapper) WrapperManager.getInstance().getSWrapper(coreEngine, query);
+			sjsw.setRemote(true);
+			// need someway to get an indirection for now hardcoded
+			((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineId());
+			QueryResultHash.getInstance().addObject(sjsw);		
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
 		return WebUtility.getSO(sjsw);
 	}
 
@@ -146,11 +155,16 @@ public class EngineRemoteResource {
 	public Object execCheaterQuery(@FormParam("query") String query) {
 		// TODO Auto-generated method stub
 		System.out.println("Executing Select Query  " + query);
-		AbstractWrapper sjsw = (AbstractWrapper) WrapperManager.getInstance().getChWrapper(coreEngine, query);
-		sjsw.setRemote(true);
-		// need someway to get an indirection for now hardcoded
-		((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineId());
-		QueryResultHash.getInstance().addObject(sjsw);		
+		AbstractWrapper sjsw = null;
+		try {
+			sjsw = (AbstractWrapper) WrapperManager.getInstance().getChWrapper(coreEngine, query);
+			sjsw.setRemote(true);
+			// need someway to get an indirection for now hardcoded
+			((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineId());
+			QueryResultHash.getInstance().addObject(sjsw);		
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	
 		return WebUtility.getSO(sjsw);
 	}
@@ -168,7 +182,14 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput execAskQuery(@FormParam("query") String query) {
 		// TODO Auto-generated method stub
-		return WebUtility.getSO(coreEngine.execQuery(query));
+		try {
+			return WebUtility.getSO(coreEngine.execQuery(query));
+		} catch (Exception e) {
+			e.printStackTrace();
+			Hashtable<String, Object> ret = new Hashtable<String, Object>();
+			ret.put("errorMessage", e.getMessage());
+			return WebUtility.getSO(ret);
+		}
 	}
 
 
