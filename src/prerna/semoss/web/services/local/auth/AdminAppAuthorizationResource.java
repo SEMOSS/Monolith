@@ -1,6 +1,8 @@
 package prerna.semoss.web.services.local.auth;
 
 import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
@@ -14,6 +16,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.web.services.util.WebUtility;
@@ -65,6 +68,32 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		return WebUtility.getResponse(adminUtils.getAppUsers(appId), 200);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("/getAllUserApps")
+	public Response getAllUserApps(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String existingUserId = form.getFirst("id");
+		
+		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
+		if(adminUtils == null) {
+			Map<String, String> retMap = new Hashtable<String, String>();
+			retMap.put("error", "User does not have admin priviledges");
+			return WebUtility.getResponse(retMap, 400);
+		}
+
+		List<Map<String, Object>> ret = adminUtils.getAllUserDbs(existingUserId);
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	/**
