@@ -140,10 +140,19 @@ public class EngineResource {
 		System.out.println(query);
 		
 		// flush data out
-		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(coreEngine, query);
 		List<Object[]> data = new Vector<Object[]>();
-		while(wrapper.hasNext()) {
-			data.add(wrapper.next().getRawValues());
+		IRawSelectWrapper wrapper = null;
+		try {
+			wrapper = WrapperManager.getInstance().getRawWrapper(coreEngine, query);
+			while(wrapper.hasNext()) {
+				data.add(wrapper.next().getRawValues());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			if(wrapper != null) {
+				wrapper.cleanUp();
+			}
 		}
 		
 //		return Response.status(200).entity(WebUtility.getSO(data)).build();
