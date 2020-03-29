@@ -16,9 +16,7 @@ public class CACTrackingUtil {
 	private static Map<String, CACTrackingUtil> singletonStore = new HashMap<String, CACTrackingUtil>();
 	
 	/*
-	 * Creating a class to manage updating the insight count
-	 * This is necessary since we will get version conflicts
-	 * if you run 2 insights at the same time
+	 * Creating a class to manage updating the user count in a synchronized manner
 	 */
 
 	private BlockingQueue<LocalDate> queue;
