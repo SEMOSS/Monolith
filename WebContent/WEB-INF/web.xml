@@ -68,6 +68,18 @@
 			<param-name>countUserEntryDb</param-name>
 			<param-value>9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
 	  </init-param>
+	  <init-param>
+			<param-name>logUserInfo</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>logUserInfoPath</param-name>
+			<param-value></param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>logUserInfoSep</param-name>
+			<param-value>,</param-value>
+	  </init-param>
    </filter>
    <filter-mapping>
       <filter-name>CACFilter</filter-name>
@@ -92,15 +104,27 @@
 			<param-name>countUserEntryDb</param-name>
 			<param-value>9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
 	  </init-param>
+	  <init-param>
+			<param-name>logUserInfo</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>logUserInfoPath</param-name>
+			<param-value></param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>logUserInfoSep</param-name>
+			<param-value>,</param-value>
+	  </init-param>
    </filter>
    <filter-mapping>
       <filter-name>PIVFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
    --> 
-    
+   
    <!-- WAFFLE IT -->
-   <!--
+   <!-- 
    <filter>
       <filter-name>SecurityFilter</filter-name>
       <filter-class>waffle.servlet.NegotiateSecurityFilter</filter-class>
@@ -154,6 +178,18 @@
 			<param-name>autoAdd</param-name>
 			<param-value>true</param-value>
 	  </init-param>
+	  <init-param>
+			<param-name>logUserInfo</param-name>
+			<param-value>true</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>logUserInfoPath</param-name>
+			<param-value></param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>logUserInfoSep</param-name>
+			<param-value>,</param-value>
+	  </init-param>
    </filter>
    <filter-mapping>
       <filter-name>WaffleFilter</filter-name>
@@ -161,6 +197,7 @@
    </filter-mapping>
    -->
    <!-- End Waffle -->
+   
    <!-- Allow Token Filter -->
    <!-- 
    <filter>
