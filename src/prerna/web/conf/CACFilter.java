@@ -3,8 +3,9 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
-import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -28,13 +29,9 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
-import prerna.ds.util.RdbmsQueryBuilder;
-import prerna.engine.api.IRawSelectWrapper;
-import prerna.engine.impl.rdbms.RDBMSNativeEngine;
-import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
+import prerna.web.conf.util.UserFileLogUtil;
 
 public class CACFilter implements Filter {
 
@@ -44,11 +41,15 @@ public class CACFilter implements Filter {
 	private static final String AUTO_ADD = "autoAdd";
 	private static final String COUNT_USER_ENTRY = "countUserEntry";
 	private static final String COUNT_USER_ENTRY_DATABASE = "countUserEntryDb";
-
+	private static final String LOG_USER_INFO = "logUserInfo";
+	private static final String LOG_USER_INFO_PATH = "logUserInfoPath";
+	private static final String LOG_USER_INFO_SEP = "logUserInfoSep";
+	
 	// realization of init params
 	private static Boolean autoAdd = null;
 	private CACTrackingUtil tracker = null;
-	
+	private UserFileLogUtil userLogger = null;
+
 	private FilterConfig filterConfig;
 	
 	// TODO >>>timb: WORKSPACE - call logic to pull workspace here, or make into a reactor
@@ -66,9 +67,14 @@ public class CACFilter implements Filter {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 			if(user == null) {
 				user = new User();
-
 				token = new AccessToken();
 				token.setProvider(AuthProvider.CAC);
+				
+				// values we are trying to grab
+				String cacId = null;
+				String name = null;
+				String email = null;
+				
 				// loop through all the certs
 				CERT_LOOP : for(int i = 0; i < certs.length; i++) {
 					X509Certificate cert = certs[i];
@@ -91,10 +97,12 @@ public class CACFilter implements Filter {
 
 							// account for topaz
 							if(value.equals("topazbpm001.mhse2e.med.osd.mil")) {
+								cacId = value;
+								name = "TOPAZ";
 								// THIS IS FOR TOPAZ HITTING MHS
 								// GIVE IT ACCESS
-								token.setId(value);
-								token.setName("TOPAZ");
+								token.setId(cacId);
+								token.setName(name);
 								// now set the other properties
 								token.setToken_type(cert.getIssuerDN().getName());
 								token.setExpires_in((int) cert.getNotAfter().getTime());
@@ -116,7 +124,7 @@ public class CACFilter implements Filter {
 							}
 							
 							// just going to validate the cac has length 10
-							String cacId = split[split.length-1];
+							cacId = split[split.length-1];
 							if(cacId.length() < 10) {
 								// didn't pass
 								// try next rdn
@@ -124,9 +132,9 @@ public class CACFilter implements Filter {
 							}
 							
 							// if we got to here, we have a valid cac!
-							String name = Stream.of(split).limit(split.length-1).collect(Collectors.joining(" "));
+							name = Stream.of(split).limit(split.length-1).collect(Collectors.joining(" "));
 							// we also need to get the email since that is what we will store
-							String email = null;
+							email = null;
 
 							try {
 								EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
@@ -187,6 +195,11 @@ public class CACFilter implements Filter {
 					if(tracker != null && !token.getName().equals("TOPAZ")) {
 						tracker.addToQueue(LocalDate.now());
 					}
+					
+					// are we logging their information?
+					if(userLogger != null && !token.getName().equals("TOPAZ")) {
+						userLogger.addToQueue(new String[] {cacId, email, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))});
+					}
 				}
 			}
 		}
@@ -199,7 +212,7 @@ public class CACFilter implements Filter {
 		// TODO Auto-generated method stub
 
 	}
-
+	
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
 		this.filterConfig = arg0;
@@ -214,7 +227,31 @@ public class CACFilter implements Filter {
 				// Default value is true
 				CACFilter.autoAdd = true;
 			}
-			
+
+			boolean logUsers = false;
+			String logUserInfoStr = this.filterConfig.getInitParameter(LOG_USER_INFO);
+			if(logUserInfoStr != null) {
+				logUsers = Boolean.parseBoolean(logUserInfoStr);
+			}
+			if(logUsers) {
+				String logInfoPath = this.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
+				String logInfoSep = this.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
+				if(logInfoPath == null) {
+					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+				}
+				try {
+					userLogger = UserFileLogUtil.getInstance(logInfoPath, logInfoSep);
+				} catch(Exception e) {
+					LOGGER.info(e.getMessage());
+					LOGGER.info(e.getMessage());
+					LOGGER.info(e.getMessage());
+					LOGGER.info(e.getMessage());
+				}
+			}
+
 			boolean countUsers = false;
 			String countUsersStr = this.filterConfig.getInitParameter(COUNT_USER_ENTRY);
 			if(countUsersStr != null) {
