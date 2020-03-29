@@ -20,14 +20,15 @@ import prerna.util.Utility;
 public class AdminStartupFilter implements Filter {
 
 	private static String initialRedirect;
-	
+
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
 			String q = "SELECT * FROM USER LIMIT 1";
-			IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
+			IRawSelectWrapper wrapper = null;
 			try {
+				wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
 				boolean hasUser = wrapper.hasNext();
 				// if there are users, redirect to the main semoss page
 				// we do not want to allow the person to make any admin requests
@@ -40,26 +41,30 @@ public class AdminStartupFilter implements Filter {
 					}
 					return;
 				}
+			} catch (Exception e) {
+				e.printStackTrace();
 			} finally {
-				wrapper.cleanUp();
+				if(wrapper != null) {
+					wrapper.cleanUp();
+				}
 			}
 		}
-		
+
 		arg2.doFilter(arg0, arg1);
 	}
-	
+
 	@Override
 	public void destroy() {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
 		// TODO Auto-generated method stub
-		
+
 	}
-	
+
 	public static void setSuccessfulRedirectUrl(String initialRedirect) {
 		AdminStartupFilter.initialRedirect = initialRedirect;
 	}
