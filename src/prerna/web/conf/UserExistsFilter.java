@@ -48,10 +48,10 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 					// okay, need to make sure the user is a valid one
 					IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
 					String q = "SELECT * FROM USER WHERE ID='" + user.getAccessToken(user.getLogins().get(0)).getId() + "'";
-					IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
+					IRawSelectWrapper wrapper = null;
 					try {
+						wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
 						boolean hasUser = wrapper.hasNext();
-
 						// this user is not registered
 						// just take them to the login page again
 						if(!hasUser) {
@@ -62,8 +62,12 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
 							return;
 						}
+					} catch (Exception e) {
+						e.printStackTrace();
 					} finally {
-						wrapper.cleanUp();
+						if(wrapper != null) {
+							wrapper.cleanUp();
+						}
 					}
 				}
 			}
