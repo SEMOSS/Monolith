@@ -70,8 +70,9 @@ class CountUpdater implements Runnable {
 		// since the server could go down
 		// need to get the last "lastDateExists"
 		// so we do not have duplicates
-		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, GET_LATEST_DATE_QUERY);
+		IRawSelectWrapper wrapper = null;
 		try {
+			wrapper = WrapperManager.getInstance().getRawWrapper(engine, GET_LATEST_DATE_QUERY);
 			if(wrapper.hasNext()) {
 				Object value = wrapper.next().getValues()[0];
 				if(value != null) {
@@ -83,8 +84,12 @@ class CountUpdater implements Runnable {
 
 				}
 			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		} finally {
-			wrapper.cleanUp();
+			if(wrapper != null) {
+				wrapper.cleanUp();
+			}
 		}
 	}
 
