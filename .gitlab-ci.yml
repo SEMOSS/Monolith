@@ -21,6 +21,7 @@ build_semoss:
   except:
     variables:
       - $RELEASE == "TRUE"
+      - $SONARPUSH == "TRUE"
   image: $IMAGE
   script:
     - date +%s
@@ -58,6 +59,8 @@ build_monolith_sonar:
   only:
     refs:
       - schedules
+    variables:
+      - $SONARPUSH == "TRUE"      
   except:
     variables:
       - $RELEASE == "TRUE"
