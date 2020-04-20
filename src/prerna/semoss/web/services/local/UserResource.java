@@ -609,10 +609,9 @@ public class UserResource {
 		}
 
 		String url = "https://api.github.com/user";
-		Hashtable params = new Hashtable();
-		params.put("access_token", accessString);
+	
 
-		String output = AbstractHttpHelper.makeGetCall(url, accessString, params, false);
+		String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
 		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
 		try {
 			ret.put("name", accessToken2.getProfile());
