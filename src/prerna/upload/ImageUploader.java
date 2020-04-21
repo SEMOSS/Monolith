@@ -167,6 +167,11 @@ public class ImageUploader extends Uploader {
 			}
 		}
 
+		if(imageFile == null) {
+			returnMap.put("errorMessage", "Could not find the file to upload for the insight in the request");
+			return WebUtility.getResponse(returnMap, 200);
+		}
+		
 		if(this.securityEnabled) {
 			HttpSession session = request.getSession(false);
 			if(session != null){
