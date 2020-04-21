@@ -169,7 +169,10 @@ public class ImageUploader extends Uploader {
 
 		if(imageFile == null) {
 			returnMap.put("errorMessage", "Could not find the file to upload for the insight in the request");
-			return WebUtility.getResponse(returnMap, 200);
+			return WebUtility.getResponse(returnMap, 400);
+		} else if(appName == null || insightId == null) {
+			returnMap.put("errorMessage", "Need to pass the proper app and insight ids to upload the image");
+			return WebUtility.getResponse(returnMap, 400);
 		}
 		
 		if(this.securityEnabled) {
