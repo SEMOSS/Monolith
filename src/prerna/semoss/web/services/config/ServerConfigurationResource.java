@@ -32,10 +32,11 @@ import prerna.web.services.util.WebUtility;
 public class ServerConfigurationResource {
 
 	private static Map<String, Object> config = null;
-	
+
 	/**
-	 * Generate the configuration options for this instance
-	 * Only need to make this once
+	 * Generate the configuration options for this instance Only need to make this
+	 * once
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -48,91 +49,92 @@ public class ServerConfigurationResource {
 		} catch (IllegalAccessException e) {
 			// ignore
 		}
-		
-		if(config == null) {
+
+		if (config == null) {
 			// make thread safe
-			synchronized(ServerConfigurationResource.class) {
-				if(config == null) {
-					config = new HashMap<String, Object>();
+			synchronized (ServerConfigurationResource.class) {
+				if (config == null) {
+					config = new HashMap<>();
 					// session timeout
 					config.put("timeout", (double) session.getMaxInactiveInterval() / 60);
-					
+
 					// r enabled
 					boolean useR = true;
-					String useRStr =  DIHelper.getInstance().getProperty(Constants.USE_R);
-					if(useRStr != null) {
+					String useRStr = DIHelper.getInstance().getProperty(Constants.USE_R);
+					if (useRStr != null) {
 						useR = Boolean.parseBoolean(useRStr);
 					}
 					config.put("r", useR);
-					
+
 					// python enabled
 					config.put("python", PyUtils.pyEnabled());
-		
+
 					// security enabled
 					config.put("security", AbstractSecurityUtils.securityEnabled());
 					config.put("anonymousUsers", AbstractSecurityUtils.anonymousUsersEnabled());
 					config.put("anonymousUserUploadData", AbstractSecurityUtils.anonymousUserUploadData());
 					// admin set public enabled
 					boolean adminSetPublic = false;
-					String adminSetPublicStr =  (String) DIHelper.getInstance().getLocalProp(Constants.ADMIN_SET_PUBLIC);
-					if(adminSetPublicStr != null) {
+					String adminSetPublicStr = (String) DIHelper.getInstance().getLocalProp(Constants.ADMIN_SET_PUBLIC);
+					if (adminSetPublicStr != null) {
 						adminSetPublic = Boolean.parseBoolean(adminSetPublicStr);
 					}
 					config.put("adminSetPublic", adminSetPublic);
-					
-					// return a boolean if we want to use a dedicated logout page 
+
+					// return a boolean if we want to use a dedicated logout page
 					// instead of redirecting to the login page
 					config.put("useLogoutPage", DBLoader.useLogoutPage());
 
 					// max file transfer size
 					String fileTransferMax = DIHelper.getInstance().getProperty(Constants.FILE_TRANSFER_LIMIT);
-					if(fileTransferMax != null) {
+					if (fileTransferMax != null) {
 						try {
 							config.put("file-limit", Integer.parseInt(fileTransferMax));
-						} catch(Exception e) {
+						} catch (Exception e) {
 							// ignore
 						}
 					}
-					
+
 					// version of the application
 					try {
 						Map<String, String> versionMap = VersionReactor.getVersionMap();
 						config.put("version", versionMap);
-					} catch(Exception e) {
+					} catch (Exception e) {
 						// ignore
 					}
-					
+
 					// send the default frame type
 					String defaultFrameType = DIHelper.getInstance().getProperty(Constants.DEFAULT_FRAME_TYPE);
-					if(defaultFrameType == null) {
+					if (defaultFrameType == null) {
 						defaultFrameType = "GRID";
 					}
 					config.put("defaultFrameType", defaultFrameType);
-					
-					String defaultScriptingLanguage = DIHelper.getInstance().getProperty(Constants.DEFAULT_SCRIPTING_LANGUAGE);
-					if(defaultScriptingLanguage == null) {
+
+					String defaultScriptingLanguage = DIHelper.getInstance()
+							.getProperty(Constants.DEFAULT_SCRIPTING_LANGUAGE);
+					if (defaultScriptingLanguage == null) {
 						defaultScriptingLanguage = "R";
 					}
 					config.put("defaultScriptingLanguage", defaultScriptingLanguage);
 
 					// local mode
 					boolean localMode = false;
-					String localModeStr =  DIHelper.getInstance().getProperty(Constants.LOCAL_DEPLOYMENT);
-					if(localModeStr != null) {
+					String localModeStr = DIHelper.getInstance().getProperty(Constants.LOCAL_DEPLOYMENT);
+					if (localModeStr != null) {
 						localMode = Boolean.parseBoolean(localModeStr);
 					}
 					config.put("localDeployment", localMode);
 				}
 			}
 		}
-		
+
 		// do not keep this session
 		// if no user and it is new
-		if(session.isNew() && user == null) {
+		if (session.isNew() && user == null) {
 			session.invalidate();
 		}
-		
-		Map<String, Object> myConfiguration = new HashMap<String, Object>();
+
+		Map<String, Object> myConfiguration = new HashMap<>();
 		myConfiguration.putAll(config);
 		// append values that can change without restarting the server
 		// logins allowed
@@ -143,12 +145,12 @@ public class ServerConfigurationResource {
 		myConfiguration.put("theme", AdminThemeUtils.getActiveAdminTheme());
 		return myConfiguration;
 	}
-	
+
 	@GET
 	@Path("/")
 	@Produces("application/json")
 	public Response getServerConfig(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		List<NewCookie> newCookies = new Vector<NewCookie>();
+		List<NewCookie> newCookies = new Vector<>();
 
 		try {
 			ResourceUtility.getUser(request);
@@ -158,18 +160,19 @@ public class ServerConfigurationResource {
 			// since FE only calls this method on browser startup
 			// clean up any invalid cookies on the browser
 			Cookie[] cookies = request.getCookies();
-			if(cookies != null) {
-				for(Cookie c : cookies) {
-					if(DBLoader.getSessionIdKey().equals(c.getName())) {
+			if (cookies != null) {
+				for (Cookie c : cookies) {
+					if (DBLoader.getSessionIdKey().equals(c.getName())) {
 						// we need to null this out
-						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(), c.getComment(), 0, c.getSecure());
+						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
+								c.getComment(), 0, c.getSecure());
 						newCookies.add(nullC);
 					}
 				}
 			}
 		}
-		
-		return WebUtility.getResponse(getConfig(request), 200, newCookies.toArray(new NewCookie[]{}));
+
+		return WebUtility.getResponse(getConfig(request), 200, newCookies.toArray(new NewCookie[] {}));
 	}
-	
+
 }
