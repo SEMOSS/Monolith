@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -27,6 +28,8 @@ import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -74,8 +77,9 @@ import prerna.util.Utility;
 import prerna.util.sql.RdbmsTypeEnum;
 import prerna.web.services.util.WebUtility;
 
+@Deprecated
 public class DatabaseUploader extends Uploader {
-
+	private static final Logger logger = LogManager.getLogger(DatabaseUploader.class);
 	// we will control the adding of the engine into local master and solr
 	// such that we dont send a success before those processes are complete
 	boolean autoLoad = false;
@@ -297,7 +301,7 @@ public class DatabaseUploader extends Uploader {
 		HeadersException headerChecker = HeadersException.getInstance();
 
 		if(type.equals("CSV")) {
-			Map<String, Map<String, String>> invalidHeadersMap = new Hashtable<String, Map<String, String>>();
+			Map<String, Map<String, String>> invalidHeadersMap = new Hashtable<>();
 			
 			// the key is for each file name
 			// the list are the headers inside that file
@@ -310,7 +314,7 @@ public class DatabaseUploader extends Uploader {
 				// now we need to check all of these headers
 				for(int colIdx = 0; colIdx < userHeaders.length; colIdx++) {
 					String userHeader = userHeaders[colIdx];
-					Map<String, String> badHeaderMap = new Hashtable<String, String>();
+					Map<String, String> badHeaderMap = new Hashtable<>();
 					if(headerChecker.isIllegalHeader(userHeader)) {
 						badHeaderMap.put(userHeader, "This header name is a reserved word");
 					} else if(headerChecker.containsIllegalCharacter(userHeader)) {
@@ -327,7 +331,7 @@ public class DatabaseUploader extends Uploader {
 						if(invalidHeadersMap.containsKey(fileName)) {
 							invalidHeadersForFile = invalidHeadersMap.get(fileName);
 						} else {
-							invalidHeadersForFile = new Hashtable<String, String>();
+							invalidHeadersForFile = new Hashtable<>();
 						}
 						
 						// now add in the bad header for the file map
@@ -340,7 +344,7 @@ public class DatabaseUploader extends Uploader {
 			return WebUtility.getResponse(invalidHeadersMap, 200);
 
 		} else if(type.equals("EXCEL")) {
-			List<Map<String, Map<String, String>>> invalidHeadersList = new Vector<Map<String, Map<String, String>>>();
+			List<Map<String, Map<String, String>>> invalidHeadersList = new Vector<>();
 			
 			// each entry (outer map object) in the list if a workbook
 			// each key in that map object is the sheetName for that given workbook
@@ -349,7 +353,7 @@ public class DatabaseUploader extends Uploader {
 			
 			// iterate through each workbook
 			for(Map<String, String[]> excelWorkbook : userDefinedHeadersMap) {
-				Map<String, Map<String, String>> invalidHeadersMap = new Hashtable<String, Map<String, String>>();
+				Map<String, Map<String, String>> invalidHeadersMap = new Hashtable<>();
 				
 				for(String sheetName : excelWorkbook.keySet()) {
 					// grab all the headers for the given sheet
@@ -358,7 +362,7 @@ public class DatabaseUploader extends Uploader {
 					// now we need to check all of these headers
 					for(int colIdx = 0; colIdx < userHeaders.length; colIdx++) {
 						String userHeader = userHeaders[colIdx];
-						Map<String, String> badHeaderMap = new Hashtable<String, String>();
+						Map<String, String> badHeaderMap = new Hashtable<>();
 						if(headerChecker.isIllegalHeader(userHeader)) {
 							badHeaderMap.put(userHeader, "This header name is a reserved word");
 						} else if(headerChecker.containsIllegalCharacter(userHeader)) {
@@ -375,7 +379,7 @@ public class DatabaseUploader extends Uploader {
 							if(invalidHeadersMap.containsKey(sheetName)) {
 								invalidHeadersForSheet = invalidHeadersMap.get(sheetName);
 							} else {
-								invalidHeadersForSheet = new Hashtable<String, String>();
+								invalidHeadersForSheet = new Hashtable<>();
 							}
 							
 							// now add in the bad header for the file map
@@ -428,6 +432,7 @@ public class DatabaseUploader extends Uploader {
 			// get the property files if necessary
 			String props = inputData.get("propFile");
 			String[] propFiles = null;
+
 			if(props != null && !props.isEmpty()) {
 				propFiles = props.split(";");
 			}
@@ -437,14 +442,14 @@ public class DatabaseUploader extends Uploader {
 				if(props == null) {
 					throw new IOException("No prop file has been selected. Please select a prop file for the file");
 				}
-				if(propFiles.length != files.length) {
+				if (propFiles != null && propFiles.length != files.length) {
 					throw new IOException("No prop file has been selected. Please select a prop file for the file");
 				}
 			}
 			
 			for(int i = 0; i < files.length; i++) {
 				// this is the MM info for one of the files within the metaModelData list
-				Map<String, Object> fileMetaModelData = new HashMap<String, Object>();
+				Map<String, Object> fileMetaModelData = new HashMap<>();
 				
 				// store the file location on server so FE can send that back into actual upload routine
 				String filePath = files[i];
@@ -474,7 +479,7 @@ public class DatabaseUploader extends Uploader {
 					fileMetaModelData.putAll(metaModel);
 				
 				} else if(generateMetaModel.equals("prop")) {
-					if(propFiles[i] == null) {
+					if(propFiles == null || propFiles[i] == null) {
 						throw new IOException("No prop file has been selected for file " + file);
 					}
 					//turn prop file into meta data
@@ -512,7 +517,7 @@ public class DatabaseUploader extends Uploader {
 			e.printStackTrace();
 			
 			// grab the error thrown and send it to the FE
-			HashMap<String, String> errorMap = new HashMap<String, String>();
+			HashMap<String, String> errorMap = new HashMap<>();
 			errorMap.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
@@ -542,7 +547,7 @@ public class DatabaseUploader extends Uploader {
 			// set the files
 			String files = form.getFirst("file");
 			if(files == null || files.trim().isEmpty()) {
-				Map<String, String> errorHash = new HashMap<String, String>();
+				Map<String, String> errorHash = new HashMap<>();
 				errorHash.put("errorMessage", "No files have been identified to upload");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
@@ -604,7 +609,7 @@ public class DatabaseUploader extends Uploader {
 			
 			// if no meta data specified, send an error
 			if(allEmpty) {
-				Map<String, String> errorHash = new HashMap<String, String>();
+				Map<String, String> errorHash = new HashMap<>();
 				errorHash.put("errorMessage", "No metamodel has been specified.\n Please specify a metamodel in order to determine how to load this data.");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
@@ -629,7 +634,7 @@ public class DatabaseUploader extends Uploader {
 				if(this.securityEnabled) {
 					User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 					if(user == null) {
-						Map<String, String> errorHash = new HashMap<String, String>();
+						Map<String, String> errorHash = new HashMap<>();
 						errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 						return Response.status(400).entity(gson.toJson(errorHash)).build();
 					}
@@ -666,18 +671,18 @@ public class DatabaseUploader extends Uploader {
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
-				Map<String, String> errorHash = new HashMap<String, String>();
+				Map<String, String> errorHash = new HashMap<>();
 				errorHash.put("errorMessage", "Failure to write CSV Prop File based on user-defined metamodel.");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			} 
 		} catch (IOException e) {
 			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
+			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch(Exception e) {
 			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
+			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
@@ -904,7 +909,7 @@ public class DatabaseUploader extends Uploader {
 			String[] files = inputData.get("file").split(";");
 			for(int i = 0; i < files.length; i++) {
 				// this is the MM info for one of the files within the metaModelData list
-				Map<String, Object> fileMetaModelData = new HashMap<String, Object>();
+				Map<String, Object> fileMetaModelData = new HashMap<>();
 				
 				// store the file location on server so FE can send that back into actual upload routine
 				fileMetaModelData.put("fileLocation", files[i]);
@@ -927,7 +932,7 @@ public class DatabaseUploader extends Uploader {
 					ExcelSheetPreProcessor processor = sProcessors.get(sheet);
 					List<ExcelBlock> blocks = processor.getAllBlocks();
 					
-					Map<String, Object> rangeInfo = new HashMap<String, Object>();
+					Map<String, Object> rangeInfo = new HashMap<>();
 					
 					for(ExcelBlock block : blocks) {
 						List<ExcelRange> ranges = block.getRanges();
@@ -939,7 +944,7 @@ public class DatabaseUploader extends Uploader {
 							Object[][] rangeTypes = block.getRangeTypes(r);
 							Map[] retMaps = FileHelperUtil.generateDataTypeMapsFromPrediction(cleanedHeaders, rangeTypes);
 														
-							Map<String, Object> rangeMap = new HashMap<String, Object>();
+							Map<String, Object> rangeMap = new HashMap<>();
 							rangeMap.put("headers", origHeaders);
 							rangeMap.put("cleanHeaders", cleanedHeaders);
 							rangeMap.put("dataTypes", retMaps[0]);
@@ -961,7 +966,7 @@ public class DatabaseUploader extends Uploader {
 			e.printStackTrace();
 			
 			// grab the error thrown and send it to the FE
-			HashMap<String, String> errorMap = new HashMap<String, String>();
+			HashMap<String, String> errorMap = new HashMap<>();
 			errorMap.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
@@ -996,7 +1001,7 @@ public class DatabaseUploader extends Uploader {
 			// only default options not set are the files
 			String files = inputData.get("file");
 			if(files == null || files.trim().isEmpty()) {
-				Map<String, String> errorHash = new HashMap<String, String>();
+				Map<String, String> errorHash = new HashMap<>();
 				errorHash.put("errorMessage", "No files have been identified to upload");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
@@ -1006,7 +1011,7 @@ public class DatabaseUploader extends Uploader {
 			if(this.securityEnabled) {
 				User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 				if(user == null) {
-					Map<String, String> errorHash = new HashMap<String, String>();
+					Map<String, String> errorHash = new HashMap<>();
 					errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 					return Response.status(400).entity(gson.toJson(errorHash)).build();
 				}
@@ -1018,12 +1023,12 @@ public class DatabaseUploader extends Uploader {
 			importer.runProcessor(options);
 		} catch (IOException e) {
 			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
+			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch(Exception e) {
 			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
+			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
@@ -1058,7 +1063,7 @@ public class DatabaseUploader extends Uploader {
 		String schema = form.getFirst("schema");
 		String additionalProperties = form.getFirst("additionalParams");
 
-		Map<String, Object>	ret = new HashMap<String, Object>();
+		Map<String, Object>	ret = new HashMap<>();
 		try {
 			ret = importer.getSchemaDetails(driver, hostname, port, username, password, schema, additionalProperties);
 		} catch(Exception e) {
@@ -1079,17 +1084,17 @@ public class DatabaseUploader extends Uploader {
 	@Produces("application/json")
 	public Response connectExistingRDBMS(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
-		HashMap<String, Object> ret = new HashMap<String, Object>(1);
-		Map<String, Object> metamodel = new HashMap<String, Object>();
+		HashMap<String, Object> ret = new HashMap<>(1);
+		Map<String, Object> metamodel = new HashMap<>();
 		HashMap<String, Object> details = gson.fromJson(form.getFirst("details"), new TypeToken<HashMap<String, Object>>() {}.getType());		
 		HashMap<String, String> metamodelData = gson.fromJson(gson.toJson(details.get("metamodelData")), new TypeToken<HashMap<String, Object>>() {}.getType());
 		ArrayList<Object> nodes = gson.fromJson(gson.toJson(metamodelData.get("nodes")), new TypeToken<ArrayList<Object>>() {}.getType());
 		ArrayList<Object> relationships = gson.fromJson(gson.toJson(metamodelData.get("relationships")), new TypeToken<ArrayList<Object>>() {}.getType());
 		// reformat metamodel for new reactor
-		HashMap<String, ArrayList<String>> nodesAndProps = new HashMap<String, ArrayList<String>>(nodes.size());
+		HashMap<String, ArrayList<String>> nodesAndProps = new HashMap<>(nodes.size());
 		ArrayList<Map<String, Object>> nodeRelationships = new ArrayList<>(relationships.size());
 		for(Object o: nodes) {
-			ArrayList<String> props = new ArrayList<String>();
+			ArrayList<String> props = new ArrayList<>();
 			HashMap<String, Object> nodeHash = gson.fromJson(gson.toJson(o), new TypeToken<HashMap<String, Object>>() {}.getType());
 			ArrayList<String> properties = gson.fromJson(gson.toJson(nodeHash.get("prop")), new TypeToken<ArrayList<String>>() {}.getType());
 			for(String prop : properties) {
@@ -1191,7 +1196,7 @@ public class DatabaseUploader extends Uploader {
 		String password = form.getFirst(ReactorKeysEnum.PASSWORD.getKey());
 		String schema = form.getFirst(ReactorKeysEnum.SCHEMA.getKey());
 		String additionalProperties = form.getFirst(ReactorKeysEnum.ADDITIONAL_CONNECTION_PARAMS_KEY.getKey());
-		HashMap<String, Object> ret = new HashMap<String, Object>();
+		HashMap<String, Object> ret = new HashMap<>();
 
 		ImportRDBMSProcessor importer = new ImportRDBMSProcessor();
 		String test = importer.checkConnectionParams(driver, hostname, port, username, password, schema, additionalProperties);
@@ -1251,11 +1256,13 @@ public class DatabaseUploader extends Uploader {
 				String jsonStringEscaped = gson.toJson(xray);
 				AddToMasterDB lm = new AddToMasterDB();
 				lm.addXrayConfig(jsonStringEscaped, cleanName.replace(".xray", ""));
+
+				br.close();
 			}
 		} catch(Exception e) { 
 			e.printStackTrace();
 			// grab the error thrown and send it to the FE
-			HashMap<String, String> errorMap = new HashMap<String, String>();
+			HashMap<String, String> errorMap = new HashMap<>();
 			errorMap.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
@@ -1297,7 +1304,7 @@ public class DatabaseUploader extends Uploader {
 			// only default options not set are the files
 			String files = inputData.get("file");
 			if(files == null || files.trim().isEmpty()) {
-				Map<String, String> errorHash = new HashMap<String, String>();
+				Map<String, String> errorHash = new HashMap<>();
 				errorHash.put("errorMessage", "No files have been identified to upload");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
@@ -1352,7 +1359,7 @@ public class DatabaseUploader extends Uploader {
 				propFileArr[i] = propWriter.getPropFile();
 			}
 			if(allEmpty) {
-				Map<String, String> errorHash = new HashMap<String, String>();
+				Map<String, String> errorHash = new HashMap<>();
 				errorHash.put("errorMessage", "No metamodel has been specified. \nPlease specify a metamodel in order to determine how to load this data.");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
@@ -1364,7 +1371,7 @@ public class DatabaseUploader extends Uploader {
 			if(this.securityEnabled) {
 				User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 				if(user == null) {
-					Map<String, String> errorHash = new HashMap<String, String>();
+					Map<String, String> errorHash = new HashMap<>();
 					errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 					return Response.status(400).entity(gson.toJson(errorHash)).build();
 				}
@@ -1376,12 +1383,12 @@ public class DatabaseUploader extends Uploader {
 			importer.runProcessor(options);
 		} catch (IOException e) {
 			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
+			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch(Exception e) {
 			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
+			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {
@@ -1410,7 +1417,7 @@ public class DatabaseUploader extends Uploader {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
+			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", "Failure to write Excel Prop File based on user-defined metamodel.");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		}
@@ -1480,7 +1487,7 @@ public class DatabaseUploader extends Uploader {
 			}
 			// set the files
 			if(uploadFiles.trim().isEmpty()) {
-				Map<String, String> errorHash = new HashMap<String, String>();
+				Map<String, String> errorHash = new HashMap<>();
 				errorHash.put("errorMessage", "No files have been identified to upload");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			}
@@ -1490,7 +1497,7 @@ public class DatabaseUploader extends Uploader {
 			if(this.securityEnabled) {
 				User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 				if(user == null) {
-					Map<String, String> errorHash = new HashMap<String, String>();
+					Map<String, String> errorHash = new HashMap<>();
 					errorHash.put("errorMessage", "User must be signed into an account in order to create a database");
 					return Response.status(400).entity(gson.toJson(errorHash)).build();
 				}
@@ -1502,12 +1509,12 @@ public class DatabaseUploader extends Uploader {
 			importer.runProcessor(options);
 		} catch (IOException e) {
 			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
+			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch(Exception e) {
 			e.printStackTrace();
-			Map<String, String> errorHash = new HashMap<String, String>();
+			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} finally {

@@ -60,90 +60,91 @@ import prerna.util.insight.InsightUtility;
 
 public class DBLoader implements ServletContextListener {
 
-	private static final Logger LOGGER = LogManager.getLogger(DBLoader.class.getName());
+	private static final Logger logger = LogManager.getLogger(DBLoader.class);
 	private static final String RDFMAP = "RDF-MAP";
 	private static String SESSION_ID_KEY = "JSESSIONID";
+	private static final String STACKTRACE = "StackTrace: ";
 	private static boolean useLogoutPage = false;
 	private static String customLogoutUrl = null;
-	
-	// keep track of all the watcher threads to kill 
-	private static List<AbstractFileWatcher> watcherList = new Vector<AbstractFileWatcher>();
-	
+
+	// keep track of all the watcher threads to kill
+	private static List<AbstractFileWatcher> watcherList = new Vector<>();
+
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
 		ServletContext context = arg0.getServletContext();
 		String contextPath = context.getContextPath();
-		
+
 		String rdfPropFile = context.getInitParameter(RDFMAP);
 		// see if security is enabled
 		String securityEnabled = context.getInitParameter(Constants.SECURITY_ENABLED);
-		
+
 		// see if only admins can set an engine as public
 		String adminSetPublicOnly = context.getInitParameter(Constants.ADMIN_SET_PUBLIC);
-		if(adminSetPublicOnly == null) {
+		if (adminSetPublicOnly == null) {
 			adminSetPublicOnly = "false";
 		}
 		context.setInitParameter(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
-		
+
 		// see if admin can determine who can publish
 		String adminSetPublisher = context.getInitParameter(Constants.ADMIN_SET_PUBLISHER);
-		if(adminSetPublisher == null) {
+		if (adminSetPublisher == null) {
 			adminSetPublisher = "false";
 		}
 		context.setInitParameter(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
-		
+
 		// see if we allow anonymous users
 		String anonymousUsersEnabled = context.getInitParameter(Constants.ANONYMOUS_USER_ALLOWED);
-		if(anonymousUsersEnabled == null) {
+		if (anonymousUsersEnabled == null) {
 			anonymousUsersEnabled = "false";
 		}
 		context.setInitParameter(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
 		// see if anonymous users can upload data
 		String anonymousUsersUploadData = context.getInitParameter(Constants.ANONYMOUS_USER_UPLOAD_DATA);
-		if(anonymousUsersUploadData == null) {
+		if (anonymousUsersUploadData == null) {
 			anonymousUsersUploadData = "false";
 		}
 		context.setInitParameter(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
-		
+
 		// see if we redirect to logout page or back to login screen
 		String useLogoutPage = context.getInitParameter(Constants.USE_LOGOUT_PAGE);
-		if(useLogoutPage == null) {
+		if (useLogoutPage == null) {
 			useLogoutPage = "false";
 		}
 		context.setInitParameter(Constants.USE_LOGOUT_PAGE, useLogoutPage);
 		DBLoader.useLogoutPage = Boolean.parseBoolean(useLogoutPage);
-		
+
 		// see if we redirect to logout page or back to login screen
 		String customLogoutUrl = context.getInitParameter(Constants.CUSTOM_LOGOUT_URL);
-		if(customLogoutUrl != null && !customLogoutUrl.trim().isEmpty()) {
+		if (customLogoutUrl != null && !customLogoutUrl.trim().isEmpty()) {
 			String trimmedUrl = customLogoutUrl.trim();
 			context.setInitParameter(Constants.CUSTOM_LOGOUT_URL, trimmedUrl);
 			DBLoader.customLogoutUrl = trimmedUrl;
 		}
-		
+
 		// get the session id key
-		if(context.getSessionCookieConfig() != null) {
+		if (context.getSessionCookieConfig() != null) {
 			SessionCookieConfig cookieConfig = context.getSessionCookieConfig();
-			if(cookieConfig != null && cookieConfig.getName() != null) {
+			if (cookieConfig != null && cookieConfig.getName() != null) {
 				DBLoader.SESSION_ID_KEY = cookieConfig.getName();
 			}
 		}
-		
-		LOGGER.info("Initializing application context..." + contextPath);
-		
-		//Set default file separator system variable
-		LOGGER.info("Changing file separator value to: '/'");
+
+		logger.info("Initializing application context..." + Utility.cleanLogString(contextPath));
+
+		// Set default file separator system variable
+		logger.info("Changing file separator value to: '/'");
 		System.setProperty("file.separator", "/");
-		
-		//Load RDF_Map.prop file
-		LOGGER.info("Loading RDF_Map.prop: " + rdfPropFile);
+
+		// Load RDF_Map.prop file
+		logger.info("Loading RDF_Map.prop: " + Utility.cleanLogString(rdfPropFile));
 		DIHelper.getInstance().loadCoreProp(rdfPropFile);
-		
-		//Set log4j prop
+
+		// Set log4j prop
 		String log4jConfig = DIHelper.getInstance().getProperty("LOG4J");
-		LOGGER.info("Setting log4j property: " + log4jConfig);
+		logger.info("Setting log4j property: " + log4jConfig);
 		PropertyConfigurator.configure(log4jConfig);
-		
+
 		// set security enabled within DIHelper first
 		// this is because security database, on init, will
 		// load it as a boolean instead of us searching within DIHelper
@@ -155,52 +156,52 @@ public class DBLoader implements ServletContextListener {
 		DIHelper.getInstance().setLocalProperty(Constants.USE_LOGOUT_PAGE, useLogoutPage);
 		DIHelper.getInstance().setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
 
-		//Load empty engine list into DIHelper, then load engines from db folder
-		LOGGER.info("Loading engines...");
+		// Load empty engine list into DIHelper, then load engines from db folder
+		logger.info("Loading engines...");
 		String engines = "";
-		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engines);	
+		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engines);
 		loadEngines();
-		
+
 //		//Just load R right away to avoid synchronization issues
 //		try {
 //			RJavaTranslatorFactory.initRConnection();
 //		} catch(Exception e) {
 //			e.printStackTrace();
 //		}
-		
+
 		// need to set the path
 		// important for taking the image with security
 		ChromeDriverUtility.setContextPath(contextPath);
-		
+
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
 		{
 			IEngine localmaster = (IEngine) DIHelper.getInstance().getLocalProp(Constants.LOCAL_MASTER_DB_NAME);
 			IEngine security = (IEngine) DIHelper.getInstance().getLocalProp(Constants.SECURITY_DB);
-			if(localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected()) {
+			if (localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected()) {
 				// you have messed up!!!
 				StartUpSuccessFilter.setStartUpSuccess(false);
 			}
 		}
 	}
-		
+
 	public void loadEngines() {
 		String watcherStr = DIHelper.getInstance().getProperty(Constants.ENGINE_WEB_WATCHER);
 		StringTokenizer watchers = new StringTokenizer(watcherStr, ";");
-		try {		
-			while(watchers.hasMoreElements()) {
+		try {
+			while (watchers.hasMoreElements()) {
 				Object monitor = new Object();
 				String watcher = watchers.nextToken();
 				String watcherClass = DIHelper.getInstance().getProperty(watcher);
 				String folder = DIHelper.getInstance().getProperty(watcher + "_DIR");
 				String ext = DIHelper.getInstance().getProperty(watcher + "_EXT");
-				AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass).getConstructor(null).newInstance(null);
+				AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass)
+						.getConstructor(null).newInstance(null);
 				watcherInstance.setMonitor(monitor);
 				watcherInstance.setFolderToWatch(folder);
 				watcherInstance.setExtension(ext);
 				watcherInstance.init();
-				synchronized(monitor)
-				{
+				synchronized (monitor) {
 					Thread thread = new Thread(watcherInstance);
 					thread.start();
 					watcherList.add(watcherInstance);
@@ -210,96 +211,98 @@ public class DBLoader implements ServletContextListener {
 			ex.printStackTrace();
 		}
 	}
-	
+
 	@Override
 	public void contextDestroyed(ServletContextEvent arg0) {
-		LOGGER.info("Start shutdown");
+		logger.info("Start shutdown");
 
-		Set<String> insights = new HashSet<String>(InsightStore.getInstance().getAllInsights());
-		for(String id : insights) {
+		Set<String> insights = new HashSet<>(InsightStore.getInstance().getAllInsights());
+		for (String id : insights) {
 			Insight in = InsightStore.getInstance().get(id);
-			LOGGER.info("Closing insight " + id);
+			logger.info("Closing insight " + id);
 			InsightUtility.dropInsight(in);
 		}
-		
+
 		// close watchers
-		for(AbstractFileWatcher watcher : watcherList) {
+		for (AbstractFileWatcher watcher : watcherList) {
 			watcher.shutdown();
 		}
-		
+
 		// we need to close all the engine ids
 		List<String> eIds = MasterDatabaseUtility.getAllEngineIds();
-		for(String id : eIds) {
+		for (String id : eIds) {
 			// grab only loaded engines
 			IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(id);
-			if(engine != null) {
+			if (engine != null) {
 				// if it is loaded, close it
-				LOGGER.info("Closing database " + id);
+				logger.info("Closing database " + id);
 				engine.closeDB();
 			}
 		}
-		
+
 		// these are not loaded in the normal fashion
 		// so specifically pull them to close
 		IEngine engine = Utility.getEngine(AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
-		if(engine != null) {
-			LOGGER.info("Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
+		if (engine != null) {
+			logger.info("Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 			engine.closeDB();
 		} else {
-			LOGGER.info("Couldn't find database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
+			logger.info("Couldn't find database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		}
-		
+
 		engine = Utility.getEngine(Constants.SECURITY_DB);
-		if(engine != null) {
-			LOGGER.info("Closing database " + Constants.SECURITY_DB);
+		if (engine != null) {
+			logger.info("Closing database " + Constants.SECURITY_DB);
 			engine.closeDB();
 		} else {
-			LOGGER.info("Couldn't find database " + Constants.SECURITY_DB);
+			logger.info("Couldn't find database " + Constants.SECURITY_DB);
 		}
-		
+
 		engine = Utility.getEngine(Constants.LOCAL_MASTER_DB_NAME);
-		if(engine != null) {
-			LOGGER.info("Closing database " + Constants.LOCAL_MASTER_DB_NAME);
+		if (engine != null) {
+			logger.info("Closing database " + Constants.LOCAL_MASTER_DB_NAME);
 			engine.closeDB();
 		} else {
-			LOGGER.info("Couldn't find database " + Constants.LOCAL_MASTER_DB_NAME);
+			logger.info("Couldn't find database " + Constants.LOCAL_MASTER_DB_NAME);
 		}
-		
+
 		// close scheduler
 		try {
-			LOGGER.info("Closing scheduler");
+			logger.info("Closing scheduler");
 			SchedulerUtil.shutdownScheduler(true);
 		} catch (SchedulerException e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE, e);
 		}
-		
+
 		// close r
 		try {
 			RJavaTranslatorFactory.stopRConnection();
-		} catch(Exception e) {
-			e.printStackTrace();
+		} catch (Exception e) {
+			logger.error(STACKTRACE, e);
 		}
-		
-		LOGGER.info("Finished shutdown");
+
+		logger.info("Finished shutdown");
 	}
-	
+
 	/**
 	 * Get the user defined session id key
+	 * 
 	 * @return
 	 */
 	public static String getSessionIdKey() {
 		return DBLoader.SESSION_ID_KEY;
 	}
-	
+
 	/**
-	 * Get if we should redirect to a dedicated logout page
-	 * Or back to the login page
+	 * Get if we should redirect to a dedicated logout page Or back to the login
+	 * page
+	 * 
 	 * @return
 	 */
 	public static boolean useLogoutPage() {
 		return DBLoader.useLogoutPage;
 	}
-	
+
 	public static String getCustomLogoutUrl() {
 		return DBLoader.customLogoutUrl;
 	}

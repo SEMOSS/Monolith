@@ -8,9 +8,12 @@ import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-public class UserFileLogUtil {
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
-	private static Map<String, UserFileLogUtil> singletonStore = new HashMap<String, UserFileLogUtil>();
+public class UserFileLogUtil {
+	
+	private static Map<String, UserFileLogUtil> singletonStore = new HashMap<>();
 
 	/*
 	 * Creating a class to write to a file the users who are signing in
@@ -24,7 +27,7 @@ public class UserFileLogUtil {
 	public UserFileLogUtil(String filePath, String sep) throws IOException {
 		this.filePath = filePath;
 		this.sep = sep;
-		this.queue = new ArrayBlockingQueue<String[]>(50);
+		this.queue = new ArrayBlockingQueue<>(50);
 		this.fileLogger = new FileAppender(this.filePath, this.sep, this.queue);
 
 		new Thread(this.fileLogger).start();
@@ -34,12 +37,10 @@ public class UserFileLogUtil {
 		if(filePath == null || filePath.trim().isEmpty()) {
 			throw new IOException("Must pass in a valid filePath");
 		}
-		if(!singletonStore.containsKey(filePath)) {
-			synchronized (UserFileLogUtil.class) {
-				if(!singletonStore.containsKey(filePath)) {
-					UserFileLogUtil trackingUtil = new UserFileLogUtil(filePath, sep);
-					singletonStore.put(filePath, trackingUtil);
-				}
+		synchronized (UserFileLogUtil.class) {
+			if(!singletonStore.containsKey(filePath)) {
+				UserFileLogUtil trackingUtil = new UserFileLogUtil(filePath, sep);
+				singletonStore.put(filePath, trackingUtil);
 			}
 		}
 		return singletonStore.get(filePath);
@@ -52,7 +53,8 @@ public class UserFileLogUtil {
 }
 
 class FileAppender implements Runnable {
-
+	private static final Logger logger = LogManager.getLogger(FileAppender.class);
+	private static final String STACKTRACE = "StackTrace: ";
 	private File f = null;
 	private FileWriter fw = null;
 	private String filePath = null;
@@ -95,19 +97,20 @@ class FileAppender implements Runnable {
 					fw.write(builder.toString());
 					fw.flush();
 				} catch (IOException e) {
-					e.printStackTrace();
+					logger.error(STACKTRACE, e);
 				}
 			}
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
+		} catch (InterruptedException ie) {
+			Thread.currentThread().interrupt();
+			logger.error(STACKTRACE, ie);
+		} catch (IOException ioe) {
+			logger.error(STACKTRACE, ioe);
 		} finally {
 			if(fw != null) {
 				try {
 					fw.close();
-				} catch (IOException e) {
-					e.printStackTrace();
+				} catch (IOException ioe) {
+					logger.error(STACKTRACE, ioe);
 				}
 			}
 			fw = null;
