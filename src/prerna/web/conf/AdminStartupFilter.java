@@ -10,6 +10,10 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+import org.owasp.encoder.Encode;
+
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
@@ -18,12 +22,14 @@ import prerna.util.Constants;
 import prerna.util.Utility;
 
 public class AdminStartupFilter implements Filter {
-
+	
+	private static final Logger logger = LogManager.getLogger(AdminStartupFilter.class);
+	private static final String STACKTRACE = "StackTrace: ";
 	private static String initialRedirect;
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		if(AbstractSecurityUtils.securityEnabled()) {
+		if (AbstractSecurityUtils.securityEnabled()) {
 			IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
 			String q = "SELECT * FROM USER LIMIT 1";
 			IRawSelectWrapper wrapper = null;
@@ -32,19 +38,19 @@ public class AdminStartupFilter implements Filter {
 				boolean hasUser = wrapper.hasNext();
 				// if there are users, redirect to the main semoss page
 				// we do not want to allow the person to make any admin requests
-				if(hasUser) {
-					if(initialRedirect != null) {
-						((HttpServletResponse) arg1).setHeader("redirect", initialRedirect);
-						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + initialRedirect);
+				if (hasUser) {
+					if (initialRedirect != null) {
+						String encodedRedirectUrl = Encode.forHtml(initialRedirect);
+						((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
+						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
 					} else {
 						((HttpServletResponse) arg1).sendError(404, "Page Not Found");
 					}
-					return;
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.error(STACKTRACE, e);
 			} finally {
-				if(wrapper != null) {
+				if (wrapper != null) {
 					wrapper.cleanUp();
 				}
 			}
@@ -55,14 +61,12 @@ public class AdminStartupFilter implements Filter {
 
 	@Override
 	public void destroy() {
-		// TODO Auto-generated method stub
-
+		// destroy
 	}
 
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
-		// TODO Auto-generated method stub
-
+		// initialize
 	}
 
 	public static void setSuccessfulRedirectUrl(String initialRedirect) {

@@ -19,6 +19,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.util.Constants;
+import prerna.util.Utility;
 
 public class IASFilter implements Filter {
 
@@ -26,7 +27,7 @@ public class IASFilter implements Filter {
 	private static final String EMAIL = "PRI_EMAIL";
 	private static final String ID = "UNIQUE_ID";
 
-	private static final Logger LOGGER = LogManager.getLogger(IASFilter.class.getName()); 
+	private static final Logger logger = LogManager.getLogger(IASFilter.class.getName()); 
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
@@ -44,11 +45,11 @@ public class IASFilter implements Filter {
 			if(dodId == null || email == null || id == null 
 					|| dodId.isEmpty() || email.isEmpty() || id.isEmpty() ) {
 				
-				LOGGER.info("REQUEST COMING WITH NO USER");
-				LOGGER.info("REQUEST COMING WITH NO USER");
-				LOGGER.info("REQUEST COMING WITH NO USER");
-				LOGGER.info("REQUEST COMING WITH NO USER");
-				LOGGER.info("REQUEST COMING WITH NO USER");
+				logger.info("REQUEST COMING WITH NO USER");
+				logger.info("REQUEST COMING WITH NO USER");
+				logger.info("REQUEST COMING WITH NO USER");
+				logger.info("REQUEST COMING WITH NO USER");
+				logger.info("REQUEST COMING WITH NO USER");
 				valid = false;
 			}
 			
@@ -64,16 +65,16 @@ public class IASFilter implements Filter {
 				user.setAccessToken(token);
 				session.setAttribute(Constants.SESSION_USER, user);
 	
-				LOGGER.info("NEW SESSION - USER ADDED WITH ID = " + id);
-				LOGGER.info("NEW SESSION - USER ADDED WITH ID = " + id);
-				LOGGER.info("NEW SESSION - USER ADDED WITH ID = " + id);
-				LOGGER.info("NEW SESSION - USER ADDED WITH ID = " + id);
+				logger.info("NEW SESSION - USER ADDED WITH ID = " + Utility.cleanLogString(id));
+				logger.info("NEW SESSION - USER ADDED WITH ID = " + Utility.cleanLogString(id));
+				logger.info("NEW SESSION - USER ADDED WITH ID = " + Utility.cleanLogString(id));
+				logger.info("NEW SESSION - USER ADDED WITH ID = " + Utility.cleanLogString(id));
 			}
 		} else {
-			LOGGER.info("EXISTING SESSION WITH USER ALREADY PRESENT");
-			LOGGER.info("EXISTING SESSION WITH USER ALREADY PRESENT");
-			LOGGER.info("EXISTING SESSION WITH USER ALREADY PRESENT");
-			LOGGER.info("EXISTING SESSION WITH USER ALREADY PRESENT");
+			logger.info("EXISTING SESSION WITH USER ALREADY PRESENT");
+			logger.info("EXISTING SESSION WITH USER ALREADY PRESENT");
+			logger.info("EXISTING SESSION WITH USER ALREADY PRESENT");
+			logger.info("EXISTING SESSION WITH USER ALREADY PRESENT");
 		}
 		
 		arg2.doFilter(arg0, arg1);
