@@ -71,6 +71,7 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
+import org.owasp.encoder.Encode;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -117,51 +118,53 @@ import waffle.servlet.WindowsPrincipal;
 @Path("/auth")
 public class UserResource {
 	
-	private static final Logger LOGGER = LogManager.getLogger(UserResource.class.getName());
-	
+	private static final Logger logger = LogManager.getLogger(UserResource.class.getName());
+
+	private static final String STACKTRACE = "StackTrace: ";
 	private static Properties socialData = null;
 	private static Map<String, Boolean> loginsAllowed;
-	
+
 	static {
 		loadSocialProperties();
 		AppTokens.setSocial(socialData);
 	}
-	
+
 	private static void loadSocialProperties() {
 		FileInputStream fis = null;
 		File f = new File(DIHelper.getInstance().getProperty("SOCIAL"));
 		try {
-			if(f.exists()) {
+			if (f.exists()) {
 				socialData = new Properties();
 				fis = new FileInputStream(f);
 				socialData.load(fis);
 				setLoginsAllowed();
 			}
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
+		} catch (FileNotFoundException fnfe) {
+			logger.error(STACKTRACE, fnfe);
+		} catch (IOException ioe) {
+			logger.error(STACKTRACE, ioe);
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE, e);
 		} finally {
-			if(fis != null) {
+			if (fis != null) {
 				try {
 					fis.close();
 				} catch (IOException e) {
-					e.printStackTrace();
+					logger.error(STACKTRACE, e);
 				}
 			}
 		}
 	}
-	
+
 	/**
 	 * Method to get the redirect URL if defined in the social properties
-	 * @return 
+	 * 
+	 * @return
 	 */
 	public static String getLoginRedirect() {
 		return socialData.getProperty("redirect") + "/login";
 	}
-	
+
 	private static void setLoginsAllowed() {
 		boolean nativeLogin = Boolean.parseBoolean(socialData.getProperty("native_login"));
 		boolean githubLogin = Boolean.parseBoolean(socialData.getProperty("github_login"));
@@ -179,50 +182,52 @@ public class UserResource {
 		UserResource.loginsAllowed.put("cac", cacLogin);
 		UserResource.loginsAllowed.put("registration", registration);
 	}
-	
+
 	public static Map<String, Boolean> getLoginsAllowed() {
 		return UserResource.loginsAllowed;
 	}
-	
+
 	@GET
 	@Path("/logins")
 	public Response getAllLogins(@Context HttpServletRequest request) {
-		List<NewCookie> newCookies = new Vector<NewCookie>();
+		List<NewCookie> newCookies = new Vector<>();
 		HttpSession session = request.getSession(false);
 		User semossUser = null;
-		if(session != null) {
+		if (session != null) {
 			semossUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		
-		if(semossUser == null) {
+
+		if (semossUser == null) {
 			// not authenticated
 			// remove any cookies we shouldn't have
 			Cookie[] cookies = request.getCookies();
-			if(cookies != null) {
-				for(Cookie c : cookies) {
-					if(DBLoader.getSessionIdKey().equals(c.getName())) {
+			if (cookies != null) {
+				for (Cookie c : cookies) {
+					if (DBLoader.getSessionIdKey().equals(c.getName())) {
 						// we need to null this out
-						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(), c.getComment(), 0, c.getSecure());
+						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
+								c.getComment(), 0, c.getSecure());
 						newCookies.add(nullC);
 					}
 				}
 			}
 		}
-		
+
 		Map<String, String> retMap = User.getLoginNames(semossUser);
-		return WebUtility.getResponse(retMap, 200, newCookies.toArray(new NewCookie[]{}));
+		return WebUtility.getResponse(retMap, 200, newCookies.toArray(new NewCookie[] {}));
 	}
-	
+
 	@GET
 	@Produces("application/json")
 	@Path("/logout/{provider}")
-	public Response logout(@PathParam("provider") String provider, @Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response logout(@PathParam("provider") String provider, @Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws IOException {
 		boolean noUser = false;
 		boolean removed = false;
-		
+
 		HttpSession session = request.getSession();
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
-		
+
 		// Stop R
 		if (thisUser != null) {
 			IRUserConnection rserve = thisUser.getRcon();
@@ -235,35 +240,32 @@ public class UserResource {
 							try {
 								rserve.stopR();
 							} catch (Exception e) {
-								LOGGER.warn("Unable to stop R.");
+								logger.warn("Unable to stop R.");
 							}
 							return null;
 						}
-					});			
+					});
 				} finally {
 					executor.shutdown();
 				}
 			}
 		}
-		
 
-		// stop python too 
-		if(PyUtils.pyEnabled()) {
-			PyTranslator pyt= (PyTranslator) session.getAttribute(Constants.PYTHON);
-			if(pyt instanceof prerna.ds.py.PyTranslator)	
+		// stop python too
+		if (PyUtils.pyEnabled()) {
+			PyTranslator pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
+			if (pyt instanceof prerna.ds.py.PyTranslator)
 				PyUtils.getInstance().killPyThread(pyt.getPy());
-			if(pyt instanceof FilePyTranslator && thisUser != null)
+			if (pyt instanceof FilePyTranslator && thisUser != null)
 				PyUtils.getInstance().killTempTupleSpace(thisUser);
-			if(pyt instanceof TCPPyTranslator)
-			{
+			if (pyt instanceof TCPPyTranslator) {
 				NettyClient nc = thisUser.getPyServe();
-				String dir = (String)session.getAttribute("USER_TUPLE");
+				String dir = (String) session.getAttribute("USER_TUPLE");
 				nc.stopPyServe(dir);
 			}
 		}
 
-		
-		if(provider.equalsIgnoreCase("ALL")) {
+		if (provider.equalsIgnoreCase("ALL")) {
 			// remove the user from session call it a day
 			request.getSession().removeAttribute(Constants.SESSION_USER);
 			removed = true;
@@ -272,78 +274,79 @@ public class UserResource {
 			AuthProvider token = AuthProvider.valueOf(provider.toUpperCase());
 			String assetEngineId = null;
 			String workspaceEngineId = null;
-			
-			if(thisUser.getLogins().size() == 1) {
+
+			if (thisUser.getLogins().size() == 1) {
 				assetEngineId = thisUser.getAssetEngineId(token);
 				workspaceEngineId = thisUser.getWorkspaceEngineId(token);
 			}
 			removed = thisUser.dropAccessToken(token);
-			if(thisUser.getLogins().isEmpty()) {
+			if (thisUser.getLogins().isEmpty()) {
 				noUser = true;
 			} else {
 				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
-				
-				SyncUserAppsThread sync = new SyncUserAppsThread(workspaceEngineId, assetEngineId); 
+
+				SyncUserAppsThread sync = new SyncUserAppsThread(workspaceEngineId, assetEngineId);
 				Thread t = new Thread(sync);
 				t.start();
-				
+
 				// put the new map for the user space
 				session.setAttribute(Constants.USER_WORKSPACE_IDS, thisUser.getWorkspaceEngineMap());
 				session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
 			}
 		}
-		
+
 		// if there are no users and there is security
 		// redirect the user
 		// and invalidate the session
-		if(noUser && AbstractSecurityUtils.securityEnabled()) {
-			LOGGER.info("User is no longer logged in");
-			LOGGER.info("Removing user object from session");
+		if (noUser && AbstractSecurityUtils.securityEnabled()) {
+			logger.info("User is no longer logged in");
+			logger.info("Removing user object from session");
 			session.removeAttribute(Constants.SESSION_USER);
 			// well, you have logged out and we always require a login
 			// so i will redirect you
 			response.setStatus(302);
-			
+
 			String customUrl = DBLoader.getCustomLogoutUrl();
-			if(customUrl != null && !customUrl.isEmpty()) {
+			if (customUrl != null && !customUrl.isEmpty()) {
 				response.setHeader("redirect", customUrl);
 				response.sendError(302, "Need to redirect to " + customUrl);
 			} else {
 				String redirectUrl = request.getHeader("referer");
-				if(DBLoader.useLogoutPage()) {
-					String scheme = request.getScheme();             // http
-				    String serverName = request.getServerName();     // hostname.com
-				    int serverPort = request.getServerPort();        // 8080
-				    String contextPath = request.getContextPath();   // /Monolith
-					
-				    redirectUrl = "";
-				    redirectUrl += scheme + "://" + serverName;
-				    if (serverPort != 80 && serverPort != 443) {
-				    	redirectUrl += ":" + serverPort;
-				    }
-				    redirectUrl += contextPath + "/logout/";
+				if (DBLoader.useLogoutPage()) {
+					String scheme = request.getScheme(); // http
+					String serverName = request.getServerName(); // hostname.com
+					int serverPort = request.getServerPort(); // 8080
+					String contextPath = request.getContextPath(); // /Monolith
+
+					redirectUrl = "";
+					redirectUrl += scheme + "://" + serverName;
+					if (serverPort != 80 && serverPort != 443) {
+						redirectUrl += ":" + serverPort;
+					}
+					redirectUrl += contextPath + "/logout/";
 					response.setHeader("redirect", redirectUrl);
 					response.sendError(302, "Need to redirect to " + redirectUrl);
 				} else {
 					redirectUrl = redirectUrl + "#!/login";
-					response.setHeader("redirect", redirectUrl);
-					response.sendError(302, "Need to redirect to " + redirectUrl);
+					String encodedRedirectUrl = Encode.forHtml(redirectUrl);
+					response.setHeader("redirect", encodedRedirectUrl);
+					response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
 				}
 			}
-			
+
 			// remove the cookie from the browser
 			// for the session id
-			LOGGER.info("Removing session token");
+			logger.info("Removing session token");
 			Cookie[] cookies = request.getCookies();
-			if(cookies != null) {
-				for(Cookie c : cookies) {
-					if(DBLoader.getSessionIdKey().equals(c.getName())) {
+			if (cookies != null) {
+				for (Cookie c : cookies) {
+					if (DBLoader.getSessionIdKey().equals(c.getName())) {
 						// we need to null this out
 						Cookie nullC = new Cookie(c.getName(), c.getValue());
 						nullC.setPath(c.getPath());
 						nullC.setSecure(c.getSecure());
 						nullC.setVersion(c.getVersion());
-						if(c.getDomain() != null) {
+						if (c.getDomain() != null) {
 							nullC.setDomain(c.getDomain());
 						}
 						nullC.setMaxAge(0);
@@ -351,20 +354,20 @@ public class UserResource {
 					}
 				}
 			}
-			
+
 			// invalidate the session
 			session.invalidate();
 			return null;
 		}
-		
-		
-		Map<String, Boolean> ret = new Hashtable<String, Boolean>();
+
+		Map<String, Boolean> ret = new Hashtable<>();
 		ret.put("success", removed);
-		return WebUtility.getResponse(ret, 200);		
+		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Method to add an access token to a user
+	 * 
 	 * @param token
 	 * @param request
 	 */
@@ -372,33 +375,32 @@ public class UserResource {
 		User semossUser = null;
 		HttpSession session = request.getSession();
 		Object user = session.getAttribute(Constants.SESSION_USER);
-		if(user != null) {
-			semossUser = (User)user;
+		if (user != null) {
+			semossUser = (User) user;
 		} else {
 			semossUser = new User();
 			PyTranslator pyt = null;
 			// also add the python thread to this user
 			// if security is not on, we have a single py thread for the entire instance
 			// and we dont want to override those variables due to user login
-			if(AbstractSecurityUtils.securityEnabled() && PyUtils.pyEnabled()) {
-				
-				if(session.getAttribute(Constants.PYTHON) != null) {
-					pyt = (PyTranslator)session.getAttribute(Constants.PYTHON);
+			if (AbstractSecurityUtils.securityEnabled() && PyUtils.pyEnabled()) {
+
+				if (session.getAttribute(Constants.PYTHON) != null) {
+					pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
 				}
-				
-				boolean useFilePy = DIHelper.getInstance().getProperty("USE_PY_FILE") != null  &&  DIHelper.getInstance().getProperty("USE_PY_FILE").equalsIgnoreCase("true");
-				boolean useTCP = DIHelper.getInstance().getProperty("USE_TCP_PY") != null  &&  DIHelper.getInstance().getProperty("USE_TCP_PY").equalsIgnoreCase("true");
+
+				boolean useFilePy = DIHelper.getInstance().getProperty("USE_PY_FILE") != null
+						&& DIHelper.getInstance().getProperty("USE_PY_FILE").equalsIgnoreCase("true");
+				boolean useTCP = DIHelper.getInstance().getProperty("USE_TCP_PY") != null
+						&& DIHelper.getInstance().getProperty("USE_TCP_PY").equalsIgnoreCase("true");
 				useTCP = useFilePy; // forcing it to be same as TCP
-				
-				
-				
-				if(!useFilePy)
-				{
+
+				if (!useFilePy) {
 					PyExecutorThread jepThread = null;
-					if(session.getAttribute(Constants.PYTHON) != null) {
-						pyt = (PyTranslator)session.getAttribute(Constants.PYTHON);
+					if (session.getAttribute(Constants.PYTHON) != null) {
+						pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
 					}
-					if(jepThread == null) {
+					if (jepThread == null) {
 						jepThread = PyUtils.getInstance().getJep();
 						pyt = new PyTranslator();
 						pyt.setPy(jepThread);
@@ -406,28 +408,26 @@ public class UserResource {
 				}
 				// check to see if the py translator needs to be set ?
 				// check to see if the py translator needs to be set ?
-				else if(useFilePy && session.getAttribute("USER_TUPLE") == null)
-				{		
-					if(useTCP)
-					{
-						String port = DIHelper.getInstance().getProperty("FORCE_PORT"); // this means someone has started it for debug
-						if(port == null)
-						{
+				else if (useFilePy && session.getAttribute("USER_TUPLE") == null) {
+					if (useTCP) {
+						String port = DIHelper.getInstance().getProperty("FORCE_PORT"); // this means someone has
+																						// started it for debug
+						if (port == null) {
 							port = Utility.findOpenPort();
-							session.setAttribute("USER_TUPLE", PyUtils.getInstance().startPyServe(semossUser, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), port));
+							session.setAttribute("USER_TUPLE", PyUtils.getInstance().startPyServe(semossUser,
+									DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), port));
 							NettyClient nc = new NettyClient();
 							nc.connect("127.0.0.1", Integer.parseInt(port), false);
 							Thread t = new Thread(nc);
 							t.start();
 							semossUser.setPyServe(nc);
 							pyt = new TCPPyTranslator();
-							((TCPPyTranslator)pyt).nc = nc;
+							((TCPPyTranslator) pyt).nc = nc;
 						}
 						session.setAttribute("PORT", port);
-					}
-					else
-					{
-						session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(semossUser, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
+					} else {
+						session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(semossUser,
+								DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
 						pyt = new FilePyTranslator();
 					}
 				}
@@ -446,8 +446,7 @@ public class UserResource {
 		// add new users into the database
 		SecurityUpdateUtils.addOAuthUser(token);
 	}
-	
-	
+
 	//////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////
@@ -456,8 +455,7 @@ public class UserResource {
 	/**
 	 * User info method calls
 	 */
-	
-	
+
 	/**
 	 * Gets user info for GoogleDrive
 	 */
@@ -465,14 +463,14 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/userinfo/google")
 	public Response userinfoGoogle(@Context HttpServletRequest request) {
-		Map<String, String> ret = new Hashtable<String, String>();
+		Map<String, String> ret = new Hashtable<>();
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
-		String [] beanProps = {"name", "profile"};
+		String[] beanProps = { "name", "profile" };
 		String jsonPattern = "[name, picture]";
 		String accessString = null;
 		try {
-			if(user == null) {
+			if (user == null) {
 				ret.put("ERROR", "Log into your Google account");
 				return WebUtility.getResponse(ret, 200);
 			} else {
@@ -483,26 +481,27 @@ public class UserResource {
 			ret.put("ERROR", "Log into your Google account");
 			return WebUtility.getResponse(ret, 200);
 		}
-		
+
 		String url = "https://www.googleapis.com/oauth2/v3/userinfo";
 		Hashtable params = new Hashtable();
 		params.put("access_token", accessString);
 		params.put("alt", "json");
 
 		String output = AbstractHttpHelper.makeGetCall(url, accessString, params, true);
-		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
+		AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
+				new AccessToken());
 		try {
 			ret.put("name", accessToken2.getName());
-			if(accessToken2.getProfile() != null) {
+			if (accessToken2.getProfile() != null) {
 				ret.put("picture", accessToken2.getProfile());
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE, e);
 		}
-		
+
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Gets user info for OneDrive
 	 */
@@ -510,33 +509,33 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/userinfo/ms")
 	public Response userinfoOneDrive(@Context HttpServletRequest request) {
-		Map<String, String> ret = new Hashtable<String, String>();
+		Map<String, String> ret = new Hashtable<>();
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
-		String [] beanProps = {"name"};
+		String[] beanProps = { "name" };
 		String jsonPattern = "[displayName]";
 
 		String accessString = null;
-		try{
-			if(user == null) {
+		try {
+			if (user == null) {
 				ret.put("ERROR", "Log into your Microsoft account");
 			} else {
 				AccessToken msToken = user.getAccessToken(AuthProvider.MS);
 				accessString = msToken.getAccess_token();
 				String url = "https://graph.microsoft.com/v1.0/me/";
 				String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
-				AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
+				AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
+						new AccessToken());
 				String name = accessToken2.getName();
 				ret.put("name", name);
 			}
 			return WebUtility.getResponse(ret, 200);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			ret.put("ERROR", "Log into your Microsoft account");
 			return WebUtility.getResponse(ret, 200);
 		}
 	}
-	
+
 	/**
 	 * Gets user info for DropBox
 	 */
@@ -544,43 +543,43 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/userinfo/dropbox")
 	public Response userinfoDropbox(@Context HttpServletRequest request) {
-		Map<String, String> ret = new Hashtable<String, String>();
+		Map<String, String> ret = new Hashtable<>();
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
-		String [] beanProps = {"name", "profile"}; // add is done when you have a list
+		String[] beanProps = { "name", "profile" }; // add is done when you have a list
 		String jsonPattern = "[name.display_name, profile_photo_url]";
 		String accessString = null;
 		try {
-			if(user == null){
+			if (user == null) {
 				ret.put("ERROR", "Log into your DropBox account");
 				return WebUtility.getResponse(ret, 200);
 			} else {
 				AccessToken dropToken = user.getAccessToken(AuthProvider.DROPBOX);
-				accessString=dropToken.getAccess_token();
+				accessString = dropToken.getAccess_token();
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			ret.put("ERROR", "Log into your DropBox account");
 			return WebUtility.getResponse(ret, 200);
 		}
 		String url = "https://api.dropboxapi.com/2/users/get_current_account";
 
 		String output = AbstractHttpHelper.makePostCall(url, accessString, null, true);
-		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
+		AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
+				new AccessToken());
 		try {
-			if(accessToken2.getProfile() == null||accessToken2.getProfile().equalsIgnoreCase("null")) {
+			if (accessToken2.getProfile() == null || accessToken2.getProfile().equalsIgnoreCase("null")) {
 				ret.put("picture", "");
 			} else {
 				ret.put("picture", accessToken2.getProfile());
 			}
 			ret.put("name", accessToken2.getName());
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE, e);
 		}
 		return WebUtility.getResponse(ret, 200);
 
 	}
-	
+
 	/**
 	 * Gets user info for Github
 	 */
@@ -588,20 +587,20 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/userinfo/github")
 	public Response userinfoGithub(@Context HttpServletRequest request) {
-		Map<String, String> ret = new Hashtable<String, String>();
+		Map<String, String> ret = new Hashtable<>();
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
-		String [] beanProps = {"name", "profile"}; // add is done when you have a list
+		String[] beanProps = { "name", "profile" }; // add is done when you have a list
 		String jsonPattern = "[name,login]";
 
 		String accessString = null;
-		try{
-			if(user == null) {
+		try {
+			if (user == null) {
 				ret.put("ERROR", "Log into your Github account");
 				return WebUtility.getResponse(ret, 200);
 			} else {
 				AccessToken gitToken = user.getAccessToken(AuthProvider.GITHUB);
-				accessString=gitToken.getAccess_token();
+				accessString = gitToken.getAccess_token();
 			}
 		} catch (Exception e) {
 			ret.put("ERROR", "Log into your Github account");
@@ -627,11 +626,10 @@ public class UserResource {
 	//////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////
-	
+
 	/**
 	 * Login methods + redirect methods
 	 */
-	
 
 	/**
 	 * Logs user in through salesforce
@@ -639,25 +637,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/sf")
-	public Response loginSF(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginSF(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
-		
+
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String queryString = request.getQueryString();
-		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
 				String[] outputs = AbstractHttpHelper.getCodes(queryString);
 
 				String prefix = "sf_";
-				String clientId = socialData.getProperty(prefix+"client_id");
-				String clientSecret = socialData.getProperty(prefix+"secret_key");
-				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				System.out.println(">> " + request.getQueryString());
+				logger.debug(">> " + request.getQueryString());
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -667,9 +666,9 @@ public class UserResource {
 				params.put("client_secret", clientSecret);
 
 				String url = "https://login.salesforce.com/services/oauth2/token";
-				
+
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
-				if(accessToken == null) {
+				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
 					response.sendRedirect(getSFRedirect(request));
@@ -678,35 +677,33 @@ public class UserResource {
 				accessToken.setProvider(AuthProvider.SF);
 				addAccessToken(accessToken, request);
 
-				System.out.println("Access Token is.. " + accessToken.getAccess_token());
+				logger.debug("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
 
 		// grab the user again
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if(userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSFRedirect(request));
 			return null;
 		}
-		
+
 		setMainPageRedirect(request, response);
 		return null;
 	}
-	
+
 	private String getSFRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "sf_";
-		String clientId = socialData.getProperty(prefix+"client_id");
-		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-		String redirectUrl = "https://login.salesforce.com/services/oauth2/authorize?" +
-		"client_id=" + clientId +
-		"&response_type=code" +
-		"&redirect_uri=" + redirectUri +
-		"&scope=" + URLEncoder.encode("api", "UTF-8");
+		String redirectUrl = "https://login.salesforce.com/services/oauth2/authorize?" + "client_id=" + clientId
+				+ "&response_type=code" + "&redirect_uri=" + redirectUri + "&scope="
+				+ URLEncoder.encode("api", "UTF-8");
 
-		System.out.println("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + redirectUrl);
 		return redirectUrl;
 	}
 
@@ -716,25 +713,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/surveymonkey")
-	public Response loginSurveyMonkey(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginSurveyMonkey(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
-		
+
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String queryString = request.getQueryString();
-		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
 				String[] outputs = AbstractHttpHelper.getCodes(queryString);
 
 				String prefix = "surveymonkey_";
-				String clientId = socialData.getProperty(prefix+"client_id");
-				String clientSecret = socialData.getProperty(prefix+"secret_key");
-				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				System.out.println(">> " + request.getQueryString());
+				logger.debug(">> " + request.getQueryString());
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -744,9 +742,9 @@ public class UserResource {
 				params.put("client_secret", clientSecret);
 
 				String url = "https://api.surveymonkey.com/oauth/token";
-				
+
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
-				if(accessToken == null) {
+				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
 					response.sendRedirect(getSurveyMonkeyRedirect(request));
@@ -756,34 +754,32 @@ public class UserResource {
 				MonkeyProfile.fillAccessToken(accessToken, null);
 				addAccessToken(accessToken, request);
 
-				System.out.println("Access Token is.. " + accessToken.getAccess_token());
+				logger.debug("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
 
 		// grab the user again
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if(userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSurveyMonkeyRedirect(request));
 			return null;
 		}
-		
+
 		setMainPageRedirect(request, response);
 		return null;
 	}
-	
+
 	private String getSurveyMonkeyRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "surveymonkey_";
-		String clientId = socialData.getProperty(prefix+"client_id");
-		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-		
-		String redirectUrl = "https://api.surveymonkey.com/oauth/authorize?" +
-		"client_id=" + clientId +
-		"&response_type=code" +
-		"&redirect_uri=" + redirectUri;
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-		System.out.println("Sending redirect.. " + redirectUrl);
+		String redirectUrl = "https://api.surveymonkey.com/oauth/authorize?" + "client_id=" + clientId
+				+ "&response_type=code" + "&redirect_uri=" + redirectUri;
+
+		logger.debug("Sending redirect.. " + redirectUrl);
 		return redirectUrl;
 	}
 
@@ -794,7 +790,8 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/github")
-	public Response loginGithub(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginGithub(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -803,16 +800,16 @@ public class UserResource {
 
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String queryString = request.getQueryString();
-		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
-				String [] outputs = AbstractHttpHelper.getCodes(queryString);
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
 
 				String prefix = "github_";
-				String clientId = socialData.getProperty(prefix+"client_id");
-				String clientSecret = socialData.getProperty(prefix+"secret_key");
-				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				System.out.println(">> " + request.getQueryString());
+				logger.debug(">> " + request.getQueryString());
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -824,7 +821,7 @@ public class UserResource {
 				String url = "https://github.com/login/oauth/access_token";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
-				if(accessToken == null) {
+				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
 					response.sendRedirect(getGithubRedirect(request));
@@ -842,38 +839,35 @@ public class UserResource {
 				accessToken.setUsername(myGit.getLogin());
 				addAccessToken(accessToken, request);
 
-				System.out.println("Access Token is.. " + accessToken.getAccess_token());
+				logger.debug("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
-		
+
 		// grab the user again
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if(userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			GitRepoUtils.addCertForDomain("https://github.com");
 			response.setStatus(302);
 			response.sendRedirect(getGithubRedirect(request));
 			return null;
 		}
-		
+
 		setMainPageRedirect(request, response);
 		return null;
 	}
-	
+
 	private String getGithubRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "github_";
-		String clientId = socialData.getProperty(prefix+"client_id");
-		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-		String scope = socialData.getProperty(prefix+"scope");
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		String scope = socialData.getProperty(prefix + "scope");
 
-		String redirectUrl = "https://github.com/login/oauth/authorize?" +
-				"client_id=" + clientId +
-				"&redirect_uri=" + redirectUri +
-				"&state=" + UUID.randomUUID().toString() +
-				"&allow_signup=true" + 
-				"&scope=" + URLEncoder.encode(scope, "UTF-8");
+		String redirectUrl = "https://github.com/login/oauth/authorize?" + "client_id=" + clientId + "&redirect_uri="
+				+ redirectUri + "&state=" + UUID.randomUUID().toString() + "&allow_signup=true" + "&scope="
+				+ URLEncoder.encode(scope, "UTF-8");
 
-		System.out.println("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + redirectUrl);
 		return redirectUrl;
 	}
 
@@ -883,7 +877,8 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/ms")
-	public Response loginMS(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginMS(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -892,18 +887,18 @@ public class UserResource {
 
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String queryString = request.getQueryString();
-		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.MS) == null) {
-				String [] outputs = AbstractHttpHelper.getCodes(queryString);
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
 
 				String prefix = "ms_";
-				String clientId = socialData.getProperty(prefix+"client_id");
-				String clientSecret = socialData.getProperty(prefix+"secret_key");
-				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-				String tenant = socialData.getProperty(prefix+"tenant");
-				String scope = socialData.getProperty(prefix+"scope");
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				String tenant = socialData.getProperty(prefix + "tenant");
+				String scope = socialData.getProperty(prefix + "scope");
 
-				System.out.println(">> " + request.getQueryString());
+				logger.debug(">> " + request.getQueryString());
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -916,50 +911,47 @@ public class UserResource {
 				String url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
-				if(accessToken == null) {
+				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
 					response.sendRedirect(getMSRedirect(request));
 					return null;
 				}
-				
+
 				accessToken.setProvider(AuthProvider.MS);
 				MSProfile.fillAccessToken(accessToken, null);
 				addAccessToken(accessToken, request);
 
-				System.out.println("Access Token is.. " + accessToken.getAccess_token());
+				logger.debug("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
-		
+
 		// grab the user again
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if(userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getMSRedirect(request));
 			return null;
-		} 
+		}
 
 		setMainPageRedirect(request, response);
 		return null;
 	}
-	
+
 	private String getMSRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "ms_";
-		String clientId = socialData.getProperty(prefix+"client_id");
-		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-		String tenant = socialData.getProperty(prefix+"tenant");
-		String scope = socialData.getProperty(prefix+"scope"); // need to set this up and reuse
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		String tenant = socialData.getProperty(prefix + "tenant");
+		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
 
 		String state = UUID.randomUUID().toString();
-		String redirectUrl = "https://login.microsoftonline.com/" + tenant
-				+ "/oauth2/v2.0/authorize?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri="
-				+ URLEncoder.encode(redirectUri, "UTF-8")
-				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state="
-				+ state;
-		
-		System.out.println("Sending redirect.. " + redirectUrl);
+		String redirectUrl = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize?" + "client_id="
+				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
+				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
+
+		logger.debug("Sending redirect.. " + redirectUrl);
 
 		return redirectUrl;
 	}
@@ -970,25 +962,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/dropbox")
-	public Response loginDropBox(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginDropBox(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
-		
+
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String queryString = request.getQueryString();
-		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
-				String [] outputs = AbstractHttpHelper.getCodes(queryString);
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
 
 				String prefix = "dropbox_";
-				String clientId = socialData.getProperty(prefix+"client_id");
-				String clientSecret = socialData.getProperty(prefix+"secret_key");
-				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				System.out.println(">> " + request.getQueryString());
+				logger.debug(">> " + request.getQueryString());
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -1000,7 +993,7 @@ public class UserResource {
 				String url = "https://www.dropbox.com/oauth2/token";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
-				if(accessToken == null) {
+				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
 					response.sendRedirect(getDBRedirect(request));
@@ -1009,37 +1002,34 @@ public class UserResource {
 				accessToken.setProvider(AuthProvider.DROPBOX);
 				addAccessToken(accessToken, request);
 
-				System.out.println("Access Token is.. " + accessToken.getAccess_token());			
+				logger.debug("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
-		
+
 		// grab the user again
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if(userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getDBRedirect(request));
 			return null;
-		} 
+		}
 
 		setMainPageRedirect(request, response);
 		return null;
 	}
-	
+
 	private String getDBRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "dropbox_";
-		
-		String clientId = socialData.getProperty(prefix+"client_id");
-		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-		String role = socialData.getProperty(prefix+"role"); // need to set this up and reuse
-		String redirectUrl = "https://www.dropbox.com/oauth2/authorize?" + 
-				"client_id=" + clientId+
-				"&response_type=code" + 
-				"&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")+ 
-				"&require_role=" + role + 
-				"&disable_signup=false";		
 
-		System.out.println("Sending redirect.. " + redirectUrl);
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		String role = socialData.getProperty(prefix + "role"); // need to set this up and reuse
+		String redirectUrl = "https://www.dropbox.com/oauth2/authorize?" + "client_id=" + clientId
+				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&require_role="
+				+ role + "&disable_signup=false";
+
+		logger.debug("Sending redirect.. " + redirectUrl);
 		return redirectUrl;
 	}
 
@@ -1050,7 +1040,8 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/google")
-	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1059,17 +1050,18 @@ public class UserResource {
 
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String queryString = request.getQueryString();
-		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
-				String [] outputs = AbstractHttpHelper.getCodes(queryString);
-				
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+
 				String prefix = "google_";
-				String clientId = socialData.getProperty(prefix+"client_id");
-				String clientSecret = socialData.getProperty(prefix+"secret_key");
-				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-				
-				System.out.println(">> " + request.getQueryString());
-				//I need to decode the return code from google since the default param's are encoded on the post of getAccessToken
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+
+				logger.debug(">> " + request.getQueryString());
+				// I need to decode the return code from google since the default param's are
+				// encoded on the post of getAccessToken
 				String codeDecode = URLDecoder.decode(outputs[0]);
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -1077,12 +1069,12 @@ public class UserResource {
 				params.put("code", codeDecode);
 				params.put("grant_type", "authorization_code");
 				params.put("client_secret", clientSecret);
-	
+
 				String url = "https://www.googleapis.com/oauth2/v4/token";
-				
-				//https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
+
+				// https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
-				if(accessToken == null) {
+				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
 					response.sendRedirect(getGoogleRedirect(request));
@@ -1090,13 +1082,14 @@ public class UserResource {
 				}
 				accessToken.setProvider(AuthProvider.GOOGLE);
 
-				// fill the access token with the other properties so we can properly create the user
+				// fill the access token with the other properties so we can properly create the
+				// user
 				GoogleProfile.fillAccessToken(accessToken, null);
 				addAccessToken(accessToken, request);
-				
+
 				// Shows how to make a google credential from an access token
-				System.out.println("Access Token is.. " + accessToken.getAccess_token());
-				
+				logger.debug("Access Token is.. " + accessToken.getAccess_token());
+
 				// this is just for testing...
 				// but i will get yelled at if i remove it so here it is...
 				// TODO: adding this todo to easily locate it
@@ -1106,7 +1099,7 @@ public class UserResource {
 
 		// grab the user again
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if(userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGoogleRedirect(request));
@@ -1116,40 +1109,36 @@ public class UserResource {
 		setMainPageRedirect(request, response);
 		return null;
 	}
-	
+
 	private String getGoogleRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "google_";
-		String clientId = socialData.getProperty(prefix+"client_id");
-		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-		String scope = socialData.getProperty(prefix+"scope"); // need to set this up and reuse
-		String accessType = socialData.getProperty(prefix+"access_type"); // need to set this up and reuse
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
+		String accessType = socialData.getProperty(prefix + "access_type"); // need to set this up and reuse
 		String state = UUID.randomUUID().toString();
-		
-		String redirectUrl = "https://accounts.google.com/o/oauth2/v2/auth?"
-				+ "client_id=" + clientId
-				+ "&response_type=code" 
-				+ "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
-				+ "&access_type=" + accessType
-				+ "&scope=" + URLEncoder.encode(scope, "UTF-8")
-				+ "&state="	+ state;
 
-		System.out.println("Sending redirect.. " + redirectUrl);
+		String redirectUrl = "https://accounts.google.com/o/oauth2/v2/auth?" + "client_id=" + clientId
+				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&access_type="
+				+ accessType + "&scope=" + URLEncoder.encode(scope, "UTF-8") + "&state=" + state;
+
+		logger.debug("Sending redirect.. " + redirectUrl);
 		return redirectUrl;
 	}
-	
+
 	/**
 	 * METHOD IS USED FOR TESTING
+	 * 
 	 * @param request
 	 * @param ret
 	 */
-	private void performGoogleOps(HttpServletRequest request, Map ret)
-	{
+	private void performGoogleOps(HttpServletRequest request, Map ret) {
 		// get the user details
 		IConnectorIOp prof = new GoogleProfile();
-		prof.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), null);
-		
+		prof.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), null);
+
 		IConnectorIOp lister = new GoogleListFiles();
-		List fileList = (List)lister.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), null);
+		List fileList = (List) lister.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), null);
 
 		// get the file
 		IConnectorIOp getter = new GoogleFileRetriever();
@@ -1158,7 +1147,7 @@ public class UserResource {
 		params2.put("id", "1it40jNFcRo1ur2dHIYUk18XmXdd37j4gmJm_Sg7KLjI");
 		params2.put("target", "c:\\users\\pkapaleeswaran\\workspacej3\\datasets\\googlefile.csv");
 
-		getter.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), params2);
+		getter.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
 
 		IConnectorIOp ner = new GoogleEntityResolver();
 
@@ -1166,62 +1155,63 @@ public class UserResource {
 		docInput.setContent("Obama is staying in the whitehouse !!");
 
 		params2 = new Hashtable();
-		
-		//Hashtable docInputShell = new Hashtable();
+
+		// Hashtable docInputShell = new Hashtable();
 		params2.put("encodingType", "UTF8");
 		params2.put("document", docInput);
-		
-		//params2.put("input", docInputShell);
-		ner.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), params2);
-		
+
+		// params2.put("input", docInputShell);
+		ner.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
+
 		try {
 			ret.put("files", BeanFiller.getJson(fileList));
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error(STACKTRACE, e);
 		}
 
 		IConnectorIOp lat = new GoogleLatLongGetter();
 		params2 = new Hashtable();
 		params2.put("address", "1919 N Lynn Street, Arlington, VA");
-		
-		lat.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), params2);
+
+		lat.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
 
 		IConnectorIOp ts = new TwitterSearcher();
 		params2 = new Hashtable();
 		params2.put("q", "Anlaytics");
 		params2.put("lang", "en");
 		params2.put("count", "10");
-		
-		Object vp = ts.execute((User)request.getSession().getAttribute(Constants.SESSION_USER), params2);
+
+		Object vp = ts.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
 	}
-	
+
 	@GET
 	@Produces("application/json")
 	@Path("/login/producthunt")
-	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
-		
+
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		
+
 		String queryString = request.getQueryString();
-		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
-				String [] outputs = AbstractHttpHelper.getCodes(queryString);
-				
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+
 				String prefix = "producthunt_";
-				String clientId = socialData.getProperty(prefix+"client_id");
-				String clientSecret = socialData.getProperty(prefix+"secret_key");
-				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-				
-				System.out.println(">> " + request.getQueryString());
-				
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+
+				logger.debug(">> " + request.getQueryString());
+
 				Hashtable params = new Hashtable();
-	
+
 				params.put("client_id", clientId);
 				params.put("redirect_uri", redirectUri);
 				params.put("code", outputs[0]);
@@ -1231,7 +1221,7 @@ public class UserResource {
 				String url = "https://api.producthunt.com/v1/oauth/token";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
-				if(accessToken == null) {
+				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
 					response.sendRedirect(getProducthuntRedirect(request));
@@ -1240,13 +1230,13 @@ public class UserResource {
 				accessToken.setProvider(AuthProvider.PRODUCT_HUNT);
 				addAccessToken(accessToken, request);
 
-				System.out.println("Access Token is.. " + accessToken.getAccess_token());			
+				logger.debug("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
 
 		// grab the user again
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if(userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getProducthuntRedirect(request));
 			return null;
@@ -1255,49 +1245,48 @@ public class UserResource {
 		setMainPageRedirect(request, response);
 		return null;
 	}
-	
+
 	private String getProducthuntRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "producthunt_";
-		
-		String clientId = socialData.getProperty(prefix+"client_id");
-		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-		String scope = socialData.getProperty(prefix+"scope");
 
-		String redirectUrl = "https://api.producthunt.com/v1/oauth/authorize?" + 
-				"client_id=" + clientId+
-				"&response_type=code" + 
-				"&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")+ 
-				"&scope=" + URLEncoder.encode(scope, "UTF-8") ;
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		String scope = socialData.getProperty(prefix + "scope");
 
-		System.out.println("Sending redirect.. " + redirectUrl);
+		String redirectUrl = "https://api.producthunt.com/v1/oauth/authorize?" + "client_id=" + clientId
+				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&scope="
+				+ URLEncoder.encode(scope, "UTF-8");
+
+		logger.debug("Sending redirect.. " + redirectUrl);
 		return redirectUrl;
 	}
-	
+
 	/**
 	 * Logs user in through linkedin
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("/login/linkedin")
-	public Response loginIn(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginIn(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
-		
+
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String queryString = request.getQueryString();
-		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
-				String [] outputs = AbstractHttpHelper.getCodes(queryString);
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
 
 				String prefix = "in_";
-				String clientId = socialData.getProperty(prefix+"client_id");
-				String clientSecret = socialData.getProperty(prefix+"secret_key");
-				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				System.out.println(">> " + request.getQueryString());
+				logger.debug(">> " + request.getQueryString());
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -1309,7 +1298,7 @@ public class UserResource {
 				String url = "https://www.linkedin.com/oauth/v2/accessToken";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
-				if(accessToken == null) {
+				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
 					response.sendRedirect(getInRedirect(request));
@@ -1317,52 +1306,38 @@ public class UserResource {
 				}
 				accessToken.setProvider(AuthProvider.IN);
 				addAccessToken(accessToken, request);
-				System.out.println("Access Token is.. " + accessToken.getAccess_token());
+				logger.debug("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
-		
+
 		// grab the user again
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if(userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getInRedirect(request));
-		} 
+		}
 
 		setMainPageRedirect(request, response);
 		return null;
 	}
-	
+
 	private String getInRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "in_";
-		String clientId = socialData.getProperty(prefix+"client_id");
-		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-		String scope = socialData.getProperty(prefix+"scope");
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		String scope = socialData.getProperty(prefix + "scope");
 
-		String redirectUrl = "https://www.linkedin.com/oauth/v2/authorization?" +
-				"client_id=" + clientId +
-				"&redirect_uri=" + redirectUri +
-				"&state=" + UUID.randomUUID().toString() +
-				"&response_type=code" +
-				"&scope=" + URLEncoder.encode(scope, "UTF-8");
+		String redirectUrl = "https://www.linkedin.com/oauth/v2/authorization?" + "client_id=" + clientId
+				+ "&redirect_uri=" + redirectUri + "&state=" + UUID.randomUUID().toString() + "&response_type=code"
+				+ "&scope=" + URLEncoder.encode(scope, "UTF-8");
 
-		System.out.println("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + redirectUrl);
 		return redirectUrl;
 	}
 
-	
-	
-	
-	
-
-
 	/**
 	 * WHY IS THIS GIT?!?!?!
-	 * WHY IS THIS GIT?!?!?!
-	 * WHY IS THIS GIT?!?!?!
-	 * WHY IS THIS GIT?!?!?!
-	 * WHY IS THIS GIT?!?!?!
-	 * WHY IS THIS GIT?!?!?!
-	 * WHY IS THIS GIT?!?!?!
+	 * 
 	 * @param request
 	 * @param response
 	 * @return
@@ -1371,28 +1346,28 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/twitter")
-	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException 
-	{
+	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
 		// getting the bearer token on twitter for app authentication is a lot simpler
 		// need to just combine the id and secret
 		// base 64 and send as authorization
-		
-		//https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
-	
+
+		// https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
+
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String queryString = request.getQueryString();
-		if(queryString != null && queryString.contains("code=")) {
-			if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null) {
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.GITHUB) == null) {
 
-				String [] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
 
 				String prefix = "git_";
 
-				String clientId = socialData.getProperty(prefix+"client_id");
-				String clientSecret = socialData.getProperty(prefix+"secret_key");
-				String redirectUri = socialData.getProperty(prefix+"redirect_uri");
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				System.out.println(">> " + request.getQueryString());
+				logger.debug(">> " + request.getQueryString());
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -1404,23 +1379,23 @@ public class UserResource {
 				String url = "https://github.com/login/oauth/access_token";
 
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
-				if(accessToken == null) {
+				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
 					response.sendRedirect(getTwitterRedirect(request));
 					return null;
 				}
-				
+
 				accessToken.setProvider(AuthProvider.GITHUB);
 				addAccessToken(accessToken, request);
 
-				System.out.println("Access Token is.. " + accessToken.getAccess_token());
+				logger.debug("Access Token is.. " + accessToken.getAccess_token());
 			}
 		}
-		
+
 		// grab the user again
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if(userObj == null || ((User)userObj).getAccessToken(AuthProvider.GITHUB) == null) {
+		if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getTwitterRedirect(request));
@@ -1430,39 +1405,35 @@ public class UserResource {
 		setMainPageRedirect(request, response);
 		return null;
 	}
-	
+
 	private String getTwitterRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "twitter_";
-		
-		String clientId = socialData.getProperty(prefix+"client_id");
-		String clientSecret = socialData.getProperty(prefix+"secret_key");
-		String redirectUri = socialData.getProperty(prefix+"redirect_uri");
-		String scope = socialData.getProperty(prefix+"scope");
-		String nonce = UUID.randomUUID().toString() ;
-		String timestamp = System.currentTimeMillis() +"";
 
-		
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String clientSecret = socialData.getProperty(prefix + "secret_key");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		String scope = socialData.getProperty(prefix + "scope");
+		String nonce = UUID.randomUUID().toString();
+		String timestamp = System.currentTimeMillis() + "";
+
 		StringBuffer signatureString = new StringBuffer("GET").append("&");
 		signatureString.append(URLEncoder.encode("https://api.twitter.com/oauth/authorize", "UTF-8")).append("&");
-		
+
 		StringBuffer parameterString = new StringBuffer("");
 		parameterString.append("oauth_callback=").append(URLEncoder.encode(redirectUri, "UTF-8")).append("&");
 		parameterString.append("oauth_consumer_key=").append(clientId).append("&");
 		parameterString.append("oauth_nonce=").append(nonce).append("&");
 		parameterString.append("oauth_timestamp=").append(timestamp);
-		
+
 		String finalString = signatureString.toString() + parameterString.toString();
-		
-		//String signature = 
-	
-		String redirectUrl = "https://github.com/login/oauth/authorize?" +
-				"oauth_consumer_key=" + clientId +
-				"&oauth_callback=" + redirectUri +
-				"&oauth_nonce=" + nonce +
-				"&oauth_timestamp=" + timestamp + 
-				"&scope=" + URLEncoder.encode(scope, "UTF-8");
-	
-		System.out.println("Sending redirect.. " + redirectUrl);
+
+		// String signature =
+
+		String redirectUrl = "https://github.com/login/oauth/authorize?" + "oauth_consumer_key=" + clientId
+				+ "&oauth_callback=" + redirectUri + "&oauth_nonce=" + nonce + "&oauth_timestamp=" + timestamp
+				+ "&scope=" + URLEncoder.encode(scope, "UTF-8");
+
+		logger.debug("Sending redirect.. " + redirectUrl);
 
 		return redirectUrl;
 	}
@@ -1481,17 +1452,16 @@ public class UserResource {
 //		}
 //		return formatter.toString();
 //	}
-	
-	
+
 	/////////////////////////////////////////////////////////////////
-	
+
 	/**
 	 * This portion of code is for semoss generated users
 	 */
-	
-	
+
 	/**
 	 * Authenticates an user that's trying to log in.
+	 * 
 	 * @param request
 	 * @return true if the information provided to log in is valid otherwise error.
 	 */
@@ -1499,16 +1469,17 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("login")
 	public Response loginNative(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		Hashtable<String, String> ret = new Hashtable<String, String>();
-		try{
+		Hashtable<String, String> ret = new Hashtable<>();
+		try {
 			String username = request.getParameter("username");
 			String password = request.getParameter("password");
 			String redirect = request.getParameter("redirect");
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("enableRedirect") + "");
-			
-			boolean emptyCredentials = (username == null || password == null || username.isEmpty() || password.isEmpty());
+
+			boolean emptyCredentials = (username == null || password == null || username.isEmpty()
+					|| password.isEmpty());
 			boolean canLogin = !emptyCredentials && NativeUserSecurityUtils.logIn(username, password);
-			if(canLogin){
+			if (canLogin) {
 				ret.put("success", "true");
 				ret.put("username", username);
 				String name = NativeUserSecurityUtils.getNameUser(username);
@@ -1520,26 +1491,26 @@ public class UserResource {
 				AccessToken authToken = new AccessToken();
 				authToken.setProvider(AuthProvider.NATIVE);
 				authToken.setId(id);
-				authToken.setName(username);	
+				authToken.setName(username);
 				authToken.setEmail(email);
 				addAccessToken(authToken, request);
-				
-				if(!disableRedirect) {
+
+				if (!disableRedirect) {
 					setMainPageRedirect(request, response, redirect);
 				}
 			} else {
 				ret.put("error", "The user name or password are invalid.");
 				return WebUtility.getResponse(ret, 401);
 			}
-		} catch(Exception e){
-			e.printStackTrace();
+		} catch (Exception e) {
+			logger.error(STACKTRACE, e);
 			ret.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}
-		
+
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Logs user out when authenticated in a native way.
 	 */
@@ -1547,21 +1518,21 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/logout")
 	public Response logoutNative(@Context HttpServletRequest request) throws IOException {
-		Hashtable<String, String> ret = new Hashtable<String, String>();
-		try{
-			if(request.getSession(false) != null){
-				HttpSession session =  request.getSession(false);
+		Hashtable<String, String> ret = new Hashtable<>();
+		try {
+			if (request.getSession(false) != null) {
+				HttpSession session = request.getSession(false);
 				User print = (User) session.getAttribute(Constants.SESSION_USER);
-				//LOGGER.info("Logging out with: " + print);
+				// LOGGER.info("Logging out with: " + print);
 				print.dropAccessToken(AuthProvider.NATIVE.name().toUpperCase());
 				request.getSession().setAttribute(Constants.SESSION_USER, print);
 			} else {
 				ret.put("error", "User is not connected.");
 				return WebUtility.getResponse(ret, 401);
 			}
-		// Only disconnect a connected user.
+			// Only disconnect a connected user.
 		} catch (Exception ex) {
-			ex.printStackTrace();
+			logger.error(STACKTRACE, ex);
 			ret.put("error", "Unexpected error.");
 			return WebUtility.getResponse(ret, 500);
 		}
@@ -1570,7 +1541,9 @@ public class UserResource {
 	}
 
 	/**
-	 * Create an user according to the information provided (user name, password, email)
+	 * Create an user according to the information provided (user name, password,
+	 * email)
+	 * 
 	 * @param request
 	 * @return true if the user is created otherwise error.
 	 */
@@ -1578,8 +1551,8 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("createUser")
 	public Response createUser(@Context HttpServletRequest request) {
-		Hashtable<String, String> ret = new Hashtable<String, String>();
-		try{
+		Hashtable<String, String> ret = new Hashtable<>();
+		try {
 			String username = request.getParameter("username");
 			String name = request.getParameter("name");
 			String password = request.getParameter("password");
@@ -1591,7 +1564,7 @@ public class UserResource {
 			newUser.setEmail(email);
 			newUser.setName(name);
 			boolean userCreated = NativeUserSecurityUtils.addNativeUser(newUser, password);
-			if(userCreated){
+			if (userCreated) {
 				ret.put("success", "true");
 				ret.put("username", username);
 				return WebUtility.getResponse(ret, 200);
@@ -1599,17 +1572,17 @@ public class UserResource {
 				ret.put("error", "The user name or email aready exists.");
 				return WebUtility.getResponse(ret, 400);
 			}
-		} catch (IllegalArgumentException e){
-			e.printStackTrace();
-			ret.put("error", e.getMessage());
+		} catch (IllegalArgumentException iae) {
+			logger.error(STACKTRACE, iae);
+			ret.put("error", iae.getMessage());
 			return WebUtility.getResponse(ret, 500);
-		} catch (Exception e){
-			e.printStackTrace();
+		} catch (Exception e) {
+			logger.error(STACKTRACE, e);
 			ret.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}
 	}
-	
+
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
@@ -1617,85 +1590,90 @@ public class UserResource {
 	//////////////////////////////////////////////////////////////////////
 
 	/**
-	 * Setting / Getting Information from the social properties
-	 * That is needed by the FE
+	 * Setting / Getting Information from the social properties That is needed by
+	 * the FE
 	 */
-	
+
 	@GET
 	@Produces("application/json")
 	@Path("/loginsAllowed/")
 	public Response loginsAllowed(@Context HttpServletRequest request) throws IOException {
-		return WebUtility.getResponse(UserResource.loginsAllowed, 200);	
+		return WebUtility.getResponse(UserResource.loginsAllowed, 200);
 	}
-	
+
 	@GET
 	@Produces("application/json")
 	@Path("/loginProperties/")
 	public Response loginProperties(@Context HttpServletRequest request) throws IOException {
-		if(AbstractSecurityUtils.securityEnabled()) {
+		if (AbstractSecurityUtils.securityEnabled()) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			if(user == null) {
-				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);	
+			if (user == null) {
+				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
 			}
-			if(!SecurityAdminUtils.userIsAdmin(user)){
-				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);	
+			if (!SecurityAdminUtils.userIsAdmin(user)) {
+				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin",
+						400);
 			}
 		}
-		
+
 		// you have access - lets send all the info
-		
-		Map<String, Map<String, String>> loginApps = new TreeMap<String, Map<String, String>>();
-		
+
+		Map<String, Map<String, String>> loginApps = new TreeMap<>();
+
 		Set<String> propSet = socialData.stringPropertyNames();
-		for(String prop : propSet) {
-			if(!prop.contains("_")) {
+		for (String prop : propSet) {
+			if (!prop.contains("_")) {
 				// bad format
 				// ignore
 				continue;
 			}
-			String[] split =  prop.toString().split("_", 2);
+			String[] split = prop.toString().split("_", 2);
 			String type = split[0];
 			String type_key = split[1];
-			
-			if(!loginApps.containsKey(type)) {
+
+			if (!loginApps.containsKey(type)) {
 				loginApps.put(type, new TreeMap<String, String>());
 			}
-			
-			loginApps.get(type).put(type_key, socialData.getProperty(prop).toString());
+
+			loginApps.get(type).put(type_key, socialData.getProperty(prop));
 		}
-		
-		return WebUtility.getResponse(loginApps, 200);	
+
+		return WebUtility.getResponse(loginApps, 200);
 	}
-	
+
 	@POST
 	@Produces("application/json")
 	@Path("/modifyLoginProperties/{provider}")
-	public synchronized Response modifyLoginProperties(@PathParam("provider") String provider, MultivaluedMap<String, String> form, @Context HttpServletRequest request) throws IOException {	
-		if(AbstractSecurityUtils.securityEnabled()) {
+	public synchronized Response modifyLoginProperties(@PathParam("provider") String provider,
+			MultivaluedMap<String, String> form, @Context HttpServletRequest request) throws IOException {
+		if (AbstractSecurityUtils.securityEnabled()) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			if(user == null) {
-				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);	
+			if (user == null) {
+				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
 			}
-			if(!SecurityAdminUtils.userIsAdmin(user)){
-				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);	
+			if (!SecurityAdminUtils.userIsAdmin(user)) {
+				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin",
+						400);
 			}
 		}
-		
+
 		Gson gson = new Gson();
 		String modStr = form.getFirst("modifications");
-		Map<String, String> mods = gson.fromJson(modStr, new TypeToken<Map<String, String>>() {}.getType());
-		
+		Map<String, String> mods = gson.fromJson(modStr, new TypeToken<Map<String, String>>() {
+		}.getType());
+
 		PropertiesConfiguration config = null;
 		try {
 			config = new PropertiesConfiguration(DIHelper.getInstance().getProperty("SOCIAL"));
 		} catch (ConfigurationException e1) {
-			e1.printStackTrace();
-			Hashtable<String, String> errorRet = new Hashtable<String, String>();
-			errorRet.put("error", "An unexpected error happened trying to access the properties. Please try again or reach out to server admin.");
+			logger.error(STACKTRACE, e1);
+			Hashtable<String, String> errorRet = new Hashtable<>();
+			errorRet.put("error",
+					"An unexpected error happened trying to access the properties. Please try again or reach out to server admin.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
-		
-		for(String mod : mods.keySet()) {
+
+		for (String mod : mods.keySet()) {
 			config.setProperty(provider + "_" + mod, mods.get(mod));
 		}
 
@@ -1703,28 +1681,32 @@ public class UserResource {
 			config.save();
 			loadSocialProperties();
 		} catch (ConfigurationException e1) {
-			e1.printStackTrace();
-			Hashtable<String, String> errorRet = new Hashtable<String, String>();
-			errorRet.put("error", "An unexpected error happened when saving the new login properties. Please try again or reach out to server admin.");
+			logger.error(STACKTRACE, e1);
+			Hashtable<String, String> errorRet = new Hashtable<>();
+			errorRet.put("error",
+					"An unexpected error happened when saving the new login properties. Please try again or reach out to server admin.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
-		
+
 		return WebUtility.getResponse(true, 200);
 	}
-	
+
 	/**
 	 * Redirect the login back to the main app page
+	 * 
 	 * @param response
 	 */
 	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		setMainPageRedirect(request, response, null);
 	}
-	
+
 	/**
 	 * Redirect the login back to the main app page
+	 * 
 	 * @param response
 	 */
-	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response, String customRedirect) {
+	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response,
+			String customRedirect) {
 		// see if we have a location to redirect the user
 		// if so, we will send them back to that URL
 		// otherwise, we send them back to the FE
@@ -1734,12 +1716,13 @@ public class UserResource {
 		response.setStatus(302);
 		try {
 			Cookie cookie = new Cookie(DBLoader.getSessionIdKey(), request.getSession().getId());
-			//cookie.setPath("/dev");
+			// cookie.setPath("/dev");
 			response.addCookie(cookie);
-			if(useCustom) {
+			if (useCustom) {
 				response.setHeader("redirect", customRedirect);
-				response.sendError(302, "Need to redirect to " + customRedirect);
-			} else if(endpoint) {
+				String encodedCustomRedirect = Encode.forHtml(customRedirect);
+				response.sendError(302, "Need to redirect to " + encodedCustomRedirect);
+			} else if (endpoint) {
 				String redirectUrl = session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY) + "";
 				response.setHeader("redirect", redirectUrl);
 				response.sendError(302, "Need to redirect to " + redirectUrl);
@@ -1747,12 +1730,13 @@ public class UserResource {
 				response.sendRedirect(socialData.getProperty("redirect"));
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE, e);
 		}
 	}
-	
+
 	/**
 	 * Set the information in the JSON return after logging in
+	 * 
 	 * @param token
 	 * @param ret
 	 */
@@ -1761,7 +1745,7 @@ public class UserResource {
 		ret.put("email", token.getEmail());
 		ret.put("type", token.getToken_type());
 	}
-	
+
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
@@ -1771,100 +1755,102 @@ public class UserResource {
 	/**
 	 * Sharing session
 	 */
-	
-	
+
 	@GET
 	@Produces("application/json")
 	@Path("/cookie")
-	public StreamingOutput manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response, @QueryParam("i") String insightId, @QueryParam("s") String secret) {
-		//https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
+	public StreamingOutput manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response,
+			@QueryParam("i") String insightId, @QueryParam("s") String secret) {
+		// https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
 
-	    /*
-	     * When the user clicks on connect to tableau.. I need to give the user a link
-	     * to that insight primarily
-	     * the question is do I land on the same insight or a different one
-	     * that link should have insight id and session id
-	     * 
-	     * a. Launches a new browser with this redirect along with pseudo session id, session id hashed with insight id
-	     * b. Redirects the user to a URL with the insight id and the pseudo session id / or something that sits in the user object. some random number
-	     * c. We pick the session.. go to the user object to see if the secret can be verified. Basically you take the session id which came in hash it with the insight id to see if it is allowable
-	     * d. We redirect the user to the embedded URL for the insight >>
-	     * e. We need someway to repull the recipe 
-	     * 
-	     * I need first something that will take me to http and then from there on take me into my insight
-	     * 
-	     */
+		/*
+		 * When the user clicks on connect to tableau.. I need to give the user a link
+		 * to that insight primarily
+		 * the question is do I land on the same insight or a different one
+		 * that link should have insight id and session id
+		 * 
+		 * a. Launches a new browser with this redirect along with pseudo session id, session id hashed with insight id
+		 * b. Redirects the user to a URL with the insight id and the pseudo session id / or something that sits in the user object. some random number
+		 * c. We pick the session.. go to the user object to see if the secret can be verified. Basically you take the session id which came in hash it with the insight id to see if it is allowable
+		 * d. We redirect the user to the embedded URL for the insight >>
+		 * e. We need someway to repull the recipe 
+		 * 
+		 * I need first something that will take me to http and then from there on take me into my insight
+		 * 
+		 */
 
 		// get the session
 		HttpSession session = request.getSession();
 		String sessionId = session.getId();
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
 
-        Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
-	    k.setPath(request.getContextPath());
-	    response.addCookie(k);
+		Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
+		k.setPath(request.getContextPath());
+		response.addCookie(k);
 
-	    System.out.println("Session id set to " + sessionId);
-	    
-	    InsightToken token = new InsightToken();
-	    Hashtable outputHash = new Hashtable();
-	    try {
-		    MessageDigest md = MessageDigest.getInstance("MD5");
-		    // create the insight token and add to the user
-		    // the user has secret and salt
-		    token.setSecret(secret);
-		    user.addInsight(insightId, token);
-		    
-		    String finalData = token.getSalt() + token.getSecret();
-		    
-		    byte [] digest = md.digest(finalData.getBytes()); //.toString().getBytes();
+		logger.debug("Session id set to " + sessionId);
+
+		InsightToken token = new InsightToken();
+		Hashtable outputHash = new Hashtable();
+		try {
+			MessageDigest md = MessageDigest.getInstance("MD5");
+			// create the insight token and add to the user
+			// the user has secret and salt
+			token.setSecret(secret);
+			user.addInsight(insightId, token);
+
+			String finalData = token.getSalt() + token.getSecret();
+
+			byte[] digest = md.digest(finalData.getBytes()); // .toString().getBytes();
 			StringBuffer sb = new StringBuffer();
-	        for (int i = 0; i < digest.length; i++) {
-	          sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
-	        }
-	    	//String redir = "http://localhost:9090/Monolith/api/engine/all?JSESSIONID=" + sessionId;
-	        String redir = "?" + DBLoader.getSessionIdKey() + "=" + sessionId + "&hash=" + sb + "&i=" + insightId;
-	        
-	        // add the route if this is server deployment
-	        Map<String, String> envMap = System.getenv();
-	        // the environment variable for this box will tell me which route variable 
-	        // is for this specific box
-	        if(envMap.containsKey(NoUserInSessionFilter.MONOLITH_ROUTE)) {
-	        	String routeCookieName = envMap.get(NoUserInSessionFilter.MONOLITH_ROUTE);
-	        	Cookie[] curCookies = request.getCookies();
-		        if(curCookies != null) {
-		        	for(Cookie c : curCookies) {
-		        		if(c.getName().equals(routeCookieName)) {
-		        			redir += "&" + c.getName() + "=" + c.getValue();
-		        		}
-		        	}
-		        }
-	        }
-	        
-	    	System.out.println("Redirect URL " + redir);
-	    	outputHash.put("PARAM", redir);
-	    	// also tell the system that this session is not fully validated so if someone comes without secret on this session
-	    	// dont allow
-	    	user.addShare(sessionId);
+			for (int i = 0; i < digest.length; i++) {
+				sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
+			}
+			// String redir = "http://localhost:9090/Monolith/api/engine/all?JSESSIONID=" +
+			// sessionId;
+			String redir = "?" + DBLoader.getSessionIdKey() + "=" + sessionId + "&hash=" + sb + "&i=" + insightId;
+
+			// add the route if this is server deployment
+			Map<String, String> envMap = System.getenv();
+			// the environment variable for this box will tell me which route variable
+			// is for this specific box
+			if (envMap.containsKey(NoUserInSessionFilter.MONOLITH_ROUTE)) {
+				String routeCookieName = envMap.get(NoUserInSessionFilter.MONOLITH_ROUTE);
+				Cookie[] curCookies = request.getCookies();
+				if (curCookies != null) {
+					for (Cookie c : curCookies) {
+						if (c.getName().equals(routeCookieName)) {
+							redir += "&" + c.getName() + "=" + c.getValue();
+						}
+					}
+				}
+			}
+
+			logger.debug("Redirect URL " + redir);
+			outputHash.put("PARAM", redir);
+			// also tell the system that this session is not fully validated so if someone
+			// comes without secret on this session
+			// dont allow
+			user.addShare(sessionId);
 		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE, e);
 		}
-	    
-	    return WebUtility.getSO(outputHash);
+
+		return WebUtility.getSO(outputHash);
 	}
-	
+
 	@GET
 	@Produces("application/json")
 	@Path("/whoami")
 	public Response show(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Principal principal = request.getUserPrincipal();
-		Map<String, Object> output = new HashMap<String, Object>();
+		Map<String, Object> output = new HashMap<>();
 		output.put("name", principal.getName());
 		if (principal instanceof WindowsPrincipal) {
 			WindowsPrincipal windowsPrincipal = (WindowsPrincipal) principal;
-			List<Map<String, Object>> gropus = new Vector<Map<String, Object>>();
-			for(waffle.windows.auth.WindowsAccount account : windowsPrincipal.getGroups().values()) {
-				Map<String, Object> m = new HashMap<String, Object>();
+			List<Map<String, Object>> gropus = new Vector<>();
+			for (waffle.windows.auth.WindowsAccount account : windowsPrincipal.getGroups().values()) {
+				Map<String, Object> m = new HashMap<>();
 				m.put("name", account.getName());
 				m.put("domain", account.getDomain());
 				m.put("fqn", account.getFqn());
