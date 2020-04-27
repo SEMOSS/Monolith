@@ -11,6 +11,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+import org.owasp.encoder.Encode;
+
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.engine.api.IEngine;
@@ -20,10 +24,14 @@ import prerna.util.Constants;
 import prerna.util.Utility;
 
 public class UserExistsFilter extends NoUserInSessionFilter {
+	
+	private static final Logger logger = LogManager.getLogger(UserExistsFilter.class);
+	private static final String STACKTRACE = "StackTrace: ";
 
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		if(AbstractSecurityUtils.securityEnabled()) {
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
+		if (AbstractSecurityUtils.securityEnabled()) {
 			HttpSession session = ((HttpServletRequest) arg0).getSession(true);
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
 
@@ -32,40 +40,42 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 			String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
 
 			// REALLY DISLIKE THIS CHECK!!!
-			if(!isIgnored(fullUrl)) {
+			if (!isIgnored(fullUrl)) {
 				// how you got here without a user, i am unsure given the other filters
 				// but just in case
 				// i will redirect you to login
-				if(user == null || user.getLogins().isEmpty()) {
+				if (user == null || user.getLogins().isEmpty()) {
 					((HttpServletResponse) arg1).setStatus(302);
 
 					String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
 					redirectUrl = redirectUrl + "#!/login";
-					((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+					String encodedRedirectUrl = Encode.forHtml(redirectUrl);
+					((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
+					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
 					return;
 				} else {
 					// okay, need to make sure the user is a valid one
 					IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
-					String q = "SELECT * FROM USER WHERE ID='" + user.getAccessToken(user.getLogins().get(0)).getId() + "'";
+					String q = "SELECT * FROM USER WHERE ID='" + user.getAccessToken(user.getLogins().get(0)).getId()
+							+ "'";
 					IRawSelectWrapper wrapper = null;
 					try {
 						wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
 						boolean hasUser = wrapper.hasNext();
 						// this user is not registered
 						// just take them to the login page again
-						if(!hasUser) {
+						if (!hasUser) {
 							((HttpServletResponse) arg1).setStatus(302);
 							String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
 							redirectUrl = redirectUrl + "#!/login";
-							((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
-							return;
+							String encodedRedirectUrl = Encode.forHtml(redirectUrl);
+							((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
+							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
 						}
 					} catch (Exception e) {
-						e.printStackTrace();
+						logger.error(STACKTRACE, e);
 					} finally {
-						if(wrapper != null) {
+						if (wrapper != null) {
 							wrapper.cleanUp();
 						}
 					}
@@ -78,13 +88,12 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 
 	@Override
 	public void destroy() {
-		// TODO Auto-generated method stub
+		// destroy
 
 	}
 
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
-		// TODO Auto-generated method stub
-
+		// initialize
 	}
 }
