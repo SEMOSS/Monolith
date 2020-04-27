@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,8 @@ import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAppUtils;
@@ -32,196 +35,210 @@ import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 public class ImageUploader extends Uploader {
-	
+	private static final Logger logger = LogManager.getLogger(ImageUploader.class);
+	private static final String ERROR_MESSAGE = "errorMessage";
+	private static final String STACKTRACE = "StackTrace: ";
+
 	@POST
 	@Path("/appImage")
 	@Produces("application/json")
 	public Response uploadAppImage(@Context HttpServletRequest request) {
-		Map<String, String> returnMap = new HashMap<String, String>();
-		
+		Map<String, String> returnMap = new HashMap<>();
+
 		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		FileItem imageFile = null;
 		String appId = null;
 		String appName = null;
-		
-		for(FileItem fi : fileItems) {
+
+		for (FileItem fi : fileItems) {
 			String fieldName = fi.getFieldName();
 			String value = fi.getString();
-			if(fieldName.equals("file")) {
+			if (fieldName.equals("file")) {
 				imageFile = fi;
 			}
-			if(fieldName.equals("app")) {
+			if (fieldName.equals("app")) {
 				appName = value;
 			}
 		}
 
-		if(this.securityEnabled) {
+		if (imageFile == null) {
+			returnMap.put(ERROR_MESSAGE, "Could not find the file to upload for the insight in the request");
+			return WebUtility.getResponse(returnMap, 400);
+		} else if (appName == null) {
+			returnMap.put(ERROR_MESSAGE, "Need to pass the proper app id to upload the image");
+			return WebUtility.getResponse(returnMap, 400);
+		}
+
+		if (this.securityEnabled) {
 			HttpSession session = request.getSession(false);
-			if(session != null){
+			if (session != null) {
 				User user = ((User) session.getAttribute(Constants.SESSION_USER));
-				if(user == null) {
-					HashMap<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put("errorMessage", "Session could not be validated in order to upload the app image");
+				if (user == null) {
+					HashMap<String, String> errorMap = new HashMap<>();
+					errorMap.put(ERROR_MESSAGE, "Session could not be validated in order to upload the app image");
 					return WebUtility.getResponse(errorMap, 400);
 				}
-				
-				if(user.isAnonymous()) {
-					HashMap<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put("errorMessage", "Must be logged in to upload an app image");
+
+				if (user.isAnonymous()) {
+					HashMap<String, String> errorMap = new HashMap<>();
+					errorMap.put(ERROR_MESSAGE, "Must be logged in to upload an app image");
 					return WebUtility.getResponse(errorMap, 400);
 				}
-				
+
 				try {
 					appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appName);
-				} catch(Exception e) {
-					returnMap.put("errorMessage", e.getMessage());
+				} catch (Exception e) {
+					returnMap.put(ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if(!SecurityAppUtils.userCanEditEngine(user, appId)) {
-					returnMap.put("errorMessage", "User does not have access to this app or the app id does not exist");
+				if (!SecurityAppUtils.userCanEditEngine(user, appId)) {
+					returnMap.put(ERROR_MESSAGE, "User does not have access to this app or the app id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
 				appName = SecurityQueryUtils.getEngineAliasForId(appId);
 			} else {
-				returnMap.put("errorMessage", "User session is invalid");
+				returnMap.put(ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
 			}
 		} else {
 			appId = MasterDatabaseUtility.testEngineIdIfAlias(appName);
 			appName = MasterDatabaseUtility.getEngineAliasForId(appId);
 			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId);
-			if(!(new File(appDir).exists())) {
-				returnMap.put("errorMessage", "Could not find app directory");
+			if (!(new File(appDir).exists())) {
+				returnMap.put(ERROR_MESSAGE, "Could not find app directory");
 				return WebUtility.getResponse(returnMap, 400);
 			}
 		}
-		
+
 		// now that we have the app name
 		// and the image file
 		// we want to write it into the app location
-		String imageDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version";
+		String imageDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR
+				+ "version";
 		String imageLoc = imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
 
-		if(ClusterUtil.IS_CLUSTER){
-			imageDir=ClusterUtil.IMAGES_FOLDER_PATH+ DIR_SEPARATOR + "apps";	
+		if (ClusterUtil.IS_CLUSTER) {
+			imageDir = ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "apps";
 			imageLoc = imageDir + DIR_SEPARATOR + appId + "." + imageFile.getContentType().split("/")[1];
 		}
 		File f = new File(imageDir);
-		if(!f.exists()) {
+		if (!f.exists()) {
 			f.mkdirs();
 		}
 		f = new File(imageLoc);
 		// find all the existing image files
 		// and delete them
 		File[] oldImages = null;
-		if(ClusterUtil.IS_CLUSTER){
-			FilenameFilter appIdFilter = new WildcardFileFilter(appId+"*");
+		if (ClusterUtil.IS_CLUSTER) {
+			FilenameFilter appIdFilter = new WildcardFileFilter(appId + "*");
 			oldImages = f.getParentFile().listFiles(appIdFilter);
-		} else{
-			 oldImages = findImageFile(f.getParentFile());
+		} else {
+			oldImages = findImageFile(f.getParentFile());
 		}
 		// delete if any exist
-		if(oldImages != null) {
-			for(File oldI : oldImages) {
+		if (oldImages != null) {
+			for (File oldI : oldImages) {
 				oldI.delete();
 			}
 		}
 		writeFile(imageFile, f);
 		try {
-			if(ClusterUtil.IS_CLUSTER){
-			CloudClient.getClient().pushImageFolder();
+			if (ClusterUtil.IS_CLUSTER) {
+				CloudClient.getClient().pushImageFolder();
 			}
-		} catch (IOException | InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		} catch (IOException ioe) {
+			logger.error(STACKTRACE, ioe);
+		} catch (InterruptedException ie) {
+			Thread.currentThread().interrupt();
+			logger.error(STACKTRACE, ie);
 		}
 		returnMap.put("message", "successfully updated app image");
 		return WebUtility.getResponse(returnMap, 200);
 	}
-	
+
 	@POST
 	@Path("/insightImage")
 	@Produces("application/json")
 	public Response uploadInsightImage(@Context HttpServletRequest request) {
-		Map<String, String> returnMap = new HashMap<String, String>();
-		
+		Map<String, String> returnMap = new HashMap<>();
 		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		FileItem imageFile = null;
 		String appId = null;
 		String appName = null;
 		String insightId = null;
-		
-		for(FileItem fi : fileItems) {
+
+		for (FileItem fi : fileItems) {
 			String fieldName = fi.getFieldName();
 			String value = fi.getString();
-			if(fieldName.equals("file")) {
+			if (fieldName.equals("file")) {
 				imageFile = fi;
 			}
-			if(fieldName.equals("app")) {
+			if (fieldName.equals("app")) {
 				appName = value;
 			}
-			if(fieldName.equals("insightId")) {
+			if (fieldName.equals("insightId")) {
 				insightId = value;
 			}
 		}
 
-		if(imageFile == null) {
-			returnMap.put("errorMessage", "Could not find the file to upload for the insight in the request");
+		if (imageFile == null) {
+			returnMap.put(ERROR_MESSAGE, "Could not find the file to upload for the insight in the request");
 			return WebUtility.getResponse(returnMap, 400);
-		} else if(appName == null || insightId == null) {
-			returnMap.put("errorMessage", "Need to pass the proper app and insight ids to upload the image");
+		} else if (appName == null || insightId == null) {
+			returnMap.put(ERROR_MESSAGE, "Need to pass the proper app and insight ids to upload the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
-		
-		if(this.securityEnabled) {
+
+		if (this.securityEnabled) {
 			HttpSession session = request.getSession(false);
-			if(session != null){
+			if (session != null) {
 				User user = ((User) session.getAttribute(Constants.SESSION_USER));
-				if(user == null) {
-					HashMap<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put("errorMessage", "Session could not be validated in order to upload the insight image");
+				if (user == null) {
+					HashMap<String, String> errorMap = new HashMap<>();
+					errorMap.put(ERROR_MESSAGE, "Session could not be validated in order to upload the insight image");
 					return WebUtility.getResponse(errorMap, 400);
 				}
-				
-				if(user.isAnonymous()) {
-					HashMap<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put("errorMessage", "Must be logged in to upload an insight image");
+
+				if (user.isAnonymous()) {
+					HashMap<String, String> errorMap = new HashMap<>();
+					errorMap.put(ERROR_MESSAGE, "Must be logged in to upload an insight image");
 					return WebUtility.getResponse(errorMap, 400);
 				}
-				
+
 				try {
 					appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appName);
-				} catch(Exception e) {
-					returnMap.put("errorMessage", e.getMessage());
+				} catch (Exception e) {
+					returnMap.put(ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if(!SecurityInsightUtils.userCanEditInsight(user, appId, insightId)) {
-					returnMap.put("errorMessage", "User does not have access to edit this insight within the app");
+				if (!SecurityInsightUtils.userCanEditInsight(user, appId, insightId)) {
+					returnMap.put(ERROR_MESSAGE, "User does not have access to edit this insight within the app");
 					return WebUtility.getResponse(returnMap, 400);
 				}
 				appName = SecurityQueryUtils.getEngineAliasForId(appId);
 			} else {
-				returnMap.put("errorMessage", "User session is invalid");
+				returnMap.put(ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
 			}
 		} else {
 			appId = MasterDatabaseUtility.testEngineIdIfAlias(appName);
 			appName = MasterDatabaseUtility.getEngineAliasForId(appId);
 			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId);
-			if(!(new File(appDir).exists())) {
-				returnMap.put("errorMessage", "Could not find app directory");
+			if (!(new File(appDir).exists())) {
+				returnMap.put(ERROR_MESSAGE, "Could not find app directory");
 				return WebUtility.getResponse(returnMap, 400);
 			}
 		}
-		
+
 		// now that we have the app name
 		// and the image file
 		// we want to write it into the app location
-		String imageDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId;
+		String imageDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR
+				+ "version" + DIR_SEPARATOR + insightId;
 		File f = new File(imageDir);
-		if(!f.exists()) {
+		if (!f.exists()) {
 			f.mkdirs();
 		}
 		String imageLoc = imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
@@ -230,24 +247,25 @@ public class ImageUploader extends Uploader {
 		// and delete them
 		File[] oldImages = findImageFile(f.getParentFile());
 		// delete if any exist
-		if(oldImages != null) {
-			for(File oldI : oldImages) {
+		if (oldImages != null) {
+			for (File oldI : oldImages) {
 				oldI.delete();
 			}
 		}
 		writeFile(imageFile, f);
-		
+
 		returnMap.put("message", "successfully updated insight image");
 		return WebUtility.getResponse(returnMap, 200);
 	}
-	
+
 	/**
 	 * Find an image in the directory
+	 * 
 	 * @param baseDir
 	 * @return
 	 */
 	public static File[] findImageFile(String baseDir) {
-		List<String> extensions = new Vector<String>();
+		List<String> extensions = new Vector<>();
 		extensions.add("image.png");
 		extensions.add("image.jpeg");
 		extensions.add("image.jpg");
@@ -255,24 +273,25 @@ public class ImageUploader extends Uploader {
 		extensions.add("image.svg");
 		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
 		File baseFolder = new File(baseDir);
-		File[] imageFiles = baseFolder.listFiles(imageExtensionFilter);
-		return imageFiles;
+
+		return baseFolder.listFiles(imageExtensionFilter);
 	}
-	
+
 	/**
 	 * Find an image in the directory
+	 * 
 	 * @param baseDir
 	 * @return
 	 */
 	public static File[] findImageFile(File baseFolder) {
-		List<String> extensions = new Vector<String>();
+		List<String> extensions = new Vector<>();
 		extensions.add("image.png");
 		extensions.add("image.jpeg");
 		extensions.add("image.jpg");
 		extensions.add("image.gif");
 		extensions.add("image.svg");
 		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
-		File[] imageFiles = baseFolder.listFiles(imageExtensionFilter);
-		return imageFiles;
+
+		return baseFolder.listFiles(imageExtensionFilter);
 	}
 }

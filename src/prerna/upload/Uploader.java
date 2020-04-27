@@ -51,20 +51,21 @@ import prerna.cache.ICache;
 import prerna.om.InsightStore;
 import prerna.poi.main.HeadersException;
 import prerna.poi.main.helper.CSVFileHelper;
+import prerna.util.Utility;
 
 /**
  * Servlet implementation class Uploader
  */
 @SuppressWarnings("serial")
 public abstract class Uploader extends HttpServlet {
-
-	private static final Logger LOGGER = LogManager.getLogger(Uploader.class);
+	private static final Logger logger = LogManager.getLogger(Uploader.class);
 
 	// get the directory separator
 	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 
 	public static final String CSV_FILE_KEY = "CSV";
 	public static final String CSV_HELPER_MESSAGE = "HTML_RESPONSE";
+	private static final String STACKTRACE = "StackTrace: ";
 
 	protected int maxFileSize = 10_000_000 * 1024;
 	protected int maxMemSize = 8 * 1024;
@@ -77,10 +78,14 @@ public abstract class Uploader extends HttpServlet {
 	boolean autoLoad = false;
 
 	public void setFilePath(String filePath) {
-		if(filePath.endsWith(DIR_SEPARATOR)) {
-			this.filePath = filePath;
+		// first, normalize path
+		String normalizedfilePath = Utility.normalizePath(filePath);
+
+		// then set path
+		if(normalizedfilePath.endsWith(DIR_SEPARATOR)) {
+			this.filePath = normalizedfilePath;
 		} else {
-			this.filePath = filePath + DIR_SEPARATOR;
+			this.filePath = normalizedfilePath + DIR_SEPARATOR;
 		}
 		File f = new File(this.filePath);
 		if(!f.exists() && !f.isDirectory()) {
@@ -89,8 +94,12 @@ public abstract class Uploader extends HttpServlet {
 	}
 
 	public void setTempFilePath(String tempFilePath){
-		this.tempFilePath = tempFilePath;
-		File tFile = new File(tempFilePath);
+		// first, normalize path
+		String normalizedTempFilePath = Utility.normalizePath(tempFilePath);
+
+		// then set path
+		this.tempFilePath = normalizedTempFilePath;
+		File tFile = new File(normalizedTempFilePath);
 		if(!tFile.exists() && !tFile.isDirectory()) {
 			tFile.mkdirs();
 		}
@@ -104,13 +113,17 @@ public abstract class Uploader extends HttpServlet {
 		try {
 			fi.write(file);
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE, e);
 		}
 	}
 
 	protected void deleteFilesFromServer(String[] files) {
 		for(String file : files) {
-			File f = new File(file);
+			// first, normalize path
+			String normalizedFile = Utility.normalizePath(file);
+
+			// then delete
+			File f = new File(normalizedFile);
 			ICache.deleteFile(f);
 		}
 	}
@@ -141,15 +154,12 @@ public abstract class Uploader extends HttpServlet {
 			ProgressListener progressListener = new FileUploadProgressListener(insightId);
 			upload.setProgressListener(progressListener);
 
-			//			long start = System.currentTimeMillis();
 			// Parse the request to get file items
 			fileItems = upload.parseRequest(request);
-			//			long end = System.currentTimeMillis();
-			//			System.out.println("Time to create temp = " + (end - start) + "ms");
-		} catch (FileUploadException e) {
-			e.printStackTrace();
+		} catch (FileUploadException fue) {
+			logger.error(STACKTRACE, fue);
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE, e);
 		}
 		return fileItems;
 	}
@@ -160,12 +170,12 @@ public abstract class Uploader extends HttpServlet {
 		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
 
 		// collect all of the data input on the form
-		Hashtable<String, String> inputData = new Hashtable<String, String>();
+		Hashtable<String, String> inputData = new Hashtable<>();
 		File file;
 
 		while(iteratorFileItems.hasNext()) 
 		{
-			FileItem fi = (FileItem) iteratorFileItems.next();
+			FileItem fi = iteratorFileItems.next();
 			// Get the uploaded file parameters
 			String fieldName = fi.getFieldName();
 			String fileName = fi.getName();
@@ -185,16 +195,13 @@ public abstract class Uploader extends HttpServlet {
 						String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
 						value = this.filePath + fileName.substring(fileName.lastIndexOf(DIR_SEPARATOR) + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + "_____UNIQUE" + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
 						file = new File(value);
-						
-//						long start = System.currentTimeMillis();
+
 						writeFile(fi, file);
-//						long end = System.currentTimeMillis();
-//						System.out.println("Time to write file = " + (end - start) + "ms");
-						LOGGER.info("File item is the actual data. Saved Filename: " + fileName + "  to "+ file);
+						logger.info("File item is the actual data. Saved Filename: " + fileName + "  to "+ file);
 					}
 				}
 			} else {
-				LOGGER.info("File item type is " + fi.getFieldName() + fi.getString());
+				logger.info("File item type is " + fi.getFieldName() + fi.getString());
 			}
 			//need to handle multiple files getting selected for upload
 			if(value == null) {
