@@ -994,10 +994,11 @@ public class NameServer {
 				return WebUtility.getSO("Not properly authenticated");
 			}
 			engines = SecurityQueryUtils.getUserDatabaseList(user);
+			user.setEngines(engines);
 		} else {
 			engines = SecurityQueryUtils.getAllDatabaseList();
 		}
-
+		
 		return WebUtility.getSO(engines);
 	}
 
