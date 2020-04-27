@@ -31,7 +31,7 @@ import prerna.web.conf.util.UserFileLogUtil;
 
 public class PIVFilter implements Filter {
 
-	private static final Logger LOGGER = LogManager.getLogger(PIVFilter.class.getName()); 
+	private static final Logger logger = LogManager.getLogger(PIVFilter.class.getName()); 
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
@@ -111,7 +111,7 @@ public class PIVFilter implements Filter {
 							}
 						} // end rdn loop
 					} catch (InvalidNameException e) {
-						LOGGER.error("ERROR WITH PARSING CAC INFORMATION!");
+						logger.error("ERROR WITH PARSING CAC INFORMATION!");
 						e.printStackTrace();
 					}
 				}
@@ -120,7 +120,7 @@ public class PIVFilter implements Filter {
 				// and it has values filled in
 				// we know we can populate the user
 				if(token.getName() != null) {
-					LOGGER.info("Valid request coming from user " + token.getName());
+					logger.info("Valid request coming from user " + token.getName());
 					user.setAccessToken(token);
 					session.setAttribute(Constants.SESSION_USER, user);
 
@@ -176,18 +176,18 @@ public class PIVFilter implements Filter {
 				String logInfoPath = this.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
 				String logInfoSep = this.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
 				if(logInfoPath == null) {
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 				}
 				try {
 					userLogger = UserFileLogUtil.getInstance(logInfoPath, logInfoSep);
 				} catch(Exception e) {
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
 				}
 			}
 			
@@ -202,18 +202,18 @@ public class PIVFilter implements Filter {
 			if(countUsers) {
 				String countDatabaseId = this.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
 				if(countDatabaseId == null) {
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 				}
 				try {
 					tracker = CACTrackingUtil.getInstance(countDatabaseId);
 				} catch(Exception e) {
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
 				}
 			}
 		}
