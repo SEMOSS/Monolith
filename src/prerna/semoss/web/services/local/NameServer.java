@@ -118,7 +118,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/engine")
 public class NameServer {
-	
+
 	private static final Logger logger = LogManager.getLogger(NameServer.class);
 
 	private static final String ERROR_MESSAGE = "errorMessage";
@@ -854,7 +854,7 @@ public class NameServer {
 	public void killJob(@QueryParam("jobId") String jobId, @Context HttpServletRequest request) {
 		// AsyncResponse myResponse =
 		// (AsyncResponse)ResponseHashSingleton.getResponseforJobId(jobId);
-		SemossThread thread = (SemossThread) ResponseHashSingleton.getThread(jobId);
+		SemossThread thread = ResponseHashSingleton.getThread(jobId);
 		thread.setComplete(true);
 		ResponseHashSingleton.removeThread(jobId);
 
