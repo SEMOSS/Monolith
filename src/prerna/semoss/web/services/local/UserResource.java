@@ -117,8 +117,8 @@ import waffle.servlet.WindowsPrincipal;
 
 @Path("/auth")
 public class UserResource {
-	
-	private static final Logger logger = LogManager.getLogger(UserResource.class.getName());
+
+	private static final Logger logger = LogManager.getLogger(UserResource.class);
 
 	private static final String STACKTRACE = "StackTrace: ";
 	private static Properties socialData = null;
@@ -173,7 +173,7 @@ public class UserResource {
 		boolean dropboxLogin = Boolean.parseBoolean(socialData.getProperty("dropbox_login"));
 		boolean cacLogin = Boolean.parseBoolean(socialData.getProperty("cac_login"));
 		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
-		UserResource.loginsAllowed = new HashMap<String, Boolean>();
+		UserResource.loginsAllowed = new HashMap<>();
 		UserResource.loginsAllowed.put("native", nativeLogin);
 		UserResource.loginsAllowed.put("google", googleLogin);
 		UserResource.loginsAllowed.put("github", githubLogin);
@@ -611,15 +611,16 @@ public class UserResource {
 	
 
 		String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
-		AccessToken accessToken2 = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
+		AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
+				new AccessToken());
 		try {
 			ret.put("name", accessToken2.getProfile());
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE, e);
 		}
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	//////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////
@@ -656,7 +657,7 @@ public class UserResource {
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				logger.debug(">> " + request.getQueryString());
+				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -732,7 +733,7 @@ public class UserResource {
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				logger.debug(">> " + request.getQueryString());
+				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -809,7 +810,7 @@ public class UserResource {
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				logger.debug(">> " + request.getQueryString());
+				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -898,7 +899,7 @@ public class UserResource {
 				String tenant = socialData.getProperty(prefix + "tenant");
 				String scope = socialData.getProperty(prefix + "scope");
 
-				logger.debug(">> " + request.getQueryString());
+				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -981,7 +982,7 @@ public class UserResource {
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				logger.debug(">> " + request.getQueryString());
+				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -1059,7 +1060,7 @@ public class UserResource {
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				logger.debug(">> " + request.getQueryString());
+				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				// I need to decode the return code from google since the default param's are
 				// encoded on the post of getAccessToken
 				String codeDecode = URLDecoder.decode(outputs[0]);
@@ -1166,7 +1167,6 @@ public class UserResource {
 		try {
 			ret.put("files", BeanFiller.getJson(fileList));
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			logger.error(STACKTRACE, e);
 		}
 
@@ -1208,7 +1208,7 @@ public class UserResource {
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				logger.debug(">> " + request.getQueryString());
+				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 
 				Hashtable params = new Hashtable();
 
@@ -1286,7 +1286,7 @@ public class UserResource {
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				logger.debug(">> " + request.getQueryString());
+				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -1357,7 +1357,7 @@ public class UserResource {
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
-			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.GITHUB) == null) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 
 				String[] outputs = AbstractHttpHelper.getCodes(queryString);
 
@@ -1367,7 +1367,7 @@ public class UserResource {
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-				logger.debug(">> " + request.getQueryString());
+				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
@@ -1395,7 +1395,7 @@ public class UserResource {
 
 		// grab the user again
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.GITHUB) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getTwitterRedirect(request));
@@ -1523,7 +1523,6 @@ public class UserResource {
 			if (request.getSession(false) != null) {
 				HttpSession session = request.getSession(false);
 				User print = (User) session.getAttribute(Constants.SESSION_USER);
-				// LOGGER.info("Logging out with: " + print);
 				print.dropAccessToken(AuthProvider.NATIVE.name().toUpperCase());
 				request.getSession().setAttribute(Constants.SESSION_USER, print);
 			} else {
@@ -1793,7 +1792,7 @@ public class UserResource {
 		InsightToken token = new InsightToken();
 		Hashtable outputHash = new Hashtable();
 		try {
-			MessageDigest md = MessageDigest.getInstance("MD5");
+			MessageDigest md = MessageDigest.getInstance("SHA-256");
 			// create the insight token and add to the user
 			// the user has secret and salt
 			token.setSecret(secret);
