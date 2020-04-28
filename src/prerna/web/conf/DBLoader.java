@@ -129,7 +129,7 @@ public class DBLoader implements ServletContextListener {
 				DBLoader.SESSION_ID_KEY = cookieConfig.getName();
 			}
 		}
-
+		
 		logger.info("Initializing application context..." + Utility.cleanLogString(contextPath));
 
 		// Set default file separator system variable
