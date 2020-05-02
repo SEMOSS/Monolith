@@ -3,6 +3,7 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -29,7 +30,13 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.ds.util.RdbmsQueryBuilder;
+import prerna.engine.api.IRawSelectWrapper;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
+import prerna.forms.FormBuilder;
+import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
 import prerna.web.conf.util.UserFileLogUtil;
 
@@ -44,19 +51,19 @@ public class CACFilter implements Filter {
 	private static final String LOG_USER_INFO = "logUserInfo";
 	private static final String LOG_USER_INFO_PATH = "logUserInfoPath";
 	private static final String LOG_USER_INFO_SEP = "logUserInfoSep";
-	
+
 	// realization of init params
 	private static Boolean autoAdd = null;
 	private CACTrackingUtil tracker = null;
 	private UserFileLogUtil userLogger = null;
 
 	private FilterConfig filterConfig;
-	
+
 	// TODO >>>timb: WORKSPACE - call logic to pull workspace here, or make into a reactor
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		setInitParams(arg0);
-		
+
 		X509Certificate[] certs = (X509Certificate[]) arg0.getAttribute("javax.servlet.request.X509Certificate");
 		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 
@@ -69,19 +76,19 @@ public class CACFilter implements Filter {
 				user = new User();
 				token = new AccessToken();
 				token.setProvider(AuthProvider.CAC);
-				
+
 				// values we are trying to grab
 				String cacId = null;
 				String name = null;
 				String email = null;
-				
+
 				// loop through all the certs
 				CERT_LOOP : for(int i = 0; i < certs.length; i++) {
 					X509Certificate cert = certs[i];
 
 					String fullName = cert.getSubjectX500Principal().getName();
 					System.out.println("REQUEST COMING FROM " + fullName);
-					
+
 					LdapName ldapDN;
 					try {
 						ldapDN = new LdapName(fullName);
@@ -91,7 +98,7 @@ public class CACFilter implements Filter {
 								// try next rdn
 								continue;
 							}
-							
+
 							// get the full value
 							String value = rdn.getValue().toString();
 
@@ -122,7 +129,7 @@ public class CACFilter implements Filter {
 								// try next rdn
 								continue;
 							}
-							
+
 							// just going to validate the cac has length 10
 							cacId = split[split.length-1];
 							if(cacId.length() < 10) {
@@ -130,7 +137,7 @@ public class CACFilter implements Filter {
 								// try next rdn
 								continue;
 							}
-							
+
 							// if we got to here, we have a valid cac!
 							name = Stream.of(split).limit(split.length-1).collect(Collectors.joining(" "));
 							// we also need to get the email since that is what we will store
@@ -153,23 +160,18 @@ public class CACFilter implements Filter {
 								e.printStackTrace();
 							}
 
-							// lets make sure we have all the stuff
-							if(email != null & name != null) {
-								// we have everything!
-								// this is the only time we populate the token
-								// and then exit the cert loop
-								
+							if(email != null) {
 								// lower case the email
+								// and try to update it in all the different locations
 								email = email.toLowerCase();
-								
-								token.setId(email);
-								token.setEmail(email);
-								token.setName(name);
-								
-								// if we get here, we have a valid cac
-//								updateCacUsersStorage(cacId, email);
-								break CERT_LOOP;
+								updateCacUsersStorage(email, cacId);
 							}
+							token.setId(email);
+							token.setEmail(email);
+							token.setName(name);
+
+							// if we get here, we have a valid cac
+							break CERT_LOOP;
 						} // end rdn loop
 					} catch (InvalidNameException e) {
 						LOGGER.error("ERROR WITH PARSING CAC INFORMATION!");
@@ -189,13 +191,13 @@ public class CACFilter implements Filter {
 					if(CACFilter.autoAdd) {
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
-					
+
 					// new user has entered!
 					// do we need to count?
 					if(tracker != null && !token.getName().equals("TOPAZ")) {
 						tracker.addToQueue(LocalDate.now());
 					}
-					
+
 					// are we logging their information?
 					if(userLogger != null && !token.getName().equals("TOPAZ")) {
 						userLogger.addToQueue(new String[] {cacId, email, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))});
@@ -212,12 +214,12 @@ public class CACFilter implements Filter {
 		// TODO Auto-generated method stub
 
 	}
-	
+
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
 		this.filterConfig = arg0;
 	}
-	
+
 	private void setInitParams(ServletRequest arg0) {
 		if(CACFilter.autoAdd == null) {
 			String autoAddStr = this.filterConfig.getInitParameter(AUTO_ADD);
@@ -259,7 +261,7 @@ public class CACFilter implements Filter {
 			} else {
 				countUsers = false;
 			}
-			
+
 			if(countUsers) {
 				String countDatabaseId = this.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
 				if(countDatabaseId == null) {
@@ -280,48 +282,106 @@ public class CACFilter implements Filter {
 		}
 	}
 
-//	@Deprecated
-//	/**
-//	 * We only have this because we need to update the way we store these users
-//	 */
-//	private void updateCacUsersStorage(String previousId, String email) {
-//		String cleanEmail = RdbmsQueryBuilder.escapeForSQLStatement(email);
-//		RDBMSNativeEngine securityDb = (RDBMSNativeEngine) Utility.getEngine(Constants.SECURITY_DB);
-//		
-//		// let us not try to run this multiple times...
-//		String requireUpdateQuery = "SELECT * FROM USER WHERE ID='" + previousId +"'";
-//		IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(securityDb, requireUpdateQuery);
-//		try {
-//			// if we have next
-//			// that means we need to update
-//			// from id to email
-//			if(wrapper.hasNext()) {
-//				// need to update all the places the user id is used
-//				String updateQuery = "UPDATE USER SET ID='" +  cleanEmail +"', EMAIL='" + cleanEmail + "' WHERE ID='" + previousId + "'";
-//				try {
-//					securityDb.insertData(updateQuery);
-//				} catch (SQLException e) {
-//					e.printStackTrace();
-//				}
-//				
-//				// need to update all the places the user id is used
-//				updateQuery = "UPDATE ENGINEPERMISSION SET USERID='" +  cleanEmail +"' WHERE USERID='" + previousId + "'";
-//				try {
-//					securityDb.insertData(updateQuery);
-//				} catch (SQLException e) {
-//					e.printStackTrace();
-//				}
-//				
-//				// need to update all the places the user id is used
-//				updateQuery = "UPDATE USERINSIGHTPERMISSION SET USERID='" +  cleanEmail +"' WHERE USERID='" + previousId + "'";
-//				try {
-//					securityDb.insertData(updateQuery);
-//				} catch (SQLException e) {
-//					e.printStackTrace();
-//				}
-//			} 
-//		} finally {
-//			wrapper.cleanUp();
-//		}
-//	}
+	/**
+	 * We only have this because we need to update the way we store these users
+	 */
+	@Deprecated
+	private void updateCacUsersStorage(String previousId, String newId) {
+		String cleanOldId = RdbmsQueryBuilder.escapeForSQLStatement(previousId);
+		String cleanNewId = RdbmsQueryBuilder.escapeForSQLStatement(newId);
+		{
+			// security update block
+			RDBMSNativeEngine securityDb = (RDBMSNativeEngine) Utility.getEngine(Constants.SECURITY_DB);
+	
+			// let us not try to run this multiple times...
+			String requireUpdateQuery = "SELECT * FROM USER WHERE ID='" + cleanOldId +"'";
+			IRawSelectWrapper wrapper = null;
+			try {
+				wrapper = WrapperManager.getInstance().getRawWrapper(securityDb, requireUpdateQuery);
+				// if we have next
+				// that means we need to update
+				// from id to email
+				if(wrapper.hasNext()) {
+					// need to update all the places the user id is used
+					String updateQuery = "UPDATE USER SET ID='" +  cleanNewId +"' WHERE ID='" + cleanOldId + "'";
+					try {
+						securityDb.insertData(updateQuery);
+					} catch (SQLException e) {
+						e.printStackTrace();
+					}
+	
+					// need to update all the places the user id is used
+					updateQuery = "UPDATE ENGINEPERMISSION SET USERID='" +  cleanNewId +"' WHERE USERID='" + cleanOldId + "'";
+					try {
+						securityDb.insertData(updateQuery);
+					} catch (SQLException e) {
+						e.printStackTrace();
+					}
+	
+					// need to update all the places the user id is used
+					updateQuery = "UPDATE USERINSIGHTPERMISSION SET USERID='" +  cleanNewId +"' WHERE USERID='" + cleanOldId + "'";
+					try {
+						securityDb.insertData(updateQuery);
+					} catch (SQLException e) {
+						e.printStackTrace();
+					}
+				}
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			} finally {
+				if(wrapper != null) {
+					wrapper.cleanUp();
+				}
+			}
+		}
+		
+		{
+			RDBMSNativeEngine formEngine = (RDBMSNativeEngine) Utility.getEngine(FormBuilder.FORM_BUILDER_ENGINE_NAME);
+			if(formEngine != null) {
+				// let us not try to run this multiple times...
+				String requireUpdateQuery = "SELECT * FROM FORMS_USER_ACCESS WHERE USER_ID='" + cleanOldId +"'";
+				IRawSelectWrapper wrapper = null;
+				try {
+					wrapper = WrapperManager.getInstance().getRawWrapper(formEngine, requireUpdateQuery);
+					// if we have next
+					// that means we need to update
+					// from id to email
+					if(wrapper.hasNext()) {
+						
+						// form builder update block
+						String emailColumnExists = "SELECT COLUMN_NAME, TYPE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'FORMS_USER_ACCESS' AND COLUMN_NAME='EMAIL'";
+						IRawSelectWrapper requireFormUpdateWrapper = null;
+						try {
+							requireFormUpdateWrapper = WrapperManager.getInstance().getRawWrapper(formEngine, emailColumnExists);
+							if(!requireFormUpdateWrapper.hasNext()) {
+								formEngine.insertData("ALTER TABLE FORMS_USER_ACCESS ADD COLUMN IF NOT EXISTS EMAIL VARCHAR(200);");
+								formEngine.insertData("UPDATE FORMS_USER_ACCESS SET EMAIL = USER_ID;");
+							}
+						} catch (Exception e) {
+							e.printStackTrace();
+						} finally {
+							if(requireFormUpdateWrapper != null) {
+								requireFormUpdateWrapper.cleanUp();
+							}
+						}
+						
+						// now that the schema is in place, lets update the values
+						String updateQuery = "UPDATE FORMS_USER_ACCESS SET USER_ID='" +  cleanNewId +"' WHERE USER_ID='" + cleanOldId + "'";
+						try {
+							formEngine.insertData(updateQuery);
+						} catch (SQLException e) {
+							e.printStackTrace();
+						}
+						
+					}
+				} catch (Exception e1) {
+					e1.printStackTrace();
+				} finally {
+					if(wrapper != null) {
+						wrapper.cleanUp();
+					}
+				}
+			}
+		}
+	}
 }
