@@ -166,7 +166,7 @@ public class CACFilter implements Filter {
 								email = email.toLowerCase();
 								updateCacUsersStorage(email, cacId);
 							}
-							token.setId(email);
+							token.setId(cacId);
 							token.setEmail(email);
 							token.setName(name);
 
