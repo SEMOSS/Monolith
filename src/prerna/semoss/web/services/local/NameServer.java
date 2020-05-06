@@ -363,11 +363,7 @@ public class NameServer {
 		HttpSession session = null;
 		String sessionId = null;
 		User user = null;
-
-		PyTranslator pyt = null;
 		Insight insight = null;
-		PyExecutorThread jepThread = null;
-		String port = null;
 
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		// If security is enabled try to get an existing session.
@@ -389,60 +385,7 @@ public class NameServer {
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 			sessionId = session.getId();
 		}
-		// need to see if the user is enabling python here.. I will assume it is here
-		if (session.getAttribute(Constants.PYTHON) != null) {
-			pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-			port = (String) session.getAttribute("PORT");
-		}
-
-		if (PyUtils.pyEnabled() && pyt == null) {
-			// i do not want to make more than 1 py thread per session
-			// and this method is called many times
-			synchronized (sessionId) {
-				boolean useFilePy = DIHelper.getInstance().getProperty("USE_PY_FILE") != null
-						&& DIHelper.getInstance().getProperty("USE_PY_FILE").equalsIgnoreCase("true");
-				boolean useTCP = DIHelper.getInstance().getProperty("USE_TCP_PY") != null
-						&& DIHelper.getInstance().getProperty("USE_TCP_PY").equalsIgnoreCase("true");
-				useTCP = useFilePy; // forcing it to be same as TCP
-
-				if (!useFilePy) {
-					if (session.getAttribute(Constants.PYTHON) != null) {
-						pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-					}
-					if (jepThread == null) {
-						jepThread = PyUtils.getInstance().getJep();
-						pyt = new PyTranslator();
-						pyt.setPy(jepThread);
-					}
-				}
-				// check to see if the py translator needs to be set ?
-				else if (useFilePy && session.getAttribute("USER_TUPLE") == null) {
-					if (useTCP) {
-						port = DIHelper.getInstance().getProperty("FORCE_PORT"); // this means someone has started it
-																					// for debug
-						if (port == null) {
-							port = Utility.findOpenPort();
-							session.setAttribute("USER_TUPLE", PyUtils.getInstance().startPyServe(user,
-									DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), port));
-							NettyClient nc = new NettyClient();
-							nc.connect("127.0.0.1", Integer.parseInt(port), false);
-							Thread t = new Thread(nc);
-							t.start();
-							user.setPyServe(nc);
-							pyt = new TCPPyTranslator();
-							((TCPPyTranslator) pyt).nc = nc;
-						}
-						session.setAttribute("PORT", port);
-					} else {
-						session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(user,
-								DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
-						pyt = new FilePyTranslator();
-					}
-				}
-				session.setAttribute(Constants.PYTHON, pyt);
-			}
-		}
-
+		
 		String jobId = "";
 		String insightId = request.getParameter("insightId");
 		String expression = request.getParameter("expression");
@@ -467,54 +410,50 @@ public class NameServer {
 				errorMap.put(ERROR_MESSAGE, "Could not find the insight id");
 				return WebUtility.getResponse(errorMap, 400);
 			}
-			// make sure we have the correct session trying to get this id
-			// #soMuchSecurity
-			// Set<String> sessionStore =
-			// InsightStore.getInstance().getInsightIDsForSession(sessionId);
-			// if(sessionStore == null || !sessionStore.contains(insightId)) {
-			// Map<String, String> errorMap = new HashMap<String, String>();
-			// errorMap.put(ERROR_MESSAGE, "Trying to access insight id from incorrect
-			// session");
-			// return WebUtility.getResponse(errorMap, 400);
-			// }
 		}
-		// synchronized(insight) {
 		// set the user
 		insight.setUser(user);
-		// if(jepThread != null)
-		// insight.setPy(jepThread);
-		insight.setPyTranslator(pyt);
 
-		if (insight.getTupleSpace() == null && session.getAttribute("USER_TUPLE") != null) {
-			// try to see if the insight directory has been created in the tuplespace
-			String curTupleSpace = session.getAttribute("USER_TUPLE") + "";
-			insight.setTupleSpace(createInsightTupleSpace(curTupleSpace, insightId));
+		// if no python, we are done
+		// execute and return
+		if(!PyUtils.pyEnabled()) {
+			return runPixelJob(user, insight, expression, jobId, insightId, sessionId);
+		}
+		
+		// set python into the insight
+		PyTranslator pyt = null;
+		// need to see if the user is enabling python here.. I will assume it is here
+		if (session.getAttribute(Constants.PYTHON) != null) {
+			pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
 		}
 
-		JobManager manager = JobManager.getManager();
-		JobThread jt = manager.makeJob(insightId);
-		jobId = jt.getJobId();
-		session.setAttribute(jobId + "", "TRUE");
-
-		// set in thread
-		ThreadStore.setInsightId(insightId);
-		ThreadStore.setSessionId(sessionId);
-		ThreadStore.setJobId(jobId);
-		ThreadStore.setUser(user);
-
-		String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
-//			// add the job first
-//			// so we can do things like logging
-		jt.addPixel(job);
-		// then add the expression
-		jt.addPixel(expression);
-		jt.setInsight(insight);
-		jt.run();
-		PixelRunner pixelRunner = jt.getRunner();
-
-		manager.flushJob(jobId);
-		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner)).build();
-//		}
+		if(pyt != null) {
+			insight.setPyTranslator(pyt);
+			if (insight.getTupleSpace() == null && session.getAttribute("USER_TUPLE") != null) {
+				// try to see if the insight directory has been created in the tuplespace
+				String curTupleSpace = session.getAttribute("USER_TUPLE") + "";
+				insight.setTupleSpace(createInsightTupleSpace(curTupleSpace, insightId));
+			}
+			return runPixelJob(user, insight, expression, jobId, insightId, sessionId);
+		}
+		
+		// i do not want to make more than 1 py thread per session
+		// and this method is called many times
+		synchronized (sessionId) {
+			if(pyt == null) {
+				setPythonForSession(session, sessionId, user);
+			}
+			
+			pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
+			insight.setPyTranslator(pyt);
+			if (insight.getTupleSpace() == null && session.getAttribute("USER_TUPLE") != null) {
+				// try to see if the insight directory has been created in the tuplespace
+				String curTupleSpace = session.getAttribute("USER_TUPLE") + "";
+				insight.setTupleSpace(createInsightTupleSpace(curTupleSpace, insightId));
+			}
+			
+			return runPixelJob(user, insight, expression, jobId, insightId, sessionId);
+		}
 	}
 
 	@POST
@@ -524,10 +463,7 @@ public class NameServer {
 		HttpSession session = null;
 		String sessionId = null;
 		User user = null;
-		PyExecutorThread jepThread = null;
-		PyTranslator pyt = null;
-		String port = null;
-
+		
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		// If security is enabled try to get an existing session.
 		// Otherwise get a session with the default user.
@@ -549,67 +485,7 @@ public class NameServer {
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 			sessionId = session.getId();
 		}
-		// need to see if the user is enabling python here.. I will assume it is here
-		if (session.getAttribute(Constants.PYTHON) != null) {
-			pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-		}
-
-		if (session.getAttribute("PORT") != null)
-			port = (String) session.getAttribute("PORT");
-
-		if (PyUtils.pyEnabled() && pyt == null) {
-			// i do not want to make more than 1 py thread per session
-			// and this method is called many times
-			synchronized (sessionId) {
-				if (session.getAttribute(Constants.PYTHON) != null) {
-					pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-				}
-
-				boolean useFilePy = DIHelper.getInstance().getProperty("USE_PY_FILE") != null
-						&& DIHelper.getInstance().getProperty("USE_PY_FILE").equalsIgnoreCase("true");
-				boolean useTCP = DIHelper.getInstance().getProperty("USE_TCP_PY") != null
-						&& DIHelper.getInstance().getProperty("USE_TCP_PY").equalsIgnoreCase("true");
-				useTCP = useFilePy; // forcing it to be same as TCP
-
-				if (!useFilePy) {
-					if (session.getAttribute(Constants.PYTHON) != null) {
-						pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-					}
-					if (jepThread == null) {
-						jepThread = PyUtils.getInstance().getJep();
-						pyt = new PyTranslator();
-						pyt.setPy(jepThread);
-					}
-				}
-				// check to see if the py translator needs to be set ?
-				else if (useFilePy && session.getAttribute("USER_TUPLE") == null) {
-					if (useTCP) {
-						port = DIHelper.getInstance().getProperty("FORCE_PORT"); // this means someone has started it
-																					// for debug
-						if (port == null) {
-							port = Utility.findOpenPort();
-							session.setAttribute("USER_TUPLE", PyUtils.getInstance().startPyServe(user,
-									DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), port));
-							NettyClient nc = new NettyClient();
-							nc.connect("127.0.0.1", Integer.parseInt(port), false);
-							Thread t = new Thread(nc);
-							t.start();
-							user.setPyServe(nc);
-							pyt = new TCPPyTranslator();
-							((TCPPyTranslator) pyt).nc = nc;
-						}
-						session.setAttribute("PORT", port);
-					} else {
-						session.setAttribute("USER_TUPLE", PyUtils.getInstance().getTempTupleSpace(user,
-								DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR)));
-						pyt = new FilePyTranslator();
-					}
-				}
-				session.setAttribute(Constants.PYTHON, pyt);
-
-			}
-		}
-
+		
 		String insightId = request.getParameter("insightId");
 		String expression = request.getParameter("expression");
 		Insight insight = InsightStore.getInstance().get(insightId);
@@ -618,27 +494,151 @@ public class NameServer {
 			errorMap.put(ERROR_MESSAGE, "Could not find the insight id");
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		// make sure we have the correct session trying to get this id
-		// #soMuchSecurity
-		// Set<String> sessionStore =
-		// InsightStore.getInstance().getInsightIDsForSession(sessionId);
-		// if(sessionStore == null || !sessionStore.contains(insightId)) {
-		// Map<String, String> errorMap = new HashMap<String, String>();
-		// errorMap.put(ERROR_MESSAGE, "Trying to access insight id from incorrect
-		// session");
-		// return WebUtility.getResponse(errorMap, 400);
-		// }
-		synchronized (insight) {
-			// set the user
-			insight.setUser(user);
-			insight.setPy(jepThread);
+		
+		// set the user
+		insight.setUser(user);
+		// set in thread
+		ThreadStore.setInsightId(insightId);
+		ThreadStore.setSessionId(sessionId);
+		ThreadStore.setUser(user);
+					
+		// if no python, we are done
+		// execute and return
+		if(!PyUtils.pyEnabled()) {
+			return getInsightPipeline(insight, expression);
+		}
+		
+		// set python into the insight
+		PyTranslator pyt = null;
+		// need to see if the user is enabling python here.. I will assume it is here
+		if (session.getAttribute(Constants.PYTHON) != null) {
+			pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
+		}
+
+		if(pyt != null) {
 			insight.setPyTranslator(pyt);
+			if (insight.getTupleSpace() == null && session.getAttribute("USER_TUPLE") != null) {
+				// try to see if the insight directory has been created in the tuplespace
+				String curTupleSpace = session.getAttribute("USER_TUPLE") + "";
+				insight.setTupleSpace(createInsightTupleSpace(curTupleSpace, insightId));
+			}
+			return getInsightPipeline(insight, expression);
+		}
+		
+		// i do not want to make more than 1 py thread per session
+		// and this method is called many times
+		synchronized (sessionId) {
+			if(pyt == null) {
+				setPythonForSession(session, sessionId, user);
+			}
+			
+			pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
+			insight.setPyTranslator(pyt);
+			if (insight.getTupleSpace() == null && session.getAttribute("USER_TUPLE") != null) {
+				// try to see if the insight directory has been created in the tuplespace
+				String curTupleSpace = session.getAttribute("USER_TUPLE") + "";
+				insight.setTupleSpace(createInsightTupleSpace(curTupleSpace, insightId));
+			}
+			
+			return getInsightPipeline(insight, expression);
+		}
+	}
+	
+	
+	/**
+	 * 
+	 * @param user
+	 * @param insight
+	 * @param expression
+	 * @param jobId
+	 * @param insightId
+	 * @param sessionId
+	 * @return
+	 */
+	private Response runPixelJob(User user, Insight insight, String expression, String jobId, String insightId, String sessionId) {
+		JobManager manager = JobManager.getManager();
+		JobThread jt = manager.makeJob(insightId);
+		jobId = jt.getJobId();
 
-			// set in thread
-			ThreadStore.setInsightId(insightId);
-			ThreadStore.setSessionId(sessionId);
-			ThreadStore.setUser(user);
+		// set in thread
+		ThreadStore.setInsightId(insightId);
+		ThreadStore.setSessionId(sessionId);
+		ThreadStore.setJobId(jobId);
+		ThreadStore.setUser(user);
 
+		String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
+		// add the job first
+		// so we can do things like logging
+		jt.addPixel(job);
+		// then add the expression
+		jt.addPixel(expression);
+		jt.setInsight(insight);
+		jt.run();
+		PixelRunner pixelRunner = jt.getRunner();
+
+		manager.flushJob(jobId);
+		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner)).build();
+	}
+	
+	/**
+	 * 
+	 * @param session
+	 * @param sessionId
+	 * @param user
+	 */
+	private void setPythonForSession(HttpSession session, String sessionId, User user) {
+		PyTranslator pyt = null;
+		PyExecutorThread jepThread = null;
+		String port = null;
+		
+		boolean useFilePy = Boolean.parseBoolean(DIHelper.getInstance().getProperty("USE_PY_FILE"));
+		boolean useTCP = Boolean.parseBoolean(DIHelper.getInstance().getProperty("USE_TCP_PY"));
+		useTCP = useFilePy; // forcing it to be same as TCP
+
+		if (!useFilePy) {
+			if (session.getAttribute(Constants.PYTHON) != null) {
+				pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
+			}
+			if (jepThread == null) {
+				jepThread = PyUtils.getInstance().getJep();
+				pyt = new PyTranslator();
+				pyt.setPy(jepThread);
+			}
+		}
+		// check to see if the py translator needs to be set ?
+		else if (useFilePy && session.getAttribute("USER_TUPLE") == null) {
+			if (useTCP) {
+				port = DIHelper.getInstance().getProperty("FORCE_PORT"); // this means someone has started it
+				if (port == null) {
+					port = Utility.findOpenPort();
+					session.setAttribute("USER_TUPLE", PyUtils.getInstance().startPyServe(user,
+							DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), port));
+					NettyClient nc = new NettyClient();
+					nc.connect("127.0.0.1", Integer.parseInt(port), false);
+					Thread t = new Thread(nc);
+					t.start();
+					user.setPyServe(nc);
+					pyt = new TCPPyTranslator();
+					((TCPPyTranslator) pyt).nc = nc;
+				}
+				session.setAttribute("PORT", port);
+			} else {
+				String userTuple = PyUtils.getInstance().getTempTupleSpace(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR));
+				session.setAttribute("USER_TUPLE", userTuple);
+				pyt = new FilePyTranslator();
+			}
+		}
+		session.setAttribute(Constants.PYTHON, pyt);
+	}
+	
+	/**
+	 * 
+	 * @param insight
+	 * @param expression
+	 * @return
+	 */
+	private Response getInsightPipeline(Insight insight, String expression) {
+		synchronized (insight) {
 			try {
 				return Response.status(200)
 						.entity(GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline(insight, expression)))
