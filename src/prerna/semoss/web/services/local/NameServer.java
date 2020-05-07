@@ -440,10 +440,17 @@ public class NameServer {
 		// i do not want to make more than 1 py thread per session
 		// and this method is called many times
 		synchronized (sessionId) {
+			
+			// adding in a check here again to see if pyt from the session is null. This is because the previous check is outside the sync
+			//block and multiple threads see it as null
+			//moving the sync block up will lead to sync's on the run pixel job when unneeded
+			if (session.getAttribute(Constants.PYTHON) != null) {
+				pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
+			}
+
 			if(pyt == null) {
 				setPythonForSession(session, sessionId, user);
 			}
-			
 			pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
 			insight.setPyTranslator(pyt);
 			if (insight.getTupleSpace() == null && session.getAttribute("USER_TUPLE") != null) {
@@ -528,6 +535,12 @@ public class NameServer {
 		// i do not want to make more than 1 py thread per session
 		// and this method is called many times
 		synchronized (sessionId) {
+			// adding in a check here again to see if pyt from the session is null. This is because the previous check is outside the sync
+			//block and multiple threads see it as null
+			if (session.getAttribute(Constants.PYTHON) != null) {
+				pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
+			}
+
 			if(pyt == null) {
 				setPythonForSession(session, sessionId, user);
 			}
