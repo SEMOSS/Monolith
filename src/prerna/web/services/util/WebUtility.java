@@ -31,6 +31,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.util.List;
+import java.util.Vector;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.NewCookie;
@@ -53,6 +55,12 @@ public class WebUtility {
 	private static final String CLASS_NAME = WebUtility.class.getName();
 	private static final Logger LOGGER = Logger.getLogger(CLASS_NAME);
 
+	private static final List<String[]> noCacheHeaders = new Vector<String[]>();
+	static {
+		noCacheHeaders.add(new String[] {"Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"});
+		noCacheHeaders.add(new String[] {"Pragma", "no-cache"});
+	}
+	
 	private static Gson getDefaultGson() {
 		return GsonUtility.getDefaultGson();
 	}
@@ -82,12 +90,26 @@ public class WebUtility {
 	}
 
 	public static Response getResponse(Object vec, int status, NewCookie... cookies) {
+		return getResponse(vec, status, null, cookies);
+	}
+	
+	public static Response getResponseNoCache(Object vec, int status, NewCookie... cookies) {
+		return getResponse(vec, status, noCacheHeaders, cookies);
+	}
+	
+	public static Response getResponse(Object vec, int status, List<String[]> addHeaders, NewCookie... cookies) {
 		if(vec != null) {
 			Gson gson = getDefaultGson();
 			try {
 				final byte[] output = gson.toJson(vec).getBytes("UTF8");
 				int length = output.length;
 				ResponseBuilder builder = Response.status(status).entity(WebUtility.getSO(output)).header("Content-Length", length);
+				if(addHeaders != null && !addHeaders.isEmpty()) {
+					for(int i = 0; i < addHeaders.size(); i++) {
+						String[] headerInfo = addHeaders.get(i);
+						builder.header(headerInfo[0], headerInfo[1]);
+					}
+				}
 				if(cookies != null && cookies.length > 0) {
 					builder.cookie(cookies);
 				}
