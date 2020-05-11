@@ -589,8 +589,10 @@ public class NameServer {
 		jt.run();
 		PixelRunner pixelRunner = jt.getRunner();
 
-		manager.flushJob(jobId);
-		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner)).build();
+		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
+				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+				.header("Pragma", "no-cache")
+				.build();
 	}
 	
 	/**
@@ -754,21 +756,21 @@ public class NameServer {
 	@POST
 	@Path("/status")
 	@Produces("application/json")
-	public StreamingOutput status(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response status(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Object dataReturn = "NULL";
 		HttpSession session = request.getSession(true);
 		String jobId = form.getFirst("jobId");
 		if (session.getAttribute(jobId) != null) {
 			dataReturn = JobManager.getManager().getStatus(jobId);
 		}
-		return WebUtility.getSO(dataReturn);
+		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
 
 	// std outputs and errors
 	@POST
 	@Path("/console")
 	@Produces("application/json")
-	public StreamingOutput console(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response console(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Object dataReturn = "NULL";
 		String jobId = form.getFirst("jobId");
 		// HttpSession session = request.getSession(true);
@@ -776,20 +778,20 @@ public class NameServer {
 		// if(jobId != null)
 		dataReturn = JobManager.getManager().getStdOut(jobId);
 		// }
-		return WebUtility.getSO(dataReturn);
+		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
 
 	@POST
 	@Path("/error")
 	@Produces("application/json")
-	public StreamingOutput error(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	public Response error(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Object dataReturn = "NULL";
 		String jobId = form.getFirst("jobId");
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		dataReturn = JobManager.getManager().getError(jobId);
 		// }
-		return WebUtility.getSO(dataReturn);
+		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
 
 	// close / terminate job
