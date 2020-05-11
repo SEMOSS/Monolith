@@ -704,7 +704,7 @@ public class UserResource {
 				+ "&response_type=code" + "&redirect_uri=" + redirectUri + "&scope="
 				+ URLEncoder.encode("api", "UTF-8");
 
-		logger.debug("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		return redirectUrl;
 	}
 
@@ -780,7 +780,7 @@ public class UserResource {
 		String redirectUrl = "https://api.surveymonkey.com/oauth/authorize?" + "client_id=" + clientId
 				+ "&response_type=code" + "&redirect_uri=" + redirectUri;
 
-		logger.debug("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		return redirectUrl;
 	}
 
@@ -868,7 +868,7 @@ public class UserResource {
 				+ redirectUri + "&state=" + UUID.randomUUID().toString() + "&allow_signup=true" + "&scope="
 				+ URLEncoder.encode(scope, "UTF-8");
 
-		logger.debug("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		return redirectUrl;
 	}
 
@@ -952,7 +952,7 @@ public class UserResource {
 				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
 				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
 
-		logger.debug("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 
 		return redirectUrl;
 	}
@@ -1030,7 +1030,7 @@ public class UserResource {
 				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&require_role="
 				+ role + "&disable_signup=false";
 
-		logger.debug("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		return redirectUrl;
 	}
 
@@ -1123,7 +1123,7 @@ public class UserResource {
 				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&access_type="
 				+ accessType + "&scope=" + URLEncoder.encode(scope, "UTF-8") + "&state=" + state;
 
-		logger.debug("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		return redirectUrl;
 	}
 
@@ -1257,7 +1257,7 @@ public class UserResource {
 				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&scope="
 				+ URLEncoder.encode(scope, "UTF-8");
 
-		logger.debug("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		return redirectUrl;
 	}
 
@@ -1331,7 +1331,7 @@ public class UserResource {
 				+ "&redirect_uri=" + redirectUri + "&state=" + UUID.randomUUID().toString() + "&response_type=code"
 				+ "&scope=" + URLEncoder.encode(scope, "UTF-8");
 
-		logger.debug("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		return redirectUrl;
 	}
 
@@ -1433,7 +1433,7 @@ public class UserResource {
 				+ "&oauth_callback=" + redirectUri + "&oauth_nonce=" + nonce + "&oauth_timestamp=" + timestamp
 				+ "&scope=" + URLEncoder.encode(scope, "UTF-8");
 
-		logger.debug("Sending redirect.. " + redirectUrl);
+		logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 
 		return redirectUrl;
 	}
@@ -1825,7 +1825,7 @@ public class UserResource {
 				}
 			}
 
-			logger.debug("Redirect URL " + redir);
+			logger.debug("Redirect URL " + Utility.cleanLogString(redir));
 			outputHash.put("PARAM", redir);
 			// also tell the system that this session is not fully validated so if someone
 			// comes without secret on this session
