@@ -183,8 +183,8 @@ public class ServerConfigurationResource {
 				}
 			}
 		}
-
-		return WebUtility.getResponse(getConfig(request), 200, newCookies.toArray(new NewCookie[] {}));
+		
+		return WebUtility.getResponseNoCache(getConfig(request), 200, newCookies.toArray(new NewCookie[] {}));
 	}
 
 }
