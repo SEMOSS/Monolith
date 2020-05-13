@@ -43,6 +43,7 @@ import prerna.web.conf.util.UserFileLogUtil;
 public class CACFilter implements Filter {
 
 	private static final Logger logger = LogManager.getLogger(CACFilter.class); 
+	private static final String STACKTRACE = "StackTrace: ";
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
@@ -157,7 +158,7 @@ public class CACFilter implements Filter {
 									}
 								}
 							} catch (CertificateParsingException e) {
-								e.printStackTrace();
+					    		logger.error(STACKTRACE, e);
 							}
 
 							if(email != null) {
@@ -175,7 +176,7 @@ public class CACFilter implements Filter {
 						} // end rdn loop
 					} catch (InvalidNameException e) {
 						logger.error("ERROR WITH PARSING CAC INFORMATION!");
-						e.printStackTrace();
+			    		logger.error(STACKTRACE, e);
 					}
 				}
 
@@ -307,7 +308,7 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-						e.printStackTrace();
+			    		logger.error(STACKTRACE, e);
 					}
 	
 					// need to update all the places the user id is used
@@ -315,7 +316,7 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-						e.printStackTrace();
+			    		logger.error(STACKTRACE, e);
 					}
 	
 					// need to update all the places the user id is used
@@ -323,11 +324,11 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-						e.printStackTrace();
+			    		logger.error(STACKTRACE, e);
 					}
 				}
 			} catch (Exception e1) {
-				e1.printStackTrace();
+	    		logger.error(STACKTRACE, e1);
 			} finally {
 				if(wrapper != null) {
 					wrapper.cleanUp();
@@ -358,7 +359,7 @@ public class CACFilter implements Filter {
 								formEngine.insertData("UPDATE FORMS_USER_ACCESS SET EMAIL = USER_ID;");
 							}
 						} catch (Exception e) {
-							e.printStackTrace();
+				    		logger.error(STACKTRACE, e);
 						} finally {
 							if(requireFormUpdateWrapper != null) {
 								requireFormUpdateWrapper.cleanUp();
@@ -370,12 +371,12 @@ public class CACFilter implements Filter {
 						try {
 							formEngine.insertData(updateQuery);
 						} catch (SQLException e) {
-							e.printStackTrace();
+				    		logger.error(STACKTRACE, e);
 						}
 						
 					}
 				} catch (Exception e1) {
-					e1.printStackTrace();
+		    		logger.error(STACKTRACE, e1);
 				} finally {
 					if(wrapper != null) {
 						wrapper.cleanUp();

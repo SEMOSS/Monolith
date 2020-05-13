@@ -74,7 +74,8 @@ import prerna.web.services.util.WebUtility;
 
 public class EngineResource {
 
-	private static final Logger LOGGER = Logger.getLogger(EngineResource.class.getName());
+	private static final Logger logger = Logger.getLogger(EngineResource.class);
+	private static final String STACKTRACE = "StackTrace: ";
 
 	// gets everything specific to an engine
 	// essentially this is a wrapper over the engine
@@ -82,7 +83,7 @@ public class EngineResource {
 
 	public void setEngine(IEngine coreEngine)
 	{
-		LOGGER.info("Setting core engine to " + coreEngine);
+		logger.info("Setting core engine to " + coreEngine);
 		this.coreEngine = coreEngine;
 	}
 
@@ -137,7 +138,7 @@ public class EngineResource {
 				}
 			}
 		}
-		System.out.println(query);
+		logger.info(Utility.cleanLogString(query));
 		
 		// flush data out
 		List<Object[]> data = new Vector<Object[]>();
@@ -148,7 +149,7 @@ public class EngineResource {
 				data.add(wrapper.next().getRawValues());
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 		} finally {
 			if(wrapper != null) {
 				wrapper.cleanUp();
@@ -273,7 +274,7 @@ public class EngineResource {
 				FormBuilder.commitFormData(this.coreEngine, engineHash, userId);
 			}
 		} catch(Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			return WebUtility.getResponse(gson.toJson(e.getMessage()), 400);
 		}
 
@@ -290,7 +291,7 @@ public class EngineResource {
 		try {
 			auditInfo = FormBuilder.getAuditDataForEngine(this.coreEngine.getEngineId());
 		} catch(Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			return WebUtility.getResponse(gson.toJson(e.getMessage()), 400);
 		}
 
