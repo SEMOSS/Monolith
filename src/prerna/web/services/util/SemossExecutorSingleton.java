@@ -3,10 +3,14 @@ package prerna.web.services.util;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.apache.log4j.Logger;
+
 import prerna.web.services.util.SemossThread;
 
 public class SemossExecutorSingleton {
 	
+	private static final Logger logger = Logger.getLogger(SemossExecutorSingleton.class);
+
 	static SemossExecutorSingleton singleton = null;
 	ExecutorService service = null;
 	int count = 0;
@@ -40,7 +44,7 @@ public class SemossExecutorSingleton {
 		String jobId = "j" + count;
 		((SemossThread)t).setJobId(jobId);
 		service.execute(t);
-		System.out.println("Serving thread" + "j" + count);
+		logger.info("Serving thread" + "j" + count);
 		return jobId;
 	}
 }

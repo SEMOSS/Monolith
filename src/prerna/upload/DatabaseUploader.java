@@ -80,6 +80,8 @@ import prerna.web.services.util.WebUtility;
 @Deprecated
 public class DatabaseUploader extends Uploader {
 	private static final Logger logger = LogManager.getLogger(DatabaseUploader.class);
+	private static final String STACKTRACE = "StackTrace: ";
+
 	// we will control the adding of the engine into local master and solr
 	// such that we dont send a success before those processes are complete
 	boolean autoLoad = false;
@@ -514,7 +516,7 @@ public class DatabaseUploader extends Uploader {
 				helper.clear();
 			}
 		} catch(Exception e) { 
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			
 			// grab the error thrown and send it to the FE
 			HashMap<String, String> errorMap = new HashMap<>();
@@ -670,18 +672,18 @@ public class DatabaseUploader extends Uploader {
 							.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
 				}
 			} catch (IOException e) {
-				e.printStackTrace();
+	    		logger.error(STACKTRACE, e);
 				Map<String, String> errorHash = new HashMap<>();
 				errorHash.put("errorMessage", "Failure to write CSV Prop File based on user-defined metamodel.");
 				return Response.status(400).entity(gson.toJson(errorHash)).build();
 			} 
 		} catch (IOException e) {
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch(Exception e) {
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
@@ -963,7 +965,7 @@ public class DatabaseUploader extends Uploader {
 				metaModelData.add(fileMetaModelData);
 			}
 		} catch(Exception e) { 
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			
 			// grab the error thrown and send it to the FE
 			HashMap<String, String> errorMap = new HashMap<>();
@@ -1022,12 +1024,12 @@ public class DatabaseUploader extends Uploader {
 			ImportDataProcessor importer = new ImportDataProcessor();
 			importer.runProcessor(options);
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch(Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
@@ -1067,7 +1069,7 @@ public class DatabaseUploader extends Uploader {
 		try {
 			ret = importer.getSchemaDetails(driver, hostname, port, username, password, schema, additionalProperties);
 		} catch(Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			if(e.getMessage() != null) {
 				ret.put("errorMessage", e.getMessage());
 			} else {
@@ -1260,7 +1262,7 @@ public class DatabaseUploader extends Uploader {
 				br.close();
 			}
 		} catch(Exception e) { 
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			// grab the error thrown and send it to the FE
 			HashMap<String, String> errorMap = new HashMap<>();
 			errorMap.put("errorMessage", e.getMessage());
@@ -1382,12 +1384,12 @@ public class DatabaseUploader extends Uploader {
 			ImportDataProcessor importer = new ImportDataProcessor();
 			importer.runProcessor(options);
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch(Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
@@ -1416,7 +1418,7 @@ public class DatabaseUploader extends Uploader {
 						.concat("_").concat(dateName).concat("_PROP.prop")), propFileArr[i]);
 			}
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", "Failure to write Excel Prop File based on user-defined metamodel.");
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
@@ -1464,7 +1466,7 @@ public class DatabaseUploader extends Uploader {
 					writer = new PrintWriter(inputText);
 					writer.write(inputData.get("nlptext").toString());
 				} catch (FileNotFoundException e) {
-					e.printStackTrace();
+					logger.error(STACKTRACE,e);
 				} finally {
 					if(writer != null) {
 						writer.close();
@@ -1508,12 +1510,12 @@ public class DatabaseUploader extends Uploader {
 			ImportDataProcessor importer = new ImportDataProcessor();
 			importer.runProcessor(options);
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
 		} catch(Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			Map<String, String> errorHash = new HashMap<>();
 			errorHash.put("errorMessage", e.getMessage());
 			return Response.status(400).entity(gson.toJson(errorHash)).build();
@@ -1612,12 +1614,12 @@ public class DatabaseUploader extends Uploader {
 //			ImportDataProcessor importer = new ImportDataProcessor();
 //			importer.runProcessor(options);
 //		} catch (IOException e) {
-//			e.printStackTrace();
+//			logger.error(STACKTRACE,e);
 //			Map<String, String> errorHash = new HashMap<String, String>();
 //			errorHash.put("errorMessage", e.getMessage());
 //			return Response.status(400).entity(gson.toJson(errorHash)).build();
 //		} catch(Exception e) {
-//			e.printStackTrace();
+//			logger.error(STACKTRACE,e);
 //			Map<String, String> errorHash = new HashMap<String, String>();
 //			errorHash.put("errorMessage", e.getMessage());
 //			return Response.status(400).entity(gson.toJson(errorHash)).build();
@@ -1707,12 +1709,12 @@ public class DatabaseUploader extends Uploader {
 //			ImportDataProcessor importer = new ImportDataProcessor();
 //			importer.runProcessor(options);
 //		} catch (IOException e) {
-//			e.printStackTrace();
+//			logger.error(STACKTRACE,e);
 //			Map<String, String> errorHash = new HashMap<String, String>();
 //			errorHash.put("errorMessage", e.getMessage());
 //			return Response.status(400).entity(gson.toJson(errorHash)).build();
 //		} catch(Exception e) {
-//			e.printStackTrace();
+//			logger.error(STACKTRACE,e);
 //			Map<String, String> errorHash = new HashMap<String, String>();
 //			errorHash.put("errorMessage", e.getMessage());
 //			return Response.status(400).entity(gson.toJson(errorHash)).build();
@@ -1825,7 +1827,7 @@ public class DatabaseUploader extends Uploader {
 //			try {
 //				connector.processExistingSolrConnection(appName, appID, solrURL, coreName  );
 //			} catch (IOException e) {
-//				e.printStackTrace();
+//				logger.error(STACKTRACE,e);
 //				Map<String, Object> errorMap = new HashMap<String, Object>();
 //				errorMap.put("errorMessage", e.getMessage());
 //				return WebUtility.getResponse(errorMap, 400);
