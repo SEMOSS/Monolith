@@ -40,6 +40,9 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import prerna.engine.api.IConstructWrapper;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRemoteQueryable;
@@ -51,6 +54,7 @@ import prerna.rdf.engine.wrappers.SesameSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.Utility;
 import prerna.web.services.util.GraphStreamingOutput;
 import prerna.web.services.util.QueryResultHash;
 import prerna.web.services.util.TupleStreamingOutput;
@@ -59,6 +63,8 @@ import prerna.web.services.util.WebUtility;
 // the primary class that will expose any engine through a remote interface
 
 public class EngineRemoteResource {
+	
+	private static final Logger logger = LogManager.getLogger(EngineRemoteResource.class); 
 	
 	public IEngine coreEngine = null;
 	String output = null;
@@ -107,7 +113,7 @@ public class EngineRemoteResource {
 		// Create a wrapper object
 		// The wrapper consists of a unique number, the actual output object
 		// sets this wrapper in the memory
-		System.out.println("Executing GRAPH Query " + query);
+		logger.info("Executing GRAPH Query " + Utility.cleanLogString(query));
 		
 		IConstructWrapper sjw = null;
 		try {
@@ -133,7 +139,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public Object execSelectQuery(@FormParam("query") String query) {
 		// TODO Auto-generated method stub
-		System.out.println("Executing Select Query  " + query);
+		logger.info("Executing Select Query  " + Utility.cleanLogString(query));
 		AbstractWrapper sjsw = null;
 		try {
 			sjsw = (AbstractWrapper) WrapperManager.getInstance().getSWrapper(coreEngine, query);
@@ -154,7 +160,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public Object execCheaterQuery(@FormParam("query") String query) {
 		// TODO Auto-generated method stub
-		System.out.println("Executing Select Query  " + query);
+		logger.info("Executing Select Query  " + Utility.cleanLogString(query));
 		AbstractWrapper sjsw = null;
 		try {
 			sjsw = (AbstractWrapper) WrapperManager.getInstance().getChWrapper(coreEngine, query);
@@ -207,7 +213,7 @@ public class EngineRemoteResource {
 	@Produces("application/text")
 	public String getInsightDefinition() {
 		// TODO Auto-generated method stub
-		System.out.println("ENgine is " + coreEngine);
+		logger.info("ENgine is " + coreEngine);
 		return coreEngine.getInsightDefinition();
 	}
 
@@ -226,12 +232,12 @@ public class EngineRemoteResource {
 	public StreamingOutput hasNext(@FormParam("id") String id)
 	{
 		boolean retValue = false;
-		System.out.println("Got the id " + id);
+		logger.info("Got the id " + id);
 		if(id != null)
 		{
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
 
-			System.out.println("Got the object as well" + wrapper);
+			logger.info("Got the object as well" + wrapper);
 //			if(wrapper instanceof SesameJenaConstructWrapper)
 //				retValue = ((SesameJenaConstructWrapper)wrapper).hasNext();
 //			else if(wrapper instanceof SesameJenaSelectWrapper)
@@ -254,12 +260,12 @@ public class EngineRemoteResource {
 	public StreamingOutput getDisplayVariables(@FormParam("id") String id)
 	{
 		String [] retValue = null;
-		System.out.println("Got the id " + id);
+		logger.info("Got the id " + id);
 		if(id != null)
 		{
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
 
-			System.out.println("Got the object as well" + wrapper);
+			logger.info("Got the object as well" + wrapper);
 //			if(wrapper instanceof SesameJenaConstructWrapper)
 //				retValue = ((SesameJenaConstructWrapper)wrapper).hasNext();
 //			else if(wrapper instanceof SesameJenaSelectWrapper)
@@ -269,7 +275,7 @@ public class EngineRemoteResource {
 
 			if(wrapper instanceof SesameSelectWrapper)
 			{
-				System.out.println(" Select.... ");
+				logger.info(" Select.... ");
 				retValue = ((SesameSelectWrapper)wrapper).getDisplayVariables();
 				//return new TupleStreamingOutput(((SesameSelectWrapper)(wrapper)).tqr);
 			}
@@ -291,17 +297,17 @@ public class EngineRemoteResource {
 			QueryResultHash.getInstance().cleanObject(id);
 			if(wrapper instanceof SesameSelectCheater)
 			{
-				System.out.println(" Cheater.... ");
+				logger.info(" Cheater.... ");
 				return new TupleStreamingOutput(((SesameSelectCheater)wrapper).tqr);
 			}
 			else if(wrapper instanceof SesameConstructWrapper)
 			{
-				System.out.println(" Construct.... ");
+				logger.info(" Construct.... ");
 				return new GraphStreamingOutput(((SesameConstructWrapper)(wrapper)).gqr);				
 			}
 			else if(wrapper instanceof SesameSelectWrapper)
 			{
-				System.out.println(" Select.... ");
+				logger.info(" Select.... ");
 				return new TupleStreamingOutput(((SesameSelectWrapper)(wrapper)).tqr);
 			}
 		}

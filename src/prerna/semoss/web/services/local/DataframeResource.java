@@ -26,12 +26,11 @@ import prerna.web.services.util.WebUtility;
 
 public class DataframeResource {
 
-	private static final Logger LOGGER = LogManager.getLogger(DataframeResource.class.getName());
+	private static final Logger logger = LogManager.getLogger(DataframeResource.class); 
 	
 	@Context
 	ServletContext context;
 
-	Logger logger = Logger.getLogger(DataframeResource.class.getName());
 	Insight insight = null;
 
 //	@POST

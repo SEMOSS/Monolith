@@ -42,7 +42,7 @@ import prerna.web.conf.util.UserFileLogUtil;
 
 public class CACFilter implements Filter {
 
-	private static final Logger LOGGER = LogManager.getLogger(CACFilter.class.getName()); 
+	private static final Logger logger = LogManager.getLogger(CACFilter.class); 
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
@@ -87,7 +87,7 @@ public class CACFilter implements Filter {
 					X509Certificate cert = certs[i];
 
 					String fullName = cert.getSubjectX500Principal().getName();
-					System.out.println("REQUEST COMING FROM " + fullName);
+					logger.info("REQUEST COMING FROM " +  Utility.cleanLogString(fullName));
 
 					LdapName ldapDN;
 					try {
@@ -113,7 +113,7 @@ public class CACFilter implements Filter {
 								// now set the other properties
 								token.setToken_type(cert.getIssuerDN().getName());
 								token.setExpires_in((int) cert.getNotAfter().getTime());
-								LOGGER.info("Request coming from TOPAZ");
+								logger.info("Request coming from TOPAZ");
 								break CERT_LOOP;
 							}
 
@@ -174,7 +174,7 @@ public class CACFilter implements Filter {
 							break CERT_LOOP;
 						} // end rdn loop
 					} catch (InvalidNameException e) {
-						LOGGER.error("ERROR WITH PARSING CAC INFORMATION!");
+						logger.error("ERROR WITH PARSING CAC INFORMATION!");
 						e.printStackTrace();
 					}
 				}
@@ -183,7 +183,7 @@ public class CACFilter implements Filter {
 				// and it has values filled in
 				// we know we can populate the user
 				if(token.getName() != null) {
-					LOGGER.info("Valid request coming from user " + token.getName());
+					logger.info("Valid request coming from user " + token.getName());
 					user.setAccessToken(token);
 					session.setAttribute(Constants.SESSION_USER, user);
 
@@ -239,18 +239,18 @@ public class CACFilter implements Filter {
 				String logInfoPath = this.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
 				String logInfoSep = this.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
 				if(logInfoPath == null) {
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 				}
 				try {
 					userLogger = UserFileLogUtil.getInstance(logInfoPath, logInfoSep);
 				} catch(Exception e) {
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
 				}
 			}
 
@@ -265,18 +265,18 @@ public class CACFilter implements Filter {
 			if(countUsers) {
 				String countDatabaseId = this.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
 				if(countDatabaseId == null) {
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 				}
 				try {
 					tracker = CACTrackingUtil.getInstance(countDatabaseId);
 				} catch(Exception e) {
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
 				}
 			}
 		}
