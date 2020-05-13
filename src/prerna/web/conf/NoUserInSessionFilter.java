@@ -32,6 +32,7 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.requests.MultiReadHttpServletRequest;
 
 public class NoUserInSessionFilter implements Filter {
@@ -81,7 +82,7 @@ public class NoUserInSessionFilter implements Filter {
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 
-			String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
+			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 			String contextPath = ((HttpServletRequest) arg0).getContextPath();
 
 			// REALLY DISLIKE THIS CHECK!!!
@@ -115,7 +116,7 @@ public class NoUserInSessionFilter implements Filter {
 					HttpServletRequest req = (HttpServletRequest) arg0;
 
 					if (req.getParameter(DBLoader.getSessionIdKey()) != null) {
-						String sessionId = req.getParameter(DBLoader.getSessionIdKey());
+						String sessionId = Utility.cleanHttpResponse(req.getParameter(DBLoader.getSessionIdKey()));
 						// create the cookie add it and sent it back
 						Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
 						k.setPath(contextPath);
@@ -136,7 +137,7 @@ public class NoUserInSessionFilter implements Filter {
 								.filter(s -> s.startsWith("route")).collect(Collectors.toSet());
 						if (routes != null && !routes.isEmpty()) {
 							for (String r : routes) {
-								Cookie c = new Cookie(r, req.getParameter(r));
+								Cookie c = new Cookie(r, Utility.cleanHttpResponse(req.getParameter(r)));
 								c.setPath(contextPath);
 								((HttpServletResponse) arg1).addCookie(c);
 							}
@@ -144,7 +145,7 @@ public class NoUserInSessionFilter implements Filter {
 
 						// add the hash cookie
 						String hash = req.getParameter("hash");
-						Cookie h = new Cookie("HASH", hash);
+						Cookie h = new Cookie("HASH", Utility.cleanHttpResponse(hash));
 						h.setPath(contextPath);
 						((HttpServletResponse) arg1).addCookie(h);
 
@@ -194,7 +195,7 @@ public class NoUserInSessionFilter implements Filter {
 				// {@link UserResource#setMainPageRedirect(@Context HttpServletRequest request,
 				// @Context HttpServletResponse response)}
 				// is sent to the pop-up for OAuth login
-				String endpointRedirectUrl = (String) session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY);
+				String endpointRedirectUrl = Utility.cleanHttpResponse((String) session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY));
 				if (endpointRedirectUrl != null && !endpointRedirectUrl.isEmpty()) {
 					((HttpServletResponse) arg1).setHeader("redirect", endpointRedirectUrl);
 					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + endpointRedirectUrl);
@@ -244,7 +245,7 @@ public class NoUserInSessionFilter implements Filter {
 					// we have the required input, but is it valid
 					InsightToken token = user.getInsight(insightId);
 					try {
-						MessageDigest md = MessageDigest.getInstance("MD5");
+						MessageDigest md = MessageDigest.getInstance("SHA-256");
 						String finalData = token.getSalt() + secret;
 						byte[] digest = md.digest(finalData.getBytes());
 						StringBuffer sb = new StringBuffer();
@@ -291,7 +292,7 @@ public class NoUserInSessionFilter implements Filter {
 	 * @throws IOException
 	 */
 	private void setInvalidEntryRedirect(ServletContext context, ServletRequest arg0, ServletResponse arg1, String endpoint) throws IOException {
-		String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
+		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 		((HttpServletResponse) arg1).setStatus(302);
 		String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
 		// if no referrer

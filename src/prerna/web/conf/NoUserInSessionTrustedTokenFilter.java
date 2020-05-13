@@ -24,6 +24,7 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.util.Constants;
+import prerna.util.Utility;
 
 public class NoUserInSessionTrustedTokenFilter implements Filter {
 
@@ -34,7 +35,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 	private static List<String> trustedDomains = null;
 
 	// maps from the IP the user is coming in with the cookie
-	private static Map<String, String> sessionMapper = new Hashtable<String, String>();
+	private static Map<String, String> sessionMapper = new Hashtable<>();
 
 	private FilterConfig filterConfig;
 
@@ -45,7 +46,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-			String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
+			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 			String contextPath = ((HttpServletRequest) arg0).getContextPath();
 			HttpSession session = ((HttpServletRequest) arg0).getSession(false);
 
@@ -178,7 +179,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 		// the token domains
 		if(NoUserInSessionTrustedTokenFilter.trustedDomains == null) {
 			String [] trustedIPs = this.filterConfig.getInitParameter(NoUserInSessionTrustedTokenFilter.TRUSTED_TOKEN_DOMAIN).split(";");
-			NoUserInSessionTrustedTokenFilter.trustedDomains = new Vector<String>();
+			NoUserInSessionTrustedTokenFilter.trustedDomains = new Vector<>();
 			for(String trustedIP : trustedIPs) {
 				NoUserInSessionTrustedTokenFilter.trustedDomains.add(trustedIP.toLowerCase());
 			}
