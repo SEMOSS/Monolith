@@ -354,7 +354,6 @@ public class EngineRemoteResource {
 	{
 		   return new StreamingOutput() {
 		         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-		            PrintStream ps = new PrintStream(outputStream);
 		            ObjectOutputStream os = new ObjectOutputStream(outputStream);
 		            Integer myInt = null;
 		            for(int i = 0;i< 1000000;i++)

@@ -55,7 +55,6 @@ public class TupleStreamingOutput implements StreamingOutput {
 	public void write(OutputStream outputStream) throws IOException,
 			WebApplicationException {
 	            ObjectOutputStream os = new ObjectOutputStream(outputStream);
-	            Integer myInt = null;
 	            try {
 	            	logger.info("Writing Objects ");
 					while(gqr.hasNext())
