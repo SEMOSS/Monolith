@@ -313,7 +313,11 @@ public class UserResource {
 			} else {
 				String redirectUrl = request.getHeader("referer");
 				if (DBLoader.useLogoutPage()) {
-					String scheme = request.getScheme(); // http
+					String scheme = request.getScheme();
+					if (!scheme.trim().equalsIgnoreCase("https") &&
+						!scheme.trim().equalsIgnoreCase("http")) {
+						throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
+					}
 					String serverName = request.getServerName(); // hostname.com
 					int serverPort = request.getServerPort(); // 8080
 					String contextPath = request.getContextPath(); // /Monolith
@@ -1473,7 +1477,7 @@ public class UserResource {
 		try {
 			String username = request.getParameter("username");
 			String password = request.getParameter("password");
-			String redirect = request.getParameter("redirect");
+			String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("enableRedirect") + "");
 
 			boolean emptyCredentials = (username == null || password == null || username.isEmpty()
