@@ -533,7 +533,7 @@ public class DatabaseUploader extends Uploader {
 	@Produces("application/json")
 	public Response uploadCSVFile(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Gson gson = new Gson();
-		System.out.println(form);
+		logger.info(form);
 
 		ImportOptions options = null;
 		String[] propFileArr = null;
@@ -986,7 +986,7 @@ public class DatabaseUploader extends Uploader {
 		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
-		System.out.println(inputData);
+		logger.info(inputData);
 
 		Gson gson = new Gson();
 		ImportOptions options = null;
@@ -1289,7 +1289,7 @@ public class DatabaseUploader extends Uploader {
 		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
-		System.out.println(inputData);
+		logger.info(inputData);
 
 		ImportOptions options = null;
 		String[] propFileArr = null;
@@ -1435,7 +1435,7 @@ public class DatabaseUploader extends Uploader {
 		List<FileItem> fileItems = processRequest(request, null);
 		// collect all of the data input on the form
 		Hashtable<String, String> inputData = getInputData(fileItems);
-		System.out.println(inputData);
+		logger.info(inputData);
 
 		Gson gson = new Gson();
 		// we need to keep track of which NLP items loaded are files verses websites
