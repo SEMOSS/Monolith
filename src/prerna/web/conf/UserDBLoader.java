@@ -32,9 +32,14 @@ import java.util.Map;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import prerna.cluster.util.ZKClient;
 
 public class UserDBLoader implements ServletContextListener {
+
+	private static final Logger logger = LogManager.getLogger(UserDBLoader.class); 
 
 	@Override
 	public void contextDestroyed(ServletContextEvent arg0) {
@@ -47,7 +52,7 @@ public class UserDBLoader implements ServletContextListener {
 	public void contextInitialized(ServletContextEvent arg0) {
 		// TODO Auto-generated method stub
 		// given a particular user this would load the databases specific to this user
-		System.out.println("Initializing the context 2");
+		logger.info("Initializing the context 2");
 		publish();
 		// need to think through this later
 		// this would add the user specific databases

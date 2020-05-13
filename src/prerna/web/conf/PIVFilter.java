@@ -26,12 +26,13 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
 import prerna.web.conf.util.UserFileLogUtil;
 
 public class PIVFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(PIVFilter.class.getName()); 
+	private static final Logger logger = LogManager.getLogger(PIVFilter.class); 
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
@@ -75,7 +76,7 @@ public class PIVFilter implements Filter {
 					X509Certificate cert = certs[i];
 
 					String fullName = cert.getSubjectX500Principal().getName();
-					System.out.println("REQUEST COMING FROM " + fullName);
+					logger.info("REQUEST COMING FROM " + Utility.cleanLogString(fullName));
 					
 					LdapName ldapDN;
 					try {
