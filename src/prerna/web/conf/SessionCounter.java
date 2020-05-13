@@ -7,7 +7,7 @@ import javax.servlet.http.HttpSessionListener;
 
 public class SessionCounter implements HttpSessionListener {
 
-	private static AtomicInteger activeSessions = new AtomicInteger(0);
+	private static volatile AtomicInteger activeSessions = new AtomicInteger(0);
 
 	/* 
 	 * Simple listener to count the number of active sessions
