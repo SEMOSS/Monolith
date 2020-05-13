@@ -187,6 +187,12 @@ public class SessionResource {
 				response.sendError(302, "Need to redirect to " + customUrl);
 			} else {
 				String scheme = request.getScheme(); // http
+
+				if (!scheme.trim().equalsIgnoreCase("https") &&
+					!scheme.trim().equalsIgnoreCase("http")) {
+					throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
+				}
+
 				String serverName = request.getServerName(); // hostname.com
 				int serverPort = request.getServerPort(); // 8080
 				String contextPath = request.getContextPath(); // /Monolith
