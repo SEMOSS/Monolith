@@ -204,6 +204,7 @@ public class InstanceStreamer {
 		});
 	}
 
+	
 	/**
 	 * Testing section.
 	 * 
@@ -212,6 +213,8 @@ public class InstanceStreamer {
 	 * list 3) Create 1M random strings with length 10, time how long it takes to
 	 * create tree, and search if any of them start with "tomato".
 	 */
+	
+	/*
 	public static void main(String[] args) {
 		Object[] strArray = { "course", "dearth", "overseas", "podcast", "portrait", "advertising", "contract", "clean",
 				"endurance", "fresh", "guitar", "wear", "jackpot", "tool", "post", "space", "brunette", "big", "cheek",
@@ -410,4 +413,5 @@ public class InstanceStreamer {
 		}
 		logger.debug("Testing complete.");
 	}
+	*/
 }

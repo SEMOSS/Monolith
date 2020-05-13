@@ -276,8 +276,8 @@ public class UserResource {
 			String workspaceEngineId = null;
 
 			if (thisUser.getLogins().size() == 1) {
-				assetEngineId = thisUser.getAssetEngineId(token);
-				workspaceEngineId = thisUser.getWorkspaceEngineId(token);
+				thisUser.getAssetEngineId(token);
+				thisUser.getWorkspaceEngineId(token);
 			}
 			removed = thisUser.dropAccessToken(token);
 			if (thisUser.getLogins().isEmpty()) {

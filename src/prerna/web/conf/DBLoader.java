@@ -186,8 +186,7 @@ public class DBLoader implements ServletContextListener {
 	}
 
 	public void loadEngines() {
-		String watcherStr = DIHelper.getInstance().getProperty(Constants.ENGINE_WEB_WATCHER);
-		StringTokenizer watchers = new StringTokenizer(watcherStr, ";");
+		StringTokenizer watchers = new StringTokenizer(DIHelper.getInstance().getProperty(Constants.ENGINE_WEB_WATCHER), ";");
 		try {
 			while (watchers.hasMoreElements()) {
 				Object monitor = new Object();
