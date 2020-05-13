@@ -289,7 +289,7 @@ public class AppResource {
 	private static String getEmbedLogo() {
 		if(AppResource.defaultEmbedLogo == null) {
 			String embedFileName = DIHelper.getInstance().getProperty(Constants.EMBED_URL_LOGO);
-			if(embedFileName.equalsIgnoreCase("NONE")) {
+			if(embedFileName == null || embedFileName.equalsIgnoreCase("NONE")) {
 				AppResource.noLogo = true;
 				AppResource.defaultEmbedLogo = "NONE";
 			} else {
