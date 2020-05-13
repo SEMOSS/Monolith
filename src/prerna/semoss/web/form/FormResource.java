@@ -16,6 +16,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import org.apache.log4j.Logger;
+
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.ds.util.RdbmsQueryBuilder;
@@ -32,6 +34,8 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/form")
 public class FormResource {
+
+	private static final Logger logger = Logger.getLogger(FormResource.class);
 
 	private IEngine formEngine;
 
@@ -89,7 +93,7 @@ public class FormResource {
 			// commit to engine
 			formEngine.commit();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("Stacktrace: " , e);
 			return WebUtility.getResponse("An error occured to update the user's access!", 400);
 		}
 
@@ -192,8 +196,8 @@ public class FormResource {
 				userAccessableInstances.put(values[0].toString(), values[1].toString());
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
+			logger.error("Stacktrace: " , e);
+			} finally {
 			if(wrapper != null) {
 				wrapper.cleanUp();
 			}
@@ -245,8 +249,8 @@ public class FormResource {
 				throw new IllegalAccessException("User is not an admin and cannot perform this operation");
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
+			logger.error("Stacktrace: " , e);
+			} finally {
 			if(wrapper != null) {
 				wrapper.cleanUp();
 			}
@@ -272,8 +276,8 @@ public class FormResource {
 				throw new IllegalAccessException("User is not an admin and cannot perform this operation");
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
+			logger.error("Stacktrace: " , e);
+			} finally {
 			if(wrapper != null) {
 				wrapper.cleanUp();
 			}

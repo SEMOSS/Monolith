@@ -15,6 +15,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import org.apache.log4j.Logger;
+
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityQueryUtils;
@@ -25,6 +27,9 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/auth/app")
 public class AppAuthorizationResource {
+
+	private static final Logger logger = Logger.getLogger(AppAuthorizationResource.class);
+	private static final String STACKTRACE = "StackTrace: ";
 
 	@Context
 	protected ServletContext context;
@@ -250,12 +255,12 @@ public class AppAuthorizationResource {
 		try {
 			SecurityAppUtils.setAppGlobal(user, engineId, isPublic);
 		} catch(IllegalArgumentException e) {
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
@@ -290,12 +295,12 @@ public class AppAuthorizationResource {
 		try {
 			SecurityUpdateUtils.setDbVisibility(user, appId, isPublic);
 		} catch(IllegalArgumentException e) {
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
