@@ -52,7 +52,7 @@ public class NoUserExistsFilter implements Filter {
 
 						// this will be the full path of the request
 						// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-						String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
+						String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 
 						// we redirect to the index.html page where we have pushed the admin page
 						String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + SET_ADMIN_HTML;

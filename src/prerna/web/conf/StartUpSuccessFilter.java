@@ -12,6 +12,8 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import prerna.util.Utility;
+
 public class StartUpSuccessFilter implements Filter {
 
 	private static boolean startUpSuccess = true;
@@ -27,7 +29,7 @@ public class StartUpSuccessFilter implements Filter {
 			
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-			String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
+			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 
 			if(!fullUrl.endsWith(FAIL_HTML)) {
 				// we redirect to the index.html page where we have pushed the admin page
