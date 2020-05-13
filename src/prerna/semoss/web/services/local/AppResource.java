@@ -30,6 +30,7 @@ import javax.ws.rs.core.Response.ResponseBuilder;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -52,6 +53,9 @@ public class AppResource {
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	private static String defaultEmbedLogo = null;
 	private static boolean noLogo = false;
+	
+	private static final Logger logger = Logger.getLogger(AppResource.class);
+	private static final String STACKTRACE = "StackTrace: ";
 	
 	private boolean canAccessApp(User user, String appId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
@@ -536,7 +540,7 @@ public class AppResource {
 			try {
 				fis.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+	    		logger.error(STACKTRACE, e);
 			}
 		}
 	}
@@ -572,7 +576,7 @@ public class AppResource {
 				// return file
 				return Response.status(200).entity(byteArray).build();
 			} catch (IOException e) {
-				e.printStackTrace();
+	    		logger.error(STACKTRACE, e);
 			} finally {
 				closeStream(fis);
 			}

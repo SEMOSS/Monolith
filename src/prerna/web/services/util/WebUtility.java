@@ -81,8 +81,7 @@ public class WebUtility {
 						}
 					}};
 			} catch (UnsupportedEncodingException e) {
-				e.printStackTrace();
-				LOGGER.error("Failed to write object to stream");
+				LOGGER.error("Failed to write object to stream. Stacktrace: ", e);
 			}      
 		}
 
@@ -115,7 +114,7 @@ public class WebUtility {
 				}
 				return builder.build();
 			} catch (UnsupportedEncodingException e) {
-				e.printStackTrace();
+				LOGGER.error("Stacktrace: ", e);
 			}
 			return Response.status(200).entity(WebUtility.getSO(vec)).build();
 		}
@@ -135,8 +134,7 @@ public class WebUtility {
 					}
 				}};
 		} catch (Exception e) {
-			e.printStackTrace();
-			LOGGER.error("Failed to write object to stream");
+			LOGGER.error("Failed to write object to stream. Stacktrace: ",e);
 		}      
 
 		return null;

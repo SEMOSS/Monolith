@@ -44,6 +44,8 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.log4j.Logger;
+
 import com.google.gson.Gson;
 
 import prerna.auth.User;
@@ -57,6 +59,8 @@ import prerna.web.services.util.WebUtility;
 @Path("/authorization")
 public class AuthorizationResource {
 
+	private static final Logger logger = Logger.getLogger(AuthorizationResource.class);
+	private static final String STACKTRACE = "StackTrace: ";
 	@Context
 	protected ServletContext context;
 
@@ -103,11 +107,11 @@ public class AuthorizationResource {
 				return WebUtility.getResponse(errorRet, 400);
 			}
 		} catch (IllegalArgumentException e){
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
@@ -229,12 +233,12 @@ public class AuthorizationResource {
 		try {
 			addedRequests = SecurityUpdateUtils.makeRequest(user, engineId, requestedPermission);
 		} catch(IllegalArgumentException e) {
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
@@ -260,12 +264,12 @@ public class AuthorizationResource {
 		try {
 			userRequests = SecurityQueryUtils.getUserAccessRequests(user);
 		} catch(IllegalArgumentException e) {
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
-			e.printStackTrace();
+    		logger.error(STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);

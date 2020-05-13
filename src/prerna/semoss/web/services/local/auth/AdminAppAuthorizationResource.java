@@ -14,12 +14,16 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
+import org.apache.log4j.Logger;
+
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/app")
 public class AdminAppAuthorizationResource extends AbstractAdminResource {
+
+	private static final Logger logger = Logger.getLogger(AdminAppAuthorizationResource.class);
 
 	@Context
 	protected ServletContext context;
@@ -210,7 +214,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setAppGlobal(engineId, isPublic);
 		} catch (Exception e){
-			e.printStackTrace();
+			logger.error("Stacktrace: ",e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
