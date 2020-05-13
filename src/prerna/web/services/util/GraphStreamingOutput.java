@@ -50,7 +50,6 @@ public class GraphStreamingOutput implements StreamingOutput {
 	public void write(OutputStream outputStream) throws IOException,
 			WebApplicationException {
 	            ObjectOutputStream os = new ObjectOutputStream(outputStream);
-	            Integer myInt = null;
 	            try {
 					while(gqr.hasNext())
 						os.writeObject(gqr.next());
