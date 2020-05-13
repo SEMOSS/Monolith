@@ -33,6 +33,7 @@ import prerna.web.conf.util.UserFileLogUtil;
 public class PIVFilter implements Filter {
 
 	private static final Logger logger = LogManager.getLogger(PIVFilter.class); 
+	private static final String STACKTRACE = "StackTrace: ";
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
@@ -113,7 +114,7 @@ public class PIVFilter implements Filter {
 						} // end rdn loop
 					} catch (InvalidNameException e) {
 						logger.error("ERROR WITH PARSING CAC INFORMATION!");
-						e.printStackTrace();
+						logger.error(STACKTRACE,e);
 					}
 				}
 
