@@ -414,57 +414,7 @@ public class NameServer {
 		// set the user
 		insight.setUser(user);
 
-		// if no python, we are done
-		// execute and return
-		// this should do it
-		//if(!PyUtils.pyEnabled()) 
-		{
-			return runPixelJob(user, insight, expression, jobId, insightId, sessionId);
-		}
-		
-		// set python into the insight
-		// not needed anymore
-		/*
-		PyTranslator pyt = null;
-		// need to see if the user is enabling python here.. I will assume it is here
-		if (session.getAttribute(Constants.PYTHON) != null) {
-			pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-		}
-
-		if(pyt != null) {
-			insight.setPyTranslator(pyt);
-			if (insight.getTupleSpace() == null && session.getAttribute("USER_TUPLE") != null) {
-				// try to see if the insight directory has been created in the tuplespace
-				String curTupleSpace = session.getAttribute("USER_TUPLE") + "";
-				insight.setTupleSpace(createInsightTupleSpace(curTupleSpace, insightId));
-			}
-			return runPixelJob(user, insight, expression, jobId, insightId, sessionId);
-		}
-		
-		// i do not want to make more than 1 py thread per session
-		// and this method is called many times
-		synchronized (sessionId) {
-			
-			// adding in a check here again to see if pyt from the session is null. This is because the previous check is outside the sync
-			//block and multiple threads see it as null
-			//moving the sync block up will lead to sync's on the run pixel job when unneeded
-			if (session.getAttribute(Constants.PYTHON) != null) {
-				pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-			}
-
-			if(pyt == null) {
-				setPythonForSession(session, sessionId, user);
-			}
-			pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-			insight.setPyTranslator(pyt);
-			if (insight.getTupleSpace() == null && session.getAttribute("USER_TUPLE") != null) {
-				// try to see if the insight directory has been created in the tuplespace
-				String curTupleSpace = session.getAttribute("USER_TUPLE") + "";
-				insight.setTupleSpace(createInsightTupleSpace(curTupleSpace, insightId));
-			}
-			
-			return runPixelJob(user, insight, expression, jobId, insightId, sessionId);
-		}	*/
+		return runPixelJob(user, insight, expression, jobId, insightId, sessionId);
 
 	}
 
@@ -514,55 +464,8 @@ public class NameServer {
 		ThreadStore.setSessionId(sessionId);
 		ThreadStore.setUser(user);
 					
-		// if no python, we are done
-		// execute and return
-		//if(!PyUtils.pyEnabled()) 
-		{
-			return getInsightPipeline(insight, expression);
-		}
+		return getInsightPipeline(insight, expression);
 		
-		// set python into the insight
-		/*
-		PyTranslator pyt = null;
-		// need to see if the user is enabling python here.. I will assume it is here
-		if (session.getAttribute(Constants.PYTHON) != null) {
-			pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-		}
-
-		if(pyt != null) {
-			insight.setPyTranslator(pyt);
-			if (insight.getTupleSpace() == null && session.getAttribute("USER_TUPLE") != null) {
-				// try to see if the insight directory has been created in the tuplespace
-				String curTupleSpace = session.getAttribute("USER_TUPLE") + "";
-				insight.setTupleSpace(createInsightTupleSpace(curTupleSpace, insightId));
-			}
-			return getInsightPipeline(insight, expression);
-		}
-		
-		// i do not want to make more than 1 py thread per session
-		// and this method is called many times
-		synchronized (sessionId) {
-			// adding in a check here again to see if pyt from the session is null. This is because the previous check is outside the sync
-			//block and multiple threads see it as null
-			if (session.getAttribute(Constants.PYTHON) != null) {
-				pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-			}
-
-			if(pyt == null) {
-				setPythonForSession(session, sessionId, user);
-			}
-			
-			pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-			insight.setPyTranslator(pyt);
-			if (insight.getTupleSpace() == null && session.getAttribute("USER_TUPLE") != null) {
-				// try to see if the insight directory has been created in the tuplespace
-				String curTupleSpace = session.getAttribute("USER_TUPLE") + "";
-				insight.setTupleSpace(createInsightTupleSpace(curTupleSpace, insightId));
-			}
-			
-			return getInsightPipeline(insight, expression);
-		}
-		*/
 	}
 	
 	
