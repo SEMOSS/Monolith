@@ -16,6 +16,7 @@ import prerna.engine.api.IEngine;
 import prerna.engine.api.IHeadersDataRow;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.sablecc2.om.execptions.SemossPixelException;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -57,6 +58,11 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	 * @throws Exception 
 	 */
 	private IRawSelectWrapper getRawSelectWrapper(String appId, String wrapperId, String query) throws Exception {
+		
+		if(appId ==null) {
+			throw new SemossPixelException("App is currently disabled by owner");
+		}
+		
 		String wrapperKey = wrapperId + "@" + appId;
 		if (activeWrappers.containsKey(wrapperKey)) {
 			return activeWrappers.get(wrapperKey);

@@ -18,6 +18,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
@@ -27,6 +30,8 @@ import prerna.util.Constants;
 import prerna.util.Utility;
 
 public class NoUserInSessionTrustedTokenFilter implements Filter {
+
+	private static final Logger logger = LogManager.getLogger(NoUserInSessionTrustedTokenFilter.class); 
 
 	private static String TRUSTED_TOKEN_PREFIX = "trustedTokenPrefix";
 	private static String TRUSTED_TOKEN_DOMAIN = "trustedTokenDomain";
@@ -114,7 +119,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 						// replace any other session id cookies
 						Cookie[] cookies = req.getCookies();
 						if (cookies != null) {
-							System.err.println("Forcing session value !");
+							logger.info("Forcing session value !");
 							for (Cookie c : cookies) {
 								if (c.getName().equals(DBLoader.getSessionIdKey())) {
 									if(c.getName().equalsIgnoreCase(DBLoader.getSessionIdKey())) {

@@ -16,6 +16,9 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.ds.py.PyUtils;
@@ -30,6 +33,9 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/config")
 public class ServerConfigurationResource {
+	
+	private static final Logger logger = LogManager.getLogger(ServerConfigurationResource.class); 
+
 
 	private static volatile Map<String, Object> config = null;
 
@@ -47,7 +53,7 @@ public class ServerConfigurationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			// ignore
+			logger.error("Stack Trace: ", e);
 		}
 		
 		if(config != null) {
@@ -102,7 +108,7 @@ public class ServerConfigurationResource {
 			try {
 				loadConfig.put("file-limit", Integer.parseInt(fileTransferMax));
 			} catch (Exception e) {
-				// ignore
+				logger.error("Stack Trace: ", e);
 			}
 		}
 
@@ -111,7 +117,7 @@ public class ServerConfigurationResource {
 			Map<String, String> versionMap = VersionReactor.getVersionMap();
 			loadConfig.put("version", versionMap);
 		} catch (Exception e) {
-			// ignore
+			logger.error("Stack Trace: ", e);
 		}
 
 		// send the default frame type
