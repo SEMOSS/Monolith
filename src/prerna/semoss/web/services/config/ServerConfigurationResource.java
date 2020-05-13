@@ -53,7 +53,7 @@ public class ServerConfigurationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			logger.error("Stack Trace: ", e);
+			//ignoring user here because it is okay to. This is for health checks or server checks even when users havent been instantiated.
 		}
 		
 		if(config != null) {
