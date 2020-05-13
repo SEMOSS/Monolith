@@ -416,11 +416,15 @@ public class NameServer {
 
 		// if no python, we are done
 		// execute and return
-		if(!PyUtils.pyEnabled()) {
+		// this should do it
+		//if(!PyUtils.pyEnabled()) 
+		{
 			return runPixelJob(user, insight, expression, jobId, insightId, sessionId);
 		}
 		
 		// set python into the insight
+		// not needed anymore
+		/*
 		PyTranslator pyt = null;
 		// need to see if the user is enabling python here.. I will assume it is here
 		if (session.getAttribute(Constants.PYTHON) != null) {
@@ -460,7 +464,8 @@ public class NameServer {
 			}
 			
 			return runPixelJob(user, insight, expression, jobId, insightId, sessionId);
-		}
+		}	*/
+
 	}
 
 	@POST
@@ -511,11 +516,13 @@ public class NameServer {
 					
 		// if no python, we are done
 		// execute and return
-		if(!PyUtils.pyEnabled()) {
+		//if(!PyUtils.pyEnabled()) 
+		{
 			return getInsightPipeline(insight, expression);
 		}
 		
 		// set python into the insight
+		/*
 		PyTranslator pyt = null;
 		// need to see if the user is enabling python here.. I will assume it is here
 		if (session.getAttribute(Constants.PYTHON) != null) {
@@ -555,6 +562,7 @@ public class NameServer {
 			
 			return getInsightPipeline(insight, expression);
 		}
+		*/
 	}
 	
 	
