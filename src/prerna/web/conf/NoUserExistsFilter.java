@@ -11,6 +11,9 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
@@ -20,6 +23,8 @@ import prerna.util.Constants;
 import prerna.util.Utility;
 
 public class NoUserExistsFilter implements Filter {
+
+	private static final Logger logger = LogManager.getLogger(NoUserExistsFilter.class);
 
 	private static final String SET_ADMIN_HTML = "/setAdmin/";
 	private static boolean userDefined = false;
@@ -64,7 +69,7 @@ public class NoUserExistsFilter implements Filter {
 						NoUserExistsFilter.userDefined = true;
 					}
 				} catch (Exception e) {
-					e.printStackTrace();
+					logger.error("Stacktrace: ",e);
 				} finally {
 					if(wrapper != null) {
 						wrapper.cleanUp();

@@ -65,7 +65,8 @@ import prerna.web.services.util.WebUtility;
 public class EngineRemoteResource {
 	
 	private static final Logger logger = LogManager.getLogger(EngineRemoteResource.class); 
-	
+	private static final String STACKTRACE = "StackTrace: ";
+
 	public IEngine coreEngine = null;
 	String output = null;
 	String uriBase = null;
@@ -128,7 +129,7 @@ public class EngineRemoteResource {
 			((IRemoteQueryable)sjw).setRemoteAPI(uriBase + coreEngine.getEngineId());
 			QueryResultHash.getInstance().addObject((SesameConstructWrapper)sjw);		
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 		}
 		
 		return WebUtility.getSO(sjw);
@@ -148,7 +149,7 @@ public class EngineRemoteResource {
 			((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineId());
 			QueryResultHash.getInstance().addObject(sjsw);		
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 		}
 		
 		return WebUtility.getSO(sjsw);
@@ -169,7 +170,7 @@ public class EngineRemoteResource {
 			((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineId());
 			QueryResultHash.getInstance().addObject(sjsw);		
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 		}
 	
 		return WebUtility.getSO(sjsw);
@@ -191,7 +192,7 @@ public class EngineRemoteResource {
 		try {
 			return WebUtility.getSO(coreEngine.execQuery(query));
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error(STACKTRACE,e);
 			Hashtable<String, Object> ret = new Hashtable<String, Object>();
 			ret.put("errorMessage", e.getMessage());
 			return WebUtility.getSO(ret);
@@ -366,7 +367,7 @@ public class EngineRemoteResource {
 								Thread.sleep(200);
 							} catch (InterruptedException e) {
 								// TODO Auto-generated catch block
-								e.printStackTrace();
+								logger.error(STACKTRACE,e);
 							}
 		            }
 		         }};		

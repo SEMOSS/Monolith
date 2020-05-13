@@ -208,7 +208,7 @@ public class DBLoader implements ServletContextListener {
 				}
 			}
 		} catch (Exception ex) {
-			ex.printStackTrace();
+			logger.error(STACKTRACE, ex);
 		}
 	}
 
