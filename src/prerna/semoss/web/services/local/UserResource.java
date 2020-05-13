@@ -253,14 +253,15 @@ public class UserResource {
 
 		// stop python too
 		if (PyUtils.pyEnabled()) {
-			PyTranslator pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
+			PyTranslator pyt = thisUser.getPyTranslator(false);
+
 			if (pyt instanceof prerna.ds.py.PyTranslator)
 				PyUtils.getInstance().killPyThread(pyt.getPy());
 			if (pyt instanceof FilePyTranslator && thisUser != null)
 				PyUtils.getInstance().killTempTupleSpace(thisUser);
 			if (pyt instanceof TCPPyTranslator) {
 				NettyClient nc = thisUser.getPyServe();
-				String dir = (String) session.getAttribute("USER_TUPLE");
+				String dir = thisUser.pyTupleSpace;
 				nc.stopPyServe(dir);
 			}
 		}
@@ -379,10 +380,16 @@ public class UserResource {
 		User semossUser = null;
 		HttpSession session = request.getSession();
 		Object user = session.getAttribute(Constants.SESSION_USER);
+		
+		
+		// all of this is now in the user
+		
 		if (user != null) {
 			semossUser = (User) user;
 		} else {
 			semossUser = new User();
+		}
+		/*
 			PyTranslator pyt = null;
 			// also add the python thread to this user
 			// if security is not on, we have a single py thread for the entire instance
@@ -442,8 +449,10 @@ public class UserResource {
 				String tupleSpace = PyUtils.getInstance().getTempTupleSpace(token.getName(), DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR));
 				semossUser.setTupleSpace(tupleSpace);
 				session.setAttribute("USER_TUPLE", tupleSpace);
-			}*/
-		}
+			}
+		}*/
+	
+	
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
 		request.getSession().setAttribute(Constants.SESSION_USER, semossUser);
