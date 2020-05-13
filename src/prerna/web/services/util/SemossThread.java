@@ -2,7 +2,13 @@ package prerna.web.services.util;
 
 import javax.ws.rs.container.AsyncResponse;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 public class SemossThread extends Thread {
+	
+	private static final Logger logger = LogManager.getLogger(SemossThread.class); 
+
 
 	String jobId;
 	boolean complete = false;
@@ -34,12 +40,12 @@ public class SemossThread extends Thread {
 				count++;
 				Thread.sleep(2000);
 			}
-			System.out.println("Complete");
+			logger.info("Complete");
 		}catch(InterruptedException ex)
 		{
 			// try to see who interrupted and why and then possibly kill the thread ?
 			complete = true;
-			System.out.println("Interrupted.. ");
+			logger.info("Interrupted.. ");
 		}
 	}
 	

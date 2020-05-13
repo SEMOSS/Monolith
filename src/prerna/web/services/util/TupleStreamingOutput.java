@@ -34,10 +34,15 @@ import java.io.OutputStream;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 import org.openrdf.query.QueryEvaluationException;
 import org.openrdf.query.TupleQueryResult;
 
 public class TupleStreamingOutput implements StreamingOutput {
+	
+	private static final Logger logger = LogManager.getLogger(TupleStreamingOutput.class); 
+
 
 	TupleQueryResult gqr = null;
 	
@@ -52,10 +57,10 @@ public class TupleStreamingOutput implements StreamingOutput {
 	            ObjectOutputStream os = new ObjectOutputStream(outputStream);
 	            Integer myInt = null;
 	            try {
-	            	System.out.println("Writing Objects ");
+	            	logger.info("Writing Objects ");
 					while(gqr.hasNext())
 					{
-						System.out.print(".");
+						logger.info(".");
 						os.writeObject(gqr.next());	
 					}
 					os.writeObject("null");
