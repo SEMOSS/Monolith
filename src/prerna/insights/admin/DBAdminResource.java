@@ -44,6 +44,7 @@ import javax.ws.rs.core.Response;
 import org.apache.log4j.Logger;
 
 import prerna.rpa.RPAProps;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class DBAdminResource {
@@ -90,7 +91,10 @@ public class DBAdminResource {
 			String jsonFilePath = jsonDirectory + fileName + ".json";
 			File file = new File(jsonFilePath);
 			try {
-				file.delete();
+				Boolean success = file.delete();
+				if(!success) {
+					LOGGER.info("Unable to delete file at location: " + Utility.cleanLogString(jsonFilePath));
+				}
 			} catch (SecurityException e) {
 				String errorMessage = "failed to delete file " + jsonFilePath + ": " + e.toString();
 				return WebUtility.getResponse(errorMessage.substring(0,

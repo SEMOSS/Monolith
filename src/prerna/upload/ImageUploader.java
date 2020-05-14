@@ -32,6 +32,7 @@ import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class ImageUploader extends Uploader {
@@ -124,7 +125,10 @@ public class ImageUploader extends Uploader {
 		}
 		File f = new File(imageDir);
 		if (!f.exists()) {
-			f.mkdirs();
+			Boolean success = f.mkdirs();
+			if(!success) {
+				logger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+			}
 		}
 		f = new File(imageLoc);
 		// find all the existing image files
@@ -139,7 +143,10 @@ public class ImageUploader extends Uploader {
 		// delete if any exist
 		if (oldImages != null) {
 			for (File oldI : oldImages) {
-				oldI.delete();
+				Boolean success = oldI.delete();
+				if (!success) {
+					logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+				}
 			}
 		}
 		writeFile(imageFile, f);
@@ -239,7 +246,10 @@ public class ImageUploader extends Uploader {
 				+ "version" + DIR_SEPARATOR + insightId;
 		File f = new File(imageDir);
 		if (!f.exists()) {
-			f.mkdirs();
+			Boolean success = f.mkdirs();
+			if(!success) {
+			logger.info("Unable to make direction at location: " + Utility.cleanLogString(imageDir));
+			}
 		}
 		String imageLoc = imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
 		f = new File(imageLoc);
@@ -249,7 +259,11 @@ public class ImageUploader extends Uploader {
 		// delete if any exist
 		if (oldImages != null) {
 			for (File oldI : oldImages) {
-				oldI.delete();
+				Boolean success = oldI.delete();
+				if(!success) {
+				logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+				}
+
 			}
 		}
 		writeFile(imageFile, f);
