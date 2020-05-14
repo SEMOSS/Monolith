@@ -11,6 +11,8 @@ import java.util.concurrent.BlockingQueue;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
+import prerna.util.Utility;
+
 public class UserFileLogUtil {
 	
 	private static Map<String, UserFileLogUtil> singletonStore = new HashMap<>();
@@ -68,7 +70,10 @@ class FileAppender implements Runnable {
 
 		f = new File(this.filePath);
 		if(!f.getParentFile().exists()) {
-			f.getParentFile().mkdirs();
+			Boolean success = f.getParentFile().mkdirs();
+			if(!success) {
+				logger.info("Unable to create file appender at :" + Utility.cleanLogString(f.getAbsolutePath()));
+			}
 		}
 		
 		// set to append mode
