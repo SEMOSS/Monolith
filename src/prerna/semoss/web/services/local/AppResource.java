@@ -386,7 +386,12 @@ public class AppResource {
 		} else {
 			// make the image
 			f = new File(fileLocation);
-			f.mkdirs();
+			if(!f.exists()) {
+			Boolean success = f.mkdirs();
+			if(!success) {
+				logger.info("Unable to make direction at location: " + Utility.cleanLogString(fileLocation));
+			}
+			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
 			if(app != null) {
 				TextToGraphic.makeImage(app, fileLocation);
