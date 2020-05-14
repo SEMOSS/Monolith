@@ -139,7 +139,11 @@ public class PIVFilter implements Filter {
 					
 					// are we logging their information?
 					if(userLogger != null) {
-						userLogger.addToQueue(new String[] {email, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))});
+						// grab the ip address
+						String ipAddress1 = ((HttpServletRequest)arg0).getHeader("X-FORWARDED-FOR");
+						String ipAddress2 = ((HttpServletRequest)arg0).getRemoteAddr();  
+
+						userLogger.addToQueue(new String[] {email, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), ipAddress1, ipAddress2});
 					}
 				}
 			}
