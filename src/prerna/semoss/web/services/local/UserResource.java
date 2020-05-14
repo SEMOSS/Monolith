@@ -122,7 +122,7 @@ public class UserResource {
 
 	private static final String STACKTRACE = "StackTrace: ";
 	private static Properties socialData = null;
-	private static Map<String, Boolean> loginsAllowed;
+	private static Map<String, Boolean> loginsAllowedMap;
 
 	static {
 		loadSocialProperties();
@@ -173,18 +173,18 @@ public class UserResource {
 		boolean dropboxLogin = Boolean.parseBoolean(socialData.getProperty("dropbox_login"));
 		boolean cacLogin = Boolean.parseBoolean(socialData.getProperty("cac_login"));
 		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
-		UserResource.loginsAllowed = new HashMap<>();
-		UserResource.loginsAllowed.put("native", nativeLogin);
-		UserResource.loginsAllowed.put("google", googleLogin);
-		UserResource.loginsAllowed.put("github", githubLogin);
-		UserResource.loginsAllowed.put("ms", onedriveLogin);
-		UserResource.loginsAllowed.put("dropbox", dropboxLogin);
-		UserResource.loginsAllowed.put("cac", cacLogin);
-		UserResource.loginsAllowed.put("registration", registration);
+		UserResource.loginsAllowedMap = new HashMap<>();
+		UserResource.loginsAllowedMap.put("native", nativeLogin);
+		UserResource.loginsAllowedMap.put("google", googleLogin);
+		UserResource.loginsAllowedMap.put("github", githubLogin);
+		UserResource.loginsAllowedMap.put("ms", onedriveLogin);
+		UserResource.loginsAllowedMap.put("dropbox", dropboxLogin);
+		UserResource.loginsAllowedMap.put("cac", cacLogin);
+		UserResource.loginsAllowedMap.put("registration", registration);
 	}
 
 	public static Map<String, Boolean> getLoginsAllowed() {
-		return UserResource.loginsAllowed;
+		return UserResource.loginsAllowedMap;
 	}
 
 	@GET
@@ -1264,6 +1264,7 @@ public class UserResource {
 		if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getInRedirect(request));
+			return null;
 		}
 
 		setMainPageRedirect(request, response);
@@ -1359,7 +1360,7 @@ public class UserResource {
 		String prefix = "twitter_";
 
 		String clientId = socialData.getProperty(prefix + "client_id");
-		String clientSecret = socialData.getProperty(prefix + "secret_key");
+		//String clientSecret = socialData.getProperty(prefix + "secret_key");
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 		String scope = socialData.getProperty(prefix + "scope");
 		String nonce = UUID.randomUUID().toString();
@@ -1374,7 +1375,7 @@ public class UserResource {
 		parameterString.append("oauth_nonce=").append(nonce).append("&");
 		parameterString.append("oauth_timestamp=").append(timestamp);
 
-		String finalString = signatureString.toString() + parameterString.toString();
+		//String finalString = signatureString.toString() + parameterString.toString();
 
 		// String signature =
 
@@ -1546,7 +1547,7 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/loginsAllowed/")
 	public Response loginsAllowed(@Context HttpServletRequest request) throws IOException {
-		return WebUtility.getResponse(UserResource.loginsAllowed, 200);
+		return WebUtility.getResponse(UserResource.loginsAllowedMap, 200);
 	}
 
 	@GET
