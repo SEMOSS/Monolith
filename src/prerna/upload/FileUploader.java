@@ -28,6 +28,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
 import prerna.util.AssetUtility;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class FileUploader extends Uploader {
@@ -133,7 +134,10 @@ public class FileUploader extends Uploader {
 		}
 		File fileDir = new File(filePath);
 		if (!fileDir.exists()) {
-			fileDir.mkdirs();
+			Boolean success =fileDir.mkdirs();
+			if(!success) {
+				LOGGER.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+			}
 		}
 		
 		Iterator<FileItem> iteratorFileItems = fileItems.iterator();

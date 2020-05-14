@@ -1190,7 +1190,10 @@ public class NameServer {
 		String normalizedInsightSpecificFolder = Utility.normalizePath(insightSpecificFolder);
 		File file = new File(normalizedInsightSpecificFolder);
 		if (!file.exists()) {			
-			file.mkdir();
+			Boolean success = file.mkdir();
+			if(!success) {
+				logger.info("Unable to created insight tuple space at: " + Utility.cleanLogString(normalizedInsightSpecificFolder));
+			}
 			String command = "addFolder@@" + normalizedInsightSpecificFolder;
 			String normalizedCmdFilePath = Utility.normalizePath(baseFolder + "/" + insightId +".admin");
 			File cmdFile = new File(normalizedCmdFilePath);
