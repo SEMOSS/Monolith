@@ -89,7 +89,10 @@ public abstract class Uploader extends HttpServlet {
 		}
 		File f = new File(this.filePath);
 		if(!f.exists() && !f.isDirectory()) {
-			f.mkdirs();
+			Boolean success = f.mkdirs();
+			if(!success) {
+				logger.info("Unable to create file at: " + Utility.cleanLogString(f.getAbsolutePath()));
+			}
 		}
 	}
 
@@ -101,7 +104,10 @@ public abstract class Uploader extends HttpServlet {
 		this.tempFilePath = normalizedTempFilePath;
 		File tFile = new File(normalizedTempFilePath);
 		if(!tFile.exists() && !tFile.isDirectory()) {
-			tFile.mkdirs();
+			Boolean success = tFile.mkdirs();
+			if(!success) {
+				logger.info("Unable to create file at: " + Utility.cleanLogString(tFile.getAbsolutePath()));
+			}
 		}
 	}
 
