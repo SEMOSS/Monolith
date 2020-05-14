@@ -143,7 +143,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		String wrapperId = request.getParameter(WRAPPER_ID);
 		String query = request.getParameter(QUERY);
 
-		Hashtable<String, Object> ret = new Hashtable<String, Object>();
+		Hashtable<String, Object> ret = new Hashtable<>();
 
 		// Perform action
 		IRawSelectWrapper wrapper = null;
@@ -200,7 +200,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		}
 
 		// Set return values
-		Hashtable<String, Object> ret = new Hashtable<String, Object>();
+		Hashtable<String, Object> ret = new Hashtable<>();
 		ret.put("success", true);
 		ret.put("appId", appId);
 		ret.put("wrapperId", wrapperId);
@@ -228,6 +228,10 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		String appId = request.getParameter(APP_ID);
 		String wrapperId = request.getParameter(WRAPPER_ID);
 
+		if (appId == null) {
+			throw new IllegalArgumentException("App id cannot be null here, must define app id");
+		}
+
 		// Perform action
 		IRawSelectWrapper wrapper = null;
 		try {
@@ -242,7 +246,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		boolean removed = removeRawSelectWrapper(appId, wrapperId); // Also remove from active list
 
 		// Set return values
-		Hashtable<String, Object> ret = new Hashtable<String, Object>();
+		Hashtable<String, Object> ret = new Hashtable<>();
 		ret.put("success", true);
 		ret.put("appId", appId);
 		ret.put("wrapperId", wrapperId);
@@ -286,7 +290,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		}
 
 		// Set return values
-		Hashtable<String, Object> ret = new Hashtable<String, Object>();
+		Hashtable<String, Object> ret = new Hashtable<>();
 		ret.put("success", true);
 		ret.put("appId", appId);
 		ret.put("wrapperId", wrapperId);
@@ -386,7 +390,6 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			headers = wrapper.getHeaders();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			logger.error(STACKTRACE,e);
 		}
 
@@ -454,7 +457,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			numRecords = wrapper.getNumRecords();
 		} catch (Exception e) {
 			logger.error(STACKTRACE,e);
-			Hashtable<String, Object> ret = new Hashtable<String, Object>();
+			Hashtable<String, Object> ret = new Hashtable<>();
 			ret.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
@@ -489,7 +492,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			numRecords = wrapper.getNumRows();
 		} catch (Exception e) {
-			Hashtable<String, Object> ret = new Hashtable<String, Object>();
+			Hashtable<String, Object> ret = new Hashtable<>();
 			ret.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
@@ -517,7 +520,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		String appId = request.getParameter(APP_ID);
 		String wrapperId = request.getParameter(WRAPPER_ID);
 
-		Hashtable<String, Object> ret = new Hashtable<String, Object>();
+		Hashtable<String, Object> ret = new Hashtable<>();
 
 		// Perform action
 		IRawSelectWrapper wrapper = null;
@@ -540,13 +543,11 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	@Override
 	public boolean flushable() {
-		// TODO Auto-generated method stub
 		return false;
 	}
 
 	@Override
 	public String flush() {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
