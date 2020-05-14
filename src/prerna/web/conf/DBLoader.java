@@ -45,6 +45,7 @@ import org.quartz.SchedulerException;
 import com.ibm.icu.util.StringTokenizer;
 
 import prerna.engine.api.IEngine;
+import prerna.engine.impl.r.RserveUtil;
 import prerna.forms.AbstractFormBuilder;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
@@ -127,6 +128,7 @@ public class DBLoader implements ServletContextListener {
 			SessionCookieConfig cookieConfig = context.getSessionCookieConfig();
 			if (cookieConfig != null && cookieConfig.getName() != null) {
 				DBLoader.SESSION_ID_KEY = cookieConfig.getName();
+				ChromeDriverUtility.setSessionCookie(cookieConfig.getName());
 			}
 		}
 		
@@ -145,6 +147,15 @@ public class DBLoader implements ServletContextListener {
 		logger.info("Setting log4j property: " + log4jConfig);
 		PropertyConfigurator.configure(log4jConfig);
 
+		if(RserveUtil.R_KILL_ON_STARTUP) {
+			logger.info("Killing existing RServes running on the machine");
+			try {
+				RserveUtil.endR();
+			} catch (Exception e) {
+				logger.info("Unable to kill existing RServes running on the machine");
+			}
+		}
+		
 		// set security enabled within DIHelper first
 		// this is because security database, on init, will
 		// load it as a boolean instead of us searching within DIHelper
