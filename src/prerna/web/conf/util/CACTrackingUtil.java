@@ -6,6 +6,9 @@ import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -53,6 +56,7 @@ class CountUpdater implements Runnable {
 	private static final String COUNT_COL = "USER_COUNT";
 	private static final String DATE_COL = "DATE_RECORDED";
 	private static final String GET_LATEST_DATE_QUERY = "SELECT MAX(" + DATE_COL + ") FROM " + TABLE;
+	private static final Logger logger = LogManager.getLogger(CountUpdater.class);
 
 	// this is how we will keep the last date so we 
 	// do not need to query if this date exists every time
@@ -85,7 +89,7 @@ class CountUpdater implements Runnable {
 				}
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("STACKTRACE: ",e);
 		} finally {
 			if(wrapper != null) {
 				wrapper.cleanUp();
@@ -107,7 +111,7 @@ class CountUpdater implements Runnable {
 					try {
 						engine.insertData(insertQuery);
 					} catch (Exception e) {
-						e.printStackTrace();
+						logger.error("STACKTRACE: ",e);
 					}
 					
 					// and we will set the query up for the rest of the 
@@ -122,14 +126,15 @@ class CountUpdater implements Runnable {
 					try {
 						engine.insertData(this.updateQuery);
 					} catch (Exception e) {
-						e.printStackTrace();
+
+						logger.error("STACKTRACE: ",e);
 					}
 				}
 				
 				engine.commit();
 			}
 		} catch (InterruptedException e) {
-			e.printStackTrace();
+			logger.error("STACKTRACE: ",e);
 		}
 	}
 	
