@@ -88,9 +88,9 @@ class FileAppender implements Runnable {
 				}
 				int size = row.length;
 				StringBuilder builder = new StringBuilder();
-				builder.append(row[0]);
+				builder.append(row[0] + "");
 				for(int i = 1; i < size; i++) {
-					builder.append(this.sep).append(row[i]);
+					builder.append(this.sep).append(row[i] + "");
 				}
 				builder.append("\n");
 				try {
