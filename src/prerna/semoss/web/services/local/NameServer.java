@@ -122,6 +122,8 @@ public class NameServer {
 	private static final Logger logger = LogManager.getLogger(NameServer.class);
 
 	private static final String ERROR_MESSAGE = "errorMessage";
+	private static final String ERROR_TYPE = "errorType";
+	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
 	private static final String STACKTRACE = "StackTrace: ";
 	// get the directory separator
 	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
@@ -408,6 +410,7 @@ public class NameServer {
 			if (insight == null) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(ERROR_MESSAGE, "Could not find the insight id");
+				errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
@@ -454,6 +457,7 @@ public class NameServer {
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(ERROR_MESSAGE, "Could not find the insight id");
+			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -616,6 +620,7 @@ public class NameServer {
 			if (insight == null) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(ERROR_MESSAGE, "Could not find the insight id");
+				errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			// make sure we have the correct session trying to get this id
