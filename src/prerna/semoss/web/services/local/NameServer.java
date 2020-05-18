@@ -518,7 +518,6 @@ public class NameServer {
 	 */
 	private void setPythonForSession(HttpSession session, String sessionId, User user) {
 		PyTranslator pyt = null;
-		PyExecutorThread jepThread = null;
 		String port = null;
 		
 		boolean useFilePy = Boolean.parseBoolean(DIHelper.getInstance().getProperty("USE_PY_FILE"));
@@ -529,11 +528,10 @@ public class NameServer {
 			if (session.getAttribute(Constants.PYTHON) != null) {
 				pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
 			}
-			if (jepThread == null) {
-				jepThread = PyUtils.getInstance().getJep();
-				pyt = new PyTranslator();
-				pyt.setPy(jepThread);
-			}
+
+			PyExecutorThread jepThread = PyUtils.getInstance().getJep();
+			pyt = new PyTranslator();
+			pyt.setPy(jepThread);
 		}
 		// check to see if the py translator needs to be set ?
 		else if (useFilePy && session.getAttribute("USER_TUPLE") == null) {

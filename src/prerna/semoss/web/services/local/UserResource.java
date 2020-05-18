@@ -349,7 +349,8 @@ public class UserResource {
 						// we need to null this out
 						Cookie nullC = new Cookie(c.getName(), c.getValue());
 						nullC.setPath(c.getPath());
-						nullC.setSecure(c.getSecure());
+						nullC.setSecure(request.isSecure());
+						nullC.setHttpOnly(true);
 						nullC.setVersion(c.getVersion());
 						if (c.getDomain() != null) {
 							nullC.setDomain(c.getDomain());
@@ -1665,6 +1666,8 @@ public class UserResource {
 		response.setStatus(302);
 		try {
 			Cookie cookie = new Cookie(DBLoader.getSessionIdKey(), request.getSession().getId());
+			cookie.setSecure(request.isSecure());
+			cookie.setHttpOnly(true);
 			// cookie.setPath("/dev");
 			response.addCookie(cookie);
 			if (useCustom) {
@@ -1734,6 +1737,8 @@ public class UserResource {
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
 
 		Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
+		k.setSecure(request.isSecure());
+		k.setHttpOnly(true);
 		k.setPath(request.getContextPath());
 		response.addCookie(k);
 
