@@ -1,6 +1,7 @@
 package prerna.web.conf;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.UUID;
 
 import javax.servlet.Filter;
@@ -18,14 +19,16 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.util.Constants;
 
-public class AnonymousUserFilter implements Filter {
+public class AnonymousUserFilter implements Filter, Serializable {
+
+	private static final long serialVersionUID = -4657347128078864456L;
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		if(AbstractSecurityUtils.anonymousUsersEnabled()) {
 			HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 	
-			User semossUser = new User();
+			User semossUser = null;
 			Object user = session.getAttribute(Constants.SESSION_USER);
 			if(user == null) {
 				semossUser = new User();
@@ -56,7 +59,7 @@ public class AnonymousUserFilter implements Filter {
 					c.setMaxAge(60 * 60 * 24 * 365 * 10);
 					c.setPath(((HttpServletRequest) arg0).getContextPath());
 					c.setHttpOnly(true);
-					c.setSecure(true);
+					c.setSecure(((HttpServletRequest)arg0).isSecure());
 					((HttpServletResponse)arg1).addCookie(c);
 				}
 				// add to session
@@ -69,13 +72,13 @@ public class AnonymousUserFilter implements Filter {
 	
 	@Override
 	public void destroy() {
-		// TODO Auto-generated method stub
+		// destroy
 		
 	}
 
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
-		// TODO Auto-generated method stub
+		// initialize
 		
 	}
 

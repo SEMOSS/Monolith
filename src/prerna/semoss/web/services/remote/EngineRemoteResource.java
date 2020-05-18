@@ -30,7 +30,6 @@ package prerna.semoss.web.services.remote;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.Hashtable;
 
 import javax.ws.rs.FormParam;
@@ -85,7 +84,6 @@ public class EngineRemoteResource {
 	@Path("getFromNeighbors")
 	@Produces("application/json")
 	public StreamingOutput getFromNeighbors(@FormParam("nodeType") String nodeType, @FormParam("neighborHood") int neighborHood) {
-		// TODO Auto-generated method stub
 		return WebUtility.getSO(coreEngine.getFromNeighbors(nodeType, neighborHood));
 	}
 
@@ -93,7 +91,6 @@ public class EngineRemoteResource {
 	@Path("getToNeighbors")
 	@Produces("application/json")
 	public StreamingOutput getToNeighbors(@FormParam("nodeType") String nodeType, @FormParam("neighborHood") int neighborHood) {
-		// TODO Auto-generated method stub
 		return WebUtility.getSO(coreEngine.getToNeighbors(nodeType, neighborHood));
 	}
 
@@ -109,7 +106,6 @@ public class EngineRemoteResource {
 	@Path("execGraphQuery")
 	@Produces("application/json")
 	public Object execGraphQuery(@FormParam("query") String query) {
-		// TODO Auto-generated method stub
 		// Steps I need to do
 		// Create a wrapper object
 		// The wrapper consists of a unique number, the actual output object
@@ -139,7 +135,6 @@ public class EngineRemoteResource {
 	@Path("execSelectQuery")
 	@Produces("application/json")
 	public Object execSelectQuery(@FormParam("query") String query) {
-		// TODO Auto-generated method stub
 		logger.info("Executing Select Query  " + Utility.cleanLogString(query));
 		AbstractWrapper sjsw = null;
 		try {
@@ -160,7 +155,6 @@ public class EngineRemoteResource {
 	@Path("execCheaterQuery")
 	@Produces("application/json")
 	public Object execCheaterQuery(@FormParam("query") String query) {
-		// TODO Auto-generated method stub
 		logger.info("Executing Select Query  " + Utility.cleanLogString(query));
 		AbstractWrapper sjsw = null;
 		try {
@@ -180,7 +174,6 @@ public class EngineRemoteResource {
 	@Path("getEntityOfType")
 	@Produces("application/json")
 	public StreamingOutput getEntityOfType(@FormParam("sparqlQuery") String sparqlQuery) {
-		// TODO Auto-generated method stub
 		return WebUtility.getSO(coreEngine.getEntityOfType(sparqlQuery));
 	}
 
@@ -188,12 +181,11 @@ public class EngineRemoteResource {
 	@Path("execAskQuery")
 	@Produces("application/json")
 	public StreamingOutput execAskQuery(@FormParam("query") String query) {
-		// TODO Auto-generated method stub
 		try {
 			return WebUtility.getSO(coreEngine.execQuery(query));
 		} catch (Exception e) {
 			logger.error(STACKTRACE,e);
-			Hashtable<String, Object> ret = new Hashtable<String, Object>();
+			Hashtable<String, Object> ret = new Hashtable<>();
 			ret.put("errorMessage", e.getMessage());
 			return WebUtility.getSO(ret);
 		}
@@ -213,7 +205,6 @@ public class EngineRemoteResource {
 	@Path("getInsightDefinition")
 	@Produces("application/text")
 	public String getInsightDefinition() {
-		// TODO Auto-generated method stub
 		logger.info("ENgine is " + coreEngine);
 		return coreEngine.getInsightDefinition();
 	}
@@ -222,7 +213,6 @@ public class EngineRemoteResource {
 	@Path("getOWLDefinition")
 	@Produces("application/xml")
 	public String getOWLDefinition() {
-		// TODO Auto-generated method stub
 		return coreEngine.getOWLDefinition();
 	}
 	
@@ -247,9 +237,9 @@ public class EngineRemoteResource {
 //				retValue = ((SesameJenaSelectCheater)wrapper).hasNext();
 
 			//TODO: this shouldnt' be commented out!!!
-//			retValue = ((IEngineWrapper) wrapper).hasNext();
-			if(!retValue) // cleanup
-				QueryResultHash.getInstance().cleanObject(id);
+			// retValue = ((IEngineWrapper) wrapper).hasNext();
+			// if(!retValue) // cleanup
+			QueryResultHash.getInstance().cleanObject(id);
 		}
 		
 		return WebUtility.getSO(retValue);
@@ -361,13 +351,14 @@ public class EngineRemoteResource {
 		            	myInt = new Integer(i);
 			            //ps.println("Sending " + i);
 		            	os.writeObject(myInt);
-			            if(i %1000 == 0)
+			            if (i %1000 == 0) {
 							try {
 								Thread.sleep(200);
 							} catch (InterruptedException e) {
-								// TODO Auto-generated catch block
+								Thread.currentThread().interrupt();
 								logger.error(STACKTRACE,e);
 							}
+			            }
 		            }
 		         }};		
 	}

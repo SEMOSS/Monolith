@@ -71,7 +71,7 @@ public class AuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
@@ -92,7 +92,7 @@ public class AuthorizationResource {
 	@Produces("application/json")
 	@Path("/admin/registerUser")
 	public Response registerUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		Hashtable<String, String> errorRet = new Hashtable<String, String>();
+		Hashtable<String, String> errorRet = new Hashtable<>();
 		boolean success = false;
 		try{
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
@@ -132,14 +132,14 @@ public class AuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
 		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
 		if(adminUtils == null) {
-			Map<String, String> retMap = new Hashtable<String, String>();
+			Map<String, String> retMap = new Hashtable<>();
 			retMap.put("error", "User does not have admin priviledges");
 			return WebUtility.getResponse(retMap, 400);
 		}
@@ -150,12 +150,12 @@ public class AuthorizationResource {
 		try {
 			ret = adminUtils.editUser(userInfo);
 		} catch(IllegalArgumentException e) {
-			Map<String, String> retMap = new Hashtable<String, String>();
+			Map<String, String> retMap = new Hashtable<>();
 			retMap.put("error", e.getMessage());
 			return WebUtility.getResponse(retMap, 400);
 		}
-		if(ret = false) {
-			Map<String, String> retMap = new Hashtable<String, String>();
+		if(!ret) {
+			Map<String, String> retMap = new Hashtable<>();
 			retMap.put("error", "Unknown error occured with updating user. Please try again.");
 			return WebUtility.getResponse(retMap, 400);
 		}
@@ -170,14 +170,14 @@ public class AuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
 		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
 		if(adminUtils == null) {
-			Map<String, String> retMap = new Hashtable<String, String>();
+			Map<String, String> retMap = new Hashtable<>();
 			retMap.put("error", "User does not have admin priviledges");
 			return WebUtility.getResponse(retMap, 400);
 		}
@@ -195,14 +195,14 @@ public class AuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
 		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
 		if(adminUtils == null) {
-			Map<String, String> retMap = new Hashtable<String, String>();
+			Map<String, String> retMap = new Hashtable<>();
 			retMap.put("error", "User does not have admin priviledges");
 			return WebUtility.getResponse(retMap, 400);
 		}
@@ -219,7 +219,7 @@ public class AuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
@@ -234,12 +234,12 @@ public class AuthorizationResource {
 			addedRequests = SecurityUpdateUtils.makeRequest(user, engineId, requestedPermission);
 		} catch(IllegalArgumentException e) {
     		logger.error(STACKTRACE, e);
-			Map<String, String> errorRet = new HashMap<String, String>();
+			Map<String, String> errorRet = new HashMap<>();
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(STACKTRACE, e);
-			Map<String, String> errorRet = new HashMap<String, String>();
+			Map<String, String> errorRet = new HashMap<>();
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
@@ -255,7 +255,7 @@ public class AuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
@@ -265,12 +265,12 @@ public class AuthorizationResource {
 			userRequests = SecurityQueryUtils.getUserAccessRequests(user);
 		} catch(IllegalArgumentException e) {
     		logger.error(STACKTRACE, e);
-			Map<String, String> errorRet = new HashMap<String, String>();
+			Map<String, String> errorRet = new HashMap<>();
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(STACKTRACE, e);
-			Map<String, String> errorRet = new HashMap<String, String>();
+			Map<String, String> errorRet = new HashMap<>();
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
