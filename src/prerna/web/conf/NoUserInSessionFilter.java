@@ -119,6 +119,8 @@ public class NoUserInSessionFilter implements Filter {
 						String sessionId = Utility.cleanHttpResponse(req.getParameter(DBLoader.getSessionIdKey()));
 						// create the cookie add it and sent it back
 						Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
+						k.setHttpOnly(true);
+						k.setSecure(req.isSecure());
 						k.setPath(contextPath);
 						((HttpServletResponse) arg1).addCookie(k);
 						// in case there are other JSESSIONID
@@ -138,6 +140,8 @@ public class NoUserInSessionFilter implements Filter {
 						if (routes != null && !routes.isEmpty()) {
 							for (String r : routes) {
 								Cookie c = new Cookie(r, Utility.cleanHttpResponse(req.getParameter(r)));
+								c.setHttpOnly(true);
+								c.setSecure(req.isSecure());
 								c.setPath(contextPath);
 								((HttpServletResponse) arg1).addCookie(c);
 							}
@@ -146,6 +150,8 @@ public class NoUserInSessionFilter implements Filter {
 						// add the hash cookie
 						String hash = req.getParameter("hash");
 						Cookie h = new Cookie("HASH", Utility.cleanHttpResponse(hash));
+						h.setHttpOnly(true);
+						h.setSecure(req.isSecure());
 						h.setPath(contextPath);
 						((HttpServletResponse) arg1).addCookie(h);
 

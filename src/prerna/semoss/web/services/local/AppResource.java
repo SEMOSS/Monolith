@@ -27,6 +27,7 @@ import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
@@ -119,14 +120,14 @@ public class AppResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		try {
 			canAccessApp(user, appId);
 		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
@@ -140,7 +141,7 @@ public class AppResource {
 		File file = new File(fileLocation);
 		if(file != null && file.exists()) {
 		    try {
-		    	String html = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
+		    	String html = FileUtils.readFileToString(file, "UTF-8");
 				
 				// want to cache this on browser if user has access
 				CacheControl cc = new CacheControl();
@@ -156,12 +157,12 @@ public class AppResource {
 				
 				return Response.status(200).entity(html).cacheControl(cc).tag(etag).lastModified(new Date(file.lastModified())).build();
 			} catch (IOException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
+				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("errorMessage", "Unable to load landing html file");
 				return WebUtility.getResponse(errorMap, 404);
 			}
 		} else {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("errorMessage", "No custom landing page found");
 			return WebUtility.getResponse(errorMap, 404);
 		}
@@ -175,14 +176,14 @@ public class AppResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		try {
 			canAccessApp(user, appId);
 		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
@@ -196,7 +197,7 @@ public class AppResource {
 		File file = new File(fileLocation);
 		if(file != null && file.exists()) {
 		    try {
-				String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
+				String contents = FileUtils.readFileToString(file, "UTF-8");
 				
 				// want to cache this on browser if user has access
 				CacheControl cc = new CacheControl();
@@ -212,12 +213,12 @@ public class AppResource {
 				
 				return Response.status(200).entity(contents).cacheControl(cc).tag(etag).lastModified(new Date(file.lastModified())).build();
 			} catch (IOException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
+				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("errorMessage", "Unable to load file");
 				return WebUtility.getResponse(errorMap, 404);
 			}
 		} else {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("errorMessage", "No file found");
 			return WebUtility.getResponse(errorMap, 404);
 		}
@@ -232,14 +233,14 @@ public class AppResource {
 			try {
 				user = ResourceUtility.getUser(request);
 			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
+				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("error", "User session is invalid");
 				return WebUtility.getResponse(errorMap, 401);
 			}
 			try {
 				canAccessApp(user, appId);
 			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
+				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("error", e.getMessage());
 				return WebUtility.getResponse(errorMap, 401);
 			}
@@ -250,7 +251,7 @@ public class AppResource {
 		
 		String embedLogo = getEmbedLogo();
 		if(AppResource.noLogo) {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "no defualt logo");
 			return WebUtility.getResponse(errorMap, 404);
 		}
@@ -275,12 +276,12 @@ public class AppResource {
 			    String mimeType = Files.probeContentType(file.toPath());
 				return Response.status(200).entity(contents).type(mimeType).cacheControl(cc).tag(etag).lastModified(new Date(file.lastModified())).build();
 			} catch (IOException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
+				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("errorMessage", "Unable to load file");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		} else {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("errorMessage", "Default logo file not found");
 			return WebUtility.getResponse(errorMap, 404);
 		}
@@ -322,14 +323,14 @@ public class AppResource {
 			try {
 				user = ResourceUtility.getUser(request);
 			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
+				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("error", "User session is invalid");
 				return WebUtility.getResponse(errorMap, 401);
 			}
 			try {
 				canAccessApp(user, appId);
 			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
+				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("error", e.getMessage());
 				return WebUtility.getResponse(errorMap, 401);
 			}
@@ -354,7 +355,7 @@ public class AppResource {
 			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
 					.cacheControl(cc).tag(etag).lastModified(new Date(exportFile.lastModified())).build();
 		} else {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("errorMessage", "error sending image file");
 			return WebUtility.getResponse(errorMap, 400);
 		}
@@ -413,14 +414,14 @@ public class AppResource {
 			try {
 				user = ResourceUtility.getUser(request);
 			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
+				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("error", "User session is invalid");
 				return WebUtility.getResponse(errorMap, 401);
 			}
 			try {
 				canAccessInsight(user, appId, id);
 			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
+				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("error", e.getMessage());
 				return WebUtility.getResponse(errorMap, 401);
 			}
@@ -447,7 +448,7 @@ public class AppResource {
 			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
 					.cacheControl(cc).tag(etag).lastModified(new Date(exportFile.lastModified())).build();
 		} else {
-			Map<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("errorMessage", "Error sending image file");
 			return WebUtility.getResponse(errorMap, 404);
 		}
@@ -521,7 +522,7 @@ public class AppResource {
 	 * @return
 	 */
 	private File findImageFile(String baseDir) {
-		List<String> extensions = new Vector<String>();
+		List<String> extensions = new Vector<>();
 		extensions.add("image.png");
 		extensions.add("image.jpeg");
 		extensions.add("image.jpg");
@@ -587,7 +588,7 @@ public class AppResource {
 			}
 		}
 		// return error
-		Map<String, String> errorMap = new HashMap<String, String>();
+		Map<String, String> errorMap = new HashMap<>();
 		errorMap.put("errorMessage", "error sending widget file " + widgetName + "\\" + fileName);
 		return WebUtility.getResponse(errorMap, 400);
 	}
