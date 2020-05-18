@@ -27,6 +27,7 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
 import prerna.web.conf.DBLoader;
 import prerna.web.conf.SessionCounter;
@@ -203,6 +204,7 @@ public class SessionResource {
 					redirectUrl += ":" + serverPort;
 				}
 				redirectUrl += contextPath + "/logout/";
+				redirectUrl = Utility.cleanHttpResponse(redirectUrl);
 				response.setHeader("redirect", redirectUrl);
 				response.sendError(302, "Need to redirect to " + redirectUrl);
 			}
