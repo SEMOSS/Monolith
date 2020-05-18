@@ -114,6 +114,8 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 						String redirectSessionId = (String) sessionMapper.get(userId);
 						// add the session id cookie
 						Cookie k = new Cookie(DBLoader.getSessionIdKey(), redirectSessionId);
+						k.setHttpOnly(true);
+						k.setSecure(req.isSecure());
 						k.setPath(contextPath);
 						((HttpServletResponse)arg1).addCookie(k);
 						// replace any other session id cookies
