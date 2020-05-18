@@ -31,7 +31,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.Vector;
 
 import javax.ws.rs.WebApplicationException;
@@ -40,6 +43,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.log4j.Logger;
 
 import com.google.gson.Gson;
@@ -55,12 +59,15 @@ public class WebUtility {
 	private static final String CLASS_NAME = WebUtility.class.getName();
 	private static final Logger LOGGER = Logger.getLogger(CLASS_NAME);
 
+    private static final FastDateFormat expiresDateFormat= FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz", TimeZone.getTimeZone("GMT"));
+
 	private static final List<String[]> noCacheHeaders = new Vector<String[]>();
 	static {
-		noCacheHeaders.add(new String[] {"Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0"});
-		noCacheHeaders.add(new String[] {"Pragma", "no-cache"});
+		noCacheHeaders.add(new String[] {"Cache-Control", "private"});
+//		noCacheHeaders.add(new String[] {"Cache-Control", "no-store, no-cache, must-revalidate, max-age=20, post-check=0, pre-check=0"});
+//		noCacheHeaders.add(new String[] {"Pragma", "no-cache"});
 	}
-	
+
 	private static Gson getDefaultGson() {
 		return GsonUtility.getDefaultGson();
 	}
@@ -91,11 +98,11 @@ public class WebUtility {
 	public static Response getResponse(Object vec, int status, NewCookie... cookies) {
 		return getResponse(vec, status, null, cookies);
 	}
-	
+
 	public static Response getResponseNoCache(Object vec, int status, NewCookie... cookies) {
 		return getResponse(vec, status, noCacheHeaders, cookies);
 	}
-	
+
 	public static Response getResponse(Object vec, int status, List<String[]> addHeaders, NewCookie... cookies) {
 		if(vec != null) {
 			Gson gson = getDefaultGson();
@@ -110,7 +117,14 @@ public class WebUtility {
 					}
 				}
 				if(cookies != null && cookies.length > 0) {
-					builder.cookie(cookies);
+					// due to chrome updates, we require to add cookies
+					// with samesite tags if they are not secure
+					// so will set the cookies via the header
+					for (NewCookie cookie : cookies) {
+						// add the cookie to the header
+						// with the SameSite Strict tag
+						builder.header("Set-Cookie", convertCookieToHeader(cookie));
+					}
 				}
 				return builder.build();
 			} catch (UnsupportedEncodingException e) {
@@ -121,9 +135,59 @@ public class WebUtility {
 
 		return null;
 	}
+	
+	public static String convertCookieToHeader(NewCookie cookie) {
+		StringBuilder c = new StringBuilder(64+cookie.getValue().length());
+		// add the cookie
+		c.append(cookie.getName());
+		c.append('=');
+		c.append(cookie.getValue());
+		// set same-site strict
+		c.append("; ");
+		c.append("SameSite");
+		c.append('=');
+		c.append("Strict");
+		// get the domain
+		if(cookie.getDomain() != null) {
+			c.append("; ");
+			c.append("domain");
+			c.append('=');
+			c.append(cookie.getDomain());
+		}
+		// the path
+		if(cookie.getPath() != null) {
+			c.append("; ");
+			c.append("path");
+			c.append('=');
+			c.append(cookie.getPath());
+		}
+		if (cookie.isSecure()) {
+			c.append("; secure");
+		}
+		if (cookie.isHttpOnly()) {
+			c.append("; HttpOnly");
+		}
+		if (cookie.getMaxAge()>=0) {
+			c.append("; ");
+			c.append("Expires");
+			c.append('=');
+			c.append(getExpires(cookie.getMaxAge()));
+		}
+		
+		return c.toString();
+	}
 
-	public static StreamingOutput getSO(byte[] output)
-	{
+	private static String getExpires(int maxAge) {
+		if (maxAge < 0) {
+			return "";
+		}
+		Calendar expireDate = Calendar.getInstance();
+		expireDate.setTime(new Date());
+		expireDate.add(Calendar.SECOND,maxAge);
+		return expiresDateFormat.format(expireDate);
+	}
+
+	public static StreamingOutput getSO(byte[] output) {
 		try {
 			return new StreamingOutput() {
 				public void write(OutputStream outputStream) throws IOException, WebApplicationException {
