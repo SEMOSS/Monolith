@@ -67,15 +67,14 @@ public abstract class Uploader extends HttpServlet {
 	public static final String CSV_HELPER_MESSAGE = "HTML_RESPONSE";
 	private static final String STACKTRACE = "StackTrace: ";
 
-	protected int maxFileSize = 10_000_000 * 1024;
-	protected int maxMemSize = 8 * 1024;
-	protected String filePath;
-	protected String tempFilePath = "";
-	protected boolean securityEnabled;
+	protected static int maxFileSize = 10_000_000 * 1024;
+	protected static int maxMemSize = 8 * 1024;
+	protected static String filePath;
+	protected static String tempFilePath = "";
 	
 	// we will control the adding of the engine into local master and solr
 	// such that we dont send a success before those processes are complete
-	boolean autoLoad = false;
+	static boolean autoLoad = false;
 
 	public void setFilePath(String filePath) {
 		// first, normalize path
@@ -83,11 +82,11 @@ public abstract class Uploader extends HttpServlet {
 
 		// then set path
 		if(normalizedfilePath.endsWith(DIR_SEPARATOR)) {
-			this.filePath = normalizedfilePath;
+			Uploader.filePath = normalizedfilePath;
 		} else {
-			this.filePath = normalizedfilePath + DIR_SEPARATOR;
+			Uploader.filePath = normalizedfilePath + DIR_SEPARATOR;
 		}
-		File f = new File(this.filePath);
+		File f = new File(Uploader.filePath);
 		if(!f.exists() && !f.isDirectory()) {
 			Boolean success = f.mkdirs();
 			if(!success) {
@@ -101,7 +100,7 @@ public abstract class Uploader extends HttpServlet {
 		String normalizedTempFilePath = Utility.normalizePath(tempFilePath);
 
 		// then set path
-		this.tempFilePath = normalizedTempFilePath;
+		Uploader.tempFilePath = normalizedTempFilePath;
 		File tFile = new File(normalizedTempFilePath);
 		if(!tFile.exists() && !tFile.isDirectory()) {
 			Boolean success = tFile.mkdirs();
@@ -109,10 +108,6 @@ public abstract class Uploader extends HttpServlet {
 				logger.info("Unable to create file at: " + Utility.cleanLogString(tFile.getAbsolutePath()));
 			}
 		}
-	}
-
-	public void setSecurityEnabled(boolean securityEnabled) {
-		this.securityEnabled = securityEnabled;
 	}
 
 	public void writeFile(FileItem fi, File file){
@@ -199,7 +194,7 @@ public abstract class Uploader extends HttpServlet {
 						fileName = fileName.replace(";", "");
 						Date date = new Date();
 						String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-						value = this.filePath + fileName.substring(fileName.lastIndexOf(DIR_SEPARATOR) + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + "_____UNIQUE" + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
+						value = Uploader.filePath + fileName.substring(fileName.lastIndexOf(DIR_SEPARATOR) + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + "_____UNIQUE" + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
 						file = new File(value);
 
 						writeFile(fi, file);

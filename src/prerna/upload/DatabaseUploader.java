@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -37,6 +36,7 @@ import com.google.gson.reflect.TypeToken;
 import prerna.algorithm.api.SemossDataType;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.AddToMasterDB;
@@ -84,7 +84,7 @@ public class DatabaseUploader extends Uploader {
 
 	// we will control the adding of the engine into local master and solr
 	// such that we dont send a success before those processes are complete
-	boolean autoLoad = false;
+	static boolean autoLoad = false;
 	
 	///////////////////////////////////////////// SET DEFAULT OPTIONS ///////////////////////////////////////////////
 
@@ -633,7 +633,7 @@ public class DatabaseUploader extends Uploader {
 
 				// add engine owner for permissions
 				// the 
-				if(this.securityEnabled) {
+				if(AbstractSecurityUtils.securityEnabled()) {
 					User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 					if(user == null) {
 						Map<String, String> errorHash = new HashMap<>();
@@ -1010,7 +1010,7 @@ public class DatabaseUploader extends Uploader {
 			options.setFileLocation(files);
 
 			// add engine owner for permissions
-			if(this.securityEnabled) {
+			if(AbstractSecurityUtils.securityEnabled()) {
 				User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 				if(user == null) {
 					Map<String, String> errorHash = new HashMap<>();
@@ -1370,7 +1370,7 @@ public class DatabaseUploader extends Uploader {
 			////////////////////// end logic to process metamodel for excel flat table rdf //////////////////////
 
 			// add engine owner for permissions
-			if(this.securityEnabled) {
+			if(AbstractSecurityUtils.securityEnabled()) {
 				User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 				if(user == null) {
 					Map<String, String> errorHash = new HashMap<>();
@@ -1496,7 +1496,7 @@ public class DatabaseUploader extends Uploader {
 			options.setFileLocation(uploadFiles);
 
 			// add engine owner for permissions
-			if(this.securityEnabled) {
+			if(AbstractSecurityUtils.securityEnabled()) {
 				User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 				if(user == null) {
 					Map<String, String> errorHash = new HashMap<>();
@@ -1600,7 +1600,7 @@ public class DatabaseUploader extends Uploader {
 //				GATracker.getInstance().trackCsvUpload(files, tableName, headerDataTypes);
 //			}
 //			// add engine owner for permissions
-//			if(this.securityEnabled) {
+//			if(AbstractSecurityUtils.securityEnabled()) {
 //				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
 //				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 //					addEngineOwner(options.getDbName(), ((User) user).getId());
@@ -1695,7 +1695,7 @@ public class DatabaseUploader extends Uploader {
 //			}
 //			
 //			// add engine owner for permissions
-//			if(this.securityEnabled) {
+//			if(AbstractSecurityUtils.securityEnabled()) {
 //				Object user = request.getSession().getAttribute(Constants.SESSION_USER);
 //				if(user != null && !((User) user).getId().equals(Constants.ANONYMOUS_USER_ID)) {
 //					addEngineOwner(options.getDbName(), ((User) user).getId());
