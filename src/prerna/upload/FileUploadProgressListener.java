@@ -11,12 +11,12 @@ import prerna.sablecc2.comm.InMemoryConsole;
 public class FileUploadProgressListener implements ProgressListener {
 
 	private static final String CLASS_NAME = FileUploadProgressListener.class.getName();
-	private static DecimalFormat formatter = new DecimalFormat("0.00%");
 	
 	private Logger logger = null;
 	private long megaBytes = -1;
 	private int currentItem = -1;
-	
+	private DecimalFormat formatter = new DecimalFormat("0.00%");
+		
 	public FileUploadProgressListener(String jobId) {
 		if(jobId != null && !jobId.isEmpty()) {
 			this.logger = new InMemoryConsole(jobId, CLASS_NAME);
