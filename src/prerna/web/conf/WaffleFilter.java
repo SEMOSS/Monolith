@@ -40,10 +40,10 @@ public class WaffleFilter implements Filter {
 
 	// realization of init params
 	private static Boolean autoAdd = null;
-	private CACTrackingUtil tracker = null;
-	private UserFileLogUtil userLogger = null;
+	private static CACTrackingUtil tracker = null;
+	private static UserFileLogUtil userLogger = null;
 
-	private FilterConfig filterConfig;
+	private static FilterConfig filterConfig;
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
@@ -94,12 +94,12 @@ public class WaffleFilter implements Filter {
 
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
-		this.filterConfig = arg0;
+		WaffleFilter.filterConfig = arg0;
 	}
 
 	private void setInitParams(ServletRequest arg0) {
 		if(WaffleFilter.autoAdd == null) {
-			String autoAddStr = this.filterConfig.getInitParameter(AUTO_ADD);
+			String autoAddStr = WaffleFilter.filterConfig.getInitParameter(AUTO_ADD);
 			if(autoAddStr != null) {
 				WaffleFilter.autoAdd = Boolean.parseBoolean(autoAddStr);
 			} else {
@@ -108,13 +108,13 @@ public class WaffleFilter implements Filter {
 			}
 
 			boolean logUsers = false;
-			String logUserInfoStr = this.filterConfig.getInitParameter(LOG_USER_INFO);
+			String logUserInfoStr = WaffleFilter.filterConfig.getInitParameter(LOG_USER_INFO);
 			if(logUserInfoStr != null) {
 				logUsers = Boolean.parseBoolean(logUserInfoStr);
 			}
 			if(logUsers) {
-				String logInfoPath = this.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
-				String logInfoSep = this.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
+				String logInfoPath = WaffleFilter.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
+				String logInfoSep = WaffleFilter.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
 				if(logInfoPath == null) {
 					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
@@ -132,7 +132,7 @@ public class WaffleFilter implements Filter {
 			}
 
 			boolean countUsers = false;
-			String countUsersStr = this.filterConfig.getInitParameter(COUNT_USER_ENTRY);
+			String countUsersStr = WaffleFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY);
 			if(countUsersStr != null) {
 				countUsers = Boolean.parseBoolean(countUsersStr);
 			} else {
@@ -140,7 +140,7 @@ public class WaffleFilter implements Filter {
 			}
 
 			if(countUsers) {
-				String countDatabaseId = this.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
+				String countDatabaseId = WaffleFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
 				if(countDatabaseId == null) {
 					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
