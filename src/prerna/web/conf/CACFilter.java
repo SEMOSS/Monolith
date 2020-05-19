@@ -55,10 +55,10 @@ public class CACFilter implements Filter {
 
 	// realization of init params
 	private static Boolean autoAdd = null;
-	private CACTrackingUtil tracker = null;
-	private UserFileLogUtil userLogger = null;
+	private static CACTrackingUtil tracker = null;
+	private static UserFileLogUtil userLogger = null;
 
-	private FilterConfig filterConfig;
+	private static FilterConfig filterConfig;
 
 	// TODO >>>timb: WORKSPACE - call logic to pull workspace here, or make into a reactor
 	@Override
@@ -222,12 +222,12 @@ public class CACFilter implements Filter {
 
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
-		this.filterConfig = arg0;
+		CACFilter.filterConfig = arg0;
 	}
 
 	private void setInitParams(ServletRequest arg0) {
 		if(CACFilter.autoAdd == null) {
-			String autoAddStr = this.filterConfig.getInitParameter(AUTO_ADD);
+			String autoAddStr = CACFilter.filterConfig.getInitParameter(AUTO_ADD);
 			if(autoAddStr != null) {
 				CACFilter.autoAdd = Boolean.parseBoolean(autoAddStr);
 			} else {
@@ -236,13 +236,13 @@ public class CACFilter implements Filter {
 			}
 
 			boolean logUsers = false;
-			String logUserInfoStr = this.filterConfig.getInitParameter(LOG_USER_INFO);
+			String logUserInfoStr = CACFilter.filterConfig.getInitParameter(LOG_USER_INFO);
 			if(logUserInfoStr != null) {
 				logUsers = Boolean.parseBoolean(logUserInfoStr);
 			}
 			if(logUsers) {
-				String logInfoPath = this.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
-				String logInfoSep = this.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
+				String logInfoPath = CACFilter.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
+				String logInfoSep = CACFilter.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
 				if(logInfoPath == null) {
 					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
@@ -260,7 +260,7 @@ public class CACFilter implements Filter {
 			}
 
 			boolean countUsers = false;
-			String countUsersStr = this.filterConfig.getInitParameter(COUNT_USER_ENTRY);
+			String countUsersStr = CACFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY);
 			if(countUsersStr != null) {
 				countUsers = Boolean.parseBoolean(countUsersStr);
 			} else {
@@ -268,7 +268,7 @@ public class CACFilter implements Filter {
 			}
 
 			if(countUsers) {
-				String countDatabaseId = this.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
+				String countDatabaseId = CACFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
 				if(countDatabaseId == null) {
 					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");

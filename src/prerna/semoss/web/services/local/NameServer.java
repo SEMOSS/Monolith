@@ -144,7 +144,6 @@ public class NameServer {
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
-		upload.setSecurityEnabled(securityEnabled);
 		return upload;
 	}
 
@@ -155,7 +154,6 @@ public class NameServer {
 		Uploader upload = new FileUploader();
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
-		upload.setSecurityEnabled(securityEnabled);
 		return upload;
 	}
 
@@ -168,7 +166,6 @@ public class NameServer {
 		upload.setFilePath(filePath);
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
-		upload.setSecurityEnabled(securityEnabled);
 		return upload;
 	}
 
