@@ -179,57 +179,63 @@
 	</style>
 	<script>
 		// this will store the route types		
-		function connectTableau() {
-			var xhttp = new XMLHttpRequest(),
-				origin = window.location.href;
-				insightId = document.getElementById('share_insight').value,
-				hash = document.getElementById('share_hash').value,
-				secret = document.getElementById('share_secret').value,
-				sessionKey = document.getElementById('share_session_key').value,
-				session = document.getElementById('share_session').value,
-				routeKey = document.getElementById('share_route_key').value,
-				route = document.getElementById('share_route').value,
-				endpoint = origin.substring(0, origin.lastIndexOf('/') - 5) + 'api/share/i-' + insightId +'/getTableData';
-			
-			endpoint += '?i=' + insightId;
-			endpoint += '&hash=' + hash;
-			endpoint += '&' + sessionKey + '=' + session;
-			endpoint += '&s=' + secret;
-			if(route && route !== '' && routeKey && routeKey !== '') {
-				endpoint += '&' + routeKey + '=' + route;
-			}
+		 async function connectTableau() {
+			    let origin = window.location.href;
+				let insightId = document.getElementById('share_insight').value;
+				let hash = document.getElementById('share_hash').value;
+				let secret = document.getElementById('share_secret').value;
+				let sessionKey = document.getElementById('share_session_key').value;
+				let session = document.getElementById('share_session').value;
+				let routeKey = document.getElementById('share_route_key').value;
+				let route = document.getElementById('share_route').value;
 
-			if (insightId && hash && secret && session && endpoint) {
-				xhttp.onreadystatechange = function () {
-					if (this.readyState === 4) {
-						var headers = [], headerTypes = [], tableauData = {}, i,
-							response = JSON.parse(this.responseText);
+				let endpoint = origin.substring(0, origin.lastIndexOf('/') - 5) + 'api/share/i-' + insightId +'/getTableData';
 
-						if (!response) {
-							return;
-						}
+				if(insightId && hash && secret && session && endpoint){
 
-						for (i = 0; i < response.pixelReturn[1].output.headerInfo.headers.length; i++) {
-							headers.push(response.pixelReturn[1].output.headerInfo.headers[i].displayName);
-							headerTypes.push(response.pixelReturn[1].output.headerInfo.headers[i].dataType);
-						}
+					let form_data = new FormData();
+					form_data.append('i', insightId);
+					form_data.append('hash', hash);
+					form_data.append(sessionKey, session);
+					form_data.append('s', secret);
 
-						tableauData = {
-							headers: headers,
-							values: response.pixelReturn[0].output.data.values,
-							headerTypes: headerTypes
-						};
-
-						tableau.connectionData = JSON.stringify([tableauData.headers, tableauData.values, tableauData.headerTypes]);
-						tableau.connectionName = origin + '&s=validated';
-						tableau.submit();
+					if(route && route !== '' && routeKey && routeKey !== '') {
+						form_data.append(routeKey, route);
 					}
-				};
-				xhttp.open('GET', endpoint);
-				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-				xhttp.send();
-			}
-		}
+
+					let response = await fetch(endpoint, {
+						method:'POST',
+						headers:{
+						'Content-Type':'application/x-www-form-urlencoded'
+						},
+						body:form_data,
+						credentials:'include'
+					});
+
+					if(!response.ok){
+						return;
+					}
+
+					let json = await response.json();
+					let headers = [], headerTypes = [], tableauData = {};
+
+					for (let i = 0; i < json.pixelReturn[1].output.headerInfo.headers.length; i++) {
+						headers.push(json.pixelReturn[1].output.headerInfo.headers[i].displayName);
+						headerTypes.push(json.pixelReturn[1].output.headerInfo.headers[i].dataType);
+					}
+
+					tableauData = {
+						headers: headers,
+						values: json.pixelReturn[0].output.data.values,
+						headerTypes: headerTypes
+					};
+
+					tableau.connectionData = JSON.stringify([tableauData.headers, tableauData.values, tableauData.headerTypes]);
+					tableau.connectionName = origin + '&s=validated';
+					tableau.submit();
+				}
+
+		 }
 	</script>
 </head>
 
