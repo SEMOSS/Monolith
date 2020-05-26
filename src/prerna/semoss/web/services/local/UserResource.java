@@ -58,7 +58,6 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.NewCookie;
@@ -88,7 +87,6 @@ import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.ds.py.FilePyTranslator;
-import prerna.ds.py.PyExecutorThread;
 import prerna.ds.py.PyTranslator;
 import prerna.ds.py.PyUtils;
 import prerna.ds.py.TCPPyTranslator;
@@ -1708,13 +1706,14 @@ public class UserResource {
 	 * Sharing session
 	 */
 
-	@GET
+	@POST
 	@Produces("application/json")
 	@Path("/cookie")
-	public StreamingOutput manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response,
-			@QueryParam("i") String insightId, @QueryParam("s") String secret) {
-		// https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
+	public StreamingOutput manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+		String insightId = request.getParameter("i");
+		String secret = request.getParameter("s");
 
+		// https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
 		/*
 		 * When the user clicks on connect to tableau.. I need to give the user a link
 		 * to that insight primarily
