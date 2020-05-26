@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
@@ -26,7 +26,7 @@ public class RunInsight {
 		this.drop = drop;
 	}
 	
-	@GET
+	@POST
 	@Path("/getTableData")
 	@Produces("application/json")
 	public Response getInsightData(@Context HttpServletRequest request) {
