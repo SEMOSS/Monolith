@@ -225,45 +225,13 @@ public class UserResource {
 
 		HttpSession session = request.getSession();
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
-
-		// Stop R
-		if (thisUser != null) {
-			IRUserConnection rserve = thisUser.getRcon();
-			if (rserve != null) {
-				ExecutorService executor = Executors.newSingleThreadExecutor();
-				try {
-					executor.submit(new Callable<Void>() {
-						@Override
-						public Void call() throws Exception {
-							try {
-								rserve.stopR();
-							} catch (Exception e) {
-								logger.warn("Unable to stop R.");
-							}
-							return null;
-						}
-					});
-				} finally {
-					executor.shutdown();
-				}
-			}
+		// log the logout
+		if(thisUser != null) {
+			logger.info(User.getSingleLogginName(thisUser) + " is logging out of provider " +  provider + " from session " + request.getSession().getId());
+		} else {
+			logger.info("Unknown user is logging out of provider " +  provider + " from session "  + request.getSession().getId());
 		}
-
-		// stop python too
-		if (PyUtils.pyEnabled()) {
-			PyTranslator pyt = thisUser.getPyTranslator(false);
-
-			if (pyt instanceof prerna.ds.py.PyTranslator)
-				PyUtils.getInstance().killPyThread(pyt.getPy());
-			if (pyt instanceof FilePyTranslator && thisUser != null)
-				PyUtils.getInstance().killTempTupleSpace(thisUser);
-			if (pyt instanceof TCPPyTranslator) {
-				NettyClient nc = thisUser.getPyServe();
-				String dir = thisUser.pyTupleSpace;
-				nc.stopPyServe(dir);
-			}
-		}
-
+		
 		if (provider.equalsIgnoreCase("ALL")) {
 			// remove the user from session call it a day
 			request.getSession().removeAttribute(Constants.SESSION_USER);
@@ -294,76 +262,116 @@ public class UserResource {
 			}
 		}
 
-		// if there are no users and there is security
-		// redirect the user
-		// and invalidate the session
-		if (noUser && AbstractSecurityUtils.securityEnabled()) {
-			logger.info("User is no longer logged in");
-			logger.info("Removing user object from session");
-			session.removeAttribute(Constants.SESSION_USER);
-			// well, you have logged out and we always require a login
-			// so i will redirect you
-			response.setStatus(302);
-
-			String customUrl = DBLoader.getCustomLogoutUrl();
-			if (customUrl != null && !customUrl.isEmpty()) {
-				response.setHeader("redirect", customUrl);
-				response.sendError(302, "Need to redirect to " + customUrl);
-			} else {
-				String redirectUrl = request.getHeader("referer");
-				if (DBLoader.useLogoutPage()) {
-					String scheme = request.getScheme();
-					if (!scheme.trim().equalsIgnoreCase("https") &&
-						!scheme.trim().equalsIgnoreCase("http")) {
-						throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
+		if(noUser) {
+			// stop R
+			if (thisUser != null) {
+				IRUserConnection rserve = thisUser.getRcon();
+				if (rserve != null) {
+					ExecutorService executor = Executors.newSingleThreadExecutor();
+					try {
+						executor.submit(new Callable<Void>() {
+							@Override
+							public Void call() throws Exception {
+								try {
+									rserve.stopR();
+								} catch (Exception e) {
+									logger.warn("Unable to stop R.");
+								}
+								return null;
+							}
+						});
+					} finally {
+						executor.shutdown();
 					}
-					String serverName = request.getServerName(); // hostname.com
-					int serverPort = request.getServerPort(); // 8080
-					String contextPath = request.getContextPath(); // /Monolith
+				}
+			}
 
-					redirectUrl = "";
-					redirectUrl += scheme + "://" + serverName;
-					if (serverPort != 80 && serverPort != 443) {
-						redirectUrl += ":" + serverPort;
-					}
-					redirectUrl += contextPath + "/logout/";
-					response.setHeader("redirect", redirectUrl);
-					response.sendError(302, "Need to redirect to " + redirectUrl);
+			// stop python too
+			if (PyUtils.pyEnabled()) {
+				PyTranslator pyt = thisUser.getPyTranslator(false);
+
+				if (pyt instanceof prerna.ds.py.PyTranslator)
+					PyUtils.getInstance().killPyThread(pyt.getPy());
+				if (pyt instanceof FilePyTranslator && thisUser != null)
+					PyUtils.getInstance().killTempTupleSpace(thisUser);
+				if (pyt instanceof TCPPyTranslator) {
+					NettyClient nc = thisUser.getPyServe();
+					String dir = thisUser.pyTupleSpace;
+					nc.stopPyServe(dir);
+				}
+			}
+
+			// if there are no users and there is security
+			// redirect the user
+			// and invalidate the session
+			if (AbstractSecurityUtils.securityEnabled()) {
+				logger.info("User is no longer logged in");
+				logger.info("Removing user object from session");
+				session.removeAttribute(Constants.SESSION_USER);
+				// well, you have logged out and we always require a login
+				// so i will redirect you
+				response.setStatus(302);
+
+				String customUrl = DBLoader.getCustomLogoutUrl();
+				if (customUrl != null && !customUrl.isEmpty()) {
+					response.setHeader("redirect", customUrl);
+					response.sendError(302, "Need to redirect to " + customUrl);
 				} else {
-					redirectUrl = redirectUrl + "#!/login";
-					String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-					response.setHeader("redirect", encodedRedirectUrl);
-					response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
-				}
-			}
-
-			// remove the cookie from the browser
-			// for the session id
-			logger.info("Removing session token");
-			Cookie[] cookies = request.getCookies();
-			if (cookies != null) {
-				for (Cookie c : cookies) {
-					if (DBLoader.getSessionIdKey().equals(c.getName())) {
-						// we need to null this out
-						Cookie nullC = new Cookie(c.getName(), c.getValue());
-						nullC.setPath(c.getPath());
-						nullC.setSecure(request.isSecure());
-						nullC.setHttpOnly(true);
-						nullC.setVersion(c.getVersion());
-						if (c.getDomain() != null) {
-							nullC.setDomain(c.getDomain());
+					String redirectUrl = request.getHeader("referer");
+					if (DBLoader.useLogoutPage()) {
+						String scheme = request.getScheme();
+						if (!scheme.trim().equalsIgnoreCase("https") &&
+							!scheme.trim().equalsIgnoreCase("http")) {
+							throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
 						}
-						nullC.setMaxAge(0);
-						response.addCookie(nullC);
+						String serverName = request.getServerName(); // hostname.com
+						int serverPort = request.getServerPort(); // 8080
+						String contextPath = request.getContextPath(); // /Monolith
+
+						redirectUrl = "";
+						redirectUrl += scheme + "://" + serverName;
+						if (serverPort != 80 && serverPort != 443) {
+							redirectUrl += ":" + serverPort;
+						}
+						redirectUrl += contextPath + "/logout/";
+						response.setHeader("redirect", redirectUrl);
+						response.sendError(302, "Need to redirect to " + redirectUrl);
+					} else {
+						redirectUrl = redirectUrl + "#!/login";
+						String encodedRedirectUrl = Encode.forHtml(redirectUrl);
+						response.setHeader("redirect", encodedRedirectUrl);
+						response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
 					}
 				}
+
+				// remove the cookie from the browser
+				// for the session id
+				logger.info("Removing session token");
+				Cookie[] cookies = request.getCookies();
+				if (cookies != null) {
+					for (Cookie c : cookies) {
+						if (DBLoader.getSessionIdKey().equals(c.getName())) {
+							// we need to null this out
+							Cookie nullC = new Cookie(c.getName(), c.getValue());
+							nullC.setPath(c.getPath());
+							nullC.setSecure(request.isSecure());
+							nullC.setHttpOnly(true);
+							nullC.setVersion(c.getVersion());
+							if (c.getDomain() != null) {
+								nullC.setDomain(c.getDomain());
+							}
+							nullC.setMaxAge(0);
+							response.addCookie(nullC);
+						}
+					}
+				}
+
+				// invalidate the session
+				session.invalidate();
+				return null;
 			}
-
-			// invalidate the session
-			session.invalidate();
-			return null;
 		}
-
+		
 		Map<String, Boolean> ret = new Hashtable<>();
 		ret.put("success", removed);
 		return WebUtility.getResponse(ret, 200);
@@ -1457,34 +1465,6 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 500);
 		}
 
-		return WebUtility.getResponse(ret, 200);
-	}
-
-	/**
-	 * Logs user out when authenticated in a native way.
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/logout")
-	public Response logoutNative(@Context HttpServletRequest request) throws IOException {
-		Hashtable<String, String> ret = new Hashtable<>();
-		try {
-			if (request.getSession(false) != null) {
-				HttpSession session = request.getSession(false);
-				User print = (User) session.getAttribute(Constants.SESSION_USER);
-				print.dropAccessToken(AuthProvider.NATIVE.name().toUpperCase());
-				request.getSession().setAttribute(Constants.SESSION_USER, print);
-			} else {
-				ret.put("error", "User is not connected.");
-				return WebUtility.getResponse(ret, 401);
-			}
-			// Only disconnect a connected user.
-		} catch (Exception ex) {
-			logger.error(STACKTRACE, ex);
-			ret.put("error", "Unexpected error.");
-			return WebUtility.getResponse(ret, 500);
-		}
-		ret.put("success", "true");
 		return WebUtility.getResponse(ret, 200);
 	}
 
