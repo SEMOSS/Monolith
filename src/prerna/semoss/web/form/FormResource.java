@@ -56,7 +56,7 @@ public class FormResource {
 		try {
 			throwErrorIfNotAdmin(cacId);
 		} catch (IllegalAccessException e) {
-			logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to modify user access while not being an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to modify user access while not being an admin"));
 			Map<String, String> err = new HashMap<String, String>();
 			err.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(err, 400);
@@ -127,7 +127,7 @@ public class FormResource {
 		try {
 			throwErrorIfNotAdmin(cacId);
 		} catch (IllegalAccessException e) {
-			logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to rename an instance while not being an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to rename an instance while not being an admin"));
 			Map<String, String> err = new HashMap<String, String>();
 			err.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(err, 400);
@@ -169,8 +169,8 @@ public class FormResource {
 
 		try {
 			throwErrorIfNotSysAdmin(cacId, instanceName);
-			logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to certify " + instanceName + " when he is not the system admin for the system"));
 		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to certify " + instanceName + " when he is not the system admin for the system"));
 			Map<String, String> err = new HashMap<String, String>();
 			err.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(err, 400);
@@ -269,7 +269,7 @@ public class FormResource {
 			}
 		} catch (Exception e) {
 			logger.error("Stacktrace: " , e);
-			} finally {
+		} finally {
 			if(wrapper != null) {
 				wrapper.cleanUp();
 			}
@@ -296,7 +296,7 @@ public class FormResource {
 			}
 		} catch (Exception e) {
 			logger.error("Stacktrace: " , e);
-			} finally {
+		} finally {
 			if(wrapper != null) {
 				wrapper.cleanUp();
 			}
