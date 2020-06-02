@@ -227,9 +227,9 @@ public class UserResource {
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
 		// log the logout
 		if(thisUser != null) {
-			logger.info(User.getSingleLogginName(thisUser) + " is logging out of provider " +  provider + " from session " + request.getSession().getId());
+			logger.info("IP " + ResourceUtility.getClientIp(request) + " : " + User.getSingleLogginName(thisUser) + " is logging out of provider " +  provider + " from session " + request.getSession().getId());
 		} else {
-			logger.info("Unknown user is logging out of provider " +  provider + " from session "  + request.getSession().getId());
+			logger.info("IP " + ResourceUtility.getClientIp(request) + " : Unknown user is logging out of provider " +  provider + " from session "  + request.getSession().getId());
 		}
 		
 		if (provider.equalsIgnoreCase("ALL")) {
@@ -305,7 +305,7 @@ public class UserResource {
 			// redirect the user
 			// and invalidate the session
 			if (AbstractSecurityUtils.securityEnabled()) {
-				logger.info("User is no longer logged in");
+				logger.info("IP " + ResourceUtility.getClientIp(request) + " : User is logged out from all providers in from session " + request.getSession().getId());
 				logger.info("Removing user object from session");
 				session.removeAttribute(Constants.SESSION_USER);
 				// well, you have logged out and we always require a login
@@ -387,10 +387,7 @@ public class UserResource {
 		User semossUser = null;
 		HttpSession session = request.getSession();
 		Object user = session.getAttribute(Constants.SESSION_USER);
-		
-		
 		// all of this is now in the user
-		
 		if (user != null) {
 			semossUser = (User) user;
 		} else {
@@ -399,6 +396,10 @@ public class UserResource {
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
 		request.getSession().setAttribute(Constants.SESSION_USER, semossUser);
+
+		// log user sign-in
+		logger.info("IP " + ResourceUtility.getClientIp(request) + " : " + User.getSingleLogginName(semossUser) + " is logging in with provider " +  token.getProvider() + " from session " + request.getSession().getId());
+
 		// add new users into the database
 		SecurityUpdateUtils.addOAuthUser(token);
 	}

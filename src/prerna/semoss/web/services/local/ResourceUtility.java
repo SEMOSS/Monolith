@@ -33,4 +33,16 @@ public class ResourceUtility {
 		return user;
 	}
 	
+	public static String getClientIp(@Context HttpServletRequest request) {
+        String remoteAddr = "";
+        if (request != null) {
+            remoteAddr = request.getHeader("X-FORWARDED-FOR");
+            if (remoteAddr == null || "".equals(remoteAddr)) {
+                remoteAddr = request.getRemoteAddr();
+            }
+        }
+
+        return remoteAddr;
+    }
+	
 }
