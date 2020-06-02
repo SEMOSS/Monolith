@@ -15,12 +15,17 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 
 public class AnonymousUserFilter implements Filter, Serializable {
 
+	private static final Logger logger = LogManager.getLogger(AnonymousUserFilter.class); 
 	private static final long serialVersionUID = -4657347128078864456L;
 
 	@Override
@@ -28,11 +33,10 @@ public class AnonymousUserFilter implements Filter, Serializable {
 		if(AbstractSecurityUtils.anonymousUsersEnabled()) {
 			HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 	
-			User semossUser = null;
-			Object user = session.getAttribute(Constants.SESSION_USER);
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
 			if(user == null) {
-				semossUser = new User();
-				semossUser.setAnonymous(true);
+				user = new User();
+				user.setAnonymous(true);
 				
 				String cookieToFind = DBLoader.getSessionIdKey() + "_unk";
 				Cookie[] cookies = ((HttpServletRequest) arg0).getCookies();
@@ -41,7 +45,7 @@ public class AnonymousUserFilter implements Filter, Serializable {
 					for(Cookie c : cookies) {
 						if(c.getName().equals(cookieToFind)) {
 							String uId = c.getValue();
-							semossUser.setAnonymousId(uId);
+							user.setAnonymousId(uId);
 							// found the cookie
 							// no need to continue loop
 							break;
@@ -49,10 +53,10 @@ public class AnonymousUserFilter implements Filter, Serializable {
 					}
 				}
 				
-				if(semossUser.getAnonymousId() == null) {
+				if(user.getAnonymousId() == null) {
 					// set a new id + add a cookie
 					String uId = "UNK_" + UUID.randomUUID().toString();
-					semossUser.setAnonymousId(uId);
+					user.setAnonymousId(uId);
 					
 					Cookie c = new Cookie(cookieToFind, uId);
 					// max age of 10years...
@@ -63,7 +67,10 @@ public class AnonymousUserFilter implements Filter, Serializable {
 					((HttpServletResponse)arg1).addCookie(c);
 				}
 				// add to session
-				session.setAttribute(Constants.SESSION_USER, semossUser);
+				session.setAttribute(Constants.SESSION_USER, user);
+				
+				// log the user login
+				logger.info("IP " + ResourceUtility.getClientIp((HttpServletRequest)arg0) + " : Anonymous user with id " + User.getSingleLogginName(user) + " logged in from session " + session.getId());
 			}
 		}
 
