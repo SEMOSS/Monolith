@@ -227,9 +227,10 @@ public class UserResource {
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
 		// log the logout
 		if(thisUser != null) {
-			logger.info("IP " + ResourceUtility.getClientIp(request) + " : " + User.getSingleLogginName(thisUser) + " is logging out of provider " +  provider + " from session " + request.getSession().getId());
+			// log the user login
+			logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is logging out of provider " +  provider));
 		} else {
-			logger.info("IP " + ResourceUtility.getClientIp(request) + " : Unknown user is logging out of provider " +  provider + " from session "  + request.getSession().getId());
+			logger.info(ResourceUtility.getLogMessage(request, session, "Unknown user", "is logging out of provider " +  provider));
 		}
 		
 		if (provider.equalsIgnoreCase("ALL")) {
@@ -305,7 +306,7 @@ public class UserResource {
 			// redirect the user
 			// and invalidate the session
 			if (AbstractSecurityUtils.securityEnabled()) {
-				logger.info("IP " + ResourceUtility.getClientIp(request) + " : User is logged out from all providers in from session " + request.getSession().getId());
+				logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "has logged out from all providers in the session"));
 				logger.info("Removing user object from session");
 				session.removeAttribute(Constants.SESSION_USER);
 				// well, you have logged out and we always require a login
@@ -397,8 +398,8 @@ public class UserResource {
 		semossUser.setAnonymous(false);
 		request.getSession().setAttribute(Constants.SESSION_USER, semossUser);
 
-		// log user sign-in
-		logger.info("IP " + ResourceUtility.getClientIp(request) + " : " + User.getSingleLogginName(semossUser) + " is logging in with provider " +  token.getProvider() + " from session " + request.getSession().getId());
+		// log the user login
+		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser), "is logging in with provider " +  token.getProvider()));
 
 		// add new users into the database
 		SecurityUpdateUtils.addOAuthUser(token);
@@ -1453,6 +1454,8 @@ public class UserResource {
 				authToken.setEmail(email);
 				addAccessToken(authToken, request);
 
+				// log the log in
+				logger.info(ResourceUtility.getLogMessage(request, request.getSession(), id, " is logging out of provider " +  AuthProvider.NATIVE));
 				if (!disableRedirect) {
 					setMainPageRedirect(request, response, redirect);
 				}
