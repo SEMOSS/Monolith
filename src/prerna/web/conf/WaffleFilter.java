@@ -22,13 +22,14 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.conf.util.CACTrackingUtil;
 import prerna.web.conf.util.UserFileLogUtil;
 
 public class WaffleFilter implements Filter {
 
-	private static final Logger LOGGER = LogManager.getLogger(WaffleFilter.class.getName()); 
+	private static final Logger logger = LogManager.getLogger(WaffleFilter.class.getName()); 
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
@@ -63,7 +64,7 @@ public class WaffleFilter implements Filter {
 			token.setProvider(AuthProvider.WINDOWS_USER);
 			token.setId(id);
 			token.setName(name);
-			LOGGER.info("Valid request coming from user " + token.getName());
+			logger.info("Valid request coming from user " + token.getName());
 			// add the user if they do not exist
 			if(WaffleFilter.autoAdd) {
 				SecurityUpdateUtils.addOAuthUser(token);
@@ -81,6 +82,9 @@ public class WaffleFilter implements Filter {
 
 			user.setAccessToken(token);
 			session.setAttribute(Constants.SESSION_USER, user);
+			
+			// log the user login
+			logger.info("IP " + ResourceUtility.getClientIp((HttpServletRequest)arg0) + " : " + User.getSingleLogginName(user) + " is logging in with provider " +  token.getProvider() + " from session " + session.getId());
 		}
 
 		arg2.doFilter(arg0, arg1);
@@ -116,18 +120,18 @@ public class WaffleFilter implements Filter {
 				String logInfoPath = WaffleFilter.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
 				String logInfoSep = WaffleFilter.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
 				if(logInfoPath == null) {
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 				}
 				try {
 					userLogger = UserFileLogUtil.getInstance(logInfoPath, logInfoSep);
 				} catch(Exception e) {
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
 				}
 			}
 
@@ -142,18 +146,18 @@ public class WaffleFilter implements Filter {
 			if(countUsers) {
 				String countDatabaseId = WaffleFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
 				if(countDatabaseId == null) {
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					LOGGER.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 				}
 				try {
 					tracker = CACTrackingUtil.getInstance(countDatabaseId);
 				} catch(Exception e) {
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
-					LOGGER.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
+					logger.info(e.getMessage());
 				}
 			}
 		}
