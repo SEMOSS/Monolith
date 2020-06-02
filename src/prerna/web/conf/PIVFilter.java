@@ -25,6 +25,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
@@ -140,11 +141,11 @@ public class PIVFilter implements Filter {
 					// are we logging their information?
 					if(userLogger != null) {
 						// grab the ip address
-						String ipAddress1 = ((HttpServletRequest)arg0).getHeader("X-FORWARDED-FOR");
-						String ipAddress2 = ((HttpServletRequest)arg0).getRemoteAddr();  
-
-						userLogger.addToQueue(new String[] {email, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), ipAddress1, ipAddress2});
+						userLogger.addToQueue(new String[] {email, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), ResourceUtility.getClientIp((HttpServletRequest)arg0)});
 					}
+					
+					// log the user login
+					logger.info("IP " + ResourceUtility.getClientIp((HttpServletRequest)arg0) + " : " + User.getSingleLogginName(user) + " is logging in with provider " +  token.getProvider() + " from session " + session.getId());
 				}
 			}
 		}
