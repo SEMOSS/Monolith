@@ -145,7 +145,7 @@ public class PIVFilter implements Filter {
 					}
 					
 					// log the user login
-					logger.info("IP " + ResourceUtility.getClientIp((HttpServletRequest)arg0) + " : " + User.getSingleLogginName(user) + " is logging in with provider " +  token.getProvider() + " from session " + session.getId());
+					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
 				}
 			}
 		}

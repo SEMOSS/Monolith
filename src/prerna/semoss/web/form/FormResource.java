@@ -28,6 +28,7 @@ import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -55,11 +56,12 @@ public class FormResource {
 		try {
 			throwErrorIfNotAdmin(cacId);
 		} catch (IllegalAccessException e) {
+			logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to modify user access while not being an admin"));
 			Map<String, String> err = new HashMap<String, String>();
 			err.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(err, 400);
 		}
-
+		
 		String addOrRemove = form.getFirst("addOrRemove");
 		String userid = form.getFirst("userid");
 		String instancename = Utility.cleanString(form.getFirst("instanceName"), true);
@@ -73,15 +75,24 @@ public class FormResource {
 						RdbmsQueryBuilder.escapeForSQLStatement(userid) + 
 						"' AND INSTANCE_NAME = '" + 
 						RdbmsQueryBuilder.escapeForSQLStatement(instancename) + "';";
+				
+				// log the operation
+				logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is removing user " + userid + " from having access to " + instancename));
 			} else {
 				// remove all of user
 				query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '" + RdbmsQueryBuilder.escapeForSQLStatement(userid) + "';";
+				
+				// log the operation
+				logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is removing all access for user " + userid));
 			}
 		} else if (addOrRemove.equals("Add")) {
 			query = "INSERT INTO FORMS_USER_ACCESS (USER_ID, INSTANCE_NAME, IS_SYS_ADMIN) VALUES ('" + 
 					RdbmsQueryBuilder.escapeForSQLStatement(userid) + "','" + 
 					RdbmsQueryBuilder.escapeForSQLStatement(instancename) + "','" + 
 					RdbmsQueryBuilder.escapeForSQLStatement(owner) + "');";
+			
+			// log the operation
+			logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is adding user " + userid + " to have access to " + instancename));
 		} else {
 			return WebUtility.getResponse("Error: need to specify Add or Remove", 400);
 		}
@@ -116,6 +127,7 @@ public class FormResource {
 		try {
 			throwErrorIfNotAdmin(cacId);
 		} catch (IllegalAccessException e) {
+			logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to rename an instance while not being an admin"));
 			Map<String, String> err = new HashMap<String, String>();
 			err.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(err, 400);
@@ -128,6 +140,9 @@ public class FormResource {
 		if(form.getFirst("deleteInstanceBoolean") != null) {
 			deleteInstanceBoolean = Boolean.parseBoolean(form.getFirst("deleteInstanceBoolean"));
 		}
+
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is renaming " + origUri + " to " + newUri));
 
 		IEngine coreEngine = Utility.getEngine(MasterDatabaseUtility.testEngineIdIfAlias(dbName));		
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
@@ -154,6 +169,7 @@ public class FormResource {
 
 		try {
 			throwErrorIfNotSysAdmin(cacId, instanceName);
+			logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to certify " + instanceName + " when he is not the system admin for the system"));
 		} catch (IllegalAccessException e) {
 			Map<String, String> err = new HashMap<String, String>();
 			err.put("errorMessage", e.getMessage());
@@ -164,6 +180,9 @@ public class FormResource {
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
 		formbuilder.setUser(cacId);
 		formbuilder.certifyInstance(instanceType, instanceName);
+		
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "has certified " + instanceName));
 		return WebUtility.getResponse("success", 200);
 	}	
 
