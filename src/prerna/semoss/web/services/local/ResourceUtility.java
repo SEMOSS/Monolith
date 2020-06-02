@@ -44,5 +44,17 @@ public class ResourceUtility {
 
         return remoteAddr;
     }
+
+	/**
+	 * Standardized format for the message
+	 * @param request
+	 * @param session
+	 * @param userId
+	 * @param message
+	 * @return
+	 */
+	public static String getLogMessage(HttpServletRequest request, HttpSession session, String userId, String message) {
+		return "IP = " + ResourceUtility.getClientIp(request) + " : Session = " + session.getId() + " : ID = " + userId + " " + message;
+	}
 	
 }
