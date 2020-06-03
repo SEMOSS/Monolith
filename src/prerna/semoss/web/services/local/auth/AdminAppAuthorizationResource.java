@@ -19,6 +19,7 @@ import org.apache.log4j.Logger;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/app")
@@ -45,6 +46,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to get all apps when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -65,6 +67,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull the apps that user " + userId + " has access to when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -90,6 +93,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull all the users who use app " + appId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -120,6 +124,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to app " + appId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -128,6 +133,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.addAppUser(newUserId, appId, permission);
 		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -162,6 +168,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
+			logger.error(Constants.STACKTRACE, e);
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for app " + appId + " when not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -171,6 +178,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.editAppUserPermission(existingUserId, appId, newPermission);
 		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -205,6 +213,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to app " + appId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -213,6 +222,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.removeAppUser(existingUserId, appId);
 		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -242,6 +252,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the app " + appId + logPublic + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
