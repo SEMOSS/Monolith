@@ -121,10 +121,8 @@ public class NameServer {
 
 	private static final Logger logger = LogManager.getLogger(NameServer.class);
 
-	private static final String ERROR_MESSAGE = "errorMessage";
 	private static final String ERROR_TYPE = "errorType";
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
-	private static final String STACKTRACE = "StackTrace: ";
 	// get the directory separator
 	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	
@@ -202,7 +200,7 @@ public class NameServer {
 			existingInsight = InsightStore.getInstance().get(insightID);
 			if (existingInsight == null) {
 				Map<String, String> errorHash = new HashMap<>();
-				errorHash.put(ERROR_MESSAGE, "Existing insight based on passed insightID is not found");
+				errorHash.put(Constants.ERROR_MESSAGE, "Existing insight based on passed insightID is not found");
 				// return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
 				return WebUtility.getResponse(errorHash, 400);
 			}
@@ -288,7 +286,7 @@ public class NameServer {
 		Insight insight = InsightStore.getInstance().get(insightId);
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(ERROR_MESSAGE, "Could not find the insight id");
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
@@ -296,7 +294,7 @@ public class NameServer {
 		File exportFile = new File(filePath);
 		if (!exportFile.exists()) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(ERROR_MESSAGE, "Could not find the file for given file id");
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the file for given file id");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
@@ -406,7 +404,7 @@ public class NameServer {
 			insight = InsightStore.getInstance().get(insightId);
 			if (insight == null) {
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(ERROR_MESSAGE, "Could not find the insight id");
+				errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
 				errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 				return WebUtility.getResponse(errorMap, 400);
 			}
@@ -453,7 +451,7 @@ public class NameServer {
 		Insight insight = InsightStore.getInstance().get(insightId);
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(ERROR_MESSAGE, "Could not find the insight id");
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
 			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
@@ -569,9 +567,9 @@ public class NameServer {
 						.entity(GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline(insight, expression)))
 						.build();
 			} catch (Exception e) {
-				logger.error(STACKTRACE, e);
+				logger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(ERROR_MESSAGE, e.getMessage());
+				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
@@ -614,7 +612,7 @@ public class NameServer {
 			insight = InsightStore.getInstance().get(insightId);
 			if (insight == null) {
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(ERROR_MESSAGE, "Could not find the insight id");
+				errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
 				errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 				return WebUtility.getResponse(errorMap, 400);
 			}
@@ -849,7 +847,7 @@ public class NameServer {
 						}
 					}
 				} catch (ClientProtocolException e) {
-					logger.error(STACKTRACE, e);
+					logger.error(Constants.STACKTRACE, e);
 				} finally {
 					if (httpClient != null) {
 						httpClient.close();
@@ -859,7 +857,7 @@ public class NameServer {
 					}
 				}
 			} catch (IOException e) {
-				logger.error(STACKTRACE, e);
+				logger.error(Constants.STACKTRACE, e);
 			}
 		}
 
@@ -883,7 +881,7 @@ public class NameServer {
 			engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
 			if (!SecurityAppUtils.userCanViewEngine(user, engineId)) {
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(ERROR_MESSAGE,
+				errorMap.put(Constants.ERROR_MESSAGE,
 						"Database " + engineId + " does not exist or user does not have access to database");
 				return WebUtility.getResponse(errorMap, 400);
 			}
@@ -891,7 +889,7 @@ public class NameServer {
 			engineId = MasterDatabaseUtility.testEngineIdIfAlias(engineId);
 			if (!MasterDatabaseUtility.getAllEngineIds().contains(engineId)) {
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(ERROR_MESSAGE, "Database " + engineId + " does not exist");
+				errorMap.put(Constants.ERROR_MESSAGE, "Database " + engineId + " does not exist");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
@@ -1060,7 +1058,7 @@ public class NameServer {
 					out.println("</body>");
 					out.println("</html>");
 				} catch (Exception e) {
-					logger.error(STACKTRACE, e);
+					logger.error(Constants.STACKTRACE, e);
 				}
 			}
 		};
@@ -1160,9 +1158,9 @@ public class NameServer {
 				appIds = filterMap.get("app_id");
 				tags = filterMap.get("tags");
 			} catch (Exception e) {
-				logger.error(STACKTRACE, e);
+				logger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(ERROR_MESSAGE, "Invalid filter map");
+				errorMap.put(Constants.ERROR_MESSAGE, "Invalid filter map");
 				return WebUtility.getSO(errorMap);
 			}
 		}
@@ -1201,7 +1199,7 @@ public class NameServer {
 			try {
 				FileUtils.writeStringToFile(cmdFile, command);
 			} catch (IOException ioe) {
-				logger.error(STACKTRACE, ioe);
+				logger.error(Constants.STACKTRACE, ioe);
 			}
 		}
 		return normalizedInsightSpecificFolder;

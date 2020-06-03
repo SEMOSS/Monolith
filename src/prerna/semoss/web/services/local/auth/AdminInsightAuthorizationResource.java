@@ -22,6 +22,7 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/insight")
@@ -46,6 +47,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to see all the insight for app " + appId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -77,6 +79,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to delete insight from app " + appId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -88,6 +91,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			// need to push to cloud storage
 			ClusterUtil.reactorPushApp(appId);
 		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -115,6 +119,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to get all users who have access to insight " + insightId + " in app " + appId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -124,6 +129,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			ret = adminUtils.getInsightUsers(appId, insightId);
 		} catch (IllegalAccessException e) {
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -156,6 +162,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to insight " + insightId + " in app " + appId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -164,6 +171,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.addInsightUser(newUserId, appId, insightId, permission);
 		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -200,6 +208,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for insight " + insightId + " in app " + appId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -208,6 +217,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.editInsightUserPermission(existingUserId, appId, insightId, newPermission);
 		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -243,6 +253,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to insight " + insightId + " in app " + appId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -251,6 +262,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.removeInsightUser(existingUserId, appId, insightId);
 		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -287,6 +299,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the insight " + insightId + " in app " + appId + logPublic + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -295,6 +308,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setInsightGlobalWithinApp(appId, insightId, isPublic);
 		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -324,6 +338,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -335,6 +350,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setUserPublisher(userId, isPublisher);
 		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
