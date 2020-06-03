@@ -70,6 +70,7 @@ public class AppAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -77,7 +78,7 @@ public class AppAuthorizationResource {
 		
 		String permission = SecurityAppUtils.getActualUserAppPermission(user, appId);
 		if(permission == null) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull permission details for app " + appId + " without having access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull permission details for app " + appId + " without having proper access"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "User does not have access to this app");
 			return WebUtility.getResponse(errorMap, 401);
@@ -102,6 +103,7 @@ public class AppAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -111,7 +113,7 @@ public class AppAuthorizationResource {
 		try {
 			ret = SecurityAppUtils.getAppUsers(user, appId);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull users for app " + appId + " without having access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull users for app " + appId + " without having proper access"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -134,6 +136,7 @@ public class AppAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -146,7 +149,7 @@ public class AppAuthorizationResource {
 		try {
 			SecurityAppUtils.addAppUser(user, newUserId, appId, permission);
 		} catch (Exception e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull users for app " + appId + " without having access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull users for app " + appId + " without having proper access"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -174,6 +177,7 @@ public class AppAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -218,6 +222,7 @@ public class AppAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -268,6 +273,7 @@ public class AppAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -314,6 +320,7 @@ public class AppAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
