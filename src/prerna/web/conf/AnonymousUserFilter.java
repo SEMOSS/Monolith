@@ -22,6 +22,7 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.Utility;
 
 public class AnonymousUserFilter implements Filter, Serializable {
 
@@ -70,7 +71,7 @@ public class AnonymousUserFilter implements Filter, Serializable {
 				session.setAttribute(Constants.SESSION_USER, user);
 				
 				// log the user login
-				logger.info("IP " + ResourceUtility.getClientIp((HttpServletRequest)arg0) + " : Anonymous user with id " + User.getSingleLogginName(user) + " logged in from session " + session.getId());
+				logger.info("IP " + Utility.cleanLogString(ResourceUtility.getClientIp((HttpServletRequest)arg0)) + " : Anonymous user with id " + User.getSingleLogginName(user) + " logged in from session " + session.getId());
 			}
 		}
 
