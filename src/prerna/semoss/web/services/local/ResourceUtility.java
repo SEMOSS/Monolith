@@ -8,6 +8,7 @@ import javax.ws.rs.core.Context;
 
 import prerna.auth.User;
 import prerna.util.Constants;
+import prerna.util.Utility;
 
 public class ResourceUtility {
 
@@ -55,9 +56,9 @@ public class ResourceUtility {
 	 */
 	public static String getLogMessage(HttpServletRequest request, HttpSession session, String userId, String message) {
 		if(userId.isEmpty()) {
-			return "IP = " + ResourceUtility.getClientIp(request) + " : Session = " + session.getId() + " : ID = INVALID " + message;
+			return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request)) + " : Session = " + session.getId() + " : ID = INVALID " + message;
 		}
-		return "IP = " + ResourceUtility.getClientIp(request) + " : Session = " + session.getId() + " : ID = " + userId + " " + message;
+		return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request)) + " : Session = " + session.getId() + " : ID = " + userId + " " + message;
 	}
 	
 }
