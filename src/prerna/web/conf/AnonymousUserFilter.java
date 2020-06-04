@@ -22,7 +22,6 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
 
 public class AnonymousUserFilter implements Filter, Serializable {
 
@@ -54,7 +53,8 @@ public class AnonymousUserFilter implements Filter, Serializable {
 					}
 				}
 				
-				if(user.getAnonymousId() == null) {
+				boolean foundPrevoiusCookie = user.getAnonymousId() != null;
+				if(!foundPrevoiusCookie) {
 					// set a new id + add a cookie
 					String uId = "UNK_" + UUID.randomUUID().toString();
 					user.setAnonymousId(uId);
@@ -71,7 +71,11 @@ public class AnonymousUserFilter implements Filter, Serializable {
 				session.setAttribute(Constants.SESSION_USER, user);
 				
 				// log the user login
-				logger.info("IP " + Utility.cleanLogString(ResourceUtility.getClientIp((HttpServletRequest)arg0)) + " : Anonymous user with id " + User.getSingleLogginName(user) + " logged in from session " + session.getId());
+				if(foundPrevoiusCookie) {
+					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in anonymously"));
+				} else {
+					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in anonymously for first time"));
+				}
 			}
 		}
 
