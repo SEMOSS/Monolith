@@ -1428,16 +1428,19 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("login")
 	public Response loginNative(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		Hashtable<String, String> ret = new Hashtable<>();
+		Map<String, String> ret = new HashMap<>();
 		try {
 			String username = request.getParameter("username");
 			String password = request.getParameter("password");
 			String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("enableRedirect") + "");
 
-			boolean emptyCredentials = (username == null || password == null || username.isEmpty()
-					|| password.isEmpty());
-			boolean canLogin = !emptyCredentials && NativeUserSecurityUtils.logIn(username, password);
+			if(username == null || password == null || username.isEmpty() || password.isEmpty()) {
+				ret.put("error", "The user name or password are empty");
+				return WebUtility.getResponse(ret, 401);
+			}
+			
+			boolean canLogin = NativeUserSecurityUtils.logIn(username, password);
 			if (canLogin) {
 				ret.put("success", "true");
 				ret.put("username", username);
