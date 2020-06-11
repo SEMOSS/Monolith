@@ -135,8 +135,6 @@ public class NameServer {
 	// uploader functionality
 	@Path("/uploadDatabase")
 	public Uploader uploadDatabase(@Context HttpServletRequest request) {
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
-
 		Uploader upload = new DatabaseUploader();
 		String filePath = context.getInitParameter("file-upload");
 		upload.setFilePath(filePath);
@@ -147,8 +145,6 @@ public class NameServer {
 
 	@Path("/uploadFile")
 	public Uploader uploadFile(@Context HttpServletRequest request) {
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
-
 		Uploader upload = new FileUploader();
 		String tempFilePath = context.getInitParameter("temp-file-upload");
 		upload.setTempFilePath(tempFilePath);
@@ -157,8 +153,6 @@ public class NameServer {
 
 	@Path("/uploadImage")
 	public Uploader uploadImage(@Context HttpServletRequest request) {
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
-
 		Uploader upload = new ImageUploader();
 		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + "db";
 		upload.setFilePath(filePath);
