@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.web.conf;
 
+import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -40,18 +41,19 @@ import javax.servlet.SessionCookieConfig;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
-import org.quartz.SchedulerException;
 
 import com.ibm.icu.util.StringTokenizer;
 
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.r.RserveUtil;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.forms.AbstractFormBuilder;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.rpa.quartz.SchedulerUtil;
 import prerna.sablecc2.reactor.frame.r.util.RJavaTranslatorFactory;
+import prerna.sablecc2.reactor.scheduler.SchedulerFactorySingleton;
+import prerna.sablecc2.reactor.scheduler.SchedulerH2DatabaseUtility;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
@@ -131,7 +133,7 @@ public class DBLoader implements ServletContextListener {
 				ChromeDriverUtility.setSessionCookie(cookieConfig.getName());
 			}
 		}
-		
+
 		logger.info("Initializing application context..." + Utility.cleanLogString(contextPath));
 
 		// Set default file separator system variable
@@ -189,9 +191,23 @@ public class DBLoader implements ServletContextListener {
 		{
 			IEngine localmaster = (IEngine) DIHelper.getInstance().getLocalProp(Constants.LOCAL_MASTER_DB_NAME);
 			IEngine security = (IEngine) DIHelper.getInstance().getLocalProp(Constants.SECURITY_DB);
-			if (localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected()) {
+			// TODO: will make scheduler a requirement
+			IEngine scheduler = (IEngine) DIHelper.getInstance().getLocalProp(Constants.SCHEDULER_DB);
+//			if (localmaster == null || security == null || scheduler == null || !localmaster.isConnected() || !security.isConnected() || !scheduler.isConnected()) {
+			if (localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected() ) {
+
 				// you have messed up!!!
 				StartUpSuccessFilter.setStartUpSuccess(false);
+			}
+		}
+
+		// Load and run triggerOnLoad jobs
+		RDBMSNativeEngine schedulerDb = (RDBMSNativeEngine) Utility.getEngine(Constants.SCHEDULER_DB);
+		if(schedulerDb != null) {
+			try {
+				SchedulerH2DatabaseUtility.executeAllTriggerOnLoads(schedulerDb.getConnection());
+			} catch (SQLException e) {
+				logger.error(STACKTRACE, e);
 			}
 		}
 	}
@@ -205,8 +221,7 @@ public class DBLoader implements ServletContextListener {
 				String watcherClass = DIHelper.getInstance().getProperty(watcher);
 				String folder = DIHelper.getInstance().getProperty(watcher + "_DIR");
 				String ext = DIHelper.getInstance().getProperty(watcher + "_EXT");
-				AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass)
-						.getConstructor(null).newInstance(null);
+				AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass).getConstructor(null).newInstance(null);
 				watcherInstance.setMonitor(monitor);
 				watcherInstance.setFolderToWatch(folder);
 				watcherInstance.setExtension(ext);
@@ -276,13 +291,8 @@ public class DBLoader implements ServletContextListener {
 			logger.info("Couldn't find database " + Constants.LOCAL_MASTER_DB_NAME);
 		}
 
-		// close scheduler
-		try {
-			logger.info("Closing scheduler");
-			SchedulerUtil.shutdownScheduler(true);
-		} catch (SchedulerException e) {
-			logger.error(STACKTRACE, e);
-		}
+		logger.info("Closing scheduler");
+		SchedulerFactorySingleton.getInstance().shutdownScheduler(true);
 
 		// close r
 		try {
