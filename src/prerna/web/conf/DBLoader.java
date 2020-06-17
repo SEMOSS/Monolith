@@ -54,6 +54,7 @@ import prerna.om.InsightStore;
 import prerna.sablecc2.reactor.frame.r.util.RJavaTranslatorFactory;
 import prerna.sablecc2.reactor.scheduler.SchedulerFactorySingleton;
 import prerna.sablecc2.reactor.scheduler.SchedulerH2DatabaseUtility;
+import prerna.sablecc2.reactor.scheduler.legacy.JsonConversionToQuartzJob;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
@@ -206,6 +207,8 @@ public class DBLoader implements ServletContextListener {
 		if(schedulerDb != null) {
 			try {
 				SchedulerH2DatabaseUtility.executeAllTriggerOnLoads(schedulerDb.getConnection());
+				// also add legacy json files
+				JsonConversionToQuartzJob.runUpdateFromLegacyFormat();
 			} catch (SQLException e) {
 				logger.error(STACKTRACE, e);
 			}
