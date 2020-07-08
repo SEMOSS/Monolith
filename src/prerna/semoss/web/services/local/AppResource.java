@@ -6,7 +6,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +18,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.CacheControl;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.MediaType;
@@ -144,9 +142,9 @@ public class AppResource {
 		    	String html = FileUtils.readFileToString(file, "UTF-8");
 				
 				// want to cache this on browser if user has access
-				CacheControl cc = new CacheControl();
-				cc.setMaxAge(1);
-				cc.setPrivate(true);
+//				CacheControl cc = new CacheControl();
+//				cc.setMaxAge(1);
+//				cc.setPrivate(true);
 			    EntityTag etag = new EntityTag(Integer.toString(html.hashCode()));
 			    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -155,7 +153,11 @@ public class AppResource {
 			        return builder.build();
 			    }
 				
-				return Response.status(200).entity(html).cacheControl(cc).tag(etag).lastModified(new Date(file.lastModified())).build();
+				return Response.status(200).entity(html)
+//						.cacheControl(cc)
+						.tag(etag)
+//						.lastModified(new Date(file.lastModified()))
+						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("errorMessage", "Unable to load landing html file");
@@ -200,9 +202,9 @@ public class AppResource {
 				String contents = FileUtils.readFileToString(file, "UTF-8");
 				
 				// want to cache this on browser if user has access
-				CacheControl cc = new CacheControl();
-				cc.setMaxAge(1);
-				cc.setPrivate(true);
+//				CacheControl cc = new CacheControl();
+//				cc.setMaxAge(1);
+//				cc.setPrivate(true);
 			    EntityTag etag = new EntityTag(Integer.toString(contents.hashCode()));
 			    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -211,7 +213,11 @@ public class AppResource {
 			        return builder.build();
 			    }
 				
-				return Response.status(200).entity(contents).cacheControl(cc).tag(etag).lastModified(new Date(file.lastModified())).build();
+				return Response.status(200).entity(contents)
+//						.cacheControl(cc)
+						.tag(etag)
+//						.lastModified(new Date(file.lastModified()))
+						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("errorMessage", "Unable to load file");
@@ -262,9 +268,9 @@ public class AppResource {
 				String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
 				
 				// want to cache this on browser if user has access
-				CacheControl cc = new CacheControl();
-				cc.setMaxAge(1);
-				cc.setPrivate(true);
+//				CacheControl cc = new CacheControl();
+//				cc.setMaxAge(1);
+//				cc.setPrivate(true);
 			    EntityTag etag = new EntityTag(Integer.toString(contents.hashCode()));
 			    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -274,7 +280,11 @@ public class AppResource {
 			    }
 				
 			    String mimeType = Files.probeContentType(file.toPath());
-				return Response.status(200).entity(contents).type(mimeType).cacheControl(cc).tag(etag).lastModified(new Date(file.lastModified())).build();
+				return Response.status(200).entity(contents).type(mimeType)
+//						.cacheControl(cc)
+						.tag(etag)
+//						.lastModified(new Date(file.lastModified()))
+						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("errorMessage", "Unable to load file");
@@ -340,10 +350,10 @@ public class AppResource {
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = appId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
-			CacheControl cc = new CacheControl();
-			cc.setMaxAge(86400);
-			cc.setPrivate(true);
-			cc.setMustRevalidate(true);
+//			CacheControl cc = new CacheControl();
+//			cc.setMaxAge(86400);
+//			cc.setPrivate(true);
+//			cc.setMustRevalidate(true);
 		    EntityTag etag = new EntityTag(Integer.toString(exportFile.hashCode()));
 		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -353,7 +363,10 @@ public class AppResource {
 		    }
 		    
 			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
-					.cacheControl(cc).tag(etag).lastModified(new Date(exportFile.lastModified())).build();
+//					.cacheControl(cc)
+					.tag(etag)
+//					.lastModified(new Date(exportFile.lastModified()))
+					.build();
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("errorMessage", "error sending image file");
@@ -433,10 +446,10 @@ public class AppResource {
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = appId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
-			CacheControl cc = new CacheControl();
-			cc.setMaxAge(86400);
-			cc.setPrivate(true);
-			cc.setMustRevalidate(true);
+//			CacheControl cc = new CacheControl();
+//			cc.setMaxAge(86400);
+//			cc.setPrivate(true);
+//			cc.setMustRevalidate(true);
 		    EntityTag etag = new EntityTag(Integer.toString(exportFile.hashCode()));
 		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -446,7 +459,10 @@ public class AppResource {
 		    }
 		    
 			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
-					.cacheControl(cc).tag(etag).lastModified(new Date(exportFile.lastModified())).build();
+//					.cacheControl(cc)
+					.tag(etag)
+//					.lastModified(new Date(exportFile.lastModified()))
+					.build();
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("errorMessage", "Error sending image file");
