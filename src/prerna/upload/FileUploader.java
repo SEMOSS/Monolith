@@ -2,22 +2,29 @@ package prerna.upload;
 
 import java.io.File;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -27,10 +34,12 @@ import prerna.auth.utils.SecurityQueryUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
+import prerna.poi.main.HeadersException;
 import prerna.util.AssetUtility;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
+@Path("/uploadFile")
 public class FileUploader extends Uploader {
 
 	private static final Logger logger = LogManager.getLogger(FileUploader.class);
@@ -42,8 +51,126 @@ public class FileUploader extends Uploader {
 	 */
 	
 	@POST
+	@Path("/headerCheck")
+	@Produces("application/json")
+	public Response checkUserDefinedHeaders(MultivaluedMap<String, String> form) {
+		Gson gson = new Gson();
+		
+		// this will let me know if I should expect the csv data type map or the excel
+		// data type map
+		// this is really annoying... 
+		// TODO: really should consider consolidating the formats it will make csv format look dumb 
+		// since its a useless additional key but then I wouldn't need to have the bifurcation in 
+		// formats here and bifurcation in formats in the ImportOptions object as well
+		String type = form.getFirst("uploadType").toUpperCase();
+		
+		// grab the checker
+		HeadersException headerChecker = HeadersException.getInstance();
+
+		if(type.equals("CSV")) {
+			Map<String, Map<String, String>> invalidHeadersMap = new Hashtable<>();
+			
+			// the key is for each file name
+			// the list are the headers inside that file
+			Map<String, String[]> userDefinedHeadersMap = gson.fromJson(form.getFirst("userHeaders"), new TypeToken<Map<String, String[]>>() {}.getType());
+			
+			for(String fileName : userDefinedHeadersMap.keySet()) {
+				String[] userHeaders = userDefinedHeadersMap.get(fileName);
+				
+				// now we need to check all of these headers
+				// now we need to check all of these headers
+				for(int colIdx = 0; colIdx < userHeaders.length; colIdx++) {
+					String userHeader = userHeaders[colIdx];
+					Map<String, String> badHeaderMap = new Hashtable<>();
+					if(headerChecker.isIllegalHeader(userHeader)) {
+						badHeaderMap.put(userHeader, "This header name is a reserved word");
+					} else if(headerChecker.containsIllegalCharacter(userHeader)) {
+						badHeaderMap.put(userHeader, "Header names cannot contain +%@;");
+					} else if(headerChecker.isDuplicated(userHeader, userHeaders, colIdx)) {
+						badHeaderMap.put(userHeader, "Cannot have duplicate header names");
+					}
+					
+					// map is filled in only if the header is bad
+					if(!badHeaderMap.isEmpty()) {
+						// need to make sure we do not override existing bad headers stored
+						// within the map
+						Map<String, String> invalidHeadersForFile = null;
+						if(invalidHeadersMap.containsKey(fileName)) {
+							invalidHeadersForFile = invalidHeadersMap.get(fileName);
+						} else {
+							invalidHeadersForFile = new Hashtable<>();
+						}
+						
+						// now add in the bad header for the file map
+						invalidHeadersForFile.putAll(badHeaderMap);
+						// now store it in the overall object
+						invalidHeadersMap.put(fileName, invalidHeadersForFile);
+					}
+				}
+			}
+			return WebUtility.getResponse(invalidHeadersMap, 200);
+
+		} else if(type.equals("EXCEL")) {
+			List<Map<String, Map<String, String>>> invalidHeadersList = new Vector<>();
+			
+			// each entry (outer map object) in the list if a workbook
+			// each key in that map object is the sheetName for that given workbook
+			// the list are the headers inside that sheet
+			List<Map<String, String[]>> userDefinedHeadersMap = gson.fromJson(form.getFirst("userHeaders"), new TypeToken<List<Map<String, String[]>>>() {}.getType());
+			
+			// iterate through each workbook
+			for(Map<String, String[]> excelWorkbook : userDefinedHeadersMap) {
+				Map<String, Map<String, String>> invalidHeadersMap = new Hashtable<>();
+				
+				for(String sheetName : excelWorkbook.keySet()) {
+					// grab all the headers for the given sheet
+					String[] userHeaders = excelWorkbook.get(sheetName);
+
+					// now we need to check all of these headers
+					for(int colIdx = 0; colIdx < userHeaders.length; colIdx++) {
+						String userHeader = userHeaders[colIdx];
+						Map<String, String> badHeaderMap = new Hashtable<>();
+						if(headerChecker.isIllegalHeader(userHeader)) {
+							badHeaderMap.put(userHeader, "This header name is a reserved word");
+						} else if(headerChecker.containsIllegalCharacter(userHeader)) {
+							badHeaderMap.put(userHeader, "Header names cannot contain +%@;");
+						} else if(headerChecker.isDuplicated(userHeader, userHeaders, colIdx)) {
+							badHeaderMap.put(userHeader, "Cannot have duplicate header names");
+						}
+						
+						// map is filled in only if the header is bad
+						if(!badHeaderMap.isEmpty()) {
+							// need to make sure we do not override existing bad headers stored
+							// within the map
+							Map<String, String> invalidHeadersForSheet = null;
+							if(invalidHeadersMap.containsKey(sheetName)) {
+								invalidHeadersForSheet = invalidHeadersMap.get(sheetName);
+							} else {
+								invalidHeadersForSheet = new Hashtable<>();
+							}
+							
+							// now add in the bad header for the file map
+							invalidHeadersForSheet.putAll(badHeaderMap);
+							// now store it in the overall object
+							invalidHeadersMap.put(sheetName, invalidHeadersForSheet);
+						}
+					}
+				}
+				
+				// now store the invalid headers map inside the list
+				// even if it is empty, we need to store it since the FE does this based on indices
+				invalidHeadersList.add(invalidHeadersMap);
+			}
+			return WebUtility.getResponse(invalidHeadersList, 200);
+		} else {
+			return WebUtility.getResponse("Format does not conform to checking headers", 400);
+		}
+	}
+	
+	
+	@POST
 	@Path("baseUpload")
-	public Response uploadFile(@Context HttpServletRequest request, @QueryParam("insightId") String insightId,
+	public Response uploadFile(@Context ServletContext context, @Context HttpServletRequest request, @QueryParam("insightId") String insightId,
 			@QueryParam("path") String relativePath, @QueryParam("appId") String appId) {
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
@@ -95,7 +222,7 @@ public class FileUploader extends Uploader {
 		
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
-			List<FileItem> fileItems = processRequest(request, insightId);
+			List<FileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
 			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, appId);
 			// clear the thread store
