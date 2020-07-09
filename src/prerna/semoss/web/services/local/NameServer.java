@@ -87,7 +87,6 @@ import prerna.ds.py.PyUtils;
 import prerna.ds.py.TCPPyTranslator;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
-import prerna.insights.admin.DBAdminResource;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -134,14 +133,6 @@ public class NameServer {
 			hashTable.put(sheetNames.get(i), PlaySheetRDFMapBasedEnum.getClassFromName(sheetNames.get(i)));
 		}
 		return WebUtility.getSO(hashTable);
-	}
-
-	@Path("/dbAdmin")
-	public Object modifyInsight(@Context HttpServletRequest request) {
-		DBAdminResource questionAdmin = new DBAdminResource();
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
-		questionAdmin.setSecurityEnabled(securityEnabled);
-		return questionAdmin;
 	}
 
 	@Path("i-{insightID}")
