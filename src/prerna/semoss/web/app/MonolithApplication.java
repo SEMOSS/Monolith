@@ -47,6 +47,8 @@ import prerna.semoss.web.services.local.auth.AdminAppAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AppAuthorizationResource;
 import prerna.semoss.web.services.local.auth.InsightAuthorizationResource;
+import prerna.upload.FileUploader;
+import prerna.upload.ImageUploader;
 
 public class MonolithApplication extends Application {
 	
@@ -57,6 +59,8 @@ public class MonolithApplication extends Application {
       singletons.add(new UserResource());
       singletons.add(new NameServer());
       singletons.add(new AppResource());
+      singletons.add(new FileUploader());
+      singletons.add(new ImageUploader());
       singletons.add(new SessionResource());
       // authorization resources
       singletons.add(new AuthorizationResource());

@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -102,10 +101,6 @@ import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.semoss.web.services.remote.EngineRemoteResource;
-import prerna.upload.DatabaseUploader;
-import prerna.upload.FileUploader;
-import prerna.upload.ImageUploader;
-import prerna.upload.Uploader;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
@@ -126,40 +121,7 @@ public class NameServer {
 	// get the directory separator
 	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	
-
-	@Context
-	protected ServletContext context;
-
 	////////////////////////////////////////////////////////////////////////////////
-
-	// uploader functionality
-	@Path("/uploadDatabase")
-	public Uploader uploadDatabase(@Context HttpServletRequest request) {
-		Uploader upload = new DatabaseUploader();
-		String filePath = context.getInitParameter("file-upload");
-		upload.setFilePath(filePath);
-		String tempFilePath = context.getInitParameter("temp-file-upload");
-		upload.setTempFilePath(tempFilePath);
-		return upload;
-	}
-
-	@Path("/uploadFile")
-	public Uploader uploadFile(@Context HttpServletRequest request) {
-		Uploader upload = new FileUploader();
-		String tempFilePath = context.getInitParameter("temp-file-upload");
-		upload.setTempFilePath(tempFilePath);
-		return upload;
-	}
-
-	@Path("/uploadImage")
-	public Uploader uploadImage(@Context HttpServletRequest request) {
-		Uploader upload = new ImageUploader();
-		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + "db";
-		upload.setFilePath(filePath);
-		String tempFilePath = context.getInitParameter("temp-file-upload");
-		upload.setTempFilePath(tempFilePath);
-		return upload;
-	}
 
 	@GET
 	@Path("playsheets")
