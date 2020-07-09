@@ -28,13 +28,9 @@
 package prerna.upload;
 
 import java.io.File;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.List;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
@@ -49,8 +45,7 @@ import org.apache.log4j.Logger;
 
 import prerna.cache.ICache;
 import prerna.om.InsightStore;
-import prerna.poi.main.HeadersException;
-import prerna.poi.main.helper.CSVFileHelper;
+import prerna.util.Constants;
 import prerna.util.Utility;
 
 /**
@@ -58,63 +53,81 @@ import prerna.util.Utility;
  */
 @SuppressWarnings("serial")
 public abstract class Uploader extends HttpServlet {
+	
 	private static final Logger logger = LogManager.getLogger(Uploader.class);
 
-	// get the directory separator
 	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 
 	public static final String CSV_FILE_KEY = "CSV";
 	public static final String CSV_HELPER_MESSAGE = "HTML_RESPONSE";
-	private static final String STACKTRACE = "StackTrace: ";
+
+	public static final String FILE_UPLOAD_KEY = "file-upload";
+	public static final String TEMP_FILE_UPLOAD_KEY = "temp-file-upload";
 
 	protected static int maxFileSize = 10_000_000 * 1024;
 	protected static int maxMemSize = 8 * 1024;
-	protected static String filePath;
-	protected static String tempFilePath = "";
 	
-	// we will control the adding of the engine into local master and solr
-	// such that we dont send a success before those processes are complete
-	static boolean autoLoad = false;
-
-	public void setFilePath(String filePath) {
+//	protected static String filePath = "";
+//	protected static String tempFilePath = "";
+//	
+//	public void setFilePath(String filePath) {
+//		// first, normalize path
+//		String normalizedfilePath = Utility.normalizePath(filePath);
+//
+//		// then set path
+//		if(normalizedfilePath.endsWith(DIR_SEPARATOR)) {
+//			Uploader.filePath = normalizedfilePath;
+//		} else {
+//			Uploader.filePath = normalizedfilePath + DIR_SEPARATOR;
+//		}
+//		File f = new File(Uploader.filePath);
+//		if(!f.exists() && !f.isDirectory()) {
+//			Boolean success = f.mkdirs();
+//			if(!success) {
+//				logger.info("Unable to create file at: " + Utility.cleanLogString(f.getAbsolutePath()));
+//			}
+//		}
+//	}
+//
+//	public void setTempFilePath(String tempFilePath){
+//		// first, normalize path
+//		String normalizedTempFilePath = Utility.normalizePath(tempFilePath);
+//
+//		// then set path
+//		Uploader.tempFilePath = normalizedTempFilePath;
+//		File tFile = new File(normalizedTempFilePath);
+//		if(!tFile.exists() && !tFile.isDirectory()) {
+//			Boolean success = tFile.mkdirs();
+//			if(!success) {
+//				logger.info("Unable to create file at: " + Utility.cleanLogString(tFile.getAbsolutePath()));
+//			}
+//		}
+//	}
+	
+	public static String normalizeAndCreatePath(String filePath) {
 		// first, normalize path
 		String normalizedfilePath = Utility.normalizePath(filePath);
 
 		// then set path
-		if(normalizedfilePath.endsWith(DIR_SEPARATOR)) {
-			Uploader.filePath = normalizedfilePath;
-		} else {
-			Uploader.filePath = normalizedfilePath + DIR_SEPARATOR;
+		if(!normalizedfilePath.endsWith(DIR_SEPARATOR)) {
+			normalizedfilePath = normalizedfilePath + DIR_SEPARATOR;
 		}
-		File f = new File(Uploader.filePath);
+		File f = new File(normalizedfilePath);
 		if(!f.exists() && !f.isDirectory()) {
 			Boolean success = f.mkdirs();
 			if(!success) {
 				logger.info("Unable to create file at: " + Utility.cleanLogString(f.getAbsolutePath()));
 			}
 		}
-	}
-
-	public void setTempFilePath(String tempFilePath){
-		// first, normalize path
-		String normalizedTempFilePath = Utility.normalizePath(tempFilePath);
-
-		// then set path
-		Uploader.tempFilePath = normalizedTempFilePath;
-		File tFile = new File(normalizedTempFilePath);
-		if(!tFile.exists() && !tFile.isDirectory()) {
-			Boolean success = tFile.mkdirs();
-			if(!success) {
-				logger.info("Unable to create file at: " + Utility.cleanLogString(tFile.getAbsolutePath()));
-			}
-		}
+		
+		return normalizedfilePath;
 	}
 
 	public void writeFile(FileItem fi, File file){
 		try {
 			fi.write(file);
 		} catch (Exception e) {
-			logger.error(STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 	}
 
@@ -129,7 +142,10 @@ public abstract class Uploader extends HttpServlet {
 		}
 	}
 
-	protected List<FileItem> processRequest(@Context HttpServletRequest request, String insightId) {
+	protected List<FileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request, String insightId) {
+		String tempFilePath = context.getInitParameter(TEMP_FILE_UPLOAD_KEY);
+		tempFilePath = normalizeAndCreatePath(tempFilePath);
+		
 		List<FileItem> fileItems = null;
 		try {
 			DiskFileItemFactory factory = new DiskFileItemFactory();
@@ -158,84 +174,83 @@ public abstract class Uploader extends HttpServlet {
 			// Parse the request to get file items
 			fileItems = upload.parseRequest(request);
 		} catch (FileUploadException fue) {
-			logger.error(STACKTRACE, fue);
+			logger.error(Constants.STACKTRACE, fue);
 		} catch (Exception e) {
-			logger.error(STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 		return fileItems;
 	}
 
-	protected Hashtable<String, String> getInputData(List<FileItem> fileItems) 
-	{
-		// Process the uploaded file items
-		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
-
-		// collect all of the data input on the form
-		Hashtable<String, String> inputData = new Hashtable<>();
-		File file;
-
-		while(iteratorFileItems.hasNext()) 
-		{
-			FileItem fi = iteratorFileItems.next();
-			// Get the uploaded file parameters
-			String fieldName = fi.getFieldName();
-			String fileName = fi.getName();
-			// keep this null
-			// dont want to grab the contents of the file 
-			// and push to a string
-			String value = null;
-			if (!fi.isFormField()) {
-				if(fileName.equals("")) {
-					continue;
-				}
-				else {
-					if(fieldName.equals("file") || fieldName.equals("propFile")) {
-						// need to clean the fileName to not have ";" since we split on that in upload data
-						fileName = fileName.replace(";", "");
-						Date date = new Date();
-						String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-						value = Uploader.filePath + fileName.substring(fileName.lastIndexOf(DIR_SEPARATOR) + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + "_____UNIQUE" + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
-						file = new File(value);
-
-						writeFile(fi, file);
-						logger.info("File item is the actual data. Saved Filename: " + fileName + "  to "+ file);
-					}
-				}
-			} else {
-				logger.info("File item type is " + fi.getFieldName() + fi.getString());
-			}
-			//need to handle multiple files getting selected for upload
-			if(value == null) {
-				value = fi.getString();
-			}
-			if(inputData.get(fieldName) != null) {
-				value = inputData.get(fieldName) + ";" + value;
-			}
-			inputData.put(fieldName, value);
-			fi.delete();
-		}
-
-		return inputData;
-	}
-	
-	/**
-	 * Method used to determine if there are errors in a csv file headers
-	 * @param files				The list of files in the headers
-	 * @return					boolean true if no issues
-	 * @throws IOException 
-	 * 							
-	 */
-	public boolean checkHeaders(String[] files) throws IOException {
-		// iterate through the files
-		for(String file : files) {
-			CSVFileHelper helper = new CSVFileHelper();
-			helper.parse(file);
-			String[] headers = helper.getHeaders();
-			
-			// if there is an issue, it will throw the IOException
-			HeadersException.getInstance().compareHeaders(new File(file).getName(), headers);
-		}
-		
-		return true;
-	}
+//	protected Hashtable<String, String> getInputData(String filePath, List<FileItem> fileItems) {
+//		// Process the uploaded file items
+//		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
+//
+//		// collect all of the data input on the form
+//		Hashtable<String, String> inputData = new Hashtable<>();
+//		File file;
+//
+//		while(iteratorFileItems.hasNext()) 
+//		{
+//			FileItem fi = iteratorFileItems.next();
+//			// Get the uploaded file parameters
+//			String fieldName = fi.getFieldName();
+//			String fileName = fi.getName();
+//			// keep this null
+//			// dont want to grab the contents of the file 
+//			// and push to a string
+//			String value = null;
+//			if (!fi.isFormField()) {
+//				if(fileName.equals("")) {
+//					continue;
+//				}
+//				else {
+//					if(fieldName.equals("file") || fieldName.equals("propFile")) {
+//						// need to clean the fileName to not have ";" since we split on that in upload data
+//						fileName = fileName.replace(";", "");
+//						Date date = new Date();
+//						String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
+//						value = filePath + fileName.substring(fileName.lastIndexOf(DIR_SEPARATOR) + 1, fileName.lastIndexOf(".")).trim().replace(" ", "_") + "_____UNIQUE" + modifiedDate + fileName.substring(fileName.lastIndexOf("."));
+//						file = new File(value);
+//
+//						writeFile(fi, file);
+//						logger.info("File item is the actual data. Saved Filename: " + fileName + "  to "+ file);
+//					}
+//				}
+//			} else {
+//				logger.info("File item type is " + fi.getFieldName() + fi.getString());
+//			}
+//			//need to handle multiple files getting selected for upload
+//			if(value == null) {
+//				value = fi.getString();
+//			}
+//			if(inputData.get(fieldName) != null) {
+//				value = inputData.get(fieldName) + ";" + value;
+//			}
+//			inputData.put(fieldName, value);
+//			fi.delete();
+//		}
+//
+//		return inputData;
+//	}
+//	
+//	/**
+//	 * Method used to determine if there are errors in a csv file headers
+//	 * @param files				The list of files in the headers
+//	 * @return					boolean true if no issues
+//	 * @throws IOException 
+//	 * 							
+//	 */
+//	public boolean checkHeaders(String[] files) throws IOException {
+//		// iterate through the files
+//		for(String file : files) {
+//			CSVFileHelper helper = new CSVFileHelper();
+//			helper.parse(file);
+//			String[] headers = helper.getHeaders();
+//			
+//			// if there is an issue, it will throw the IOException
+//			HeadersException.getInstance().compareHeaders(new File(file).getName(), headers);
+//		}
+//		
+//		return true;
+//	}
 }

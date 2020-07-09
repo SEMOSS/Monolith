@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
+import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
@@ -33,20 +34,26 @@ import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
+@Path("/images")
 public class ImageUploader extends Uploader {
 	
 	private static final Logger logger = LogManager.getLogger(ImageUploader.class);
 
 	@POST
-	@Path("/appImage")
+	@Path("/appImage/upload")
 	@Produces("application/json")
-	public Response uploadAppImage(@Context HttpServletRequest request) throws SQLException {
+	public Response uploadAppImage(@Context ServletContext context, @Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		List<FileItem> fileItems = processRequest(request, null);
+		// base path is the db folder
+		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + "db";
+		filePath = Utility.normalizePath(filePath);
+		
+		List<FileItem> fileItems = processRequest(context, request, null);
 		// collect all of the data input on the form
 		FileItem imageFile = null;
 		String appId = null;
@@ -112,8 +119,8 @@ public class ImageUploader extends Uploader {
 			}
 		}
 
-		String imageDir = getImageDir(appId, appName);
-		String imageLoc = getImageLoc(appId, appName, imageFile);
+		String imageDir = getImageDir(filePath, appId, appName);
+		String imageLoc = getImageLoc(filePath, appId, appName, imageFile);
 
 		File f = new File(imageDir);
 		if (!f.exists()) {
@@ -164,6 +171,10 @@ public class ImageUploader extends Uploader {
 	public Response deleteAppImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
+		// base path is the db folder
+		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + "db";
+		filePath = Utility.normalizePath(filePath);
+
 		String appId = request.getParameter("appId");
 		String appName = null;
 		if(appId == null) {
@@ -212,7 +223,7 @@ public class ImageUploader extends Uploader {
 			}
 		}
 
-		String imageDir = getImageDir(appId, appName);
+		String imageDir = getImageDir(filePath, appId, appName);
 		File f = new File(imageDir);
 		File[] oldImages = null;
 		if (ClusterUtil.IS_CLUSTER) {
@@ -248,15 +259,15 @@ public class ImageUploader extends Uploader {
 		return WebUtility.getResponse(returnMap, 200);
 	}
 
-	private String getImageDir(String appId, String appName) {
+	private String getImageDir(String filePath, String appId, String appName) {
 		if(ClusterUtil.IS_CLUSTER){
 			return ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "apps";
 		}
 		return filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version";
 	}
 
-	private String getImageLoc(String appId, String appName, FileItem imageFile){
-		String imageDir = getImageDir(appId, appName);
+	private String getImageLoc(String filePath, String appId, String appName, FileItem imageFile){
+		String imageDir = getImageDir(filePath, appId, appName);
 		if(ClusterUtil.IS_CLUSTER){
 			return imageDir + DIR_SEPARATOR + appId + "." + imageFile.getContentType().split("/")[1];
 		}
@@ -264,11 +275,16 @@ public class ImageUploader extends Uploader {
 	}
 
 	@POST
-	@Path("/insightImage")
+	@Path("/insightImage/upload")
 	@Produces("application/json")
-	public Response uploadInsightImage(@Context HttpServletRequest request) {
+	public Response uploadInsightImage(@Context ServletContext context, @Context HttpServletRequest request) {
 		Map<String, String> returnMap = new HashMap<>();
-		List<FileItem> fileItems = processRequest(request, null);
+		
+		// base path is the db folder
+		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + "db";
+		filePath = Utility.normalizePath(filePath);
+
+		List<FileItem> fileItems = processRequest(context, request, null);
 		// collect all of the data input on the form
 		FileItem imageFile = null;
 		String appId = null;
@@ -379,6 +395,10 @@ public class ImageUploader extends Uploader {
 	public Response deleteInsightImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
+		// base path is the db folder
+		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + "db";
+		filePath = Utility.normalizePath(filePath);
+
 		String appId = request.getParameter("appId");
 		String appName = null;
 		String insightId = request.getParameter("insightId");
@@ -461,7 +481,6 @@ public class ImageUploader extends Uploader {
 		returnMap.put("message", "successfully deleted insight image");
 		return WebUtility.getResponse(returnMap, 200);
 	}
-
 	
 	/**
 	 * Find an image in the directory
