@@ -160,7 +160,7 @@ public class ImageUploader extends Uploader {
 			logger.error(Constants.STACKTRACE, ie);
 		}
 		
-		returnMap.put("message", "successfully updated app image");
+		returnMap.put("message", "Successfully updated app image");
 		returnMap.put("app_id", appId);
 		returnMap.put("app_name", appName);
 		return WebUtility.getResponse(returnMap, 200);
@@ -255,7 +255,7 @@ public class ImageUploader extends Uploader {
 
 		returnMap.put("app_id", appId);
 		returnMap.put("app_name", appName);
-		returnMap.put("message", "successfully deleted app image");
+		returnMap.put("message", "Successfully deleted app image");
 		return WebUtility.getResponse(returnMap, 200);
 	}
 
@@ -386,7 +386,7 @@ public class ImageUploader extends Uploader {
 		returnMap.put("app_id", appId);
 		returnMap.put("app_name", appName);
 		returnMap.put("insight_id", insightId);
-		returnMap.put("message", "successfully updated insight image");
+		returnMap.put("message", "Successfully updated insight image");
 		return WebUtility.getResponse(returnMap, 200);
 	}
 	
@@ -478,7 +478,7 @@ public class ImageUploader extends Uploader {
 		returnMap.put("app_id", appId);
 		returnMap.put("app_name", appName);
 		returnMap.put("insight_id", insightId);
-		returnMap.put("message", "successfully deleted insight image");
+		returnMap.put("message", "Successfully deleted insight image");
 		return WebUtility.getResponse(returnMap, 200);
 	}
 	
