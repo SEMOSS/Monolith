@@ -386,7 +386,7 @@ public class ImageUploader extends Uploader {
 		returnMap.put("app_id", appId);
 		returnMap.put("app_name", appName);
 		returnMap.put("insight_id", insightId);
-		returnMap.put("message", "successfully deleted insight image");
+		returnMap.put("message", "successfully updated insight image");
 		return WebUtility.getResponse(returnMap, 200);
 	}
 	
