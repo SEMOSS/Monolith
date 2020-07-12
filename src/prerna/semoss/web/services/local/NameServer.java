@@ -55,7 +55,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
@@ -250,33 +249,6 @@ public class NameServer {
 		String exportName = FilenameUtils.getName(filePath);
 		return Response.status(200).entity(exportFile)
 				.header("Content-Disposition", "attachment; filename=" + exportName).build();
-	}
-
-	///////////////////////////////////////////////
-	///////////////////////////////////////////////
-	///////////////////////////////////////////////
-
-	/*
-	 * TODO: move FE to use app resource calls
-	 */
-
-	@GET
-	@Path("/appImage")
-	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
-	public Response getAppImage(@Context final Request coreRequest, @Context HttpServletRequest request,
-			@QueryParam("app") String app) {
-		AppResource r = new AppResource();
-		return r.downloadAppImage(coreRequest, request, app);
-	}
-
-	@GET
-	@Path("/insightImage")
-	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
-	public Response getInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request,
-			@QueryParam("app") String app, @QueryParam("rdbmsId") String insightId,
-			@QueryParam("params") String params) {
-		AppResource r = new AppResource();
-		return r.downloadInsightImage(coreRequest, request, app, insightId, params);
 	}
 
 	///////////////////////////////////////////////
