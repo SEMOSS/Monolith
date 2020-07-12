@@ -24,6 +24,7 @@ import com.google.gson.stream.JsonWriter;
 import prerna.om.Insight;
 import prerna.om.InsightPanel;
 import prerna.om.InsightSheet;
+import prerna.om.ThreadStore;
 import prerna.sablecc2.PixelPreProcessor;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
@@ -32,10 +33,12 @@ import prerna.sablecc2.lexer.LexerException;
 import prerna.sablecc2.node.Start;
 import prerna.sablecc2.parser.Parser;
 import prerna.sablecc2.parser.ParserException;
+import prerna.sablecc2.reactor.job.JobReactor;
 import prerna.sablecc2.translations.OptimizeRecipeTranslation;
 import prerna.util.Constants;
 import prerna.util.gson.InsightPanelAdapter;
 import prerna.util.gson.InsightSheetAdapter;
+import prerna.util.insight.InsightUtility;
 import prerna.web.requests.OverrideParametersServletRequest;
 
 public class RunInsight {
@@ -71,6 +74,12 @@ public class RunInsight {
 		Insight rerunInsight = new Insight();
 		rerunInsight.setVarStore(in.getVarStore());
 		rerunInsight.setUser(in.getUser());
+		InsightUtility.transferDefaultVars(in, rerunInsight);
+		
+		// set in thread
+		ThreadStore.setInsightId(in.getInsightId());
+		ThreadStore.setSessionId(in.getVarStore().get(JobReactor.SESSION_KEY).getValue() + "");
+		ThreadStore.setUser(in.getUser());
 		
 		try {
 			// add a copy of all the insight sheets
