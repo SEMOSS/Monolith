@@ -36,9 +36,11 @@ build_monolith_dev:
   only:
     refs:
       - pushes
+      - schedules
   except:
     variables:
       - $RELEASE == "TRUE"
+      - $SONARPUSH == "TRUE"
   script:
     - apt-get update
     - apt-get install -y openjfx
