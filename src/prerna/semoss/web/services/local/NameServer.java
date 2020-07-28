@@ -116,9 +116,9 @@ public class NameServer {
 
 	private static final String ERROR_TYPE = "errorType";
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
-	// get the directory separator
-	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
+	// base URL for the requests on this server instance
 	private static String baseURL = null;
+	
 	////////////////////////////////////////////////////////////////////////////////
 
 	@GET
@@ -311,11 +311,11 @@ public class NameServer {
 		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
 			insightId = "TempInsightNotStored_" + UUID.randomUUID().toString();
 			insight = new Insight();
-			insight.baseURL = getServerURL(request);
+			insight.setBaseURL(getServerURL(request));
 			insight.setInsightId(insightId);
 		} else if (insightId.equals("new")) { // need to make a new insight here
 			insight = new Insight();
-			insight.baseURL = getServerURL(request);
+			insight.setBaseURL(getServerURL(request));
 			InsightStore.getInstance().put(insight);
 			insightId = insight.getInsightId();
 			InsightStore.getInstance().addToSessionHash(sessionId, insightId);
@@ -714,7 +714,21 @@ public class NameServer {
 		 */
 		// return thread.getOutput() + "";
 	}
-
+	
+	/**
+	 * Get the base url for the FE request
+	 * @param request
+	 * @return
+	 */
+	public String getServerURL(HttpServletRequest request) {
+		if(NameServer.baseURL == null) {
+			//http://localhost:8080/appui/
+			StringBuffer baseURL = new StringBuffer(request.getHeader("referer")).append("#!/");
+			NameServer.baseURL = baseURL.toString();
+		}
+		return baseURL;
+	}
+	
 	///////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////
@@ -1132,22 +1146,6 @@ public class NameServer {
 	//////////////////////////////////////////////////////////////////////////////////// ////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
-	
-	
-	// utility to get the main URL
-	public String getServerURL(HttpServletRequest request)
-	{
-		// basically gets the main context url to be set into the insight so most of the reactors can use it instead of passing it in which we do right now
-		// add the referrer instead of using RDF_MAP
-		if(this.baseURL == null)
-		{
-			//http://localhost:8080/appui/
-			StringBuffer baseURL = new StringBuffer(request.getHeader("referer")).append("#!/");
-			this.baseURL = baseURL.toString();
-		}
-		return baseURL;
-	}
-	
 	
 //
 //	@POST
