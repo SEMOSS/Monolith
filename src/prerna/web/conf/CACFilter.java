@@ -61,7 +61,6 @@ public class CACFilter implements Filter {
 
 	private static FilterConfig filterConfig;
 
-	// TODO >>>timb: WORKSPACE - call logic to pull workspace here, or make into a reactor
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		setInitParams(arg0);
