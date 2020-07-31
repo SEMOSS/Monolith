@@ -21,8 +21,11 @@ import com.google.gson.Gson;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.cluster.util.ClusterUtil;
+import prerna.engine.api.IEngine;
+import prerna.engine.impl.InsightAdministrator;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/insight")
@@ -307,6 +310,15 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		
 		try {
 			adminUtils.setInsightGlobalWithinApp(appId, insightId, isPublic);
+			
+			// also update in the app itself
+			// so it is properly synchronized with the security db
+			ClusterUtil.reactorPullInsightsDB(appId);
+			IEngine app = Utility.getEngine(appId);
+			InsightAdministrator admin = new InsightAdministrator(app.getInsightDatabase());
+			admin.updateInsightGlobal(insightId, !isPublic);
+			ClusterUtil.reactorPushInsightDB(appId);
+
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
