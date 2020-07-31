@@ -20,8 +20,12 @@ import prerna.auth.AccessPermission;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
+import prerna.cluster.util.ClusterUtil;
+import prerna.engine.api.IEngine;
+import prerna.engine.impl.InsightAdministrator;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/insight")
@@ -285,6 +289,15 @@ public class InsightAuthorizationResource {
 
 		try {
 			SecurityInsightUtils.setInsightGlobalWithinApp(user, appId, insightId, isPublic);
+			
+			// also update in the app itself
+			// so it is properly synchronized with the security db
+			ClusterUtil.reactorPullInsightsDB(appId);
+			IEngine app = Utility.getEngine(appId);
+			InsightAdministrator admin = new InsightAdministrator(app.getInsightDatabase());
+			admin.updateInsightGlobal(insightId, !isPublic);
+			ClusterUtil.reactorPushInsightDB(appId);
+			
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the insight " + insightId + " in app " + appId + logPublic + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
