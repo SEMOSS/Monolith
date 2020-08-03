@@ -51,6 +51,7 @@ import prerna.forms.AbstractFormBuilder;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.sablecc2.reactor.frame.r.util.PyTranslatorFactory;
 import prerna.sablecc2.reactor.frame.r.util.RJavaTranslatorFactory;
 import prerna.sablecc2.reactor.scheduler.SchedulerFactorySingleton;
 import prerna.sablecc2.reactor.scheduler.SchedulerH2DatabaseUtility;
@@ -300,6 +301,7 @@ public class DBLoader implements ServletContextListener {
 		// close r
 		try {
 			RJavaTranslatorFactory.stopRConnection();
+			PyTranslatorFactory.stopPy();
 		} catch (Exception e) {
 			logger.error(STACKTRACE, e);
 		}
