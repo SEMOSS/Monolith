@@ -39,6 +39,7 @@ import prerna.semoss.web.services.local.AppResource;
 import prerna.semoss.web.services.local.AuthorizationResource;
 import prerna.semoss.web.services.local.ExecuteInsightResource;
 import prerna.semoss.web.services.local.NameServer;
+import prerna.semoss.web.services.local.SchedulerResource;
 import prerna.semoss.web.services.local.SessionResource;
 import prerna.semoss.web.services.local.ShareInsightResource;
 import prerna.semoss.web.services.local.ThemeResource;
@@ -71,6 +72,7 @@ public class MonolithApplication extends Application {
       // insight execution
       singletons.add(new ExecuteInsightResource());
       singletons.add(new ShareInsightResource());
+      singletons.add(new SchedulerResource());
       // other
       singletons.add(new ThemeResource());
       singletons.add(new ServerConfigurationResource());

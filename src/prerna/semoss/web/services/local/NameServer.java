@@ -723,8 +723,10 @@ public class NameServer {
 	public String getServerURL(HttpServletRequest request) {
 		if(NameServer.baseURL == null) {
 			//http://localhost:8080/appui/
-			StringBuffer baseURL = new StringBuffer(request.getHeader("referer")).append("#!/");
-			NameServer.baseURL = baseURL.toString();
+			if(request.getHeader("referer") != null) {
+				StringBuffer baseURL = new StringBuffer(request.getHeader("referer")).append("#!/");
+				NameServer.baseURL = baseURL.toString();
+			}
 		}
 		return baseURL;
 	}
