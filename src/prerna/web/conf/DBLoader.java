@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.web.conf;
 
-import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -206,13 +205,9 @@ public class DBLoader implements ServletContextListener {
 		// Load and run triggerOnLoad jobs
 		RDBMSNativeEngine schedulerDb = (RDBMSNativeEngine) Utility.getEngine(Constants.SCHEDULER_DB);
 		if(schedulerDb != null) {
-			try {
-				SchedulerH2DatabaseUtility.executeAllTriggerOnLoads(schedulerDb.getConnection());
-				// also add legacy json files
-				JsonConversionToQuartzJob.runUpdateFromLegacyFormat();
-			} catch (SQLException e) {
-				logger.error(STACKTRACE, e);
-			}
+			SchedulerH2DatabaseUtility.executeAllTriggerOnLoads();
+			// also add legacy json files
+			JsonConversionToQuartzJob.runUpdateFromLegacyFormat();
 		}
 	}
 
