@@ -47,6 +47,16 @@
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
    
+   <!-- scheduler filter -->
+   <filter>
+      <filter-name>SchedulerFilter</filter-name>
+      <filter-class>prerna.web.conf.SchedulerFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>SchedulerFilter</filter-name>
+      <url-pattern>/api/schedule/*</url-pattern>
+   </filter-mapping>
+   
    <!--  allow anonymous users -->
    <!-- 
    <filter>
