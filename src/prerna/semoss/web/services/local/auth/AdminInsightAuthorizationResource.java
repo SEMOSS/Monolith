@@ -61,6 +61,36 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
+	 * Get the app users and their permissions
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("getAllAppInsightUsers")
+	public Response getAllAppInsightUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String appId = form.getFirst("appId");
+		String userId = form.getFirst("userId");
+		
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to see all the user insight access for app " + appId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		return WebUtility.getResponse(adminUtils.getAllUserInsightAccess(appId, userId), 200);
+	}
+	
+	
+	/**
 	 * Get the user insight permissions for a given insight
 	 * @param request
 	 * @param form
