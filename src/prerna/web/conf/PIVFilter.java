@@ -1,10 +1,12 @@
 package prerna.web.conf;
 
 import java.io.IOException;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
@@ -92,12 +94,30 @@ public class PIVFilter implements Filter {
 							
 							// get the full value
 							// this should be an email
-							String value = rdn.getValue().toString();
-							email = value;
-							name = value;
+							email = rdn.getValue().toString();
+							// make sure valid email
+							if(email == null || !email.contains("@")) {
+								try {
+									EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
+										for(Object alternative : altNames) {
+											if(alternative instanceof String) {
+												String altStr = alternative.toString();
+												// really simple email check...
+												if(altStr.contains("@")) {
+													email = altStr;
+													break EMAIL_LOOP;
+												}
+											}
+										}
+									}
+								} catch (CertificateParsingException e) {
+						    		logger.error(STACKTRACE, e);
+								}
+							}
+							name = email;
 
 							// lets make sure we have all the stuff
-							if(email != null & name != null) {
+							if(email != null && email.contains("@")) {
 								// we have everything!
 								// this is the only time we populate the token
 								// and then exit the cert loop
