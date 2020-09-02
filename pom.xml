@@ -1930,7 +1930,8 @@
 				</exclusion>
 			</exclusions>
 		</dependency-->
-		<dependency>
+		<!-- cleanup -->
+		<!-- dependency>
 			<groupId>org.apache.tika</groupId>
 			<artifactId>tika-core</artifactId>
 			<version>1.18</version>
@@ -1940,7 +1941,7 @@
 					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
+		</dependency-->
 		<dependency>
 			<groupId>com.univocity</groupId>
 			<artifactId>univocity-parsers</artifactId>
