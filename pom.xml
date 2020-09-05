@@ -1054,18 +1054,12 @@
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-jaxrs</artifactId>
-			<version>3.0.9.Final</version>
-			<exclusions>
-				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
+			<version>3.13.0.Final</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>jaxrs-api</artifactId>
-			<version>3.0.9.Final</version>
+			<version>3.0.12.Final</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
@@ -1076,7 +1070,7 @@
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-multipart-provider</artifactId>
-			<version>3.0.9.Final</version>
+			<version>3.13.0.Final</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
