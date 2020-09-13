@@ -14,7 +14,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import prerna.auth.AccessPermission;
 import prerna.auth.User;
@@ -31,7 +32,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/auth/insight")
 public class InsightAuthorizationResource {
 
-	private static final Logger logger = Logger.getLogger(InsightAuthorizationResource.class);
+	private static final Logger logger = LogManager.getLogger(InsightAuthorizationResource.class);
 	
 	/**
 	 * Get the user insight permissions for a given insight

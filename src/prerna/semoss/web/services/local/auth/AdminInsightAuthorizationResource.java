@@ -14,7 +14,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
@@ -31,7 +32,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/auth/admin/insight")
 public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 
-	private static final Logger logger = Logger.getLogger(AdminInsightAuthorizationResource.class);
+	private static final Logger logger = LogManager.getLogger(AdminInsightAuthorizationResource.class);
 
 	/**
 	 * Get the user insight permissions for a given insight

@@ -3,13 +3,12 @@ package prerna.web.services.util;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.apache.log4j.Logger;
-
-import prerna.web.services.util.SemossThread;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class SemossExecutorSingleton {
 	
-	private static final Logger logger = Logger.getLogger(SemossExecutorSingleton.class);
+	private static final Logger logger = LogManager.getLogger(SemossExecutorSingleton.class);
 
 	static SemossExecutorSingleton singleton = null;
 	ExecutorService service = null;
