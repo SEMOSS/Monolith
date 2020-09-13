@@ -44,7 +44,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -74,7 +75,7 @@ import prerna.web.services.util.WebUtility;
 
 public class EngineResource {
 
-	private static final Logger logger = Logger.getLogger(EngineResource.class);
+	private static final Logger logger = LogManager.getLogger(EngineResource.class);
 	private static final String STACKTRACE = "StackTrace: ";
 
 	// gets everything specific to an engine

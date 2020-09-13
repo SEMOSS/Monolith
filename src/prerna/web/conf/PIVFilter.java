@@ -20,8 +20,8 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
@@ -86,38 +86,38 @@ public class PIVFilter implements Filter {
 					try {
 						ldapDN = new LdapName(fullName);
 						for(Rdn rdn: ldapDN.getRdns()) {
-							// only care about UID
-							if(!rdn.getType().equals("UID")) {
-								// try next rdn
-								continue;
-							}
 							
-							// get the full value
-							// this should be an email
-							email = rdn.getValue().toString();
-							// make sure valid email
-							if(email == null || !email.contains("@")) {
-								try {
-									EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
-										for(Object alternative : altNames) {
-											if(alternative instanceof String) {
-												String altStr = alternative.toString();
-												// really simple email check...
-												if(altStr.contains("@")) {
-													email = altStr;
-													break EMAIL_LOOP;
+							// UID for email
+							if(rdn.getType().equals("UID")) {
+								// get the full value
+								// this should be an email
+								email = rdn.getValue().toString();
+								// make sure valid email
+								if(email == null || !email.contains("@")) {
+									try {
+										EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
+											for(Object alternative : altNames) {
+												if(alternative instanceof String) {
+													String altStr = alternative.toString();
+													// really simple email check...
+													if(altStr.contains("@")) {
+														email = altStr;
+														break EMAIL_LOOP;
+													}
 												}
 											}
 										}
+									} catch (CertificateParsingException e) {
+							    		logger.error(STACKTRACE, e);
 									}
-								} catch (CertificateParsingException e) {
-						    		logger.error(STACKTRACE, e);
 								}
+							// CN for name
+							} else if(rdn.getType().equals("CN")) {
+								name = rdn.getValue().toString();
 							}
-							name = email;
-
+							
 							// lets make sure we have all the stuff
-							if(email != null && email.contains("@")) {
+							if(email != null && email.contains("@") && name != null) {
 								// we have everything!
 								// this is the only time we populate the token
 								// and then exit the cert loop

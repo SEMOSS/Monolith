@@ -27,36 +27,23 @@
  *******************************************************************************/
 package prerna.semoss.web.services.remote;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Hashtable;
 import java.util.List;
 
 import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.StreamingOutput;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import com.google.gson.Gson;
-
-import prerna.semoss.web.services.local.NameServer;
-import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.util.Constants;
-import prerna.util.Utility;
-import prerna.web.services.util.WebUtility;
 
 public class CentralNameServer {
 
 	@Context 
 	private ServletContext context;
 	
-	private static final Logger logger = Logger.getLogger(CentralNameServer.class.getName());
+	private static final Logger logger = LogManager.getLogger(CentralNameServer.class.getName());
 	private String centralApi = "";
 	private List<String> localDb = Arrays.asList(Constants.LOCAL_MASTER_DB_NAME);
 	

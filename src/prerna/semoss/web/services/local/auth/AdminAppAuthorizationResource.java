@@ -14,7 +14,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -25,7 +26,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/auth/admin/app")
 public class AdminAppAuthorizationResource extends AbstractAdminResource {
 
-	private static final Logger logger = Logger.getLogger(AdminAppAuthorizationResource.class);
+	private static final Logger logger = LogManager.getLogger(AdminAppAuthorizationResource.class);
 
 	@Context
 	protected ServletContext context;
