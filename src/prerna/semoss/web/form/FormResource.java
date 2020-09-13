@@ -16,7 +16,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
@@ -36,7 +37,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/form")
 public class FormResource {
 
-	private static final Logger logger = Logger.getLogger(FormResource.class);
+	private static final Logger logger = LogManager.getLogger(FormResource.class);
 
 	private IEngine formEngine;
 

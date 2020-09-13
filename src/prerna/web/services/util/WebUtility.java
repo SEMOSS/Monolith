@@ -44,7 +44,8 @@ import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.lang.time.FastDateFormat;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
@@ -57,7 +58,7 @@ import prerna.util.gson.GsonUtility;
 public class WebUtility {
 
 	private static final String CLASS_NAME = WebUtility.class.getName();
-	private static final Logger LOGGER = Logger.getLogger(CLASS_NAME);
+	private static final Logger LOGGER = LogManager.getLogger(CLASS_NAME);
 
     private static final FastDateFormat expiresDateFormat= FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz", TimeZone.getTimeZone("GMT"));
 
