@@ -29,7 +29,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -53,7 +54,7 @@ public class AppResource {
 	private static String defaultEmbedLogo = null;
 	private static boolean noLogo = false;
 	
-	private static final Logger logger = Logger.getLogger(AppResource.class);
+	private static final Logger logger = LogManager.getLogger(AppResource.class);
 	private static final String STACKTRACE = "StackTrace: ";
 	
 	private boolean canAccessApp(User user, String appId) throws IllegalAccessException {
