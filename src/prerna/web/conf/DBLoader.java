@@ -27,9 +27,13 @@
  *******************************************************************************/
 package prerna.web.conf;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.StringTokenizer;
 import java.util.Vector;
 
 import javax.servlet.ServletContext;
@@ -37,11 +41,12 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.SessionCookieConfig;
 
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PropertyConfigurator;
-
-import com.ibm.icu.util.StringTokenizer;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.ConfigurationSource;
+import org.apache.logging.log4j.core.config.Configurator;
 
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.r.RserveUtil;
@@ -64,6 +69,9 @@ import prerna.util.insight.InsightUtility;
 
 public class DBLoader implements ServletContextListener {
 
+	private final Level STARTUP = Level.forName("STARTUP", 0);
+	private final Level SHUTDOWN = Level.forName("SHUTDOWN", 0);
+	
 	private static final Logger logger = LogManager.getLogger(DBLoader.class);
 	private static final String RDFMAP = "RDF-MAP";
 	private static String SESSION_ID_KEY = "JSESSIONID";
@@ -135,27 +143,45 @@ public class DBLoader implements ServletContextListener {
 			}
 		}
 
-		logger.info("Initializing application context..." + Utility.cleanLogString(contextPath));
+		logger.log(STARTUP, "Initializing application context..." + Utility.cleanLogString(contextPath));
 
 		// Set default file separator system variable
-		logger.info("Changing file separator value to: '/'");
+		logger.log(STARTUP, "Changing file separator value to: '/'");
 		System.setProperty("file.separator", "/");
 
 		// Load RDF_Map.prop file
-		logger.info("Loading RDF_Map.prop: " + Utility.cleanLogString(rdfPropFile));
+		logger.log(STARTUP, "Loading RDF_Map.prop: " + Utility.cleanLogString(rdfPropFile));
 		DIHelper.getInstance().loadCoreProp(rdfPropFile);
 
 		// Set log4j prop
 		String log4jConfig = DIHelper.getInstance().getProperty("LOG4J");
-		logger.info("Setting log4j property: " + log4jConfig);
-		PropertyConfigurator.configure(log4jConfig);
+		logger.log(STARTUP, "Setting log4j property: " + log4jConfig);
+		FileInputStream fis = null;
+		ConfigurationSource source = null;
+		try {
+			File log4j2File = new File(log4jConfig);
+		    System.setProperty("log4j2.configurationFile", log4j2File.toURI().toString());
+			fis = new FileInputStream(log4jConfig);
+			source = new ConfigurationSource(fis);
+			Configurator.initialize(null, source);
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		} finally {
+			if(fis != null) {
+				try {
+					fis.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 
 		if(RserveUtil.R_KILL_ON_STARTUP) {
-			logger.info("Killing existing RServes running on the machine");
+			logger.log(STARTUP, "Killing existing RServes running on the machine");
 			try {
 				RserveUtil.endR();
 			} catch (Exception e) {
-				logger.info("Unable to kill existing RServes running on the machine");
+				logger.log(STARTUP, "Unable to kill existing RServes running on the machine");
 			}
 		}
 		
@@ -171,7 +197,7 @@ public class DBLoader implements ServletContextListener {
 		DIHelper.getInstance().setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
 
 		// Load empty engine list into DIHelper, then load engines from db folder
-		logger.info("Loading engines...");
+		logger.log(STARTUP, "Loading engines...");
 		String engines = "";
 		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engines);
 		loadEngines();
@@ -232,18 +258,18 @@ public class DBLoader implements ServletContextListener {
 				}
 			}
 		} catch (Exception ex) {
-			logger.error(STACKTRACE, ex);
+			logger.log(STARTUP, STACKTRACE, ex);
 		}
 	}
 
 	@Override
 	public void contextDestroyed(ServletContextEvent arg0) {
-		logger.info("Start shutdown");
+		logger.log(SHUTDOWN, "Start shutdown");
 
 		Set<String> insights = new HashSet<>(InsightStore.getInstance().getAllInsights());
 		for (String id : insights) {
 			Insight in = InsightStore.getInstance().get(id);
-			logger.info("Closing insight " + id);
+			logger.log(SHUTDOWN, "Closing insight " + id);
 			InsightUtility.dropInsight(in);
 		}
 
@@ -259,7 +285,7 @@ public class DBLoader implements ServletContextListener {
 			IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(id);
 			if (engine != null) {
 				// if it is loaded, close it
-				logger.info("Closing database " + id);
+				logger.log(SHUTDOWN, "Closing database " + id);
 				engine.closeDB();
 			}
 		}
@@ -268,29 +294,29 @@ public class DBLoader implements ServletContextListener {
 		// so specifically pull them to close
 		IEngine engine = Utility.getEngine(AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		if (engine != null) {
-			logger.info("Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
+			logger.log(SHUTDOWN, "Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 			engine.closeDB();
 		} else {
-			logger.info("Couldn't find database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
+			logger.log(SHUTDOWN, "Couldn't find database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		}
 
 		engine = Utility.getEngine(Constants.SECURITY_DB);
 		if (engine != null) {
-			logger.info("Closing database " + Constants.SECURITY_DB);
+			logger.log(SHUTDOWN, "Closing database " + Constants.SECURITY_DB);
 			engine.closeDB();
 		} else {
-			logger.info("Couldn't find database " + Constants.SECURITY_DB);
+			logger.log(SHUTDOWN, "Couldn't find database " + Constants.SECURITY_DB);
 		}
 
 		engine = Utility.getEngine(Constants.LOCAL_MASTER_DB_NAME);
 		if (engine != null) {
-			logger.info("Closing database " + Constants.LOCAL_MASTER_DB_NAME);
+			logger.log(SHUTDOWN, "Closing database " + Constants.LOCAL_MASTER_DB_NAME);
 			engine.closeDB();
 		} else {
-			logger.info("Couldn't find database " + Constants.LOCAL_MASTER_DB_NAME);
+			logger.log(SHUTDOWN, "Couldn't find database " + Constants.LOCAL_MASTER_DB_NAME);
 		}
 
-		logger.info("Closing scheduler");
+		logger.log(SHUTDOWN, "Closing scheduler");
 		SchedulerFactorySingleton.getInstance().shutdownScheduler(true);
 
 		// close r
@@ -298,10 +324,10 @@ public class DBLoader implements ServletContextListener {
 			RJavaTranslatorFactory.stopRConnection();
 			PyTranslatorFactory.stopPy();
 		} catch (Exception e) {
-			logger.error(STACKTRACE, e);
+			logger.log(SHUTDOWN, STACKTRACE, e);
 		}
 
-		logger.info("Finished shutdown");
+		logger.log(SHUTDOWN, "Finished shutdown");
 	}
 
 	/**

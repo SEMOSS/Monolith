@@ -44,7 +44,8 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
@@ -59,7 +60,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/authorization")
 public class AuthorizationResource {
 
-	private static final Logger logger = Logger.getLogger(AuthorizationResource.class);
+	private static final Logger logger = LogManager.getLogger(AuthorizationResource.class);
 	private static final String STACKTRACE = "StackTrace: ";
 	@Context
 	protected ServletContext context;
