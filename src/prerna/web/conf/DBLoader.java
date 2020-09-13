@@ -27,9 +27,6 @@
  *******************************************************************************/
 package prerna.web.conf;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -44,9 +41,6 @@ import javax.servlet.SessionCookieConfig;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.ConfigurationSource;
-import org.apache.logging.log4j.core.config.Configurator;
 
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.r.RserveUtil;
@@ -152,29 +146,6 @@ public class DBLoader implements ServletContextListener {
 		// Load RDF_Map.prop file
 		logger.log(STARTUP, "Loading RDF_Map.prop: " + Utility.cleanLogString(rdfPropFile));
 		DIHelper.getInstance().loadCoreProp(rdfPropFile);
-
-		// Set log4j prop
-		String log4jConfig = DIHelper.getInstance().getProperty("LOG4J");
-		logger.log(STARTUP, "Setting log4j property: " + log4jConfig);
-		FileInputStream fis = null;
-		ConfigurationSource source = null;
-		try {
-			File log4j2File = new File(log4jConfig);
-		    System.setProperty("log4j2.configurationFile", log4j2File.toURI().toString());
-			fis = new FileInputStream(log4jConfig);
-			source = new ConfigurationSource(fis);
-			Configurator.initialize(null, source);
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		} finally {
-			if(fis != null) {
-				try {
-					fis.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		}
 
 		if(RserveUtil.R_KILL_ON_STARTUP) {
 			logger.log(STARTUP, "Killing existing RServes running on the machine");
