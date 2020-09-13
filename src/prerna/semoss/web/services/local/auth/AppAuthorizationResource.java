@@ -15,7 +15,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAppUtils;
@@ -28,7 +29,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/auth/app")
 public class AppAuthorizationResource {
 
-	private static final Logger logger = Logger.getLogger(AppAuthorizationResource.class);
+	private static final Logger logger = LogManager.getLogger(AppAuthorizationResource.class);
 	private static final String STACKTRACE = "StackTrace: ";
 
 	@Context
