@@ -69,7 +69,6 @@ public class DBLoader implements ServletContextListener {
 	private static final Logger logger = LogManager.getLogger(DBLoader.class);
 	private static final String RDFMAP = "RDF-MAP";
 	private static String SESSION_ID_KEY = "JSESSIONID";
-	private static final String STACKTRACE = "StackTrace: ";
 	private static boolean useLogoutPage = false;
 	private static String customLogoutUrl = null;
 
@@ -229,7 +228,7 @@ public class DBLoader implements ServletContextListener {
 				}
 			}
 		} catch (Exception ex) {
-			logger.log(STARTUP, STACKTRACE, ex);
+			logger.log(STARTUP, Constants.STACKTRACE, ex);
 		}
 	}
 
@@ -295,7 +294,7 @@ public class DBLoader implements ServletContextListener {
 			RJavaTranslatorFactory.stopRConnection();
 			PyTranslatorFactory.stopPy();
 		} catch (Exception e) {
-			logger.log(SHUTDOWN, STACKTRACE, e);
+			logger.log(SHUTDOWN, Constants.STACKTRACE, e);
 		}
 
 		logger.log(SHUTDOWN, "Finished shutdown");
