@@ -44,7 +44,6 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.r.RserveUtil;
-import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.forms.AbstractFormBuilder;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
@@ -192,18 +191,21 @@ public class DBLoader implements ServletContextListener {
 			IEngine scheduler = (IEngine) DIHelper.getInstance().getLocalProp(Constants.SCHEDULER_DB);
 //			if (localmaster == null || security == null || scheduler == null || !localmaster.isConnected() || !security.isConnected() || !scheduler.isConnected()) {
 			if (localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected() ) {
-
 				// you have messed up!!!
 				StartUpSuccessFilter.setStartUpSuccess(false);
 			}
-		}
+			
+			// Load and run triggerOnLoad jobs
+			if(scheduler != null) {
+				try {
+						SchedulerH2DatabaseUtility.executeAllTriggerOnLoads();
+						// also add legacy json files
+						JsonConversionToQuartzJob.runUpdateFromLegacyFormat();
+				} catch(Exception e) {
+					// ignore
+				}
+			}
 
-		// Load and run triggerOnLoad jobs
-		RDBMSNativeEngine schedulerDb = (RDBMSNativeEngine) Utility.getEngine(Constants.SCHEDULER_DB);
-		if(schedulerDb != null) {
-			SchedulerH2DatabaseUtility.executeAllTriggerOnLoads();
-			// also add legacy json files
-			JsonConversionToQuartzJob.runUpdateFromLegacyFormat();
 		}
 	}
 
