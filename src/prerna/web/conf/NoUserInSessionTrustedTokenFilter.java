@@ -108,16 +108,26 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 
 							String sessionId = session.getId();
 							sessionMapper.put(userId, sessionId);
+							
+							// add the session id cookie
+							// use addHeader to allow for SameSite option
+							String setCookieString = DBLoader.getSessionIdKey() + "=" + sessionId 
+									+ "; Path=" + contextPath 
+									+ "; HttpOnly"
+									+ (req.isSecure() ? "; Secure" : "")
+									+ "; SameSite=None"
+									;
+							((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
 						}
 					} else {
 						// this is the class where you redirect
 						String redirectSessionId = (String) sessionMapper.get(userId);
 						// add the session id cookie
-						Cookie k = new Cookie(DBLoader.getSessionIdKey(), redirectSessionId);
-						k.setHttpOnly(true);
-						k.setSecure(req.isSecure());
-						k.setPath(contextPath);
-						((HttpServletResponse)arg1).addCookie(k);
+//						Cookie k = new Cookie(DBLoader.getSessionIdKey(), redirectSessionId);
+//						k.setHttpOnly(true);
+//						k.setSecure(req.isSecure());
+//						k.setPath(contextPath);
+//						((HttpServletResponse)arg1).addCookie(k);
 						// replace any other session id cookies
 						Cookie[] cookies = req.getCookies();
 						if (cookies != null) {
@@ -131,12 +141,23 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 							}
 						}
 						
+						// add the session id cookie
+						// use addHeader to allow for SameSite option
+						String setCookieString = DBLoader.getSessionIdKey() + "=" + redirectSessionId 
+								+ "; Path=" + contextPath 
+								+ "; HttpOnly"
+								+ (req.isSecure() ? "; Secure" : "")
+								+ "; SameSite=None"
+								;
+						
 						String method = req.getMethod();
 						if(method.equalsIgnoreCase("GET")) {
+							((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
 							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
 							((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
 							return;
 						} else if(method.equalsIgnoreCase("POST")) {
+							((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
 							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
 							((HttpServletResponse) arg1).setHeader("Location", fullUrl);
 							return;
