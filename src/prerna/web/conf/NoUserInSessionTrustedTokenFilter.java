@@ -26,6 +26,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.cluster.util.ClusterUtil;
 import prerna.util.Constants;
 import prerna.util.Utility;
 
@@ -111,11 +112,11 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 							
 							// add the session id cookie
 							// use addHeader to allow for SameSite option
+							// SameSite only works if Secure tag also there
 							String setCookieString = DBLoader.getSessionIdKey() + "=" + sessionId 
 									+ "; Path=" + contextPath 
 									+ "; HttpOnly"
-									+ (req.isSecure() ? "; Secure" : "")
-									+ "; SameSite=None"
+									+ (ClusterUtil.IS_CLUSTER || req.isSecure() ? "; Secure; SameSite=None" : "")
 									;
 							((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
 						}
@@ -143,11 +144,11 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 						
 						// add the session id cookie
 						// use addHeader to allow for SameSite option
+						// SameSite only works if Secure tag also there
 						String setCookieString = DBLoader.getSessionIdKey() + "=" + redirectSessionId 
 								+ "; Path=" + contextPath 
 								+ "; HttpOnly"
-								+ (req.isSecure() ? "; Secure" : "")
-								+ "; SameSite=None"
+								+ (ClusterUtil.IS_CLUSTER || req.isSecure() ? "; Secure; SameSite=None" : "")
 								;
 						
 						String method = req.getMethod();
