@@ -116,7 +116,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 							String setCookieString = DBLoader.getSessionIdKey() + "=" + sessionId 
 									+ "; Path=" + contextPath 
 									+ "; HttpOnly"
-									+ (ClusterUtil.IS_CLUSTER || req.isSecure() ? "; Secure; SameSite=None" : "")
+									+ ( (ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "")
 									;
 							((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
 						}
@@ -148,7 +148,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 						String setCookieString = DBLoader.getSessionIdKey() + "=" + redirectSessionId 
 								+ "; Path=" + contextPath 
 								+ "; HttpOnly"
-								+ (ClusterUtil.IS_CLUSTER || req.isSecure() ? "; Secure; SameSite=None" : "")
+								+ ( (ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "")
 								;
 						
 						String method = req.getMethod();
