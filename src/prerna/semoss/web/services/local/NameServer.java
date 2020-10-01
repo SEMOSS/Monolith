@@ -79,18 +79,12 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.ds.py.FilePyTranslator;
-import prerna.ds.py.PyExecutorThread;
-import prerna.ds.py.PyTranslator;
-import prerna.ds.py.PyUtils;
-import prerna.ds.py.TCPPyTranslator;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
-import prerna.pyserve.NettyClient;
 import prerna.sablecc.PKQLRunner;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
@@ -385,7 +379,57 @@ public class NameServer {
 		ThreadStore.setUser(user);
 					
 		return getInsightPipeline(insight, expression);
+	}
+	
+	
+	@POST
+	@Path("/getPipeline2")
+	@Produces("application/json;charset=utf-8")
+	public Response getPixelPipelinePlan2(@Context HttpServletRequest request) {
+		HttpSession session = null;
+		String sessionId = null;
+		User user = null;
 		
+		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
+		// If security is enabled try to get an existing session.
+		// Otherwise get a session with the default user.
+		if (securityEnabled) {
+			session = request.getSession(false);
+			if (session != null) {
+				sessionId = session.getId();
+				user = ((User) session.getAttribute(Constants.SESSION_USER));
+			}
+
+			if (user == null) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put("error", "User session is invalid");
+				logger.debug("User session is invalid");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		} else {
+			session = request.getSession(true);
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+			sessionId = session.getId();
+		}
+		
+		String insightId = request.getParameter("insightId");
+		String expression = request.getParameter("expression");
+		Insight insight = InsightStore.getInstance().get(insightId);
+		if (insight == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
+			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// set the user
+		insight.setUser(user);
+		// set in thread
+		ThreadStore.setInsightId(insightId);
+		ThreadStore.setSessionId(sessionId);
+		ThreadStore.setUser(user);
+					
+		return getInsightPipeline2(insight, expression);
 	}
 	
 	
@@ -426,54 +470,54 @@ public class NameServer {
 				.build();
 	}
 	
-	/**
-	 * 
-	 * @param session
-	 * @param sessionId
-	 * @param user
-	 */
-	private void setPythonForSession(HttpSession session, String sessionId, User user) {
-		PyTranslator pyt = null;
-		String port = null;
-		
-		boolean useFilePy = Boolean.parseBoolean(DIHelper.getInstance().getProperty("USE_PY_FILE"));
-		boolean useTCP = Boolean.parseBoolean(DIHelper.getInstance().getProperty("USE_TCP_PY"));
-		useTCP = useFilePy; // forcing it to be same as TCP
-
-		if (!useFilePy) {
-			if (session.getAttribute(Constants.PYTHON) != null) {
-				pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-			}
-
-			PyExecutorThread jepThread = PyUtils.getInstance().getJep();
-			pyt = new PyTranslator();
-			pyt.setPy(jepThread);
-		}
-		// check to see if the py translator needs to be set ?
-		else if (useFilePy && session.getAttribute("USER_TUPLE") == null) {
-			if (useTCP) {
-				port = DIHelper.getInstance().getProperty("FORCE_PORT"); // this means someone has started it
-				if (port == null) {
-					port = Utility.findOpenPort();
-					session.setAttribute("USER_TUPLE", PyUtils.getInstance().startPyServe(user,
-							DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), port));
-					NettyClient nc = new NettyClient();
-					nc.connect("127.0.0.1", Integer.parseInt(port), false);
-					Thread t = new Thread(nc);
-					t.start();
-					user.setPyServe(nc);
-					pyt = new TCPPyTranslator();
-					((TCPPyTranslator) pyt).nc = nc;
-				}
-				session.setAttribute("PORT", port);
-			} else {
-				String userTuple = PyUtils.getInstance().getTempTupleSpace(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR));
-				session.setAttribute("USER_TUPLE", userTuple);
-				pyt = new FilePyTranslator();
-			}
-		}
-		session.setAttribute(Constants.PYTHON, pyt);
-	}
+//	/**
+//	 * 
+//	 * @param session
+//	 * @param sessionId
+//	 * @param user
+//	 */
+//	private void setPythonForSession(HttpSession session, String sessionId, User user) {
+//		PyTranslator pyt = null;
+//		String port = null;
+//		
+//		boolean useFilePy = Boolean.parseBoolean(DIHelper.getInstance().getProperty("USE_PY_FILE"));
+//		boolean useTCP = Boolean.parseBoolean(DIHelper.getInstance().getProperty("USE_TCP_PY"));
+//		useTCP = useFilePy; // forcing it to be same as TCP
+//
+//		if (!useFilePy) {
+//			if (session.getAttribute(Constants.PYTHON) != null) {
+//				pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
+//			}
+//
+//			PyExecutorThread jepThread = PyUtils.getInstance().getJep();
+//			pyt = new PyTranslator();
+//			pyt.setPy(jepThread);
+//		}
+//		// check to see if the py translator needs to be set ?
+//		else if (useFilePy && session.getAttribute("USER_TUPLE") == null) {
+//			if (useTCP) {
+//				port = DIHelper.getInstance().getProperty("FORCE_PORT"); // this means someone has started it
+//				if (port == null) {
+//					port = Utility.findOpenPort();
+//					session.setAttribute("USER_TUPLE", PyUtils.getInstance().startPyServe(user,
+//							DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), port));
+//					NettyClient nc = new NettyClient();
+//					nc.connect("127.0.0.1", Integer.parseInt(port), false);
+//					Thread t = new Thread(nc);
+//					t.start();
+//					user.setPyServe(nc);
+//					pyt = new TCPPyTranslator();
+//					((TCPPyTranslator) pyt).nc = nc;
+//				}
+//				session.setAttribute("PORT", port);
+//			} else {
+//				String userTuple = PyUtils.getInstance().getTempTupleSpace(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR));
+//				session.setAttribute("USER_TUPLE", userTuple);
+//				pyt = new FilePyTranslator();
+//			}
+//		}
+//		session.setAttribute(Constants.PYTHON, pyt);
+//	}
 	
 	/**
 	 * 
@@ -486,6 +530,27 @@ public class NameServer {
 			try {
 				return Response.status(200)
 						.entity(GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline(insight, expression)))
+						.build();
+			} catch (Exception e) {
+				logger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		}
+	}
+	
+	/**
+	 * 
+	 * @param insight
+	 * @param expression
+	 * @return
+	 */
+	private Response getInsightPipeline2(Insight insight, String expression) {
+		synchronized (insight) {
+			try {
+				return Response.status(200)
+						.entity(GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline2(insight, expression)))
 						.build();
 			} catch (Exception e) {
 				logger.error(Constants.STACKTRACE, e);
