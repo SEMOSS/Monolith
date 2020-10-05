@@ -319,5 +319,39 @@ public class InsightAuthorizationResource {
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
+	/**
+	 * Get the users with no access to a given insight
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getInsightUsersNoCredentials")
+	public Response getInsightUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("appId") String appId, @QueryParam("insightId") String insightId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), " user does not have access to provided insight"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		List<Map<String, Object>> ret = null;
+		try {
+			ret = SecurityInsightUtils.getInsightUsersNoCredentials(user, appId, insightId);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), " is trying to pull users without access to insight " + insightId + " in app " + appId + " without having proper access"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		return WebUtility.getResponse(ret, 200);
+	}
 }
