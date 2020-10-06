@@ -365,4 +365,40 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	/**
+	 * Get the users with no access to a given insight
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getInsightUsersNoCredentials")
+	public Response getInsightUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("appId") String appId, @QueryParam("insightId") String insightId) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to get all users who have access to insight " + insightId + " in app " + appId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		List<Map<String, Object>> ret = null;
+		try {
+			ret = adminUtils.getInsightUsersNoCredentials(appId, insightId);
+		} catch (IllegalAccessException e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		return WebUtility.getResponse(ret, 200);
+	}
+	
 }
