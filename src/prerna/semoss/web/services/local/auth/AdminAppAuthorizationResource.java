@@ -302,7 +302,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = adminUtils.getAppUsersNoCredentials(user, appId);
+			ret = adminUtils.getAppUsersNoCredentials(appId);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), " is trying to pull users for " + appId + " that do not have credentials without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
