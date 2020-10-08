@@ -91,6 +91,7 @@ import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.PixelUtility;
 import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
+import prerna.sablecc2.pipeline.PipelineOperation;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.semoss.web.services.remote.EngineRemoteResource;
 import prerna.util.Constants;
@@ -549,8 +550,9 @@ public class NameServer {
 	private Response getInsightPipeline2(Insight insight, String expression) {
 		synchronized (insight) {
 			try {
+				List<List<PipelineOperation>> pipeline = PixelUtility.generatePipeline2(insight, expression);
 				return Response.status(200)
-						.entity(GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline2(insight, expression)))
+						.entity(GsonUtility.getDefaultGson().toJson(pipeline))
 						.build();
 			} catch (Exception e) {
 				logger.error(Constants.STACKTRACE, e);
