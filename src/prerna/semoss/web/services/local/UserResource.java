@@ -1671,17 +1671,17 @@ public class UserResource {
 		}
 	}
 
-	/**
-	 * Set the information in the JSON return after logging in
-	 * 
-	 * @param token
-	 * @param ret
-	 */
-	private void setAccessTokenDetails(AccessToken token, Map<String, String> ret) {
-		ret.put("name", token.getName());
-		ret.put("email", token.getEmail());
-		ret.put("type", token.getToken_type());
-	}
+//	/**
+//	 * Set the information in the JSON return after logging in
+//	 * 
+//	 * @param token
+//	 * @param ret
+//	 */
+//	private void setAccessTokenDetails(AccessToken token, Map<String, String> ret) {
+//		ret.put("name", token.getName());
+//		ret.put("email", token.getEmail());
+//		ret.put("type", token.getToken_type());
+//	}
 
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
@@ -1785,19 +1785,34 @@ public class UserResource {
 	public Response show(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Principal principal = request.getUserPrincipal();
 		Map<String, Object> output = new HashMap<>();
-		output.put("name", principal.getName());
-		if (principal instanceof WindowsPrincipal) {
-			WindowsPrincipal windowsPrincipal = (WindowsPrincipal) principal;
-			List<Map<String, Object>> gropus = new Vector<>();
-			for (waffle.windows.auth.WindowsAccount account : windowsPrincipal.getGroups().values()) {
-				Map<String, Object> m = new HashMap<>();
-				m.put("name", account.getName());
-				m.put("domain", account.getDomain());
-				m.put("fqn", account.getFqn());
-				m.put("sid", account.getSidString());
-				gropus.add(m);
+		if(principal != null) {
+			output.put("name", principal.getName());
+			if (principal instanceof WindowsPrincipal) {
+				WindowsPrincipal windowsPrincipal = (WindowsPrincipal) principal;
+				List<Map<String, Object>> gropus = new Vector<>();
+				for (waffle.windows.auth.WindowsAccount account : windowsPrincipal.getGroups().values()) {
+					Map<String, Object> m = new HashMap<>();
+					m.put("name", account.getName());
+					m.put("domain", account.getDomain());
+					m.put("fqn", account.getFqn());
+					m.put("sid", account.getSidString());
+					gropus.add(m);
+				}
+				output.put("groups", gropus);
 			}
-			output.put("groups", gropus);
+		} else {
+			HttpSession session = request.getSession(false);
+			if(session != null) {
+				User user = (User) session.getAttribute(Constants.SESSION_USER);
+				if(user != null) {
+					AccessToken token = user.getAccessToken(user.getPrimaryLogin());
+					output.put("name", token.getId());
+					output.put("warning", "null principal - grab from user");
+				}
+			}
+			if(output.isEmpty()) {
+				output.put("error", "null principal");
+			}
 		}
 		return WebUtility.getResponse(output, 200);
 	}
