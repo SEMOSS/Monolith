@@ -79,9 +79,9 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	@POST
-	@Path("/grantALlApps")
+	@Path("/grantAllApps")
 	@Produces("application/json")
-	public Response grantALlApps(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response grantAllApps(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String userId = form.getFirst("userId");
