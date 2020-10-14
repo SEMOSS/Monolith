@@ -226,9 +226,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	 * @return
 	 */
 	@POST
-	@Path("/grantALlAppInsights")
+	@Path("/grantAllAppInsights")
 	@Produces("application/json")
-	public Response grantALlAppInsights(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response grantAllAppInsights(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String appId = form.getFirst("appId");
