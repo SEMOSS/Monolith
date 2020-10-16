@@ -115,6 +115,44 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	
+	@POST
+	@Path("/grantNewUsersAppAccess")
+	@Produces("application/json")
+	public Response grantNewUsersAppAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String permission = form.getFirst("permission");
+		String appId = form.getFirst("appId");
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to grant app to new users when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		try {
+			adminUtils.grantNewUsersAppAccess(appId, permission);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user),
+				"has granted app " + appId + "to new users with permission " + permission));
+
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
 	/**
 	 * Get the app users and their permissions
 	 * @param request
@@ -419,18 +457,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
-		List<Map<String, Object>> ret = null;
-		try {
-			ret = adminUtils.getAppUsersNoCredentials(appId);
-		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), " is trying to pull users for " + appId + " that do not have credentials without having proper access"));
-			logger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-		
+		List<Map<String, Object>> ret = adminUtils.getAppUsersNoCredentials(appId);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
