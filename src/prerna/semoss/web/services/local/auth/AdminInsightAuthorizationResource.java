@@ -264,6 +264,50 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
+	 * Give permission to user for all insights in an app
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Path("/grantNewUsersInsightAccess")
+	@Produces("application/json")
+	public Response grantNewUsersInsightAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String appId = form.getFirst("appId");
+		String insightId = form.getFirst("insightId");
+		String permission = form.getFirst("permission");
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to grant new users insight access when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		try {
+			adminUtils.grantNewUsersInsightAccess(appId, insightId, permission);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user),
+				"has granted new users with permission " + permission));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
 	 * Add all users to an insight
 	 * @param request
 	 * @param form
