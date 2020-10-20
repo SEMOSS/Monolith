@@ -363,7 +363,6 @@ public class NameServer {
 		}
 		
 		String insightId = request.getParameter("insightId");
-		String expression = request.getParameter("expression");
 		Insight insight = InsightStore.getInstance().get(insightId);
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -379,7 +378,7 @@ public class NameServer {
 		ThreadStore.setSessionId(sessionId);
 		ThreadStore.setUser(user);
 					
-		return getInsightPipeline(insight, expression);
+		return getInsightPipeline(insight);
 	}
 	
 	
@@ -526,11 +525,11 @@ public class NameServer {
 	 * @param expression
 	 * @return
 	 */
-	private Response getInsightPipeline(Insight insight, String expression) {
+	private Response getInsightPipeline(Insight insight) {
 		synchronized (insight) {
 			try {
 				return Response.status(200)
-						.entity(GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline(insight, expression)))
+						.entity(GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline(insight)))
 						.build();
 			} catch (Exception e) {
 				logger.error(Constants.STACKTRACE, e);
