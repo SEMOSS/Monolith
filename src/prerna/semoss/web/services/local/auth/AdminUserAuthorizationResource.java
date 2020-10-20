@@ -38,12 +38,14 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
 			String newUserId = form.getFirst("userId");
+			String name = form.getFirst("name");
+			String email = form.getFirst("email");
+			String type = form.getFirst("type");
 			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
-			Boolean autoGenPassword = Boolean.parseBoolean(form.getFirst("admin"));
 			String userPassword = form.getFirst("password");
 			
 			if(SecurityAdminUtils.userIsAdmin(user)){
-				success = SecurityUpdateUtils.registerUser(newUserId, newUserAdmin, !AbstractSecurityUtils.adminSetPublisher());
+				success = SecurityUpdateUtils.registerUser(newUserId, name, email, type, newUserAdmin, !AbstractSecurityUtils.adminSetPublisher());
 			} else {
 				errorRet.put("error", "The user doesn't have the permissions to perform this action.");
 				return WebUtility.getResponse(errorRet, 400);
