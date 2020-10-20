@@ -68,7 +68,7 @@ public class RunInsight {
 	@Path("/getInsightState")
 	@Produces("application/json")
 	public Response recreateInsightState(@Context HttpServletRequest request) {
-		List<String> recipe = in.getPixelRecipe();
+		List<String> recipe = in.getPixelList().getPixelRecipe();
 		
 		OptimizeRecipeTranslation opTrans = getOptimizedRecipe(recipe);
 		Insight rerunInsight = new Insight();
