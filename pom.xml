@@ -1089,6 +1089,12 @@
 			<artifactId>poi-scratchpad</artifactId>
 			<version>4.1.1</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/net.sf.cssbox/jstyleparser -->
+		<dependency>
+		    <groupId>net.sf.cssbox</groupId>
+		    <artifactId>jstyleparser</artifactId>
+		    <version>3.5</version>
+		</dependency>
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-core</artifactId>
