@@ -101,11 +101,25 @@ public class AuthorizationResource {
 			String newUserId = form.getFirst("userId");
 			String name = form.getFirst("name");
 			String email = form.getFirst("email");
+			// validate email & password
+			if (email != null && !email.isEmpty()) {
+				String emailError = AbstractSecurityUtils.validEmail(email);
+				if (!emailError.isEmpty()) {
+					throw new IllegalArgumentException(emailError);
+				}
+			}
+			String password = form.getFirst("password");
+			if (password != null && !password.isEmpty()) {
+				String passwordError = AbstractSecurityUtils.validPassword(password);
+				if (!passwordError.isEmpty()) {
+					throw new IllegalArgumentException(passwordError);
+				}
+			}
 			String type = form.getFirst("type");
 			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
 
 			if(SecurityAdminUtils.userIsAdmin(user)){
-				success = SecurityUpdateUtils.registerUser(newUserId, name, email, type, newUserAdmin, !AbstractSecurityUtils.adminSetPublisher());
+				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, newUserAdmin, !AbstractSecurityUtils.adminSetPublisher());
 			} else {
 				errorRet.put("error", "The user doesn't have the permissions to perform this action.");
 				return WebUtility.getResponse(errorRet, 400);
