@@ -91,7 +91,6 @@ import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.PixelUtility;
 import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobThread;
-import prerna.sablecc2.pipeline.PipelineOperation;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.semoss.web.services.remote.EngineRemoteResource;
 import prerna.util.Constants;
@@ -381,58 +380,6 @@ public class NameServer {
 		return getInsightPipeline(insight);
 	}
 	
-	
-	@POST
-	@Path("/getPipeline2")
-	@Produces("application/json;charset=utf-8")
-	public Response getPixelPipelinePlan2(@Context HttpServletRequest request) {
-		HttpSession session = null;
-		String sessionId = null;
-		User user = null;
-		
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
-		// If security is enabled try to get an existing session.
-		// Otherwise get a session with the default user.
-		if (securityEnabled) {
-			session = request.getSession(false);
-			if (session != null) {
-				sessionId = session.getId();
-				user = ((User) session.getAttribute(Constants.SESSION_USER));
-			}
-
-			if (user == null) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				logger.debug("User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-		} else {
-			session = request.getSession(true);
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-			sessionId = session.getId();
-		}
-		
-		String insightId = request.getParameter("insightId");
-		String expression = request.getParameter("expression");
-		Insight insight = InsightStore.getInstance().get(insightId);
-		if (insight == null) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
-			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
-			return WebUtility.getResponse(errorMap, 400);
-		}
-		
-		// set the user
-		insight.setUser(user);
-		// set in thread
-		ThreadStore.setInsightId(insightId);
-		ThreadStore.setSessionId(sessionId);
-		ThreadStore.setUser(user);
-					
-		return getInsightPipeline2(insight, expression);
-	}
-	
-	
 	/**
 	 * 
 	 * @param user
@@ -540,28 +487,6 @@ public class NameServer {
 		}
 	}
 	
-	/**
-	 * 
-	 * @param insight
-	 * @param expression
-	 * @return
-	 */
-	private Response getInsightPipeline2(Insight insight, String expression) {
-		synchronized (insight) {
-			try {
-				List<List<PipelineOperation>> pipeline = PixelUtility.generatePipeline2(insight, expression);
-				return Response.status(200)
-						.entity(GsonUtility.getDefaultGson().toJson(pipeline))
-						.build();
-			} catch (Exception e) {
-				logger.error(Constants.STACKTRACE, e);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
-			}
-		}
-	}
-
 	@POST
 	@Path("runPixelAsync")
 	@Produces("application/json;charset=utf-8")
