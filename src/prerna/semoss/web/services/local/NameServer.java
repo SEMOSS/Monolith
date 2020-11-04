@@ -90,6 +90,7 @@ import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.PixelUtility;
 import prerna.sablecc2.comm.JobManager;
+import prerna.sablecc2.comm.JobStatus;
 import prerna.sablecc2.comm.JobThread;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.semoss.web.services.remote.EngineRemoteResource;
@@ -411,60 +412,16 @@ public class NameServer {
 		jt.run();
 		PixelRunner pixelRunner = jt.getRunner();
 
-		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
-				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-				.header("Pragma", "no-cache")
-				.build();
+		try {
+			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
+					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Pragma", "no-cache")
+					.build();
+		} finally {
+			jt.setStatus(JobStatus.COMPLETE);
+			manager.removeJob(jobId);
+		}
 	}
-	
-//	/**
-//	 * 
-//	 * @param session
-//	 * @param sessionId
-//	 * @param user
-//	 */
-//	private void setPythonForSession(HttpSession session, String sessionId, User user) {
-//		PyTranslator pyt = null;
-//		String port = null;
-//		
-//		boolean useFilePy = Boolean.parseBoolean(DIHelper.getInstance().getProperty("USE_PY_FILE"));
-//		boolean useTCP = Boolean.parseBoolean(DIHelper.getInstance().getProperty("USE_TCP_PY"));
-//		useTCP = useFilePy; // forcing it to be same as TCP
-//
-//		if (!useFilePy) {
-//			if (session.getAttribute(Constants.PYTHON) != null) {
-//				pyt = (PyTranslator) session.getAttribute(Constants.PYTHON);
-//			}
-//
-//			PyExecutorThread jepThread = PyUtils.getInstance().getJep();
-//			pyt = new PyTranslator();
-//			pyt.setPy(jepThread);
-//		}
-//		// check to see if the py translator needs to be set ?
-//		else if (useFilePy && session.getAttribute("USER_TUPLE") == null) {
-//			if (useTCP) {
-//				port = DIHelper.getInstance().getProperty("FORCE_PORT"); // this means someone has started it
-//				if (port == null) {
-//					port = Utility.findOpenPort();
-//					session.setAttribute("USER_TUPLE", PyUtils.getInstance().startPyServe(user,
-//							DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR), port));
-//					NettyClient nc = new NettyClient();
-//					nc.connect("127.0.0.1", Integer.parseInt(port), false);
-//					Thread t = new Thread(nc);
-//					t.start();
-//					user.setPyServe(nc);
-//					pyt = new TCPPyTranslator();
-//					((TCPPyTranslator) pyt).nc = nc;
-//				}
-//				session.setAttribute("PORT", port);
-//			} else {
-//				String userTuple = PyUtils.getInstance().getTempTupleSpace(user, DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR));
-//				session.setAttribute("USER_TUPLE", userTuple);
-//				pyt = new FilePyTranslator();
-//			}
-//		}
-//		session.setAttribute(Constants.PYTHON, pyt);
-//	}
 	
 	/**
 	 * 
@@ -582,7 +539,11 @@ public class NameServer {
 		HttpSession session = request.getSession(true);
 		String jobId = form.getFirst("jobId");
 		if (session.getAttribute(jobId) != null) {
-			dataReturn = JobManager.getManager().getStatus(jobId);
+			JobThread jt = JobManager.getManager().getJob(jobId);
+			if(jt == null) {
+				dataReturn = JobStatus.UNKNOWN_JOB;
+			}
+			dataReturn = jt.getStatus();
 		}
 		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
@@ -592,12 +553,15 @@ public class NameServer {
 	@Path("/console")
 	@Produces("application/json")
 	public Response console(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		Object dataReturn = "NULL";
 		String jobId = form.getFirst("jobId");
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		// if(jobId != null)
-		dataReturn = JobManager.getManager().getStdOut(jobId);
+		JobThread jt = JobManager.getManager().getJob(jobId);
+		List<String> console = JobManager.getManager().getStdOut(jobId);
+		Map<String, Object> dataReturn = new HashMap<>();
+		dataReturn.put("status", jt == null ? JobStatus.UNKNOWN_JOB : jt.getStatus());
+		dataReturn.put("message", console);
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
@@ -606,11 +570,14 @@ public class NameServer {
 	@Path("/error")
 	@Produces("application/json")
 	public Response error(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		Object dataReturn = "NULL";
 		String jobId = form.getFirst("jobId");
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
-		dataReturn = JobManager.getManager().getError(jobId);
+		JobThread jt = JobManager.getManager().getJob(jobId);
+		List<String> console = JobManager.getManager().getError(jobId);
+		Map<String, Object> dataReturn = new HashMap<>();
+		dataReturn.put("status", jt == null ? JobStatus.UNKNOWN_JOB : jt.getStatus());
+		dataReturn.put("message", console);
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
