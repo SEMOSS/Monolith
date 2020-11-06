@@ -541,7 +541,7 @@ public class NameServer {
 		if (session.getAttribute(jobId) != null) {
 			JobThread jt = JobManager.getManager().getJob(jobId);
 			if(jt == null) {
-				dataReturn = JobStatus.UNKNOWN_JOB;
+				dataReturn = JobStatus.UNKNOWN_JOB.getValue();
 			}
 			dataReturn = jt.getStatus();
 		}
@@ -560,7 +560,7 @@ public class NameServer {
 		JobThread jt = JobManager.getManager().getJob(jobId);
 		List<String> console = JobManager.getManager().getStdOut(jobId);
 		Map<String, Object> dataReturn = new HashMap<>();
-		dataReturn.put("status", jt == null ? JobStatus.UNKNOWN_JOB : jt.getStatus());
+		dataReturn.put("status", jt == null ? JobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
 		dataReturn.put("message", console);
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
@@ -576,7 +576,7 @@ public class NameServer {
 		JobThread jt = JobManager.getManager().getJob(jobId);
 		List<String> console = JobManager.getManager().getError(jobId);
 		Map<String, Object> dataReturn = new HashMap<>();
-		dataReturn.put("status", jt == null ? JobStatus.UNKNOWN_JOB : jt.getStatus());
+		dataReturn.put("status", jt == null ? JobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
 		dataReturn.put("message", console);
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
