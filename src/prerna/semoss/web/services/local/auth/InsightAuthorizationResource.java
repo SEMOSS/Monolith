@@ -35,6 +35,31 @@ public class InsightAuthorizationResource {
 	private static final Logger logger = LogManager.getLogger(InsightAuthorizationResource.class);
 	
 	/**
+	 * Get the insights the user can edit in the app
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getAppInsights")
+	public Response getAppInsights(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		List<Map<String, Object>> ret = SecurityInsightUtils.getUserEditableInsighs(user, appId);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
 	 * Get the user insight permissions for a given insight
 	 * @param request
 	 * @param form
@@ -67,7 +92,6 @@ public class InsightAuthorizationResource {
 		ret.put("permission", permission);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
 	
 	/**
 	 * Get the user insight permissions for a given insight
