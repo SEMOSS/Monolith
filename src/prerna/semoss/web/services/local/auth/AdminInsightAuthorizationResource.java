@@ -35,7 +35,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	private static final Logger logger = LogManager.getLogger(AdminInsightAuthorizationResource.class);
 
 	/**
-	 * Get the user insight permissions for a given insight
+	 * Get the insights for the app
 	 * @param request
 	 * @param form
 	 * @return
