@@ -118,7 +118,6 @@ public class UserResource {
 
 	private static final Logger logger = LogManager.getLogger(UserResource.class);
 
-	private static final String STACKTRACE = "StackTrace: ";
 	private static Properties socialData = null;
 	private static Map<String, Boolean> loginsAllowedMap;
 
@@ -138,17 +137,17 @@ public class UserResource {
 				setLoginsAllowed();
 			}
 		} catch (FileNotFoundException fnfe) {
-			logger.error(STACKTRACE, fnfe);
+			logger.error(Constants.STACKTRACE, fnfe);
 		} catch (IOException ioe) {
-			logger.error(STACKTRACE, ioe);
+			logger.error(Constants.STACKTRACE, ioe);
 		} catch (Exception e) {
-			logger.error(STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 		} finally {
 			if (fis != null) {
 				try {
 					fis.close();
 				} catch (IOException e) {
-					logger.error(STACKTRACE, e);
+					logger.error(Constants.STACKTRACE, e);
 				}
 			}
 		}
@@ -454,7 +453,7 @@ public class UserResource {
 				ret.put("picture", accessToken2.getProfile());
 			}
 		} catch (Exception e) {
-			logger.error(STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		return WebUtility.getResponse(ret, 200);
@@ -532,7 +531,7 @@ public class UserResource {
 			}
 			ret.put("name", accessToken2.getName());
 		} catch (Exception e) {
-			logger.error(STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 		return WebUtility.getResponse(ret, 200);
 
@@ -574,7 +573,7 @@ public class UserResource {
 		try {
 			ret.put("name", accessToken2.getProfile());
 		} catch (Exception e) {
-			logger.error(STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -1125,7 +1124,7 @@ public class UserResource {
 		try {
 			ret.put("files", BeanFiller.getJson(fileList));
 		} catch (Exception e) {
-			logger.error(STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		IConnectorIOp lat = new GoogleLatLongGetter();
@@ -1467,7 +1466,7 @@ public class UserResource {
 				return WebUtility.getResponse(ret, 401);
 			}
 		} catch (Exception e) {
-			logger.error(STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 			ret.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}
@@ -1508,11 +1507,11 @@ public class UserResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		} catch (IllegalArgumentException iae) {
-			logger.error(STACKTRACE, iae);
+			logger.error(Constants.STACKTRACE, iae);
 			ret.put("error", iae.getMessage());
 			return WebUtility.getResponse(ret, 500);
 		} catch (Exception e) {
-			logger.error(STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 			ret.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}
@@ -1601,7 +1600,7 @@ public class UserResource {
 		try {
 			config = new PropertiesConfiguration(DIHelper.getInstance().getProperty("SOCIAL"));
 		} catch (ConfigurationException e1) {
-			logger.error(STACKTRACE, e1);
+			logger.error(Constants.STACKTRACE, e1);
 			Hashtable<String, String> errorRet = new Hashtable<>();
 			errorRet.put("error",
 					"An unexpected error happened trying to access the properties. Please try again or reach out to server admin.");
@@ -1616,7 +1615,7 @@ public class UserResource {
 			config.save();
 			loadSocialProperties();
 		} catch (ConfigurationException e1) {
-			logger.error(STACKTRACE, e1);
+			logger.error(Constants.STACKTRACE, e1);
 			Hashtable<String, String> errorRet = new Hashtable<>();
 			errorRet.put("error",
 					"An unexpected error happened when saving the new login properties. Please try again or reach out to server admin.");
@@ -1667,7 +1666,7 @@ public class UserResource {
 				response.sendRedirect(socialData.getProperty("redirect"));
 			}
 		} catch (IOException e) {
-			logger.error(STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 	}
 
@@ -1773,7 +1772,7 @@ public class UserResource {
 			// dont allow
 			user.addShare(sessionId);
 		} catch (NoSuchAlgorithmException e) {
-			logger.error(STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		return WebUtility.getSO(outputHash);
