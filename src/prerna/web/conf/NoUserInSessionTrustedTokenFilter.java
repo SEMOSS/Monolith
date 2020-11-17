@@ -207,7 +207,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 
 		// the token domains
 		if(NoUserInSessionTrustedTokenFilter.trustedDomains == null) {
-			String [] trustedIPs = this.filterConfig.getInitParameter(NoUserInSessionTrustedTokenFilter.TRUSTED_TOKEN_DOMAIN).split(";");
+			String [] trustedIPs = this.filterConfig.getInitParameter(NoUserInSessionTrustedTokenFilter.TRUSTED_TOKEN_DOMAIN).split(",");
 			NoUserInSessionTrustedTokenFilter.trustedDomains = new Vector<>();
 			for(String trustedIP : trustedIPs) {
 				NoUserInSessionTrustedTokenFilter.trustedDomains.add(trustedIP.toLowerCase());
