@@ -26,7 +26,62 @@
       <filter-name>HeaderSecurityFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
-	
+	<!-- From Tomcat -->
+   <filter>
+      <filter-name>SetCharacterEncoding</filter-name>
+      <filter-class>org.apache.catalina.filters.SetCharacterEncodingFilter</filter-class>
+      <init-param>
+         <param-name>encoding</param-name>
+         <param-value>UTF-8</param-value>
+      </init-param>
+   </filter>
+   <filter-mapping>
+      <filter-name>SetCharacterEncoding</filter-name>
+      <url-pattern>/*</url-pattern>
+   </filter-mapping>
+   <filter>
+      <filter-name>HeaderSecurityFilter</filter-name>
+      <filter-class>org.apache.catalina.filters.HttpHeaderSecurityFilter
+      </filter-class>
+   </filter>   
+   <filter-mapping>
+      <filter-name>HeaderSecurityFilter</filter-name>
+      <url-pattern>/*</url-pattern>
+   </filter-mapping>
+   <!-- CORS FILTER - MUST FILL IN cors.allowed.origins -->
+   <filter>
+      <filter-name>CorsFilter</filter-name>
+      <filter-class>org.apache.catalina.filters.CorsFilter</filter-class>
+      <init-param>
+         <param-name>cors.allowed.origins</param-name>
+         <param-value></param-value>
+      </init-param>
+      <init-param>
+         <param-name>cors.allowed.methods</param-name>
+         <param-value>GET,POST,HEAD,OPTIONS,PUT</param-value>
+      </init-param>
+      <init-param>
+         <param-name>cors.allowed.headers</param-name>
+         <param-value>Content-Type,X-Requested-With,accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers</param-value>
+      </init-param>
+      <init-param>
+         <param-name>cors.exposed.headers</param-name>
+         <param-value>Access-Control-Allow-Origin,Access-Control-Allow-Credentials</param-value>
+      </init-param>
+      <init-param>
+         <param-name>cors.support.credentials</param-name>
+         <param-value>true</param-value>
+      </init-param>
+      <init-param>
+         <param-name>cors.preflight.maxage</param-name>
+         <param-value>10</param-value>
+      </init-param>
+   </filter>
+   <filter-mapping>
+      <filter-name>CorsFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+   
    <!-- general check that the databases loaded properly -->
    <filter>
       <filter-name>StartUpSuccessFilter</filter-name>
