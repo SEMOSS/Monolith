@@ -40,7 +40,7 @@
       </init-param>
       <init-param>
          <param-name>cors.allowed.headers</param-name>
-         <param-value>Content-Type,X-Requested-With,accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers</param-value>
+         <param-value>Authorization,Content-Type,X-Requested-With,accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers</param-value>
       </init-param>
       <init-param>
          <param-name>cors.exposed.headers</param-name>
@@ -57,7 +57,7 @@
    </filter>
    <filter-mapping>
       <filter-name>CorsFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
+      <url-pattern>/*</url-pattern>
    </filter-mapping>
    
    <!-- general check that the databases loaded properly -->
