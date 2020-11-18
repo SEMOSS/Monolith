@@ -52,7 +52,7 @@
       </init-param>
       <init-param>
          <param-name>cors.preflight.maxage</param-name>
-         <param-value>10</param-value>
+         <param-value>1800</param-value>
       </init-param>
    </filter>
    <filter-mapping>
