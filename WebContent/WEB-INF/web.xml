@@ -26,28 +26,6 @@
       <filter-name>HeaderSecurityFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
-	<!-- From Tomcat -->
-   <filter>
-      <filter-name>SetCharacterEncoding</filter-name>
-      <filter-class>org.apache.catalina.filters.SetCharacterEncodingFilter</filter-class>
-      <init-param>
-         <param-name>encoding</param-name>
-         <param-value>UTF-8</param-value>
-      </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>SetCharacterEncoding</filter-name>
-      <url-pattern>/*</url-pattern>
-   </filter-mapping>
-   <filter>
-      <filter-name>HeaderSecurityFilter</filter-name>
-      <filter-class>org.apache.catalina.filters.HttpHeaderSecurityFilter
-      </filter-class>
-   </filter>   
-   <filter-mapping>
-      <filter-name>HeaderSecurityFilter</filter-name>
-      <url-pattern>/*</url-pattern>
-   </filter-mapping>
    <!-- CORS FILTER - MUST FILL IN cors.allowed.origins -->
    <filter>
       <filter-name>CorsFilter</filter-name>
