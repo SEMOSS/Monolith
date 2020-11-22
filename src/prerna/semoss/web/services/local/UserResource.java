@@ -86,6 +86,7 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.cluster.util.ClusterUtil;
 import prerna.ds.py.FilePyTranslator;
 import prerna.ds.py.PyTranslator;
 import prerna.ds.py.PyUtils;
@@ -1639,28 +1640,34 @@ public class UserResource {
 	 * 
 	 * @param response
 	 */
-	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response,
+	private void setMainPageRedirect(@Context HttpServletRequest request, 
+			@Context HttpServletResponse response,
 			String customRedirect) {
 		// see if we have a location to redirect the user
 		// if so, we will send them back to that URL
 		// otherwise, we send them back to the FE
 		HttpSession session = request.getSession();
+		String contextPath = request.getContextPath();
+
 		boolean useCustom = customRedirect != null && !customRedirect.isEmpty();
 		boolean endpoint = session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY) != null;
 		response.setStatus(302);
 		try {
-			Cookie cookie = new Cookie(DBLoader.getSessionIdKey(), request.getSession().getId());
-			cookie.setSecure(request.isSecure());
-			cookie.setHttpOnly(true);
-			// cookie.setPath("/dev");
-			response.addCookie(cookie);
+			// add the cookie to the header directly
+			// to allow for cross site login when embedded as iframe
+			String setCookieString = DBLoader.getSessionIdKey() + "=" + session.getId() 
+					+ "; Path=" + contextPath 
+					+ "; HttpOnly"
+					+ ( (ClusterUtil.IS_CLUSTER || request.isSecure()) ? "; Secure; SameSite=None" : "")
+					;
+			response.addHeader("Set-Cookie", setCookieString);
 			if (useCustom) {
-				response.setHeader("redirect", customRedirect);
+				response.addHeader("redirect", customRedirect);
 				String encodedCustomRedirect = Encode.forHtml(customRedirect);
 				response.sendError(302, "Need to redirect to " + encodedCustomRedirect);
 			} else if (endpoint) {
 				String redirectUrl = session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY) + "";
-				response.setHeader("redirect", redirectUrl);
+				response.addHeader("redirect", redirectUrl);
 				response.sendError(302, "Need to redirect to " + redirectUrl);
 			} else {
 				response.sendRedirect(socialData.getProperty("redirect"));
@@ -1669,18 +1676,6 @@ public class UserResource {
 			logger.error(Constants.STACKTRACE, e);
 		}
 	}
-
-//	/**
-//	 * Set the information in the JSON return after logging in
-//	 * 
-//	 * @param token
-//	 * @param ret
-//	 */
-//	private void setAccessTokenDetails(AccessToken token, Map<String, String> ret) {
-//		ret.put("name", token.getName());
-//		ret.put("email", token.getEmail());
-//		ret.put("type", token.getToken_type());
-//	}
 
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
