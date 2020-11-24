@@ -120,10 +120,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
+			ClusterUtil.reactorPullInsightsDB(appId);
 			adminUtils.deleteAppInsights(appId, insightIds);
 			// since modifying insight list
 			// need to push to cloud storage
-			ClusterUtil.reactorPushApp(appId);
+			ClusterUtil.reactorPushInsightDB(appId);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
