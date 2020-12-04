@@ -1,13 +1,11 @@
 package prerna.semoss.web.services.local;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PushbackReader;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
@@ -21,21 +19,19 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.stream.JsonWriter;
 
+import prerna.algorithm.api.ITableDataFrame;
 import prerna.om.Insight;
 import prerna.om.InsightPanel;
 import prerna.om.InsightSheet;
 import prerna.om.ThreadStore;
-import prerna.sablecc2.PixelPreProcessor;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
-import prerna.sablecc2.lexer.Lexer;
-import prerna.sablecc2.lexer.LexerException;
-import prerna.sablecc2.node.Start;
-import prerna.sablecc2.parser.Parser;
-import prerna.sablecc2.parser.ParserException;
+import prerna.sablecc2.PixelUtility;
+import prerna.sablecc2.om.PixelDataType;
+import prerna.sablecc2.om.PixelOperationType;
+import prerna.sablecc2.om.VarStore;
+import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.sablecc2.reactor.job.JobReactor;
-import prerna.sablecc2.translations.OptimizeRecipeTranslation;
-import prerna.util.Constants;
 import prerna.util.gson.InsightPanelAdapter;
 import prerna.util.gson.InsightSheetAdapter;
 import prerna.util.insight.InsightUtility;
@@ -68,9 +64,8 @@ public class RunInsight {
 	@Path("/getInsightState")
 	@Produces("application/json")
 	public Response recreateInsightState(@Context HttpServletRequest request) {
-		List<String> recipe = in.getPixelList().getPixelRecipe();
+		List<String> recipe = PixelUtility.getCachedInsightRecipe(in);
 		
-		OptimizeRecipeTranslation opTrans = getOptimizedRecipe(recipe);
 		Insight rerunInsight = new Insight();
 		rerunInsight.setVarStore(in.getVarStore());
 		rerunInsight.setUser(in.getUser());
@@ -109,38 +104,60 @@ public class RunInsight {
 			e.printStackTrace();
 		}
 		
-		PixelRunner pixelRunner = rerunInsight.runPixel(opTrans.getCachedPixelRecipeSteps());
+		PixelRunner pixelRunner = rerunInsight.runPixel(recipe);
+		// add all the frame headers to the payload
+		try {
+			VarStore vStore = in.getVarStore();
+			Set<String> keys = vStore.getFrameKeys();
+			for(String k : keys) {
+				NounMetadata noun = vStore.get(k);
+				PixelDataType type = noun.getNounType();
+				if(type == PixelDataType.FRAME) {
+					try {
+						ITableDataFrame frame = (ITableDataFrame) noun.getValue();
+						pixelRunner.addResult(0, "CACHED_FRAME_HEADERS", 
+								new NounMetadata(frame.getFrameHeadersObject(), PixelDataType.CUSTOM_DATA_STRUCTURE, PixelOperationType.FRAME_HEADERS));
+					} catch(Exception e) {
+						e.printStackTrace();
+						// ignore
+					}
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
 		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
 				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 				.header("Pragma", "no-cache")
 				.build();
 	}
 	
-	private OptimizeRecipeTranslation getOptimizedRecipe(List<String> recipe) {
-		OptimizeRecipeTranslation translation = new OptimizeRecipeTranslation();
-		for (int i = 0; i < recipe.size(); i++) {
-			String expression = recipe.get(i);
-			// fill in the encodedToOriginal with map for the current expression
-			expression = PixelPreProcessor.preProcessPixel(expression.trim(), translation.encodingList, translation.encodedToOriginal);
-			try {
-				Parser p = new Parser(
-						new Lexer(
-								new PushbackReader(
-										new InputStreamReader(
-												new ByteArrayInputStream(expression.getBytes("UTF-8")), "UTF-8"), expression.length())));
-				// parsing the pixel - this process also determines if expression is syntactically correct
-				Start tree = p.parse();
-				// apply the translation
-				// when we apply the translation, we will change encoded expressions back to their original form
-				tree.apply(translation);
-				// reset translation.encodedToOriginal for each expression
-				translation.encodedToOriginal = new HashMap<String, String>();
-			} catch (ParserException | LexerException | IOException e) {
-				logger.error(Constants.STACKTRACE, e);
-			}
-		}
-		return translation;
-	}
+//	private OptimizeRecipeTranslation getOptimizedRecipe(List<String> recipe) {
+//		OptimizeRecipeTranslation translation = new OptimizeRecipeTranslation();
+//		for (int i = 0; i < recipe.size(); i++) {
+//			String expression = recipe.get(i);
+//			// fill in the encodedToOriginal with map for the current expression
+//			expression = PixelPreProcessor.preProcessPixel(expression.trim(), translation.encodingList, translation.encodedToOriginal);
+//			try {
+//				Parser p = new Parser(
+//						new Lexer(
+//								new PushbackReader(
+//										new InputStreamReader(
+//												new ByteArrayInputStream(expression.getBytes("UTF-8")), "UTF-8"), expression.length())));
+//				// parsing the pixel - this process also determines if expression is syntactically correct
+//				Start tree = p.parse();
+//				// apply the translation
+//				// when we apply the translation, we will change encoded expressions back to their original form
+//				tree.apply(translation);
+//				// reset translation.encodedToOriginal for each expression
+//				translation.encodedToOriginal = new HashMap<String, String>();
+//			} catch (ParserException | LexerException | IOException e) {
+//				logger.error(Constants.STACKTRACE, e);
+//			}
+//		}
+//		return translation;
+//	}
 	
 	/**
 	 * Utility method to execute the pixel on the insight
