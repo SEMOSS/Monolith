@@ -275,7 +275,8 @@ public class NameServer {
 		String sessionId = null;
 		User user = null;
 		Insight insight = null;
-
+		boolean dropLogging = true;
+		
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		// If security is enabled try to get an existing session.
 		// Otherwise get a session with the default user.
@@ -328,7 +329,15 @@ public class NameServer {
 		// set the user
 		insight.setUser(user);
 
-		return runPixelJob(user, insight, expression, jobId, insightId, sessionId);
+		// are we running runPixel in runPixel on the same insight?
+		{
+			String logStr = request.getParameter("dropLogging");
+			if(logStr != null) {
+				dropLogging = Boolean.parseBoolean(logStr);
+			}
+		}
+		
+		return runPixelJob(user, insight, expression, jobId, insightId, sessionId, dropLogging);
 
 	}
 
@@ -391,7 +400,8 @@ public class NameServer {
 	 * @param sessionId
 	 * @return
 	 */
-	private Response runPixelJob(User user, Insight insight, String expression, String jobId, String insightId, String sessionId) {
+	private Response runPixelJob(User user, Insight insight, String expression, String jobId, 
+			String insightId, String sessionId, boolean dropLogging) {
 		JobManager manager = JobManager.getManager();
 		JobThread jt = manager.makeJob(insightId);
 		jobId = jt.getJobId();
@@ -418,8 +428,15 @@ public class NameServer {
 					.header("Pragma", "no-cache")
 					.build();
 		} finally {
-			jt.setStatus(JobStatus.COMPLETE);
-			manager.removeJob(jobId);
+			// there are times when we spin up
+			// other runPixel requests on the same 
+			// insight but don't want to drop the master insight
+			// console logging
+			// example is ExportToExcel grids 
+			if(dropLogging) {
+				jt.setStatus(JobStatus.COMPLETE);
+				manager.removeJob(jobId);
+			}
 		}
 	}
 	
