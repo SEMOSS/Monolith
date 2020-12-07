@@ -40,6 +40,7 @@ public class PIVFilter implements Filter {
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
+	private static final String UPDATE_USER_INFO = "updateUserInfo";
 	private static final String COUNT_USER_ENTRY = "countUserEntry";
 	private static final String COUNT_USER_ENTRY_DATABASE = "countUserEntryDb";
 	private static final String LOG_USER_INFO = "logUserInfo";
@@ -48,12 +49,12 @@ public class PIVFilter implements Filter {
 	
 	// realization of init params
 	private static Boolean autoAdd = null;
+	private static Boolean updateUser = null;
 	private static CACTrackingUtil tracker = null;
 	private static UserFileLogUtil userLogger = null;
 
 	private static FilterConfig filterConfig;
 	
-	// TODO >>>timb: WORKSPACE - call logic to pull workspace here, or make into a reactor
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		setInitParams(arg0);
@@ -151,6 +152,12 @@ public class PIVFilter implements Filter {
 					if(PIVFilter.autoAdd) {
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
+					// do we need to update credentials?
+					// might be useful for when we add users 
+					// but the cert has different values we want to use
+					if(PIVFilter.updateUser) {
+						SecurityUpdateUtils.updateOAuthUser(token);
+					}
 					
 					// new user has entered!
 					// do we need to count?
@@ -192,6 +199,14 @@ public class PIVFilter implements Filter {
 			} else {
 				// Default value is true
 				PIVFilter.autoAdd = true;
+			}
+			
+			String updateUserStr = PIVFilter.filterConfig.getInitParameter(UPDATE_USER_INFO);
+			if(updateUserStr != null) {
+				PIVFilter.updateUser = Boolean.parseBoolean(updateUserStr);
+			} else {
+				// Default value is true
+				PIVFilter.updateUser = false;
 			}
 			
 			boolean logUsers = false;
