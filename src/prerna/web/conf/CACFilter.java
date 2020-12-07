@@ -44,18 +44,19 @@ import prerna.web.conf.util.UserFileLogUtil;
 public class CACFilter implements Filter {
 
 	private static final Logger logger = LogManager.getLogger(CACFilter.class); 
-	private static final String STACKTRACE = "StackTrace: ";
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
+	private static final String UPDATE_USER_INFO = "updateUserInfo";
 	private static final String COUNT_USER_ENTRY = "countUserEntry";
 	private static final String COUNT_USER_ENTRY_DATABASE = "countUserEntryDb";
 	private static final String LOG_USER_INFO = "logUserInfo";
 	private static final String LOG_USER_INFO_PATH = "logUserInfoPath";
 	private static final String LOG_USER_INFO_SEP = "logUserInfoSep";
-
+	
 	// realization of init params
 	private static Boolean autoAdd = null;
+	private static Boolean updateUser = null;
 	private static CACTrackingUtil tracker = null;
 	private static UserFileLogUtil userLogger = null;
 
@@ -158,7 +159,7 @@ public class CACFilter implements Filter {
 									}
 								}
 							} catch (CertificateParsingException e) {
-					    		logger.error(STACKTRACE, e);
+					    		logger.error(Constants.STACKTRACE, e);
 							}
 
 							if(email != null) {
@@ -176,7 +177,7 @@ public class CACFilter implements Filter {
 						} // end rdn loop
 					} catch (InvalidNameException e) {
 						logger.error("ERROR WITH PARSING CAC INFORMATION!");
-			    		logger.error(STACKTRACE, e);
+			    		logger.error(Constants.STACKTRACE, e);
 					}
 				}
 
@@ -191,6 +192,12 @@ public class CACFilter implements Filter {
 					// add the user if they do not exist
 					if(CACFilter.autoAdd) {
 						SecurityUpdateUtils.addOAuthUser(token);
+					}
+					// do we need to update credentials?
+					// might be useful for when we add users 
+					// but the cert has different values we want to use
+					if(CACFilter.updateUser) {
+						SecurityUpdateUtils.updateOAuthUser(token);
 					}
 
 					// new user has entered!
@@ -233,6 +240,14 @@ public class CACFilter implements Filter {
 			} else {
 				// Default value is true
 				CACFilter.autoAdd = true;
+			}
+
+			String updateUserStr = CACFilter.filterConfig.getInitParameter(UPDATE_USER_INFO);
+			if(updateUserStr != null) {
+				CACFilter.updateUser = Boolean.parseBoolean(updateUserStr);
+			} else {
+				// Default value is true
+				CACFilter.updateUser = false;
 			}
 
 			boolean logUsers = false;
@@ -312,7 +327,7 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-			    		logger.error(STACKTRACE, e);
+			    		logger.error(Constants.STACKTRACE, e);
 					}
 	
 					// need to update all the places the user id is used
@@ -320,7 +335,7 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-			    		logger.error(STACKTRACE, e);
+			    		logger.error(Constants.STACKTRACE, e);
 					}
 	
 					// need to update all the places the user id is used
@@ -328,11 +343,11 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-			    		logger.error(STACKTRACE, e);
+			    		logger.error(Constants.STACKTRACE, e);
 					}
 				}
 			} catch (Exception e1) {
-	    		logger.error(STACKTRACE, e1);
+	    		logger.error(Constants.STACKTRACE, e1);
 			} finally {
 				if(wrapper != null) {
 					wrapper.cleanUp();
@@ -363,7 +378,7 @@ public class CACFilter implements Filter {
 								formEngine.insertData("UPDATE FORMS_USER_ACCESS SET EMAIL = USER_ID;");
 							}
 						} catch (Exception e) {
-				    		logger.error(STACKTRACE, e);
+				    		logger.error(Constants.STACKTRACE, e);
 						} finally {
 							if(requireFormUpdateWrapper != null) {
 								requireFormUpdateWrapper.cleanUp();
@@ -375,12 +390,12 @@ public class CACFilter implements Filter {
 						try {
 							formEngine.insertData(updateQuery);
 						} catch (SQLException e) {
-				    		logger.error(STACKTRACE, e);
+				    		logger.error(Constants.STACKTRACE, e);
 						}
 						
 					}
 				} catch (Exception e1) {
-		    		logger.error(STACKTRACE, e1);
+		    		logger.error(Constants.STACKTRACE, e1);
 				} finally {
 					if(wrapper != null) {
 						wrapper.cleanUp();
