@@ -124,6 +124,10 @@
 			<param-value>true</param-value>
 	  </init-param>
 	  <init-param>
+			<param-name>updateUserInfo</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
 			<param-name>countUserEntry</param-name>
 			<param-value>false</param-value>
 	  </init-param>
@@ -159,6 +163,10 @@
 			<param-name>autoAdd</param-name>
 			<param-value>true</param-value>
 	  </init-param>
+	  <init-param>
+			<param-name>updateUserInfo</param-name>
+			<param-value>false</param-value>
+	  </init-param>	  
 	  <init-param>
 			<param-name>countUserEntry</param-name>
 			<param-value>false</param-value>
