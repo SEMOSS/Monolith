@@ -914,6 +914,91 @@ public class UserResource {
 
 		return redirectUrl;
 	}
+	
+	/**
+	 * Logs user in through siteminder
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/siteminder")
+	public Response loginSiteminder(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		/*
+		 * Try to log in the user
+		 * If they are not logged in
+		 * Redirect the FE
+		 */
+
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		String queryString = request.getQueryString();
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.SITEMINDER) == null) {
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+
+				String prefix = "siteminder_";
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				String tenant = socialData.getProperty(prefix + "tenant");
+				String scope = socialData.getProperty(prefix + "scope");
+
+				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+
+				Hashtable params = new Hashtable();
+				params.put("client_id", clientId);
+				params.put("scope", scope);
+				params.put("redirect_uri", redirectUri);
+				params.put("code", outputs[0]);
+				params.put("grant_type", "authorization_code");
+				params.put("client_secret", clientSecret);
+
+				String url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
+
+				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				if (accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getSiteminderRedirect(request));
+					return null;
+				}
+
+				accessToken.setProvider(AuthProvider.SITEMINDER);
+				MSProfile.fillAccessToken(accessToken, null);
+				addAccessToken(accessToken, request);
+
+				logger.debug("Access Token is.. " + accessToken.getAccess_token());
+			}
+		}
+
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if (userObj == null || userObj.getAccessToken(AuthProvider.SITEMINDER) == null) {
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getSiteminderRedirect(request));
+			return null;
+		}
+
+		setMainPageRedirect(request, response);
+		return null;
+	}
+
+	private String getSiteminderRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
+		String prefix = "siteminder_";
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		String tenant = socialData.getProperty(prefix + "tenant");
+		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
+
+		String state = UUID.randomUUID().toString();
+		String redirectUrl = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize?" + "client_id="
+				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
+				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
+
+		logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+
+		return redirectUrl;
+	}
 
 	/**
 	 * Logs user in through drop box
