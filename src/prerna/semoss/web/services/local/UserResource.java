@@ -45,9 +45,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.Vector;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -87,11 +84,6 @@ import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.ds.py.FilePyTranslator;
-import prerna.ds.py.PyTranslator;
-import prerna.ds.py.PyUtils;
-import prerna.ds.py.TCPPyTranslator;
-import prerna.engine.impl.r.IRUserConnection;
 import prerna.io.connector.IConnectorIOp;
 import prerna.io.connector.google.GoogleEntityResolver;
 import prerna.io.connector.google.GoogleFileRetriever;
@@ -102,7 +94,6 @@ import prerna.io.connector.ms.MSProfile;
 import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
-import prerna.pyserve.NettyClient;
 import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
@@ -225,17 +216,17 @@ public class UserResource {
 
 		HttpSession session = request.getSession();
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
-		// log the logout
-		if(thisUser != null) {
-			// log the user login
-			logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is logging out of provider " +  provider));
-		} else {
-			logger.info(ResourceUtility.getLogMessage(request, session, "Unknown user", "is logging out of provider " +  provider));
+		if(thisUser == null) {
+			Map<String, Object> ret = new Hashtable<>();
+			ret.put("success", false);
+			ret.put("errorMessage", "No user is currently logged in the session");
+			return WebUtility.getResponse(ret, 400);
 		}
 		
+		// log the user logout
+		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is logging out of provider " +  provider));
+		
 		if (provider.equalsIgnoreCase("ALL")) {
-			// remove the user from session call it a day
-			request.getSession().removeAttribute(Constants.SESSION_USER);
 			removed = true;
 			noUser = true;
 		} else {
@@ -264,51 +255,13 @@ public class UserResource {
 		}
 
 		if(noUser) {
-			// stop R
-			if (thisUser != null) {
-				IRUserConnection rserve = thisUser.getRcon();
-				if (rserve != null) {
-					ExecutorService executor = Executors.newSingleThreadExecutor();
-					try {
-						executor.submit(new Callable<Void>() {
-							@Override
-							public Void call() throws Exception {
-								try {
-									rserve.stopR();
-								} catch (Exception e) {
-									logger.warn("Unable to stop R.");
-								}
-								return null;
-							}
-						});
-					} finally {
-						executor.shutdown();
-					}
-				}
-			}
-
-			// stop python too
-			if (PyUtils.pyEnabled()) {
-				PyTranslator pyt = thisUser.getPyTranslator(false);
-
-				if (pyt instanceof prerna.ds.py.PyTranslator)
-					PyUtils.getInstance().killPyThread(pyt.getPy());
-				if (pyt instanceof FilePyTranslator && thisUser != null)
-					PyUtils.getInstance().killTempTupleSpace(thisUser);
-				if (pyt instanceof TCPPyTranslator) {
-					NettyClient nc = thisUser.getPyServe();
-					String dir = thisUser.pyTupleSpace;
-					nc.stopPyServe(dir);
-				}
-			}
-
 			// if there are no users and there is security
 			// redirect the user
 			// and invalidate the session
+			// session invalidation will go to UserSessionLoader
+			// which will close R and Python on the user object
 			if (AbstractSecurityUtils.securityEnabled()) {
 				logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "has logged out from all providers in the session"));
-				logger.info("Removing user object from session");
-				session.removeAttribute(Constants.SESSION_USER);
 				// well, you have logged out and we always require a login
 				// so i will redirect you
 				response.setStatus(302);
@@ -366,11 +319,10 @@ public class UserResource {
 						}
 					}
 				}
-
-				// invalidate the session
-				session.invalidate();
-				return null;
 			}
+			// invalidate the session
+			session.invalidate();
+			return null;
 		}
 		
 		Map<String, Boolean> ret = new Hashtable<>();
