@@ -28,7 +28,6 @@
 package prerna.semoss.web.services.local;
 
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -47,11 +46,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.google.gson.Gson;
-
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.util.Constants;
@@ -61,25 +56,8 @@ import prerna.web.services.util.WebUtility;
 public class AuthorizationResource {
 
 	private static final Logger logger = LogManager.getLogger(AuthorizationResource.class);
-	private static final String STACKTRACE = "StackTrace: ";
 	@Context
 	protected ServletContext context;
-
-	@GET
-	@Path("/admin/isAdminUser")
-	public Response isAdminUser(@Context HttpServletRequest request) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-		
-		boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-		return WebUtility.getResponse(isAdmin, 200);
-	}
 
 	@GET
 	@Produces("application/json")
@@ -89,146 +67,6 @@ public class AuthorizationResource {
 		return WebUtility.getSO(ret);
 	}
 
-	@POST
-	@Produces("application/json")
-	@Path("/admin/registerUser")
-	public Response registerUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		Hashtable<String, String> errorRet = new Hashtable<>();
-		boolean success = false;
-		try{
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-
-			String newUserId = form.getFirst("userId");
-			String name = form.getFirst("name");
-			String email = form.getFirst("email");
-			// validate email & password
-			if (email != null && !email.isEmpty()) {
-				String emailError = AbstractSecurityUtils.validEmail(email);
-				if (!emailError.isEmpty()) {
-					throw new IllegalArgumentException(emailError);
-				}
-			}
-			String password = form.getFirst("password");
-			if (password != null && !password.isEmpty()) {
-				String passwordError = AbstractSecurityUtils.validPassword(password);
-				if (!passwordError.isEmpty()) {
-					throw new IllegalArgumentException(passwordError);
-				}
-			}
-			String type = form.getFirst("type");
-			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
-
-			if(SecurityAdminUtils.userIsAdmin(user)){
-				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, newUserAdmin, !AbstractSecurityUtils.adminSetPublisher());
-			} else {
-				errorRet.put("error", "The user doesn't have the permissions to perform this action.");
-				return WebUtility.getResponse(errorRet, 400);
-			}
-		} catch (IllegalArgumentException e){
-    		logger.error(STACKTRACE, e);
-			errorRet.put("error", e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e){
-    		logger.error(STACKTRACE, e);
-			errorRet.put("error", "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
-	}
-
-	/**
-	 * Edit user properties 
-	 * @param request
-	 * @param form
-	 * @return true if the edition was performed
-	 */
-	@POST
-	@Path("/editUser")
-	@Produces("application/json")
-	public Response editUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
-		if(adminUtils == null) {
-			Map<String, String> retMap = new Hashtable<>();
-			retMap.put("error", "User does not have admin priviledges");
-			return WebUtility.getResponse(retMap, 400);
-		}
-
-		Gson gson = new Gson();
-		Map<String, Object> userInfo = gson.fromJson(form.getFirst("user"), Map.class);
-		boolean ret = false;
-		try {
-			ret = adminUtils.editUser(userInfo);
-		} catch(IllegalArgumentException e) {
-			Map<String, String> retMap = new Hashtable<>();
-			retMap.put("error", e.getMessage());
-			return WebUtility.getResponse(retMap, 400);
-		}
-		if(!ret) {
-			Map<String, String> retMap = new Hashtable<>();
-			retMap.put("error", "Unknown error occured with updating user. Please try again.");
-			return WebUtility.getResponse(retMap, 400);
-		}
-		return WebUtility.getResponse(ret, 200);
-	}
-
-	@POST
-	@Produces("application/json")
-	@Path("/admin/deleteUser")
-	public Response deleteUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
-		if(adminUtils == null) {
-			Map<String, String> retMap = new Hashtable<>();
-			retMap.put("error", "User does not have admin priviledges");
-			return WebUtility.getResponse(retMap, 400);
-		}
-
-		String userToDelete = form.getFirst("userId");
-		boolean success = adminUtils.deleteUser(userToDelete);
-		return WebUtility.getResponse(success, 200);
-	}
-
-	@GET
-	@Path("/getAllDbUsers")
-	@Produces("application/json")
-	public Response getAllUsers(@Context HttpServletRequest request) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
-		if(adminUtils == null) {
-			Map<String, String> retMap = new Hashtable<>();
-			retMap.put("error", "User does not have admin priviledges");
-			return WebUtility.getResponse(retMap, 400);
-		}
-
-		List<Map<String, Object>> ret = adminUtils.getAllUsers();
-		return WebUtility.getResponse(ret, 200);
-	}
-	
 	@POST
 	@Produces("application/json")
 	@Path("requestAccess")
@@ -251,12 +89,12 @@ public class AuthorizationResource {
 		try {
 			addedRequests = SecurityUpdateUtils.makeRequest(user, engineId, requestedPermission);
 		} catch(IllegalArgumentException e) {
-    		logger.error(STACKTRACE, e);
+    		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<>();
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
-    		logger.error(STACKTRACE, e);
+    		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<>();
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
@@ -282,12 +120,12 @@ public class AuthorizationResource {
 		try {
 			userRequests = SecurityQueryUtils.getUserAccessRequests(user);
 		} catch(IllegalArgumentException e) {
-    		logger.error(STACKTRACE, e);
+    		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<>();
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
-    		logger.error(STACKTRACE, e);
+    		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<>();
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
