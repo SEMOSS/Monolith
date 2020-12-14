@@ -91,7 +91,7 @@ public class ExecuteInsightResource {
 		}
 
 		InsightStore.getInstance().put(newInsight);
-		newInsight.reRunPixelInsight();
+		newInsight.reRunPixelInsight(false);
 		RunInsight runner = new RunInsight(newInsight);
 		runner.dropInsight(true);
 		return runner;
