@@ -28,6 +28,7 @@ import prerna.semoss.web.services.local.UserResource;
 import prerna.theme.AdminThemeUtils;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.Utility;
 import prerna.web.conf.DBLoader;
 import prerna.web.services.util.WebUtility;
 
@@ -142,6 +143,10 @@ public class ServerConfigurationResource {
 		}
 		loadConfig.put("localDeployment", localMode);
 		
+		// insights are cacheable by default
+		boolean cacheableOnByDefault = Utility.getApplicationCacheInsight();
+		loadConfig.put("cacheInsightByDefault", cacheableOnByDefault);
+
 		ServerConfigurationResource.config = loadConfig;
 	}
 
