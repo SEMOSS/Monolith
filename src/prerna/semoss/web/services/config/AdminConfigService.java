@@ -13,6 +13,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
+
 import org.owasp.encoder.Encode;
 
 import com.google.gson.Gson;
@@ -44,7 +45,7 @@ public class AdminConfigService {
 			SecurityUpdateUtils.registerUser(id, null, null, null, null , true, true);
 		}
 
-		if (session.getAttribute(ADMIN_REDIRECT_KEY) != null) {
+		if (session != null && session.getAttribute(ADMIN_REDIRECT_KEY) != null) {
 			String originalRedirect = session.getAttribute(ADMIN_REDIRECT_KEY) + "";
 			String encodedRedirectUrl = Encode.forHtml(originalRedirect);
 			response.setHeader("redirect", encodedRedirectUrl);
