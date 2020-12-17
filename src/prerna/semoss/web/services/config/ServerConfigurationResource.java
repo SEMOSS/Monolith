@@ -37,7 +37,6 @@ public class ServerConfigurationResource {
 	
 	private static final Logger logger = LogManager.getLogger(ServerConfigurationResource.class); 
 
-
 	private static volatile Map<String, Object> config = null;
 
 	/**
