@@ -62,6 +62,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			String email = form.getFirst("email");
 			String type = form.getFirst("type");
 			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
+			Boolean publisher = Boolean.parseBoolean(form.getFirst("publisher"));
+
 			String password = form.getFirst("password");
 			// validate email & password
 			if (email != null && !email.isEmpty()) {
@@ -78,7 +80,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 				}
 			}
 			if(SecurityAdminUtils.userIsAdmin(user)){
-				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, newUserAdmin, !AbstractSecurityUtils.adminSetPublisher());
+				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, newUserAdmin, publisher);
 			} else {
 				errorRet.put("error", "The user doesn't have the permissions to perform this action.");
 				return WebUtility.getResponse(errorRet, 400);
