@@ -40,7 +40,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -58,6 +58,9 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 
 			String newUserId = form.getFirst("userId");
+			if(newUserId == null || newUserId.isEmpty()) {
+				throw new IllegalArgumentException("The user id cannot be null or empty");
+			}
 			String name = form.getFirst("name");
 			String email = form.getFirst("email");
 			String type = form.getFirst("type");
@@ -82,16 +85,16 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			if(SecurityAdminUtils.userIsAdmin(user)){
 				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, newUserAdmin, publisher);
 			} else {
-				errorRet.put("error", "The user doesn't have the permissions to perform this action.");
+				errorRet.put(ResourceUtility.ERROR_KEY, "The user doesn't have the permissions to perform this action.");
 				return WebUtility.getResponse(errorRet, 400);
 			}
 		} catch (IllegalArgumentException e){
     		logger.error(Constants.STACKTRACE, e);
-			errorRet.put("error", e.getMessage());
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
-			errorRet.put("error", "An unexpected error happened. Please try again.");
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		return WebUtility.getResponse(success, 200);
@@ -165,12 +168,12 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			ret = adminUtils.editUser(userInfo);
 		} catch(IllegalArgumentException e) {
 			Map<String, String> retMap = new Hashtable<>();
-			retMap.put("error", e.getMessage());
+			retMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(retMap, 400);
 		}
 		if(!ret) {
 			Map<String, String> retMap = new Hashtable<>();
-			retMap.put("error", "Unknown error occured with updating user. Please try again.");
+			retMap.put(ResourceUtility.ERROR_KEY, "Unknown error occured with updating user. Please try again.");
 			return WebUtility.getResponse(retMap, 400);
 		}
 		return WebUtility.getResponse(ret, 200);

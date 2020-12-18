@@ -30,7 +30,6 @@ import prerna.web.services.util.WebUtility;
 public class AppAuthorizationResource {
 
 	private static final Logger logger = LogManager.getLogger(AppAuthorizationResource.class);
-	private static final String STACKTRACE = "StackTrace: ";
 
 	@Context
 	protected ServletContext context;
@@ -300,12 +299,12 @@ public class AppAuthorizationResource {
 			SecurityAppUtils.setAppGlobal(user, appId, isPublic);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the app " + appId + logPublic + " without having proper access"));
-    		logger.error(STACKTRACE, e);
+    		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
-    		logger.error(STACKTRACE, e);
+    		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
@@ -348,12 +347,12 @@ public class AppAuthorizationResource {
 			SecurityUpdateUtils.setDbVisibility(user, appId, visible);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the app " + appId + logVisible + " without having proper access"));
-    		logger.error(STACKTRACE, e);
+    		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
-    		logger.error(STACKTRACE, e);
+    		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put("error", "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
