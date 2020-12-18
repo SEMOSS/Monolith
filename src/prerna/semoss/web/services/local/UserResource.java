@@ -1525,6 +1525,8 @@ public class UserResource {
 	public Response createUser(@Context HttpServletRequest request) {
 		Hashtable<String, String> ret = new Hashtable<>();
 		try {
+			// Note - for native users
+			// the id and the username are always the same
 			String username = request.getParameter("username");
 			String name = request.getParameter("name");
 			String password = request.getParameter("password");
