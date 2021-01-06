@@ -69,6 +69,7 @@ import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
 import org.owasp.encoder.Encode;
 
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -159,6 +160,7 @@ public class UserResource {
 		boolean githubLogin = Boolean.parseBoolean(socialData.getProperty("github_login"));
 		boolean googleLogin = Boolean.parseBoolean(socialData.getProperty("google_login"));
 		boolean onedriveLogin = Boolean.parseBoolean(socialData.getProperty("ms_login"));
+		boolean siteminderLogin = Boolean.parseBoolean(socialData.getProperty("siteminder_login"));
 		boolean dropboxLogin = Boolean.parseBoolean(socialData.getProperty("dropbox_login"));
 		boolean cacLogin = Boolean.parseBoolean(socialData.getProperty("cac_login"));
 		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
@@ -167,6 +169,7 @@ public class UserResource {
 		UserResource.loginsAllowedMap.put("google", googleLogin);
 		UserResource.loginsAllowedMap.put("github", githubLogin);
 		UserResource.loginsAllowedMap.put("ms", onedriveLogin);
+		UserResource.loginsAllowedMap.put("siteminder", siteminderLogin);
 		UserResource.loginsAllowedMap.put("dropbox", dropboxLogin);
 		UserResource.loginsAllowedMap.put("cac", cacLogin);
 		UserResource.loginsAllowedMap.put("registration", registration);
@@ -808,6 +811,7 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				String tenant = socialData.getProperty(prefix + "tenant");
 				String scope = socialData.getProperty(prefix + "scope");
+				String token_url = socialData.getProperty(prefix + "token_url");
 
 				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 
@@ -819,9 +823,12 @@ public class UserResource {
 				params.put("grant_type", "authorization_code");
 				params.put("client_secret", clientSecret);
 
-				String url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
+				
+				if(Strings.isNullOrEmpty(token_url)){
+					token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
+					}
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				AccessToken accessToken = AbstractHttpHelper.getAccessToken(token_url);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -856,9 +863,14 @@ public class UserResource {
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 		String tenant = socialData.getProperty(prefix + "tenant");
 		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
+		String auth_url = socialData.getProperty(prefix + "auth_url");
 
 		String state = UUID.randomUUID().toString();
-		String redirectUrl = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize?" + "client_id="
+		
+		if(Strings.isNullOrEmpty(auth_url)){
+			auth_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize";
+		}
+		String redirectUrl = auth_url + "?" + "client_id="
 				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
 				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
 
@@ -893,6 +905,7 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				String tenant = socialData.getProperty(prefix + "tenant");
 				String scope = socialData.getProperty(prefix + "scope");
+				String token_url = socialData.getProperty(prefix + "token_url");
 
 				logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 
@@ -904,9 +917,10 @@ public class UserResource {
 				params.put("grant_type", "authorization_code");
 				params.put("client_secret", clientSecret);
 
-				String url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
-
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				if(Strings.isNullOrEmpty(token_url)){
+				 token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
+				}
+				AccessToken accessToken = AbstractHttpHelper.getAccessToken(token_url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -941,9 +955,14 @@ public class UserResource {
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 		String tenant = socialData.getProperty(prefix + "tenant");
 		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
-
+		String auth_url = socialData.getProperty(prefix + "auth_url");
 		String state = UUID.randomUUID().toString();
-		String redirectUrl = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize?" + "client_id="
+		
+		if(Strings.isNullOrEmpty(auth_url)){
+			auth_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize";
+		}
+		
+		String redirectUrl = auth_url + "?" + "client_id="
 				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
 				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
 
