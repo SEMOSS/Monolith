@@ -246,10 +246,9 @@ public class FileUploader extends Uploader {
 	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String appId) {
 		// get base asset folder
 		String assetFolder = null;
-		String fePath = Insight.getInsightRelativeFolderKey(in);
+		String fePath = Insight.getInsightRelativeFolderKey();
 		if (appId != null) {
 			assetFolder = AssetUtility.getAssetBasePath(in, appId, true);
-			fePath = Insight.getAppRelativeFolderKey();
 		} else {
 			assetFolder = in.getInsightFolder();
 		}
@@ -324,7 +323,6 @@ public class FileUploader extends Uploader {
 				logger.info("Writing Input To File");
 //				Date date = new Date();
 //				String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-				
 //				String fileSuffix = "FileString_" + modifiedDate;;
 //				String fileLocation = filePath + DIR_SEPARATOR + fileSuffix;
 				
