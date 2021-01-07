@@ -49,7 +49,6 @@ public class NoUserInSessionFilter implements Filter {
 	public static final String MONOLITH_PREFIX = "MONOLITH_PREFIX";
 
 	private static final String LOGIN = "login";
-	private static final String STACKTRACE = "StackTrace: ";
 
 	private static final String NO_USER_HTML = "/noUserFail/";
 	protected static List<String> ignoreDueToFE = new Vector<>();
@@ -280,7 +279,7 @@ public class NoUserInSessionFilter implements Filter {
 						arg2.doFilter(wrapper, arg1);
 						return;
 					} catch (NoSuchAlgorithmException e) {
-						logger.error(STACKTRACE, e);
+						logger.error(Constants.STACKTRACE, e);
 					}
 				}
 			}
