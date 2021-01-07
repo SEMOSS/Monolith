@@ -828,7 +828,7 @@ public class UserResource {
 					token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
 					}
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(token_url);
+				AccessToken accessToken = AbstractHttpHelper.getAccessToken(token_url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
