@@ -63,60 +63,16 @@ public class FileUploader extends Uploader {
 		// since its a useless additional key but then I wouldn't need to have the bifurcation in 
 		// formats here and bifurcation in formats in the ImportOptions object as well
 		String type = form.getFirst("uploadType").toUpperCase();
-		
+		String headersToCheckString = form.getFirst("userHeaders");
 		// grab the checker
 		HeadersException headerChecker = HeadersException.getInstance();
-
-		if(type.equals("CSV")) {
-			Map<String, Map<String, String>> invalidHeadersMap = new Hashtable<>();
-			
-			// the key is for each file name
-			// the list are the headers inside that file
-			Map<String, String[]> userDefinedHeadersMap = gson.fromJson(form.getFirst("userHeaders"), new TypeToken<Map<String, String[]>>() {}.getType());
-			
-			for(String fileName : userDefinedHeadersMap.keySet()) {
-				String[] userHeaders = userDefinedHeadersMap.get(fileName);
-				
-				// now we need to check all of these headers
-				// now we need to check all of these headers
-				for(int colIdx = 0; colIdx < userHeaders.length; colIdx++) {
-					String userHeader = userHeaders[colIdx];
-					Map<String, String> badHeaderMap = new Hashtable<>();
-					if(headerChecker.isIllegalHeader(userHeader)) {
-						badHeaderMap.put(userHeader, "This header name is a reserved word");
-					} else if(headerChecker.containsIllegalCharacter(userHeader)) {
-						badHeaderMap.put(userHeader, "Header names cannot contain +%@;");
-					} else if(headerChecker.isDuplicated(userHeader, userHeaders, colIdx)) {
-						badHeaderMap.put(userHeader, "Cannot have duplicate header names");
-					}
-					
-					// map is filled in only if the header is bad
-					if(!badHeaderMap.isEmpty()) {
-						// need to make sure we do not override existing bad headers stored
-						// within the map
-						Map<String, String> invalidHeadersForFile = null;
-						if(invalidHeadersMap.containsKey(fileName)) {
-							invalidHeadersForFile = invalidHeadersMap.get(fileName);
-						} else {
-							invalidHeadersForFile = new Hashtable<>();
-						}
-						
-						// now add in the bad header for the file map
-						invalidHeadersForFile.putAll(badHeaderMap);
-						// now store it in the overall object
-						invalidHeadersMap.put(fileName, invalidHeadersForFile);
-					}
-				}
-			}
-			return WebUtility.getResponse(invalidHeadersMap, 200);
-
-		} else if(type.equals("EXCEL")) {
+		if(type.equalsIgnoreCase("EXCEL")) {
 			List<Map<String, Map<String, String>>> invalidHeadersList = new Vector<>();
 			
 			// each entry (outer map object) in the list if a workbook
 			// each key in that map object is the sheetName for that given workbook
 			// the list are the headers inside that sheet
-			List<Map<String, String[]>> userDefinedHeadersMap = gson.fromJson(form.getFirst("userHeaders"), new TypeToken<List<Map<String, String[]>>>() {}.getType());
+			List<Map<String, String[]>> userDefinedHeadersMap = gson.fromJson(headersToCheckString, new TypeToken<List<Map<String, String[]>>>() {}.getType());
 			
 			// iterate through each workbook
 			for(Map<String, String[]> excelWorkbook : userDefinedHeadersMap) {
@@ -162,8 +118,50 @@ public class FileUploader extends Uploader {
 				invalidHeadersList.add(invalidHeadersMap);
 			}
 			return WebUtility.getResponse(invalidHeadersList, 200);
-		} else {
-			return WebUtility.getResponse("Format does not conform to checking headers", 400);
+		} 
+		else 
+		{
+			Map<String, Map<String, String>> invalidHeadersMap = new Hashtable<>();
+			
+			// the key is for each file name
+			// the list are the headers inside that file
+			Map<String, String[]> userDefinedHeadersMap = gson.fromJson(headersToCheckString, new TypeToken<Map<String, String[]>>() {}.getType());
+			
+			for(String fileName : userDefinedHeadersMap.keySet()) {
+				String[] userHeaders = userDefinedHeadersMap.get(fileName);
+				
+				// now we need to check all of these headers
+				// now we need to check all of these headers
+				for(int colIdx = 0; colIdx < userHeaders.length; colIdx++) {
+					String userHeader = userHeaders[colIdx];
+					Map<String, String> badHeaderMap = new Hashtable<>();
+					if(headerChecker.isIllegalHeader(userHeader)) {
+						badHeaderMap.put(userHeader, "This header name is a reserved word");
+					} else if(headerChecker.containsIllegalCharacter(userHeader)) {
+						badHeaderMap.put(userHeader, "Header names cannot contain +%@;");
+					} else if(headerChecker.isDuplicated(userHeader, userHeaders, colIdx)) {
+						badHeaderMap.put(userHeader, "Cannot have duplicate header names");
+					}
+					
+					// map is filled in only if the header is bad
+					if(!badHeaderMap.isEmpty()) {
+						// need to make sure we do not override existing bad headers stored
+						// within the map
+						Map<String, String> invalidHeadersForFile = null;
+						if(invalidHeadersMap.containsKey(fileName)) {
+							invalidHeadersForFile = invalidHeadersMap.get(fileName);
+						} else {
+							invalidHeadersForFile = new Hashtable<>();
+						}
+						
+						// now add in the bad header for the file map
+						invalidHeadersForFile.putAll(badHeaderMap);
+						// now store it in the overall object
+						invalidHeadersMap.put(fileName, invalidHeadersForFile);
+					}
+				}
+			}
+			return WebUtility.getResponse(invalidHeadersMap, 200);
 		}
 	}
 	
