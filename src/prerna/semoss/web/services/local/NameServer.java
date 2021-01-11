@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -99,6 +100,7 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.gson.GsonUtility;
+import prerna.web.conf.NoUserInSessionFilter;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
@@ -297,6 +299,20 @@ public class NameServer {
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 			sessionId = session.getId();
 		}
+		
+		// add the route if this is server deployment
+		String routeCookieName = DIHelper.getInstance().getProperty(Constants.MONOLITH_ROUTE);
+		if (routeCookieName != null && !routeCookieName.isEmpty()) {
+			Cookie[] curCookies = request.getCookies();
+			if (curCookies != null) {
+				for (Cookie c : curCookies) {
+					if (c.getName().equals(routeCookieName)) {
+						ThreadStore.setRouteId(c.getValue());
+					}
+				}
+			}
+		}
+
 		
 		String jobId = "";
 		String insightId = request.getParameter("insightId");
