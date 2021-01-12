@@ -36,6 +36,7 @@ import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
 import prerna.poi.main.HeadersException;
 import prerna.util.AssetUtility;
+import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -72,7 +73,15 @@ public class FileUploader extends Uploader {
 			// each entry (outer map object) in the list if a workbook
 			// each key in that map object is the sheetName for that given workbook
 			// the list are the headers inside that sheet
-			List<Map<String, String[]>> userDefinedHeadersMap = gson.fromJson(headersToCheckString, new TypeToken<List<Map<String, String[]>>>() {}.getType());
+			List<Map<String, String[]>> userDefinedHeadersMap = null;
+			try {
+				userDefinedHeadersMap = gson.fromJson(headersToCheckString, new TypeToken<List<Map<String, String[]>>>() {}.getType());
+			} catch(Exception e) {
+				logger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Invalid format passed for user defined headers: " + headersToCheckString);
+				return WebUtility.getResponse(errorMap, 400);
+			}
 			
 			// iterate through each workbook
 			for(Map<String, String[]> excelWorkbook : userDefinedHeadersMap) {
@@ -125,7 +134,15 @@ public class FileUploader extends Uploader {
 			
 			// the key is for each file name
 			// the list are the headers inside that file
-			Map<String, String[]> userDefinedHeadersMap = gson.fromJson(headersToCheckString, new TypeToken<Map<String, String[]>>() {}.getType());
+			Map<String, String[]> userDefinedHeadersMap = null;
+			try {
+				userDefinedHeadersMap = gson.fromJson(headersToCheckString, new TypeToken<Map<String, String[]>>() {}.getType());
+			} catch(Exception e) {
+				logger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Invalid format passed for user defined headers: " + headersToCheckString);
+				return WebUtility.getResponse(errorMap, 400);
+			}
 			
 			for(String fileName : userDefinedHeadersMap.keySet()) {
 				String[] userHeaders = userDefinedHeadersMap.get(fileName);
