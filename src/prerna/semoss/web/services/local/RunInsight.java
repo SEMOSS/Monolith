@@ -104,8 +104,8 @@ public class RunInsight {
 			e.printStackTrace();
 		}
 		
-		PixelRunner pixelRunner = rerunInsight.runPixel(recipe);
-		// add all the frame headers to the payload
+		PixelRunner pixelRunner = new PixelRunner();
+		// add all the frame headers to the payload first
 		try {
 			VarStore vStore = in.getVarStore();
 			Set<String> keys = vStore.getFrameKeys();
@@ -115,8 +115,9 @@ public class RunInsight {
 				if(type == PixelDataType.FRAME) {
 					try {
 						ITableDataFrame frame = (ITableDataFrame) noun.getValue();
-						pixelRunner.addResult(0, "CACHED_FRAME_HEADERS", 
-								new NounMetadata(frame.getFrameHeadersObject(), PixelDataType.CUSTOM_DATA_STRUCTURE, PixelOperationType.FRAME_HEADERS));
+						pixelRunner.addResult("CACHED_FRAME_HEADERS", 
+								new NounMetadata(frame.getFrameHeadersObject(), PixelDataType.CUSTOM_DATA_STRUCTURE, 
+										PixelOperationType.FRAME_HEADERS), true);
 					} catch(Exception e) {
 						e.printStackTrace();
 						// ignore
@@ -126,6 +127,8 @@ public class RunInsight {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		// now rerun the recipe and append to the runner
+		in.runPixel(pixelRunner, recipe);
 		
 		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
 				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
