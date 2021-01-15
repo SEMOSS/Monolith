@@ -1,6 +1,7 @@
 package prerna.semoss.web.services.local;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,6 +18,10 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
+import org.apache.catalina.core.ApplicationContext;
+import org.apache.catalina.core.ApplicationContextFacade;
+import org.apache.catalina.core.StandardContext;
+import org.apache.catalina.session.StandardManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
@@ -30,16 +35,22 @@ import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
 import prerna.web.conf.DBLoader;
-import prerna.web.conf.SessionCounter;
 import prerna.web.services.util.WebUtility;
+
 
 @Path("/session")
 public class SessionResource {
+	
 	private static final Logger logger = LogManager.getLogger(SessionResource.class);
 	private static final String CANCEL_INVALIDATION = "cancelInvalidation";
-	private static final String STACKTRACE = "StackTrace: ";
 	private Object lock = new Object();
-
+	
+	/**
+	 * Returns the number of active servers related to a given manager. 
+	 * @param request
+	 * @return
+	 */
+	
 	@GET
 	@Path("/active")
 	@Produces("application/json;charset=utf-8")
@@ -59,16 +70,43 @@ public class SessionResource {
 				return WebUtility.getResponse(errorMap, 401);
 			}
 		}
-
-		Map<String, Integer> ret = new HashMap<>();
-		ret.put("activeSessions", SessionCounter.getActiveSessions());
+		
+		StandardManager manager = getManager(request);
+		
+		Map<String, Object> ret = new HashMap<>();
+		if(manager != null) {
+			ret.put("activeSessions", manager.getActiveSessions());
+		} else {
+			ret.put("activeSessions", "Error in getting manager context");
+		}
 		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Getting the manager
+	 * @param request
+	 */
+	public static StandardManager getManager(@Context HttpServletRequest request) {
+		ApplicationContextFacade applicationContextFacade = (ApplicationContextFacade) request.getSession().getServletContext();
+		try {
+			Field applicationContextField = applicationContextFacade.getClass().getDeclaredField("context");
+			applicationContextField.setAccessible(true);
+			ApplicationContext appContext = (ApplicationContext) applicationContextField.get(applicationContextFacade);
+			
+			Field standardContextField = appContext.getClass().getDeclaredField("context");
+			standardContextField.setAccessible(true);
+			StandardContext standardContext = (StandardContext) standardContextField.get(appContext);
+			return (StandardManager) standardContext.getManager();			
+		} catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
+			logger.error(Constants.STACKTRACE, e);
+		}
+		
+		return null;
 	}
 
 	/*
 	 * End points for cleanup of the thread to account for closing/opening
 	 */
-
 	@POST
 	@Path("/cleanSession")
 	@Produces("application/json;charset=utf-8")
@@ -107,9 +145,9 @@ public class SessionResource {
 		// wait 10 seconds
 		try {
 			Thread.sleep(10_000);
-		} catch (InterruptedException e1) {
+		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
-			logger.error(STACKTRACE, e1);
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		String output = null;
