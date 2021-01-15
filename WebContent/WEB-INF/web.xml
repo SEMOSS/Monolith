@@ -424,9 +424,6 @@
       <listener-class>prerna.web.conf.UserDBLoader</listener-class>
    </listener>
    <listener>
-      <listener-class>prerna.web.conf.SessionCounter</listener-class>
-   </listener>
-   <listener>
       <listener-class>prerna.web.conf.NoUserInSessionTrustedTokenListener</listener-class>
    </listener>
    <session-config>
