@@ -24,14 +24,13 @@ import prerna.util.Utility;
 public class AdminStartupFilter implements Filter {
 	
 	private static final Logger logger = LogManager.getLogger(AdminStartupFilter.class);
-	private static final String STACKTRACE = "StackTrace: ";
 	private static String initialRedirect;
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		if (AbstractSecurityUtils.securityEnabled()) {
 			IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
-			String q = "SELECT * FROM USER LIMIT 1";
+			String q = "SELECT * FROM SMSS_USER LIMIT 1";
 			IRawSelectWrapper wrapper = null;
 			try {
 				wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
@@ -48,7 +47,7 @@ public class AdminStartupFilter implements Filter {
 					}
 				}
 			} catch (Exception e) {
-				logger.error(STACKTRACE, e);
+				logger.error(Constants.STACKTRACE, e);
 			} finally {
 				if (wrapper != null) {
 					wrapper.cleanUp();
