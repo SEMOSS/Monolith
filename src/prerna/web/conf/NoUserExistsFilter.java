@@ -17,6 +17,8 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
+import prerna.query.querystruct.SelectQueryStruct;
+import prerna.query.querystruct.selectors.QueryColumnSelector;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.services.config.AdminConfigService;
 import prerna.util.Constants;
@@ -37,10 +39,12 @@ public class NoUserExistsFilter implements Filter {
 			if(!NoUserExistsFilter.userDefined) {
 
 				IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
-				String q = "SELECT * FROM USER LIMIT 1";
+				SelectQueryStruct qs = new SelectQueryStruct();
+				qs.addSelector(new QueryColumnSelector("SMSS_USER__ID"));
+				qs.setLimit(1);
 				IRawSelectWrapper wrapper = null;
 				try {
-					wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
+					wrapper = WrapperManager.getInstance().getRawWrapper(engine, qs);
 					boolean hasUser = wrapper.hasNext();
 
 					// no users at all registered, we need to send to the admin page
@@ -69,7 +73,7 @@ public class NoUserExistsFilter implements Filter {
 						NoUserExistsFilter.userDefined = true;
 					}
 				} catch (Exception e) {
-					logger.error("Stacktrace: ",e);
+					logger.error(Constants.STACKTRACE,e);
 				} finally {
 					if(wrapper != null) {
 						wrapper.cleanUp();
