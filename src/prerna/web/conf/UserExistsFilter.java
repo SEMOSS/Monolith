@@ -26,7 +26,6 @@ import prerna.util.Utility;
 public class UserExistsFilter extends NoUserInSessionFilter {
 	
 	private static final Logger logger = LogManager.getLogger(UserExistsFilter.class);
-	private static final String STACKTRACE = "StackTrace: ";
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
@@ -56,7 +55,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 				} else {
 					// okay, need to make sure the user is a valid one
 					IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
-					String q = "SELECT * FROM USER WHERE ID='" + user.getAccessToken(user.getLogins().get(0)).getId()
+					String q = "SELECT * FROM SMSS_USER WHERE ID='" + user.getAccessToken(user.getLogins().get(0)).getId()
 							+ "'";
 					IRawSelectWrapper wrapper = null;
 					try {
@@ -73,7 +72,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
 						}
 					} catch (Exception e) {
-						logger.error(STACKTRACE, e);
+						logger.error(Constants.STACKTRACE, e);
 					} finally {
 						if (wrapper != null) {
 							wrapper.cleanUp();
