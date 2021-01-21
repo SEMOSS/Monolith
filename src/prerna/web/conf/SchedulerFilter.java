@@ -30,7 +30,7 @@ public class SchedulerFilter implements Filter {
 		HttpServletRequest request = (HttpServletRequest) arg0;
 
 		String execId = request.getParameter(JobConfigKeys.EXEC_ID);
-		String jobName = request.getParameter(JobConfigKeys.JOB_NAME);
+		String jobName = request.getParameter(JobConfigKeys.JOB_ID);
 		String jobGroup = request.getParameter(JobConfigKeys.JOB_GROUP);
 
 		// make sure the request is valid
