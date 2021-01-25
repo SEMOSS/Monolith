@@ -108,16 +108,26 @@ public class ServerConfigurationResource {
 			try {
 				loadConfig.put("file-limit", Integer.parseInt(fileTransferMax));
 			} catch (Exception e) {
-				logger.error("Stack Trace: ", e);
+				logger.error(Constants.STACKTRACE, e);
 			}
 		}
-
+		
+		// shared file path
+		String sharedFilePath = DIHelper.getInstance().getProperty(Constants.SHARED_FILE_PATH);
+		if (sharedFilePath != null) {
+			try {
+				loadConfig.put("fileSharedPath", sharedFilePath);
+			} catch (Exception e) {
+				logger.error(Constants.STACKTRACE, e);
+			}
+		}
+		
 		// version of the application
 		try {
 			Map<String, String> versionMap = VersionReactor.getVersionMap();
 			loadConfig.put("version", versionMap);
 		} catch (Exception e) {
-			logger.error("Stack Trace: ", e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		// send the default frame type
