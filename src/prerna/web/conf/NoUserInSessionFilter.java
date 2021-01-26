@@ -66,7 +66,7 @@ public class NoUserInSessionFilter implements Filter {
 		ignoreDueToFE.add("auth/loginsAllowed");
 		ignoreDueToFE.add("auth/login");
 		ignoreDueToFE.add("auth/createUser");
-		ignoreDueToFE.add("auth//whoami");
+		ignoreDueToFE.add("auth/whoami");
 		for (AuthProvider v : AuthProvider.values()) {
 			ignoreDueToFE.add("auth/userinfo/" + v.toString().toLowerCase());
 			ignoreDueToFE.add("auth/login/" + v.toString().toLowerCase());
