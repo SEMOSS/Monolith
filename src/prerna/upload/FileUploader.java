@@ -185,8 +185,10 @@ public class FileUploader extends Uploader {
 	
 	@POST
 	@Path("baseUpload")
-	public Response uploadFile(@Context ServletContext context, @Context HttpServletRequest request, @QueryParam("insightId") String insightId,
-			@QueryParam("path") String relativePath, @QueryParam("appId") String appId) {
+	public Response baseUpload(@Context ServletContext context, @Context HttpServletRequest request, 
+			@QueryParam("insightId") String insightId,
+			@QueryParam("path") String relativePath, 
+			@QueryParam("appId") String appId) {
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
 			HashMap<String, String> errorMap = new HashMap<String, String>();
@@ -261,7 +263,7 @@ public class FileUploader extends Uploader {
 	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String appId) {
 		// get base asset folder
 		String assetFolder = null;
-		String fePath = Insight.getInsightRelativeFolderKey();
+		String fePath = DIR_SEPARATOR;
 		if (appId != null) {
 			assetFolder = AssetUtility.getAssetBasePath(in, appId, true);
 		} else {
@@ -271,7 +273,7 @@ public class FileUploader extends Uploader {
 		// add relative path
 		if (relativePath != null) {
 			filePath = assetFolder + DIR_SEPARATOR + relativePath;
-			fePath += DIR_SEPARATOR + relativePath;
+			fePath += relativePath;
 		}
 		File fileDir = new File(filePath);
 		if (!fileDir.exists()) {
