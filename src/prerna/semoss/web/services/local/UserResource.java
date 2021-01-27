@@ -384,14 +384,14 @@ public class UserResource {
 		String accessString = null;
 		try {
 			if (user == null) {
-				ret.put("ERROR", "Log into your Google account");
+				ret.put(Constants.ERROR_MESSAGE, "Log into your Google account");
 				return WebUtility.getResponse(ret, 200);
 			} else {
 				AccessToken googleToken = user.getAccessToken(AuthProvider.GOOGLE);
 				accessString = googleToken.getAccess_token();
 			}
 		} catch (Exception e) {
-			ret.put("ERROR", "Log into your Google account");
+			ret.put(Constants.ERROR_MESSAGE, "Log into your Google account");
 			return WebUtility.getResponse(ret, 200);
 		}
 
@@ -431,7 +431,7 @@ public class UserResource {
 		String accessString = null;
 		try {
 			if (user == null) {
-				ret.put("ERROR", "Log into your Microsoft account");
+				ret.put(Constants.ERROR_MESSAGE, "Log into your Microsoft account");
 			} else {
 				AccessToken msToken = user.getAccessToken(AuthProvider.MS);
 				accessString = msToken.getAccess_token();
@@ -444,7 +444,7 @@ public class UserResource {
 			}
 			return WebUtility.getResponse(ret, 200);
 		} catch (Exception e) {
-			ret.put("ERROR", "Log into your Microsoft account");
+			ret.put(Constants.ERROR_MESSAGE, "Log into your Microsoft account");
 			return WebUtility.getResponse(ret, 200);
 		}
 	}
@@ -464,14 +464,14 @@ public class UserResource {
 		String accessString = null;
 		try {
 			if (user == null) {
-				ret.put("ERROR", "Log into your DropBox account");
+				ret.put(Constants.ERROR_MESSAGE, "Log into your DropBox account");
 				return WebUtility.getResponse(ret, 200);
 			} else {
 				AccessToken dropToken = user.getAccessToken(AuthProvider.DROPBOX);
 				accessString = dropToken.getAccess_token();
 			}
 		} catch (Exception e) {
-			ret.put("ERROR", "Log into your DropBox account");
+			ret.put(Constants.ERROR_MESSAGE, "Log into your DropBox account");
 			return WebUtility.getResponse(ret, 200);
 		}
 		String url = "https://api.dropboxapi.com/2/users/get_current_account";
@@ -509,14 +509,14 @@ public class UserResource {
 		String accessString = null;
 		try {
 			if (user == null) {
-				ret.put("ERROR", "Log into your Github account");
+				ret.put(Constants.ERROR_MESSAGE, "Log into your Github account");
 				return WebUtility.getResponse(ret, 200);
 			} else {
 				AccessToken gitToken = user.getAccessToken(AuthProvider.GITHUB);
 				accessString = gitToken.getAccess_token();
 			}
 		} catch (Exception e) {
-			ret.put("ERROR", "Log into your Github account");
+			ret.put(Constants.ERROR_MESSAGE, "Log into your Github account");
 			return WebUtility.getResponse(ret, 200);
 		}
 
@@ -1492,7 +1492,7 @@ public class UserResource {
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("enableRedirect") + "");
 
 			if(username == null || password == null || username.isEmpty() || password.isEmpty()) {
-				ret.put("error", "The user name or password are empty");
+				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
 				return WebUtility.getResponse(ret, 401);
 			}
 			
@@ -1519,12 +1519,12 @@ public class UserResource {
 					setMainPageRedirect(request, response, redirect);
 				}
 			} else {
-				ret.put("error", "The user name or password are invalid.");
+				ret.put(Constants.ERROR_MESSAGE, "The user name or password are invalid.");
 				return WebUtility.getResponse(ret, 401);
 			}
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
-			ret.put("error", "An unexpected error happened. Please try again.");
+			ret.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}
 
@@ -1562,16 +1562,16 @@ public class UserResource {
 				ret.put("username", username);
 				return WebUtility.getResponse(ret, 200);
 			} else {
-				ret.put("error", "The user name or email aready exists.");
+				ret.put(Constants.ERROR_MESSAGE, "The user name or email aready exists.");
 				return WebUtility.getResponse(ret, 400);
 			}
 		} catch (IllegalArgumentException iae) {
 			logger.error(Constants.STACKTRACE, iae);
-			ret.put("error", iae.getMessage());
+			ret.put(Constants.ERROR_MESSAGE, iae.getMessage());
 			return WebUtility.getResponse(ret, 500);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
-			ret.put("error", "An unexpected error happened. Please try again.");
+			ret.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}
 	}
@@ -1661,7 +1661,7 @@ public class UserResource {
 		} catch (ConfigurationException e1) {
 			logger.error(Constants.STACKTRACE, e1);
 			Hashtable<String, String> errorRet = new Hashtable<>();
-			errorRet.put("error",
+			errorRet.put(Constants.ERROR_MESSAGE,
 					"An unexpected error happened trying to access the properties. Please try again or reach out to server admin.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
@@ -1676,7 +1676,7 @@ public class UserResource {
 		} catch (ConfigurationException e1) {
 			logger.error(Constants.STACKTRACE, e1);
 			Hashtable<String, String> errorRet = new Hashtable<>();
-			errorRet.put("error",
+			errorRet.put(Constants.ERROR_MESSAGE,
 					"An unexpected error happened when saving the new login properties. Please try again or reach out to server admin.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
@@ -1863,7 +1863,7 @@ public class UserResource {
 				}
 			}
 			if(output.isEmpty()) {
-				output.put("error", "null principal");
+				output.put(Constants.ERROR_MESSAGE, "null principal");
 			}
 		}
 		return WebUtility.getResponse(output, 200);
