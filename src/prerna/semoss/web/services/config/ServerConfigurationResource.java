@@ -114,7 +114,7 @@ public class ServerConfigurationResource {
 		
 		// shared file path
 		String sharedFilePath = DIHelper.getInstance().getProperty(Constants.SHARED_FILE_PATH);
-		if (sharedFilePath != null) {
+		if (sharedFilePath != null && !sharedFilePath.isEmpty()) {
 			try {
 				loadConfig.put("fileSharedPath", sharedFilePath);
 			} catch (Exception e) {
