@@ -1,6 +1,7 @@
 package prerna.web.conf;
 
 import java.io.IOException;
+import java.util.UUID;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -64,7 +65,7 @@ public class SchedulerFilter implements Filter {
 			AccessToken token = new AccessToken();
 			token.setProvider(provider);
 			token.setId(id);
-
+			token.setName("scheduler_" + UUID.randomUUID());
 			user.setAccessToken(token);
 		}
 		session.setAttribute(Constants.SESSION_USER, user);
