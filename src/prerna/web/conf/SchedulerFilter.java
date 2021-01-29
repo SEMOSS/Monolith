@@ -19,7 +19,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.rpa.config.JobConfigKeys;
-import prerna.sablecc2.reactor.scheduler.SchedulerH2DatabaseUtility;
+import prerna.sablecc2.reactor.scheduler.SchedulerDatabaseUtility;
 import prerna.util.Constants;
 
 public class SchedulerFilter implements Filter {
@@ -35,7 +35,7 @@ public class SchedulerFilter implements Filter {
 		String jobGroup = request.getParameter(JobConfigKeys.JOB_GROUP);
 
 		// make sure the request is valid
-		String[] jobInfo = SchedulerH2DatabaseUtility.executionIdExists(execId);
+		String[] jobInfo = SchedulerDatabaseUtility.executionIdExists(execId);
 		if(jobInfo == null) {
 			// error
 			logger.info("Could not find the scheduler execution id");
@@ -71,7 +71,7 @@ public class SchedulerFilter implements Filter {
 		session.setAttribute(Constants.SESSION_USER, user);
 		
 		// clean up the table
-		SchedulerH2DatabaseUtility.removeExecutionId(execId);
+		SchedulerDatabaseUtility.removeExecutionId(execId);
 		
 		// continue
 		arg2.doFilter(arg0, arg1);
