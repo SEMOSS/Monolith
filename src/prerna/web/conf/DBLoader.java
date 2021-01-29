@@ -50,8 +50,8 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc2.reactor.frame.r.util.PyTranslatorFactory;
 import prerna.sablecc2.reactor.frame.r.util.RJavaTranslatorFactory;
+import prerna.sablecc2.reactor.scheduler.SchedulerDatabaseUtility;
 import prerna.sablecc2.reactor.scheduler.SchedulerFactorySingleton;
-import prerna.sablecc2.reactor.scheduler.SchedulerH2DatabaseUtility;
 import prerna.sablecc2.reactor.scheduler.legacy.JsonConversionToQuartzJob;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.ChromeDriverUtility;
@@ -198,14 +198,13 @@ public class DBLoader implements ServletContextListener {
 			// Load and run triggerOnLoad jobs
 			if(scheduler != null) {
 				try {
-						SchedulerH2DatabaseUtility.executeAllTriggerOnLoads();
-						// also add legacy json files
-						JsonConversionToQuartzJob.runUpdateFromLegacyFormat();
+					SchedulerDatabaseUtility.executeAllTriggerOnLoads();
+					// also add legacy json files
+					JsonConversionToQuartzJob.runUpdateFromLegacyFormat();
 				} catch(Exception e) {
 					// ignore
 				}
 			}
-
 		}
 	}
 
