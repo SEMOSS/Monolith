@@ -100,7 +100,6 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.gson.GsonUtility;
-import prerna.web.conf.NoUserInSessionFilter;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
@@ -317,7 +316,7 @@ public class NameServer {
 		String jobId = "";
 		String insightId = request.getParameter("insightId");
 		String expression = request.getParameter("expression");
-
+		
 		// figure out the type of insight
 		// first is temp
 		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
@@ -325,13 +324,15 @@ public class NameServer {
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
 			insight.setInsightId(insightId);
-		} else if (insightId.equals("new")) { // need to make a new insight here
+		} else if (insightId.equals("new")) { 
+			// need to make a new insight here
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
 			InsightStore.getInstance().put(insight);
 			insightId = insight.getInsightId();
 			InsightStore.getInstance().addToSessionHash(sessionId, insightId);
-		} else {// or just get it from the store
+		} else {
+			// or just get it from the store
 			// the session id needs to be checked
 			// you better have a valid id... or else... O_O
 			insight = InsightStore.getInstance().get(insightId);
@@ -344,7 +345,12 @@ public class NameServer {
 		}
 		// set the user
 		insight.setUser(user);
-
+		// set if we are scheduler mode
+		Boolean schedulerMode = ThreadStore.isSchedulerMode();
+		if(schedulerMode != null) {
+			insight.setSchedulerMode(schedulerMode);
+		}
+		
 		// are we running runPixel in runPixel on the same insight?
 		{
 			String logStr = request.getParameter("dropLogging");
