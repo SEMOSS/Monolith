@@ -10,6 +10,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
+import prerna.om.ThreadStore;
 import prerna.rpa.config.JobConfigKeys;
 import prerna.web.requests.OverrideParametersServletRequest;
 
@@ -33,19 +34,26 @@ public class SchedulerResource {
 	 * @return
 	 */
 	private Response runPixel(@Context HttpServletRequest request, String pixel) {
-		if(pixel.endsWith(";")) {
-			pixel = pixel + "DropInsight();";
-		} else {
-			pixel = pixel + ";DropInsight();";
-		}
+		// do not need this - will invalidate the session
+//		if(pixel.endsWith(";")) {
+//			pixel = pixel + "DropInsight();";
+//		} else {
+//			pixel = pixel + ";DropInsight();";
+//		}
+//		
+		// set we are scheduler mode
+		ThreadStore.setSchedulerMode(true);
 		
 		NameServer ns = new NameServer();
 		OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
 		Map<String, String> paramMap = new HashMap<String, String>();
 		paramMap.put("expression", pixel);
 		requestWrapper.setParameters(paramMap);
-		return ns.runPixelSync(requestWrapper);
+		try {
+			return ns.runPixelSync(requestWrapper);
+		} finally {
+			request.getSession().invalidate();
+		}
 	}
-	
 	
 }
