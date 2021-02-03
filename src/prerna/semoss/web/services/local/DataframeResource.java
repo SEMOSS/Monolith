@@ -5,7 +5,6 @@ import java.util.Map;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -77,28 +76,28 @@ public class DataframeResource {
 		}
 	}
 
-	@GET
-	@Path("/isDbInsight")
-	@Produces("application/json")
-	public Response isDbInsight(@Context HttpServletRequest request){
-		/*
-		 * This method is used to determine if the insight has data that has been inserted
-		 * into the frame that does not currently sit in a full-fledged database.
-		 * An example of this is when an insight contains data that was added via a csv file.
-		 * 
-		 * We refer to these insights as nonDbInsights even if they contain data that
-		 * does contain some information from full dbs
-		 */
-		
-		Map<String, Object> retMap = new HashMap<String, Object>();
-		if(insight.getFilesUsedInInsight() == null || insight.getFilesUsedInInsight().isEmpty()) {
-			retMap.put("isDbInsight", true);
-		} else {
-			retMap.put("isDbInsight", false);
-		}
-		return WebUtility.getResponse(retMap, 200);
-	}
-	
+//	@GET
+//	@Path("/isDbInsight")
+//	@Produces("application/json")
+//	public Response isDbInsight(@Context HttpServletRequest request){
+//		/*
+//		 * This method is used to determine if the insight has data that has been inserted
+//		 * into the frame that does not currently sit in a full-fledged database.
+//		 * An example of this is when an insight contains data that was added via a csv file.
+//		 * 
+//		 * We refer to these insights as nonDbInsights even if they contain data that
+//		 * does contain some information from full dbs
+//		 */
+//		
+//		Map<String, Object> retMap = new HashMap<String, Object>();
+//		if(insight.getFilesUsedInInsight() == null || insight.getFilesUsedInInsight().isEmpty()) {
+//			retMap.put("isDbInsight", true);
+//		} else {
+//			retMap.put("isDbInsight", false);
+//		}
+//		return WebUtility.getResponse(retMap, 200);
+//	}
+//	
 //	/*
 //	 * Ideally this should go into the data frame
 //	 */
