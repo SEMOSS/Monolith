@@ -41,6 +41,10 @@ public class SchedulerResource {
 //			pixel = pixel + ";DropInsight();";
 //		}
 //		
+		pixel = pixel.trim();
+		if(!pixel.endsWith(";")) {
+			pixel = pixel + ";";
+		}
 		// set we are scheduler mode
 		ThreadStore.setSchedulerMode(true);
 		
