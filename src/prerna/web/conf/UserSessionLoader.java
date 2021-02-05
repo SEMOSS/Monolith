@@ -45,7 +45,7 @@ public class UserSessionLoader implements HttpSessionListener {
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
 		if(thisUser == null) {
 			// no need to log a new session that is auto dropped
-			// this just keeps writting to the log
+			// this just keeps writing to the log
 			if(!session.isNew()) {
 				logger.info(sessionId + " >>> Unknown user ending session");
 			}
