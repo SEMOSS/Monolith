@@ -246,7 +246,7 @@ public class CACFilter implements Filter {
 			if(updateUserStr != null) {
 				CACFilter.updateUser = Boolean.parseBoolean(updateUserStr);
 			} else {
-				// Default value is true
+				// Default value is false
 				CACFilter.updateUser = false;
 			}
 
@@ -314,7 +314,7 @@ public class CACFilter implements Filter {
 			RDBMSNativeEngine securityDb = (RDBMSNativeEngine) Utility.getEngine(Constants.SECURITY_DB);
 	
 			// let us not try to run this multiple times...
-			String requireUpdateQuery = "SELECT * FROM USER WHERE ID='" + cleanOldId +"'";
+			String requireUpdateQuery = "SELECT * FROM SMSS_USER WHERE ID='" + cleanOldId +"'";
 			IRawSelectWrapper wrapper = null;
 			try {
 				wrapper = WrapperManager.getInstance().getRawWrapper(securityDb, requireUpdateQuery);
@@ -323,7 +323,7 @@ public class CACFilter implements Filter {
 				// from id to email
 				if(wrapper.hasNext()) {
 					// need to update all the places the user id is used
-					String updateQuery = "UPDATE USER SET ID='" +  cleanNewId +"' WHERE ID='" + cleanOldId + "'";
+					String updateQuery = "UPDATE SMSS_USER SET ID='" +  cleanNewId +"' WHERE ID='" + cleanOldId + "'";
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
