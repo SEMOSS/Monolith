@@ -55,7 +55,7 @@ public class ResourceUtility {
 	 * @return
 	 */
 	public static String getLogMessage(HttpServletRequest request, HttpSession session, String userId, String message) {
-		if(userId.isEmpty()) {
+		if(userId == null || userId.isEmpty()) {
 			return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request)) + " : Session = " + session.getId() + " : ID = INVALID " + message;
 		}
 		return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request)) + " : Session = " + session.getId() + " : ID = " + userId + " " + message;
