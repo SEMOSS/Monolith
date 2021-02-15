@@ -215,7 +215,16 @@ public class SessionResource {
 			throws IOException {
 		String redirectUrl = request.getHeader("referer");
 		response.setStatus(302);
-
+		
+		HttpSession session = request.getSession(false);
+		User thisUser = null;
+		if(session != null) {
+			thisUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+		
+		// log the user logout
+		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is being forceably invalidated"));
+		
 		// redirect to login/logout page
 		if (DBLoader.useLogoutPage()) {
 			logger.info("Session ended. Redirect to logout page");
@@ -255,12 +264,9 @@ public class SessionResource {
 			response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
 		}
 
-		HttpSession session = request.getSession(false);
 		if (session != null) {
 			logger.info("User is no longer logged in");
 			logger.info("Removing user object from session");
-			session.removeAttribute(Constants.SESSION_USER);
-
 			session.invalidate();
 		}
 	}
