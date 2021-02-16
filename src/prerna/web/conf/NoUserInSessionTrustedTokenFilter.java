@@ -18,6 +18,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.apache.catalina.session.StandardManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -27,6 +28,7 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
+import prerna.semoss.web.services.local.SessionResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
 
@@ -76,7 +78,19 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 				// if the token exists
 				String userId = req.getParameter(tokenName);
 				if(userId != null) {
-					if(!sessionMapper.containsKey(userId)) {
+					boolean redirectToExistingSession = false;
+					String redirectSessionId = sessionMapper.get(userId);
+					if(redirectSessionId != null) {
+						// validate that the session exists within tomcats session manager
+						StandardManager manager = SessionResource.getManager((HttpServletRequest) arg0);
+						if(manager.getSession(redirectSessionId) != null) {
+							redirectToExistingSession = true;
+						} else {
+							// remove from the session mapper
+							sessionMapper.remove(userId);
+						}
+					}
+					if(!redirectToExistingSession) {
 						// grab the ip address
 						String ipAddress = req.getHeader("X-FORWARDED-FOR");
 						if (ipAddress == null) {  
@@ -121,8 +135,9 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 							((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
 						}
 					} else {
-						// this is the class where you redirect
-						String redirectSessionId = (String) sessionMapper.get(userId);
+						// this is the case where you redirect
+						// we have also validated that the session id is active
+						
 						// add the session id cookie
 //						Cookie k = new Cookie(DBLoader.getSessionIdKey(), redirectSessionId);
 //						k.setHttpOnly(true);
