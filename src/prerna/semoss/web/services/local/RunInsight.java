@@ -5,7 +5,6 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
@@ -108,7 +107,7 @@ public class RunInsight {
 		// add all the frame headers to the payload first
 		try {
 			VarStore vStore = in.getVarStore();
-			Set<String> keys = vStore.getFrameKeys();
+			List<String> keys = vStore.getFrameKeys();
 			for(String k : keys) {
 				NounMetadata noun = vStore.get(k);
 				PixelDataType type = noun.getNounType();
