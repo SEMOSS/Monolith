@@ -359,8 +359,11 @@ public class NameServer {
 			}
 		}
 		
-		return runPixelJob(user, insight, expression, jobId, insightId, sessionId, dropLogging);
-
+		int secondsForExpiration = session.getMaxInactiveInterval();
+		long curTime = System.currentTimeMillis();
+		long lastTime = session.getLastAccessedTime();
+		long sessionTimeRemaining = (long) secondsForExpiration - (long) ( (curTime - lastTime) /1000 );
+		return runPixelJob(user, insight, expression, jobId, insightId, sessionId, dropLogging, sessionTimeRemaining);
 	}
 
 	@POST
@@ -423,7 +426,7 @@ public class NameServer {
 	 * @return
 	 */
 	private Response runPixelJob(User user, Insight insight, String expression, String jobId, 
-			String insightId, String sessionId, boolean dropLogging) {
+			String insightId, String sessionId, boolean dropLogging, long sessionTimeRemaining) {
 		JobManager manager = JobManager.getManager();
 		JobThread jt = manager.makeJob(insightId);
 		jobId = jt.getJobId();
@@ -443,9 +446,9 @@ public class NameServer {
 		jt.setInsight(insight);
 		jt.run();
 		PixelRunner pixelRunner = jt.getRunner();
-
+		
 		try {
-			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
+			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, sessionTimeRemaining))
 					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 					.header("Pragma", "no-cache")
 					.build();

@@ -72,8 +72,6 @@ public class ServerConfigurationResource {
 	
 	private static void loadConfig(HttpSession session) {
 		Map<String, Object> loadConfig = new HashMap<>();
-		// session timeout
-		loadConfig.put("timeout", (double) session.getMaxInactiveInterval() / 60);
 
 		// r enabled
 		boolean useR = true;
@@ -168,6 +166,10 @@ public class ServerConfigurationResource {
 
 		Map<String, Object> myConfiguration = new HashMap<>();
 		myConfiguration.putAll(config);
+		// session timeout
+		// in case we have different timeout for the admin
+		// we have this grab for this session what the timeout value is
+		myConfiguration.put("timeout", (double) session.getMaxInactiveInterval() / 60);
 		// append values that can change without restarting the server
 		// logins allowed
 		myConfiguration.put("loginsAllowed", UserResource.getLoginsAllowed());
