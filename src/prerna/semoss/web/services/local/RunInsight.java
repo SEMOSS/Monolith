@@ -129,7 +129,7 @@ public class RunInsight {
 		// now rerun the recipe and append to the runner
 		in.runPixel(pixelRunner, recipe);
 		
-		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
+		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, null))
 				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 				.header("Pragma", "no-cache")
 				.build();
