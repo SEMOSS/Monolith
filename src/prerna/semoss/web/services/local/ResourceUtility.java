@@ -55,10 +55,14 @@ public class ResourceUtility {
 	 * @return
 	 */
 	public static String getLogMessage(HttpServletRequest request, HttpSession session, String userId, String message) {
-		if(userId == null || userId.isEmpty()) {
-			return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request)) + " : Session = " + session.getId() + " : ID = INVALID " + message;
+		String sessionId = "NO SESSION";
+		if(session != null) {
+			sessionId = session.getId();
 		}
-		return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request)) + " : Session = " + session.getId() + " : ID = " + userId + " " + message;
+		if(userId == null || userId.isEmpty()) {
+			return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request)) + " : Session = " + sessionId + " : USERID = INVALID " + message;
+		}
+		return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request)) + " : Session = " + sessionId + " : USERID = " + userId + " " + message;
 	}
 	
 }
