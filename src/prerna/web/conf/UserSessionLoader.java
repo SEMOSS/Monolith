@@ -66,8 +66,12 @@ public class UserSessionLoader implements HttpSessionListener {
 					continue;
 				}
 				logger.info(sessionId + " >>> Trying to drop insight " + insightId);
-				InsightUtility.dropInsight(insight);
-				logger.info(sessionId + " >>> Dropped insight " + insightId);
+				try {
+					InsightUtility.dropInsight(insight);
+					logger.info(sessionId + " >>> Dropped insight " + insightId);
+				} catch(Exception e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
 			}
 			logger.info(sessionId + " >>> Successfully removed insight information from session");
 
