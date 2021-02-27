@@ -100,6 +100,7 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.gson.GsonUtility;
+import prerna.util.insight.InsightUtility;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
@@ -324,6 +325,7 @@ public class NameServer {
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
 			insight.setInsightId(insightId);
+			insight.setTemporaryInsight(true);
 		} else if (insightId.equals("new")) { 
 			// need to make a new insight here
 			insight = new Insight();
@@ -461,6 +463,10 @@ public class NameServer {
 			if(dropLogging) {
 				jt.setStatus(JobStatus.COMPLETE);
 				manager.removeJob(jobId);
+			}
+			// are we going to immediately drop the insight
+			if(insight.isTemporaryInsight()) {
+				InsightUtility.dropInsight(insight);
 			}
 		}
 	}
