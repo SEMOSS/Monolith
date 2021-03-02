@@ -100,7 +100,6 @@ import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.gson.GsonUtility;
-import prerna.util.insight.InsightUtility;
 import prerna.web.services.util.ResponseHashSingleton;
 import prerna.web.services.util.SemossExecutorSingleton;
 import prerna.web.services.util.SemossThread;
@@ -321,11 +320,15 @@ public class NameServer {
 		// figure out the type of insight
 		// first is temp
 		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
-			insightId = "TempInsightNotStored_" + UUID.randomUUID().toString();
+			insightId = "TempInsight_" + UUID.randomUUID().toString();
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
 			insight.setInsightId(insightId);
 			insight.setTemporaryInsight(true);
+			// we will still store this
+			// so that when the session ends
+			// we clean it up
+			InsightStore.getInstance().addToSessionHash(sessionId, insightId);
 		} else if (insightId.equals("new")) { 
 			// need to make a new insight here
 			insight = new Insight();
@@ -463,10 +466,6 @@ public class NameServer {
 			if(dropLogging) {
 				jt.setStatus(JobStatus.COMPLETE);
 				manager.removeJob(jobId);
-			}
-			// are we going to immediately drop the insight
-			if(insight.isTemporaryInsight()) {
-				InsightUtility.dropInsight(insight);
 			}
 		}
 	}
