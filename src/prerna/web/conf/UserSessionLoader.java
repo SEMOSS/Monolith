@@ -17,7 +17,6 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.cache.ICache;
-import prerna.ds.py.FilePyTranslator;
 import prerna.ds.py.PyTranslator;
 import prerna.ds.py.PyUtils;
 import prerna.ds.py.TCPPyTranslator;
@@ -118,8 +117,6 @@ public class UserSessionLoader implements HttpSessionListener {
 	
 				if (pyt instanceof prerna.ds.py.PyTranslator)
 					PyUtils.getInstance().killPyThread(pyt.getPy());
-				if (pyt instanceof FilePyTranslator && thisUser != null)
-					PyUtils.getInstance().killTempTupleSpace(thisUser);
 				if (pyt instanceof TCPPyTranslator) {
 					NettyClient nc = thisUser.getPyServe();
 					String dir = thisUser.pyTupleSpace;
