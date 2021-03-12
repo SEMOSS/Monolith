@@ -23,7 +23,7 @@ import prerna.ds.py.TCPPyTranslator;
 import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.pyserve.NettyClient;
+import prerna.tcp.client.Client;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.insight.InsightUtility;
@@ -41,6 +41,9 @@ public class UserSessionLoader implements HttpSessionListener {
 	public void sessionDestroyed(HttpSessionEvent sessionEvent) {
 		HttpSession session = sessionEvent.getSession();
 		String sessionId = session.getId();
+		
+		
+		
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
 		if(thisUser == null) {
 			// no need to log a new session that is auto dropped
@@ -118,12 +121,13 @@ public class UserSessionLoader implements HttpSessionListener {
 				if (pyt instanceof prerna.ds.py.PyTranslator)
 					PyUtils.getInstance().killPyThread(pyt.getPy());
 				if (pyt instanceof TCPPyTranslator) {
-					NettyClient nc = thisUser.getPyServe();
+					Client nc = thisUser.getTCPServer();
 					String dir = thisUser.pyTupleSpace;
 					nc.stopPyServe(dir);
 				}
 			}
 		}
 	}
+	
 
 }
