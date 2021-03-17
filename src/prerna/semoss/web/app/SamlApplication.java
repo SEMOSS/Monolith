@@ -33,15 +33,15 @@ import java.util.Set;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
-import prerna.semoss.web.services.config.AdminConfigService;
+import prerna.semoss.web.services.saml.SamlVerifierResource;
 
-@ApplicationPath("/admin")
-public class AdminApplication extends Application {
+@ApplicationPath("/saml")
+public class SamlApplication extends Application {
 	
    private Set<Object> singletons = new HashSet<Object>();
 
-   public AdminApplication() {
-      singletons.add(new AdminConfigService());
+   public SamlApplication() {
+      singletons.add(new SamlVerifierResource());
    }
 
    @Override
