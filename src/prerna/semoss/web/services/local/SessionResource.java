@@ -37,7 +37,6 @@ import prerna.util.insight.InsightUtility;
 import prerna.web.conf.DBLoader;
 import prerna.web.services.util.WebUtility;
 
-
 @Path("/session")
 public class SessionResource {
 	
