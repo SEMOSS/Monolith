@@ -30,6 +30,7 @@ package prerna.semoss.web.app;
 import java.util.HashSet;
 import java.util.Set;
 
+import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
 import prerna.cluster.RawSelectWrapperService;
@@ -52,6 +53,7 @@ import prerna.semoss.web.services.local.auth.InsightAuthorizationResource;
 import prerna.upload.FileUploader;
 import prerna.upload.ImageUploader;
 
+@ApplicationPath("/api")
 public class MonolithApplication extends Application {
 	
    private Set<Object> singletons = new HashSet<Object>();
