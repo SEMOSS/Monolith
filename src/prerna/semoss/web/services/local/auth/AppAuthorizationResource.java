@@ -365,6 +365,52 @@ public class AppAuthorizationResource {
 	}
 	
 	/**
+	 * Set the app as favorited by the user
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setAppFavorite")
+	public Response setAppFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String appId = form.getFirst("appId");
+		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
+		String logFavorited = isFavorite ? " favorited " : " not favorited";
+
+		try {
+			SecurityUpdateUtils.setDbFavorite(user, appId, isFavorite);
+		} catch(IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the app " + appId + logFavorited + " without having proper access"));
+    		logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+    		logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put("error", "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has set the app " + appId + logFavorited));
+		
+		return WebUtility.getResponse(true, 200);
+	}
+	
+	/**
 	 * Get users with no access to a given app
 	 * @param request
 	 * @param form

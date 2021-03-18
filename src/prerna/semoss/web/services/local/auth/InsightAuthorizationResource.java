@@ -21,12 +21,8 @@ import prerna.auth.AccessPermission;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
-import prerna.cluster.util.ClusterUtil;
-import prerna.engine.api.IEngine;
-import prerna.engine.impl.InsightAdministrator;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/insight")
@@ -287,7 +283,7 @@ public class InsightAuthorizationResource {
 	}
 	
 	/**
-	 * Remove user permission for an insight
+	 * Set the insight global
 	 * @param request
 	 * @param form
 	 * @return
@@ -315,13 +311,19 @@ public class InsightAuthorizationResource {
 		try {
 			SecurityInsightUtils.setInsightGlobalWithinApp(user, appId, insightId, isPublic);
 			
+			/*
+			 * BELOW COMMENTED OUT IS INVALID LOGIC
+			 * WE DO NOT WANT TO MAKE IT HIDDEN IN INSIGHTS DB
+			 * THAT WILL RESULT IN IT NOT BEING LOADED TO SECURITY AT ALL
+			 */
+			
 			// also update in the app itself
 			// so it is properly synchronized with the security db
-			ClusterUtil.reactorPullInsightsDB(appId);
-			IEngine app = Utility.getEngine(appId);
-			InsightAdministrator admin = new InsightAdministrator(app.getInsightDatabase());
-			admin.updateInsightGlobal(insightId, !isPublic);
-			ClusterUtil.reactorPushInsightDB(appId);
+//			ClusterUtil.reactorPullInsightsDB(appId);
+//			IEngine app = Utility.getEngine(appId);
+//			InsightAdministrator admin = new InsightAdministrator(app.getInsightDatabase());
+//			admin.updateInsightGlobal(insightId, !isPublic);
+//			ClusterUtil.reactorPushInsightDB(appId);
 			
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the insight " + insightId + " in app " + appId + logPublic + " without having proper access"));
@@ -338,6 +340,55 @@ public class InsightAuthorizationResource {
 		
 		// log the operation
 		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has set the insight " + insightId + " in app " + appId + logPublic));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Set the insight as favorited by the user
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setInsightFavorite")
+	public Response setInsightFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String appId = form.getFirst("appId");
+		String insightId = form.getFirst("insightId");
+		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
+		String logFavorited = isFavorite ? " favorited " : " not favorited";
+
+		try {
+			SecurityInsightUtils.setInsightFavorite(user, appId, insightId, isFavorite);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the insight " + insightId + " in app " + appId + logFavorited + " without having proper access"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has set the insight " + insightId + " in app " + appId + logFavorited));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
