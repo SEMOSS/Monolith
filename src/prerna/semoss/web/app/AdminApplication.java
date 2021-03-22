@@ -35,7 +35,7 @@ import javax.ws.rs.core.Application;
 
 import prerna.semoss.web.services.config.AdminConfigService;
 
-@ApplicationPath("/admin")
+@ApplicationPath("/adminconfig")
 public class AdminApplication extends Application {
 	
    private Set<Object> singletons = new HashSet<Object>();
