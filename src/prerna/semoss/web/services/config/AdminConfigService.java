@@ -22,7 +22,7 @@ import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.web.conf.AdminStartupFilter;
 import prerna.web.services.util.WebUtility;
 
-@Path("/adminconfig")
+@Path("/")
 public class AdminConfigService {
 	private static final Gson GSON = new Gson();
 	public static final String ADMIN_REDIRECT_KEY = "ADMIN_REDIRECT_KEY";
