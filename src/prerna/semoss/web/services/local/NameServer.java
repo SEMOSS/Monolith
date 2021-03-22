@@ -887,7 +887,7 @@ public class NameServer {
 			if (user == null) {
 				return WebUtility.getSO("Not properly authenticated");
 			}
-			engines = SecurityQueryUtils.getUserDatabaseList(user);
+			engines = SecurityQueryUtils.getUserDatabaseList(user, false);
 			user.setEngines(engines);
 		} else {
 			engines = SecurityQueryUtils.getAllDatabaseList();
@@ -1116,7 +1116,7 @@ public class NameServer {
 			// filter insights based on what the user has access to
 			HttpSession session = request.getSession(false);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			queryResults = SecurityInsightUtils.searchUserInsights(user, appIds, searchString, tags, limit, offset);
+			queryResults = SecurityInsightUtils.searchUserInsights(user, appIds, searchString, tags, false, limit, offset);
 		} else {
 			queryResults = SecurityInsightUtils.searchInsights(appIds, searchString, tags, limit, offset);
 		}
