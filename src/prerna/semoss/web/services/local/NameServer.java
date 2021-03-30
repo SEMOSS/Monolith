@@ -312,10 +312,18 @@ public class NameServer {
 			}
 		}
 
-		
 		String jobId = "";
 		String insightId = request.getParameter("insightId");
 		String expression = request.getParameter("expression");
+		if(expression == null || (expression = expression.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
+			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		if(!expression.endsWith(";")) {
+			expression = expression + ";";
+		}
 		
 		// figure out the type of insight
 		// first is temp
