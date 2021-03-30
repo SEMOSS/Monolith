@@ -42,8 +42,6 @@ public class UserSessionLoader implements HttpSessionListener {
 		HttpSession session = sessionEvent.getSession();
 		String sessionId = session.getId();
 		
-		
-		
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
 		if(thisUser == null) {
 			// no need to log a new session that is auto dropped
