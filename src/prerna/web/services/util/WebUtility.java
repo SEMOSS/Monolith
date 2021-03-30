@@ -49,6 +49,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import prerna.util.Constants;
 import prerna.util.gson.GsonUtility;
 
 /**
@@ -57,8 +58,7 @@ import prerna.util.gson.GsonUtility;
  */
 public class WebUtility {
 
-	private static final String CLASS_NAME = WebUtility.class.getName();
-	private static final Logger LOGGER = LogManager.getLogger(CLASS_NAME);
+	private static final Logger logger = LogManager.getLogger(WebUtility.class);
 
     private static final FastDateFormat expiresDateFormat= FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz", TimeZone.getTimeZone("GMT"));
 
@@ -89,7 +89,7 @@ public class WebUtility {
 						}
 					}};
 			} catch (UnsupportedEncodingException e) {
-				LOGGER.error("Failed to write object to stream. Stacktrace: ", e);
+				logger.error(Constants.STACKTRACE, e);
 			}      
 		}
 
@@ -129,7 +129,7 @@ public class WebUtility {
 				}
 				return builder.build();
 			} catch (UnsupportedEncodingException e) {
-				LOGGER.error("Stacktrace: ", e);
+				logger.error(Constants.STACKTRACE, e);
 			}
 			return Response.status(200).entity(WebUtility.getSO(vec)).build();
 		}
@@ -199,7 +199,7 @@ public class WebUtility {
 					}
 				}};
 		} catch (Exception e) {
-			LOGGER.error("Failed to write object to stream. Stacktrace: ",e);
+			logger.error(Constants.STACKTRACE, e);
 		}      
 
 		return null;
