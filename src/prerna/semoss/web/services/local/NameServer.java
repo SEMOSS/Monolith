@@ -306,6 +306,7 @@ public class NameServer {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
 				for (Cookie c : curCookies) {
+					logger.info(">>>>> Request cookie " + c.getName() + " with value " + c.getValue());
 					if (c.getName().equals(routeCookieName)) {
 						ThreadStore.setRouteId(c.getValue());
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());
