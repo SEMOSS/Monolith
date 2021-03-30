@@ -95,6 +95,7 @@ import prerna.sablecc2.comm.JobStatus;
 import prerna.sablecc2.comm.JobThread;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.semoss.web.services.remote.EngineRemoteResource;
+import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
@@ -307,6 +308,7 @@ public class NameServer {
 				for (Cookie c : curCookies) {
 					if (c.getName().equals(routeCookieName)) {
 						ThreadStore.setRouteId(c.getValue());
+						ChromeDriverUtility.setRouteCookieValue(c.getValue());
 					}
 				}
 			}
