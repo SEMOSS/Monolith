@@ -456,7 +456,7 @@ public class ImageUploader extends Uploader {
 		// and the image file
 		// we want to write it into the app location
 		String imageDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId;
-		File f = new File(imageDir);
+		File f = new File(Utility.normalizePath(imageDir));
 		if (f.exists()) {
 			// find all the existing image files
 			// and delete them
