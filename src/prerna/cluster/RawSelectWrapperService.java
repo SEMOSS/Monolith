@@ -20,13 +20,13 @@ import prerna.engine.api.IHeadersDataRow;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.sablecc2.om.execptions.SemossPixelException;
+import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/cluster")
 public class RawSelectWrapperService implements IRawSelectWrapper {
 
-	private static final String STACKTRACE = "StackTrace: ";
 	private static final Logger logger = LogManager.getLogger(RawSelectWrapperService.class); 
 
 	public static final String APP_ID = "appId";
@@ -151,7 +151,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId, query);
 			wrapper.execute();
 		} catch (Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 			ret.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
@@ -196,7 +196,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId, query);
 			wrapper.setQuery(query);
 		} catch (Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 		}
 
 		// Set return values
@@ -237,7 +237,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		try {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 		} catch (Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 		} finally {
 			if(wrapper != null) {
 				wrapper.cleanUp();
@@ -286,7 +286,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			IEngine engine = getEngine(appId);
 			wrapper.setEngine(engine);
 		} catch (Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 		}
 
 		// Set return values
@@ -324,7 +324,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			hasNext = wrapper.hasNext();
 		} catch (Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 		}
 
 		// Set return values
@@ -357,7 +357,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			nextRow = wrapper.next();
 		} catch (Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 		}
 
 		// Set return values
@@ -390,7 +390,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			headers = wrapper.getHeaders();
 		} catch (Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 		}
 
 		// Set return values
@@ -423,7 +423,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			types = wrapper.getTypes();
 		} catch (Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 		}
 
 		// Set return values
@@ -456,7 +456,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			numRecords = wrapper.getNumRecords();
 		} catch (Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 			Hashtable<String, Object> ret = new Hashtable<>();
 			ret.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(ret, 400);
@@ -528,7 +528,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			wrapper.reset();
 		} catch (Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 			ret.put("errorMessage", e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
