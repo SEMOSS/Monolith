@@ -241,11 +241,9 @@ public class NameServer {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		// TODO: put file name cleanup
-		// cannot have things like "," in the name for the attachment
 		String exportName = FilenameUtils.getName(filePath);
 		return Response.status(200).entity(exportFile)
-				.header("Content-Disposition", "attachment; filename=" + exportName).build();
+				.header("Content-Disposition", "attachment; filename=\"" + exportName + "\"").build();
 	}
 
 	///////////////////////////////////////////////
