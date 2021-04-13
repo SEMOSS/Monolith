@@ -36,7 +36,9 @@ import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +47,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.Vector;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -85,6 +88,7 @@ import prerna.auth.utils.NativeUserSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.cluster.util.ClusterUtil;
+import prerna.io.connector.GenericProfile;
 import prerna.io.connector.IConnectorIOp;
 import prerna.io.connector.google.GoogleEntityResolver;
 import prerna.io.connector.google.GoogleFileRetriever;
@@ -156,23 +160,37 @@ public class UserResource {
 	}
 
 	private static void setLoginsAllowed() {
-		boolean nativeLogin = Boolean.parseBoolean(socialData.getProperty("native_login"));
-		boolean githubLogin = Boolean.parseBoolean(socialData.getProperty("github_login"));
-		boolean googleLogin = Boolean.parseBoolean(socialData.getProperty("google_login"));
-		boolean onedriveLogin = Boolean.parseBoolean(socialData.getProperty("ms_login"));
-		boolean siteminderLogin = Boolean.parseBoolean(socialData.getProperty("siteminder_login"));
-		boolean dropboxLogin = Boolean.parseBoolean(socialData.getProperty("dropbox_login"));
-		boolean cacLogin = Boolean.parseBoolean(socialData.getProperty("cac_login"));
-		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
+		
 		UserResource.loginsAllowedMap = new HashMap<>();
-		UserResource.loginsAllowedMap.put("native", nativeLogin);
-		UserResource.loginsAllowedMap.put("google", googleLogin);
-		UserResource.loginsAllowedMap.put("github", githubLogin);
-		UserResource.loginsAllowedMap.put("ms", onedriveLogin);
-		UserResource.loginsAllowedMap.put("siteminder", siteminderLogin);
-		UserResource.loginsAllowedMap.put("dropbox", dropboxLogin);
-		UserResource.loginsAllowedMap.put("cac", cacLogin);
+
+		//define the default provider set
+		HashSet<String> defaultProviders = new HashSet<String>(Arrays.asList("native", "github", "google",
+				"ms","siteminder", "dropbox", "cac"));
+		
+		//get all _login props
+	    Set<String> loginProps = socialData.stringPropertyNames().stream().filter(str->str.endsWith("_login")).collect(Collectors.toSet());
+		for( String prop : loginProps) {
+			//prop ex. ms_login
+			
+			//get provider from prop by split on _
+			String provider = prop.split("_")[0];
+		
+			UserResource.loginsAllowedMap.put(provider,  Boolean.parseBoolean(socialData.getProperty(prop)));
+			
+			//remove the provider from the defaultProvider list
+			defaultProviders.remove(provider);
+		}
+		
+		//for loop through the defaultProviders list to make sure we set the rest to false
+		for(String provider: defaultProviders) {
+			UserResource.loginsAllowedMap.put(provider,  false);
+		}
+
+		//get if registration is allowed
+		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
 		UserResource.loginsAllowedMap.put("registration", registration);
+
+
 	}
 
 	public static Map<String, Boolean> getLoginsAllowed() {
@@ -532,6 +550,48 @@ public class UserResource {
 			logger.error(Constants.STACKTRACE, e);
 		}
 		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Gets user info for Generic Providers
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/{provider}")
+	public Response userinfoGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request) {
+		
+		
+		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
+		
+		Map<String, String> ret = new Hashtable<>();
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		String prefix = provider+"_";
+		String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
+		//"name","id","email"
+		String beanProps = socialData.getProperty(prefix + "beanProps");
+		String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+
+		String[] beanPropsArr = beanProps.split(",", -1);
+
+		String accessString = null;
+		try {
+			if (user == null) {
+				ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.toString() + " account");
+			} else {
+				AccessToken genericToken = user.getAccessToken(providerEnum);
+				accessString = genericToken.getAccess_token();
+				//String url = "https://graph.microsoft.com/v1.0/me/";
+				String output = AbstractHttpHelper.makeGetCall(userInfoURL, accessString, null, true);
+				AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr,
+						new AccessToken());
+				String name = accessToken2.getName();
+				ret.put("name", name);
+			}
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.toString() + " account");
+			return WebUtility.getResponse(ret, 200);
+		}
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////
@@ -1516,6 +1576,116 @@ public class UserResource {
 		return redirectUrl;
 	}
 
+	
+	
+	/**
+	 * Logs user in through generic provider
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/{provider}")
+	public Response loginGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		/*
+		 * Try to log in the user
+		 * If they are not logged in
+		 * Redirect the FE
+		 */
+		
+		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
+
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		String queryString = request.getQueryString();
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || ((User) userObj).getAccessToken(providerEnum) == null) {
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+
+				String prefix = provider+"_";
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				//String tenant = socialData.getProperty(prefix + "tenant");
+				
+				//removing scope for now as it isn't needed in token call usually
+				//String scope = socialData.getProperty(prefix + "scope");
+				String token_url = socialData.getProperty(prefix + "token_url");
+
+				if(logger.isDebugEnabled()) {
+					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				}
+				
+				Hashtable params = new Hashtable();
+				params.put("client_id", clientId);
+			//	params.put("scope", scope);
+				params.put("redirect_uri", redirectUri);
+				params.put("code", outputs[0]);
+				params.put("grant_type", "authorization_code");
+				params.put("client_secret", clientSecret);
+
+				
+				if(Strings.isNullOrEmpty(token_url)){
+					throw new IllegalArgumentException("Token URL can not be null or empty");
+				}
+
+				AccessToken accessToken = AbstractHttpHelper.getAccessToken(token_url, params, true, true);
+				if (accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getMSRedirect(request));
+					return null;
+				}
+
+				String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
+				//"name","id","email"
+				String beanProps = socialData.getProperty(prefix + "beanProps");
+				String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+
+				accessToken.setProvider(providerEnum);
+				GenericProfile.fillAccessToken(accessToken,userInfoURL, beanProps, jsonPattern, null);
+				addAccessToken(accessToken, request);
+
+				if(logger.isDebugEnabled()) {
+					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				}
+			}
+		}
+
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if (userObj == null || userObj.getAccessToken(providerEnum) == null) {
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getGenericRedirect(provider, request));
+			return null;
+		}
+
+		setMainPageRedirect(request, response);
+		return null;
+	}
+
+	private String getGenericRedirect(String provider, HttpServletRequest request) throws UnsupportedEncodingException {
+		String prefix = provider+"_";
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		//String tenant = socialData.getProperty(prefix + "tenant");
+		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
+		String auth_url = socialData.getProperty(prefix + "auth_url");
+
+		String state = UUID.randomUUID().toString();
+		
+		if(Strings.isNullOrEmpty(auth_url)){
+			throw new IllegalArgumentException("Authorize URL can not be null or empty");
+		}
+		String redirectUrl = auth_url + "?" + "client_id="
+				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
+				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
+
+		if(logger.isDebugEnabled()) {
+			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		}
+		
+		return redirectUrl;
+	}
 //	public static String calculateRFC2104HMAC(String data, String key) throws SignatureException, NoSuchAlgorithmException, InvalidKeyException {
 //		SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), "HmacSHA1");
 //		Mac mac = Mac.getInstance("HmacSHA1");
