@@ -119,6 +119,18 @@
       <url-pattern>/api/schedule/*</url-pattern>
    </filter-mapping>
    
+   <!-- SSO Filter for SAML -->
+   <!--
+   <filter>
+      <filter-name>SSOFilter</filter-name>
+      <filter-class>prerna.web.conf.SSOFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>SSOFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+   -->
+   
    <!--  allow anonymous users -->
    <!-- 
    <filter>
