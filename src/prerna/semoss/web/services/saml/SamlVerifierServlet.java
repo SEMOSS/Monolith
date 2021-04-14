@@ -70,11 +70,10 @@ public class SamlVerifierServlet extends HttpServlet {
 		// sample file path that we actually need to give. Make sure the Federation
 		// file is there inside the debug folder.
 		// "C:\\workspace\\Semoss_Dev\\saml\\mesoc\\conf\\debug\\Federation"
-		String federationLogPath = ((String) DIHelper.getInstance().getCoreProp().get("SAML_FEDERATION_LOG_PATH")).trim();
-		BufferedWriter out = new BufferedWriter(
-				new FileWriter(new File(federationLogPath)));
-
-		try {
+		String federationLogPath = ((String) DIHelper.getInstance().getCoreProp().get(Constants.SAML_FEDERATION_LOG_PATH)).trim();
+		
+		try( BufferedWriter out = new BufferedWriter(
+				new FileWriter(new File(federationLogPath))) ) {
 			// invoke the SAML processing logic. this will do all the
 			// necessary processing conforming to SAMLv2 specifications,
 			// such as XML signature validation, Audience and Recipient
