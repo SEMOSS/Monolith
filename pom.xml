@@ -1044,7 +1044,7 @@
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
-			<version>4.1.51.Final</version>
+			<version>4.1.50.Final</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
@@ -1958,6 +1958,18 @@
 		    <groupId>org.apache.zookeeper</groupId>
 		    <artifactId>zookeeper</artifactId>
 		    <version>3.6.2</version>
+		</dependency>
+		<dependency>
+		  <groupId>org.elasticsearch.plugin</groupId>
+		  <artifactId>x-pack-sql-jdbc</artifactId>
+		  <version>7.11.2</version>
+		</dependency>
+		<!-- SAML ONE JAR -->
+		<!-- https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
+		<dependency>
+		    <groupId>org.openidentityplatform.openam</groupId>
+		    <artifactId>openam-federation-library</artifactId>
+		    <version>14.6.1</version>
 		</dependency>
 	</dependencies>
 </project>
