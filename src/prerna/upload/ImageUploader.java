@@ -1,14 +1,12 @@
 package prerna.upload;
 
 import java.io.File;
-import java.io.FileFilter;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -36,6 +34,7 @@ import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
+import prerna.util.insight.InsightUtility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/images")
@@ -137,7 +136,7 @@ public class ImageUploader extends Uploader {
 			FilenameFilter appIdFilter = new WildcardFileFilter(appId + "*");
 			oldImages = f.getParentFile().listFiles(appIdFilter);
 		} else {
-			oldImages = findImageFile(f.getParentFile());
+			oldImages = InsightUtility.findImageFile(f.getParentFile());
 		}
 		// delete if any exist
 		if (oldImages != null) {
@@ -230,7 +229,7 @@ public class ImageUploader extends Uploader {
 			FilenameFilter appIdFilter = new WildcardFileFilter(appId + "*");
 			oldImages = f.listFiles(appIdFilter);
 		} else {
-			oldImages = findImageFile(f);
+			oldImages = InsightUtility.findImageFile(f);
 		}
 		// delete if any exist
 		if (oldImages != null) {
@@ -367,7 +366,7 @@ public class ImageUploader extends Uploader {
 		}
 		// find all the existing image files
 		// and delete them
-		File[] oldImages = findImageFile(f);
+		File[] oldImages = InsightUtility.findImageFile(f);
 		// delete if any exist
 		if (oldImages != null) {
 			for (File oldI : oldImages) {
@@ -460,7 +459,7 @@ public class ImageUploader extends Uploader {
 		if (f.exists()) {
 			// find all the existing image files
 			// and delete them
-			File[] oldImages = findImageFile(f);
+			File[] oldImages = InsightUtility.findImageFile(f);
 			// delete if any exist
 			if (oldImages != null) {
 				for (File oldI : oldImages) {
@@ -481,41 +480,5 @@ public class ImageUploader extends Uploader {
 		returnMap.put("message", "Successfully deleted insight image");
 		return WebUtility.getResponse(returnMap, 200);
 	}
-	
-	/**
-	 * Find an image in the directory
-	 * 
-	 * @param baseDir
-	 * @return
-	 */
-	public static File[] findImageFile(String baseDir) {
-		List<String> extensions = new Vector<>();
-		extensions.add("image.png");
-		extensions.add("image.jpeg");
-		extensions.add("image.jpg");
-		extensions.add("image.gif");
-		extensions.add("image.svg");
-		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
-		File baseFolder = new File(baseDir);
 
-		return baseFolder.listFiles(imageExtensionFilter);
-	}
-
-	/**
-	 * Find an image in the directory
-	 * 
-	 * @param baseDir
-	 * @return
-	 */
-	public static File[] findImageFile(File baseFolder) {
-		List<String> extensions = new Vector<>();
-		extensions.add("image.png");
-		extensions.add("image.jpeg");
-		extensions.add("image.jpg");
-		extensions.add("image.gif");
-		extensions.add("image.svg");
-		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
-
-		return baseFolder.listFiles(imageExtensionFilter);
-	}
 }
