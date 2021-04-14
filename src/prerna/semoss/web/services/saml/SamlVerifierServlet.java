@@ -129,8 +129,9 @@ public class SamlVerifierServlet extends HttpServlet {
 			AccessToken token = null;
 			User user = new User();
 			token = new AccessToken();
-			token.setProvider(AuthProvider.SAML);
+			token.setId(userId);
 			token.setUsername(userId);
+			token.setProvider(AuthProvider.SAML);
 			user.setAccessToken(token);
 			SecurityUpdateUtils.addOAuthUser(token);
 			session.setAttribute(Constants.SESSION_USER, user);
