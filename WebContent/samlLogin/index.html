@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<script>
+		function redirectSAML() {
+			var xhttp = new XMLHttpRequest(),
+				origin = window.location.href;
+			endpoint = origin.substring(0, origin.lastIndexOf('/samlLogin')) + '/IdpSSOServlet',
+			window.location.replace(endpoint);
+			xhttp.open('GET', endpoint, true);
+			xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+		}
+	</script>
+</head>
+
+<body onload="redirectSAML()">
+</body>
+
+</html>
