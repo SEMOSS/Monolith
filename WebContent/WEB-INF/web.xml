@@ -383,22 +383,6 @@
       <servlet-name>AdminApplication</servlet-name>
       <url-pattern>/adminconfig/*</url-pattern>
    </servlet-mapping>
-   <servlet>
-      <servlet-name>SamlApplication</servlet-name>
-      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
-      <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
-         <param-value>prerna.semoss.web.app.SamlApplication</param-value>
-      </init-param>
-      <init-param>
-	     <param-name>resteasy.servlet.mapping.prefix</param-name>
-	     <param-value>/saml</param-value>
-	  </init-param>
-   </servlet>
-   <servlet-mapping>
-      <servlet-name>SamlApplication</servlet-name>
-      <url-pattern>/saml/*</url-pattern>
-   </servlet-mapping>
 
    <!-- context params -->
    <context-param>
