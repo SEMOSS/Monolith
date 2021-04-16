@@ -15,8 +15,13 @@ public class SamlDataObject {
 
 	}
 	
+	/**
+	 * Store all the keys are lower case
+	 * @param key
+	 * @param value
+	 */
 	public void addAttribute(String key, String value) {
-		this.attributes.put(key, value);
+		this.attributes.put(key.toLowerCase(), value);
 	}
 	
 	public Map<String, String> getAttributeMap() {
