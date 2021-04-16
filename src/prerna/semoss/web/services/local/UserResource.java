@@ -36,9 +36,7 @@ import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +98,7 @@ import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
 import prerna.security.AbstractHttpHelper;
+import prerna.semoss.web.services.saml.SamlAttributeMapperObject;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -117,7 +116,7 @@ public class UserResource {
 
 	private static Properties socialData = null;
 	private static Map<String, Boolean> loginsAllowedMap;
-
+	
 	static {
 		loadSocialProperties();
 		AppTokens.setSocial(socialData);
@@ -152,7 +151,6 @@ public class UserResource {
 
 	/**
 	 * Method to get the redirect URL if defined in the social properties
-	 * 
 	 * @return
 	 */
 	public static String getLoginRedirect() {
@@ -160,37 +158,30 @@ public class UserResource {
 	}
 
 	private static void setLoginsAllowed() {
-		
 		UserResource.loginsAllowedMap = new HashMap<>();
-
-		//define the default provider set
-		HashSet<String> defaultProviders = new HashSet<String>(Arrays.asList("native", "github", "google",
-				"ms","siteminder", "dropbox", "cac"));
+		// define the default provider set
+		Set<String> defaultProviders = AuthProvider.getSocialPropKeys();
 		
-		//get all _login props
+		// get all _login props
 	    Set<String> loginProps = socialData.stringPropertyNames().stream().filter(str->str.endsWith("_login")).collect(Collectors.toSet());
 		for( String prop : loginProps) {
 			//prop ex. ms_login
-			
 			//get provider from prop by split on _
 			String provider = prop.split("_")[0];
 		
 			UserResource.loginsAllowedMap.put(provider,  Boolean.parseBoolean(socialData.getProperty(prop)));
-			
 			//remove the provider from the defaultProvider list
 			defaultProviders.remove(provider);
 		}
 		
-		//for loop through the defaultProviders list to make sure we set the rest to false
+		// for loop through the defaultProviders list to make sure we set the rest to false
 		for(String provider: defaultProviders) {
 			UserResource.loginsAllowedMap.put(provider,  false);
 		}
 
-		//get if registration is allowed
+		// get if registration is allowed
 		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
 		UserResource.loginsAllowedMap.put("registration", registration);
-
-
 	}
 
 	public static Map<String, Boolean> getLoginsAllowed() {
@@ -2105,5 +2096,31 @@ public class UserResource {
 			}
 		}
 		return WebUtility.getResponse(output, 200);
+	}
+	
+	/**
+	 * This method is a helper method specific to the SAML functionality.
+	 * It gets all the SAML keys from the social.properties and sends them
+	 * to the SAML API for extraction/validation from a SAML response.
+	 * 
+	 * @return Map<Object, Object>
+	 */
+	public static Map<String, SamlAttributeMapperObject> getSamlAttributeNames() {
+		String prefix = Constants.SAML + "_";
+		String arrow = "->";
+		Map<String, SamlAttributeMapperObject> samlAttrMap = new HashMap<>();
+	    Set<String> samlProps = socialData.stringPropertyNames().stream().filter(str->str.startsWith(prefix)).collect(Collectors.toSet());
+	    for(String samlKey : samlProps) {
+			String[] values = socialData.get(samlKey).toString().trim().split(arrow);
+			SamlAttributeMapperObject sdo = new SamlAttributeMapperObject();
+			sdo.setAssertionKey(samlKey);
+			sdo.setApplicationKey(values[0]);
+			sdo.setMandatory(values[1]);
+			if(values.length == 3) {
+				sdo.setDefaultValue(values[2]);
+			}
+			samlAttrMap.putIfAbsent(samlKey, sdo);
+	    }
+		return samlAttrMap;
 	}
 }
