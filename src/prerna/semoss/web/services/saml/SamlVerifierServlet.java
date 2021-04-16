@@ -36,6 +36,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.web.conf.AdminStartupFilter;
@@ -103,39 +104,45 @@ public class SamlVerifierServlet extends HttpServlet {
 			String value = nameId.getValue();
 			String format = nameId.getFormat();
 
+			// Get the field mappings from the properties file in the map. The 
+			// SamlAttributeMapperObject holds all the metadata related to the 
+			// saml fields. 
+			Map<String, SamlAttributeMapperObject> attrMap = UserResource.getSamlAttributeNames();
+			// The SamlDataObject holds the actual data received from the saml
+			// like the userId, email, user name. Additional fields can be added
+			// if required.
+			SamlDataObject sdo = new SamlDataObject(); 
+			
+			// Lets create the SamlDataObjects for only those fields which are present in our props.
+			// IDP can send tons of attributes, no need to get and check all of them.
+			logger.info("Checking if all mandatory fields is present in the SAML...");
 			List<AttributeStatement> attrlist = assertion.getAttributeStatements();
-			String userId = null;
 			for (AttributeStatement stmt : attrlist) {
 				List<Attribute> attributeList = stmt.getAttribute();
 				for (Attribute attr : attributeList) {
-					if (attr.getName().equalsIgnoreCase("mail")) {
-						logger.debug(" Attrubute name - %s, Attribute value - %s\n", attr.getName(),
+					String samlVal = null;
+					SamlAttributeMapperObject mapperRow = attrMap.getOrDefault(attr.getName().toLowerCase(), null);
+					if (mapperRow != null) {
+						logger.info("Attrubute name - %s, Attribute value - %s\n", attr.getName(),
 								attr.getAttributeValue());
 						String valXml = (String) attr.getAttributeValue().get(0);
-						userId = StringUtils.substringBetween(valXml, ">", "<");
+						if (attr.getName().equalsIgnoreCase(mapperRow.getAssertionKey())) {
+							samlVal = StringUtils.substringBetween(valXml, ">", "<");
+						} 
+						// Check if mandatory fields are present. If not then fail fast.
+						if(mapperRow.isMandatory() && samlVal == null) {
+							throw new IllegalArgumentException("Attribute value is mandatory. Please check if the value of this key is being sent from the IDP - " + mapperRow.getAssertionKey());
+						}
+						// Set the samlVal in the SamlDataObject
+						setAuxillaryFields(mapperRow, sdo, samlVal);
 					}
 				}
 			}
-
-			logger.info("Checking if user id is present in the SAML...");
-
-			if (userId == null || userId.isEmpty()) {
-				throw new IllegalArgumentException("Did not receive valid userID from IDP. "
-						+ "Possible cause - user does not have access to IDP and you need to provide access to the user on the IDP side.");				
-			}
 			
-			logger.info("User id is good. Creating User/Token and setting it to session.");
+			logger.info("User details looks good. Creating User/Token and setting it to session.");
 			HttpSession session = request.getSession(true);
-			AccessToken token = null;
-			User user = new User();
-			token = new AccessToken();
-			token.setId(userId);
-			token.setUsername(userId);
-			token.setProvider(AuthProvider.SAML);
-			user.setAccessToken(token);
-			SecurityUpdateUtils.addOAuthUser(token);
-			session.setAttribute(Constants.SESSION_USER, user);
-
+			// Get all details from SamlDataObject and populate into user and token object.
+			establishUserInSession(sdo, session);
 			logger.info("Session is created and user all set to get in. Hold on, redirecting... ");
 			if (session != null && session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) != null) {
 				String originalRedirect = session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) + "";
@@ -150,6 +157,57 @@ public class SamlVerifierServlet extends HttpServlet {
 					"failedToProcessSSOResponse", sme.getMessage());
 		}
 
+	}
+	
+	/**
+	 * This method maps the values from the saml to the SamlDataObject.
+	 * 
+	 * @param SamlAttributeMapperObject mapperField
+	 * @param SamlDataObject sdo
+	 * @param String samlVal
+	 */
+	private void setAuxillaryFields(SamlAttributeMapperObject mapperField, SamlDataObject sdo,String samlVal) {
+		if(mapperField.getApplicationKey().equals(SamlAttributeMapperObject.SAML_APPLICATION_KEYS.firstName.toString())) {
+			sdo.setFirstName(samlVal);
+		}else if(mapperField.getApplicationKey().equals(SamlAttributeMapperObject.SAML_APPLICATION_KEYS.lastName.toString())) {
+			sdo.setLastName(samlVal);
+		}else if(mapperField.getApplicationKey().equals(SamlAttributeMapperObject.SAML_APPLICATION_KEYS.middleName.toString())) {
+			sdo.setMiddleName(samlVal);
+		}else if(mapperField.getApplicationKey().equals(SamlAttributeMapperObject.SAML_APPLICATION_KEYS.uid.toString())) {
+			sdo.setUid(samlVal);
+		}else if(mapperField.getApplicationKey().equals(SamlAttributeMapperObject.SAML_APPLICATION_KEYS.mail.toString())) {
+			sdo.setMail(samlVal);
+		}
+	}
+	
+	/**
+	 * Creates the user/token based on the application requirements from the SamlDataObject.
+	 * Puts the user object in the session.
+	 * 
+	 * @param SamlDataObject sdo
+	 * @param HttpSession session
+	 */
+	private void establishUserInSession(SamlDataObject sdo, HttpSession session) {
+		AccessToken token = null;
+		User user = new User();
+		token = new AccessToken();
+		// Set user id and email in token
+		token.setId(sdo.getUid());
+		token.setUsername(sdo.getUid());
+		token.setEmail(sdo.getMail());
+		// Set name of the user in token
+		StringBuilder sb = new StringBuilder();
+		String fullName = sdo.getMiddleName() == null ? 
+				sb.append(sdo.getFirstName()).append(" ").append(sdo.getLastName()).toString() : 
+				sb.append(sdo.getFirstName()).append(" ").append(sdo.getMiddleName()).append(" ").append(sdo.getLastName()).toString();
+		token.setName(fullName);
+		// Set SAML provider type in token.
+		token.setProvider(AuthProvider.SAML);
+		// Set token in user object
+		user.setAccessToken(token);
+		// Add user to security database and session. Call it a day, phew!
+		SecurityUpdateUtils.addOAuthUser(token);
+		session.setAttribute(Constants.SESSION_USER, user);
 	}
 
 }
