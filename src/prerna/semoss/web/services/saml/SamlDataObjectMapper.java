@@ -71,6 +71,7 @@ public class SamlDataObjectMapper {
 				}
 				
 				buffer.append(sdoInputMap.get(input));
+				counter++;
 			}
 		}
 		
