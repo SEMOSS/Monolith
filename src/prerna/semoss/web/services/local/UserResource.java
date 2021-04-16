@@ -2109,12 +2109,13 @@ public class UserResource {
 	    Set<String> samlProps = socialData.stringPropertyNames().stream().filter(str->str.startsWith(prefix)).collect(Collectors.toSet());
 	    for(String samlKey : samlProps) {
 	    	String socialValue = socialData.get(samlKey).toString().trim();
+	    	String socialKey = samlKey.replaceFirst(prefix, "");
 	    	if(socialValue.equals(NULL_INPUT)) {
 	    		continue;
 	    	}
 	    	
 	    	String[] keyGeneratedBy = socialData.get(samlKey).toString().trim().split("\\+");
-			samlAttrMap.putIfAbsent(samlKey, keyGeneratedBy);
+			samlAttrMap.putIfAbsent(socialKey, keyGeneratedBy);
 	    }
 		return samlAttrMap;
 	}
