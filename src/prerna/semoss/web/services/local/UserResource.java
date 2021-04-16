@@ -2108,17 +2108,19 @@ public class UserResource {
 		Map<String, String[]> samlAttrMap = new HashMap<>();
 	    Set<String> samlProps = socialData.stringPropertyNames().stream().filter(str->str.startsWith(prefix)).collect(Collectors.toSet());
 	    for(String samlKey : samlProps) {
+	    	// key
 	    	String socialKey = samlKey.replaceFirst(prefix, "").toLowerCase();
+	    	// value
 	    	if(socialData.get(samlKey) == null) {
 	    		continue;
 	    	}
 	    	String socialValue = socialData.get(samlKey).toString().trim();
-	    	if( (socialValue = socialValue.trim()).isEmpty() || socialValue.equals(NULL_INPUT)) {
+	    	if( socialValue.isEmpty() || socialValue.equals(NULL_INPUT)) {
 	    		continue;
 	    	}
 	    	socialValue = socialValue.toLowerCase();
 	    	
-	    	String[] keyGeneratedBy = socialData.get(samlKey).toString().trim().split("\\+");
+	    	String[] keyGeneratedBy = socialValue.split("\\+");
 			samlAttrMap.putIfAbsent(socialKey, keyGeneratedBy);
 	    }
 		return samlAttrMap;
