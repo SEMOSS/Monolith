@@ -107,7 +107,7 @@ public class SamlVerifierServlet extends HttpServlet {
 			// Get the field mappings from the properties file in the map. The 
 			// SamlAttributeMapperObject holds all the metadata related to the 
 			// saml fields. 
-			Map<String, SamlAttributeMapperObject> attrMap = UserResource.getSamlAttributeNames();
+			Map<String, String[]> attrMap = UserResource.getSamlAttributeNames();
 			// The SamlDataObject holds the actual data received from the saml
 			// like the userId, email, user name. Additional fields can be added
 			// if required.
@@ -120,29 +120,16 @@ public class SamlVerifierServlet extends HttpServlet {
 			for (AttributeStatement stmt : attrlist) {
 				List<Attribute> attributeList = stmt.getAttribute();
 				for (Attribute attr : attributeList) {
-					String samlVal = null;
-					SamlAttributeMapperObject mapperRow = attrMap.getOrDefault(attr.getName().toLowerCase(), null);
-					if (mapperRow != null) {
-						logger.info("Attrubute name - %s, Attribute value - %s\n", attr.getName(),
-								attr.getAttributeValue());
-						String valXml = (String) attr.getAttributeValue().get(0);
-						if (attr.getName().equalsIgnoreCase(mapperRow.getAssertionKey())) {
-							samlVal = StringUtils.substringBetween(valXml, ">", "<");
-						} 
-						// Check if mandatory fields are present. If not then fail fast.
-						if(mapperRow.isMandatory() && samlVal == null) {
-							throw new IllegalArgumentException("Attribute value is mandatory. Please check if the value of this key is being sent from the IDP - " + mapperRow.getAssertionKey());
-						}
-						// Set the samlVal in the SamlDataObject
-						setAuxillaryFields(mapperRow, sdo, samlVal);
-					}
+					String valXml = (String) attr.getAttributeValue().get(0);
+					String samlVal = StringUtils.substringBetween(valXml, ">", "<");
+					sdo.addAttribute(attr.getName(), samlVal);
 				}
 			}
 			
 			logger.info("User details looks good. Creating User/Token and setting it to session.");
 			HttpSession session = request.getSession(true);
 			// Get all details from SamlDataObject and populate into user and token object.
-			establishUserInSession(sdo, session);
+			establishUserInSession(sdo, attrMap, session);
 			logger.info("Session is created and user all set to get in. Hold on, redirecting... ");
 			if (session != null && session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) != null) {
 				String originalRedirect = session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) + "";
@@ -156,28 +143,6 @@ public class SamlVerifierServlet extends HttpServlet {
 			SAMLUtils.sendError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
 					"failedToProcessSSOResponse", sme.getMessage());
 		}
-
-	}
-	
-	/**
-	 * This method maps the values from the saml to the SamlDataObject.
-	 * 
-	 * @param SamlAttributeMapperObject mapperField
-	 * @param SamlDataObject sdo
-	 * @param String samlVal
-	 */
-	private void setAuxillaryFields(SamlAttributeMapperObject mapperField, SamlDataObject sdo,String samlVal) {
-		if(mapperField.getApplicationKey().equals(SamlAttributeMapperObject.SAML_APPLICATION_KEYS.firstName.toString())) {
-			sdo.setFirstName(samlVal);
-		}else if(mapperField.getApplicationKey().equals(SamlAttributeMapperObject.SAML_APPLICATION_KEYS.lastName.toString())) {
-			sdo.setLastName(samlVal);
-		}else if(mapperField.getApplicationKey().equals(SamlAttributeMapperObject.SAML_APPLICATION_KEYS.middleName.toString())) {
-			sdo.setMiddleName(samlVal);
-		}else if(mapperField.getApplicationKey().equals(SamlAttributeMapperObject.SAML_APPLICATION_KEYS.uid.toString())) {
-			sdo.setUid(samlVal);
-		}else if(mapperField.getApplicationKey().equals(SamlAttributeMapperObject.SAML_APPLICATION_KEYS.mail.toString())) {
-			sdo.setMail(samlVal);
-		}
 	}
 	
 	/**
@@ -187,20 +152,17 @@ public class SamlVerifierServlet extends HttpServlet {
 	 * @param SamlDataObject sdo
 	 * @param HttpSession session
 	 */
-	private void establishUserInSession(SamlDataObject sdo, HttpSession session) {
+	private void establishUserInSession(SamlDataObject sdo, Map<String, String[]> attrMap, HttpSession session) {
 		AccessToken token = null;
 		User user = new User();
 		token = new AccessToken();
 		// Set user id and email in token
-		token.setId(sdo.getUid());
-		token.setUsername(sdo.getUid());
-		token.setEmail(sdo.getMail());
-		// Set name of the user in token
-		StringBuilder sb = new StringBuilder();
-		String fullName = sdo.getMiddleName() == null ? 
-				sb.append(sdo.getFirstName()).append(" ").append(sdo.getLastName()).toString() : 
-				sb.append(sdo.getFirstName()).append(" ").append(sdo.getMiddleName()).append(" ").append(sdo.getLastName()).toString();
-		token.setName(fullName);
+		SamlDataObjectMapper mapper = new SamlDataObjectMapper(sdo, attrMap);
+		
+		token.setId(mapper.getId());
+		token.setUsername(mapper.getUsername());
+		token.setEmail(mapper.getEmail());
+		token.setName(mapper.getName());
 		// Set SAML provider type in token.
 		token.setProvider(AuthProvider.SAML);
 		// Set token in user object

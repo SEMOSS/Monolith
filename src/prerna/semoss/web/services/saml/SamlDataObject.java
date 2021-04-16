@@ -1,55 +1,25 @@
 package prerna.semoss.web.services.saml;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Container for the flushed out SAML attributes 
+ */
 public class SamlDataObject {
 
-	private String firstName;
-	private String lastName;
-	private String middleName;
-	private String uid;
-	private String mail;
-
+	private Map<String, String> attributes = new HashMap<>();
+	
 	public SamlDataObject() {
 
 	}
 	
-	public String getMiddleName() {
-		return middleName;
-	}
-
-	public void setMiddleName(String middleName) {
-		this.middleName = middleName;
+	public void addAttribute(String key, String value) {
+		this.attributes.put(key, value);
 	}
 	
-	public String getFirstName() {
-		return firstName;
+	public Map<String, String> getAttributeMap() {
+		return Collections.unmodifiableMap(this.attributes);
 	}
-
-	public void setFirstName(String firstName) {
-		this.firstName = firstName;
-	}
-
-	public String getLastName() {
-		return lastName;
-	}
-
-	public void setLastName(String lastName) {
-		this.lastName = lastName;
-	}
-
-	public String getUid() {
-		return uid;
-	}
-
-	public void setUid(String uid) {
-		this.uid = uid;
-	}
-
-	public String getMail() {
-		return mail;
-	}
-
-	public void setMail(String mail) {
-		this.mail = mail;
-	}
-
 }
