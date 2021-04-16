@@ -98,7 +98,6 @@ import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
 import prerna.security.AbstractHttpHelper;
-import prerna.semoss.web.services.saml.SamlAttributeMapperObject;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -2099,27 +2098,23 @@ public class UserResource {
 	}
 	
 	/**
-	 * This method is a helper method specific to the SAML functionality.
-	 * It gets all the SAML keys from the social.properties and sends them
-	 * to the SAML API for extraction/validation from a SAML response.
-	 * 
-	 * @return Map<Object, Object>
+	 * Get the SEMOSS user id to the list of SAML attributes that generate the value
+	 * @return
 	 */
-	public static Map<String, SamlAttributeMapperObject> getSamlAttributeNames() {
+	public static Map<String, String[]> getSamlAttributeNames() {
+		final String NULL_INPUT = "NULL";
+		
 		String prefix = Constants.SAML + "_";
-		String arrow = "->";
-		Map<String, SamlAttributeMapperObject> samlAttrMap = new HashMap<>();
+		Map<String, String[]> samlAttrMap = new HashMap<>();
 	    Set<String> samlProps = socialData.stringPropertyNames().stream().filter(str->str.startsWith(prefix)).collect(Collectors.toSet());
 	    for(String samlKey : samlProps) {
-			String[] values = socialData.get(samlKey).toString().trim().split(arrow);
-			SamlAttributeMapperObject sdo = new SamlAttributeMapperObject();
-			sdo.setAssertionKey(samlKey);
-			sdo.setApplicationKey(values[0]);
-			sdo.setMandatory(values[1]);
-			if(values.length == 3) {
-				sdo.setDefaultValue(values[2]);
-			}
-			samlAttrMap.putIfAbsent(samlKey, sdo);
+	    	String socialValue = socialData.get(samlKey).toString().trim();
+	    	if(socialValue.equals(NULL_INPUT)) {
+	    		continue;
+	    	}
+	    	
+	    	String[] keyGeneratedBy = socialData.get(samlKey).toString().trim().split("\\+");
+			samlAttrMap.putIfAbsent(samlKey, keyGeneratedBy);
 	    }
 		return samlAttrMap;
 	}
