@@ -77,9 +77,12 @@
 							<attachClasses>true</attachClasses>
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
+								logout/**,
+								noUserFail/**,
+								samlLogin/**,
+								sessionCounterFail/**,
 								setAdmin/**,
 								startUpFail/**,
-								noUserFail/**,
 								share/**
 							</warSourceIncludes>
 						</configuration>
