@@ -1621,7 +1621,7 @@ public class UserResource {
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
-					response.sendRedirect(getMSRedirect(request));
+					response.sendRedirect(getGenericRedirect(provider, request));
 					return null;
 				}
 
