@@ -30,8 +30,11 @@ import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.sablecc2.reactor.mgmt.MgmtUtil;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
+import prerna.util.Settings;
 import prerna.util.Utility;
 import prerna.web.requests.MultiReadHttpServletRequest;
 
@@ -315,11 +318,19 @@ public class NoUserInSessionFilter implements Filter {
 				redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_USER_HTML;
 				((HttpServletResponse) arg1).sendRedirect(redirectUrl);
 			}
-		} else {
+		} else if(canLoadUser()){
 			redirectUrl = redirectUrl + "#!/" + endpoint;
 			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
 			((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
 			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
+		}else // need to change this to the oom end point once neel has it
+		{
+			logger.info("Oops.. no more memory");
+			redirectUrl = redirectUrl + "#!/" + endpoint;
+			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
+			((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
+			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
+			
 		}
 	}
 
@@ -347,6 +358,29 @@ public class NoUserInSessionFilter implements Filter {
 			}
 		}
 		return false;
+	}
+	
+	public boolean canLoadUser()
+	{
+		boolean canLoad = true;
+		
+		String checkMemSettings = DIHelper.getInstance().getProperty(Settings.CHECK_MEM);
+		
+		boolean checkMem = checkMemSettings != null && checkMemSettings.equalsIgnoreCase("true"); 
+		if(checkMem)
+		{
+			long freeMem = MgmtUtil.getFreeMemory();
+			String memProfileSettings = DIHelper.getInstance().getProperty(Settings.MEM_PROFILE_SETTINGS);
+			
+			if(memProfileSettings.equalsIgnoreCase(Settings.CONSTANT_MEM))
+			{
+				String memLimitSettings = DIHelper.getInstance().getProperty(Settings.USER_MEM_LIMIT);
+				int limit = Integer.parseInt(memLimitSettings);
+				canLoad = limit < freeMem;
+			}
+		}
+		
+		return canLoad;
 	}
 
 }
