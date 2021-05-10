@@ -1178,11 +1178,12 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/com.github.waffle/waffle-jna -->
 		<dependency>
-			<groupId>com.github.dblock.waffle</groupId>
-			<artifactId>waffle-jna</artifactId>
-			<version>1.8.1</version>
-			<exclusions>
+		    <groupId>com.github.waffle</groupId>
+		    <artifactId>waffle-jna</artifactId>
+		    <version>3.0.0</version>
+		    <exclusions>
 				<exclusion>
 					<groupId>*</groupId>
 					<artifactId>*</artifactId>
@@ -1970,15 +1971,14 @@
 		<!-- SAML ONE JAR -->
 		<!-- https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
 		<dependency>
-		    <groupId>org.openidentityplatform.openam</groupId>
-		    <artifactId>openam-federation-library</artifactId>
-		    <version>14.6.1</version>
+			<groupId>org.openidentityplatform.openam</groupId>
+			<artifactId>openam-federation-library</artifactId>
+			<version>14.6.1</version>
 		</dependency>
 		<dependency>
-  <groupId>com.github.oshi</groupId>
-  <artifactId>oshi-core</artifactId>
-  <version>5.7.2</version>
-</dependency>
-		
+			<groupId>com.github.oshi</groupId>
+			<artifactId>oshi-core</artifactId>
+			<version>5.7.2</version>
+		</dependency>
 	</dependencies>
 </project>
