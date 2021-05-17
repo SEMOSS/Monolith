@@ -24,25 +24,35 @@ public class MemoryCheckFilter implements Filter {
 
 	private static final String NO_MORE_MEMORY = "/sessionCounterFail/";
 	
+	private static Boolean checkMem = null;
+	private static String memProfileSettings = null;
+	private static int memLimit = -1;
+	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
+		if(checkMem == null) {
+			isCheckMem();
+		}
 		
-		//check to see if the user is logged in
+		if(!checkMem) {
+			arg2.doFilter(arg0, arg1);
+			return;
+		}
+		
+		// check to see if the user is logged in
 		// if yes.. nothing to do
 		// if not then try to see if we have memory
 		// if not move the uset to oom page
 		
 		ServletContext context = arg0.getServletContext();
-		
 		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
 		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 		User user = null;
 		if (session != null) {
-			// System.out.println("Session ID >> " + session.getId());
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if(user == null && !fullUrl.endsWith(NO_MORE_MEMORY) && !canLoadUser() )
-		{
+		
+		if(user == null && !fullUrl.endsWith(NO_MORE_MEMORY) && !canLoadUser()) {
 			// this will be the deployment name of the app
 			String contextPath = context.getContextPath();
 			
@@ -58,29 +68,52 @@ public class MemoryCheckFilter implements Filter {
 		arg2.doFilter(arg0, arg1);
 	}
 	
-	public boolean canLoadUser()
-	{
+	/**
+	 * Determine if we need to check memory
+	 */
+	private void isCheckMem() {
+		String checkMemSettings = DIHelper.getInstance().getProperty(Settings.CHECK_MEM);
+		if(checkMemSettings != null) {
+			boolean checkMem = Boolean.parseBoolean(checkMemSettings);
+			if(checkMem) {
+				String memLimitSettings = DIHelper.getInstance().getProperty(Settings.USER_MEM_LIMIT);
+				int memLimit = Integer.parseInt(memLimitSettings);
+				
+				MemoryCheckFilter.memProfileSettings = DIHelper.getInstance().getProperty(Settings.MEM_PROFILE_SETTINGS);
+				MemoryCheckFilter.memLimit = memLimit;
+			}
+			MemoryCheckFilter.checkMem = checkMem;
+			return;
+		}
+		MemoryCheckFilter.checkMem = false;
+	}
+	
+	/**
+	 * Determine if we have enough memory to allow login
+	 * @return
+	 */
+	public synchronized boolean canLoadUser() {
+		/*
+		 * Example RDF_Map.prop options
+		 	
+		 	# MEMORY stuff
+			CHECK_MEM	True
+			MEM_PROFILE_SETTINGS	CONSTANT
+			# specification in gigs
+			USER_MEM_LIMIT	2
+			RESERVED_JAVA_MEMORY	12 
+		 * 
+		 */
+		
 		boolean canLoad = true;
 		
-		String checkMemSettings = DIHelper.getInstance().getProperty(Settings.CHECK_MEM);
-		
-		boolean checkMem = checkMemSettings != null && checkMemSettings.equalsIgnoreCase("true"); 
-		if(checkMem)
-		{
-			long freeMem = MgmtUtil.getFreeMemory();
-			String memProfileSettings = DIHelper.getInstance().getProperty(Settings.MEM_PROFILE_SETTINGS);
-			
-			if(memProfileSettings.equalsIgnoreCase(Settings.CONSTANT_MEM))
-			{
-				String memLimitSettings = DIHelper.getInstance().getProperty(Settings.USER_MEM_LIMIT);
-				int limit = Integer.parseInt(memLimitSettings);
-				canLoad = limit < freeMem;
-			}
+		long freeMem = MgmtUtil.getFreeMemory();
+		if(MemoryCheckFilter.memProfileSettings.equalsIgnoreCase(Settings.CONSTANT_MEM)) {
+			canLoad = MemoryCheckFilter.memLimit < freeMem;
 		}
 		
 		return canLoad;
 	}
-
 		
 	@Override
 	public void destroy() {
