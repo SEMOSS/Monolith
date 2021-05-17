@@ -318,19 +318,11 @@ public class NoUserInSessionFilter implements Filter {
 				redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_USER_HTML;
 				((HttpServletResponse) arg1).sendRedirect(redirectUrl);
 			}
-		} else if(canLoadUser()){
+		} else {
 			redirectUrl = redirectUrl + "#!/" + endpoint;
 			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
 			((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
 			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
-		}else // need to change this to the oom end point once neel has it
-		{
-			logger.info("Oops.. no more memory");
-			redirectUrl = redirectUrl + "#!/" + endpoint;
-			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-			((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
-			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
-			
 		}
 	}
 
