@@ -97,6 +97,7 @@ import prerna.io.connector.ms.MSProfile;
 import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
+import prerna.sablecc2.reactor.mgmt.MgmtUtil;
 import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
@@ -240,6 +241,7 @@ public class UserResource {
 		if (provider.equalsIgnoreCase("ALL")) {
 			removed = true;
 			noUser = true;
+			thisUser.removeUserMemory();
 		} else {
 			AuthProvider token = AuthProvider.valueOf(provider.toUpperCase());
 			String assetEngineId = null;
