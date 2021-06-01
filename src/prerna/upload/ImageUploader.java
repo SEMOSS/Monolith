@@ -31,6 +31,7 @@ import prerna.cluster.util.CloudClient;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
+import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
@@ -262,7 +263,8 @@ public class ImageUploader extends Uploader {
 		if(ClusterUtil.IS_CLUSTER){
 			return ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "apps";
 		}
-		return filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version";
+		//return filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version";
+		return AssetUtility.getAppAssetVersionFolder(appName, appId);
 	}
 
 	private String getImageLoc(String filePath, String appId, String appName, FileItem imageFile){
@@ -356,7 +358,8 @@ public class ImageUploader extends Uploader {
 		// now that we have the app name
 		// and the image file
 		// we want to write it into the app location
-		String imageDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId;
+		//String imageDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId;
+		String imageDir = AssetUtility.getAppAssetVersionFolder(appName, appId) + DIR_SEPARATOR + insightId;
 		File f = new File(imageDir);
 		if (!f.exists()) {
 			Boolean success = f.mkdirs();
@@ -454,7 +457,7 @@ public class ImageUploader extends Uploader {
 		// now that we have the app name
 		// and the image file
 		// we want to write it into the app location
-		String imageDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version" + DIR_SEPARATOR + insightId;
+		String imageDir = AssetUtility.getAppAssetVersionFolder(appName, appId) + DIR_SEPARATOR + insightId;
 		File f = new File(Utility.normalizePath(imageDir));
 		if (f.exists()) {
 			// find all the existing image files
