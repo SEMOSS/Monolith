@@ -41,6 +41,7 @@ import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.nameserver.utility.MasterDatabaseUtility;
+import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
@@ -394,7 +395,8 @@ public class AppResource {
 		app = prop.getProperty(Constants.ENGINE_ALIAS);
 		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "version";
+		//String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "version";
+		String fileLocation = AssetUtility.getAppAssetVersionFolder(app, appId);
 		File f = findImageFile(fileLocation);
 		if(f != null) {
 			return f;
@@ -482,7 +484,8 @@ public class AppResource {
 		String appName = prop.getProperty(Constants.ENGINE_ALIAS);
 		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version";
+		//String fileLocation = baseFolder + DIR_SEPARATOR + "db" + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) + DIR_SEPARATOR + "version";
+		String fileLocation = AssetUtility.getAppAssetVersionFolder(appName, appId);
 		if(params != null && !params.isEmpty() && !params.equals("undefined")) {
 			String encodedParams = Utility.encodeURIComponent(params);
 			fileLocation = fileLocation + 
