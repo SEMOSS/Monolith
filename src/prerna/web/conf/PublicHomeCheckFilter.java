@@ -16,7 +16,10 @@ import javax.servlet.http.HttpSession;
 
 import org.owasp.encoder.Encode;
 
+import com.google.common.base.Strings;
+
 import prerna.auth.User;
+import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.sablecc2.reactor.mgmt.MgmtUtil;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -66,14 +69,17 @@ public class PublicHomeCheckFilter implements Filter {
 			String possibleEngineId = fullUrl.substring(fullUrl.indexOf(contextPath) + contextPath.length() + 1);
 			possibleEngineId = possibleEngineId.substring(0, possibleEngineId.indexOf("/"));
 			
-			String [] engTokens = possibleEngineId.split("__");
-			if(engTokens != null && engTokens.length == 2)
+			// this is engine id ?! why are we splitting!
+			//String [] engTokens = possibleEngineId.split("__");
+			
+			String alias = MasterDatabaseUtility.getEngineAliasForId(possibleEngineId);
+			if(!Strings.isNullOrEmpty(alias) && !Strings.isNullOrEmpty(possibleEngineId))
 			{
-				boolean appAllowed = user.checkAppAccess(engTokens[0], engTokens[1]);
+				boolean appAllowed = user.checkAppAccess(alias, possibleEngineId);
 			
 				if(appAllowed)
 				{
-					boolean mapComplete = Utility.getEngine(engTokens[1]).publish(realPath + File.separator + public_home, possibleEngineId);
+					boolean mapComplete = Utility.getEngine(possibleEngineId).publish(realPath + File.separator + public_home, possibleEngineId);
 					if(mapComplete)
 						arg2.doFilter(arg0, arg1);
 					else
