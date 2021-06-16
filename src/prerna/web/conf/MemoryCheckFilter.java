@@ -30,6 +30,13 @@ public class MemoryCheckFilter implements Filter {
 	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
+		/*
+		 * This beginning part is so we dont keep parsing RDF_Map.prop to see if the check memory is enabled or not
+		 * So we will look to see if the Boolean (object class) is initiated
+		 * If not, we will determine its value (true/false) from the isCheckMem() method
+		 * If the check memory is false, then we continue down the filter chain
+		 */
+		
 		if(checkMem == null) {
 			isCheckMem();
 		}
@@ -39,10 +46,13 @@ public class MemoryCheckFilter implements Filter {
 			return;
 		}
 		
-		// check to see if the user is logged in
-		// if yes.. nothing to do
-		// if not then try to see if we have memory
-		// if not move the uset to oom page
+		/*
+		 * User has enabled the memory check filter
+		 * Check to see if the user is logged in
+		 * If yes.. nothing to do
+		 * If not then try to see if we have memory
+		 * If not move the uset to oom page
+		 */
 		
 		ServletContext context = arg0.getServletContext();
 		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
