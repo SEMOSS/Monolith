@@ -53,14 +53,15 @@ public class PublicHomeCheckFilter implements Filter {
 		}
 		if(user != null)
 		{
-			String public_home = "public_home";
+			String public_home = "/public_home";
 			if(DIHelper.getInstance().getProperty(Settings.PUBLIC_HOME) != null)
 				public_home = DIHelper.getInstance().getProperty(Settings.PUBLIC_HOME);
 
 
+			//public_home = "";
 			// this will be the deployment name of the app
 			//  Context Path  - this is already / Monolith
-			String contextPath = context.getContextPath() + "/" + public_home ;
+			String contextPath = context.getContextPath() + public_home ;
 			String realPath = context.getRealPath(File.separator);
 			
 			// https://server/Monolith/public_home/engineid/resource
@@ -77,11 +78,19 @@ public class PublicHomeCheckFilter implements Filter {
 			{
 				boolean appAllowed = user.checkAppAccess(alias, possibleEngineId);
 			
+				File phomeFile = new File(realPath + public_home); // try to create the public home from scratch
+				
+				if(!phomeFile.exists())
+					phomeFile.mkdir();
+
 				if(appAllowed)
 				{
-					boolean mapComplete = Utility.getEngine(possibleEngineId).publish(realPath + File.separator + public_home, possibleEngineId);
+					boolean mapComplete = Utility.getEngine(possibleEngineId).publish(realPath + public_home, possibleEngineId);
 					if(mapComplete)
+					{
 						arg2.doFilter(arg0, arg1);
+						return;
+					}
 					else
 					{
 						arg1.getWriter().write("Publish is not enabled on this application or there was an error publishing this application" );
