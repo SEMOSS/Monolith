@@ -39,11 +39,11 @@ public class IdpSSOServlet extends HttpServlet {
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		// if already logged in
 		// then nothing to do, redirect 
+		String redirect = request.getParameter("redirect");
 		if(request.getSession(false) != null) {
-			HttpSession session = request.getSession(false);
+			HttpSession session = request.getSession();
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
 			if(user != null && user.getAccessToken(AuthProvider.SAML) != null) {
-				String redirect = request.getParameter("redirect");
 				if(redirect != null && !(redirect = redirect.trim()).isEmpty()) {
 					response.setStatus(302);
 					response.sendRedirect(redirect);
@@ -51,7 +51,14 @@ public class IdpSSOServlet extends HttpServlet {
 				}
 			}
 		}
-				
+		
+		// if we are specifying the redirect
+		// set it here so after the login we redirect to the correct page
+		if(redirect != null && !(redirect = redirect.trim()).isEmpty()) {
+			HttpSession session = request.getSession();
+			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, redirect);
+		}
+		
 		logger.info("Starting IDP initiated SSO.");
 		SSOUtil util = SSOUtil.getInstance();
 		util.setSSODeployURI((request).getRequestURI());
