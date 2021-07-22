@@ -8,10 +8,14 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import prerna.auth.AuthProvider;
+import prerna.auth.User;
+import prerna.util.Constants;
 import prerna.web.conf.util.SSOUtil;
 
 /**
@@ -33,6 +37,21 @@ public class IdpSSOServlet extends HttpServlet {
 	 * does a redirect to the IDP.
 	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		// if already logged in
+		// then nothing to do, redirect 
+		if(request.getSession(false) != null) {
+			HttpSession session = request.getSession(false);
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if(user != null && user.getAccessToken(AuthProvider.SAML) != null) {
+				String redirect = request.getParameter("redirect");
+				if(redirect != null && !(redirect = redirect.trim()).isEmpty()) {
+					response.setStatus(302);
+					response.sendRedirect(redirect);
+					return;
+				}
+			}
+		}
+				
 		logger.info("Starting IDP initiated SSO.");
 		SSOUtil util = SSOUtil.getInstance();
 		util.setSSODeployURI((request).getRequestURI());
