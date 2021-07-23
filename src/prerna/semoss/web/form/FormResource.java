@@ -240,7 +240,12 @@ public class FormResource {
 		try {
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
-			x509Id = user.getAccessToken(AuthProvider.CAC).getId();
+			if(user.getAccessToken(AuthProvider.CAC) != null) {
+				x509Id = user.getAccessToken(AuthProvider.CAC).getId();
+			} else {
+				// if not CAC - we are using SMAL
+				x509Id = user.getAccessToken(AuthProvider.SAML).getId();
+			}
 		} catch(Exception e) {
 			throw new IOException("Could not identify user");
 		}
