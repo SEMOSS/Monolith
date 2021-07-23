@@ -1968,6 +1968,12 @@
 		  <artifactId>x-pack-sql-jdbc</artifactId>
 		  <version>7.9.1</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/com.amazon.opendistroforelasticsearch.client/opendistro-sql-jdbc -->
+		<dependency>
+		    <groupId>com.amazon.opendistroforelasticsearch.client</groupId>
+		    <artifactId>opendistro-sql-jdbc</artifactId>
+		    <version>1.11.0.0</version>
+		</dependency>
 		<!-- SAML ONE JAR -->
 		<!-- https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
 		<dependency>
