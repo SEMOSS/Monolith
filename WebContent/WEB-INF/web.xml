@@ -18,6 +18,7 @@
       <filter-name>SetCharacterEncoding</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
+   
    <filter>
       <filter-name>HeaderSecurityFilter</filter-name>
       <filter-class>org.apache.catalina.filters.HttpHeaderSecurityFilter</filter-class>
@@ -39,6 +40,7 @@
       <url-pattern>/*</url-pattern>
    </filter-mapping>
    <!-- CORS FILTER - MUST FILL IN cors.allowed.origins -->
+   <!-- 
    <filter>
       <filter-name>CorsFilter</filter-name>
       <filter-class>org.apache.catalina.filters.CorsFilter</filter-class>
@@ -71,7 +73,7 @@
       <filter-name>CorsFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
-   
+	-->
    <!-- general check that the databases loaded properly -->
    <filter>
       <filter-name>StartUpSuccessFilter</filter-name>
@@ -195,7 +197,7 @@
 	  <init-param>
 			<param-name>updateUserInfo</param-name>
 			<param-value>false</param-value>
-	  </init-param>	  
+	  </init-param>
 	  <init-param>
 			<param-name>countUserEntry</param-name>
 			<param-value>false</param-value>
@@ -227,7 +229,7 @@
    <!-- 
    <filter>
       <filter-name>SecurityFilter</filter-name>
-      <filter-class>waffle.servlet.NegotiateSecurityFilter</filter-class>
+      <filter-class>prerna.web.conf.SemossNegotiateSecurityFilter</filter-class>
       <init-param>
          <param-name>principalFormat</param-name>
          <param-value>fqn</param-value>
@@ -361,6 +363,19 @@
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
    -->
+   
+   <filter>
+      <filter-name>FilespaceAccessFilter</filter-name>
+      <filter-class>prerna.web.conf.FilespaceAccessFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>FilespaceAccessFilter</filter-name>
+      <url-pattern>/public_home/*</url-pattern>
+   </filter-mapping>
+   <filter-mapping>
+      <filter-name>FilespaceAccessFilter</filter-name>
+      <url-pattern>/public_home/*</url-pattern>
+   </filter-mapping>
     
    <!-- servlets -->
    <servlet>
@@ -395,7 +410,6 @@
       <servlet-name>AdminApplication</servlet-name>
       <url-pattern>/adminconfig/*</url-pattern>
    </servlet-mapping>
-
    <!-- context params -->
    <context-param>
       <param-name>isLog4jAutoInitializationDisabled</param-name>
@@ -403,7 +417,7 @@
    </context-param>
    <context-param>
 	   <param-name>log4jConfiguration</param-name>
-	   <param-value>file:///C:/workspace/Semoss_Dev/log4j2.properties</param-value>
+	   <param-value>file:///C:/workspace3/Semoss_Dev/log4j2.properties</param-value>
    </context-param>
    <context-param>
       <param-name>security-enabled</param-name>
@@ -463,10 +477,8 @@
       <session-timeout>120</session-timeout>
       <cookie-config>
          <name>monolith</name>
-         <!-- 
          <http-only>false</http-only>
          <secure>false</secure>
-         -->
 	  </cookie-config>
    </session-config>
 </web-app>
