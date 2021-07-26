@@ -103,13 +103,13 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	private IEngine getEngine(String appId) {
 		IEngine engine = null;
-		if (appId.endsWith("_InsightsRDBMS")) {
-			String parentAppId = appId.replace("_InsightsRDBMS", "");
-			IEngine parentEngine = Utility.getEngine(parentAppId);
-			engine = parentEngine.getInsightDatabase();
-		} else {
+//		if (appId.endsWith("_InsightsRDBMS")) {
+//			String parentAppId = appId.replace("_InsightsRDBMS", "");
+//			IEngine parentEngine = Utility.getEngine(parentAppId);
+//			engine = parentEngine.getInsightDatabase();
+//		} else {
 			engine = Utility.getEngine(appId);
-		}
+//		}
 		return engine;
 	}
 

@@ -24,43 +24,43 @@ import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
-@Path("/auth/admin/app")
-public class AdminAppAuthorizationResource extends AbstractAdminResource {
+@Path("/auth/admin/project")
+public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 
-	private static final Logger logger = LogManager.getLogger(AdminAppAuthorizationResource.class);
+	private static final Logger logger = LogManager.getLogger(AdminProjectAuthorizationResource.class);
 
 	@Context
 	protected ServletContext context;
 	
 	/**
-	 * Get the apps the user has access to
+	 * Get the projects the user has access to
 	 * @param request
 	 * @return
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getApps")
-	public Response getUserApps(@Context HttpServletRequest request) {
+	@Path("getProjects")
+	public Response getProjects(@Context HttpServletRequest request) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to get all apps when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to get all projects when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(adminUtils.getAllDatabaseSettings(), 200);
+		return WebUtility.getResponse(adminUtils.getAllProjectSettings(), 200);
 	}
 	
 	@POST
-	@Path("/getAllUserApps")
+	@Path("/getAllUserProjects")
 	@Produces("application/json")
-	public Response getAllUserApps(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response getAllUserProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String userId = form.getFirst("userId");
@@ -68,20 +68,20 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull the apps that user " + userId + " has access to when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull the projects that user " + userId + " has access to when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		return WebUtility.getResponse(adminUtils.getAllUserDbs(userId), 200);
+		return WebUtility.getResponse(adminUtils.getAllUserProjects(userId), 200);
 	}
 	
 	@POST
-	@Path("/grantAllApps")
+	@Path("/grantAllProjects")
 	@Produces("application/json")
-	public Response grantAllApps(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response grantAllProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String userId = form.getFirst("userId");
@@ -90,7 +90,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to grant all the apps to user " + userId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to grant all the projects to user " + userId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -98,7 +98,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllDatabases(userId, permission);
+			adminUtils.grantAllProjects(userId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -108,7 +108,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 
 		// log the operation
 		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user),
-				"has granted all apps to " + userId + "with permission " + permission));
+				"has granted all projects to " + userId + "with permission " + permission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -117,18 +117,18 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 	
 	
 	@POST
-	@Path("/grantNewUsersAppAccess")
+	@Path("/grantNewUsersProjectAccess")
 	@Produces("application/json")
-	public Response grantNewUsersAppAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response grantNewUsersProjectAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String permission = form.getFirst("permission");
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to grant app to new users when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to grant projects to new users when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -136,7 +136,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersDatabaseAccess(appId, permission);
+			adminUtils.grantNewUsersProjectAccess(projectId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -146,7 +146,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 
 		// log the operation
 		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user),
-				"has granted app " + appId + "to new users with permission " + permission));
+				"has granted project " + projectId + "to new users with permission " + permission));
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -154,51 +154,51 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Get the app users and their permissions
+	 * Get the project users and their permissions
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getAppUsers")
-	public Response getAppUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+	@Path("getProjectUsers")
+	public Response getProjectUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull all the users who use app " + appId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull all the users who use project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(adminUtils.getAppUsers(appId), 200);
+		return WebUtility.getResponse(adminUtils.getProjectUsers(projectId), 200);
 	}
 	
 	/**
-	 * Add a user to an app
+	 * Add a user to an project
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("addAppUserPermission")
-	public Response addAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("addProjectUserPermission")
+	public Response addProjectUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String newUserId = form.getFirst("id");
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		String permission = form.getFirst("permission");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to app " + appId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -206,7 +206,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addDatabaseUser(newUserId, appId, permission);
+			adminUtils.addProjectUser(newUserId, projectId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -215,7 +215,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has added user " + newUserId + " to app " + appId + " with permission " + permission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has added user " + newUserId + " to project " + projectId + " with permission " + permission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -223,7 +223,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Add all users to an app
+	 * Add all users to an project
 	 * @param request
 	 * @param form
 	 * @return
@@ -234,14 +234,14 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		String permission = form.getFirst("permission");
 
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to add all users to app " + appId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to add all users to project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -249,7 +249,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addAllDatabaseUsers(appId, permission);
+			adminUtils.addAllProjectUsers(projectId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -258,7 +258,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has added all users to app " + appId + " with permission " + permission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has added all users to project " + projectId + " with permission " + permission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -266,20 +266,20 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Edit user permission for an app
+	 * Edit user permission for an project
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("editAppUserPermission")
-	public Response editAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("editProjectUserPermission")
+	public Response editProjectUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 
 		String existingUserId = form.getFirst("id");
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		String newPermission = form.getFirst("permission");
 
 		try {
@@ -287,14 +287,14 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for app " + appId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for project " + projectId + " when not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		try {
-			adminUtils.editDatabaseUserPermission(existingUserId, appId, newPermission);
+			adminUtils.editProjectUserPermission(existingUserId, projectId, newPermission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -303,7 +303,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to app " + appId + " with level " + newPermission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to project " + projectId + " with level " + newPermission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -311,32 +311,32 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * update all user's permission level to new permission level for an app
+	 * update all user's permission level to new permission level for an project
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("updateAppUserPermissions")
-	public Response updateAppUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("updateProjectUserPermissions")
+	public Response updateProjectUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		String newPermission = form.getFirst("permission");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to edit user permissions for app " + appId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to edit user permissions for project " + projectId + " when not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		try {
-			adminUtils.updateDatabaseUserPermissions(appId, newPermission);
+			adminUtils.updateProjectUserPermissions(projectId, newPermission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -345,7 +345,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has edited user permissions to app " + appId + " with level " + newPermission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has edited user permissions to project " + projectId + " with level " + newPermission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -353,26 +353,26 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Remove user permission for an app
+	 * Remove user permission for an project
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("removeAppUserPermission")
-	public Response removeAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("removeProjectUserPermission")
+	public Response removeProjectUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
 		String existingUserId = form.getFirst("id");
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to app " + appId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -380,7 +380,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.removeDatabaseUser(existingUserId, appId);
+			adminUtils.removeProjectUser(existingUserId, projectId);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -389,7 +389,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to app " + appId));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to project " + projectId));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -398,12 +398,12 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 	
 	@POST
 	@Produces("application/json")
-	@Path("setAppGlobal")
-	public Response setAppGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("setProjectGlobal")
+	public Response setProjectGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
@@ -411,7 +411,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the app " + appId + logPublic + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the project " + projectId + logPublic + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -419,7 +419,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.setDatabaseGlobal(appId, isPublic);
+			adminUtils.setProjectGlobal(projectId, isPublic);
 		} catch (Exception e){
 			logger.error("Stacktrace: ",e);
 			Map<String, String> errorRet = new HashMap<String, String>();
@@ -428,7 +428,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has set the app " + appId + logPublic));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has set the project " + projectId + logPublic));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -436,15 +436,15 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 	} 
 	
 	/**
-	 * Get users with no access to a given app
+	 * Get users with no access to a given project
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getAppUsersNoCredentials")
-	public Response getAppUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+	@Path("getProjectUsersNoCredentials")
+	public Response getProjectUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -457,7 +457,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> ret = adminUtils.getDatabaseUsersNoCredentials(appId);
+		List<Map<String, Object>> ret = adminUtils.getProjectUsersNoCredentials(projectId);
 		return WebUtility.getResponse(ret, 200);
 	}
 	

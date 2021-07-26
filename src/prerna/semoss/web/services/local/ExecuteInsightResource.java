@@ -15,10 +15,10 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.engine.api.IEngine;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.project.api.IProject;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -34,7 +34,7 @@ public class ExecuteInsightResource {
 	
 	@Path("/a-{appId}/i-{insightId}")
 	public Object generateInsight(@Context HttpServletRequest request, 
-			@PathParam("appId") String appId, 
+			@PathParam("appId") String projectId, 
 			@PathParam("insightId") String rdbmsId) {
 		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		User user = null;
@@ -60,28 +60,28 @@ public class ExecuteInsightResource {
 		}
 		
 		if(securityEnabled) {
-			appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
-			if(!SecurityInsightUtils.userCanViewInsight(user, appId, rdbmsId)) {
+			projectId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, projectId);
+			if(!SecurityInsightUtils.userCanViewInsight(user, projectId, rdbmsId)) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("error", "User does not have access to this insight");
 				return WebUtility.getResponse(errorMap, 401);
 			}
 		} else {
-			appId = MasterDatabaseUtility.testEngineIdIfAlias(appId);
+			projectId = MasterDatabaseUtility.testDatabaseIdIfAlias(projectId);
 		}
 		
-		IEngine engine = Utility.getEngine(appId);
-		if(engine == null) {
-			throw new IllegalArgumentException("Cannot find app = " + appId);
+		IProject project = Utility.getProject(projectId);
+		if(project == null) {
+			throw new IllegalArgumentException("Cannot find project = " + projectId);
 		}
 		Insight newInsight = null;
 		try {
-			List<Insight> in = engine.getInsight(rdbmsId + "");
+			List<Insight> in = project.getInsight(rdbmsId + "");
 			newInsight = in.get(0);
 		} catch (ArrayIndexOutOfBoundsException e) {
-			ClusterUtil.reactorUpdateApp(appId);
+			ClusterUtil.reactorUpdateApp(projectId);
 			try {
-				List<Insight> in = engine.getInsight(rdbmsId + "");
+				List<Insight> in = project.getInsight(rdbmsId + "");
 				newInsight = in.get(0);
 			} catch (ArrayIndexOutOfBoundsException e2) {
 				Map<String, String> errorMap = new HashMap<String, String>();

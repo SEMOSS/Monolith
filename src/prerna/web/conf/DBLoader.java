@@ -168,9 +168,12 @@ public class DBLoader implements ServletContextListener {
 		// Load empty engine list into DIHelper, then load engines from db folder
 		logger.log(STARTUP, "Loading engines...");
 		String engines = "";
-		DIHelper.getInstance().setLocalProperty(Constants.ENGINES, engines);
-		loadEngines();
-
+		DIHelper.getInstance().setDbProperty(Constants.ENGINES, engines);
+		loadSmss(Constants.ENGINE_WEB_WATCHER);
+		String projects = "";
+		DIHelper.getInstance().setProjectProperty(Constants.PROJECTS, projects);
+		loadSmss(Constants.PROJECT_WATCHER);
+		
 //		//Just load R right away to avoid synchronization issues
 //		try {
 //			RJavaTranslatorFactory.initRConnection();
@@ -185,10 +188,10 @@ public class DBLoader implements ServletContextListener {
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
 		{
-			IEngine localmaster = (IEngine) DIHelper.getInstance().getLocalProp(Constants.LOCAL_MASTER_DB_NAME);
-			IEngine security = (IEngine) DIHelper.getInstance().getLocalProp(Constants.SECURITY_DB);
+			IEngine localmaster = (IEngine) DIHelper.getInstance().getDbProperty(Constants.LOCAL_MASTER_DB_NAME);
+			IEngine security = (IEngine) DIHelper.getInstance().getDbProperty(Constants.SECURITY_DB);
 			// TODO: will make scheduler a requirement
-			IEngine scheduler = (IEngine) DIHelper.getInstance().getLocalProp(Constants.SCHEDULER_DB);
+			IEngine scheduler = (IEngine) DIHelper.getInstance().getDbProperty(Constants.SCHEDULER_DB);
 //			if (localmaster == null || security == null || scheduler == null || !localmaster.isConnected() || !security.isConnected() || !scheduler.isConnected()) {
 			if (localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected() ) {
 				// you have messed up!!!
@@ -208,8 +211,8 @@ public class DBLoader implements ServletContextListener {
 		}
 	}
 
-	public void loadEngines() {
-		StringTokenizer watchers = new StringTokenizer(DIHelper.getInstance().getProperty(Constants.ENGINE_WEB_WATCHER), ";");
+	public void loadSmss(String pathKey) {
+		StringTokenizer watchers = new StringTokenizer(DIHelper.getInstance().getProperty(pathKey), ";");
 		try {
 			while (watchers.hasMoreElements()) {
 				Object monitor = new Object();
@@ -250,10 +253,10 @@ public class DBLoader implements ServletContextListener {
 		}
 
 		// we need to close all the engine ids
-		List<String> eIds = MasterDatabaseUtility.getAllEngineIds();
+		List<String> eIds = MasterDatabaseUtility.getAllDatabaseIds();
 		for (String id : eIds) {
 			// grab only loaded engines
-			IEngine engine = (IEngine) DIHelper.getInstance().getLocalProp(id);
+			IEngine engine = (IEngine) DIHelper.getInstance().getDbProperty(id);
 			if (engine != null) {
 				// if it is loaded, close it
 				logger.log(SHUTDOWN, "Closing database " + id);
