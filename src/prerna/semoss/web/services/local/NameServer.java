@@ -86,7 +86,6 @@ import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
-import prerna.sablecc.PKQLRunner;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.PixelUtility;
@@ -829,16 +828,16 @@ public class NameServer {
 			if (user == null) {
 				return WebUtility.getSO("Not properly authenticated");
 			}
-			engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
-			if (!SecurityAppUtils.userCanViewEngine(user, engineId)) {
+			engineId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, engineId);
+			if (!SecurityAppUtils.userCanViewDatabase(user, engineId)) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Database " + engineId + " does not exist or user does not have access to database");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		} else {
-			engineId = MasterDatabaseUtility.testEngineIdIfAlias(engineId);
-			if (!MasterDatabaseUtility.getAllEngineIds().contains(engineId)) {
+			engineId = MasterDatabaseUtility.testDatabaseIdIfAlias(engineId);
+			if (!MasterDatabaseUtility.getAllDatabaseIds().contains(engineId)) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Database " + engineId + " does not exist");
 				return WebUtility.getResponse(errorMap, 400);
@@ -1015,34 +1014,34 @@ public class NameServer {
 		};
 	}
 
-	@POST
-	@Path("runPkql")
-	@Produces("application/json")
-	@Deprecated
-	public StreamingOutput runPkql(MultivaluedMap<String, String> form) {
-		/*
-		 * This is only used for calls that do not require us to hold state
-		 * pkql that run in here should not touch a data farme
-		 */
-		String expression = form.getFirst("expression");
-		PKQLRunner runner = new PKQLRunner();
-		runner.runPKQL(expression);
-
-		Map<String, Object> resultHash = new HashMap<>();
-
-		// this is technically the only piece of information the FE needs
-		// but to keep the return consistent for them
-		// i am sending back the information in the same weird ordering
-		Map<String, Object> pkqlDataHash = new HashMap<>();
-		pkqlDataHash.put("pkqlData", runner.getResults());
-
-		Object[] insightArr = new Object[1];
-		insightArr[0] = pkqlDataHash;
-
-		resultHash.put("insights", insightArr);
-
-		return WebUtility.getSO(resultHash);
-	}
+//	@POST
+//	@Path("runPkql")
+//	@Produces("application/json")
+//	@Deprecated
+//	public StreamingOutput runPkql(MultivaluedMap<String, String> form) {
+//		/*
+//		 * This is only used for calls that do not require us to hold state
+//		 * pkql that run in here should not touch a data farme
+//		 */
+//		String expression = form.getFirst("expression");
+//		PKQLRunner runner = new PKQLRunner();
+//		runner.runPKQL(expression);
+//
+//		Map<String, Object> resultHash = new HashMap<>();
+//
+//		// this is technically the only piece of information the FE needs
+//		// but to keep the return consistent for them
+//		// i am sending back the information in the same weird ordering
+//		Map<String, Object> pkqlDataHash = new HashMap<>();
+//		pkqlDataHash.put("pkqlData", runner.getResults());
+//
+//		Object[] insightArr = new Object[1];
+//		insightArr[0] = pkqlDataHash;
+//
+//		resultHash.put("insights", insightArr);
+//
+//		return WebUtility.getSO(resultHash);
+//	}
 
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////

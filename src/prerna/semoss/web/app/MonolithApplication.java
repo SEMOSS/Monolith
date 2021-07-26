@@ -40,6 +40,7 @@ import prerna.semoss.web.services.local.AppResource;
 import prerna.semoss.web.services.local.AuthorizationResource;
 import prerna.semoss.web.services.local.ExecuteInsightResource;
 import prerna.semoss.web.services.local.NameServer;
+import prerna.semoss.web.services.local.ProjectResource;
 import prerna.semoss.web.services.local.SchedulerResource;
 import prerna.semoss.web.services.local.SessionResource;
 import prerna.semoss.web.services.local.ShareInsightResource;
@@ -47,9 +48,11 @@ import prerna.semoss.web.services.local.ThemeResource;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.semoss.web.services.local.auth.AdminAppAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResource;
+import prerna.semoss.web.services.local.auth.AdminProjectAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminUserAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AppAuthorizationResource;
 import prerna.semoss.web.services.local.auth.InsightAuthorizationResource;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResource;
 import prerna.upload.FileUploader;
 import prerna.upload.ImageUploader;
 
@@ -63,15 +66,18 @@ public class MonolithApplication extends Application {
       singletons.add(new UserResource());
       singletons.add(new NameServer());
       singletons.add(new AppResource());
+      singletons.add(new ProjectResource());
       singletons.add(new FileUploader());
       singletons.add(new ImageUploader());
       singletons.add(new SessionResource());
       // authorization resources
       singletons.add(new AuthorizationResource());
       singletons.add(new AppAuthorizationResource());
+      singletons.add(new ProjectAuthorizationResource());
       singletons.add(new InsightAuthorizationResource());
       // admin authorization
       singletons.add(new AdminAppAuthorizationResource());
+      singletons.add(new AdminProjectAuthorizationResource());
       singletons.add(new AdminInsightAuthorizationResource());
       singletons.add(new AdminUserAuthorizationResource());
       // insight execution
@@ -84,6 +90,7 @@ public class MonolithApplication extends Application {
       singletons.add(new RawSelectWrapperService());
       // legacy forms - still used in production - RDF specific
       singletons.add(new FormResource());
+      
    }
 
    @Override

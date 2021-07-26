@@ -19,8 +19,8 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.AccessPermission;
 import prerna.auth.User;
-import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -31,15 +31,15 @@ public class InsightAuthorizationResource {
 	private static final Logger logger = LogManager.getLogger(InsightAuthorizationResource.class);
 	
 	/**
-	 * Get the insights the user can edit in the app
+	 * Get the insights the user can edit in the project
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getAppInsights")
-	public Response getAppInsights(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+	@Path("getProjectInsights")
+	public Response getProjectInsights(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -51,7 +51,7 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<Map<String, Object>> ret = SecurityInsightUtils.getUserEditableInsighs(user, appId);
+		List<Map<String, Object>> ret = SecurityInsightUtils.getUserEditableInsighs(user, projectId);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
@@ -64,7 +64,7 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getUserInsightPermission")
-	public Response getUserInsightPermission(@Context HttpServletRequest request, @QueryParam("appId") String appId, @QueryParam("insightId") String insightId) {
+	public Response getUserInsightPermission(@Context HttpServletRequest request, @QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -76,9 +76,9 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String permission = SecurityInsightUtils.getActualUserInsightPermission(user, appId, insightId);
+		String permission = SecurityInsightUtils.getActualUserInsightPermission(user, projectId, insightId);
 		if(permission == null) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull permission details for insight " + insightId + " in app " + appId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull permission details for insight " + insightId + " in project " + projectId + " without having proper access"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "User does not have access to this insight");
 			return WebUtility.getResponse(errorMap, 401);
@@ -98,7 +98,7 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsightUsers")
-	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId, @QueryParam("insightId") String insightId) {
+	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -112,9 +112,9 @@ public class InsightAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityInsightUtils.getInsightUsers(user, appId, insightId);
+			ret = SecurityInsightUtils.getInsightUsers(user, projectId, insightId);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull permission details for insight " + insightId + " in app " + appId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to pull permission details for insight " + insightId + " in project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -146,16 +146,16 @@ public class InsightAuthorizationResource {
 		}
 		
 		String newUserId = form.getFirst("id");
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
 		String permission = form.getFirst("permission");
 
 		// add the person with read only access if they do not have access to the app
-		if(SecurityAppUtils.getUserAppPermission(newUserId, appId) == null) {
+		if(SecurityProjectUtils.getUserProjectPermission(newUserId, projectId) == null) {
 			try {
-				SecurityAppUtils.addAppUser(user, newUserId, appId, AccessPermission.READ_ONLY.getPermission());
+				SecurityProjectUtils.addProjectUser(user, newUserId, projectId, AccessPermission.READ_ONLY.getPermission());
 			} catch(IllegalAccessException e) {
-				logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to insight " + insightId + " in app " + appId + " without having proper access"));
+				logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to insight " + insightId + " in project " + projectId + " without having proper access"));
 				logger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -169,7 +169,7 @@ public class InsightAuthorizationResource {
 		}
 		
 		try {
-			SecurityInsightUtils.addInsightUser(user, newUserId, appId, insightId, permission);
+			SecurityInsightUtils.addInsightUser(user, newUserId, projectId, insightId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -178,7 +178,7 @@ public class InsightAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has added user " + newUserId + " to insight " + insightId + " in app " + appId + " with permission " + permission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has added user " + newUserId + " to insight " + insightId + " in project " + projectId + " with permission " + permission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -207,14 +207,14 @@ public class InsightAuthorizationResource {
 		}
 		
 		String existingUserId = form.getFirst("id");
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
 		String newPermission = form.getFirst("permission");
 
 		try {
-			SecurityInsightUtils.editInsightUserPermission(user, existingUserId, appId, insightId, newPermission);
+			SecurityInsightUtils.editInsightUserPermission(user, existingUserId, projectId, insightId, newPermission);
 		} catch(IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for insight " + insightId + " in app " + appId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for insight " + insightId + " in project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -227,7 +227,7 @@ public class InsightAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to insight " + insightId + " in app " + appId + " with level " + newPermission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to insight " + insightId + " in project " + projectId + " with level " + newPermission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -256,13 +256,13 @@ public class InsightAuthorizationResource {
 		}
 		
 		String existingUserId = form.getFirst("id");
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
 
 		try {
-			SecurityInsightUtils.removeInsightUser(user, existingUserId, appId, insightId);
+			SecurityInsightUtils.removeInsightUser(user, existingUserId, projectId, insightId);
 		} catch(IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to insight " + insightId + " in app " + appId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to insight " + insightId + " in project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -275,7 +275,7 @@ public class InsightAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to insight " + insightId + " in app " + appId));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to insight " + insightId + " in project " + projectId));
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -303,13 +303,13 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("isPublic"));
 		String logPublic = isPublic ? " public " : " private";
 
 		try {
-			SecurityInsightUtils.setInsightGlobalWithinApp(user, appId, insightId, isPublic);
+			SecurityInsightUtils.setInsightGlobalWithinApp(user, projectId, insightId, isPublic);
 			
 			/*
 			 * BELOW COMMENTED OUT IS INVALID LOGIC
@@ -326,7 +326,7 @@ public class InsightAuthorizationResource {
 //			ClusterUtil.reactorPushInsightDB(appId);
 			
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the insight " + insightId + " in app " + appId + logPublic + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the insight " + insightId + " in project " + projectId + logPublic + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -339,7 +339,7 @@ public class InsightAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has set the insight " + insightId + " in app " + appId + logPublic));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has set the insight " + insightId + " in project " + projectId + logPublic));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -350,12 +350,13 @@ public class InsightAuthorizationResource {
 	 * Set the insight as favorited by the user
 	 * @param request
 	 * @param form
+	 * @param appId 
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
 	@Path("setInsightFavorite")
-	public Response setInsightFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response setInsightFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form, String appId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -367,15 +368,15 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String appId = form.getFirst("appId");
+		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
 		try {
-			SecurityInsightUtils.setInsightFavorite(user, appId, insightId, isFavorite);
+			SecurityInsightUtils.setInsightFavorite(user, projectId, insightId, isFavorite);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the insight " + insightId + " in app " + appId + logFavorited + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "is trying to set the insight " + insightId + " in project " + projectId + logFavorited + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -388,7 +389,7 @@ public class InsightAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has set the insight " + insightId + " in app " + appId + logFavorited));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), "has set the insight " + insightId + " in project " + appId + logFavorited));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -404,7 +405,7 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsightUsersNoCredentials")
-	public Response getInsightUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("appId") String appId, @QueryParam("insightId") String insightId) {
+	public Response getInsightUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -418,9 +419,9 @@ public class InsightAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityInsightUtils.getInsightUsersNoCredentials(user, appId, insightId);
+			ret = SecurityInsightUtils.getInsightUsersNoCredentials(user, projectId, insightId);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), " is trying to pull users without access to insight " + insightId + " in app " + appId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), User.getSingleLogginName(user), " is trying to pull users without access to insight " + insightId + " in project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());

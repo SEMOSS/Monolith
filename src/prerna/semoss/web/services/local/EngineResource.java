@@ -28,7 +28,6 @@
 package prerna.semoss.web.services.local;
 
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
@@ -93,18 +92,18 @@ public class EngineResource {
 	 * @param request
 	 * @return a hashtable with "perspectives" pointing to to array of perspectives (e.g. ["Generic-Perspective","Movie-Perspective"])
 	 */
-	@GET
-	@Path("perspectives")
-	@Produces("application/json")
-	public Response getPerspectives(@Context HttpServletRequest request)
-	{
-		// if the type is null then send all the insights else only that
-		Hashtable<String, Vector<String>> hashtable = new Hashtable<String, Vector<String>>(); 
-		Vector<String> perspectivesVector = coreEngine.getPerspectives();
-		hashtable.put("perspectives", perspectivesVector);
-//		return Response.status(200).entity(WebUtility.getSO(hashtable)).build();
-		return WebUtility.getResponse(hashtable, 200);
-	}
+//	@GET
+//	@Path("perspectives")
+//	@Produces("application/json")
+//	public Response getPerspectives(@Context HttpServletRequest request)
+//	{
+//		// if the type is null then send all the insights else only that
+//		Hashtable<String, Vector<String>> hashtable = new Hashtable<String, Vector<String>>(); 
+//		Vector<String> perspectivesVector = coreEngine.getPerspectives();
+//		hashtable.put("perspectives", perspectivesVector);
+////		return Response.status(200).entity(WebUtility.getSO(hashtable)).build();
+//		return WebUtility.getResponse(hashtable, 200);
+//	}
 
 	// gets a particular insight
 	// not sure if I should keep it as it is or turn this into a post because of the query
@@ -177,7 +176,7 @@ public class EngineResource {
 		paramR.In();
 		GenRowStruct grs1 = new GenRowStruct();
 		grs1.add(new NounMetadata(coreEngine.getEngineId(), PixelDataType.CONST_STRING));
-		paramR.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs1);
+		paramR.getNounStore().addNoun(ReactorKeysEnum.DATABASE.getKey(), grs1);
 		GenRowStruct grs2 = new GenRowStruct();
 		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
 		paramR.getNounStore().addNoun(ReactorKeysEnum.ID.getKey(), grs2);
@@ -226,7 +225,7 @@ public class EngineResource {
 		playsheetRunReactor.setPixelPlanner(planner);
 		GenRowStruct grs1 = new GenRowStruct();
 		grs1.add(new NounMetadata(coreEngine.getEngineId(), PixelDataType.CONST_STRING));
-		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.APP.getKey(), grs1);
+		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.DATABASE.getKey(), grs1);
 		GenRowStruct grs2 = new GenRowStruct();
 		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
 		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.ID.getKey(), grs2);

@@ -201,13 +201,13 @@ public class EngineRemoteResource {
 //		return WebUtility.getSO(coreEngine.getParamValues(label, type, insightId, query));
 //	}
 	
-	@POST
-	@Path("getInsightDefinition")
-	@Produces("application/text")
-	public String getInsightDefinition() {
-		logger.info("ENgine is " + coreEngine);
-		return coreEngine.getInsightDefinition();
-	}
+//	@POST
+//	@Path("getInsightDefinition")
+//	@Produces("application/text")
+//	public String getInsightDefinition() {
+//		logger.info("ENgine is " + coreEngine);
+//		return coreEngine.getInsightDefinition();
+//	}
 
 	@POST
 	@Path("getOWLDefinition")

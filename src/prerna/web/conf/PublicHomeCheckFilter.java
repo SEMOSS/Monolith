@@ -11,16 +11,12 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-
-import org.owasp.encoder.Encode;
 
 import com.google.common.base.Strings;
 
 import prerna.auth.User;
-import prerna.nameserver.utility.MasterDatabaseUtility;
-import prerna.sablecc2.reactor.mgmt.MgmtUtil;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Settings;
@@ -73,7 +69,7 @@ public class PublicHomeCheckFilter implements Filter {
 			// this is engine id ?! why are we splitting!
 			//String [] engTokens = possibleEngineId.split("__");
 			
-			String alias = MasterDatabaseUtility.getEngineAliasForId(possibleEngineId);
+			String alias = SecurityProjectUtils.getProjectAliasForId(possibleEngineId);
 			if(!Strings.isNullOrEmpty(alias) && !Strings.isNullOrEmpty(possibleEngineId))
 			{
 				boolean appAllowed = user.checkAppAccess(alias, possibleEngineId);
@@ -85,7 +81,7 @@ public class PublicHomeCheckFilter implements Filter {
 
 				if(appAllowed)
 				{
-					boolean mapComplete = Utility.getEngine(possibleEngineId).publish(realPath + public_home, possibleEngineId);
+					boolean mapComplete = Utility.getProject(possibleEngineId).publish(realPath + public_home, possibleEngineId);
 					if(mapComplete)
 					{
 						arg2.doFilter(arg0, arg1);
