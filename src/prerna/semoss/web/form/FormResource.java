@@ -145,7 +145,7 @@ public class FormResource {
 		// log the operation
 		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is renaming " + origUri + " to " + newUri));
 
-		IEngine coreEngine = Utility.getEngine(MasterDatabaseUtility.testEngineIdIfAlias(dbName));		
+		IEngine coreEngine = Utility.getEngine(MasterDatabaseUtility.testDatabaseIdIfAlias(dbName));		
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
 		formbuilder.modifyInstanceValue(origUri, newUri, deleteInstanceBoolean);
 		return WebUtility.getResponse("success", 200);
@@ -177,7 +177,7 @@ public class FormResource {
 			return WebUtility.getResponse(err, 400);
 		}
 
-		IEngine coreEngine = Utility.getEngine(MasterDatabaseUtility.testEngineIdIfAlias(dbName));		
+		IEngine coreEngine = Utility.getEngine(MasterDatabaseUtility.testDatabaseIdIfAlias(dbName));		
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
 		formbuilder.setUser(cacId);
 		formbuilder.certifyInstance(instanceType, instanceName);

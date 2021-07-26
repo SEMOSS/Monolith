@@ -97,7 +97,6 @@ import prerna.io.connector.ms.MSProfile;
 import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
-import prerna.sablecc2.reactor.mgmt.MgmtUtil;
 import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
@@ -124,13 +123,24 @@ public class UserResource {
 
 	private static void loadSocialProperties() {
 		FileInputStream fis = null;
-		File f = new File(DIHelper.getInstance().getProperty("SOCIAL"));
+		String socialPropFile = DIHelper.getInstance().getProperty("SOCIAL");
 		try {
-			if (f.exists()) {
-				socialData = new Properties();
-				fis = new FileInputStream(f);
-				socialData.load(fis);
-				setLoginsAllowed();
+			if(socialPropFile != null) {
+				File f = new File(DIHelper.getInstance().getProperty("SOCIAL"));
+				if (f.exists()) {
+					socialData = new Properties();
+					fis = new FileInputStream(f);
+					socialData.load(fis);
+					setLoginsAllowed();
+				} else {
+					logger.warn("No social.properties file found!");
+					logger.warn("No social.properties file found!");
+					logger.warn("No social.properties file found!");
+				}
+			} else {
+				logger.warn("No social.properties defined in RDF_Map.prop!");
+				logger.warn("No social.properties defined in RDF_Map.prop!");
+				logger.warn("No social.properties defined in RDF_Map.prop!");
 			}
 		} catch (FileNotFoundException fnfe) {
 			logger.error(Constants.STACKTRACE, fnfe);
@@ -247,9 +257,11 @@ public class UserResource {
 			String assetEngineId = null;
 			String workspaceEngineId = null;
 
+			// TODO: what does this part do?
+			// TODO: feel like when logout need to adjust the asset id
 			if (thisUser.getLogins().size() == 1) {
-				thisUser.getAssetEngineId(token);
-				thisUser.getWorkspaceEngineId(token);
+				thisUser.getAssetProjectId(token);
+				thisUser.getWorkspaceProjectId(token);
 			}
 			removed = thisUser.dropAccessToken(token);
 			if (thisUser.getLogins().isEmpty()) {
