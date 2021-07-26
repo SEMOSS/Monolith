@@ -41,22 +41,22 @@ public class DataframeResource {
 //		return WebUtility.getResponse("Successfully closed back door", 200);
 //	}
 
-	@POST
-	@Path("/applyCalc")
-	@Produces("application/json")
-	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
-		String pkqlCmd = form.getFirst("expression");
-		Map<String, Object> resultHash = null;
-		synchronized(insight) {
-			resultHash = insight.runPkql(pkqlCmd);
-		}
-
-		//TODO: stupid stuff that was never cleaned up... 
-		Map<String, Object> stupidFEObj = new HashMap<String, Object>();
-		stupidFEObj.put("insights", new Object[]{resultHash});
-		
-		return WebUtility.getResponse(stupidFEObj, 200);
-	}
+//	@POST
+//	@Path("/applyCalc")
+//	@Produces("application/json")
+//	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
+//		String pkqlCmd = form.getFirst("expression");
+//		Map<String, Object> resultHash = null;
+//		synchronized(insight) {
+//			resultHash = insight.runPkql(pkqlCmd);
+//		}
+//
+//		//TODO: stupid stuff that was never cleaned up... 
+//		Map<String, Object> stupidFEObj = new HashMap<String, Object>();
+//		stupidFEObj.put("insights", new Object[]{resultHash});
+//		
+//		return WebUtility.getResponse(stupidFEObj, 200);
+//	}
 	
 	//for handling playsheet specific tool calls
 	@POST

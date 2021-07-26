@@ -216,7 +216,7 @@ public class FileUploader extends Uploader {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			
-			if(in.isSavedInsight() && !SecurityInsightUtils.userCanEditInsight(user, in.getEngineId(), in.getRdbmsId())) {
+			if(in.isSavedInsight() && !SecurityInsightUtils.userCanEditInsight(user, in.getProjectId(), in.getRdbmsId())) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "User does not edit access for this insight");
 				return WebUtility.getResponse(errorMap, 400);
@@ -229,7 +229,7 @@ public class FileUploader extends Uploader {
 			}
 			
 			if(appId != null && !appId.equalsIgnoreCase("user")) {
-				if (!SecurityAppUtils.userCanEditEngine(in.getUser(), appId)) {
+				if (!SecurityAppUtils.userCanEditDatabase(in.getUser(), appId)) {
 					HashMap<String, String> errorMap = new HashMap<String, String>();
 					errorMap.put("errorMessage", "User does not have permission for this app.");
 					return WebUtility.getResponse(errorMap, 400);
