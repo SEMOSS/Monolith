@@ -72,7 +72,7 @@ public class PublicHomeCheckFilter implements Filter {
 			String alias = SecurityProjectUtils.getProjectAliasForId(possibleEngineId);
 			if(!Strings.isNullOrEmpty(alias) && !Strings.isNullOrEmpty(possibleEngineId))
 			{
-				boolean appAllowed = user.checkAppAccess(alias, possibleEngineId);
+				boolean appAllowed = user.checkProjectAccess(alias, possibleEngineId);
 			
 				File phomeFile = new File(realPath + public_home); // try to create the public home from scratch
 				
