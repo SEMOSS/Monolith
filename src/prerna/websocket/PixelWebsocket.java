@@ -1,17 +1,23 @@
 package prerna.websocket;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.StreamingOutput;
 
 import org.json.JSONObject;
 
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc2.PixelRunner;
+import prerna.sablecc2.PixelStreamUtility;
 
 @ServerEndpoint("/pixelSocket")
 public class PixelWebsocket {
@@ -37,10 +43,27 @@ public class PixelWebsocket {
 		String insightId = json.getString("insightId");
 		String pixelString = json.getString("pixel");
 		
-		Insight in = InsightStore.getInstance().get(insightId);
-		PixelRunner dataReturn = in.runPixel(pixelString);
-		
+		Insight in = null;
+		if(insightId == null || (insightId = insightId.trim()).isEmpty()
+				|| insightId.equalsIgnoreCase("new")) {
+			in = new Insight();
+			InsightStore.getInstance().put(in);
+		} else {
+			in = InsightStore.getInstance().get(insightId);
+		}
+		PixelRunner runner = in.runPixel(pixelString);
+		StreamingOutput streamingOutput = PixelStreamUtility.collectPixelData(runner, null);
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		try {
+			streamingOutput.write(baos);
+		} catch (WebApplicationException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		String returnData = new String(baos.toByteArray());
+
 		SocketSessionHandler handler = SocketSessionHandlerFactory.getHandler();
-		handler.updateRecipe(dataReturn);
+		handler.updateRecipe(returnData);
 	}
 }
