@@ -6,9 +6,6 @@ import java.util.List;
 
 import javax.websocket.Session;
 
-import prerna.sablecc2.PixelRunner;
-import prerna.sablecc2.PixelStreamUtility;
-
 public class SocketSessionHandler {
 
 	private List<Session> sessions = new ArrayList<>();
@@ -21,8 +18,7 @@ public class SocketSessionHandler {
 		sessions.remove(session);
 	}
 
-	private void sendReturnData(PixelRunner runner) {
-		String message = PixelStreamUtility.collectPixelData(runner, null).toString();
+	private void sendReturnData(String message) {
 		for(Session session : sessions) {
 			try {
 				session.getBasicRemote().sendText(message);
@@ -32,8 +28,8 @@ public class SocketSessionHandler {
 		}
 	}
 
-	public void updateRecipe(PixelRunner runner) {
-		sendReturnData(runner);
+	public void updateRecipe(String message) {
+		sendReturnData(message);
 	}
 
 }
