@@ -47,7 +47,7 @@ public class FilespaceAccessFilter implements Filter {
 					String appRoot = appHome.substring(0, appRootIndex);
 					String [] appRootElements = appRoot.split("__");
 					User user = (User)hsr.getSession().getAttribute(Constants.SESSION_USER);
-					if(user.checkAppAccess(appRootElements[0], appRootElements[1]))
+					if(user.checkProjectAccess(appRootElements[0], appRootElements[1]))
 						chain.doFilter(request, response);
 					else
 					{
