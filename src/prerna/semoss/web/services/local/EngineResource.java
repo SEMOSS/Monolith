@@ -177,6 +177,7 @@ public class EngineResource {
 		GenRowStruct grs1 = new GenRowStruct();
 		grs1.add(new NounMetadata(coreEngine.getEngineId(), PixelDataType.CONST_STRING));
 		paramR.getNounStore().addNoun(ReactorKeysEnum.DATABASE.getKey(), grs1);
+		paramR.getNounStore().addNoun("app", grs1);
 		GenRowStruct grs2 = new GenRowStruct();
 		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
 		paramR.getNounStore().addNoun(ReactorKeysEnum.ID.getKey(), grs2);
@@ -226,6 +227,7 @@ public class EngineResource {
 		GenRowStruct grs1 = new GenRowStruct();
 		grs1.add(new NounMetadata(coreEngine.getEngineId(), PixelDataType.CONST_STRING));
 		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.DATABASE.getKey(), grs1);
+		playsheetRunReactor.getNounStore().addNoun("app", grs1);
 		GenRowStruct grs2 = new GenRowStruct();
 		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
 		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.ID.getKey(), grs2);
