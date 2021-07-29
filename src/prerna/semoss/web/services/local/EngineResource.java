@@ -247,8 +247,13 @@ public class EngineResource {
 		String userId = null;
 		try {
 			HttpSession session = ((HttpServletRequest)request).getSession(false);
-			User user = (User) session.getAttribute("semoss_user");
-			userId = user.getAccessToken(AuthProvider.CAC).getId();
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
+			if(user.getAccessToken(AuthProvider.CAC) != null) {
+				userId = user.getAccessToken(AuthProvider.CAC).getId();
+			} else if(user.getAccessToken(AuthProvider.SAML) != null) {
+				// if not CAC - we are using SMAL
+				userId = user.getAccessToken(AuthProvider.SAML).getId();
+			}
 		} catch(Exception e) {
 			Map<String, String> err = new HashMap<String, String>();
 			err.put("errorMessage", "Could not identify user");
