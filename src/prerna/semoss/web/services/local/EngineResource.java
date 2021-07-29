@@ -75,8 +75,10 @@ import prerna.web.services.util.WebUtility;
 public class EngineResource {
 
 	private static final Logger logger = LogManager.getLogger(EngineResource.class);
-	private static final String STACKTRACE = "StackTrace: ";
 
+	@Deprecated
+	private static final String APP_KEY = "app";
+	
 	// gets everything specific to an engine
 	// essentially this is a wrapper over the engine
 	private IEngine coreEngine = null;
@@ -149,7 +151,7 @@ public class EngineResource {
 				data.add(wrapper.next().getRawValues());
 			}
 		} catch (Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 		} finally {
 			if(wrapper != null) {
 				wrapper.cleanUp();
@@ -177,7 +179,7 @@ public class EngineResource {
 		GenRowStruct grs1 = new GenRowStruct();
 		grs1.add(new NounMetadata(coreEngine.getEngineId(), PixelDataType.CONST_STRING));
 		paramR.getNounStore().addNoun(ReactorKeysEnum.DATABASE.getKey(), grs1);
-		paramR.getNounStore().addNoun("app", grs1);
+		paramR.getNounStore().addNoun(APP_KEY, grs1);
 		GenRowStruct grs2 = new GenRowStruct();
 		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
 		paramR.getNounStore().addNoun(ReactorKeysEnum.ID.getKey(), grs2);
@@ -227,7 +229,7 @@ public class EngineResource {
 		GenRowStruct grs1 = new GenRowStruct();
 		grs1.add(new NounMetadata(coreEngine.getEngineId(), PixelDataType.CONST_STRING));
 		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.DATABASE.getKey(), grs1);
-		playsheetRunReactor.getNounStore().addNoun("app", grs1);
+		playsheetRunReactor.getNounStore().addNoun(APP_KEY, grs1);
 		GenRowStruct grs2 = new GenRowStruct();
 		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
 		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.ID.getKey(), grs2);
@@ -281,7 +283,7 @@ public class EngineResource {
 				FormBuilder.commitFormData(this.coreEngine, engineHash, userId);
 			}
 		} catch(Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 			return WebUtility.getResponse(gson.toJson(e.getMessage()), 400);
 		}
 
@@ -298,7 +300,7 @@ public class EngineResource {
 		try {
 			auditInfo = FormBuilder.getAuditDataForEngine(this.coreEngine.getEngineId());
 		} catch(Exception e) {
-			logger.error(STACKTRACE,e);
+			logger.error(Constants.STACKTRACE,e);
 			return WebUtility.getResponse(gson.toJson(e.getMessage()), 400);
 		}
 
