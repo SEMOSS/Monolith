@@ -28,13 +28,14 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityInsightUtils;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
 import prerna.poi.main.HeadersException;
+import prerna.project.api.IProject;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
@@ -188,7 +189,7 @@ public class FileUploader extends Uploader {
 	public Response baseUpload(@Context ServletContext context, @Context HttpServletRequest request, 
 			@QueryParam("insightId") String insightId,
 			@QueryParam("path") String relativePath, 
-			@QueryParam("appId") String appId) {
+			@QueryParam("projectId") String projectId) {
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
 			HashMap<String, String> errorMap = new HashMap<String, String>();
@@ -228,10 +229,10 @@ public class FileUploader extends Uploader {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			
-			if(appId != null && !appId.equalsIgnoreCase("user")) {
-				if (!SecurityAppUtils.userCanEditDatabase(in.getUser(), appId)) {
+			if(projectId != null && !projectId.equalsIgnoreCase("user")) {
+				if (!SecurityProjectUtils.userCanEditProject(in.getUser(), projectId)) {
 					HashMap<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put("errorMessage", "User does not have permission for this app.");
+					errorMap.put("errorMessage", "User does not have permission for this project.");
 					return WebUtility.getResponse(errorMap, 400);
 				}
 			}
@@ -241,7 +242,7 @@ public class FileUploader extends Uploader {
 		try {
 			List<FileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
-			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, appId);
+			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, projectId);
 			// clear the thread store
 			return WebUtility.getResponse(inputData, 200);
 		} catch(Exception e) {
@@ -257,15 +258,18 @@ public class FileUploader extends Uploader {
 	/**
 	 * Method to parse just files and move to the server
 	 * @param fileItems		a list of maps containing the file name and file location
-	 * @param appDir 
+	 * @param in
+	 * @param relativePath
+	 * @param projectId
 	 * @return
 	 */
-	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String appId) {
+	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String projectId) {
 		// get base asset folder
 		String assetFolder = null;
 		String fePath = DIR_SEPARATOR;
-		if (appId != null) {
-			assetFolder = AssetUtility.getAssetBasePath(in, appId, true);
+		if (projectId != null) {
+			IProject project = Utility.getProject(projectId);
+			assetFolder = AssetUtility.getProjectAssetFolder(project.getProjectName(), projectId);
 		} else {
 			assetFolder = in.getInsightFolder();
 		}
