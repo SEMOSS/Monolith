@@ -378,9 +378,9 @@ public class ProjectResource {
 			return new File(imageDir + "color-logo.png");
 		}
 		Properties prop = Utility.loadProperties(propFileLoc);
-		projectId = prop.getProperty(Constants.PROJECT_ALIAS);
+		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
 		
-		String fileLocation = AssetUtility.getProjectAssetVersionFolder(projectId, projectId);
+		String fileLocation = AssetUtility.getProjectAssetVersionFolder(projectName, projectId);
 		File f = findImageFile(fileLocation);
 		if(f != null) {
 			return f;
