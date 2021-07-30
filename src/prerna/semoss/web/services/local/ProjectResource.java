@@ -395,9 +395,9 @@ public class ProjectResource {
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
 			if(projectId != null) {
-				TextToGraphic.makeImage(projectId, fileLocation);
+				TextToGraphic.makeImage(projectName, fileLocation);
 			} else {
-				TextToGraphic.makeImage(projectId, fileLocation);
+				TextToGraphic.makeImage(projectName, fileLocation);
 			}
 			f = new File(fileLocation);
 			return f;
