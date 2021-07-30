@@ -161,9 +161,9 @@ public class AppResource {
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
 			if(appId != null) {
-				TextToGraphic.makeImage(appId, fileLocation);
+				TextToGraphic.makeImage(appName, fileLocation);
 			} else {
-				TextToGraphic.makeImage(appId, fileLocation);
+				TextToGraphic.makeImage(appName, fileLocation);
 			}
 			f = new File(fileLocation);
 			return f;
