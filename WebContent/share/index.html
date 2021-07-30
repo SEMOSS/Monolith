@@ -192,23 +192,24 @@
 				let endpoint = origin.substring(0, origin.lastIndexOf('/') - 5) + 'api/share/i-' + insightId +'/getTableData';
 
 				if(insightId && hash && secret && session && endpoint){
-
-					let form_data = new FormData();
-					form_data.append('i', insightId);
-					form_data.append('hash', hash);
-					form_data.append(sessionKey, session);
-					form_data.append('s', secret);
-
+					
+					var formBody = [];
+					formBody.push('i' + "=" + encodeURIComponent(insightId));
+					formBody.push('hash' + "=" + encodeURIComponent(hash));
+					formBody.push(sessionKey + "=" + encodeURIComponent(session));
+					formBody.push('s' + "=" + encodeURIComponent(secret));
+					// add in the route if we are doing a cloud deployment
 					if(route && route !== '' && routeKey && routeKey !== '') {
-						form_data.append(routeKey, route);
+						formBody.push(routeKey + "=" + encodeURIComponent(route));
 					}
+					formBody = formBody.join("&");
 
 					let response = await fetch(endpoint, {
 						method:'POST',
 						headers:{
-						'Content-Type':'application/x-www-form-urlencoded'
+							'Content-Type':'application/x-www-form-urlencoded'
 						},
-						body:form_data,
+						body:formBody,
 						credentials:'include'
 					});
 
@@ -310,13 +311,13 @@
 				} else if (param === 'i') {
 					document.getElementById('share_insight').value = decodeURIComponent(params['i']);
 					count++;
-				} else if (param.indexOf('monolith') === 0 || param === 'JSESSIONID') {
-					document.getElementById('share_session_key').value = decodeURIComponent(param);
-					document.getElementById('share_session').value = decodeURIComponent(params[param]);
-					count++;
 				} else if(param.indexOf('route') === 0) {
 					document.getElementById('share_route_key').value = decodeURIComponent(param);
 					document.getElementById('share_route').value = decodeURIComponent(params[param]);
+				} else {
+					document.getElementById('share_session_key').value = decodeURIComponent(param);
+					document.getElementById('share_session').value = decodeURIComponent(params[param]);
+					count++;
 				}
 			}
 					
