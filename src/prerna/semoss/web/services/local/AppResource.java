@@ -125,26 +125,28 @@ public class AppResource {
 	
 	/**
 	 * Use to find the file for the image
-	 * @param app
+	 * @param appId
 	 * @return
 	 */
-	protected File getAppImageFile(String app) {
-		String appId = MasterDatabaseUtility.testDatabaseIdIfAlias(app);
+	protected File getAppImageFile(String appId) {
+		appId = MasterDatabaseUtility.testDatabaseIdIfAlias(appId);
 		if(ClusterUtil.IS_CLUSTER){
-			return ClusterUtil.getDatabaseImage(app);
+			return ClusterUtil.getDatabaseImage(appId);
 		}
 		String propFileLoc = (String) DIHelper.getInstance().getDbProperty(appId + "_" + Constants.STORE);
-		if(propFileLoc == null && !app.equals("NEWSEMOSSAPP")) {
+		if(propFileLoc == null && !appId.equals("NEWSEMOSSAPP")) {
 			String imageDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "/images/stock/";
 			return new File(imageDir + "color-logo.png");
 		}
 		Properties prop = Utility.loadProperties(propFileLoc);
-		app = prop.getProperty(Constants.ENGINE_ALIAS);
+		String appName = prop.getProperty(Constants.ENGINE_ALIAS);
 		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = baseFolder + DIR_SEPARATOR + Constants.DB_FOLDER + DIR_SEPARATOR 
-				+ SmssUtilities.getUniqueName(app, appId) + DIR_SEPARATOR + "app_root" + DIR_SEPARATOR + "version";
+				+ SmssUtilities.getUniqueName(appName, appId) 
+				+ DIR_SEPARATOR + "app_root" + DIR_SEPARATOR + "version";
 		//String fileLocation = AssetUtility.getAppAssetVersionFolder(app, appId);
+
 		File f = findImageFile(fileLocation);
 		if(f != null) {
 			return f;
@@ -158,8 +160,8 @@ public class AppResource {
 			}
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-			if(app != null) {
-				TextToGraphic.makeImage(app, fileLocation);
+			if(appId != null) {
+				TextToGraphic.makeImage(appId, fileLocation);
 			} else {
 				TextToGraphic.makeImage(appId, fileLocation);
 			}
