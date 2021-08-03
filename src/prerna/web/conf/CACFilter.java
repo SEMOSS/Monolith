@@ -209,7 +209,7 @@ public class CACFilter implements Filter {
 					// are we logging their information?
 					if(userLogger != null && !token.getName().equals("TOPAZ")) {
 						// grab the ip address
-						userLogger.addToQueue(new String[] {email, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), ResourceUtility.getClientIp((HttpServletRequest)arg0)});
+						userLogger.addToQueue(new String[] {cacId, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), ResourceUtility.getClientIp((HttpServletRequest)arg0)});
 					}
 					
 					// log the user login
