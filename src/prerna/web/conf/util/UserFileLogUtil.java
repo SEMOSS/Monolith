@@ -11,6 +11,7 @@ import java.util.concurrent.BlockingQueue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import prerna.util.Constants;
 import prerna.util.Utility;
 
 public class UserFileLogUtil {
@@ -56,7 +57,6 @@ public class UserFileLogUtil {
 
 class FileAppender implements Runnable {
 	private static final Logger logger = LogManager.getLogger(FileAppender.class);
-	private static final String STACKTRACE = "StackTrace: ";
 	private File f = null;
 	private FileWriter fw = null;
 	private String filePath = null;
@@ -102,20 +102,20 @@ class FileAppender implements Runnable {
 					fw.write(builder.toString());
 					fw.flush();
 				} catch (IOException e) {
-					logger.error(STACKTRACE, e);
+					logger.error(Constants.STACKTRACE, e);
 				}
 			}
 		} catch (InterruptedException ie) {
 			Thread.currentThread().interrupt();
-			logger.error(STACKTRACE, ie);
+			logger.error(Constants.STACKTRACE, ie);
 		} catch (IOException ioe) {
-			logger.error(STACKTRACE, ioe);
+			logger.error(Constants.STACKTRACE, ioe);
 		} finally {
 			if(fw != null) {
 				try {
 					fw.close();
 				} catch (IOException ioe) {
-					logger.error(STACKTRACE, ioe);
+					logger.error(Constants.STACKTRACE, ioe);
 				}
 			}
 			fw = null;
