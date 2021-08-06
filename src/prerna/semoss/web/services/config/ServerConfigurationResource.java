@@ -153,6 +153,10 @@ public class ServerConfigurationResource {
 		// insights are cacheable by default
 		boolean cacheableOnByDefault = Utility.getApplicationCacheInsight();
 		loadConfig.put("cacheInsightByDefault", cacheableOnByDefault);
+		
+		// to make welcome dialog optional
+		boolean showWelcomeBanner = Utility.getWelcomeBannerOption();
+		loadConfig.put("showWelcomeBanner", showWelcomeBanner);
 
 		ServerConfigurationResource.config = loadConfig;
 	}
