@@ -38,6 +38,8 @@ import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
+import prerna.io.connector.couch.CouchException;
+import prerna.io.connector.couch.CouchUtil;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
@@ -335,6 +337,16 @@ public class ProjectResource {
 			}
 		}
 		
+		if(CouchUtil.COUCH_ENABLED) {
+			try {
+				Map<String, String> selectors = new HashMap<>();
+				selectors.put(CouchUtil.PROJECT, projectId);
+				return CouchUtil.download(CouchUtil.PROJECT, selectors);
+			} catch (CouchException e) {
+				logger.error(Constants.STACKTRACE, e);
+			}
+		}
+		
 		File exportFile = getProjectImageFile(projectId);
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
@@ -429,7 +441,18 @@ public class ProjectResource {
 			
 			sessionId = request.getSession(false).getId();
 		}		
-
+		
+		if(CouchUtil.COUCH_ENABLED) {
+			try {
+				Map<String, String> selectors = new HashMap<>();
+				selectors.put(CouchUtil.INSIGHT, id);
+				selectors.put(CouchUtil.PROJECT, projectId);
+				return CouchUtil.download(CouchUtil.INSIGHT, selectors);
+			} catch (CouchException e) {
+				logger.error(Constants.STACKTRACE, e);
+			}
+		}
+		
 		File exportFile = getInsightImageFile(projectId, id, request.getHeader("Referer"), params, sessionId);
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
