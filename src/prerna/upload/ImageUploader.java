@@ -19,6 +19,7 @@ import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,6 +32,8 @@ import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.CloudClient;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
+import prerna.io.connector.couch.CouchException;
+import prerna.io.connector.couch.CouchUtil;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
@@ -119,46 +122,58 @@ public class ImageUploader extends Uploader {
 				return WebUtility.getResponse(returnMap, 400);
 			}
 		}
-
-		String imageDir = getDbImageDir(filePath, appId, appName);
-		String imageLoc = getDbImageLoc(filePath, appId, appName, imageFile);
-
-		File f = new File(imageDir);
-		if (!f.exists()) {
-			Boolean success = f.mkdirs();
-			if(!success) {
-				logger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+		
+		if(CouchUtil.COUCH_ENABLED) {
+			try {
+				Map<String, String> selectors = new HashMap<>();
+				selectors.put(CouchUtil.DATABASE, appId);
+				CouchUtil.upload(CouchUtil.DATABASE, selectors, imageFile);
+			} catch (CouchException e) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Upload of database image failed");
+				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
 			}
-		}
-		f = new File(imageLoc);
-		// find all the existing image files
-		// and delete them
-		File[] oldImages = null;
-		if (ClusterUtil.IS_CLUSTER) {
-			FilenameFilter appIdFilter = new WildcardFileFilter(appId + "*");
-			oldImages = f.getParentFile().listFiles(appIdFilter);
 		} else {
-			oldImages = InsightUtility.findImageFile(f.getParentFile());
-		}
-		// delete if any exist
-		if (oldImages != null) {
-			for (File oldI : oldImages) {
-				Boolean success = oldI.delete();
-				if (!success) {
-					logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+			String imageDir = getDbImageDir(filePath, appId, appName);
+			String imageLoc = getDbImageLoc(filePath, appId, appName, imageFile);
+			
+			File f = new File(imageDir);
+			if (!f.exists()) {
+				Boolean success = f.mkdirs();
+				if(!success) {
+					logger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
 				}
 			}
-		}
-		writeFile(imageFile, f);
-		try {
+			f = new File(imageLoc);
+			// find all the existing image files
+			// and delete them
+			File[] oldImages = null;
 			if (ClusterUtil.IS_CLUSTER) {
-				CloudClient.getClient().pushAppImageFolder();
+				FilenameFilter appIdFilter = new WildcardFileFilter(appId + "*");
+				oldImages = f.getParentFile().listFiles(appIdFilter);
+			} else {
+				oldImages = InsightUtility.findImageFile(f.getParentFile());
 			}
-		} catch (IOException ioe) {
-			logger.error(Constants.STACKTRACE, ioe);
-		} catch (InterruptedException ie) {
-			Thread.currentThread().interrupt();
-			logger.error(Constants.STACKTRACE, ie);
+			// delete if any exist
+			if (oldImages != null) {
+				for (File oldI : oldImages) {
+					Boolean success = oldI.delete();
+					if (!success) {
+						logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+					}
+				}
+			}
+			writeFile(imageFile, f);
+			try {
+				if (ClusterUtil.IS_CLUSTER) {
+					CloudClient.getClient().pushAppImageFolder();
+				}
+			} catch (IOException ioe) {
+				logger.error(Constants.STACKTRACE, ioe);
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+				logger.error(Constants.STACKTRACE, ie);
+			}
 		}
 		
 		returnMap.put("message", "Successfully updated app image");
@@ -223,7 +238,19 @@ public class ImageUploader extends Uploader {
 				return WebUtility.getResponse(returnMap, 400);
 			}
 		}
-
+		
+		if(CouchUtil.COUCH_ENABLED) {
+			try {
+				Map<String, String> selectors = new HashMap<>();
+				selectors.put(CouchUtil.DATABASE, appId);
+				CouchUtil.delete(CouchUtil.DATABASE, selectors);
+			} catch (CouchException e) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Database image deletion failed");
+				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
+			}
+		}
+		
 		String imageDir = getDbImageDir(filePath, appId, appName);
 		File f = new File(imageDir);
 		File[] oldImages = null;
@@ -242,7 +269,7 @@ public class ImageUploader extends Uploader {
 				}
 			}
 		}
-
+		
 		try {
 			if (ClusterUtil.IS_CLUSTER) {
 				CloudClient.getClient().pushAppImageFolder();
@@ -253,7 +280,7 @@ public class ImageUploader extends Uploader {
 			Thread.currentThread().interrupt();
 			logger.error(Constants.STACKTRACE, ie);
 		}
-
+		
 		returnMap.put("database_id", appId);
 		returnMap.put("database_name", appName);
 		returnMap.put("message", "Successfully deleted database image");
@@ -265,13 +292,16 @@ public class ImageUploader extends Uploader {
 			return ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "databases";
 		}
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String versionFolder = baseFolder + DIR_SEPARATOR + Constants.DB_FOLDER + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) 
-			+ DIR_SEPARATOR + "version";
+		String versionFolder = baseFolder 
+				+ DIR_SEPARATOR + Constants.DB_FOLDER
+				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId)
+				+ DIR_SEPARATOR + "app_root"
+				+ DIR_SEPARATOR + "version";
 		return versionFolder;
 	}
 
 	private String getDbImageLoc(String filePath, String id, String name, FileItem imageFile){
-		String imageDir = getProjectImageDir(filePath, id, name);
+		String imageDir = getDbImageDir(filePath, id, name);
 		if(ClusterUtil.IS_CLUSTER){
 			return imageDir + DIR_SEPARATOR + id + "." + imageFile.getContentType().split("/")[1];
 		}
@@ -300,7 +330,7 @@ public class ImageUploader extends Uploader {
 			if (fieldName.equals("file")) {
 				imageFile = fi;
 			}
-			if (fieldName.equals("project")) {
+			if (fieldName.equals("projectId")) {
 				projectId = value;
 			}
 		}
@@ -339,7 +369,7 @@ public class ImageUploader extends Uploader {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this project");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				projectName = SecurityQueryUtils.getDatabaseAliasForId(projectId);
+				projectName = SecurityQueryUtils.getProjectAliasForId(projectId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
@@ -355,45 +385,57 @@ public class ImageUploader extends Uploader {
 //			}
 //		}
 
-		String imageDir = getProjectImageDir(filePath, projectId, projectName);
-		String imageLoc = getProjectImageLoc(filePath, projectId, projectName, imageFile);
-
-		File f = new File(imageDir);
-		if (!f.exists()) {
-			Boolean success = f.mkdirs();
-			if(!success) {
-				logger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+		if(CouchUtil.COUCH_ENABLED) {
+			try {
+				Map<String, String> selectors = new HashMap<>();
+				selectors.put(CouchUtil.PROJECT, projectId);
+				CouchUtil.upload(CouchUtil.PROJECT, selectors, imageFile);
+			} catch (CouchException e) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Upload of project image failed");
+				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
 			}
-		}
-		f = new File(imageLoc);
-		// find all the existing image files
-		// and delete them
-		File[] oldImages = null;
-		if (ClusterUtil.IS_CLUSTER) {
-			FilenameFilter appIdFilter = new WildcardFileFilter(projectId + "*");
-			oldImages = f.getParentFile().listFiles(appIdFilter);
 		} else {
-			oldImages = InsightUtility.findImageFile(f.getParentFile());
-		}
-		// delete if any exist
-		if (oldImages != null) {
-			for (File oldI : oldImages) {
-				Boolean success = oldI.delete();
-				if (!success) {
-					logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+			String imageDir = getProjectImageDir(filePath, projectId, projectName);
+			String imageLoc = getProjectImageLoc(filePath, projectId, projectName, imageFile);
+			
+			File f = new File(imageDir);
+			if (!f.exists()) {
+				Boolean success = f.mkdirs();
+				if(!success) {
+					logger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
 				}
 			}
-		}
-		writeFile(imageFile, f);
-		try {
+			f = new File(imageLoc);
+			// find all the existing image files
+			// and delete them
+			File[] oldImages = null;
 			if (ClusterUtil.IS_CLUSTER) {
-				CloudClient.getClient().pushProjectImageFolder();
+				FilenameFilter appIdFilter = new WildcardFileFilter(projectId + "*");
+				oldImages = f.getParentFile().listFiles(appIdFilter);
+			} else {
+				oldImages = InsightUtility.findImageFile(f.getParentFile());
 			}
-		} catch (IOException ioe) {
-			logger.error(Constants.STACKTRACE, ioe);
-		} catch (InterruptedException ie) {
-			Thread.currentThread().interrupt();
-			logger.error(Constants.STACKTRACE, ie);
+			// delete if any exist
+			if (oldImages != null) {
+				for (File oldI : oldImages) {
+					Boolean success = oldI.delete();
+					if (!success) {
+						logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+					}
+				}
+			}
+			writeFile(imageFile, f);
+			try {
+				if (ClusterUtil.IS_CLUSTER) {
+					CloudClient.getClient().pushProjectImageFolder();
+				}
+			} catch (IOException ioe) {
+				logger.error(Constants.STACKTRACE, ioe);
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+				logger.error(Constants.STACKTRACE, ie);
+			}
 		}
 		
 		returnMap.put("message", "Successfully updated project image");
@@ -460,6 +502,18 @@ public class ImageUploader extends Uploader {
 //			}
 //		}
 
+		if(CouchUtil.COUCH_ENABLED) {
+			try {
+				Map<String, String> selectors = new HashMap<>();
+				selectors.put(CouchUtil.PROJECT, projectId);
+				CouchUtil.delete(CouchUtil.PROJECT, selectors);
+			} catch (CouchException e) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Project image deletion failed");
+				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
+			}
+		}
+		
 		String imageDir = getProjectImageDir(filePath, projectId, projectName);
 		File f = new File(imageDir);
 		File[] oldImages = null;
@@ -478,7 +532,6 @@ public class ImageUploader extends Uploader {
 				}
 			}
 		}
-
 		try {
 			if (ClusterUtil.IS_CLUSTER) {
 				CloudClient.getClient().pushProjectImageFolder();
@@ -489,7 +542,7 @@ public class ImageUploader extends Uploader {
 			Thread.currentThread().interrupt();
 			logger.error(Constants.STACKTRACE, ie);
 		}
-
+		
 		returnMap.put("project_id", projectId);
 		returnMap.put("project_name", projectName);
 		returnMap.put("message", "Successfully deleted project image");
@@ -578,35 +631,48 @@ public class ImageUploader extends Uploader {
 //			}
 //		}
 
-		// now that we have the app name
-		// and the image file
-		// we want to write it into the project location
-		String imageDir = AssetUtility.getProjectAssetVersionFolder(projectName, projectId) + DIR_SEPARATOR + insightId;
-		File f = new File(imageDir);
-		if (!f.exists()) {
-			Boolean success = f.mkdirs();
-			if(!success) {
-				logger.info("Unable to make direction at location: " + Utility.cleanLogString(imageDir));
+		
+		if(CouchUtil.COUCH_ENABLED) {
+			try {
+				Map<String, String> selectors = new HashMap<>();
+				selectors.put(CouchUtil.INSIGHT, insightId);
+				selectors.put(CouchUtil.PROJECT, projectId);
+				CouchUtil.upload(CouchUtil.INSIGHT, selectors, imageFile);
+			} catch (CouchException e) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Upload of insight image failed");
+				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
 			}
-		}
-		// find all the existing image files
-		// and delete them
-		File[] oldImages = InsightUtility.findImageFile(f);
-		// delete if any exist
-		if (oldImages != null) {
-			for (File oldI : oldImages) {
-				Boolean success = oldI.delete();
+		} else {
+			// now that we have the app name
+			// and the image file
+			// we want to write it into the project location
+			String imageDir = AssetUtility.getProjectAssetVersionFolder(projectName, projectId) + DIR_SEPARATOR + insightId;
+			File f = new File(imageDir);
+			if (!f.exists()) {
+				Boolean success = f.mkdirs();
 				if(!success) {
-					logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+					logger.info("Unable to make direction at location: " + Utility.cleanLogString(imageDir));
 				}
-
 			}
+			// find all the existing image files
+			// and delete them
+			File[] oldImages = InsightUtility.findImageFile(f);
+			// delete if any exist
+			if (oldImages != null) {
+				for (File oldI : oldImages) {
+					Boolean success = oldI.delete();
+					if(!success) {
+						logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+					}
+	
+				}
+			}
+					
+			String imageLoc = imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
+			f = new File(imageLoc);
+			writeFile(imageFile, f);
 		}
-				
-		String imageLoc = imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
-		f = new File(imageLoc);
-		writeFile(imageFile, f);
-
 		returnMap.put("project_id", projectId);
 		returnMap.put("project_name", projectName);
 		returnMap.put("insight_id", insightId);
@@ -677,6 +743,19 @@ public class ImageUploader extends Uploader {
 //			}
 //		}
 
+		if(CouchUtil.COUCH_ENABLED) {
+			try {
+				Map<String, String> selectors = new HashMap<>();
+				selectors.put(CouchUtil.INSIGHT, insightId);
+				selectors.put(CouchUtil.PROJECT, projectId);
+				CouchUtil.delete(CouchUtil.INSIGHT, selectors);
+			} catch (CouchException e) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Insight image deletion failed");
+				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
+			}
+		}
+		
 		// now that we have the app name
 		// and the image file
 		// we want to write it into the app location
@@ -699,7 +778,7 @@ public class ImageUploader extends Uploader {
 			returnMap.put(Constants.ERROR_MESSAGE, "You do not have a custom insight image to delete");
 			return WebUtility.getResponse(returnMap, 400);
 		}
-
+		
 		returnMap.put("project_id", projectId);
 		returnMap.put("project_name", projectName);
 		returnMap.put("insight_id", insightId);
