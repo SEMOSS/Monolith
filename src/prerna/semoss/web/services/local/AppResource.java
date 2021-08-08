@@ -33,6 +33,8 @@ import prerna.auth.utils.SecurityAppUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
+import prerna.io.connector.couch.CouchException;
+import prerna.io.connector.couch.CouchUtil;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -95,6 +97,17 @@ public class AppResource {
 			}
 		}
 		
+		if(CouchUtil.COUCH_ENABLED) {
+			try {
+				String actualAppId = MasterDatabaseUtility.testDatabaseIdIfAlias(appId);
+				Map<String, String> selectors = new HashMap<>();
+				selectors.put(CouchUtil.DATABASE, actualAppId);
+				return CouchUtil.download(CouchUtil.DATABASE, selectors);
+			} catch (CouchException e) {
+				logger.error(Constants.STACKTRACE, e);
+			}
+		}
+		
 		File exportFile = getAppImageFile(appId);
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = appId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
@@ -142,9 +155,11 @@ public class AppResource {
 		String appName = prop.getProperty(Constants.ENGINE_ALIAS);
 		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + Constants.DB_FOLDER + DIR_SEPARATOR 
-				+ SmssUtilities.getUniqueName(appName, appId) 
-				+ DIR_SEPARATOR + "app_root" + DIR_SEPARATOR + "version";
+		String fileLocation = baseFolder 
+				+ DIR_SEPARATOR + Constants.DB_FOLDER 
+				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId) 
+				+ DIR_SEPARATOR + "app_root" 
+				+ DIR_SEPARATOR + "version";
 		//String fileLocation = AssetUtility.getAppAssetVersionFolder(app, appId);
 
 		File f = findImageFile(fileLocation);
