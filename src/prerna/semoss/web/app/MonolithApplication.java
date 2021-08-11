@@ -36,8 +36,8 @@ import javax.ws.rs.core.Application;
 import prerna.cluster.RawSelectWrapperService;
 import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.config.ServerConfigurationResource;
-import prerna.semoss.web.services.local.AppResource;
 import prerna.semoss.web.services.local.AuthorizationResource;
+import prerna.semoss.web.services.local.DatabaseResource;
 import prerna.semoss.web.services.local.ExecuteInsightResource;
 import prerna.semoss.web.services.local.NameServer;
 import prerna.semoss.web.services.local.ProjectResource;
@@ -65,7 +65,7 @@ public class MonolithApplication extends Application {
 	   // core
       singletons.add(new UserResource());
       singletons.add(new NameServer());
-      singletons.add(new AppResource());
+      singletons.add(new DatabaseResource());
       singletons.add(new ProjectResource());
       singletons.add(new FileUploader());
       singletons.add(new ImageUploader());
