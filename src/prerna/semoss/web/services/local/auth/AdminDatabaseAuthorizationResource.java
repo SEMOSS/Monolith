@@ -25,9 +25,9 @@ import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/app")
-public class AdminAppAuthorizationResource extends AbstractAdminResource {
+public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 
-	private static final Logger logger = LogManager.getLogger(AdminAppAuthorizationResource.class);
+	private static final Logger logger = LogManager.getLogger(AdminDatabaseAuthorizationResource.class);
 
 	@Context
 	protected ServletContext context;
@@ -86,6 +86,8 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String userId = form.getFirst("userId");
 		String permission = form.getFirst("permission");
+		boolean isAddNew = Boolean.parseBoolean(form.getFirst("isAddNew") + "");
+
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -98,7 +100,7 @@ public class AdminAppAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllDatabases(userId, permission);
+			adminUtils.grantAllDatabases(userId, permission, isAddNew);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

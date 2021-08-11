@@ -27,9 +27,9 @@ import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/app")
-public class AppAuthorizationResource {
+public class DatabaseAuthorizationResource {
 
-	private static final Logger logger = LogManager.getLogger(AppAuthorizationResource.class);
+	private static final Logger logger = LogManager.getLogger(DatabaseAuthorizationResource.class);
 
 	@Context
 	protected ServletContext context;
