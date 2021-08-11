@@ -29,7 +29,7 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityAppUtils;
+import prerna.auth.utils.SecurityDatabaseUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
@@ -43,22 +43,22 @@ import prerna.util.insight.TextToGraphic;
 import prerna.web.services.util.WebUtility;
 
 @Path("/app-{appId}")
-public class AppResource {
+public class DatabaseResource {
 
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	
-	private static final Logger logger = LogManager.getLogger(AppResource.class);
+	private static final Logger logger = LogManager.getLogger(DatabaseResource.class);
 	
-	private boolean canAccessApp(User user, String appId) throws IllegalAccessException {
+	private boolean canAccessApp(User user, String databaseId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
-			appId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, appId);
-			if(!SecurityAppUtils.userCanViewDatabase(user, appId)) {
-				throw new IllegalAccessException("App " + appId + " does not exist or user does not have access to database");
+			databaseId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, databaseId);
+			if(!SecurityDatabaseUtils.userCanViewDatabase(user, databaseId)) {
+				throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have access to database");
 			}
 		} else {
-			appId = MasterDatabaseUtility.testDatabaseIdIfAlias(appId);
-			if(!MasterDatabaseUtility.getAllDatabaseIds().contains(appId)) {
-				throw new IllegalAccessException("App " + appId + " does not exist");
+			databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
+			if(!MasterDatabaseUtility.getAllDatabaseIds().contains(databaseId)) {
+				throw new IllegalAccessException("Database " + databaseId + " does not exist");
 			}
 		}
 		
