@@ -86,6 +86,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String userId = form.getFirst("userId");
 		String permission = form.getFirst("permission");
+		boolean isAddNew = Boolean.parseBoolean(form.getFirst("isAddNew") + "");
+
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -98,7 +100,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllProjects(userId, permission);
+			adminUtils.grantAllProjects(userId, permission, isAddNew);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
