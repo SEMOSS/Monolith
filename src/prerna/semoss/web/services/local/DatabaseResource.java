@@ -72,7 +72,7 @@ public class DatabaseResource {
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/*
-	 * Code below is around app images and insight images
+	 * Code below is around app images
 	 */
 	
 	@GET
