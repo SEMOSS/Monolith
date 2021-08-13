@@ -92,28 +92,30 @@ public class PIVFilter implements Filter {
 								// get the full value
 								// this should be an email
 								email = rdn.getValue().toString();
-								// make sure valid email
-								if(email == null || !email.contains("@")) {
-									try {
-										EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
-											for(Object alternative : altNames) {
-												if(alternative instanceof String) {
-													String altStr = alternative.toString();
-													// really simple email check...
-													if(altStr.contains("@")) {
-														email = altStr;
-														break EMAIL_LOOP;
-													}
+							}
+							// CN for name
+							else if(rdn.getType().equals("CN")) {
+								name = rdn.getValue().toString();
+							}
+							
+							// if email still not valid - check alt names
+							if(email == null || !email.contains("@")) {
+								try {
+									EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
+										for(Object alternative : altNames) {
+											if(alternative instanceof String) {
+												String altStr = alternative.toString();
+												// really simple email check...
+												if(altStr.contains("@")) {
+													email = altStr;
+													break EMAIL_LOOP;
 												}
 											}
 										}
-									} catch (CertificateParsingException e) {
-							    		logger.error(Constants.STACKTRACE, e);
 									}
+								} catch (CertificateParsingException e) {
+						    		logger.error(Constants.STACKTRACE, e);
 								}
-							// CN for name
-							} else if(rdn.getType().equals("CN")) {
-								name = rdn.getValue().toString();
 							}
 							
 							// lets make sure we have all the stuff
