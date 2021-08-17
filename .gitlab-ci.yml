@@ -42,7 +42,8 @@ build_monolith_dev:
       - $RELEASE == "TRUE"
       - $SONARPUSH == "TRUE"
   script:
-    - apt-get update
+    - rm -rf /var/lib/apt/lists/*
+    - apt-get update -y
     - apt-get install -y openjfx
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
@@ -99,7 +100,8 @@ build_monolith_deploy:
     variables:
       - $RELEASE == "TRUE"
   script:
-    - apt-get update
+    - rm -rf /var/lib/apt/lists/*
+    - apt-get update -y
     - apt-get install -y openjfx
     - apt-get install -y gnupg2
     - gpg2 --batch --import <(echo "$GPG_PRIVATE_KEY")
@@ -123,7 +125,8 @@ build_monolith_release:
     variables:
       - $RELEASE == "TRUE"
   script:
-    - apt-get update
+    - rm -rf /var/lib/apt/lists/*
+    - apt-get update -y
     - apt-get install -y openjfx
     - apt-get install -y gnupg2
     - gpg2 --batch --import <(echo "$GPG_PRIVATE_KEY")
