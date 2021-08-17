@@ -42,7 +42,7 @@ build_monolith_dev:
       - $RELEASE == "TRUE"
       - $SONARPUSH == "TRUE"
   script:
-    - rm -rf /var/lib/apt/lists/*
+    - apt-get --allow-releaseinfo-change update -y
     - apt-get update -y
     - apt-get install -y openjfx
     # So that the most up-to-date artifacts are pulled
@@ -68,6 +68,7 @@ build_monolith_sonar:
     variables:
       - $RELEASE == "TRUE"
   script:
+    - apt-get --allow-releaseinfo-change update -y
     - apt-get -y update
     - apt-get install -y openjfx
     # So that the most up-to-date artifacts are pulled
@@ -100,7 +101,7 @@ build_monolith_deploy:
     variables:
       - $RELEASE == "TRUE"
   script:
-    - rm -rf /var/lib/apt/lists/*
+    - apt-get --allow-releaseinfo-change update -y
     - apt-get update -y
     - apt-get install -y openjfx
     - apt-get install -y gnupg2
@@ -125,7 +126,7 @@ build_monolith_release:
     variables:
       - $RELEASE == "TRUE"
   script:
-    - rm -rf /var/lib/apt/lists/*
+    - apt-get --allow-releaseinfo-change update -y
     - apt-get update -y
     - apt-get install -y openjfx
     - apt-get install -y gnupg2
