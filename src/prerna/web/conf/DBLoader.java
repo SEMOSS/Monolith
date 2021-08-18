@@ -211,24 +211,31 @@ public class DBLoader implements ServletContextListener {
 		}
 	}
 
-	public void loadSmss(String pathKey) {
-		StringTokenizer watchers = new StringTokenizer(DIHelper.getInstance().getProperty(pathKey), ";");
+	private void loadSmss(String pathKey) {
+		String pathValue = DIHelper.getInstance().getProperty(pathKey);
+		if(pathValue == null || pathValue.trim().isEmpty()) {
+			throw new NullPointerException("Error occured - could not find " + pathKey + " in RDF_Map.prop which is required for starting the application");
+		}
+		
+		StringTokenizer watchers = new StringTokenizer(pathValue, ";");
 		try {
 			while (watchers.hasMoreElements()) {
-				Object monitor = new Object();
 				String watcher = watchers.nextToken();
-				String watcherClass = DIHelper.getInstance().getProperty(watcher);
-				String folder = DIHelper.getInstance().getProperty(watcher + "_DIR");
-				String ext = DIHelper.getInstance().getProperty(watcher + "_EXT");
-				AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass).getConstructor(null).newInstance(null);
-				watcherInstance.setMonitor(monitor);
-				watcherInstance.setFolderToWatch(folder);
-				watcherInstance.setExtension(ext);
-				watcherInstance.init();
-				synchronized (monitor) {
-					Thread thread = new Thread(watcherInstance);
-					thread.start();
-					watcherList.add(watcherInstance);
+				if(watcher != null && !(watcher=watcher.trim()).isEmpty()) {
+					Object monitor = new Object();
+					String watcherClass = DIHelper.getInstance().getProperty(watcher);
+					String folder = DIHelper.getInstance().getProperty(watcher + "_DIR");
+					String ext = DIHelper.getInstance().getProperty(watcher + "_EXT");
+					AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass).getConstructor(null).newInstance(null);
+					watcherInstance.setMonitor(monitor);
+					watcherInstance.setFolderToWatch(folder);
+					watcherInstance.setExtension(ext);
+					watcherInstance.init();
+					synchronized (monitor) {
+						Thread thread = new Thread(watcherInstance);
+						thread.start();
+						watcherList.add(watcherInstance);
+					}
 				}
 			}
 		} catch (Exception ex) {
