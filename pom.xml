@@ -131,9 +131,12 @@
 							<warSourceIncludes>
 								logout/**,
 								noUserFail/**,
+								samlLogin/**,
+								sessionCounterFail/**,
 								setAdmin/**,
-								share/**,
+								share/**
 								startUpFail/**,
+								websocket/**
 							</warSourceIncludes>
 							<packagingExcludes>
 								%regex[WEB-INF/lib/(?!semoss-${ci.version}).*.jar]
