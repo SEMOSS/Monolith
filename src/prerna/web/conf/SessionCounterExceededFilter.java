@@ -45,25 +45,34 @@ public class SessionCounterExceededFilter implements Filter {
 		}
 		
 		if(user == null && sessionLimit != null && sessionLimit > 0) {
-			StandardManager manager = SessionResource.getManager((HttpServletRequest) arg0);
-			if(manager != null) {
-				int currentSessions = manager.getActiveSessions();
+			synchronized(SessionCounterExceededFilter.class) {
+				session = ((HttpServletRequest)arg0).getSession();
+				StandardManager manager = SessionResource.getManager(session);
+				if(manager != null) {
+					// note this includes the new session that was just created here
+					int currentSessions = manager.getActiveSessions();
+					if(currentSessions > sessionLimit) {
+						logger.info("New user exceeds the # of allowed sessions = " + sessionLimit);
 
-				if(currentSessions+1 > sessionLimit) {
-					// too many users
-					// this will be the deployment name of the app
-					String contextPath = context.getContextPath();
-
-					// this will be the full path of the request
-					// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-					String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
-
-					if(!fullUrl.endsWith(FAIL_HTML)) {
-						// we redirect to the index.html page where we have pushed the admin page
-						String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + FAIL_HTML;
-						((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
-						return;
+						// invalidate the session that was created for the manager
+						session.invalidate();
+						// too many users
+						// this will be the deployment name of the app
+						String contextPath = context.getContextPath();
+	
+						// this will be the full path of the request
+						// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
+						String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+	
+						if(!fullUrl.endsWith(FAIL_HTML)) {
+							// we redirect to the index.html page where we have pushed the admin page
+							String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + FAIL_HTML;
+							((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+							return;
+						}
+					} else {
+						logger.info("New user login makes session #" + currentSessions);
 					}
 				}
 			}

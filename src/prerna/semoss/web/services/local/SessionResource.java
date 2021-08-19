@@ -70,7 +70,9 @@ public class SessionResource {
 			}
 		}
 		
-		StandardManager manager = getManager(request);
+		// the session needs to exist if the user is to exist...
+		HttpSession session = request.getSession(false);
+		StandardManager manager = getManager(session);
 		
 		Map<String, Object> ret = new HashMap<>();
 		if(manager != null) {
@@ -85,8 +87,8 @@ public class SessionResource {
 	 * Getting the manager
 	 * @param request
 	 */
-	public static StandardManager getManager(@Context HttpServletRequest request) {
-		ApplicationContextFacade applicationContextFacade = (ApplicationContextFacade) request.getSession().getServletContext();
+	public static StandardManager getManager(HttpSession session) {
+		ApplicationContextFacade applicationContextFacade = (ApplicationContextFacade) session.getServletContext();
 		try {
 			Field applicationContextField = applicationContextFacade.getClass().getDeclaredField("context");
 			applicationContextField.setAccessible(true);
