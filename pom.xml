@@ -82,7 +82,7 @@
 								samlLogin/**,
 								sessionCounterFail/**,
 								setAdmin/**,
-								share/**
+								share/**,
 								startUpFail/**,
 								websocket/**
 							</warSourceIncludes>
@@ -134,7 +134,7 @@
 								samlLogin/**,
 								sessionCounterFail/**,
 								setAdmin/**,
-								share/**
+								share/**,
 								startUpFail/**,
 								websocket/**
 							</warSourceIncludes>
