@@ -82,9 +82,15 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 					String redirectSessionId = sessionMapper.get(userId);
 					if(redirectSessionId != null) {
 						// validate that the session exists within tomcats session manager
-						StandardManager manager = SessionResource.getManager((HttpServletRequest) arg0);
+						session = ((HttpServletRequest) arg0).getSession();
+						StandardManager manager = SessionResource.getManager(session);
 						if(manager.getSession(redirectSessionId) != null) {
 							redirectToExistingSession = true;
+							// we are going to try to redirect
+							// so invalidate this new session
+							if (((HttpServletRequest) arg0).isRequestedSessionIdValid()) {
+								session.invalidate();
+							}
 						} else {
 							// remove from the session mapper
 							sessionMapper.remove(userId);
@@ -110,9 +116,6 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 							// you are allowed
 							// i just have to check if the token id exists
 							// and id you do, i make the user object
-							if(session == null) {
-								session = req.getSession(true);
-							}
 							user = new User();
 							AccessToken token = new AccessToken();
 							token.setProvider(AuthProvider.WINDOWS_USER);
@@ -133,6 +136,11 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 									+ ( (ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "")
 									;
 							((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
+						} else {
+							// invalidate the session
+							if(((HttpServletRequest) arg0).isRequestedSessionIdValid()) {
+								session.invalidate();
+							}
 						}
 					} else {
 						// this is the case where you redirect
