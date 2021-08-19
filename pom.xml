@@ -82,8 +82,9 @@
 								samlLogin/**,
 								sessionCounterFail/**,
 								setAdmin/**,
-								startUpFail/**,
 								share/**
+								startUpFail/**,
+								websocket/**
 							</warSourceIncludes>
 						</configuration>
 					</plugin>
