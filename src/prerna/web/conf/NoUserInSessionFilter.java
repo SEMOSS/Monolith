@@ -152,11 +152,13 @@ public class NoUserInSessionFilter implements Filter {
 
 						// add the hash cookie
 						String hash = req.getParameter("hash");
-						Cookie h = new Cookie("HASH", Utility.cleanHttpResponse(hash));
-						h.setHttpOnly(true);
-						h.setSecure(req.isSecure());
-						h.setPath(contextPath);
-						((HttpServletResponse) arg1).addCookie(h);
+						if(hash != null) {
+							Cookie h = new Cookie("HASH", Utility.cleanHttpResponse(hash));
+							h.setHttpOnly(true);
+							h.setSecure(req.isSecure());
+							h.setPath(contextPath);
+							((HttpServletResponse) arg1).addCookie(h);
+						}
 
 						// and now redirect back to the URL
 						// if get, we can do it
@@ -192,7 +194,7 @@ public class NoUserInSessionFilter implements Filter {
 					else {
 						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
 						// invalidate the session if necessary
-						if (session != null) {
+						if (session != null && ((HttpServletRequest) arg0).isRequestedSessionIdValid()) {
 							session.invalidate();
 						}
 						return;
@@ -204,12 +206,14 @@ public class NoUserInSessionFilter implements Filter {
 				// {@link UserResource#setMainPageRedirect(@Context HttpServletRequest request,
 				// @Context HttpServletResponse response)}
 				// is sent to the pop-up for OAuth login
-				String endpointRedirectUrl = Utility.cleanHttpResponse((String) session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY));
-				if (endpointRedirectUrl != null && !endpointRedirectUrl.isEmpty()) {
-					((HttpServletResponse) arg1).setHeader("redirect", endpointRedirectUrl);
-					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + endpointRedirectUrl);
-					session.removeAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY);
-					return;
+				if(session != null) {
+					String endpointRedirectUrl = Utility.cleanHttpResponse((String) session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY));
+					if (endpointRedirectUrl != null && !endpointRedirectUrl.isEmpty()) {
+						((HttpServletResponse) arg1).setHeader("redirect", endpointRedirectUrl);
+						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + endpointRedirectUrl);
+						session.removeAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY);
+						return;
+					}
 				}
 
 				// so we have a user
