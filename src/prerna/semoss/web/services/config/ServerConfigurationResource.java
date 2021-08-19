@@ -47,8 +47,6 @@ public class ServerConfigurationResource {
 	 * @return
 	 */
 	private static Map<String, Object> getConfig(@Context HttpServletRequest request) {
-		HttpSession session = request.getSession(true);
-
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -57,20 +55,20 @@ public class ServerConfigurationResource {
 		}
 		
 		if(config != null) {
-			return getConfiguration(session, user);
+			return getConfiguration(request, user);
 		}
 		
 		// make thread safe
 		synchronized (ServerConfigurationResource.class) {
 			if (config == null) {
-				loadConfig(session);
+				loadConfig();
 			}
 		}
 
-		return getConfiguration(session, user);
+		return getConfiguration(request, user);
 	}
 	
-	private static void loadConfig(HttpSession session) {
+	private static void loadConfig() {
 		Map<String, Object> loadConfig = new HashMap<>();
 
 		// r enabled
@@ -161,10 +159,11 @@ public class ServerConfigurationResource {
 		ServerConfigurationResource.config = loadConfig;
 	}
 
-	private static Map<String, Object> getConfiguration(HttpSession session, User user) {
+	private static Map<String, Object> getConfiguration(@Context HttpServletRequest request, User user) {
 		// do not keep this session
 		// if no user and it is new
-		if (session.isNew() && user == null) {
+		HttpSession session = request.getSession();
+		if (user == null && session.isNew() && request.isRequestedSessionIdValid()) {
 			session.invalidate();
 		}
 

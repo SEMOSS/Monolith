@@ -17,17 +17,8 @@ import prerna.util.Constants;
 public class FilespaceAccessFilter implements Filter {
 	
 	@Override
-	public void init(FilterConfig filterConfig) throws ServletException {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-			throws IOException, ServletException {
-		// TODO Auto-generated method stub
-		try
-		{
+	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+		try {
 			// get the space it is trying to access
 			// get the user from the session
 			// see if this user can access this space
@@ -38,26 +29,22 @@ public class FilespaceAccessFilter implements Filter {
 			// http://blah blah/Monolith/public_home/app__app_id/something
 			String publicHome = "/" + Constants.PUBLIC_HOME + "/";
 			int publicHomeIndex = url.indexOf(publicHome);
-			if(publicHomeIndex >= 0)
-			{
+			if(publicHomeIndex >= 0) {
 				String appHome = url.substring(publicHomeIndex + publicHome.length());
 				int appRootIndex = appHome.indexOf("/");
-				if(appRootIndex >= 0)
-				{
+				if(appRootIndex >= 0) {
 					String appRoot = appHome.substring(0, appRootIndex);
 					String [] appRootElements = appRoot.split("__");
-					User user = (User)hsr.getSession().getAttribute(Constants.SESSION_USER);
-					if(user.checkProjectAccess(appRootElements[0], appRootElements[1]))
+					User user = (User) hsr.getSession().getAttribute(Constants.SESSION_USER);
+					if(user.checkProjectAccess(appRootElements[0], appRootElements[1])) {
 						chain.doFilter(request, response);
-					else
-					{
+					} else {
 						((HttpServletResponse)response).sendError(HttpServletResponse.SC_FORBIDDEN, " You are not allowed to access that resource ");;
 					}
 				}
 			}
-		}catch(Exception ex)
-		{
-			
+		} catch(Exception ex) {
+			ex.printStackTrace();
 		}
 	}
 
@@ -66,5 +53,12 @@ public class FilespaceAccessFilter implements Filter {
 		// TODO Auto-generated method stub
 
 	}
+	
+	@Override
+	public void init(FilterConfig filterConfig) throws ServletException {
+		// TODO Auto-generated method stub
+
+	}
+
 
 }
