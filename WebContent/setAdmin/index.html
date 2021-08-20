@@ -1,284 +1,284 @@
 <!DOCTYPE html>
-<html>
-
-<head>
-	<style>
-		body {
-			font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-			font-size: 14px;
-			line-height: 1.42857;
-			font-weight: 300;
-			overflow: hidden;
-		}
-		
-		table, th, td {
-			border: 1px solid black;
-			border-collapse: collapse;
-		}
-		
-		table {
-			width: 100%
-		}
-		
-		th, td {
-			font-size: 12px;
-			padding: 15px;
-		}
-		
-		th {
-			text-align: left;
-		}
-
-		* {
-			-webkit-box-sizing: border-box;
-			-moz-box-sizing: border-box;
-			box-sizing: border-box;
-		}
-
-		:root {
-			--color-primary-light: #b3cce6;
-			--color-primary: #336699;
-			--color-primary-dark: #2d5986;
-			--color-success-light: #def6e8;
-			--color-success: #52CF87;
-			--color-success-dark: #3ec979;
-			--color-warn-light: #fff9e9;
-			--color-warn: #FFD250;
-			--color-warn-dark: #ffc51d;
-			--color-error-light: #fef6f6;
-			--color-error: #EB6456;
-			--color-error-dark: #e84f3f;
-			--color-grey1: #FAFAFA;
-			--color-grey2: #EEEEEE;
-			--color-grey3: #E7E7E7;
-			--color-grey4: #A6A6A6;
-			--color-grey5: #777777;
-			--color-menu: #336699;
-			--color-menu-dark: #2d5986;
-			--color-background: #F1F3F7;
-			--color-neutral: #FFFFFF;
-			--color-neutral-invert: #000000;
-			--color-text: #000000;
-			--color-text-invert: #FFFFFF;
-			--color-title: #000000;
-			--color-label: #2b2b2b;
-		}
-	</style>
-	<style>
-		.smss-form-container {
-			position: relative;
-			display: block;
-			width: 100%;
-			padding: 4px 0;
-		}
-
-		.smss-form-container::after {
-			content: '';
-			display: block;
-			clear: both;
-		}
-
-		.smss-form-label {
-			float: left;
-			line-height: 28px;
-			width: 100%;
-			display: inline-block;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
-		}
-
-		.smss-form-field {
-			float: left;
-			width: 100%;
-			display: inline-block;
-		}
-
-		.smss-right {
-			float: right;
-		}
-
-		.smss-left {
-			float: left;
-		}
-
-		.smss-clear::after {
-			content: '';
-			display: block;
-			clear: both;
-		}
-
-		.smss-input {
-			box-sizing: border-box;
-			height: 28px;
-			width: 100%;
-			padding: 0 12px;
-			background: #FFFFFF;
-			box-shadow: none;
-			outline: none;
-			border: 1px solid #E7E7E7;
-			border: 1px solid var(--color-grey3);
-		}
-
-		.smss-input:focus {
-			border: 1px solid #336699;
-			border: 1px solid var(--color-grey3);
-		}
-
-		.smss-input::placeholder {
-			color: #BBBBBB;
-		}
-
-		.smss-btn {
-			font-size: 12px;
-			line-height: 24px;
-			height: 26px;
-			margin: 1px 0;
-			padding: 0 8px;
-			text-align: center;
-			cursor: pointer;
-			outline: none;
-			display: inline-block;
-			background-color: #FFFFFF;
-			user-select: none;
-			border: 1px solid #E7E7E7;
-			border: 1px solid var(--color-grey3);
-
-		}
-
-		.smss-btn:focus {
-			border: 1px solid #336699;
-			border: 1px solid var(--color-primary);
-		}
-
-		.smss-btn:hover {
-			background: #EEEEEE;
-			border: 1px solid var(--color-grey2);
-		}
-
-		.smss-btn.smss-btn-primary {
-			background: #336699;
-			background: var(--color-primary);
-			color: #FFFFFF;
-			color: var(--color-text-invert);
-		}
-
-		.smss-btn.smss-btn-primary:hover {
-			background: #2d5986;
-			background: var(--color-primary-dark);
-		}
-	</style>
-	<style>
-		.register {
-			position: absolute;
-			top: 0;
-			right: 0;
-			bottom: 0;
-			left: 0;
-			display: flex;
-			align-items: center;
-			background: url(./milkyway.jpg) no-repeat center center fixed;
-			background-size: cover;
-			overflow: auto;
-		}
-
-		.register__box {
-			position: relative;
-			display: block;
-			margin: 0 auto;
-			max-width: 500px;
-			width: 80%;
-			border: 1px solid #E7E7E7;
-			border: 1px solid var(--color-grey3);
-			background: #FFFFFF;
-			padding: 8px;
-		}
-	</style>
-
-	<script>
-		function registerAdmins() {
-			var xhttp = new XMLHttpRequest(),
-				origin = window.location.href;
-			endpoint = origin.substring(0, origin.lastIndexOf('/setAdmin')+1) + 'adminconfig/setInitialAdmins',
-				inputs = document.getElementById('user-id');
-			ids = [inputs.value];
-
-			if (inputs.value) {
-				xhttp.onreadystatechange = function () {
-					if (this.status == 302) {
-						var redir = this.getResponseHeader("redirect");
-						if (redir) {
-							window.location.replace(redir);
-						}
-					}
-				};
-				xhttp.open('POST', endpoint, true);
-				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-				xhttp.send('ids=' + encodeURIComponent(JSON.stringify(ids)));
+<html lang="en" xml:lang="en">
+	<head>
+		<title>Set Initial Admin</title>
+		<style>
+			body {
+				font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+				font-size: 14px;
+				line-height: 1.42857;
+				font-weight: 300;
+				overflow: hidden;
 			}
-		}
-	</script>
-</head>
-
-<body>
-	<div class="register">
-		<form class="register__box"
-		      action="javascript:registerAdmins(this)">
-			<div class="smss-form-container">
-				<div class="smss-form-label">
-					Please set your initial admin:
-				</div>
-				<div class="smss-form-field">
-					<input class="smss-input"
-					       id="user-id"
-					       type="text">
-				</div>
-			</div>
-
-			<div class="smss-form-container">
-				<div class="smss-form-field"></div>
-				<input class="smss-btn smss-btn-primary smss-right"
-				       type="submit"
-				       value="Submit">
-			</div>
 			
-			<div class="smss-form-container">
-				<div class="smss-form-label">
-					Utilize this table to determine what value to enter
+			table, th, td {
+				border: 1px solid black;
+				border-collapse: collapse;
+			}
+			
+			table {
+				width: 100%
+			}
+			
+			th, td {
+				font-size: 12px;
+				padding: 15px;
+			}
+			
+			th {
+				text-align: left;
+			}
+
+			* {
+				-webkit-box-sizing: border-box;
+				-moz-box-sizing: border-box;
+				box-sizing: border-box;
+			}
+
+			:root {
+				--color-primary-light: #b3cce6;
+				--color-primary: #336699;
+				--color-primary-dark: #2d5986;
+				--color-success-light: #def6e8;
+				--color-success: #52CF87;
+				--color-success-dark: #3ec979;
+				--color-warn-light: #fff9e9;
+				--color-warn: #FFD250;
+				--color-warn-dark: #ffc51d;
+				--color-error-light: #fef6f6;
+				--color-error: #EB6456;
+				--color-error-dark: #e84f3f;
+				--color-grey1: #FAFAFA;
+				--color-grey2: #EEEEEE;
+				--color-grey3: #E7E7E7;
+				--color-grey4: #A6A6A6;
+				--color-grey5: #777777;
+				--color-menu: #336699;
+				--color-menu-dark: #2d5986;
+				--color-background: #F1F3F7;
+				--color-neutral: #FFFFFF;
+				--color-neutral-invert: #000000;
+				--color-text: #000000;
+				--color-text-invert: #FFFFFF;
+				--color-title: #000000;
+				--color-label: #2b2b2b;
+			}
+		</style>
+		<style>
+			.smss-form-container {
+				position: relative;
+				display: block;
+				width: 100%;
+				padding: 4px 0;
+			}
+
+			.smss-form-container::after {
+				content: '';
+				display: block;
+				clear: both;
+			}
+
+			.smss-form-label {
+				float: left;
+				line-height: 28px;
+				width: 100%;
+				display: inline-block;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.smss-form-field {
+				float: left;
+				width: 100%;
+				display: inline-block;
+			}
+
+			.smss-right {
+				float: right;
+			}
+
+			.smss-left {
+				float: left;
+			}
+
+			.smss-clear::after {
+				content: '';
+				display: block;
+				clear: both;
+			}
+
+			.smss-input {
+				box-sizing: border-box;
+				height: 28px;
+				width: 100%;
+				padding: 0 12px;
+				background: #FFFFFF;
+				box-shadow: none;
+				outline: none;
+				border: 1px solid #E7E7E7;
+				border: 1px solid var(--color-grey3);
+			}
+
+			.smss-input:focus {
+				border: 1px solid #336699;
+				border: 1px solid var(--color-grey3);
+			}
+
+			.smss-input::placeholder {
+				color: #BBBBBB;
+			}
+
+			.smss-btn {
+				font-size: 12px;
+				line-height: 24px;
+				height: 26px;
+				margin: 1px 0;
+				padding: 0 8px;
+				text-align: center;
+				cursor: pointer;
+				outline: none;
+				display: inline-block;
+				background-color: #FFFFFF;
+				user-select: none;
+				border: 1px solid #E7E7E7;
+				border: 1px solid var(--color-grey3);
+
+			}
+
+			.smss-btn:focus {
+				border: 1px solid #336699;
+				border: 1px solid var(--color-primary);
+			}
+
+			.smss-btn:hover {
+				background: #EEEEEE;
+				border: 1px solid var(--color-grey2);
+			}
+
+			.smss-btn.smss-btn-primary {
+				background: #336699;
+				background: var(--color-primary);
+				color: #FFFFFF;
+				color: var(--color-text-invert);
+			}
+
+			.smss-btn.smss-btn-primary:hover {
+				background: #2d5986;
+				background: var(--color-primary-dark);
+			}
+		</style>
+		<style>
+			.register {
+				position: absolute;
+				top: 0;
+				right: 0;
+				bottom: 0;
+				left: 0;
+				display: flex;
+				align-items: center;
+				background: url(./milkyway.jpg) no-repeat center center fixed;
+				background-size: cover;
+				overflow: auto;
+			}
+
+			.register__box {
+				position: relative;
+				display: block;
+				margin: 0 auto;
+				max-width: 500px;
+				width: 80%;
+				border: 1px solid #E7E7E7;
+				border: 1px solid var(--color-grey3);
+				background: #FFFFFF;
+				padding: 8px;
+			}
+		</style>
+
+		<script>
+			function registerAdmins() {
+				var xhttp = new XMLHttpRequest(),
+					origin = window.location.href;
+				endpoint = origin.substring(0, origin.lastIndexOf('/setAdmin')+1) + 'adminconfig/setInitialAdmins',
+					inputs = document.getElementById('user-id');
+				ids = [inputs.value];
+
+				if (inputs.value) {
+					xhttp.onreadystatechange = function () {
+						if (this.status == 302) {
+							var redir = this.getResponseHeader("redirect");
+							if (redir) {
+								window.location.replace(redir);
+							}
+						}
+					};
+					xhttp.open('POST', endpoint, true);
+					xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+					xhttp.send('ids=' + encodeURIComponent(JSON.stringify(ids)));
+				}
+			}
+		</script>
+	</head>
+
+	<body>
+		<div class="register">
+			<form class="register__box"
+				  action="javascript:registerAdmins(this)">
+				<div class="smss-form-container">
+					<div class="smss-form-label">
+						Please set your initial admin:
+					</div>
+					<div class="smss-form-field">
+						<input class="smss-input"
+							   id="user-id"
+							   type="text">
+					</div>
 				</div>
-			</div>
-			<table>
-				<tr>
-					<th>Login Type</th>
-					<th>Input Value</th>
-				</tr>
-				<tr>
-					<td>Google OAuth</td>
-					<td>Email</td>
-				</tr>
-				<tr>
-					<td>Github OAuth</td>
-					<td>Email (must have an email set on public profile)</td>
-				</tr>
-				<tr>
-					<td>Microsoft OAuth</td>
-					<td>Email</td>
-				</tr>
-				<tr>
-					<td>Native Login / Password</td>
-					<td>Username (must match value to be entered on registration page)</td>
-				</tr>
-				<tr>
-					<td>X.509 Certificates</td>
-					<td>Email</td>
-				</tr>
-				<tr>
-					<td>Windows Authentication - Waffle</td>
-					<td>Username (e.g. US\jsmith)</td>
-				</tr>
-			</table>
-		</form>
-	</div>
-</body>
+
+				<div class="smss-form-container">
+					<div class="smss-form-field"></div>
+					<input class="smss-btn smss-btn-primary smss-right"
+						   type="submit"
+						   value="Submit">
+				</div>
+				
+				<div class="smss-form-container">
+					<div class="smss-form-label">
+						Utilize this table to determine what value to enter
+					</div>
+				</div>
+				<table>
+					<tr>
+						<th scope="col1">Login Type</th>
+						<th scope="col2">Input Value</th>
+					</tr>
+					<tr>
+						<td>Google OAuth</td>
+						<td>Email</td>
+					</tr>
+					<tr>
+						<td>Github OAuth</td>
+						<td>Email (must have an email set on public profile)</td>
+					</tr>
+					<tr>
+						<td>Microsoft OAuth</td>
+						<td>Email</td>
+					</tr>
+					<tr>
+						<td>Native Login / Password</td>
+						<td>Username (must match value to be entered on registration page)</td>
+					</tr>
+					<tr>
+						<td>X.509 Certificates</td>
+						<td>Email</td>
+					</tr>
+					<tr>
+						<td>Windows Authentication - Waffle</td>
+						<td>Username (e.g. US\jsmith)</td>
+					</tr>
+				</table>
+			</form>
+		</div>
+	</body>
 
 </html>
