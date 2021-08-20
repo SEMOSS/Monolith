@@ -1,5 +1,5 @@
 
-var socket = new WebSocket("ws://localhost:9090/Monolith_Dev/pixelSocket");
+var socket = new WebSocket("ws://localhost:8080/Monolith_Dev/pixelSocket");
 socket.onmessage = onMessage;
 
 function onMessage(event) {
