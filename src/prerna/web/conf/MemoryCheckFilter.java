@@ -83,18 +83,24 @@ public class MemoryCheckFilter implements Filter {
 	 */
 	private void isCheckMem() {
 		String checkMemSettings = DIHelper.getInstance().getProperty(Settings.CHECK_MEM);
-		if(checkMemSettings != null) {
+		if(checkMemSettings != null && !(checkMemSettings=checkMemSettings.trim()).isEmpty()) {
 			boolean checkMem = Boolean.parseBoolean(checkMemSettings);
 			if(checkMem) {
 				String memLimitSettings = DIHelper.getInstance().getProperty(Settings.USER_MEM_LIMIT);
-				int memLimit = Integer.parseInt(memLimitSettings);
-				
-				MemoryCheckFilter.memProfileSettings = DIHelper.getInstance().getProperty(Settings.MEM_PROFILE_SETTINGS);
-				MemoryCheckFilter.memLimit = memLimit;
+				String memProfileSetting = DIHelper.getInstance().getProperty(Settings.MEM_PROFILE_SETTINGS);
+
+				if((memLimitSettings != null && !(memLimitSettings=memLimitSettings.trim()).isEmpty())
+					&& (memProfileSetting != null && !(memProfileSetting=memProfileSetting.trim()).isEmpty())
+					) {
+					int memLimit = Integer.parseInt(memLimitSettings);
+					MemoryCheckFilter.memProfileSettings = memProfileSetting;
+					MemoryCheckFilter.memLimit = memLimit;
+				}
 			}
 			MemoryCheckFilter.checkMem = checkMem;
 			return;
 		}
+		// default is false
 		MemoryCheckFilter.checkMem = false;
 	}
 	
