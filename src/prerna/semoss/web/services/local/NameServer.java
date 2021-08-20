@@ -187,7 +187,7 @@ public class NameServer {
 			// }
 			// }
 			// }
-		} else if (insightID.equals("new")) {
+		} else if (insightID == null || insightID.equals("new")) {
 			// get the data frame type and set it from the FE
 			if (dataFrameType == null) {
 				dataFrameType = "H2Frame";
@@ -484,7 +484,7 @@ public class NameServer {
 	 * @param expression
 	 * @return
 	 */
-	private Response getInsightPipeline(Insight insight) {
+	private Response getInsightPipeline(final Insight insight) {
 		synchronized (insight) {
 			try {
 				return Response.status(200)
@@ -597,8 +597,9 @@ public class NameServer {
 			JobThread jt = JobManager.getManager().getJob(jobId);
 			if(jt == null) {
 				dataReturn = JobStatus.UNKNOWN_JOB.getValue();
+			} else {
+				dataReturn = jt.getStatus();
 			}
-			dataReturn = jt.getStatus();
 		}
 		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
