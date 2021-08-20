@@ -122,6 +122,11 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 							token.setId(userId);
 							token.setName(userId);
 							user.setAccessToken(token);
+							// if the session hasn't been instantiated yet
+							// start one
+							if(session == null) {
+								session = ((HttpServletRequest) arg0).getSession();
+							}
 							session.setAttribute(Constants.SESSION_USER, user);
 
 							String sessionId = session.getId();
