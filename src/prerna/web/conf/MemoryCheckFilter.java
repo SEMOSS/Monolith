@@ -117,7 +117,7 @@ public class MemoryCheckFilter implements Filter {
 			MEM_PROFILE_SETTINGS	CONSTANT
 			# specification in gigs
 			USER_MEM_LIMIT	2
-			RESERVED_JAVA_MEMORY	12 
+			RESERVED_JAVA_MEM	12 
 		 * 
 		 */
 		
