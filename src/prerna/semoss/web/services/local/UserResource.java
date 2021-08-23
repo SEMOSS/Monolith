@@ -222,6 +222,10 @@ public class UserResource {
 					}
 				}
 			}
+			
+			if (session.isNew() || request.isRequestedSessionIdValid()) {
+				session.invalidate();
+			}
 		}
 
 		Map<String, String> retMap = User.getLoginNames(semossUser);
@@ -1719,7 +1723,7 @@ public class UserResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("login")
+	@Path("/login")
 	public Response loginNative(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
 		try {
