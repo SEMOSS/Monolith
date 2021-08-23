@@ -223,7 +223,7 @@ public class UserResource {
 				}
 			}
 			
-			if (session.isNew() || request.isRequestedSessionIdValid()) {
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
 		}
