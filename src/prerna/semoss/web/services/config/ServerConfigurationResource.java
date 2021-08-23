@@ -163,7 +163,7 @@ public class ServerConfigurationResource {
 		// do not keep this session
 		// if no user and it is new
 		HttpSession session = request.getSession();
-		if (user == null && session.isNew() && request.isRequestedSessionIdValid()) {
+		if (user == null && (session.isNew() || request.isRequestedSessionIdValid())) {
 			session.invalidate();
 		}
 
