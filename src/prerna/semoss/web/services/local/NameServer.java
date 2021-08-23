@@ -286,6 +286,7 @@ public class NameServer {
 				user = ((User) session.getAttribute(Constants.SESSION_USER));
 			}
 
+			// how did you even get past the no user in session filter?
 			if (user == null) {
 				if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 					session.invalidate();
