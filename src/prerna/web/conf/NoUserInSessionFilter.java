@@ -193,10 +193,6 @@ public class NoUserInSessionFilter implements Filter {
 					// just a normal redirect
 					else {
 						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
-						// invalidate the session if necessary
-						if (session != null && (session.isNew() || ((HttpServletRequest) arg0).isRequestedSessionIdValid())) {
-							session.invalidate();
-						}
 						return;
 					}
 				}
@@ -327,6 +323,12 @@ public class NoUserInSessionFilter implements Filter {
 			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
 			((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
 			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
+			
+			// invalidate the session if necessary
+			HttpSession session = ((HttpServletRequest) arg0).getSession(false);
+			if (session != null && (session.isNew() || ((HttpServletRequest) arg0).isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
 		}
 	}
 
