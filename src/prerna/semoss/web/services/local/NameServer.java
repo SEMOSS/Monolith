@@ -287,6 +287,9 @@ public class NameServer {
 			}
 
 			if (user == null) {
+				if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+					session.invalidate();
+				}
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("error", "User session is invalid");
 				return WebUtility.getResponse(errorMap, 401);
