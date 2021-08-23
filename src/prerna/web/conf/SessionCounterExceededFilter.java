@@ -37,7 +37,6 @@ public class SessionCounterExceededFilter implements Filter {
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		setInitParams(arg0);
 
-		ServletContext context = arg0.getServletContext();
 		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
 		User user = null;
 		if(session != null) {
@@ -45,40 +44,51 @@ public class SessionCounterExceededFilter implements Filter {
 		}
 		
 		if(user == null && sessionLimit != null && sessionLimit > 0) {
-			synchronized(SessionCounterExceededFilter.class) {
-				session = ((HttpServletRequest)arg0).getSession();
-				StandardManager manager = SessionResource.getManager(session);
-				if(manager != null) {
-					// note this includes the new session that was just created here
-					int currentSessions = manager.getActiveSessions();
-					if(currentSessions > sessionLimit) {
-						logger.info("New user exceeds the # of allowed sessions = " + sessionLimit);
-
-						// invalidate the session that was created for the manager
-						session.invalidate();
-						// too many users
-						// this will be the deployment name of the app
-						String contextPath = context.getContextPath();
-	
-						// this will be the full path of the request
-						// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-						String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
-	
-						if(!fullUrl.endsWith(FAIL_HTML)) {
-							// we redirect to the index.html page where we have pushed the admin page
-							String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + FAIL_HTML;
-							((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
-							return;
-						}
-					} else {
-						logger.info("New user login makes session #" + currentSessions);
-					}
-				}
+			int valid = performCheck(session, arg0, arg1);
+			if(valid != 0) {
+				return;
 			}
 		}
 
 		arg2.doFilter(arg0, arg1);
+	}
+	
+	private static synchronized int performCheck(HttpSession session, ServletRequest arg0, ServletResponse arg1) throws IOException {
+		ServletContext context = arg0.getServletContext();
+		if(session == null) {
+			session = ((HttpServletRequest)arg0).getSession();
+		}
+		
+		StandardManager manager = SessionResource.getManager(session);
+		if(manager != null) {
+			// note this includes the new session that was just created here
+			int currentSessions = manager.getActiveSessions();
+			if(currentSessions > sessionLimit) {
+				logger.info("New user exceeds the # of allowed sessions = " + sessionLimit);
+
+				// invalidate the session that was created for the manager
+				session.invalidate();
+				// too many users
+				// this will be the deployment name of the app
+				String contextPath = context.getContextPath();
+
+				// this will be the full path of the request
+				// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
+				String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+
+				if(!fullUrl.endsWith(FAIL_HTML)) {
+					// we redirect to the index.html page where we have pushed the admin page
+					String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + FAIL_HTML;
+					((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+					return -1;
+				}
+			} else {
+				logger.info("New user login makes session #" + currentSessions);
+			}
+		}
+		
+		return 0;
 	}
 
 	@Override
