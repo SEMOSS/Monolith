@@ -205,7 +205,7 @@ public class UserResource {
 		HttpSession session = request.getSession(false);
 		User semossUser = null;
 		if (session != null) {
-			semossUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 
 		if (semossUser == null) {
