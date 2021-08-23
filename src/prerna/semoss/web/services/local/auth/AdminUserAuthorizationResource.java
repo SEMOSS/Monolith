@@ -55,8 +55,6 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		Hashtable<String, String> errorRet = new Hashtable<>();
 		boolean success = false;
 		try {
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-
 			String newUserId = form.getFirst("userId");
 			if(newUserId == null || newUserId.isEmpty()) {
 				throw new IllegalArgumentException("The user id cannot be null or empty");
@@ -82,6 +80,16 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 					throw new IllegalArgumentException(passwordError);
 				}
 			}
+			
+			User user = null;
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+			
 			if(SecurityAdminUtils.userIsAdmin(user)){
 				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, newUserAdmin, publisher);
 			} else {
