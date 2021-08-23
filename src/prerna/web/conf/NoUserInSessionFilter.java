@@ -194,7 +194,7 @@ public class NoUserInSessionFilter implements Filter {
 					else {
 						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
 						// invalidate the session if necessary
-						if (session != null && ((HttpServletRequest) arg0).isRequestedSessionIdValid()) {
+						if (session != null && (session.isNew() || ((HttpServletRequest) arg0).isRequestedSessionIdValid())) {
 							session.invalidate();
 						}
 						return;
