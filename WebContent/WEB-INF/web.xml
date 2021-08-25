@@ -417,7 +417,7 @@
    </context-param>
    <context-param>
 	   <param-name>log4jConfiguration</param-name>
-	   <param-value>file:///C:/workspace3/Semoss_Dev/log4j2.properties</param-value>
+	   <param-value>file:///C:/workspace/Semoss_Dev/log4j2.properties</param-value>
    </context-param>
    <context-param>
       <param-name>security-enabled</param-name>
