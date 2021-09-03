@@ -65,6 +65,7 @@ public class NoUserInSessionFilter implements Filter {
 		ignoreDueToFE.add("session/invalidateSession");
 
 		ignoreDueToFE.add("config");
+		ignoreDueToFE.add("config/fetchCsrf");
 		ignoreDueToFE.add("auth/logins");
 		ignoreDueToFE.add("auth/loginsAllowed");
 		ignoreDueToFE.add("auth/login");
