@@ -1760,10 +1760,24 @@ public class UserResource {
 					setMainPageRedirect(request, response, redirect);
 				}
 			} else {
+				HttpSession session = request.getSession(false);
+				if(session != null) {
+					User user = (User) session.getAttribute(Constants.SESSION_USER);
+					if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+						session.invalidate();
+					}
+				}
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are invalid.");
 				return WebUtility.getResponse(ret, 401);
 			}
 		} catch (Exception e) {
+			HttpSession session = request.getSession(false);
+			if(session != null) {
+				User user = (User) session.getAttribute(Constants.SESSION_USER);
+				if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+					session.invalidate();
+				}
+			}
 			logger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);

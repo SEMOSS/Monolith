@@ -211,5 +211,14 @@ public class ServerConfigurationResource {
 		
 		return WebUtility.getResponseNoCache(getConfig(request), 200, newCookies.toArray(new NewCookie[] {}));
 	}
+	
+	@GET
+	@Path("/fetchCsrf")
+	@Produces("application/json")
+	public Response fetchCsrf(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+		// create the session
+		request.getSession(true);
+		return WebUtility.getResponse(true, 200);
+	}
 
 }
