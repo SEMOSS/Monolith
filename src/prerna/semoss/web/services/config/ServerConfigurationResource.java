@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
+import javax.servlet.FilterChain;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -160,12 +161,7 @@ public class ServerConfigurationResource {
 	}
 
 	private static Map<String, Object> getConfiguration(@Context HttpServletRequest request, User user) {
-		// do not keep this session
-		// if no user and it is new
 		HttpSession session = request.getSession();
-		if (user == null && (session.isNew() || request.isRequestedSessionIdValid())) {
-			session.invalidate();
-		}
 
 		Map<String, Object> myConfiguration = new HashMap<>();
 		myConfiguration.putAll(config);
@@ -180,13 +176,22 @@ public class ServerConfigurationResource {
 		myConfiguration.put("logins", User.getLoginNames(user));
 		// themes
 		myConfiguration.put("theme", AdminThemeUtils.getActiveAdminTheme());
+		// add if we are using csrf
+		myConfiguration.put("csrf", Boolean.parseBoolean(session.getAttribute("csrf") + ""));
+		
+		// do not keep this session
+		// if no user and it is new
+		if (user == null && (session.isNew() || request.isRequestedSessionIdValid())) {
+			session.invalidate();
+		}
+		
 		return myConfiguration;
 	}
 	
 	@GET
 	@Path("/")
 	@Produces("application/json")
-	public Response getServerConfig(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+	public Response getServerConfig(@Context HttpServletRequest request, @Context HttpServletResponse response, @Context FilterChain filterChain) {
 		List<NewCookie> newCookies = new Vector<>();
 
 		try {
