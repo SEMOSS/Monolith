@@ -52,7 +52,11 @@ public class UserSessionLoader implements HttpSessionListener {
 			logger.info(sessionId + " >>> User " + User.getSingleLogginName(thisUser) + " ending session");
 		}
 		// back up the workspace and asset apps
-		SyncUserAppsThread.execute(session);
+		try {
+			SyncUserAppsThread.execute(session);
+		} catch(Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+		}
 
 		// clear up insight store
 		InsightStore inStore = InsightStore.getInstance();
@@ -78,9 +82,13 @@ public class UserSessionLoader implements HttpSessionListener {
 			insightIDs.removeAll(copy);
 		}
 
-		String sessionStorage = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR) + DIR_SEPARATOR + sessionId;
-		ICache.deleteFolder(sessionStorage);
-
+		try {
+			String sessionStorage = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR) + DIR_SEPARATOR + sessionId;
+			ICache.deleteFolder(sessionStorage);
+		} catch(Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+		}
+		
 		// drop the r thread if not netty
 		try {
 			if (thisUser != null) {
@@ -110,23 +118,31 @@ public class UserSessionLoader implements HttpSessionListener {
 			logger.error(Constants.STACKTRACE, e);
 		}
 
-		// stop python if not netty
-		if (PyUtils.pyEnabled()) {
-			if(thisUser != null) {
-				PyTranslator pyt = thisUser.getPyTranslator(false);
-				if (pyt instanceof prerna.ds.py.PyTranslator) {
-					PyUtils.getInstance().killPyThread(pyt.getPy());
+		try {
+			// stop python if not netty
+			if (PyUtils.pyEnabled()) {
+				if(thisUser != null) {
+					PyTranslator pyt = thisUser.getPyTranslator(false);
+					if (pyt instanceof prerna.ds.py.PyTranslator) {
+						PyUtils.getInstance().killPyThread(pyt.getPy());
+					}
 				}
 			}
+		} catch(Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 		}
 		
-		// stop the netty thread if used for either r or python
-		if(thisUser != null) {
-			Client nc = thisUser.getTCPServer(false);
-			if(nc != null) {
-				String dir = thisUser.pyTupleSpace;
-				nc.stopPyServe(dir);
+		try {
+			// stop the netty thread if used for either r or python
+			if(thisUser != null) {
+				Client nc = thisUser.getTCPServer(false);
+				if(nc != null) {
+					String dir = thisUser.pyTupleSpace;
+					nc.stopPyServe(dir);
+				}
 			}
+		} catch(Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 		}
 	}
 
