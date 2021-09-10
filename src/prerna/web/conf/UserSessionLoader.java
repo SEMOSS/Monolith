@@ -19,7 +19,6 @@ import prerna.auth.User;
 import prerna.cache.ICache;
 import prerna.ds.py.PyTranslator;
 import prerna.ds.py.PyUtils;
-import prerna.ds.py.TCPPyTranslator;
 import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -82,7 +81,7 @@ public class UserSessionLoader implements HttpSessionListener {
 		String sessionStorage = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR) + DIR_SEPARATOR + sessionId;
 		ICache.deleteFolder(sessionStorage);
 
-		// drop the r thread
+		// drop the r thread if not netty
 		try {
 			if (thisUser != null) {
 				IRUserConnection rserve = thisUser.getRcon();
@@ -111,21 +110,24 @@ public class UserSessionLoader implements HttpSessionListener {
 			logger.error(Constants.STACKTRACE, e);
 		}
 
-		// stop python too
+		// stop python if not netty
 		if (PyUtils.pyEnabled()) {
 			if(thisUser != null) {
 				PyTranslator pyt = thisUser.getPyTranslator(false);
-	
-				if (pyt instanceof prerna.ds.py.PyTranslator)
+				if (pyt instanceof prerna.ds.py.PyTranslator) {
 					PyUtils.getInstance().killPyThread(pyt.getPy());
-				if (pyt instanceof TCPPyTranslator) {
-					Client nc = thisUser.getTCPServer();
-					String dir = thisUser.pyTupleSpace;
-					nc.stopPyServe(dir);
 				}
 			}
 		}
+		
+		// stop the netty thread if used for either r or python
+		if(thisUser != null) {
+			Client nc = thisUser.getTCPServer(false);
+			if(nc != null) {
+				String dir = thisUser.pyTupleSpace;
+				nc.stopPyServe(dir);
+			}
+		}
 	}
-	
 
 }
