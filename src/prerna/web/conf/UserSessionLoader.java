@@ -30,7 +30,7 @@ import prerna.util.insight.InsightUtility;
 @WebListener
 public class UserSessionLoader implements HttpSessionListener {
 
-	private static final Logger logger = LogManager.getLogger(UserSessionLoader.class.getName());
+	private static final Logger logger = LogManager.getLogger(UserSessionLoader.class);
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 
 	public void sessionCreated(HttpSessionEvent sessionEvent) {
