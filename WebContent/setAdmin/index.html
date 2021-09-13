@@ -197,14 +197,27 @@
 
 		<script>
 			function registerAdmins() {
-				var xhttp = new XMLHttpRequest(),
+				var xhttp1 = new XMLHttpRequest(),
+					xhttp2 = new XMLHttpRequest(),
 					origin = window.location.href;
-				endpoint = origin.substring(0, origin.lastIndexOf('/setAdmin')+1) + 'adminconfig/setInitialAdmins',
+				endpoint1 = origin.substring(0, origin.lastIndexOf('/setAdmin')+1) + 'adminconfig/setInitialAdmins',
+				endpoint2 = origin.substring(0, origin.lastIndexOf('/setAdmin')+1) + 'api/config/fetchCsrf',
 					inputs = document.getElementById('user-id');
 				ids = [inputs.value];
 
 				if (inputs.value) {
-					xhttp.onreadystatechange = function () {
+					var csrfToken;
+					xhttp2.onreadystatechange = function () {
+					  if(this.readyState == this.DONE) {
+						csrfToken = this.getResponseHeader('x-csrf-token');
+					  }
+					};
+					xhttp2.open('GET', endpoint2, false);
+					xhttp2.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+					xhttp2.setRequestHeader('X-CSRF-Token', 'fetch');
+					xhttp2.send();
+				
+					xhttp1.onreadystatechange = function () {
 						if (this.status == 302) {
 							var redir = this.getResponseHeader("redirect");
 							if (redir) {
@@ -212,9 +225,10 @@
 							}
 						}
 					};
-					xhttp.open('POST', endpoint, true);
-					xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-					xhttp.send('ids=' + encodeURIComponent(JSON.stringify(ids)));
+					xhttp1.open('POST', endpoint1, true);
+					xhttp1.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+					xhttp1.setRequestHeader('X-CSRF-Token', csrfToken);
+					xhttp1.send('ids=' + encodeURIComponent(JSON.stringify(ids)));
 				}
 			}
 		</script>
