@@ -1,6 +1,7 @@
 package prerna.semoss.web.services.local;
 
 import java.io.IOException;
+import java.util.Collection;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -45,6 +46,20 @@ public class ResourceUtility {
 
         return remoteAddr;
     }
+	
+	/**
+	 * Need to ignore some URLs
+	 * @param fullUrl
+	 * @return
+	 */
+	public static boolean isIgnored(Collection<String> ignoreForFE, String fullUrl) {
+		for (String ignore : ignoreForFE) {
+			if (fullUrl.endsWith(ignore)) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/**
 	 * Standardized format for the message
