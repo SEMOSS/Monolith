@@ -20,6 +20,7 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
 
@@ -39,7 +40,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 			String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
 
 			// REALLY DISLIKE THIS CHECK!!!
-			if (!isIgnored(fullUrl)) {
+			if (!ResourceUtility.isIgnored(ignoreDueToFE, fullUrl)) {
 				// how you got here without a user, i am unsure given the other filters
 				// but just in case
 				// i will redirect you to login
