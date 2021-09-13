@@ -31,6 +31,7 @@ import prerna.auth.InsightToken;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.sablecc2.reactor.mgmt.MgmtUtil;
+import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -89,8 +90,7 @@ public class NoUserInSessionFilter implements Filter {
 			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 			String contextPath = ((HttpServletRequest) arg0).getContextPath();
 
-			// REALLY DISLIKE THIS CHECK!!!
-			if (!isIgnored(fullUrl)) {
+			if (!ResourceUtility.isIgnored(ignoreDueToFE, fullUrl)) {
 				// due to FE being annoying
 				// we need to push a response for this one end point
 				// since security is embedded w/ normal semoss and not standalone
@@ -343,24 +343,7 @@ public class NoUserInSessionFilter implements Filter {
 		// initialize
 	}
 
-	/**
-	 * Due to how the FE security is set up Need to ignore some URLs :( I REALLY
-	 * DISLIKE THIS!!!
-	 * 
-	 * @param fullUrl
-	 * @return
-	 */
-	protected static boolean isIgnored(String fullUrl) {
-		for (String ignore : ignoreDueToFE) {
-			if (fullUrl.endsWith(ignore)) {
-				return true;
-			}
-		}
-		return false;
-	}
-	
-	public boolean canLoadUser()
-	{
+	public boolean canLoadUser() {
 		boolean canLoad = true;
 		
 		String checkMemSettings = DIHelper.getInstance().getProperty(Settings.CHECK_MEM);
