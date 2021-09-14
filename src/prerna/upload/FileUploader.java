@@ -276,7 +276,7 @@ public class FileUploader extends Uploader {
 		String filePath = assetFolder;
 		// add relative path
 		if (relativePath != null) {
-			filePath = assetFolder + DIR_SEPARATOR + relativePath;
+			filePath = assetFolder + DIR_SEPARATOR + Utility.normalizePath(relativePath);
 			fePath += relativePath;
 		}
 		File fileDir = new File(filePath);
