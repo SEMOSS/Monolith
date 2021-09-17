@@ -33,9 +33,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
@@ -440,7 +442,7 @@ public class UserResource {
 
 		return WebUtility.getResponse(ret, 200);
 	}
-
+	
 	/**
 	 * Gets user info for OneDrive
 	 */
@@ -471,6 +473,43 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 200);
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Microsoft account");
+			return WebUtility.getResponse(ret, 200);
+		}
+	}
+
+
+	/**
+	 * Gets user info for ADFS
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/adfs")
+	public Response userinfoADFS(@Context HttpServletRequest request) {
+		Map<String, String> ret = new Hashtable<>();
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+
+		String prefix="adfs_";
+		String beanProps = socialData.getProperty(prefix + "beanProps");
+		String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+
+		String[] beanPropsArr = beanProps.split(",", -1);
+
+		String accessString = null;
+		try {
+			if (user == null) {
+				ret.put(Constants.ERROR_MESSAGE, "Log into your ADFS account");
+			} else {								
+				AccessToken adfsToken = user.getAccessToken(AuthProvider.ADFS);
+				accessString = adfsToken.getAccess_token();
+				String json = decodeTokenPayload(adfsToken.getAccess_token());
+				adfsToken = (AccessToken)BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, adfsToken);
+				String name = adfsToken.getName();
+				ret.put("name", name);
+							
+			}
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			ret.put(Constants.ERROR_MESSAGE, "Log into your ADFS account");
 			return WebUtility.getResponse(ret, 200);
 		}
 	}
@@ -971,6 +1010,127 @@ public class UserResource {
 		return redirectUrl;
 	}
 	
+	
+	/**
+	 * Logs user in through adfs
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/adfs")
+	public Response loginADFS(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		/*
+		 * Try to log in the user
+		 * If they are not logged in
+		 * Redirect the FE
+		 */
+
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		String queryString = request.getQueryString();
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.ADFS) == null) {
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+
+				String prefix = "adfs_";
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				String scope = socialData.getProperty(prefix + "scope");
+				String token_url = socialData.getProperty(prefix + "token_url");
+
+				if(logger.isDebugEnabled()) {
+					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				}
+				
+				Hashtable params = new Hashtable();
+				params.put("client_id", clientId);
+				params.put("scope", scope);
+				params.put("redirect_uri", redirectUri);
+				params.put("code", outputs[0]);
+				params.put("grant_type", "authorization_code");
+				params.put("client_secret", clientSecret);
+
+				
+				if(Strings.isNullOrEmpty(token_url)){
+					throw new IllegalArgumentException("Token URL can not be null or empty");
+				}
+
+				
+				AccessToken accessToken = AbstractHttpHelper.getIdToken(token_url, params, true, true);
+				if (accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getADFSRedirect(request));
+					return null;
+				}
+				String json = decodeTokenPayload(accessToken.getAccess_token());
+
+				accessToken.setProvider(AuthProvider.ADFS);
+				String beanProps = socialData.getProperty(prefix + "beanProps");
+				String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+				String[] beanPropsArr = beanProps.split(",", -1);
+				accessToken = (AccessToken)BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, accessToken);
+
+				addAccessToken(accessToken, request);
+
+				if(logger.isDebugEnabled()) {
+					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				}
+			}
+		}
+
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if (userObj == null || userObj.getAccessToken(AuthProvider.ADFS) == null) {
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getADFSRedirect(request));
+			return null;
+		}
+
+		setMainPageRedirect(request, response);
+		return null;
+	}
+	
+	public String  decodeTokenPayload(String token)
+	{
+	    String[] parts = token.split("\\.", 0);
+
+//	    for (String part : parts) {
+//	        byte[] bytes = Base64.getUrlDecoder().decode(part);
+//	        String decodedString = new String(bytes, StandardCharsets.UTF_8);
+//
+//	        System.out.println("Decoded: " + decodedString);
+//	    }
+	    byte[] bytes = Base64.getUrlDecoder().decode(parts[1]);
+
+	    String payload = new String(bytes, StandardCharsets.UTF_8);
+	    
+	    return payload;
+	}
+
+	private String getADFSRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
+		String prefix = "adfs_";
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
+		String auth_url = socialData.getProperty(prefix + "auth_url");
+
+		String state = UUID.randomUUID().toString();
+		
+		if(Strings.isNullOrEmpty(auth_url)){
+			throw new IllegalArgumentException("A URL can not be null or empty");
+		}
+		String redirectUrl = auth_url + "?" + "client_id="
+				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
+				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
+
+		if(logger.isDebugEnabled()) {
+			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		}
+		
+		return redirectUrl;
+	}
 	/**
 	 * Logs user in through siteminder
 	 */
