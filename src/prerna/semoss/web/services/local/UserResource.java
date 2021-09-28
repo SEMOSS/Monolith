@@ -2291,6 +2291,24 @@ public class UserResource {
 	
 	/**
 	 * Get the SEMOSS user id to the list of SAML attributes that generate the value
+	 * 
+	 *			#### SAML Attributes goes here #####
+	 *			Rule for specifying the key-values #
+	 *			applicationKey - Used by the application. This is specified in the code(See SamlAttributeMapperObject class enum).
+	 *			saml_<key_in_saml_assertion> - This is the name of the value specified in AM. Needs to be set here.
+	 *			isMandatory - specifies true or false whether the field is required. Need to be set here, either true or false.
+	 *			defaultValue - specifies a default value in case a field is not required. This is optional to set.
+	 *			Add new key value pairs in the below format.
+	 *			saml_<key_in_saml_assertion>	<applicationKey->isMandatory->defaultValue>
+	 *			More than 1 mandatory fields can be specified here.
+	 * 			
+	 * 			Example: 
+	 * 
+	 * 			saml_id			DOD_EDI_PN_ID
+	 *			saml_name		FIRST_NAME+MIDDLE_NAME+LAST_NAME
+	 *			saml_email		NULL
+	 *			saml_username	FIRST_NAME+MIDDLE_NAME+LAST_NAME
+	 * 
 	 * @return
 	 */
 	public static Map<String, String[]> getSamlAttributeNames() {

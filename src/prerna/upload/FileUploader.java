@@ -246,7 +246,7 @@ public class FileUploader extends Uploader {
 			// clear the thread store
 			return WebUtility.getResponse(inputData, 200);
 		} catch(Exception e) {
-			logger.error("STACKTRACE: ", e);
+			logger.error(Constants.STACKTRACE, e);
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("errorMessage", "Error moving file to server");
 			return WebUtility.getResponse(errorMap, 400);
