@@ -37,7 +37,6 @@ public class SSOFilter implements Filter {
 
 	private static final String SAML_LOGIN_HTML = "/samlLogin/";
 
-	
 	// filter init params
 	private static final String COUNT_USER_ENTRY = "countUserEntry";
 	private static final String COUNT_USER_ENTRY_DATABASE = "countUserEntryDb";
