@@ -137,6 +137,8 @@ public class SamlVerifierServlet extends HttpServlet {
 				AdminStartupFilter.setSuccessfulRedirectUrl(encodedRedirectUrl);
 				response.setHeader("redirect", encodedRedirectUrl);
 				response.sendRedirect(encodedRedirectUrl);
+			} else {
+				logger.info("No redirect url was found...");
 			}
 
 		} catch (SAML2Exception | IOException | SessionException | ServletException sme) {
