@@ -36,7 +36,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 	// create a user through SSO
 	// so if we have a user object
 	private static List<AuthProvider> checkLogins = new ArrayList<>();
-	static { 
+	static {
 		checkLogins.add(AuthProvider.CAC);
 		checkLogins.add(AuthProvider.WINDOWS_USER);
 		checkLogins.add(AuthProvider.SAML);
