@@ -56,6 +56,7 @@ public class IdpSSOServlet extends HttpServlet {
 		// set it here so after the login we redirect to the correct page
 		if(redirect != null && !(redirect = redirect.trim()).isEmpty()) {
 			HttpSession session = request.getSession();
+			logger.info("Setting new redirect value to " + redirect);
 			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, redirect);
 		}
 		

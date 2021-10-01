@@ -11,6 +11,7 @@ import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -43,12 +44,15 @@ public class SSOFilter implements Filter {
 	private static final String LOG_USER_INFO = "logUserInfo";
 	private static final String LOG_USER_INFO_PATH = "logUserInfoPath";
 	private static final String LOG_USER_INFO_SEP = "logUserInfoSep";
+	private static final String CUSTOM_DOMAIN = "customDomain";
+
 	
 	// realization of init params
 	private static boolean init = false;
 	private static CACTrackingUtil tracker = null;
 	private static UserFileLogUtil userLogger = null;
-
+	private static String customDomainForCookie = null;
+	
 	private static final String LOG_USER = "LOG_USER";
 	
 	private static FilterConfig filterConfig;
@@ -72,16 +76,41 @@ public class SSOFilter implements Filter {
 		// SAML workflow
 		if(user == null) {
 			logger.info("Starting saml transaction.");
-
+			if(session == null) {
+				session = ((HttpServletRequest) request).getSession(true);
+			}
 			// we need to store information in the session
 			// so that we can properly come back to the referer once an admin has been added
 			String referer = ((HttpServletRequest) request).getHeader("referer");
-			referer = referer + "#!/login";
-			((HttpServletRequest) request).getSession(true).setAttribute(SSOUtil.SAML_REDIRECT_KEY, referer);
-
+			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, referer);
+			logger.info("Setting session redirect value to " + referer);
+			
 			// this will be the deployment name of the app
 			String contextPath = request.getServletContext().getContextPath();
 
+			// create the cookie with a custom domain?
+			// this is important if you want multi-domain cookies
+			if(customDomainForCookie != null) {
+				Cookie k = new Cookie(DBLoader.getSessionIdKey(), session.getId());
+				k.setHttpOnly(true);
+				k.setSecure(request.isSecure());
+				k.setPath(contextPath);
+				k.setDomain(customDomainForCookie);
+				((HttpServletResponse) response).addCookie(k);
+				// in case there are other JSESSIONID
+				// cookies, reset the value to the correct sessionId
+				Cookie[] cookies = ((HttpServletRequest) request).getCookies();
+				if (cookies != null) {
+					for (Cookie c : cookies) {
+						if (c.getName().equals(DBLoader.getSessionIdKey())) {
+							c.setValue(session.getId());
+							c.setDomain(customDomainForCookie);
+							((HttpServletResponse) response).addCookie(c);
+						}
+					}
+				}
+			}
+			
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
@@ -180,6 +209,11 @@ public class SSOFilter implements Filter {
 					logger.info(e.getMessage());
 					logger.info(e.getMessage());
 				}
+			}
+			
+			String customDomainForCookie = SSOFilter.filterConfig.getInitParameter(CUSTOM_DOMAIN);
+			if(customDomainForCookie != null && !(customDomainForCookie = customDomainForCookie.trim()).isEmpty()) {
+				SSOFilter.customDomainForCookie = customDomainForCookie;
 			}
 			
 			// change init to true
