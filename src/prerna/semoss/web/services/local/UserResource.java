@@ -1890,7 +1890,8 @@ public class UserResource {
 			String username = request.getParameter("username");
 			String password = request.getParameter("password");
 			String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
-			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("enableRedirect") + "");
+			// so that the default is to redirect
+			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
 			if(username == null || password == null || username.isEmpty() || password.isEmpty()) {
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
