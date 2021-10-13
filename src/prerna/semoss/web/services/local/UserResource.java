@@ -257,7 +257,6 @@ public class UserResource {
 		if (provider.equalsIgnoreCase("ALL")) {
 			removed = true;
 			noUser = true;
-			thisUser.removeUserMemory();
 		} else {
 			AuthProvider token = AuthProvider.valueOf(provider.toUpperCase());
 			String assetEngineId = null;
