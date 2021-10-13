@@ -50,6 +50,8 @@ public class UserSessionLoader implements HttpSessionListener {
 			}
 		} else {
 			logger.info(sessionId + " >>> User " + User.getSingleLogginName(thisUser) + " ending session");
+			// remove the user memory
+			thisUser.removeUserMemory();
 		}
 		// back up the workspace and asset apps
 		try {
