@@ -132,6 +132,16 @@
       <url-pattern>/*</url-pattern>
    </filter-mapping>
    
+   <!-- Memory limit per user - if there is enough space on the server -->
+   <filter>
+      <filter-name>MemoryCheckFilter</filter-name>
+      <filter-class>prerna.web.conf.MemoryCheckFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>MemoryCheckFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+   
    <!-- scheduler filter -->
    <filter>
       <filter-name>SchedulerFilter</filter-name>
