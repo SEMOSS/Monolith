@@ -1915,7 +1915,6 @@ public class UserResource {
 				addAccessToken(authToken, request);
 
 				// log the log in
-				logger.info(ResourceUtility.getLogMessage(request, request.getSession(), id, " is logging out of provider " +  AuthProvider.NATIVE));
 				if (!disableRedirect) {
 					setMainPageRedirect(request, response, redirect);
 				}
