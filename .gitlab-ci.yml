@@ -106,6 +106,8 @@ build_monolith_deploy:
     - apt-get install -y openjfx
     - apt-get install -y gnupg2
     - gpg2 --batch --import <(echo "$GPG_PRIVATE_KEY")
+    - echo "keyserver keyserver.ubuntu.com" > ~/.gnupg/gpg.conf
+    - gpg2 --refresh-key
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
     - mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${VERSION}-SNAPSHOT
@@ -131,6 +133,8 @@ build_monolith_release:
     - apt-get install -y openjfx
     - apt-get install -y gnupg2
     - gpg2 --batch --import <(echo "$GPG_PRIVATE_KEY")
+    - echo "keyserver keyserver.ubuntu.com" > ~/.gnupg/gpg.conf
+    - gpg2 --refresh-key
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
     - mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${VERSION}
