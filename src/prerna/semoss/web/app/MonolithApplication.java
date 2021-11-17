@@ -47,6 +47,7 @@ import prerna.semoss.web.services.local.ShareInsightResource;
 import prerna.semoss.web.services.local.ThemeResource;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.semoss.web.services.local.auth.AdminDatabaseAuthorizationResource;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminProjectAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminUserAuthorizationResource;
@@ -80,6 +81,8 @@ public class MonolithApplication extends Application {
       singletons.add(new AdminProjectAuthorizationResource());
       singletons.add(new AdminInsightAuthorizationResource());
       singletons.add(new AdminUserAuthorizationResource());
+      // group admin authorization
+      singletons.add(new AdminGroupAuthorizationResource());
       // insight execution
       singletons.add(new ExecuteInsightResource());
       singletons.add(new ShareInsightResource());
@@ -90,7 +93,6 @@ public class MonolithApplication extends Application {
       singletons.add(new RawSelectWrapperService());
       // legacy forms - still used in production - RDF specific
       singletons.add(new FormResource());
-      
    }
 
    @Override
