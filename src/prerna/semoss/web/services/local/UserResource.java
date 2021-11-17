@@ -37,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -84,7 +85,7 @@ import prerna.auth.InsightToken;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.NativeUserSecurityUtils;
+import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.cluster.util.ClusterUtil;
@@ -284,6 +285,7 @@ public class UserResource {
 			}
 		}
 
+		List<NewCookie> nullCookies = null;
 		if(noUser) {
 			// if there are no users and there is security
 			// redirect the user
@@ -332,32 +334,29 @@ public class UserResource {
 				// for the session id
 				logger.info("Removing session token");
 				Cookie[] cookies = request.getCookies();
+				nullCookies = new ArrayList<>();
 				if (cookies != null) {
 					for (Cookie c : cookies) {
 						if (DBLoader.getSessionIdKey().equals(c.getName())) {
 							// we need to null this out
-							Cookie nullC = new Cookie(c.getName(), c.getValue());
-							nullC.setPath(c.getPath());
-							nullC.setSecure(request.isSecure());
-							nullC.setHttpOnly(true);
-							nullC.setVersion(c.getVersion());
-							if (c.getDomain() != null) {
-								nullC.setDomain(c.getDomain());
-							}
-							nullC.setMaxAge(0);
-							response.addCookie(nullC);
+							NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), 
+									c.getDomain(), c.getComment(), 0, c.getSecure());
+							nullCookies.add(nullC);
 						}
 					}
 				}
 			}
 			// invalidate the session
 			session.invalidate();
-			return null;
 		}
 		
 		Map<String, Boolean> ret = new Hashtable<>();
 		ret.put("success", removed);
-		return WebUtility.getResponse(ret, 200);
+		if(nullCookies == null) {
+			return WebUtility.getResponse(ret, 200);
+		}
+		
+		return WebUtility.getResponseNoCache(ret, 200, nullCookies.toArray(new NewCookie[] {}));
 	}
 
 	/**
@@ -1897,16 +1896,16 @@ public class UserResource {
 				return WebUtility.getResponse(ret, 401);
 			}
 			
-			boolean canLogin = NativeUserSecurityUtils.logIn(username, password);
+			boolean canLogin = SecurityNativeUserUtils.logIn(username, password);
 			if (canLogin) {
 				ret.put("success", "true");
 				ret.put("username", username);
-				String name = NativeUserSecurityUtils.getNameUser(username);
-				String email = NativeUserSecurityUtils.getUserEmail(username);
+				String name = SecurityNativeUserUtils.getNameUser(username);
+				String email = SecurityNativeUserUtils.getUserEmail(username);
 
 				ret.put("name", name);
 				ret.put("email", email);
-				String id = NativeUserSecurityUtils.getUserId(username);
+				String id = SecurityNativeUserUtils.getUserId(username);
 				AccessToken authToken = new AccessToken();
 				authToken.setProvider(AuthProvider.NATIVE);
 				authToken.setId(id);
@@ -1970,7 +1969,7 @@ public class UserResource {
 			newUser.setUsername(username);
 			newUser.setEmail(email);
 			newUser.setName(name);
-			boolean userCreated = NativeUserSecurityUtils.addNativeUser(newUser, password);
+			boolean userCreated = SecurityNativeUserUtils.addNativeUser(newUser, password);
 			if (userCreated) {
 				ret.put("success", "true");
 				ret.put("username", username);
