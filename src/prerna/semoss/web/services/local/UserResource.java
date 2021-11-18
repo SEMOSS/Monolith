@@ -907,6 +907,113 @@ public class UserResource {
 		}
 		return redirectUrl;
 	}
+	
+	
+	/**
+	 * Logs user in through gitlab
+	 * https://docs.gitlab.com/13.12/ee/integration/oauth_provider.html
+	 * https://docs.gitlab.com/13.12/ee/api/oauth2.html
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/gitlab")
+	public Response loginGitlab(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		/*
+		 * Try to log in the user
+		 * If they are not logged in
+		 * Redirect the FE
+		 */
+
+		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		String queryString = request.getQueryString();
+		if (queryString != null && queryString.contains("code=")) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
+				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+
+				String prefix = "gitlab_";
+				String clientId = socialData.getProperty(prefix + "client_id");
+				String clientSecret = socialData.getProperty(prefix + "secret_key");
+				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				String token_url = socialData.getProperty(prefix + "token_url");
+				
+				if(logger.isDebugEnabled()) {
+					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				}
+				
+				Hashtable params = new Hashtable();
+				params.put("client_id", clientId);
+				params.put("redirect_uri", redirectUri);
+				params.put("code", outputs[0]);
+				params.put("state", outputs[1]);
+				params.put("client_secret", clientSecret);
+				params.put("grant_type", "authorization_code");
+
+
+				AccessToken accessToken = AbstractHttpHelper.getAccessToken(token_url, params, true, true);
+				if (accessToken == null) {
+					// not authenticated
+					response.setStatus(302);
+					response.sendRedirect(getGitlabRedirect(request));
+					return null;
+				}
+				accessToken.setProvider(AuthProvider.GITLAB);
+
+				//GitRepoUtils.addCertForDomain(url);
+				// add specific Git values
+								
+				String beanProps = socialData.getProperty(prefix + "beanProps");
+				String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+				String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
+				String[] beanPropsArr = beanProps.split(",", -1);
+
+
+				String output = AbstractHttpHelper.makeGetCall(userinfo_url, accessToken.getAccess_token(), null, true);
+				accessToken = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, accessToken);
+
+				addAccessToken(accessToken, request);
+
+				if(logger.isDebugEnabled()) {
+					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				}
+			}
+		}
+
+		// grab the user again
+		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
+			// not authenticated
+//			GitRepoUtils.addCertForDomain("https://github.com");
+			response.setStatus(302);
+			response.sendRedirect(getGitlabRedirect(request));
+			return null;
+		}
+
+		setMainPageRedirect(request, response);
+		return null;
+	}
+
+	private String getGitlabRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
+		String prefix = "gitlab_";
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		String scope = socialData.getProperty(prefix + "scope");
+		String auth_url = socialData.getProperty(prefix + "auth_url");
+
+		scope = scope.replaceAll(" ", "+");
+		String state = UUID.randomUUID().toString();
+
+		String redirectUrl = auth_url + "?" + "client_id="
+				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
+				 + "&scope=" + scope + "&state=" + state;
+
+		logger.info("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+
+		if(logger.isDebugEnabled()) {
+			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		}
+		return redirectUrl;
+	}
 
 	/**
 	 * Logs user in through ms
