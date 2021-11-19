@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +36,7 @@ import com.sun.identity.saml2.protocol.Response;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.auth.utils.SecurityGroupUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
@@ -120,9 +122,12 @@ public class SamlVerifierServlet extends HttpServlet {
 			for (AttributeStatement stmt : attrlist) {
 				List<Attribute> attributeList = stmt.getAttribute();
 				for (Attribute attr : attributeList) {
-					String valXml = (String) attr.getAttributeValue().get(0);
-					String samlVal = StringUtils.substringBetween(valXml, ">", "<");
-					sdo.addAttribute(attr.getName(), samlVal);
+					Object[] valXmls = attr.getAttributeValue().toArray();
+					String[] samlValStrings = new String[valXmls.length];
+					for(int i=0; i<samlValStrings.length; i++) {
+						samlValStrings[i] = StringUtils.substringBetween((String) valXmls[i], ">", "<");
+					}
+					sdo.addAttribute(attr.getName(), samlValStrings);
 				}
 			}
 			
@@ -161,10 +166,16 @@ public class SamlVerifierServlet extends HttpServlet {
 		// Set user id and email in token
 		SamlDataObjectMapper mapper = new SamlDataObjectMapper(sdo, attrMap);
 		
+		// add group table placeholders for the discovered groups
+		SecurityGroupUtils.addGroups(mapper.getUserGroups(), mapper.getGroupType(), null);
+		
 		token.setId(mapper.getId());
 		token.setUsername(mapper.getUsername());
 		token.setEmail(mapper.getEmail());
 		token.setName(mapper.getName());
+		token.setUserGroups(mapper.getUserGroups());
+		token.setUserGroupType(mapper.getGroupType());
+		
 		// Set SAML provider type in token.
 		token.setProvider(AuthProvider.SAML);
 		// Set token in user object
