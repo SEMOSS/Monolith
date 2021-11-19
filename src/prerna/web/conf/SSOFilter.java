@@ -36,8 +36,6 @@ public class SSOFilter implements Filter {
 
 	private static final Logger logger = LogManager.getLogger(SSOFilter.class);
 
-	private static final String SAML_LOGIN_HTML = "/samlLogin/";
-
 	// filter init params
 	private static final String COUNT_USER_ENTRY = "countUserEntry";
 	private static final String COUNT_USER_ENTRY_DATABASE = "countUserEntryDb";
@@ -45,13 +43,14 @@ public class SSOFilter implements Filter {
 	private static final String LOG_USER_INFO_PATH = "logUserInfoPath";
 	private static final String LOG_USER_INFO_SEP = "logUserInfoSep";
 	private static final String CUSTOM_DOMAIN = "customDomain";
+	private static final String LOGIN_PATH = "loginPath";
 
-	
 	// realization of init params
 	private static boolean init = false;
 	private static CACTrackingUtil tracker = null;
 	private static UserFileLogUtil userLogger = null;
 	private static String customDomainForCookie = null;
+	private static String loginPath = null;
 	
 	private static final String LOG_USER = "LOG_USER";
 	
@@ -116,7 +115,7 @@ public class SSOFilter implements Filter {
 			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
 
 			// we redirect to the index.html page specifically created for the SAML call.
-			String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + SAML_LOGIN_HTML;
+			String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + loginPath;
 			((HttpServletResponse) response).setHeader("redirect", redirectUrl);
 			((HttpServletResponse) response).sendError(302, "Need to redirect to " + redirectUrl);
 			
@@ -214,6 +213,13 @@ public class SSOFilter implements Filter {
 			String customDomainForCookie = SSOFilter.filterConfig.getInitParameter(CUSTOM_DOMAIN);
 			if(customDomainForCookie != null && !(customDomainForCookie = customDomainForCookie.trim()).isEmpty()) {
 				SSOFilter.customDomainForCookie = customDomainForCookie;
+			}
+			
+			String providedLoginPath = SSOFilter.filterConfig.getInitParameter(LOGIN_PATH);
+			if(providedLoginPath != null) {
+				loginPath = providedLoginPath;
+			} else {
+				loginPath = "/samlLogin/";
 			}
 			
 			// change init to true
