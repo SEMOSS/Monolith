@@ -11,11 +11,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.forgerock.guice.core.InjectorHolder;
-import org.forgerock.openam.audit.AuditEventFactory;
-import org.forgerock.openam.audit.AuditEventPublisher;
-import org.forgerock.openam.saml2.audit.SAML2Auditor;
-
 import com.sun.identity.saml.common.SAMLUtils;
 import com.sun.identity.saml2.common.SAML2Constants;
 import com.sun.identity.saml2.common.SAML2Exception;
@@ -53,14 +48,6 @@ public class SPSSOServlet extends HttpServlet {
 	}
 
 	public void initiateSSO(HttpServletRequest request, HttpServletResponse response) {
-		AuditEventPublisher aep = InjectorHolder.getInstance(AuditEventPublisher.class);
-		AuditEventFactory aef = InjectorHolder.getInstance(AuditEventFactory.class);
-		SAML2Auditor saml2Auditor = new SAML2Auditor(aep, aef, request);
-
-		saml2Auditor.setMethod("fedletSSOInit");
-		saml2Auditor.setSessionTrackingId(request.getSession().getId());
-		saml2Auditor.auditAccessAttempt();
-
 		// Retreive the Request Query Parameters
 		// metaAlias and idpEntiyID are the required query parameters
 		// metaAlias - Service Provider Entity Id
@@ -91,8 +78,6 @@ public class SPSSOServlet extends HttpServlet {
 						metaAlias = (String) spMetaAliases.get(0);
 					}
 					if ((metaAlias == null) || (metaAlias.length() == 0)) {
-						saml2Auditor.auditAccessFailure(String.valueOf(HttpServletResponse.SC_BAD_REQUEST),
-								SAML2Utils.bundle.getString("nullSPEntityID"));
 						SAMLUtils.sendError(request, response, HttpServletResponse.SC_BAD_REQUEST, "nullSPEntityID",
 								SAML2Utils.bundle.getString("nullSPEntityID"));
 
@@ -133,8 +118,6 @@ public class SPSSOServlet extends HttpServlet {
 				SAML2MetaManager manager = new SAML2MetaManager();
 				List idpEntities = manager.getAllRemoteIdentityProviderEntities("/");
 				if ((idpEntities == null) || idpEntities.isEmpty()) {
-					saml2Auditor.auditAccessFailure(String.valueOf(HttpServletResponse.SC_BAD_REQUEST),
-							SAML2Utils.bundle.getString("idpNotFound"));
 					SAMLUtils.sendError(request, response, HttpServletResponse.SC_BAD_REQUEST, "idpNotFound",
 							SAML2Utils.bundle.getString("idpNotFound"));
 					return;
@@ -143,27 +126,20 @@ public class SPSSOServlet extends HttpServlet {
 					idpEntityID = (String) idpEntities.get(0);
 				} else {
 					// multiple IDP configured in fedlet
-					saml2Auditor.auditAccessFailure(String.valueOf(HttpServletResponse.SC_BAD_REQUEST),
-							SAML2Utils.bundle.getString("nullIDPEntityID"));
 					SAMLUtils.sendError(request, response, HttpServletResponse.SC_BAD_REQUEST, "nullIDPEntityID",
 							SAML2Utils.bundle.getString("nullIDPEntityID"));
 					return;
 				}
 			}
-			SPSSOFederate.initiateAuthnRequest(request, response, metaAlias, idpEntityID, paramsMap, saml2Auditor);
-			saml2Auditor.auditAccessSuccess();
+			SPSSOFederate.initiateAuthnRequest(request, response, metaAlias, idpEntityID, paramsMap, null);
 			System.out.println("IDP call initiated successfully. Waiting for IDP callback.");
 		} catch (SAML2Exception sse) {
 			SAML2Utils.debug.error("Error sending AuthnRequest ", sse);
-			saml2Auditor.auditAccessFailure(String.valueOf(HttpServletResponse.SC_BAD_REQUEST),
-					SAML2Utils.bundle.getString("requestProcessingError"));
 			SAMLUtils.sendError(request, response, HttpServletResponse.SC_BAD_REQUEST, "requestProcessingError",
 					SAML2Utils.bundle.getString("requestProcessingError") + " " + sse.getMessage());
 			return;
 		} catch (Exception e) {
 			SAML2Utils.debug.error("Error processing Request ", e);
-			saml2Auditor.auditAccessFailure(String.valueOf(HttpServletResponse.SC_BAD_REQUEST),
-					SAML2Utils.bundle.getString("requestProcessingError"));
 			SAMLUtils.sendError(request, response, HttpServletResponse.SC_BAD_REQUEST, "requestProcessingError",
 					SAML2Utils.bundle.getString("requestProcessingError") + " " + e.getMessage());
 			return;
