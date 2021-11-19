@@ -1,6 +1,11 @@
 package prerna.semoss.web.services.saml;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.exec.util.StringUtils;
 
 /**
  *  This class aligns the flushed out SAML attributes to the generated format
@@ -13,7 +18,7 @@ import java.util.Map;
 public class SamlDataObjectMapper {
 
 	private SamlDataObject sdo;
-	private Map<String, String> sdoInputMap;
+	private Map<String, String[]> sdoInputMap;
 	
 	// id = [dod_edi_pn_id]
 	// name = [firstname, middlename, lastname]
@@ -59,6 +64,22 @@ public class SamlDataObjectMapper {
 		return null;
 	}
 	
+	public Set<String> getUserGroups() {
+		if(attributeMapper.containsKey("groups")) {
+			return generateInputSet("groups");
+		}
+		
+		return new HashSet<>();
+	}
+	
+	public String getGroupType() {
+		if(attributeMapper.containsKey("provider")) {
+			return generateInput("provider");
+		}
+		
+		return null;
+	}
+	
 	private String generateInput(String attributeKey) {
 		StringBuffer buffer = new StringBuffer();
 		String[] idInputs = attributeMapper.get(attributeKey);
@@ -70,7 +91,7 @@ public class SamlDataObjectMapper {
 					buffer.append(defaultSep);
 				}
 				
-				buffer.append(sdoInputMap.get(input));
+				buffer.append(StringUtils.toString(sdoInputMap.get(input), defaultSep));
 				counter++;
 			}
 		}
@@ -80,6 +101,20 @@ public class SamlDataObjectMapper {
 		}
 		
 		return buffer.toString();
+	}
+	
+	private Set<String> generateInputSet(String attributeKey) {
+		Set<String> result = new HashSet<>();
+		
+		String[] idInputs = attributeMapper.get(attributeKey);
+		
+		for(String input : idInputs) {
+			if(sdoInputMap.containsKey(input)) {
+				result.addAll(Arrays.asList(sdoInputMap.get(input)));
+			}
+		}
+		
+		return result;
 	}
 
 }
