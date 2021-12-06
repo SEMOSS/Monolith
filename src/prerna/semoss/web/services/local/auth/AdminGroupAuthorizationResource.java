@@ -67,17 +67,116 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			SecurityGroupUtils.getInstance(user).addGroup(newGroupId, type, description);
 			
 		} catch (IllegalArgumentException e){
-    		logger.error(Constants.STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
-    		logger.error(Constants.STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		return WebUtility.getResponse(success, 200);
 	}
 	
+	@POST
+	@Produces("application/json")
+	@Path("/deleteGroup")
+	public Response deleteGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Hashtable<String, String> errorRet = new Hashtable<>();
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(!SecurityAdminUtils.userIsAdmin(user)){
+			errorRet.put(ResourceUtility.ERROR_KEY, "The user doesn't have the permissions to perform this action.");
+			return WebUtility.getResponse(errorRet, 400);
+		}
+		
+		boolean success = false;
+		try {
+			String groupId = form.getFirst("groupId");
+			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group id cannot be null or empty");
+			}
+			String type = form.getFirst("type");
+			if(type == null || (type = type.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group type cannot be null or empty");
+			}
+			
+			SecurityGroupUtils.getInstance(user).deleteGroupAndPropagate(groupId, type);
+		} catch (IllegalArgumentException e){
+			logger.error(Constants.STACKTRACE, e);
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			logger.error(Constants.STACKTRACE, e);
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		return WebUtility.getResponse(success, 200);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("/editGroup")
+	public Response editGroup(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Hashtable<String, String> errorRet = new Hashtable<>();
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(!SecurityAdminUtils.userIsAdmin(user)){
+			errorRet.put(ResourceUtility.ERROR_KEY, "The user doesn't have the permissions to perform this action.");
+			return WebUtility.getResponse(errorRet, 400);
+		}
+		
+		boolean success = false;
+		try {
+			String groupId = form.getFirst("groupId");
+			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group id cannot be null or empty");
+			}
+			String type = form.getFirst("type");
+			if(type == null || (type = type.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group type cannot be null or empty");
+			}
+			String newGroupId = form.getFirst("newGroupId");
+			if(newGroupId == null || (newGroupId = newGroupId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The new group id cannot be null or empty");
+			}
+			String newType = form.getFirst("newType");
+			if(newType == null || (newType = newType.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The new group type cannot be null or empty");
+			}
+			String description = form.getFirst("description");
+			if(description == null) {
+				description = "";
+			}
+			description = description.trim();
+			
+			SecurityGroupUtils.getInstance(user).editGroupAndPropagate(groupId, type, newGroupId, newType, description);
+			
+		} catch (IllegalArgumentException e){
+			logger.error(Constants.STACKTRACE, e);
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			logger.error(Constants.STACKTRACE, e);
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		return WebUtility.getResponse(success, 200);
+	}
 	
 	@GET
 	@Path("/getAllGroups")
