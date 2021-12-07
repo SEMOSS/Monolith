@@ -181,12 +181,41 @@
 			<param-name>customDomain</param-name>
 			<param-value>health.mil</param-value>
 	  </init-param>
+	  <init-param>
+			<param-name>loginPath</param-name>
+			<param-value>/samlLogin/</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>loginUrl</param-name>
+			<param-value></param-value>
+	  </init-param>
    </filter>
    <filter-mapping>
       <filter-name>SSOFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
    -->
+   
+   <!-- <filter>
+      <filter-name>SPSSOFilter</filter-name>
+      <filter-class>prerna.web.conf.SSOFilter</filter-class>
+      <init-param>
+			<param-name>countUserEntry</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>logUserInfo</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>loginPath</param-name>
+			<param-value>/samlSPLogin/</param-value>
+	  </init-param>
+   </filter>
+   <filter-mapping>
+      <filter-name>SPSSOFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping> -->
    
    <!--  allow anonymous users -->
    <!-- 
