@@ -134,7 +134,7 @@ public class SamlVerifierServlet extends HttpServlet {
 			logger.info("User details looks good. Creating User/Token and setting it to session.");
 			HttpSession session = request.getSession(true);
 			// Get all details from SamlDataObject and populate into user and token object.
-			establishUserInSession(sdo, attrMap, session);
+			establishUserInSession(value, entityID, sdo, attrMap, session);
 			logger.info("Session is created and user all set to get in. Hold on, redirecting... ");
 			if (session != null && session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) != null) {
 				String originalRedirect = session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) + "";
@@ -159,7 +159,7 @@ public class SamlVerifierServlet extends HttpServlet {
 	 * @param SamlDataObject sdo
 	 * @param HttpSession session
 	 */
-	private void establishUserInSession(SamlDataObject sdo, Map<String, String[]> attrMap, HttpSession session) {
+	private void establishUserInSession(String nameId, String issuer, SamlDataObject sdo, Map<String, String[]> attrMap, HttpSession session) {
 		AccessToken token = null;
 		User user = new User();
 		token = new AccessToken();
@@ -167,14 +167,22 @@ public class SamlVerifierServlet extends HttpServlet {
 		SamlDataObjectMapper mapper = new SamlDataObjectMapper(sdo, attrMap);
 		
 		// add group table placeholders for the discovered groups
-		SecurityGroupUtils.addGroups(mapper.getUserGroups(), mapper.getGroupType(), null);
+		String groupType = mapper.getGroupType();
+		if(groupType == null) {
+			groupType = issuer;
+		}
+		SecurityGroupUtils.addGroups(mapper.getUserGroups(), groupType, null);
 		
-		token.setId(mapper.getId());
+		if(mapper.getId() == null) {
+			token.setId(nameId);
+		} else {
+			token.setId(mapper.getId());
+		}
 		token.setUsername(mapper.getUsername());
 		token.setEmail(mapper.getEmail());
 		token.setName(mapper.getName());
 		token.setUserGroups(mapper.getUserGroups());
-		token.setUserGroupType(mapper.getGroupType());
+		token.setUserGroupType(groupType);
 		
 		// Set SAML provider type in token.
 		token.setProvider(AuthProvider.SAML);
