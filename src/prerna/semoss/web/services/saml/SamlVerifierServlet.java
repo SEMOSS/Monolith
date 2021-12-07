@@ -74,8 +74,10 @@ public class SamlVerifierServlet extends HttpServlet {
 		// "C:\\workspace\\Semoss_Dev\\saml\\mesoc\\conf\\debug\\Federation"
 		String federationLogPath = ((String) DIHelper.getInstance().getCoreProp().get(Constants.SAML_FEDERATION_LOG_PATH)).trim();
 		SSOUtil util = SSOUtil.getInstance();
-		util.setSSODeployURI((request).getRequestURI());
-		util.configureSSO(request, response);
+        if(!util.isConfigured()) {
+                    util.setSSODeployURI((request).getRequestURI());
+                    util.configureSSO(request, response);
+        }
 		try( BufferedWriter out = new BufferedWriter(
 				new FileWriter(new File(federationLogPath))) ) {
 			// invoke the SAML processing logic. this will do all the
