@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -138,16 +137,20 @@ public class SamlVerifierServlet extends HttpServlet {
 			// Get all details from SamlDataObject and populate into user and token object.
 			establishUserInSession(value, entityID, sdo, attrMap, session);
 			logger.info("Session is created and user all set to get in. Hold on, redirecting... ");
+			String originalRedirect = null;
 			if (session != null && session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) != null) {
-				String originalRedirect = session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) + "";
-				String encodedRedirectUrl = Encode.forHtml(originalRedirect);
-				AdminStartupFilter.setSuccessfulRedirectUrl(encodedRedirectUrl);
-				response.setHeader("redirect", encodedRedirectUrl);
-				response.sendRedirect(encodedRedirectUrl);
+				originalRedirect = session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) + "";
 			} else {
 				logger.info("No redirect url was found...");
+				logger.info("Redirect to social.properties value");
+				originalRedirect = UserResource.getLoginRedirect();
 			}
 
+			String encodedRedirectUrl = Encode.forHtml(originalRedirect);
+			AdminStartupFilter.setSuccessfulRedirectUrl(encodedRedirectUrl);
+			response.setHeader("redirect", encodedRedirectUrl);
+			response.sendRedirect(encodedRedirectUrl);
+			
 		} catch (SAML2Exception | IOException | SessionException | ServletException sme) {
 			SAMLUtils.sendError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
 					"failedToProcessSSOResponse", sme.getMessage());
