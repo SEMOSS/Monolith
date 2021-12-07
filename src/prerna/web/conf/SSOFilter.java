@@ -44,6 +44,7 @@ public class SSOFilter implements Filter {
 	private static final String LOG_USER_INFO_SEP = "logUserInfoSep";
 	private static final String CUSTOM_DOMAIN = "customDomain";
 	private static final String LOGIN_PATH = "loginPath";
+	private static final String LOGIN_URL = "loginUrl";
 
 	// realization of init params
 	private static boolean init = false;
@@ -51,7 +52,8 @@ public class SSOFilter implements Filter {
 	private static UserFileLogUtil userLogger = null;
 	private static String customDomainForCookie = null;
 	private static String loginPath = null;
-	
+	private static String loginUrl = null;
+
 	private static final String LOG_USER = "LOG_USER";
 	
 	private static FilterConfig filterConfig;
@@ -110,14 +112,20 @@ public class SSOFilter implements Filter {
 				}
 			}
 			
-			// this will be the full path of the request
-			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
-
-			// we redirect to the index.html page specifically created for the SAML call.
-			String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + loginPath;
-			((HttpServletResponse) response).setHeader("redirect", redirectUrl);
-			((HttpServletResponse) response).sendError(302, "Need to redirect to " + redirectUrl);
+			// we can allow a custom url or we go through our SAML routing via idp or sp initiated flow
+			if(loginUrl != null && !(loginUrl = loginUrl.trim()).isEmpty()) {
+				((HttpServletResponse) response).setHeader("redirect", loginUrl);
+				((HttpServletResponse) response).sendError(302, "Need to redirect to " + loginUrl);
+			} else {
+				// this will be the full path of the request
+				// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
+				String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
+	
+				// we redirect to the index.html page specifically created for the SAML call.
+				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + loginPath;
+				((HttpServletResponse) response).setHeader("redirect", redirectUrl);
+				((HttpServletResponse) response).sendError(302, "Need to redirect to " + redirectUrl);
+			}
 			
 			if(tracker != null) {
 				((HttpServletRequest) request).getSession().setAttribute(LOG_USER, "true");
@@ -220,6 +228,11 @@ public class SSOFilter implements Filter {
 				loginPath = providedLoginPath;
 			} else {
 				loginPath = "/samlLogin/";
+			}
+			
+			String providedLoginUrl = SSOFilter.filterConfig.getInitParameter(LOGIN_URL);
+			if(providedLoginUrl != null) {
+				loginUrl = providedLoginUrl;
 			}
 			
 			// change init to true
