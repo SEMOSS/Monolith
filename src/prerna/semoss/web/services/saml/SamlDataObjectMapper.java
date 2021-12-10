@@ -20,9 +20,15 @@ public class SamlDataObjectMapper {
 	private SamlDataObject sdo;
 	private Map<String, String[]> sdoInputMap;
 	
+	private String nameId = null;
+	private String issuer = null;
+	private Set<String> validUserGroups = null;
+	
+	// attributes
 	// id = [dod_edi_pn_id]
 	// name = [firstname, middlename, lastname]
 	private Map<String, String[]> attributeMapper;
+	
 	
 	private String defaultSep = " ";
 	
@@ -80,6 +86,30 @@ public class SamlDataObjectMapper {
 		return null;
 	}
 	
+	public String getIssuer() {
+		return issuer;
+	}
+
+	public void setIssuer(String issuer) {
+		this.issuer = issuer;
+	}
+
+	public Set<String> getValidUserGroups() {
+		return validUserGroups;
+	}
+
+	public void setValidUserGroups(Set<String> validUserGroups) {
+		this.validUserGroups = validUserGroups;
+	}
+
+	public String getNameId() {
+		return nameId;
+	}
+
+	public void setNameId(String nameId) {
+		this.nameId = nameId;
+	}
+
 	private String generateInput(String attributeKey) {
 		StringBuffer buffer = new StringBuffer();
 		String[] idInputs = attributeMapper.get(attributeKey);
