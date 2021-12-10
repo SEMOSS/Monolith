@@ -66,5 +66,11 @@ public class TrustedTokenFilter implements Filter {
 		
 		arg2.doFilter(arg0, arg1);
 	}
+	
+	@Override
+	public void destroy() {
+		// destroy
+
+	}
 
 }
