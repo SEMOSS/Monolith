@@ -3,6 +3,7 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -21,6 +22,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityGroupUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -41,6 +43,8 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 		checkLogins.add(AuthProvider.WINDOWS_USER);
 		checkLogins.add(AuthProvider.SAML);
 	}
+	
+	private static FilterConfig filterConfig;
 	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
@@ -73,8 +77,15 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 				} else {
 					// okay, need to make sure the user is a valid one
 					AccessToken token = user.getAccessToken(user.getLogins().get(0));
-					boolean userExists = userExists(token);
-					if (!userExists) {
+					
+					if(!areGroupsValid(token)) {
+						session.removeAttribute(Constants.SESSION_USER);
+						((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN, " User lacks permissions for this resource" );
+						logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is trying to login BUT doesn't have group access with provider " +  token.getProvider()));
+						return;
+					}
+					
+					if (!userExists(token)) {
 						session.removeAttribute(Constants.SESSION_USER);
 						((HttpServletResponse) arg1).setStatus(302);
 						String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
@@ -94,9 +105,12 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 				// we need to check if they are valid since its SSO
 				if(user != null && user.getLogins().size() == 1) {
 					AccessToken token = user.getAccessToken(user.getLogins().get(0));
-					if(checkLogins.contains(token.getProvider())) { 
-						boolean userExists = userExists(token);
-						if(!userExists) {
+					if(checkLogins.contains(token.getProvider())) {
+						if(!areGroupsValid(token)) {
+							session.removeAttribute(Constants.SESSION_USER);
+							((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN, " User lacks permissions for this resource " );
+							return;
+						} else if(!userExists(token)) {
 							session.removeAttribute(Constants.SESSION_USER);
 						}
 					}
@@ -105,6 +119,21 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 		}
 
 		arg2.doFilter(arg0, arg1);
+	}
+	
+	private boolean areGroupsValid(AccessToken token) {
+		boolean groupsAreValid = true;
+		boolean checkGroups = Boolean.parseBoolean(filterConfig.getInitParameter("useSAMLGroupWhitelist"));
+		if (checkGroups && AuthProvider.SAML == token.getProvider()) {
+			groupsAreValid = false;
+			Set<String> groups = token.getUserGroups();
+			String groupType = token.getUserGroupType();
+			if(groups != null && !groups.isEmpty() && groupType != null) {
+				Set<String> validGroups = SecurityGroupUtils.getMatchingGroupsByType(groups, groupType);
+				groupsAreValid = !validGroups.isEmpty();
+			}
+		}
+		return groupsAreValid;
 	}
 
 	private boolean userExists(AccessToken token) {
@@ -133,6 +162,6 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
-		// initialize
+		UserExistsFilter.filterConfig = arg0;
 	}
 }
