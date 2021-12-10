@@ -5,11 +5,12 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -43,7 +44,6 @@ import prerna.util.DIHelper;
 import prerna.web.conf.AdminStartupFilter;
 import prerna.web.conf.util.SSOUtil;
 
-@WebServlet("/saml/config/fedletapplication")
 public class SamlVerifierServlet extends HttpServlet {
 
 	private static final long serialVersionUID = -3853767230988751741L;
@@ -134,10 +134,25 @@ public class SamlVerifierServlet extends HttpServlet {
 				}
 			}
 			
+			SamlDataObjectMapper mapper = new SamlDataObjectMapper(sdo, attrMap);
+			mapper.setNameId(value);
+			mapper.setIssuer(entityID);
+			String groupType = mapper.getGroupType();
+			if(groupType == null) {
+				groupType = entityID;
+			}
+			
+			Set<String> validUserGroups = getValidUserGroups(mapper, groupType);
+			if(validUserGroups != null && validUserGroups.isEmpty()) {
+				((HttpServletResponse)response).sendError(HttpServletResponse.SC_FORBIDDEN, " User lacks permissions for this resource " );
+				return;
+			}
+			mapper.setValidUserGroups(validUserGroups);
+			
 			logger.info("User details looks good. Creating User/Token and setting it to session.");
 			HttpSession session = request.getSession(true);
 			// Get all details from SamlDataObject and populate into user and token object.
-			establishUserInSession(value, entityID, sdo, attrMap, session);
+			establishUserInSession(mapper, session);
 			logger.info("Session is created and user all set to get in. Hold on, redirecting... ");
 			String originalRedirect = null;
 			if (session != null && session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) != null) {
@@ -160,36 +175,54 @@ public class SamlVerifierServlet extends HttpServlet {
 	}
 	
 	/**
+	 * Checks if we are configured to use groups, and returns the valid group list, if so
+	 * 
+	 * @param mapper
+	 * @param groupType
+	 * @return Set of valid groups, or <code>null</code> if whitelist isn't enabled
+	 */
+	private Set<String> getValidUserGroups(SamlDataObjectMapper mapper, String groupType) {
+		if(Boolean.parseBoolean(getInitParameter("useSAMLGroupWhitelist"))) {
+			if(!mapper.getUserGroups().isEmpty() && groupType != null) {
+				return SecurityGroupUtils.getMatchingGroupsByType(mapper.getUserGroups(), groupType);
+			} else {
+				return new HashSet<>();
+			}
+		}
+		return null;
+	}
+	
+	/**
 	 * Creates the user/token based on the application requirements from the SamlDataObject.
 	 * Puts the user object in the session.
 	 * 
 	 * @param SamlDataObject sdo
 	 * @param HttpSession session
 	 */
-	private void establishUserInSession(String nameId, String issuer, SamlDataObject sdo, Map<String, String[]> attrMap, HttpSession session) {
+	private void establishUserInSession(SamlDataObjectMapper mapper, HttpSession session) {
 		AccessToken token = null;
 		User user = new User();
 		token = new AccessToken();
-		// Set user id and email in token
-		SamlDataObjectMapper mapper = new SamlDataObjectMapper(sdo, attrMap);
-		
-		// add group table placeholders for the discovered groups
-		String groupType = mapper.getGroupType();
-		if(groupType == null) {
-			groupType = issuer;
-		}
-		SecurityGroupUtils.addGroups(mapper.getUserGroups(), groupType, null);
 		
 		if(mapper.getId() == null) {
-			token.setId(nameId);
+			token.setId(mapper.getNameId());
 		} else {
 			token.setId(mapper.getId());
 		}
 		token.setUsername(mapper.getUsername());
 		token.setEmail(mapper.getEmail());
 		token.setName(mapper.getName());
-		token.setUserGroups(mapper.getUserGroups());
-		token.setUserGroupType(groupType);
+		
+		// set groups on the token if they are valid
+		String groupType = mapper.getGroupType();
+		if(groupType == null) {
+			groupType = mapper.getIssuer();
+		}
+		Set<String> groups = mapper.getValidUserGroups();
+		if(groupType != null && groups != null && !groups.isEmpty()) {
+			token.setUserGroupType(groupType);
+			token.setUserGroups(mapper.getValidUserGroups());
+		}
 		
 		// Set SAML provider type in token.
 		token.setProvider(AuthProvider.SAML);
