@@ -142,6 +142,16 @@
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
    
+   <!-- Trusted Token Filter -->
+   <filter>
+      <filter-name>TrustedTokenFilter</filter-name>
+      <filter-class>prerna.web.conf.TrustedTokenFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>TrustedTokenFilter</filter-name>
+      <url-pattern>/*</url-pattern>
+   </filter-mapping>
+   
    <!-- scheduler filter -->
    <filter>
       <filter-name>SchedulerFilter</filter-name>
@@ -425,6 +435,10 @@
    <filter>
       <filter-name>UserExistsFilter</filter-name>
       <filter-class>prerna.web.conf.UserExistsFilter</filter-class>
+      <init-param>
+         <param-name>useSAMLGroupWhitelist</param-name>
+         <param-value>false</param-value>
+      </init-param>
    </filter>
    <filter-mapping>
       <filter-name>UserExistsFilter</filter-name>
@@ -494,6 +508,36 @@
       <servlet-name>AdminApplication</servlet-name>
       <url-pattern>/adminconfig/*</url-pattern>
    </servlet-mapping>
+   <servlet>
+      <servlet-name>TrustedTokenApplication</servlet-name>
+      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+      <init-param>
+         <param-name>javax.ws.rs.Application</param-name>
+         <param-value>prerna.semoss.web.app.TrustedTokenApplication</param-value>
+      </init-param>
+      <init-param>
+	     <param-name>resteasy.servlet.mapping.prefix</param-name>
+	     <param-value>/token</param-value>
+	  </init-param>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>TrustedTokenApplication</servlet-name>
+      <url-pattern>/token/*</url-pattern>
+   </servlet-mapping>
+   <!-- SAML Response Handler -->
+   <servlet>
+      <servlet-name>SamlVerifierServlet</servlet-name>
+      <servlet-class>prerna.semoss.web.services.saml.SamlVerifierServlet</servlet-class>
+      <init-param>
+         <param-name>useSAMLGroupWhitelist</param-name>
+         <param-value>false</param-value>
+      </init-param>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>SamlVerifierServlet</servlet-name>
+      <url-pattern>/saml/config/fedletapplication</url-pattern>
+   </servlet-mapping>
+   
    <!-- context params -->
    <context-param>
       <param-name>isLog4jAutoInitializationDisabled</param-name>
