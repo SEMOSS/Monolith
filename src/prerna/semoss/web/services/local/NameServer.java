@@ -434,15 +434,15 @@ public class NameServer {
 	
 	/**
 	 * 
-	 * @param user
-	 * @param insight
-	 * @param expression
-	 * @param jobId
+	 * @param user			User object
+	 * @param insight		Insight object
+	 * @param expression	String containing the pixel
+	 * @param jobId			
 	 * @param insightId
 	 * @param sessionId
 	 * @return
 	 */
-	private Response runPixelJob(User user, Insight insight, String expression, String jobId, 
+	public static Response runPixelJob(User user, Insight insight, String expression, String jobId, 
 			String insightId, String sessionId, boolean dropLogging, long sessionTimeRemaining) {
 		JobManager manager = JobManager.getManager();
 		JobThread jt = manager.makeJob(insightId);
@@ -488,7 +488,7 @@ public class NameServer {
 	 * @param expression
 	 * @return
 	 */
-	private Response getInsightPipeline(final Insight insight) {
+	public static Response getInsightPipeline(final Insight insight) {
 		synchronized (insight) {
 			try {
 				return Response.status(200)
