@@ -25,10 +25,10 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityDatabaseUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.auth.utils.SecurityUserDatabaseUtils;
 import prerna.cluster.util.CloudClient;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
@@ -104,7 +104,7 @@ public class ImageUploader extends Uploader {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityDatabaseUtils.userCanEditDatabase(user, appId)) {
+				if (!SecurityUserDatabaseUtils.userCanEditDatabase(user, appId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
@@ -220,7 +220,7 @@ public class ImageUploader extends Uploader {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityDatabaseUtils.userCanEditDatabase(user, appId)) {
+				if (!SecurityUserDatabaseUtils.userCanEditDatabase(user, appId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this app or the database id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
