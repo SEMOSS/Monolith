@@ -29,8 +29,8 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityDatabaseUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.auth.utils.SecurityUserDatabaseUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
@@ -52,7 +52,7 @@ public class DatabaseResource {
 	private boolean canAccessApp(User user, String databaseId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			databaseId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, databaseId);
-			if(!SecurityDatabaseUtils.userCanViewDatabase(user, databaseId)) {
+			if(!SecurityUserDatabaseUtils.userCanViewDatabase(user, databaseId)) {
 				throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have access to database");
 			}
 		} else {
