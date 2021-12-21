@@ -224,7 +224,7 @@ public class SessionResource {
 		}
 		
 		// log the user logout
-		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is being forceably invalidated"));
+		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is being forcibly invalidated"));
 		
 		// redirect to login/logout page
 		if (DBLoader.useLogoutPage()) {
@@ -266,8 +266,7 @@ public class SessionResource {
 		}
 
 		if (session != null) {
-			logger.info("User is no longer logged in");
-			logger.info("Removing user object from session");
+			logger.info("Invalidating session");
 			session.invalidate();
 		}
 	}
