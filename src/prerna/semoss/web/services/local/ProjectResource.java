@@ -1,5 +1,6 @@
 package prerna.semoss.web.services.local;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
@@ -13,17 +14,21 @@ import java.util.Properties;
 import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.ResourceContext;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
+import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -31,6 +36,9 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.JSONObject;
+
+import com.google.gson.Gson;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -41,11 +49,15 @@ import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
 import prerna.nameserver.utility.MasterDatabaseUtility;
+import prerna.om.Insight;
+import prerna.om.InsightStore;
+import prerna.sablecc2.PixelStreamUtility;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.util.insight.TextToGraphic;
+import prerna.web.requests.OverrideParametersServletRequest;
 import prerna.web.services.util.WebUtility;
 
 @Path("/project-{projectId}")
@@ -626,5 +638,140 @@ public class ProjectResource {
 		errorMap.put("errorMessage", "error sending widget file " + widgetName + "\\" + fileName);
 		return WebUtility.getResponse(errorMap, 400);
 	}
+	
+	///// JDBC pieces 
+	// the project id can be a full project id
+	// or it can be "session" - session basically means load the insight from this session
+	// if it is an insight
+	// needs to do the open insight 
+	// return the insight
+	// and pull data from it
+	
+	// this rest api will take 3 parameters
+	// project id - session or the project id
+	// insight id - runtime insight id or the actual insight id to open
+	// sql query
+	// optional frame
+	@GET
+	@Path("/jdbc")
+	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	public StreamingOutput  getJDBCOutput(@PathParam("projectId") String projectId, @QueryParam("insightId") String insightId, @QueryParam("sql") String sql,  
+			@QueryParam("open") String open,
+			@Context HttpServletRequest request, 
+			@Context ResourceContext resourceContext)  
+	{
+		if(projectId == null)
+			projectId = "session";
+		//if(projectId.equalsIgnoreCase("session"))
+		{
+			// get the insight from the session
+			HttpSession session = request.getSession();
+			if(session == null)
+				return WebUtility.getBinarySO("You are not authorized");
+			
+			if(!projectId.equalsIgnoreCase("session") && (open != null && open.equalsIgnoreCase("true"))) // && InsightStore.getInstance().get(insightId) == null) // see if you can open the insight
+			{
+				NameServer server = resourceContext.getResource(NameServer.class);
+				OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
+				Map<String, String> paramMap = new HashMap<String, String>();
+				
+				String pixel = "META | OpenInsight(project=[\"" + projectId + "\"], id=[\"" + insightId + "\"], additionalPixels=[\"ReadInsightTheme();\"]);" ;
+				paramMap.put("insightId", "new");
+				paramMap.put("expression", pixel);
+				requestWrapper.setParameters(paramMap);
+				Response resp = server.runPixelSync(requestWrapper);
+				
+				StreamingOutput utility = (StreamingOutput) resp.getEntity();
+				ByteArrayOutputStream output = new ByteArrayOutputStream();
+				try {
+					utility.write(output);
+					String s = new String(output.toByteArray());
+					System.out.println(s);
+					JSONObject obj = new JSONObject(s);
+					// pixelReturn[0].output.insightData.insightId
+					insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
+					System.err.println("Insight ID is " + insightId);				
+				} catch (WebApplicationException | IOException e) {
+				e.printStackTrace();
+				}
+			}		
+			// now we have the insight id.. execute
+			Insight insight = InsightStore.getInstance().get(insightId);
+			
+			// do the bifurcation here in terms of sql vs. pixel
+			if(insight != null)
+			{
+				Object output = insight.query(sql, null);
+				if(output instanceof Map) // add the instance so it can refer going forward
+				{
+					((Map)output).put("INSIGHT_INSTANCE", insightId);
+					
+				}
+				if(output != null)
+					return WebUtility.getBinarySO(output);					
+			}
+			else
+				return WebUtility.getBinarySO("No such insight");
+		}
+		return null;	
+	}
+
+	@GET
+	@Path("/jdbc_json")
+	@Produces(MediaType.APPLICATION_JSON)
+	public StreamingOutput  getJDBCJsonOutput(@PathParam("projectId") String projectId, 
+			@QueryParam("insightId") String insightId, 
+			@QueryParam("sql") String sql, @Context HttpServletRequest request, 
+			@Context ResourceContext resourceContext) 
+	{
+		if(projectId == null)
+			projectId = "session";
+		//if(projectId.equalsIgnoreCase("session"))
+		{
+			// get the insight from the session
+			HttpSession session = request.getSession();
+			if(session == null)
+				return WebUtility.getSO("You are not authorized");
+			
+			if(!projectId.equalsIgnoreCase("session")) // && InsightStore.getInstance().get(insightId) == null) // see if you can open the insight
+			{
+				NameServer server = resourceContext.getResource(NameServer.class);
+				OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
+				Map<String, String> paramMap = new HashMap<String, String>();
+				
+				String pixel = "META | OpenInsight(project=[\"" + projectId + "\"], id=[\"" + insightId + "\"], additionalPixels=[\"ReadInsightTheme();\"]);" ;
+				paramMap.put("insightId", "new");
+				paramMap.put("expression", pixel);
+				requestWrapper.setParameters(paramMap);
+				Response resp = server.runPixelSync(requestWrapper);
+				
+				StreamingOutput utility = (StreamingOutput) resp.getEntity();
+				ByteArrayOutputStream output = new ByteArrayOutputStream();
+				try {
+					utility.write(output);
+					String s = new String(output.toByteArray());
+					System.out.println(s);
+					JSONObject obj = new JSONObject(s);
+					// pixelReturn[0].output.insightData.insightId
+					insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
+					System.err.println("Insight ID is " + insightId);				
+				} catch (WebApplicationException | IOException e) {
+				e.printStackTrace();
+				}
+			}			
+			Insight insight = InsightStore.getInstance().get(insightId);
+			if(insight != null)
+			{
+				Object output = insight.query(sql, null);
+				if(output != null)
+					return WebUtility.getSO(output);					
+			}
+			else
+				return WebUtility.getSO("No such insight");
+		}
+		return null;
+		
+	}
+
 
 }
