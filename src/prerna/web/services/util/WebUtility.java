@@ -50,6 +50,7 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 
 import prerna.util.Constants;
+import prerna.util.FstUtil;
 import prerna.util.gson.GsonUtility;
 
 /**
@@ -202,6 +203,34 @@ public class WebUtility {
 			logger.error(Constants.STACKTRACE, e);
 		}      
 
+		return null;
+	}
+	
+	public static StreamingOutput getBinarySO(Object obj)
+	{
+		if(obj != null)
+		{
+			try {
+				final byte[] output = FstUtil.serialize(obj);
+				return new StreamingOutput() 
+				{
+					public void write(OutputStream outputStream) throws IOException, WebApplicationException 
+					{
+						try
+						{
+								outputStream.write(output);
+								outputStream.flush();
+						}catch(Exception ex)
+						{
+							logger.error(Constants.STACKTRACE, ex);							
+					}
+				}
+				};
+			}catch(Exception ex)
+			{
+				logger.error(Constants.STACKTRACE, ex);											
+			}
+		}
 		return null;
 	}
 
