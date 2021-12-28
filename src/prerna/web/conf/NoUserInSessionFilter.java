@@ -270,7 +270,7 @@ public class NoUserInSessionFilter implements Filter {
 
 						// this session has been ratified so remove the session and move the user
 						// forward
-						user.removeShare(session.getId());
+						//user.removeShare(session.getId());
 						// remove the hash cookie since the user has validated this session
 						for (Cookie c : cookies) {
 							if (c.getName().equals("HASH")) {
