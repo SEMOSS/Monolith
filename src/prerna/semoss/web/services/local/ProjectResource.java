@@ -763,6 +763,12 @@ public class ProjectResource {
 			if(insight != null)
 			{
 				Object output = insight.query(sql, null);
+				if(output instanceof Map) // add the instance so it can refer going forward
+				{
+					((Map)output).put("INSIGHT_INSTANCE", insightId);
+					((Map)output).remove("types");
+					
+				}
 				if(output != null)
 					return WebUtility.getSO(output);					
 			}
