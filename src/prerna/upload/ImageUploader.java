@@ -25,9 +25,9 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUserDatabaseUtils;
+import prerna.auth.utils.SecurityUserInsightUtils;
 import prerna.auth.utils.SecurityUserProjectUtils;
 import prerna.cluster.util.CloudClient;
 import prerna.cluster.util.ClusterUtil;
@@ -611,7 +611,7 @@ public class ImageUploader extends Uploader {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityInsightUtils.userCanEditInsight(user, projectId, insightId)) {
+				if (!SecurityUserInsightUtils.userCanEditInsight(user, projectId, insightId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this insight within the project");
 					return WebUtility.getResponse(returnMap, 400);
 				}
