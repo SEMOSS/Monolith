@@ -38,12 +38,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
-import com.google.gson.Gson;
-
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityInsightUtils;
-import prerna.auth.utils.SecurityProjectUtils;
+import prerna.auth.utils.SecurityUserProjectUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
@@ -51,7 +49,6 @@ import prerna.io.connector.couch.CouchUtil;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.sablecc2.PixelStreamUtility;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -71,8 +68,8 @@ public class ProjectResource {
 	
 	private boolean canAccessProject(User user, String projectId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
-			projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-			if(!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+			projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
+			if(!SecurityUserProjectUtils.userCanViewProject(user, projectId)) {
 				throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have access");
 			}
 		} else {
@@ -87,7 +84,7 @@ public class ProjectResource {
 	
 	private boolean canAccessInsight(User user, String projectId, String insightId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
-			projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+			projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
 			if(!SecurityInsightUtils.userCanViewInsight(user, projectId, insightId)) {
 				throw new IllegalAccessException("Insight does not exist or user does not have access to view");
 			}

@@ -29,8 +29,8 @@ import com.google.gson.reflect.TypeToken;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityInsightUtils;
-import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.auth.utils.SecurityUserProjectUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
@@ -230,7 +230,7 @@ public class FileUploader extends Uploader {
 			}
 			
 			if(projectId != null && !projectId.equalsIgnoreCase("user")) {
-				if (!SecurityProjectUtils.userCanEditProject(in.getUser(), projectId)) {
+				if (!SecurityUserProjectUtils.userCanEditProject(in.getUser(), projectId)) {
 					HashMap<String, String> errorMap = new HashMap<String, String>();
 					errorMap.put("errorMessage", "User does not have permission for this project.");
 					return WebUtility.getResponse(errorMap, 400);
