@@ -19,7 +19,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
-import prerna.auth.utils.SecurityProjectUtils;
+import prerna.auth.utils.SecurityUserProjectUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -52,7 +52,7 @@ public class ProjectAuthorizationResource  {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(SecurityProjectUtils.getAllUserProjectSettings(user), 200);
+		return WebUtility.getResponse(SecurityUserProjectUtils.getAllUserProjectSettings(user), 200);
 	}
 	
 	/**
@@ -76,7 +76,7 @@ public class ProjectAuthorizationResource  {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String permission = SecurityProjectUtils.getActualUserProjectPermission(user, projectId);
+		String permission = SecurityUserProjectUtils.getActualUserProjectPermission(user, projectId);
 		if(permission == null) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull permission details for project " + projectId + " without having proper access"));
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -112,7 +112,7 @@ public class ProjectAuthorizationResource  {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityProjectUtils.getProjectUsers(user, projectId);
+			ret = SecurityUserProjectUtils.getProjectUsers(user, projectId);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -150,7 +150,7 @@ public class ProjectAuthorizationResource  {
 		String permission = form.getFirst("permission");
 
 		try {
-			SecurityProjectUtils.addProjectUser(user, newUserId, projectId, permission);
+			SecurityUserProjectUtils.addProjectUser(user, newUserId, projectId, permission);
 		} catch (Exception e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a user for app " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -193,7 +193,7 @@ public class ProjectAuthorizationResource  {
 		String newPermission = form.getFirst("permission");
 
 		try {
-			SecurityProjectUtils.editProjectUserPermission(user, existingUserId, projectId, newPermission);
+			SecurityUserProjectUtils.editProjectUserPermission(user, existingUserId, projectId, newPermission);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -239,7 +239,7 @@ public class ProjectAuthorizationResource  {
 		String projectId = form.getFirst("projectId");
 
 		try {
-			SecurityProjectUtils.removeProjectUser(user, existingUserId, projectId);
+			SecurityUserProjectUtils.removeProjectUser(user, existingUserId, projectId);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -294,7 +294,7 @@ public class ProjectAuthorizationResource  {
 		String logPublic = isPublic ? " public " : " private";
 
 		try {
-			SecurityProjectUtils.setProjectGlobal(user, projectId, isPublic);
+			SecurityUserProjectUtils.setProjectGlobal(user, projectId, isPublic);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the project " + projectId + logPublic + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -342,7 +342,7 @@ public class ProjectAuthorizationResource  {
 		String logVisible = visible ? " visible " : " not visible";
 
 		try {
-			SecurityProjectUtils.setProjectVisibility(user, projectId, visible);
+			SecurityUserProjectUtils.setProjectVisibility(user, projectId, visible);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the project " + projectId + logVisible + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -388,7 +388,7 @@ public class ProjectAuthorizationResource  {
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
 		try {
-			SecurityProjectUtils.setProjectFavorite(user, projectId, isFavorite);
+			SecurityUserProjectUtils.setProjectFavorite(user, projectId, isFavorite);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the project " + projectId + logFavorited + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -431,7 +431,7 @@ public class ProjectAuthorizationResource  {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityProjectUtils.getProjectUsersNoCredentials(user, projectId);
+			ret = SecurityUserProjectUtils.getProjectUsersNoCredentials(user, projectId);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + projectId + " that do not have credentials without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
