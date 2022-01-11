@@ -26,9 +26,9 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityInsightUtils;
-import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUserDatabaseUtils;
+import prerna.auth.utils.SecurityUserProjectUtils;
 import prerna.cluster.util.CloudClient;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
@@ -360,12 +360,12 @@ public class ImageUploader extends Uploader {
 				}
 
 				try {
-					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+					projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
 				} catch (Exception e) {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
+				if (!SecurityUserProjectUtils.userCanEditProject(user, projectId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this project");
 					return WebUtility.getResponse(returnMap, 400);
 				}
@@ -477,12 +477,12 @@ public class ImageUploader extends Uploader {
 				}
 
 				try {
-					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+					projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
 				} catch (Exception e) {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
+				if (!SecurityUserProjectUtils.userCanEditProject(user, projectId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project or the project id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
@@ -606,7 +606,7 @@ public class ImageUploader extends Uploader {
 				}
 
 				try {
-					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+					projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
 				} catch (Exception e) {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
@@ -718,12 +718,12 @@ public class ImageUploader extends Uploader {
 				}
 
 				try {
-					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+					projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
 				} catch (Exception e) {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
+				if (!SecurityUserProjectUtils.userCanEditProject(user, projectId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project or the project id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
