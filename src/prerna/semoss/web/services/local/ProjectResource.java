@@ -40,7 +40,7 @@ import org.json.JSONObject;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityInsightUtils;
+import prerna.auth.utils.SecurityUserInsightUtils;
 import prerna.auth.utils.SecurityUserProjectUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
@@ -85,7 +85,7 @@ public class ProjectResource {
 	private boolean canAccessInsight(User user, String projectId, String insightId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
-			if(!SecurityInsightUtils.userCanViewInsight(user, projectId, insightId)) {
+			if(!SecurityUserInsightUtils.userCanViewInsight(user, projectId, insightId)) {
 				throw new IllegalAccessException("Insight does not exist or user does not have access to view");
 			}
 		} else {

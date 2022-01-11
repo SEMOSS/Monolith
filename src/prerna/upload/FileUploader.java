@@ -28,8 +28,8 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.auth.utils.SecurityUserInsightUtils;
 import prerna.auth.utils.SecurityUserProjectUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -217,7 +217,7 @@ public class FileUploader extends Uploader {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			
-			if(in.isSavedInsight() && !SecurityInsightUtils.userCanEditInsight(user, in.getProjectId(), in.getRdbmsId())) {
+			if(in.isSavedInsight() && !SecurityUserInsightUtils.userCanEditInsight(user, in.getProjectId(), in.getRdbmsId())) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "User does not edit access for this insight");
 				return WebUtility.getResponse(errorMap, 400);
