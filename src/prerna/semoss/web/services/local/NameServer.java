@@ -77,8 +77,8 @@ import com.google.gson.internal.StringMap;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityDatabaseUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.auth.utils.SecurityUserDatabaseUtils;
 import prerna.auth.utils.SecurityUserInsightUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
@@ -834,7 +834,7 @@ public class NameServer {
 				return WebUtility.getSO("Not properly authenticated");
 			}
 			engineId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, engineId);
-			if (!SecurityUserDatabaseUtils.userCanViewDatabase(user, engineId)) {
+			if (!SecurityDatabaseUtils.userCanViewDatabase(user, engineId)) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Database " + engineId + " does not exist or user does not have access to database");
