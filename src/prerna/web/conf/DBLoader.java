@@ -96,6 +96,13 @@ public class DBLoader implements ServletContextListener {
 			adminSetPublisher = "false";
 		}
 		context.setInitParameter(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
+		
+		// see if admin can determine who can export
+		String adminSetExporter = context.getInitParameter(Constants.ADMIN_SET_EXPORTER);
+		if (adminSetExporter == null) {
+			adminSetExporter = "false";
+		}
+		context.setInitParameter(Constants.ADMIN_SET_EXPORTER, adminSetExporter);
 
 		// see if we allow anonymous users
 		String anonymousUsersEnabled = context.getInitParameter(Constants.ANONYMOUS_USER_ALLOWED);
@@ -160,6 +167,7 @@ public class DBLoader implements ServletContextListener {
 		DIHelper.getInstance().setLocalProperty(Constants.SECURITY_ENABLED, securityEnabled);
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
+		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_EXPORTER, adminSetExporter);
 		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
 		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
 		DIHelper.getInstance().setLocalProperty(Constants.USE_LOGOUT_PAGE, useLogoutPage);
