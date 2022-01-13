@@ -73,7 +73,7 @@ public class AdminConfigService {
 		List<String> ids = GSON.fromJson(idString, List.class);
 
 		for (String id : ids) {
-			SecurityUpdateUtils.registerUser(id, null, null, null, null , true, true);
+			SecurityUpdateUtils.registerUser(id, null, null, null, null , true, true, true);
 		}
 
 		if (session != null && session.getAttribute(ADMIN_REDIRECT_KEY) != null) {
