@@ -16,7 +16,7 @@ import javax.servlet.http.HttpSession;
 import com.google.common.base.Strings;
 
 import prerna.auth.User;
-import prerna.auth.utils.SecurityUserProjectUtils;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Settings;
@@ -69,7 +69,7 @@ public class PublicHomeCheckFilter implements Filter {
 			// this is engine id ?! why are we splitting!
 			//String [] engTokens = possibleEngineId.split("__");
 			
-			String alias = SecurityUserProjectUtils.getProjectAliasForId(possibleEngineId);
+			String alias = SecurityProjectUtils.getProjectAliasForId(possibleEngineId);
 			if(!Strings.isNullOrEmpty(alias) && !Strings.isNullOrEmpty(possibleEngineId))
 			{
 				boolean appAllowed = user.checkProjectAccess(alias, possibleEngineId);
