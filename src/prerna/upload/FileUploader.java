@@ -28,9 +28,9 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityInsightUtils;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.auth.utils.SecurityUserInsightUtils;
-import prerna.auth.utils.SecurityUserProjectUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
@@ -217,7 +217,7 @@ public class FileUploader extends Uploader {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			
-			if(in.isSavedInsight() && !SecurityUserInsightUtils.userCanEditInsight(user, in.getProjectId(), in.getRdbmsId())) {
+			if(in.isSavedInsight() && !SecurityInsightUtils.userCanEditInsight(user, in.getProjectId(), in.getRdbmsId())) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "User does not edit access for this insight");
 				return WebUtility.getResponse(errorMap, 400);
@@ -230,7 +230,7 @@ public class FileUploader extends Uploader {
 			}
 			
 			if(projectId != null && !projectId.equalsIgnoreCase("user")) {
-				if (!SecurityUserProjectUtils.userCanEditProject(in.getUser(), projectId)) {
+				if (!SecurityProjectUtils.userCanEditProject(in.getUser(), projectId)) {
 					HashMap<String, String> errorMap = new HashMap<String, String>();
 					errorMap.put("errorMessage", "User does not have permission for this project.");
 					return WebUtility.getResponse(errorMap, 400);

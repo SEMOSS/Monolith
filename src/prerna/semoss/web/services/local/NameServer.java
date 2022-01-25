@@ -78,8 +78,8 @@ import com.google.gson.internal.StringMap;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityDatabaseUtils;
+import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.auth.utils.SecurityUserInsightUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.nameserver.utility.MasterDatabaseUtility;
@@ -1070,9 +1070,9 @@ public class NameServer {
 		if (securityEnabled) {
 			HttpSession session = request.getSession(false);
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
-			searchResults = SecurityUserInsightUtils.predictUserInsightSearch(user, searchString, "15", "0");
+			searchResults = SecurityInsightUtils.predictUserInsightSearch(user, searchString, "15", "0");
 		} else {
-			searchResults = SecurityUserInsightUtils.predictInsightSearch(searchString, "15", "0");
+			searchResults = SecurityInsightUtils.predictInsightSearch(searchString, "15", "0");
 		}
 		return WebUtility.getSO(searchResults);
 	}
@@ -1129,9 +1129,9 @@ public class NameServer {
 			// filter insights based on what the user has access to
 			HttpSession session = request.getSession(false);
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			queryResults = SecurityUserInsightUtils.searchUserInsights(user, appIds, searchString, tags, false, null, limit, offset);
+			queryResults = SecurityInsightUtils.searchUserInsights(user, appIds, searchString, tags, false, null, limit, offset);
 		} else {
-			queryResults = SecurityUserInsightUtils.searchInsights(appIds, searchString, tags, null, limit, offset);
+			queryResults = SecurityInsightUtils.searchInsights(appIds, searchString, tags, null, limit, offset);
 		}
 
 		return WebUtility.getSO(queryResults);
