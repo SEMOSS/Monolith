@@ -12,8 +12,8 @@ import javax.ws.rs.core.Context;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.auth.utils.SecurityUserInsightUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
@@ -61,7 +61,7 @@ public class ExecuteInsightResource {
 		
 		if(securityEnabled) {
 			projectId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, projectId);
-			if(!SecurityUserInsightUtils.userCanViewInsight(user, projectId, rdbmsId)) {
+			if(!SecurityInsightUtils.userCanViewInsight(user, projectId, rdbmsId)) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("error", "User does not have access to this insight");
 				return WebUtility.getResponse(errorMap, 401);

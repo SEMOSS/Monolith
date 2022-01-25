@@ -26,9 +26,9 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityDatabaseUtils;
+import prerna.auth.utils.SecurityInsightUtils;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.auth.utils.SecurityUserInsightUtils;
-import prerna.auth.utils.SecurityUserProjectUtils;
 import prerna.cluster.util.CloudClient;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
@@ -108,7 +108,7 @@ public class ImageUploader extends Uploader {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				appName = SecurityQueryUtils.getDatabaseAliasForId(appId);
+				appName = SecurityDatabaseUtils.getDatabaseAliasForId(appId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
@@ -224,7 +224,7 @@ public class ImageUploader extends Uploader {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this app or the database id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				appName = SecurityQueryUtils.getDatabaseAliasForId(appId);
+				appName = SecurityDatabaseUtils.getDatabaseAliasForId(appId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
@@ -360,16 +360,16 @@ public class ImageUploader extends Uploader {
 				}
 
 				try {
-					projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
+					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
 				} catch (Exception e) {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityUserProjectUtils.userCanEditProject(user, projectId)) {
+				if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this project");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				projectName = SecurityQueryUtils.getProjectAliasForId(projectId);
+				projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
@@ -477,16 +477,16 @@ public class ImageUploader extends Uploader {
 				}
 
 				try {
-					projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
+					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
 				} catch (Exception e) {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityUserProjectUtils.userCanEditProject(user, projectId)) {
+				if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project or the project id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				projectName = SecurityQueryUtils.getProjectAliasForId(projectId);
+				projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
@@ -606,16 +606,16 @@ public class ImageUploader extends Uploader {
 				}
 
 				try {
-					projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
+					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
 				} catch (Exception e) {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityUserInsightUtils.userCanEditInsight(user, projectId, insightId)) {
+				if (!SecurityInsightUtils.userCanEditInsight(user, projectId, insightId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this insight within the project");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				projectName = SecurityQueryUtils.getDatabaseAliasForId(projectId);
+				projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
@@ -718,16 +718,16 @@ public class ImageUploader extends Uploader {
 				}
 
 				try {
-					projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
+					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
 				} catch (Exception e) {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityUserProjectUtils.userCanEditProject(user, projectId)) {
+				if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project or the project id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				projectName = SecurityQueryUtils.getDatabaseAliasForId(projectId);
+				projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
