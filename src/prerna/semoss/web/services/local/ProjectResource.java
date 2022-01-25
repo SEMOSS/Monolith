@@ -40,8 +40,8 @@ import org.json.JSONObject;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityUserInsightUtils;
-import prerna.auth.utils.SecurityUserProjectUtils;
+import prerna.auth.utils.SecurityInsightUtils;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
@@ -68,8 +68,8 @@ public class ProjectResource {
 	
 	private boolean canAccessProject(User user, String projectId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
-			projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
-			if(!SecurityUserProjectUtils.userCanViewProject(user, projectId)) {
+			projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+			if(!SecurityProjectUtils.userCanViewProject(user, projectId)) {
 				throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have access");
 			}
 		} else {
@@ -84,8 +84,8 @@ public class ProjectResource {
 	
 	private boolean canAccessInsight(User user, String projectId, String insightId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
-			projectId = SecurityUserProjectUtils.testUserProjectIdForAlias(user, projectId);
-			if(!SecurityUserInsightUtils.userCanViewInsight(user, projectId, insightId)) {
+			projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+			if(!SecurityInsightUtils.userCanViewInsight(user, projectId, insightId)) {
 				throw new IllegalAccessException("Insight does not exist or user does not have access to view");
 			}
 		} else {
