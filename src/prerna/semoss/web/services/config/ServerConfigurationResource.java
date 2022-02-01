@@ -121,7 +121,7 @@ public class ServerConfigurationResource {
 		
 		// version of the application
 		try {
-			Map<String, String> versionMap = VersionReactor.getVersionMap();
+			Map<String, String> versionMap = VersionReactor.getVersionMap(false);
 			loadConfig.put("version", versionMap);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
