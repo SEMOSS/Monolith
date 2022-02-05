@@ -64,13 +64,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			String type = form.getFirst("type");
 			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
 			Boolean publisher = Boolean.parseBoolean(form.getFirst("publisher"));
-			String exporterInput = form.getFirst("exporter");
-			Boolean exporter = Boolean.TRUE;
-			if (exporterInput != null && !exporterInput.isEmpty()) {
-				exporter = Boolean.parseBoolean(exporterInput);
-			}
-
-
+			Boolean exporter = Boolean.parseBoolean(form.getFirst("exporter"));
 			String password = form.getFirst("password");
 			// validate email & password
 			if (email != null && !email.isEmpty()) {
