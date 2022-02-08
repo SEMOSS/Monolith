@@ -666,6 +666,7 @@ public class ProjectResource {
 			if(session == null)
 				return WebUtility.getBinarySO("You are not authorized");
 			
+			// first time 
 			if(!projectId.equalsIgnoreCase("session") && (open != null && open.equalsIgnoreCase("true"))) // && InsightStore.getInstance().get(insightId) == null) // see if you can open the insight
 			{
 				NameServer server = resourceContext.getResource(NameServer.class);
@@ -773,8 +774,63 @@ public class ProjectResource {
 				return WebUtility.getSO("No such insight");
 		}
 		return null;
-		
 	}
 
+	@GET
+	@Path("/jdbc_csv")
+	@Produces(MediaType.TEXT_PLAIN + ";charset=utf-8")
+	
+	public StreamingOutput  getJDBCCSVOutput(@PathParam("projectId") String projectId, 
+			@QueryParam("insightId") String insightId, 
+			@QueryParam("sql") String sql, @Context HttpServletRequest request, 
+			@Context ResourceContext resourceContext) 
+	{
+		if(projectId == null)
+			projectId = "session";
+		//if(projectId.equalsIgnoreCase("session"))
+		{
+			// get the insight from the session
+			HttpSession session = request.getSession();
+			if(session == null)
+				return WebUtility.getSO("You are not authorized");
+			
+			if(!projectId.equalsIgnoreCase("session")) // && InsightStore.getInstance().get(insightId) == null) // see if you can open the insight
+			{
+				NameServer server = resourceContext.getResource(NameServer.class);
+				OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
+				Map<String, String> paramMap = new HashMap<String, String>();
+				
+				String pixel = "META | OpenInsight(project=[\"" + projectId + "\"], id=[\"" + insightId + "\"], additionalPixels=[\"ReadInsightTheme();\"]);" ;
+				paramMap.put("insightId", "new");
+				paramMap.put("expression", pixel);
+				requestWrapper.setParameters(paramMap);
+				Response resp = server.runPixelSync(requestWrapper);
+				
+				StreamingOutput utility = (StreamingOutput) resp.getEntity();
+				ByteArrayOutputStream output = new ByteArrayOutputStream();
+				try {
+					utility.write(output);
+					String s = new String(output.toByteArray());
+					System.out.println(s);
+					JSONObject obj = new JSONObject(s);
+					// pixelReturn[0].output.insightData.insightId
+					insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
+					System.err.println("Insight ID is " + insightId);				
+				} catch (WebApplicationException | IOException e) {
+				e.printStackTrace();
+				}
+			}			
+			Insight insight = InsightStore.getInstance().get(insightId);
+			if(insight != null)
+			{
+				Object output = insight.queryCSV(sql, null);
+				if(output != null)
+					return WebUtility.getSOFile(output+"");					
+			}
+			else
+				return WebUtility.getSO("No such insight");
+		}
+		return null;
+	}
 
 }
