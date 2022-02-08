@@ -152,6 +152,10 @@ public class ServerConfigurationResource {
 		// insights are cacheable by default
 		boolean cacheableOnByDefault = Utility.getApplicationCacheInsight();
 		loadConfig.put("cacheInsightByDefault", cacheableOnByDefault);
+		int cacheMinutes = Utility.getApplicationCacheInsightMinutes();
+		loadConfig.put("cacheInsightMinutes", cacheMinutes);
+		boolean cacheEncrypt = Utility.getApplicationCacheEncrypt();
+		loadConfig.put("cacheInsightEncrypt", cacheEncrypt);
 		
 		// to make welcome dialog optional
 		boolean showWelcomeBanner = Utility.getWelcomeBannerOption();
