@@ -27,9 +27,13 @@
  *******************************************************************************/
 package prerna.web.services.util;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.util.Calendar;
 import java.util.Date;
@@ -97,6 +101,38 @@ public class WebUtility {
 		return null;
 	}
 
+	public static StreamingOutput getSOFile(String  fileLocation)
+	{
+		if(fileLocation != null)
+		{
+			try {
+				File daFile = new File(fileLocation);
+				FileReader fr = new FileReader(daFile);
+				BufferedReader br = new BufferedReader(fr);
+				return new StreamingOutput() {
+					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+						try(
+								PrintWriter pw = new PrintWriter(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
+								)
+						{
+							String data = null;
+							while((data = br.readLine()) != null)
+								pw.println(data);
+							//ps.write(data, 0 , data.length);
+							fr.close();
+							br.close();
+							daFile.delete();
+						}
+					}};
+			} catch (Exception e) {
+				logger.error(Constants.STACKTRACE, e);
+			}      
+		}
+
+		return null;
+	}
+
+	
 	public static Response getResponse(Object vec, int status, NewCookie... cookies) {
 		return getResponse(vec, status, null, cookies);
 	}
