@@ -23,8 +23,10 @@ import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.tcp.client.Client;
+import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.MountHelper;
 import prerna.util.insight.InsightUtility;
 
 @WebListener
@@ -141,6 +143,20 @@ public class UserSessionLoader implements HttpSessionListener {
 				if(nc != null) {
 					String dir = thisUser.pyTupleSpace;
 					nc.stopPyServe(dir);
+				}
+			}
+		} catch(Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+		}
+		
+		//remove the mounts if chroot enabled
+		try {
+			if (Boolean.parseBoolean(DIHelper.getInstance().getProperty(Constants.CHROOT_ENABLE))) {
+				if(thisUser != null) {
+					MountHelper mh = thisUser.getUserMountHelper();
+					if(mh != null) {
+						mh.unmountTargetProc();
+					}
 				}
 			}
 		} catch(Exception e) {
