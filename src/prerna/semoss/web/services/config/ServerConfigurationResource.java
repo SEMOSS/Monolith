@@ -156,6 +156,8 @@ public class ServerConfigurationResource {
 		loadConfig.put("cacheInsightMinutes", cacheMinutes);
 		boolean cacheEncrypt = Utility.getApplicationCacheEncrypt();
 		loadConfig.put("cacheInsightEncrypt", cacheEncrypt);
+		String cacheCron = Utility.getApplicationCacheCron();
+		loadConfig.put("cacheCron", cacheCron);
 		
 		// to make welcome dialog optional
 		boolean showWelcomeBanner = Utility.getWelcomeBannerOption();
