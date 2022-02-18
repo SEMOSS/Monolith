@@ -52,7 +52,6 @@ import prerna.sablecc2.reactor.frame.py.PySingleton;
 import prerna.sablecc2.reactor.frame.r.util.RJavaTranslatorFactory;
 import prerna.sablecc2.reactor.scheduler.SchedulerDatabaseUtility;
 import prerna.sablecc2.reactor.scheduler.SchedulerFactorySingleton;
-import prerna.sablecc2.reactor.scheduler.legacy.JsonConversionToQuartzJob;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
@@ -210,8 +209,6 @@ public class DBLoader implements ServletContextListener {
 			if(scheduler != null) {
 				try {
 					SchedulerDatabaseUtility.executeAllTriggerOnLoads();
-					// also add legacy json files
-					JsonConversionToQuartzJob.runUpdateFromLegacyFormat();
 				} catch(Exception e) {
 					// ignore
 				}
