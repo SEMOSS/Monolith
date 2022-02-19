@@ -15,7 +15,9 @@ import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -666,6 +668,19 @@ public class ProjectResource {
 			if(session == null)
 				return WebUtility.getBinarySO("You are not authorized");
 			
+			if(sql == null)
+			{
+				try {
+					sql = IOUtils.toString(request.getReader());
+					sql = sql.replace("'", "\\\'");
+					sql = sql.replace("\"", "\\\"");
+					//System.err.println(sql2);
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+
 			// first time 
 			if(!projectId.equalsIgnoreCase("session") && (open != null && open.equalsIgnoreCase("true"))) // && InsightStore.getInstance().get(insightId) == null) // see if you can open the insight
 			{
@@ -715,11 +730,12 @@ public class ProjectResource {
 	}
 
 	@GET
+	@POST
 	@Path("/jdbc_json")
 	@Produces(MediaType.APPLICATION_JSON)
 	public StreamingOutput  getJDBCJsonOutput(@PathParam("projectId") String projectId, 
 			@QueryParam("insightId") String insightId, 
-			@QueryParam("sql") String sql, @Context HttpServletRequest request, 
+			@QueryParam("sql") String  sql, @Context HttpServletRequest request, 
 			@Context ResourceContext resourceContext) 
 	{
 		if(projectId == null)
@@ -730,6 +746,20 @@ public class ProjectResource {
 			HttpSession session = request.getSession();
 			if(session == null)
 				return WebUtility.getSO("You are not authorized");
+			
+			if(sql == null)
+			{
+				try {
+					sql = IOUtils.toString(request.getReader());
+					sql = sql.replace("'", "\\\'");
+					sql = sql.replace("\"", "\\\"");
+					//System.err.println(sql2);
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+
 			
 			if(!projectId.equalsIgnoreCase("session")) // && InsightStore.getInstance().get(insightId) == null) // see if you can open the insight
 			{
@@ -776,13 +806,15 @@ public class ProjectResource {
 		return null;
 	}
 
+	@POST
 	@GET
 	@Path("/jdbc_csv")
 	@Produces(MediaType.TEXT_PLAIN + ";charset=utf-8")
 	
 	public StreamingOutput  getJDBCCSVOutput(@PathParam("projectId") String projectId, 
 			@QueryParam("insightId") String insightId, 
-			@QueryParam("sql") String sql, @Context HttpServletRequest request, 
+			@QueryParam("sql") String sql,
+			@Context HttpServletRequest request, 
 			@Context ResourceContext resourceContext) 
 	{
 		if(projectId == null)
@@ -794,6 +826,19 @@ public class ProjectResource {
 			if(session == null)
 				return WebUtility.getSO("You are not authorized");
 			
+			if(sql == null)
+			{
+				try {
+					sql = IOUtils.toString(request.getReader());
+					sql = sql.replace("'", "\\\'");
+					sql = sql.replace("\"", "\\\"");
+					//System.err.println(sql2);
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+
 			if(!projectId.equalsIgnoreCase("session")) // && InsightStore.getInstance().get(insightId) == null) // see if you can open the insight
 			{
 				NameServer server = resourceContext.getResource(NameServer.class);
@@ -823,6 +868,21 @@ public class ProjectResource {
 			Insight insight = InsightStore.getInstance().get(insightId);
 			if(insight != null)
 			{
+				//sql = URLDecoder.decode(sql);
+				//sql = Utility.decodeURIComponent(sql);
+				// https://www.eso.org/~ndelmott/url_encode.html
+				// % - %25
+				// > %3E
+				// < %3c
+				// = %3d 
+				// ! %21
+				// + %2b
+				// ( %28
+				// ) %29
+				// , %2c
+				// & %26
+				
+				//sql = sql.replace("%20", " ");
 				Object output = insight.queryCSV(sql, null);
 				if(output != null)
 					return WebUtility.getSOFile(output+"");					
