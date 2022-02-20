@@ -19,6 +19,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -68,16 +69,22 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			String password = form.getFirst("password");
 			// validate email & password
 			if (email != null && !email.isEmpty()) {
-				String emailError = AbstractSecurityUtils.validEmail(email);
-				if (!emailError.isEmpty()) {
-					throw new IllegalArgumentException(emailError);
+				try {
+					AbstractSecurityUtils.validEmail(email);
+				} catch(Exception e) {
+					Map<String, String> errorMap = new HashMap<>();
+					errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+					return WebUtility.getResponse(errorMap, 401);
 				}
 			}
 			// password is only defined if native type
 			if (password != null && !password.isEmpty()) {
-				String passwordError = AbstractSecurityUtils.validPassword(password);
-				if (!passwordError.isEmpty()) {
-					throw new IllegalArgumentException(passwordError);
+				try {
+					AbstractSecurityUtils.validPassword(newUserId, AuthProvider.NATIVE, password);
+				} catch(Exception e) {
+					Map<String, String> errorMap = new HashMap<>();
+					errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+					return WebUtility.getResponse(errorMap, 401);
 				}
 			}
 			
