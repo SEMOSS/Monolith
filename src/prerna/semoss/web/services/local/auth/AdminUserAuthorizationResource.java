@@ -70,7 +70,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			// validate email & password
 			if (email != null && !email.isEmpty()) {
 				try {
-					AbstractSecurityUtils.validEmail(email);
+					AbstractSecurityUtils.validEmail(email, true);
 				} catch(Exception e) {
 					Map<String, String> errorMap = new HashMap<>();
 					errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
