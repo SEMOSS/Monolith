@@ -2061,7 +2061,7 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("createUser")
-	public Response createUser(@Context HttpServletRequest request) {
+	public Response createNativeUser(@Context HttpServletRequest request) {
 		Hashtable<String, String> ret = new Hashtable<>();
 		try {
 			// Note - for native users
