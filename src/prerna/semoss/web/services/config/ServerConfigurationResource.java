@@ -179,7 +179,11 @@ public class ServerConfigurationResource {
 		// logins allowed
 		myConfiguration.put("loginsAllowed", UserResource.getLoginsAllowed());
 		// current logins
+		// TODO: added 2022-02-25
+		// TODO: should move away from logins cause sometimes people are using this as if the name is the ID
+		// TODO: but not sure where this is all happening, so sending both keys for now
 		myConfiguration.put("logins", User.getLoginNames(user));
+		myConfiguration.put("loginDetails", User.getLoginDetails(user));
 		// themes
 		myConfiguration.put("theme", AdminThemeUtils.getActiveAdminTheme());
 		// add if we are using csrf
