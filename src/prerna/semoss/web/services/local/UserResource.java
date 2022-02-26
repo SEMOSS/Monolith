@@ -85,8 +85,8 @@ import prerna.auth.InsightToken;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.io.connector.GenericProfile;
@@ -167,7 +167,18 @@ public class UserResource {
 	 * @return
 	 */
 	public static String getLoginRedirect() {
-		return socialData.getProperty("redirect") + "/login";
+		String redirectUrl = socialData.getProperty("redirect");
+		if(redirectUrl.endsWith("#!/login")) {
+			return redirectUrl;
+		}
+		// accounting for some user inputs
+		if(!redirectUrl.endsWith("/")) {
+			redirectUrl = redirectUrl + "/";
+		}
+		if(!redirectUrl.endsWith("#!/")) {
+			redirectUrl = redirectUrl + "#!/";
+		}
+		return redirectUrl + "login";
 	}
 
 	private static void setLoginsAllowed() {
