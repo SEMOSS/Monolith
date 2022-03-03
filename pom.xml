@@ -77,6 +77,7 @@
 							<attachClasses>true</attachClasses>
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
+								accountLocked/**,
 								logout/**,
 								noUserFail/**,
 								saml2/**,
@@ -131,6 +132,7 @@
 							<attachClasses>true</attachClasses>
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
+								accountLocked/**,
 								logout/**,
 								noUserFail/**,
 								saml2/**,
