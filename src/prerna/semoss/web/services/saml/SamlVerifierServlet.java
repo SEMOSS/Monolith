@@ -169,6 +169,7 @@ public class SamlVerifierServlet extends HttpServlet {
 			response.sendRedirect(encodedRedirectUrl);
 			
 		} catch (SAML2Exception | IOException | SessionException | ServletException sme) {
+			logger.error(Constants.STACKTRACE, sme);
 			SAMLUtils.sendError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
 					"failedToProcessSSOResponse", sme.getMessage());
 		}
