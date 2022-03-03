@@ -36,7 +36,7 @@ import prerna.util.DIHelper;
 
 public class SSOUtil {
 
-	private static final Logger logger = LogManager.getLogger(FileAppender.class);
+	private static final Logger logger = LogManager.getLogger(SSOUtil.class);
 	private static String fedletHomeDir = "";
 	private static String deployuri = "";
 	private static final Map<String, String> ssoMap = new HashMap<String, String>();
