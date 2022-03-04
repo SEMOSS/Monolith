@@ -27,9 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -43,12 +40,10 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.Vector;
-import java.util.stream.Collectors;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -65,8 +60,6 @@ import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.kohsuke.github.GHMyself;
@@ -79,7 +72,6 @@ import com.google.gson.reflect.TypeToken;
 
 import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
-import prerna.auth.AppTokens;
 import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
 import prerna.auth.SyncUserAppsThread;
@@ -103,7 +95,7 @@ import prerna.om.NLPDocumentInput;
 import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
+import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.util.git.GitRepoUtils;
 import prerna.web.conf.DBLoader;
@@ -116,100 +108,9 @@ public class UserResource {
 
 	private static final Logger logger = LogManager.getLogger(UserResource.class);
 
-	private static Properties socialData = null;
-	private static Map<String, Boolean> loginsAllowedMap;
-	
+	private static SocialPropertiesUtil socialData = null;
 	static {
-		loadSocialProperties();
-		AppTokens.setSocial(socialData);
-	}
-
-	private static void loadSocialProperties() {
-		FileInputStream fis = null;
-		String socialPropFile = DIHelper.getInstance().getProperty("SOCIAL");
-		try {
-			if(socialPropFile != null) {
-				File f = new File(DIHelper.getInstance().getProperty("SOCIAL"));
-				if (f.exists()) {
-					socialData = new Properties();
-					fis = new FileInputStream(f);
-					socialData.load(fis);
-					setLoginsAllowed();
-				} else {
-					logger.warn("No social.properties file found!");
-					logger.warn("No social.properties file found!");
-					logger.warn("No social.properties file found!");
-				}
-			} else {
-				logger.warn("No social.properties defined in RDF_Map.prop!");
-				logger.warn("No social.properties defined in RDF_Map.prop!");
-				logger.warn("No social.properties defined in RDF_Map.prop!");
-			}
-		} catch (FileNotFoundException fnfe) {
-			logger.error(Constants.STACKTRACE, fnfe);
-		} catch (IOException ioe) {
-			logger.error(Constants.STACKTRACE, ioe);
-		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
-		} finally {
-			if (fis != null) {
-				try {
-					fis.close();
-				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE, e);
-				}
-			}
-		}
-	}
-
-	/**
-	 * Method to get the redirect URL if defined in the social properties
-	 * @return
-	 */
-	public static String getLoginRedirect() {
-		String redirectUrl = socialData.getProperty("redirect");
-		if(redirectUrl.endsWith("#!/login")) {
-			return redirectUrl;
-		}
-		// accounting for some user inputs
-		if(!redirectUrl.endsWith("/")) {
-			redirectUrl = redirectUrl + "/";
-		}
-		if(!redirectUrl.endsWith("#!/")) {
-			redirectUrl = redirectUrl + "#!/";
-		}
-		return redirectUrl + "login";
-	}
-
-	private static void setLoginsAllowed() {
-		UserResource.loginsAllowedMap = new HashMap<>();
-		// define the default provider set
-		Set<String> defaultProviders = AuthProvider.getSocialPropKeys();
-		
-		// get all _login props
-	    Set<String> loginProps = socialData.stringPropertyNames().stream().filter(str->str.endsWith("_login")).collect(Collectors.toSet());
-		for( String prop : loginProps) {
-			//prop ex. ms_login
-			//get provider from prop by split on _
-			String provider = prop.split("_")[0];
-		
-			UserResource.loginsAllowedMap.put(provider,  Boolean.parseBoolean(socialData.getProperty(prop)));
-			//remove the provider from the defaultProvider list
-			defaultProviders.remove(provider);
-		}
-		
-		// for loop through the defaultProviders list to make sure we set the rest to false
-		for(String provider: defaultProviders) {
-			UserResource.loginsAllowedMap.put(provider,  false);
-		}
-
-		// get if registration is allowed
-		boolean registration = Boolean.parseBoolean(socialData.getProperty("native_registration"));
-		UserResource.loginsAllowedMap.put("registration", registration);
-	}
-
-	public static Map<String, Boolean> getLoginsAllowed() {
-		return UserResource.loginsAllowedMap;
+		socialData = SocialPropertiesUtil.getInstance();
 	}
 
 	@GET
@@ -2122,7 +2023,7 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/loginsAllowed/")
 	public Response loginsAllowed(@Context HttpServletRequest request) throws IOException {
-		return WebUtility.getResponse(UserResource.loginsAllowedMap, 200);
+		return WebUtility.getResponse(socialData.getLoginsAllowed(), 200);
 	}
 
 	@GET
@@ -2183,32 +2084,13 @@ public class UserResource {
 
 		Gson gson = new Gson();
 		String modStr = form.getFirst("modifications");
-		Map<String, String> mods = gson.fromJson(modStr, new TypeToken<Map<String, String>>() {
-		}.getType());
-
-		PropertiesConfiguration config = null;
+		Map<String, String> mods = gson.fromJson(modStr, new TypeToken<Map<String, String>>() {}.getType());
 		try {
-			config = new PropertiesConfiguration(DIHelper.getInstance().getProperty("SOCIAL"));
-		} catch (ConfigurationException e1) {
-			logger.error(Constants.STACKTRACE, e1);
+			socialData.updateSocialProperties(provider, mods);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
 			Hashtable<String, String> errorRet = new Hashtable<>();
-			errorRet.put(Constants.ERROR_MESSAGE,
-					"An unexpected error happened trying to access the properties. Please try again or reach out to server admin.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
-		for (String mod : mods.keySet()) {
-			config.setProperty(provider + "_" + mod, mods.get(mod));
-		}
-
-		try {
-			config.save();
-			loadSocialProperties();
-		} catch (ConfigurationException e1) {
-			logger.error(Constants.STACKTRACE, e1);
-			Hashtable<String, String> errorRet = new Hashtable<>();
-			errorRet.put(Constants.ERROR_MESSAGE,
-					"An unexpected error happened when saving the new login properties. Please try again or reach out to server admin.");
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
@@ -2404,51 +2286,5 @@ public class UserResource {
 		}
 		return WebUtility.getResponse(output, 200);
 	}
-	
-	/**
-	 * Get the SEMOSS user id to the list of SAML attributes that generate the value
-	 * 
-	 *			#### SAML Attributes goes here #####
-	 *			Rule for specifying the key-values #
-	 *			applicationKey - Used by the application. This is specified in the code(See SamlAttributeMapperObject class enum).
-	 *			saml_<key_in_saml_assertion> - This is the name of the value specified in AM. Needs to be set here.
-	 *			isMandatory - specifies true or false whether the field is required. Need to be set here, either true or false.
-	 *			defaultValue - specifies a default value in case a field is not required. This is optional to set.
-	 *			Add new key value pairs in the below format.
-	 *			saml_<key_in_saml_assertion>	<applicationKey->isMandatory->defaultValue>
-	 *			More than 1 mandatory fields can be specified here.
-	 * 			
-	 * 			Example: 
-	 * 
-	 * 			saml_id			DOD_EDI_PN_ID
-	 *			saml_name		FIRST_NAME+MIDDLE_NAME+LAST_NAME
-	 *			saml_email		NULL
-	 *			saml_username	FIRST_NAME+MIDDLE_NAME+LAST_NAME
-	 * 
-	 * @return
-	 */
-	public static Map<String, String[]> getSamlAttributeNames() {
-		final String NULL_INPUT = "NULL";
-		
-		String prefix = Constants.SAML + "_";
-		Map<String, String[]> samlAttrMap = new HashMap<>();
-	    Set<String> samlProps = socialData.stringPropertyNames().stream().filter(str->str.startsWith(prefix)).collect(Collectors.toSet());
-	    for(String samlKey : samlProps) {
-	    	// key
-	    	String socialKey = samlKey.replaceFirst(prefix, "").toLowerCase();
-	    	// value
-	    	if(socialData.get(samlKey) == null) {
-	    		continue;
-	    	}
-	    	String socialValue = socialData.get(samlKey).toString().trim();
-	    	if( socialValue.isEmpty() || socialValue.equals(NULL_INPUT)) {
-	    		continue;
-	    	}
-	    	socialValue = socialValue.toLowerCase();
-	    	
-	    	String[] keyGeneratedBy = socialValue.split("\\+");
-			samlAttrMap.putIfAbsent(socialKey, keyGeneratedBy);
-	    }
-		return samlAttrMap;
-	}
+
 }
