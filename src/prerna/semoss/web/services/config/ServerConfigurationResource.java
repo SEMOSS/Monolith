@@ -25,10 +25,10 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.ds.py.PyUtils;
 import prerna.sablecc2.reactor.cluster.VersionReactor;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.semoss.web.services.local.UserResource;
 import prerna.theme.AdminThemeUtils;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.web.conf.DBLoader;
 import prerna.web.services.util.WebUtility;
@@ -177,7 +177,7 @@ public class ServerConfigurationResource {
 		myConfiguration.put("timeout", (double) session.getMaxInactiveInterval() / 60);
 		// append values that can change without restarting the server
 		// logins allowed
-		myConfiguration.put("loginsAllowed", UserResource.getLoginsAllowed());
+		myConfiguration.put("loginsAllowed", SocialPropertiesUtil.getInstance().getLoginsAllowed());
 		// current logins
 		// TODO: added 2022-02-25
 		// TODO: should move away from logins cause sometimes people are using this as if the name is the ID
