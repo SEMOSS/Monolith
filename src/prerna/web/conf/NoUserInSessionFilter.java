@@ -32,10 +32,10 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.sablecc2.reactor.mgmt.MgmtUtil;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Settings;
+import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.web.requests.MultiReadHttpServletRequest;
 
@@ -312,7 +312,7 @@ public class NoUserInSessionFilter implements Filter {
 		if (redirectUrl == null) {
 			((HttpServletRequest) arg0).getSession(true).setAttribute(ENDPOINT_REDIRECT_KEY, fullUrl);
 			// this will be the deployment name of the app
-			String loginRedirect = UserResource.getLoginRedirect();
+			String loginRedirect = SocialPropertiesUtil.getInstance().getLoginRedirect();
 			((HttpServletResponse) arg1).setStatus(302);
 			if (loginRedirect != null) {
 				((HttpServletResponse) arg1).sendRedirect(loginRedirect);
