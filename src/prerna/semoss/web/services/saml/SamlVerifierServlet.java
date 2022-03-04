@@ -38,9 +38,9 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityGroupUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
-import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.SocialPropertiesUtil;
 import prerna.web.conf.AdminStartupFilter;
 import prerna.web.conf.util.SSOUtil;
 
@@ -112,7 +112,7 @@ public class SamlVerifierServlet extends HttpServlet {
 			// Get the field mappings from the properties file in the map. The 
 			// SamlAttributeMapperObject holds all the metadata related to the 
 			// saml fields. 
-			Map<String, String[]> attrMap = UserResource.getSamlAttributeNames();
+			Map<String, String[]> attrMap = SocialPropertiesUtil.getInstance().getSamlAttributeNames();
 			// The SamlDataObject holds the actual data received from the saml
 			// like the userId, email, user name. Additional fields can be added
 			// if required.
@@ -160,7 +160,7 @@ public class SamlVerifierServlet extends HttpServlet {
 			} else {
 				logger.info("No redirect url was found...");
 				logger.info("Redirect to social.properties value");
-				originalRedirect = UserResource.getLoginRedirect();
+				originalRedirect = SocialPropertiesUtil.getInstance().getLoginRedirect();
 			}
 
 			String encodedRedirectUrl = Encode.forHtml(originalRedirect);
