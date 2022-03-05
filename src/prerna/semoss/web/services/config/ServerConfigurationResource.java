@@ -20,6 +20,7 @@ import javax.ws.rs.core.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import prerna.auth.PasswordRequirements;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.ds.py.PyUtils;
@@ -178,6 +179,12 @@ public class ServerConfigurationResource {
 		// append values that can change without restarting the server
 		// logins allowed
 		myConfiguration.put("loginsAllowed", SocialPropertiesUtil.getInstance().getLoginsAllowed());
+		// password requirements
+		try {
+			myConfiguration.put("passwordRequirements", PasswordRequirements.getInstance().getAllPasswordRequirements());
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+		}
 		// current logins
 		// TODO: added 2022-02-25
 		// TODO: should move away from logins cause sometimes people are using this as if the name is the ID
