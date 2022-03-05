@@ -17,6 +17,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import prerna.auth.PasswordRequirements;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.UserRegistrationEmailService;
@@ -77,6 +78,20 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/setupResetPassword")
 	public Response setupResetPassword(@Context ServletContext context, @Context HttpServletRequest request) {
+		// do we allow users to change their password?
+		try {
+			if(!PasswordRequirements.getInstance().isAllowUserChangePassword()) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put(ResourceUtility.ERROR_KEY, "Only the administrator is allowed to change the user password");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
 		String email = request.getParameter("email");
 		String uniqueToken = null;
 		try {
@@ -87,7 +102,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-
+		
 		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
 		String contextPath = ((HttpServletRequest) request).getContextPath();
 		String resetEmailUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) 
@@ -117,6 +132,20 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/resetPassword")
 	public Response resetPassword(@Context ServletContext context, @Context HttpServletRequest request) {
+		// do we allow users to change their password?
+		try {
+			if(!PasswordRequirements.getInstance().isAllowUserChangePassword()) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put(ResourceUtility.ERROR_KEY, "Only the administrator is allowed to change the user password");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
 		String token = request.getParameter("token");
 		String password = request.getParameter("password");
 		String userId = null;
