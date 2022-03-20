@@ -155,6 +155,45 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
+	 * Set user as locked/unlocked
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("/setUserLocked")
+	public Response setUserLocked(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String userId = form.getFirst("userId");
+		boolean isLocked = Boolean.parseBoolean(form.getFirst("isLocked"));
+		
+		try {
+			adminUtils.setUserLocked(userId, isLocked);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
 	 * Edit user properties 
 	 * @param request
 	 * @param form
