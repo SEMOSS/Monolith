@@ -175,10 +175,10 @@ public class DatabaseResource {
 			}
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-			if(appId != null) {
+			if(appName != null) {
 				TextToGraphic.makeImage(appName, fileLocation);
 			} else {
-				TextToGraphic.makeImage(appName, fileLocation);
+				TextToGraphic.makeImage(appId, fileLocation);
 			}
 			f = new File(fileLocation);
 			return f;
