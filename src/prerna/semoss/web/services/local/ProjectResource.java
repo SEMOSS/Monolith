@@ -15,7 +15,6 @@ import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
-import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -417,10 +416,10 @@ public class ProjectResource {
 			}
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-			if(projectId != null) {
+			if(projectName != null) {
 				TextToGraphic.makeImage(projectName, fileLocation);
 			} else {
-				TextToGraphic.makeImage(projectName, fileLocation);
+				TextToGraphic.makeImage(projectId, fileLocation);
 			}
 			f = new File(fileLocation);
 			return f;
