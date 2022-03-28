@@ -144,7 +144,7 @@ public class ImageUploader extends Uploader {
 					logger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
 				}
 			}
-			f = new File(imageLoc);
+			f = new File(Utility.normalizePath(imageLoc));
 			// find all the existing image files
 			// and delete them
 			File[] oldImages = null;
@@ -406,7 +406,7 @@ public class ImageUploader extends Uploader {
 					logger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
 				}
 			}
-			f = new File(imageLoc);
+			f = new File(Utility.normalizePath(imageLoc));
 			// find all the existing image files
 			// and delete them
 			File[] oldImages = null;
@@ -648,7 +648,7 @@ public class ImageUploader extends Uploader {
 			// and the image file
 			// we want to write it into the project location
 			String imageDir = AssetUtility.getProjectAssetVersionFolder(projectName, projectId) + DIR_SEPARATOR + insightId;
-			File f = new File(imageDir);
+			File f = new File(Utility.normalizePath(imageDir));
 			if (!f.exists()) {
 				Boolean success = f.mkdirs();
 				if(!success) {
@@ -670,7 +670,7 @@ public class ImageUploader extends Uploader {
 			}
 					
 			String imageLoc = imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
-			f = new File(imageLoc);
+			f = new File(Utility.normalizePath(imageLoc));
 			writeFile(imageFile, f);
 		}
 		returnMap.put("project_id", projectId);
