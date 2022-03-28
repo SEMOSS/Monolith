@@ -372,7 +372,7 @@ public class FileUploader extends Uploader {
 	 * @return
 	 */
 	private String getUniquePath(String directory, String fileLocation) {
-		String fileName = FilenameUtils.getBaseName(fileLocation).trim();
+		String fileName = Utility.normalizePath(FilenameUtils.getBaseName(fileLocation).trim());
 		String fileExtension = FilenameUtils.getExtension(fileLocation).trim();
 		
 		// h2 is weird and will not work if it doesn't end in .mv.db
