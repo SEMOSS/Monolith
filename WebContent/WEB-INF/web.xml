@@ -162,6 +162,16 @@
       <url-pattern>/api/schedule/*</url-pattern>
    </filter-mapping>
    
+   <!-- Generate API User -->
+   <filter>
+      <filter-name>APIFilter</filter-name>
+      <filter-class>prerna.web.conf.APIFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>APIFilter</filter-name>
+      <url-pattern>/data/*</url-pattern>
+   </filter-mapping>
+   
    <!-- SSO Filter for SAML -->
    <!--
    <filter>
@@ -476,6 +486,7 @@
    </filter-mapping>
     
    <!-- servlets -->
+   <!-- Servlet For SEMOSS UI - SEMOSS BE communication -->
    <servlet>
       <servlet-name>MainApplication</servlet-name>
       <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
@@ -492,22 +503,7 @@
       <servlet-name>MainApplication</servlet-name>
       <url-pattern>/api/*</url-pattern>
    </servlet-mapping>
-   <servlet>
-      <servlet-name>AdminApplication</servlet-name>
-      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
-      <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
-         <param-value>prerna.semoss.web.app.AdminApplication</param-value>
-      </init-param>
-      <init-param>
-	     <param-name>resteasy.servlet.mapping.prefix</param-name>
-	     <param-value>/adminconfig</param-value>
-	  </init-param>
-   </servlet>
-   <servlet-mapping>
-      <servlet-name>AdminApplication</servlet-name>
-      <url-pattern>/adminconfig/*</url-pattern>
-   </servlet-mapping>
+   <!-- Servlet For External Applications Registering a Trusted Token To Alias User -->
    <servlet>
       <servlet-name>TrustedTokenApplication</servlet-name>
       <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
@@ -524,6 +520,23 @@
       <servlet-name>TrustedTokenApplication</servlet-name>
       <url-pattern>/token/*</url-pattern>
    </servlet-mapping>
+   <!-- Servlet For External Applications Registering an API User -->
+   <servlet>
+      <servlet-name>APIApplication</servlet-name>
+      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+      <init-param>
+         <param-name>javax.ws.rs.Application</param-name>
+         <param-value>prerna.semoss.web.app.APIApplication</param-value>
+      </init-param>
+      <init-param>
+	     <param-name>resteasy.servlet.mapping.prefix</param-name>
+	     <param-value>/token</param-value>
+	  </init-param>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>APIApplication</servlet-name>
+      <url-pattern>/data/*</url-pattern>
+   </servlet-mapping>
    <!-- SAML Response Handler -->
    <servlet>
       <servlet-name>SamlVerifierServlet</servlet-name>
@@ -537,7 +550,24 @@
       <servlet-name>SamlVerifierServlet</servlet-name>
       <url-pattern>/saml/config/fedletapplication</url-pattern>
    </servlet-mapping>
-   
+   <!-- ADMIN SERVLET ONLY USED TO DEFINE THE INITIAL SEMOSS ADMIN -->
+   <servlet>
+      <servlet-name>AdminApplication</servlet-name>
+      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+      <init-param>
+         <param-name>javax.ws.rs.Application</param-name>
+         <param-value>prerna.semoss.web.app.AdminApplication</param-value>
+      </init-param>
+      <init-param>
+	     <param-name>resteasy.servlet.mapping.prefix</param-name>
+	     <param-value>/adminconfig</param-value>
+	  </init-param>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>AdminApplication</servlet-name>
+      <url-pattern>/adminconfig/*</url-pattern>
+   </servlet-mapping>
+
    <!-- context params -->
    <context-param>
       <param-name>isLog4jAutoInitializationDisabled</param-name>
