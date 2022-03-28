@@ -8,6 +8,7 @@ import java.util.Map;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -187,6 +188,18 @@ public class APIFilter implements Filter {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
+	}
+	
+	@Override
+	public void destroy() {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void init(FilterConfig arg0) throws ServletException {
+		// TODO Auto-generated method stub
 
 	}
 	
