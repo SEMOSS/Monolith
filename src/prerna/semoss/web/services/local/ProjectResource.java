@@ -402,7 +402,7 @@ public class ProjectResource {
 		Properties prop = Utility.loadProperties(propFileLoc);
 		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
 		
-		String fileLocation = AssetUtility.getProjectAssetVersionFolder(projectName, projectId);
+		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
 		File f = findImageFile(fileLocation);
 		if(f != null) {
 			return f;
@@ -504,7 +504,7 @@ public class ProjectResource {
 			Properties prop = Utility.loadProperties(propFileLoc);
 			String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
 			
-			fileLocation = AssetUtility.getProjectAssetVersionFolder(projectName, projectId);
+			fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
 			if(params != null && !params.isEmpty() && !params.equals("undefined")) {
 				String encodedParams = Utility.encodeURIComponent(params);
 				fileLocation = fileLocation + 
