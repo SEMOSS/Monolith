@@ -36,7 +36,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +68,9 @@ import org.kohsuke.github.GHMyself;
 import org.kohsuke.github.GitHub;
 import org.owasp.encoder.Encode;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -92,6 +97,7 @@ import prerna.io.connector.ms.MSProfile;
 import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
+import prerna.sablecc2.om.execptions.SemossPixelException;
 import prerna.security.AbstractHttpHelper;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
@@ -839,11 +845,11 @@ public class UserResource {
 
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String queryString = request.getQueryString();
+		String prefix = "gitlab_";
+
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
 				String[] outputs = AbstractHttpHelper.getCodes(queryString);
-
-				String prefix = "gitlab_";
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
@@ -900,6 +906,34 @@ public class UserResource {
 			response.sendRedirect(getGitlabRedirect(request));
 			return null;
 		}
+		
+		if(Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))){
+			//get groups
+			String group_url = socialData.getProperty(prefix + "group_url");
+			String groupsJson = AbstractHttpHelper.makeGetCall(group_url,  userObj.getAccessToken(AuthProvider.GITLAB).getAccess_token());
+			System.out.println(groupsJson);
+			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
+			//String beanProps = socialData.getProperty(prefix + "groupBeanProps");
+			//String[] beanPropsArr = beanProps.split(",", -1);
+			Set<String> userGroups = new HashSet<String>();
+
+			 
+			JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
+			if((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
+				throw new SemossPixelException("Group result must return flat array. Please check groupJsonPatter");
+			}
+			for(int inputIndex = 0;result != null && inputIndex < result.size();inputIndex++) {
+				String thisInput = result.get(inputIndex).asText();
+				userGroups.add(thisInput);
+			}
+			
+			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroups(userGroups);
+			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroupType(AuthProvider.GITLAB.toString());
+
+			
+		}
+		
+
 
 		setMainPageRedirect(request, response);
 		return null;
