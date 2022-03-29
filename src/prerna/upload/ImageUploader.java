@@ -647,7 +647,7 @@ public class ImageUploader extends Uploader {
 			// now that we have the app name
 			// and the image file
 			// we want to write it into the project location
-			String imageDir = AssetUtility.getProjectAssetVersionFolder(projectName, projectId) + DIR_SEPARATOR + insightId;
+			String imageDir = AssetUtility.getProjectVersionFolder(projectName, projectId) + DIR_SEPARATOR + insightId;
 			File f = new File(Utility.normalizePath(imageDir));
 			if (!f.exists()) {
 				Boolean success = f.mkdirs();
@@ -759,7 +759,7 @@ public class ImageUploader extends Uploader {
 		// now that we have the app name
 		// and the image file
 		// we want to write it into the app location
-		String imageDir = AssetUtility.getProjectAssetVersionFolder(projectName, projectId) + DIR_SEPARATOR + insightId;
+		String imageDir = AssetUtility.getProjectVersionFolder(projectName, projectId) + DIR_SEPARATOR + insightId;
 		File f = new File(Utility.normalizePath(imageDir));
 		if (f.exists()) {
 			// find all the existing image files
@@ -790,7 +790,7 @@ public class ImageUploader extends Uploader {
 		if(ClusterUtil.IS_CLUSTER){
 			return ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "projects";
 		}
-		return AssetUtility.getProjectAssetVersionFolder(projectName, projectId);
+		return AssetUtility.getProjectVersionFolder(projectName, projectId);
 	}
 
 	private String getProjectImageLoc(String filePath, String id, String name, FileItem imageFile){
