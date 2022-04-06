@@ -188,7 +188,8 @@ public class CACFilter implements Filter {
 					logger.info("Valid request coming from user " + token.getName());
 					user.setAccessToken(token);
 					session.setAttribute(Constants.SESSION_USER, user);
-
+					session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
+					
 					// add the user if they do not exist
 					if(CACFilter.autoAdd) {
 						SecurityUpdateUtils.addOAuthUser(token);

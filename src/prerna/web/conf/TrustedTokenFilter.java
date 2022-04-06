@@ -30,7 +30,7 @@ public class TrustedTokenFilter implements Filter {
 			return;
 		}
 		
-		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
+		HttpSession session = request.getSession(false);
 		User user = null;
 		if(session != null) {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
@@ -43,26 +43,28 @@ public class TrustedTokenFilter implements Filter {
 			String ip = ResourceUtility.getClientIp(request);
 			String userId = request.getHeader("UserId");
 			
-			String token = TrustedTokenService.getTokenForIp(ip);
+			String ipToken = TrustedTokenService.getTokenForIp(ip);
 			authValue = authValue.replace("Bearer ", "");
 			
 			// error handling
-			if(token == null) {
+			if(ipToken == null) {
 				throw new IllegalArgumentException("This application does not have a valid trusted token or token has expired");
 			}
-			if(!token.equals(authValue)) {
+			if(!ipToken.equals(authValue)) {
 				throw new IllegalArgumentException("The token value is invalid");
 			}
 			if(userId == null || (userId = userId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The user id must be defined");
 			}
 			
-			AccessToken accessToken = new AccessToken();
-			accessToken.setId(userId);
-			accessToken.setProvider(AuthProvider.WINDOWS_USER);
+			AccessToken token = new AccessToken();
+			token.setId(userId);
+			token.setProvider(AuthProvider.WINDOWS_USER);
 			user = new User();
-			user.setAccessToken(accessToken);
-			request.getSession(true).setAttribute(Constants.SESSION_USER, user);
+			user.setAccessToken(token);
+			session = request.getSession(true);
+			session.setAttribute(Constants.SESSION_USER, user);
+			session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 		}
 		
 		arg2.doFilter(arg0, arg1);
