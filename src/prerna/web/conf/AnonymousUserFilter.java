@@ -69,7 +69,8 @@ public class AnonymousUserFilter implements Filter, Serializable {
 				}
 				// add to session
 				session.setAttribute(Constants.SESSION_USER, user);
-				
+				session.setAttribute(Constants.SESSION_USER_ID_LOG, user.getAnonymousId());
+
 				// log the user login
 				if(foundPrevoiusCookie) {
 					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in anonymously"));
