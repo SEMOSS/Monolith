@@ -140,12 +140,12 @@ public class APIFilter implements Filter {
 
 			// create the user
 			User user = new User();
-			AccessToken accessToken = new AccessToken();
-			accessToken.setId(consumerId); // should we set the consumer id or the creator id ?
-			accessToken.setProvider(AuthProvider.API_USER);
-			user.setAccessToken(accessToken);
+			AccessToken token = new AccessToken();
+			token.setId(consumerId); // should we set the consumer id or the creator id ?
+			token.setProvider(AuthProvider.API_USER);
+			user.setAccessToken(token);
 			session.setAttribute(Constants.SESSION_USER, user);
-			
+			session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 			
 			// set parameters into the request
 			OverrideParametersServletRequest newRequest = new OverrideParametersServletRequest((HttpServletRequest)request);
