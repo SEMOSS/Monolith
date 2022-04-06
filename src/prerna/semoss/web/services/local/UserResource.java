@@ -36,7 +36,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -284,18 +283,16 @@ public class UserResource {
 	 * @param request
 	 */
 	private void addAccessToken(AccessToken token, HttpServletRequest request) {
-		User semossUser = null;
 		HttpSession session = request.getSession();
-		Object user = session.getAttribute(Constants.SESSION_USER);
+		User semossUser = (User) session.getAttribute(Constants.SESSION_USER);
 		// all of this is now in the user
-		if (user != null) {
-			semossUser = (User) user;
-		} else {
+		if (semossUser == null) {
 			semossUser = new User();
+			session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 		}
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
-		request.getSession().setAttribute(Constants.SESSION_USER, semossUser);
+		session.setAttribute(Constants.SESSION_USER, semossUser);
 
 		// log the user login
 		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser), "is logging in with provider " +  token.getProvider()));
