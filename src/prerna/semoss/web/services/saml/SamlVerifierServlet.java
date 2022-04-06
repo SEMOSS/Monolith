@@ -232,6 +232,7 @@ public class SamlVerifierServlet extends HttpServlet {
 		// Add user to security database and session. Call it a day, phew!
 		SecurityUpdateUtils.addOAuthUser(token);
 		session.setAttribute(Constants.SESSION_USER, user);
+		session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 	}
 
 }
