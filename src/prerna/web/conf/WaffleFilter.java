@@ -82,7 +82,8 @@ public class WaffleFilter implements Filter {
 
 			user.setAccessToken(token);
 			session.setAttribute(Constants.SESSION_USER, user);
-			
+			session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
+
 			// log the user login
 			logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
 		}
