@@ -64,7 +64,8 @@ public class IASFilter implements Filter {
 				
 				user.setAccessToken(token);
 				session.setAttribute(Constants.SESSION_USER, user);
-	
+				session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
+
 				logger.info("NEW SESSION - USER ADDED WITH ID = " + Utility.cleanLogString(id));
 				logger.info("NEW SESSION - USER ADDED WITH ID = " + Utility.cleanLogString(id));
 				logger.info("NEW SESSION - USER ADDED WITH ID = " + Utility.cleanLogString(id));
