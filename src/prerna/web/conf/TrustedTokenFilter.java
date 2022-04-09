@@ -24,7 +24,7 @@ public class TrustedTokenFilter implements Filter {
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		HttpServletRequest request = (HttpServletRequest) arg0;
 		String authValue = request.getHeader("Authorization");
-		if(authValue == null) {
+		if(authValue == null || !authValue.contains("Bearer")) {
 			// no token? just go through and other filters will validate
 			arg2.doFilter(arg0, arg1);
 			return;
