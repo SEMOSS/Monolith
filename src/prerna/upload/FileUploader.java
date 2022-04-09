@@ -269,7 +269,7 @@ public class FileUploader extends Uploader {
 		String fePath = DIR_SEPARATOR;
 		if (projectId != null) {
 			IProject project = Utility.getProject(projectId);
-			assetFolder = AssetUtility.getProjectAssetFolder(project.getProjectName(), projectId);
+			assetFolder = AssetUtility.getProjectBaseFolder(project.getProjectName(), projectId);
 		} else {
 			assetFolder = in.getInsightFolder();
 		}
