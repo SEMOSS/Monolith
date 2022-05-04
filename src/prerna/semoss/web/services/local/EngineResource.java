@@ -72,6 +72,7 @@ import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
+@Deprecated
 public class EngineResource {
 
 	private static final Logger logger = LogManager.getLogger(EngineResource.class);
