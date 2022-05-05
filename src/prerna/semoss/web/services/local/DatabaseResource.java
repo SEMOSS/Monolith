@@ -47,7 +47,7 @@ import prerna.util.Utility;
 import prerna.util.insight.TextToGraphic;
 import prerna.web.services.util.WebUtility;
 
-@Path("/app-{appId}")
+@Path("/app-{databaseId}")
 public class DatabaseResource {
 
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
@@ -79,8 +79,7 @@ public class DatabaseResource {
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
-	public Response updateSmssFile(@Context HttpServletRequest request) {
-		String databaseId = request.getParameter("databaseId");
+	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
 		String newSmssContent = request.getParameter("smss");
 		
 		if(AbstractSecurityUtils.securityEnabled()) {
@@ -104,25 +103,19 @@ public class DatabaseResource {
 		IEngine engine = Utility.getEngine(databaseId);
 		String currentSmssFileLocation = engine.getPropFile();
 		File currentSmssFile = new File(currentSmssFileLocation);
-		if(!currentSmssFile.exists() || currentSmssFile.isFile()) {
-			Map<String, String> errorMessage = new HashMap<>();
-			errorMessage.put(Constants.ERROR_MESSAGE, "Could not find current database smss file");
-			return Response.status(400).entity(errorMessage)
-					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-					.header("Pragma", "no-cache")
-					.build();
+		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not find current database smss file");
+			return WebUtility.getResponse(errorMap, 400);
 		}
 		
 		String currentSmssContent = null;
 		try {
 			currentSmssContent = IOUtils.readFileToString(currentSmssFile, StandardCharsets.UTF_8);
 		} catch (IOException e) {
-			Map<String, String> errorMessage = new HashMap<>();
-			errorMessage.put(Constants.ERROR_MESSAGE, "An error occured reading the current database smss details. Detailed message = " + e.getMessage());
-			return Response.status(400).entity(errorMessage)
-					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-					.header("Pragma", "no-cache")
-					.build();
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occured reading the current database smss details. Detailed message = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		}
 		engine.closeDB();
 		try (FileWriter fw = new FileWriter(currentSmssFile, false)){
@@ -138,29 +131,20 @@ public class DatabaseResource {
 				engine.openDB(currentSmssFileLocation);
 			} catch(Exception e2) {
 				logger.error(Constants.STACKTRACE, e2);
-				Map<String, String> errorMessage = new HashMap<>();
-				errorMessage.put(Constants.ERROR_MESSAGE, "A fatal error occured and could not revert the database to an operational state. Detailed message = " + e2.getMessage());
-				return Response.status(400).entity(errorMessage)
-						.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-						.header("Pragma", "no-cache")
-						.build();
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "A fatal error occured and could not revert the database to an operational state. Detailed message = " + e2.getMessage());
+				return WebUtility.getResponse(errorMap, 400);
 			}
-			Map<String, String> errorMessage = new HashMap<>();
-			errorMessage.put(Constants.ERROR_MESSAGE, "An error occured initializing the new database details. Detailed message = " + e.getMessage());
-			return Response.status(400).entity(errorMessage)
-					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-					.header("Pragma", "no-cache")
-					.build();
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occured initializing the new database details. Detailed message = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		}
 		
 		//TODO: need to push smss file to minio
 		
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
-		return Response.status(200).entity(success)
-				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-				.header("Pragma", "no-cache")
-				.build();
+		return WebUtility.getResponse(success, 200);
 	}
 	
 	
@@ -177,7 +161,7 @@ public class DatabaseResource {
 	@GET
 	@Path("/appImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response downloadDatabaseImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("appId") String databaseId) {
+	public Response downloadDatabaseImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = null;
 			try {
@@ -198,9 +182,9 @@ public class DatabaseResource {
 		
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
-				String actualAppId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
+				String actualDatabaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
 				Map<String, String> selectors = new HashMap<>();
-				selectors.put(CouchUtil.DATABASE, actualAppId);
+				selectors.put(CouchUtil.DATABASE, actualDatabaseId);
 				return CouchUtil.download(CouchUtil.DATABASE, selectors);
 			} catch (CouchException e) {
 				logger.error(Constants.STACKTRACE, e);
@@ -259,7 +243,6 @@ public class DatabaseResource {
 				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(databaseName, databaseId) 
 				+ DIR_SEPARATOR + "app_root" 
 				+ DIR_SEPARATOR + "version";
-		//String fileLocation = AssetUtility.getAppAssetVersionFolder(app, appId);
 
 		File f = findImageFile(fileLocation);
 		if(f != null) {
