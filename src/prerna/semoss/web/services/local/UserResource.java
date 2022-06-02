@@ -282,7 +282,7 @@ public class UserResource {
 	 * @param token
 	 * @param request
 	 */
-	private void addAccessToken(AccessToken token, HttpServletRequest request) {
+	private void addAccessToken(AccessToken token, HttpServletRequest request, boolean autoAdd) {
 		HttpSession session = request.getSession();
 		User semossUser = (User) session.getAttribute(Constants.SESSION_USER);
 		// all of this is now in the user
@@ -298,7 +298,9 @@ public class UserResource {
 		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser), "is logging in with provider " +  token.getProvider()));
 
 		// add new users into the database
-		SecurityUpdateUtils.addOAuthUser(token);
+		if(autoAdd) {
+			SecurityUpdateUtils.addOAuthUser(token);
+		}
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////
@@ -589,7 +591,8 @@ public class UserResource {
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+				
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
@@ -611,7 +614,7 @@ public class UserResource {
 					return null;
 				}
 				accessToken.setProvider(AuthProvider.SF);
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -671,6 +674,7 @@ public class UserResource {
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
@@ -694,7 +698,7 @@ public class UserResource {
 				}
 				accessToken.setProvider(AuthProvider.SURVEYMONKEY);
 				MonkeyProfile.fillAccessToken(accessToken, null);
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -754,6 +758,7 @@ public class UserResource {
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
@@ -785,7 +790,7 @@ public class UserResource {
 				accessToken.setName(myGit.getName());
 				accessToken.setLocale(myGit.getLocation());
 				accessToken.setUsername(myGit.getLogin());
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -851,7 +856,8 @@ public class UserResource {
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				String token_url = socialData.getProperty(prefix + "token_url");
-				
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
@@ -886,7 +892,7 @@ public class UserResource {
 				String output = AbstractHttpHelper.makeGetCall(userinfo_url, accessToken.getAccess_token(), null, true);
 				accessToken = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, accessToken);
 
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -985,6 +991,7 @@ public class UserResource {
 				String tenant = socialData.getProperty(prefix + "tenant");
 				String scope = socialData.getProperty(prefix + "scope");
 				String token_url = socialData.getProperty(prefix + "token_url");
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
@@ -1013,7 +1020,7 @@ public class UserResource {
 
 				accessToken.setProvider(AuthProvider.MS);
 				MSProfile.fillAccessToken(accessToken, null);
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1085,6 +1092,7 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				String scope = socialData.getProperty(prefix + "scope");
 				String token_url = socialData.getProperty(prefix + "token_url");
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
@@ -1119,7 +1127,7 @@ public class UserResource {
 				String[] beanPropsArr = beanProps.split(",", -1);
 				accessToken = (AccessToken)BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, accessToken);
 
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1206,6 +1214,7 @@ public class UserResource {
 				String tenant = socialData.getProperty(prefix + "tenant");
 				String scope = socialData.getProperty(prefix + "scope");
 				String token_url = socialData.getProperty(prefix + "token_url");
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
@@ -1232,7 +1241,7 @@ public class UserResource {
 
 				accessToken.setProvider(AuthProvider.SITEMINDER);
 				MSProfile.fillAccessToken(accessToken, null);
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1301,6 +1310,7 @@ public class UserResource {
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
@@ -1323,7 +1333,7 @@ public class UserResource {
 					return null;
 				}
 				accessToken.setProvider(AuthProvider.DROPBOX);
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1386,6 +1396,7 @@ public class UserResource {
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
@@ -1416,7 +1427,7 @@ public class UserResource {
 				// fill the access token with the other properties so we can properly create the
 				// user
 				GoogleProfile.fillAccessToken(accessToken, null);
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				// Shows how to make a google credential from an access token
 				if(logger.isDebugEnabled()) {
@@ -1541,6 +1552,7 @@ public class UserResource {
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
@@ -1564,7 +1576,7 @@ public class UserResource {
 					return null;
 				}
 				accessToken.setProvider(AuthProvider.PRODUCT_HUNT);
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1626,6 +1638,7 @@ public class UserResource {
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
@@ -1648,7 +1661,7 @@ public class UserResource {
 					return null;
 				}
 				accessToken.setProvider(AuthProvider.IN);
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 				
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1714,6 +1727,7 @@ public class UserResource {
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
@@ -1737,7 +1751,7 @@ public class UserResource {
 				}
 
 				accessToken.setProvider(AuthProvider.GITHUB);
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1820,6 +1834,7 @@ public class UserResource {
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 				//String tenant = socialData.getProperty(prefix + "tenant");
 				
 				//removing scope for now as it isn't needed in token call usually
@@ -1858,7 +1873,7 @@ public class UserResource {
 
 				accessToken.setProvider(providerEnum);
 				GenericProfile.fillAccessToken(accessToken,userInfoURL, beanProps, jsonPattern, null);
-				addAccessToken(accessToken, request);
+				addAccessToken(accessToken, request, autoAdd);
 
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1961,7 +1976,8 @@ public class UserResource {
 				authToken.setId(id);
 				authToken.setName(username);
 				authToken.setEmail(email);
-				addAccessToken(authToken, request);
+				// no need to auto-add since to login native you must already exist
+				addAccessToken(authToken, request, false);
 
 				// log the log in
 				if (!disableRedirect) {
