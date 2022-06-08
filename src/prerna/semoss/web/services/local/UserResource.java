@@ -1907,9 +1907,20 @@ public class UserResource {
 		if(Strings.isNullOrEmpty(auth_url)){
 			throw new IllegalArgumentException("Authorize URL can not be null or empty");
 		}
-		String redirectUrl = auth_url + "?" + "client_id="
-				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
-				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
+		
+		String redirectUrl; 
+		
+		//are you already adding custom props? if so I will skip adding the ?
+		if(redirectUri.contains("?")) {
+			redirectUrl = auth_url + "&client_id="
+					+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
+					+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
+		} else{
+			redirectUrl = auth_url + "?" + "client_id="
+					+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
+					+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
+		}
+
 
 		if(logger.isDebugEnabled()) {
 			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
