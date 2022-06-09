@@ -1911,7 +1911,7 @@ public class UserResource {
 		String redirectUrl; 
 		
 		//are you already adding custom props? if so I will skip adding the ?
-		if(redirectUri.contains("?")) {
+		if(auth_url.contains("?")) {
 			redirectUrl = auth_url + "&client_id="
 					+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
 					+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
