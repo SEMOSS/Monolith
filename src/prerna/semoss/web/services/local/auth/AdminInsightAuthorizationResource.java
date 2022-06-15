@@ -501,8 +501,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 
 		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
-		boolean isPublic = Boolean.parseBoolean(form.getFirst("isPublic"));
-		String logPublic = isPublic ? " public " : " private";
+		boolean isGlobal = Boolean.parseBoolean(form.getFirst("isPublic"));
+		String logPublic = isGlobal ? " public " : " private";
 		
 		try {
 			user = ResourceUtility.getUser(request);
@@ -516,14 +516,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.setInsightGlobalWithinProject(projectId, insightId, isPublic);
+			adminUtils.setInsightGlobalWithinProject(projectId, insightId, isGlobal);
 			
 			// also update in the app itself
 			// so it is properly synchronized with the security db
 			ClusterUtil.reactorPullInsightsDB(projectId);
 			IProject project = Utility.getProject(projectId);
 			InsightAdministrator admin = new InsightAdministrator(project.getInsightDatabase());
-			admin.updateInsightGlobal(insightId, !isPublic);
+			admin.updateInsightGlobal(insightId, isGlobal);
 			ClusterUtil.reactorPushInsightDB(projectId);
 
 		} catch (Exception e) {
