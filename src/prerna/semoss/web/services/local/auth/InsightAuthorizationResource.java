@@ -17,7 +17,7 @@ import javax.ws.rs.core.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.auth.AccessPermission;
+import prerna.auth.AccessPermissionEnum;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
@@ -153,7 +153,7 @@ public class InsightAuthorizationResource {
 		// add the person with read only access if they do not have access to the app
 		if(SecurityProjectUtils.getUserProjectPermission(newUserId, projectId) == null) {
 			try {
-				SecurityProjectUtils.addProjectUser(user, newUserId, projectId, AccessPermission.READ_ONLY.getPermission());
+				SecurityProjectUtils.addProjectUser(user, newUserId, projectId, AccessPermissionEnum.READ_ONLY.getPermission());
 			} catch(IllegalAccessException e) {
 				logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to insight " + insightId + " in project " + projectId + " without having proper access"));
 				logger.error(Constants.STACKTRACE, e);

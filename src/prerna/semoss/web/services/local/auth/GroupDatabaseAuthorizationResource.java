@@ -17,7 +17,7 @@ import javax.ws.rs.core.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.auth.AccessPermission;
+import prerna.auth.AccessPermissionEnum;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityGroupDatabaseUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -66,7 +66,7 @@ public class GroupDatabaseAuthorizationResource {
 			}
 			
 			Integer permissionCode = SecurityGroupDatabaseUtils.getGroupDatabasePermission(groupId, type, appId);
-			String permission = permissionCode == null ? null : AccessPermission.getPermissionValueById(permissionCode);
+			String permission = permissionCode == null ? null : AccessPermissionEnum.getPermissionValueById(permissionCode);
 			
 			Map<String, String> ret = new HashMap<String, String>();
 			ret.put("permission", permission);
