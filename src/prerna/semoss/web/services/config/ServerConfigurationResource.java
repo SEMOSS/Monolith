@@ -20,6 +20,7 @@ import javax.ws.rs.core.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import prerna.auth.AccessPermissionEnum;
 import prerna.auth.PasswordRequirements;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -164,6 +165,9 @@ public class ServerConfigurationResource {
 		boolean showWelcomeBanner = Utility.getWelcomeBannerOption();
 		loadConfig.put("showWelcomeBanner", showWelcomeBanner);
 
+		// send back the permission mapping
+		loadConfig.put("permissionMapping", AccessPermissionEnum.flushEnum());
+		
 		ServerConfigurationResource.config = loadConfig;
 	}
 
