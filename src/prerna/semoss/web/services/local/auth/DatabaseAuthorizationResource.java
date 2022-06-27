@@ -20,7 +20,6 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityDatabaseUtils;
-import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
@@ -54,7 +53,7 @@ public class DatabaseAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(SecurityQueryUtils.getAllUserDatabaseSettings(user), 200);
+		return WebUtility.getResponse(SecurityDatabaseUtils.getAllUserDatabaseSettings(user), 200);
 	}
 	
 	/**
