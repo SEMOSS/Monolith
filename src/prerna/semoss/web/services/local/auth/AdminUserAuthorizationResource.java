@@ -285,7 +285,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			}
 		}
 		
-		boolean success = adminUtils.deleteUser(userTypeToDelete, userIdToDelete);
+		boolean success = adminUtils.deleteUser(userIdToDelete, userTypeToDelete);
 		return WebUtility.getResponse(success, 200);
 	}
 
