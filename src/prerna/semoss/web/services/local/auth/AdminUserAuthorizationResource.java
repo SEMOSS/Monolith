@@ -217,6 +217,29 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 
 		Gson gson = new Gson();
 		Map<String, Object> userInfo = gson.fromJson(form.getFirst("user"), Map.class);
+		
+		Boolean adminChange = null;
+		if(userInfo.containsKey("admin")) {
+			if(userInfo.get("admin") instanceof Number) {
+				adminChange = ((Number) userInfo.get("admin")).intValue() == 1;
+			} else {
+				adminChange = Boolean.parseBoolean( userInfo.get("admin") + "");
+			}
+		}
+		
+		if(adminChange != null && !adminChange) {
+			// if you are making this user not an admin
+			// need to make sure they are not the last admin for the instance
+			synchronized (AdminUserAuthorizationResource.class) {
+				int numAdmins = adminUtils.getNumAdmins();
+				if(numAdmins <= 1) {
+					Map<String, String> errorMap = new HashMap<String, String>();
+					errorMap.put(ResourceUtility.ERROR_KEY, "You cannot remove the last admin from having admin level permissions. Please assign a new admin before removing admin access.");
+					return WebUtility.getResponse(errorMap, 400);
+				}
+			}
+		}
+		
 		boolean ret = false;
 		try {
 			ret = adminUtils.editUser(userInfo);
