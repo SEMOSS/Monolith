@@ -275,6 +275,16 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		String userIdToDelete = form.getFirst("userId");
 		String userTypeToDelete = form.getFirst("type");
 
+		boolean isDeletedUserAdmin = adminUtils.userIsAdmin(userIdToDelete, userTypeToDelete);
+		if(isDeletedUserAdmin) {
+			// need to make sure there are other admins and we are not deleting the last admin
+			if(!adminUtils.otherAdminsExist(userIdToDelete, userTypeToDelete)) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put(ResourceUtility.ERROR_KEY, "You cannot delete this user as it is the last admin. Please assign a new admin before deleting this user.");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		}
+		
 		boolean success = adminUtils.deleteUser(userTypeToDelete, userIdToDelete);
 		return WebUtility.getResponse(success, 200);
 	}

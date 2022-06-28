@@ -236,26 +236,29 @@ public class FormResource {
 	 * @throws IOException
 	 */
 	private String getCacId(@Context HttpServletRequest request) throws IOException {
-		return "mahkhalil";
+		/*
+		 * If you wanted to debug locally w/o a CAC, just return a string
+		 */
+//		return "mahkhalil";
 		
-//		String x509Id = null;
-//		try {
-//			HttpSession session = ((HttpServletRequest)request).getSession(false);
-//			User user = (User) session.getAttribute(Constants.SESSION_USER);
-//			if(user.getAccessToken(AuthProvider.CAC) != null) {
-//				x509Id = user.getAccessToken(AuthProvider.CAC).getId();
-//			} else {
-//				// if not CAC - we are using SMAL
-//				x509Id = user.getAccessToken(AuthProvider.SAML).getId();
-//			}
-//		} catch(Exception e) {
-//			throw new IOException("Could not identify user");
-//		}
-//		if(x509Id == null) {
-//			throw new IOException("Could not identify user");
-//		}
-//
-//		return x509Id;
+		String x509Id = null;
+		try {
+			HttpSession session = ((HttpServletRequest)request).getSession(false);
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
+			if(user.getAccessToken(AuthProvider.CAC) != null) {
+				x509Id = user.getAccessToken(AuthProvider.CAC).getId();
+			} else {
+				// if not CAC - we are using SMAL
+				x509Id = user.getAccessToken(AuthProvider.SAML).getId();
+			}
+		} catch(Exception e) {
+			throw new IOException("Could not identify user");
+		}
+		if(x509Id == null) {
+			throw new IOException("Could not identify user");
+		}
+
+		return x509Id;
 	}
 
 	/**
