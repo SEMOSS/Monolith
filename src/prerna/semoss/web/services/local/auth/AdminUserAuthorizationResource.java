@@ -272,8 +272,10 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String userToDelete = form.getFirst("userId");
-		boolean success = adminUtils.deleteUser(userToDelete);
+		String userIdToDelete = form.getFirst("userId");
+		String userTypeToDelete = form.getFirst("type");
+
+		boolean success = adminUtils.deleteUser(userTypeToDelete, userIdToDelete);
 		return WebUtility.getResponse(success, 200);
 	}
 
