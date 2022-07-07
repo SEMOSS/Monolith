@@ -297,6 +297,7 @@
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
 		</dependency>
+		<!-- 
 		<dependency>
 			<groupId>jdk.tools</groupId>
 			<artifactId>jdk.tools</artifactId>
@@ -304,6 +305,7 @@
 			<scope>system</scope>
 			<systemPath>${env.JAVA_HOME}/lib/tools.jar</systemPath>
 		</dependency>
+		 -->
 		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
 		<!-- this is the primary tomcat specific jar -->
 		<dependency>
