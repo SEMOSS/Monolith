@@ -830,6 +830,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!--  SubjectIndexer
 		<dependency>
 			<groupId>org.apache.jena</groupId>
 			<artifactId>jena-larq</artifactId>
@@ -840,7 +841,8 @@
 					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
+		</dependency> -->
+		<!-- cleanup -->
 		<dependency>
 			<groupId>org.apache.jena</groupId>
 			<artifactId>jena-tdb</artifactId>
