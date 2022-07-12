@@ -1889,6 +1889,31 @@ public class UserResource {
 			response.sendRedirect(getGenericRedirect(provider, request));
 			return null;
 		}
+		
+		String prefix = provider+"_";
+
+		if(Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))){
+			//get groups
+			String group_url = socialData.getProperty(prefix + "group_url");
+			String groupsJson = AbstractHttpHelper.makeGetCall(group_url,  userObj.getAccessToken(providerEnum).getAccess_token());
+			System.out.println(groupsJson);
+			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
+			//String beanProps = socialData.getProperty(prefix + "groupBeanProps");
+			//String[] beanPropsArr = beanProps.split(",", -1);
+			Set<String> userGroups = new HashSet<String>();
+
+			 
+			JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
+			if((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
+				throw new SemossPixelException("Group result must return flat array. Please check groupJsonPatter");
+			}
+			for(int inputIndex = 0;result != null && inputIndex < result.size();inputIndex++) {
+				String thisInput = result.get(inputIndex).asText();
+				userGroups.add(thisInput);
+			}	
+			userObj.getAccessToken(providerEnum).setUserGroups(userGroups);
+			userObj.getAccessToken(providerEnum).setUserGroupType(providerEnum.toString());			
+		}
 
 		setMainPageRedirect(request, response);
 		return null;
