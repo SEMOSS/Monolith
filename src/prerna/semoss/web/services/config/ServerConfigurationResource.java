@@ -89,13 +89,17 @@ public class ServerConfigurationResource {
 		loadConfig.put("security", AbstractSecurityUtils.securityEnabled());
 		loadConfig.put("anonymousUsers", AbstractSecurityUtils.anonymousUsersEnabled());
 		loadConfig.put("anonymousUserUploadData", AbstractSecurityUtils.anonymousUserUploadData());
-		// admin set public enabled
-		boolean adminSetPublic = false;
-		String adminSetPublicStr = (String) DIHelper.getInstance().getLocalProp(Constants.ADMIN_SET_PUBLIC);
-		if (adminSetPublicStr != null) {
-			adminSetPublic = Boolean.parseBoolean(adminSetPublicStr);
-		}
-		loadConfig.put("adminSetPublic", adminSetPublic);
+		// admin only for project actions
+		loadConfig.put("adminOnlyProjectAdd", AbstractSecurityUtils.adminOnlyProjectAdd());
+		loadConfig.put("adminOnlyProjectDelete", AbstractSecurityUtils.adminOnlyProjectDelete());
+		loadConfig.put("adminOnlyProjectAddAccess", AbstractSecurityUtils.adminOnlyProjectAddAccess());
+		loadConfig.put("adminOnlyProjectSetPublic", AbstractSecurityUtils.adminOnlyProjectSetPublic());
+		// admin only for db actions
+		loadConfig.put("adminOnlyDbAdd", AbstractSecurityUtils.adminOnlyDbAdd());
+		loadConfig.put("adminOnlyDbDelete", AbstractSecurityUtils.adminOnlyDbDelete());
+		loadConfig.put("adminOnlyDbAddAccess", AbstractSecurityUtils.adminOnlyDbAddAccess());
+		loadConfig.put("adminOnlyDbSetPublic", AbstractSecurityUtils.adminOnlyDbSetPublic());
+		loadConfig.put("adminOnlyDbSetDiscoverable", AbstractSecurityUtils.adminOnlyDbSetDiscoverable());
 
 		// return a boolean if we want to use a dedicated logout page
 		// instead of redirecting to the login page
