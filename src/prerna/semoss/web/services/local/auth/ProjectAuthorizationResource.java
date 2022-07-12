@@ -19,6 +19,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
+import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
@@ -149,10 +151,17 @@ public class ProjectAuthorizationResource  {
 		String projectId = form.getFirst("projectId");
 		String permission = form.getFirst("permission");
 
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a user for project " + projectId + " but is not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
 		try {
 			SecurityProjectUtils.addProjectUser(user, newUserId, projectId, permission);
 		} catch (Exception e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a user for app " + projectId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a user for project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -192,6 +201,13 @@ public class ProjectAuthorizationResource  {
 		String projectId = form.getFirst("projectId");
 		String newPermission = form.getFirst("permission");
 
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for project " + projectId + " but is not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
 		try {
 			SecurityProjectUtils.editProjectUserPermission(user, existingUserId, projectId, newPermission);
 		} catch(IllegalAccessException e) {
@@ -238,6 +254,13 @@ public class ProjectAuthorizationResource  {
 		String existingUserId = form.getFirst("id");
 		String projectId = form.getFirst("projectId");
 
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to project " + projectId + " but is not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
 		try {
 			SecurityProjectUtils.removeProjectUser(user, existingUserId, projectId);
 		} catch (IllegalAccessException e) {
@@ -293,6 +316,13 @@ public class ProjectAuthorizationResource  {
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
+		if (AbstractSecurityUtils.adminOnlyProjectSetPublic() && !SecurityAdminUtils.userIsAdmin(user)) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the project " + projectId + logPublic + " but is not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
 		try {
 			SecurityProjectUtils.setProjectGlobal(user, projectId, isPublic);
 		} catch(IllegalAccessException e) {
