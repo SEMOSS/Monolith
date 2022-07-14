@@ -33,6 +33,7 @@ import org.apache.logging.log4j.Logger;
 import net.snowflake.client.jdbc.internal.com.nimbusds.jose.util.IOUtils;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityDatabaseUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
@@ -54,11 +55,12 @@ public class DatabaseResource {
 	
 	private static final Logger logger = LogManager.getLogger(DatabaseResource.class);
 	
-	private boolean canAccessDatabase(User user, String databaseId) throws IllegalAccessException {
+	private boolean canViewDatabase(User user, String databaseId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			databaseId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, databaseId);
-			if(!SecurityDatabaseUtils.userCanViewDatabase(user, databaseId)) {
-				throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have access to database");
+			if(!SecurityDatabaseUtils.userCanViewDatabase(user, databaseId)
+					&& !SecurityDatabaseUtils.databaseIsDiscoverable(databaseId)) {
+				throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have access to the database");
 			}
 		} else {
 			databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
@@ -92,7 +94,13 @@ public class DatabaseResource {
 				return WebUtility.getResponse(errorMap, 401);
 			}
 			try {
-				canAccessDatabase(user, databaseId);
+				boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
+				if(!isAdmin) {
+					boolean isOwner = SecurityDatabaseUtils.userIsOwner(user, databaseId);
+					if(!isOwner) {
+						throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have permissions to delete the database. User must be the owner to perform this function.");
+					}
+				}
 			} catch (IllegalAccessException e) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("error", e.getMessage());
@@ -172,7 +180,7 @@ public class DatabaseResource {
 				return WebUtility.getResponse(errorMap, 401);
 			}
 			try {
-				canAccessDatabase(user, databaseId);
+				canViewDatabase(user, databaseId);
 			} catch (IllegalAccessException e) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("error", e.getMessage());
