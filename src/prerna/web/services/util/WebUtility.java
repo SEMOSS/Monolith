@@ -133,11 +133,19 @@ public class WebUtility {
 	}
 
 	
-	public static Response getResponse(Object vec, int status, NewCookie... cookies) {
+	public static Response getResponse(Object vec, int status) {
+		return getResponse(vec, status, null);
+	}
+	
+	public static Response getResponse(Object vec, int status, NewCookie[] cookies) {
 		return getResponse(vec, status, null, cookies);
 	}
-
-	public static Response getResponseNoCache(Object vec, int status, NewCookie... cookies) {
+	
+	public static Response getResponseNoCache(Object vec, int status) {
+		return getResponse(vec, status, noCacheHeaders);
+	}
+	
+	public static Response getResponseNoCache(Object vec, int status, NewCookie[] cookies) {
 		return getResponse(vec, status, noCacheHeaders, cookies);
 	}
 
