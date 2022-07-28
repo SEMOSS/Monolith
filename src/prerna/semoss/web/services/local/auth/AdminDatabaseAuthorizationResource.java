@@ -19,9 +19,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.auth.utils.SecurityDatabaseUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -425,9 +423,9 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setDatabaseGlobal(appId, isPublic);
 		} catch (Exception e){
-			logger.error("Stacktrace: ",e);
+			logger.error(Constants.STACKTRACE,e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
@@ -470,9 +468,9 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setDatabaseDiscoverable(appId, isDiscoverable);
 		} catch (Exception e){
-			logger.error("Stacktrace: ",e);
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
