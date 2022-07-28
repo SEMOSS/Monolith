@@ -423,9 +423,9 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setProjectGlobal(projectId, isPublic);
 		} catch (Exception e){
-			logger.error("Stacktrace: ",e);
+			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
