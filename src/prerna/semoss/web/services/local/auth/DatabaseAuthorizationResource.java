@@ -51,7 +51,7 @@ public class DatabaseAuthorizationResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -324,12 +324,12 @@ public class DatabaseAuthorizationResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logPublic + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", e.getMessage());
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
@@ -379,12 +379,12 @@ public class DatabaseAuthorizationResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logDiscoverable + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", e.getMessage());
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
@@ -413,7 +413,7 @@ public class DatabaseAuthorizationResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -427,12 +427,12 @@ public class DatabaseAuthorizationResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logVisible + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", e.getMessage());
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
@@ -459,7 +459,7 @@ public class DatabaseAuthorizationResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -473,12 +473,12 @@ public class DatabaseAuthorizationResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logFavorited + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", e.getMessage());
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
