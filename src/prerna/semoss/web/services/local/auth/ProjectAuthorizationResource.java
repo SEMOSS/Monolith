@@ -50,7 +50,7 @@ public class ProjectAuthorizationResource  {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -297,7 +297,7 @@ public class ProjectAuthorizationResource  {
 		boolean onlyAdmin = Boolean.parseBoolean(context.getInitParameter(Constants.ADMIN_SET_PUBLIC));
 		if(onlyAdmin) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "For this instance, only admins are allowed to set specific apps global");
+			errorMap.put(ResourceUtility.ERROR_KEY, "For this instance, only admins are allowed to set specific apps global");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -329,12 +329,12 @@ public class ProjectAuthorizationResource  {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the project " + projectId + logPublic + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", e.getMessage());
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
@@ -363,7 +363,7 @@ public class ProjectAuthorizationResource  {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -377,12 +377,12 @@ public class ProjectAuthorizationResource  {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the project " + projectId + logVisible + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", e.getMessage());
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
@@ -409,7 +409,7 @@ public class ProjectAuthorizationResource  {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("error", "User session is invalid");
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -423,12 +423,12 @@ public class ProjectAuthorizationResource  {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the project " + projectId + logFavorited + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", e.getMessage());
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
