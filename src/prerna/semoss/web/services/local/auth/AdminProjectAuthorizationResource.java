@@ -40,7 +40,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjects")
-	public Response getProjects(@Context HttpServletRequest request) {
+	public Response getProjects(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
