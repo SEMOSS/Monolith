@@ -43,7 +43,7 @@ public class DatabaseAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getApps")
-	public Response getUserApps(@Context HttpServletRequest request) {
+	public Response getUserApps(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -55,7 +55,7 @@ public class DatabaseAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(SecurityDatabaseUtils.getAllUserDatabaseSettings(user), 200);
+		return WebUtility.getResponse(SecurityDatabaseUtils.getUserDatabaseSettings(user, databaseId), 200);
 	}
 	
 	/**
