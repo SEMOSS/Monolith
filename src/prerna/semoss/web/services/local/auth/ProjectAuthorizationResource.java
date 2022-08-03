@@ -42,7 +42,7 @@ public class ProjectAuthorizationResource  {
 	@GET
 	@Produces("application/json")
 	@Path("getProjects")
-	public Response getUserProjects(@Context HttpServletRequest request) {
+	public Response getUserProjects(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -54,7 +54,7 @@ public class ProjectAuthorizationResource  {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(SecurityProjectUtils.getAllUserProjectSettings(user), 200);
+		return WebUtility.getResponse(SecurityProjectUtils.getAllUserProjectSettings(user, projectId), 200);
 	}
 	
 	/**
