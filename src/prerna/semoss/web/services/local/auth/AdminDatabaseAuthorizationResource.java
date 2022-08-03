@@ -40,7 +40,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getApps")
-	public Response getUserApps(@Context HttpServletRequest request) {
+	public Response getUserApps(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -54,7 +54,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(adminUtils.getAllDatabaseSettings(), 200);
+		return WebUtility.getResponse(adminUtils.getAllDatabaseSettings(databaseId), 200);
 	}
 	
 	@POST
