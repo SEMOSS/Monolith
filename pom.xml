@@ -1970,6 +1970,11 @@
 		  <artifactId>sql-jdbc</artifactId>
 		  <version>1.1.0.1</version>
 		</dependency>
+		<dependency>
+		  <groupId>com.simba</groupId>
+		  <artifactId>AthenaJDBC</artifactId>
+		  <version>42</version>
+		</dependency>
 		<!-- SAML ONE JAR -->
 		<!-- https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
 		<dependency>
