@@ -19,6 +19,8 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.User;
+import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -306,6 +308,14 @@ public class InsightAuthorizationResource {
 		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("isPublic"));
+		if(isPublic && AbstractSecurityUtils.adminOnlyInsightSetPublic()) {
+			if(!SecurityAdminUtils.userIsAdmin(user)) {
+				logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the insight " + insightId + " in project " + projectId + "  public is not an admin"));
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put(ResourceUtility.ERROR_KEY, "Only an admin can set an insight as public");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		}
 		String logPublic = isPublic ? " public " : " private";
 
 		try {
