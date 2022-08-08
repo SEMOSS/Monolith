@@ -100,7 +100,9 @@ public class ServerConfigurationResource {
 		loadConfig.put("adminOnlyDbAddAccess", AbstractSecurityUtils.adminOnlyDbAddAccess());
 		loadConfig.put("adminOnlyDbSetPublic", AbstractSecurityUtils.adminOnlyDbSetPublic());
 		loadConfig.put("adminOnlyDbSetDiscoverable", AbstractSecurityUtils.adminOnlyDbSetDiscoverable());
-
+		// admin only for insight actions
+		loadConfig.put("adminOnlyInsightSetPublic", AbstractSecurityUtils.adminOnlyInsightSetPublic());
+		
 		// return a boolean if we want to use a dedicated logout page
 		// instead of redirecting to the login page
 		loadConfig.put("useLogoutPage", DBLoader.useLogoutPage());
