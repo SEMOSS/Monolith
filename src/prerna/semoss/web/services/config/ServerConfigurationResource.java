@@ -172,8 +172,9 @@ public class ServerConfigurationResource {
 		loadConfig.put("showWelcomeBanner", showWelcomeBanner);
 
 		// send back the permission mapping
-		loadConfig.put("permissionMapping", AccessPermissionEnum.flushEnum());
-		
+		loadConfig.put("permissionMappingString", AccessPermissionEnum.flushEnumString());
+		loadConfig.put("permissionMappingInteger", AccessPermissionEnum.flushEnumInteger());
+
 		ServerConfigurationResource.config = loadConfig;
 	}
 
