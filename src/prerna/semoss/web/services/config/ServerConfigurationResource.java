@@ -174,7 +174,11 @@ public class ServerConfigurationResource {
 		// send back the permission mapping
 		loadConfig.put("permissionMappingString", AccessPermissionEnum.flushEnumString());
 		loadConfig.put("permissionMappingInteger", AccessPermissionEnum.flushEnumInteger());
-
+		
+		// some initial pipeline filtering
+		loadConfig.put("pipelineLandingFilter", Utility.getApplicationPipelineLandingFilter());
+		loadConfig.put("pipelineSourceFilter", Utility.getApplicationPipelineSourceFilter());
+		
 		ServerConfigurationResource.config = loadConfig;
 	}
 
