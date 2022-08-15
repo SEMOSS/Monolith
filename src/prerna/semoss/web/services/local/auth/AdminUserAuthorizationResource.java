@@ -177,10 +177,11 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		String userId = form.getFirst("userId");
+		String type = form.getFirst("type");
 		boolean isLocked = Boolean.parseBoolean(form.getFirst("isLocked"));
 		
 		try {
-			adminUtils.setUserLocked(userId, isLocked);
+			adminUtils.setUserLock(userId, type, isLocked);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
