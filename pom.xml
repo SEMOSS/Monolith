@@ -87,7 +87,6 @@
 								setAdmin/**,
 								share/**,
 								startUpFail/**,
-								websocket/**
 							</warSourceIncludes>
 						</configuration>
 					</plugin>
@@ -142,7 +141,6 @@
 								setAdmin/**,
 								share/**,
 								startUpFail/**,
-								websocket/**
 							</warSourceIncludes>
 							<packagingExcludes>
 								%regex[WEB-INF/lib/(?!semoss-${ci.version}).*.jar]
