@@ -1050,6 +1050,8 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- REMOVING - GPL -->
+		<!-- 
 		<dependency>
 			<groupId>nz.ac.waikato.cms.moa</groupId>
 			<artifactId>moa</artifactId>
@@ -1061,6 +1063,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		-->
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
@@ -1423,11 +1426,11 @@
 			<artifactId>quartz-jobs</artifactId>
 			<version>2.3.2</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/javax.mail/mail -->
+		<!-- https://mvnrepository.com/artifact/jakarta.mail/jakarta.mail-api -->
 		<dependency>
-			<groupId>javax.mail</groupId>
-			<artifactId>mail</artifactId>
-			<version>1.5.0-b01</version>
+		    <groupId>jakarta.mail</groupId>
+		    <artifactId>jakarta.mail-api</artifactId>
+		    <version>2.1.0</version>
 		</dependency>
 		<!-- sql database connectors -->
 		<dependency>
@@ -1984,6 +1987,12 @@
 			<groupId>org.openidentityplatform.openam</groupId>
 			<artifactId>openam-federation-library</artifactId>
 			<version>14.6.1</version>
+			<exclusions>
+				<exclusion>
+					<groupId>javax.mail</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>com.github.oshi</groupId>
