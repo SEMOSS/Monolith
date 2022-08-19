@@ -430,6 +430,8 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- REMOVING - GPL -->
+		<!-- 
 		<dependency>
 			<groupId>colt</groupId>
 			<artifactId>colt</artifactId>
@@ -440,7 +442,7 @@
 					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
+		</dependency>  -->
 		<dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
