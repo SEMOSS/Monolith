@@ -1252,6 +1252,8 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- REMOVING - GPL -->
+		<!-- 
 		<dependency>
 			<groupId>it.unimi.dsi</groupId>
 			<artifactId>dsiutils</artifactId>
@@ -1267,6 +1269,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		-->
 		<dependency>
 			<groupId>aurelionribon.ui</groupId>
 			<artifactId>css-engine-swing-api</artifactId>
@@ -2002,7 +2005,11 @@
 			<version>14.6.1</version>
 			<exclusions>
 				<exclusion>
-					<groupId>javax.mail</groupId>
+    				<groupId>javax.mail</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>jakarta.mail</groupId>
 					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
