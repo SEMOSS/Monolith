@@ -197,10 +197,11 @@ public class DBLoader implements ServletContextListener {
 		{
 			IEngine localmaster = (IEngine) DIHelper.getInstance().getDbProperty(Constants.LOCAL_MASTER_DB_NAME);
 			IEngine security = (IEngine) DIHelper.getInstance().getDbProperty(Constants.SECURITY_DB);
-			// TODO: will make scheduler a requirement
 			IEngine scheduler = (IEngine) DIHelper.getInstance().getDbProperty(Constants.SCHEDULER_DB);
-//			if (localmaster == null || security == null || scheduler == null || !localmaster.isConnected() || !security.isConnected() || !scheduler.isConnected()) {
-			if (localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected() ) {
+			IEngine userTracking = (IEngine) DIHelper.getInstance().getDbProperty(Constants.USER_TRACKING_DB);
+			if (localmaster == null || security == null || scheduler == null || !localmaster.isConnected() || !security.isConnected() || !scheduler.isConnected()
+					|| (Utility.isUserTrackingEnabled() && (userTracking == null || !userTracking.isConnected() ))
+					) {
 				// you have messed up!!!
 				StartUpSuccessFilter.setStartUpSuccess(false);
 			}
@@ -294,6 +295,14 @@ public class DBLoader implements ServletContextListener {
 			logger.log(SHUTDOWN, "Couldn't find database " + Constants.SECURITY_DB);
 		}
 
+		engine = Utility.getEngine(Constants.USER_TRACKING_DB);
+		if (engine != null) {
+			logger.log(SHUTDOWN, "Closing database " + Constants.USER_TRACKING_DB);
+			engine.closeDB();
+		} else {
+			logger.log(SHUTDOWN, "Couldn't find database " + Constants.USER_TRACKING_DB);
+		}
+		
 		engine = Utility.getEngine(Constants.LOCAL_MASTER_DB_NAME);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + Constants.LOCAL_MASTER_DB_NAME);
