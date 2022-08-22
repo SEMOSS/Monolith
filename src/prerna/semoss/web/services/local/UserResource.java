@@ -98,6 +98,7 @@ import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
 import prerna.sablecc2.om.execptions.SemossPixelException;
 import prerna.security.AbstractHttpHelper;
+import prerna.usertracking.UserTrackingUtils;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
@@ -293,6 +294,8 @@ public class UserResource {
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
 		session.setAttribute(Constants.SESSION_USER, semossUser);
+		
+		this.userTrackingLogin(request, semossUser, token.getProvider());
 
 		// log the user login
 		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser), "is logging in with provider " +  token.getProvider()));
@@ -300,6 +303,15 @@ public class UserResource {
 		// add new users into the database
 		if(autoAdd) {
 			SecurityUpdateUtils.addOAuthUser(token);
+		}
+	}
+	
+	private void userTrackingLogin(HttpServletRequest request, User semossUser, AuthProvider ap) {
+		String ip = ResourceUtility.getClientIp(request);
+		if (request.getSession() != null && request.getSession().getId() != null) {
+			UserTrackingUtils.registerLogin(request.getSession().getId(), ip, semossUser, ap);
+		} else {
+			UserTrackingUtils.registerLogin("NO_SESSION_ID", ip, semossUser, ap);
 		}
 	}
 
@@ -420,8 +432,8 @@ public class UserResource {
 				adfsToken = (AccessToken)BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, adfsToken);
 				String name = adfsToken.getName();
 				ret.put("name", name);
-							
 			}
+			
 			return WebUtility.getResponse(ret, 200);
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your ADFS account");

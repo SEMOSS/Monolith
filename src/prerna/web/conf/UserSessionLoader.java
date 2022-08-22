@@ -23,7 +23,7 @@ import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.tcp.client.Client;
-import prerna.util.AssetUtility;
+import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.MountHelper;
@@ -162,6 +162,9 @@ public class UserSessionLoader implements HttpSessionListener {
 		} catch(Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 		}
+		
+		// register the successful logout
+		UserTrackingUtils.registerLogout(sessionId);
 	}
 
 }
