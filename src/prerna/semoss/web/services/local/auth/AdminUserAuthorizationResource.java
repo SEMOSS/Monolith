@@ -10,6 +10,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -312,14 +313,14 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> ret = adminUtils.getAllUsers();
+		List<Map<String, Object>> ret = adminUtils.getAllUsers(-1, -1);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
 	@GET
 	@Path("/getAllUsers")
 	@Produces("application/json")
-	public Response getAllUsers(@Context HttpServletRequest request) {
+	public Response getAllUsers(@Context HttpServletRequest request, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -332,7 +333,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> ret = adminUtils.getAllUsers();
+		List<Map<String, Object>> ret = adminUtils.getAllUsers(limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 }
