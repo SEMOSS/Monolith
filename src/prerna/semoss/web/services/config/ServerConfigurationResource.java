@@ -24,6 +24,9 @@ import prerna.auth.AccessPermissionEnum;
 import prerna.auth.PasswordRequirements;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityDatabaseUtils;
+import prerna.auth.utils.SecurityInsightUtils;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.ds.py.PyUtils;
 import prerna.sablecc2.reactor.cluster.VersionReactor;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -210,7 +213,10 @@ public class ServerConfigurationResource {
 		myConfiguration.put("theme", AdminThemeUtils.getActiveAdminTheme());
 		// add if we are using csrf
 		myConfiguration.put("csrf", Boolean.parseBoolean(session.getAttribute("csrf") + ""));
-		
+		// add metakey options
+		myConfiguration.put("databaseMetaKeys", SecurityDatabaseUtils.getMetakeyOptions(null));
+		myConfiguration.put("projectMetaKeys", SecurityProjectUtils.getMetakeyOptions(null));
+		myConfiguration.put("insightMetaKeys", SecurityInsightUtils.getMetakeyOptions(null));
 		// do not keep this session
 		// if no user and it is new
 		if (user == null && (session.isNew() || request.isRequestedSessionIdValid())) {
