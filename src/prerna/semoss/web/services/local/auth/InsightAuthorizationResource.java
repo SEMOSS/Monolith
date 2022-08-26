@@ -53,7 +53,7 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<Map<String, Object>> ret = SecurityInsightUtils.getUserEditableInsighs(user, projectId);
+		List<Map<String, Object>> ret = SecurityInsightUtils.getUserEditableInsights(user, projectId);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
