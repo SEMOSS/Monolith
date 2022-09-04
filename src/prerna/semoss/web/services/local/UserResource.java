@@ -295,7 +295,7 @@ public class UserResource {
 		semossUser.setAnonymous(false);
 		session.setAttribute(Constants.SESSION_USER, semossUser);
 		
-		this.userTrackingLogin(request, semossUser, token.getProvider());
+		UserResource.userTrackingLogin(request, semossUser, token.getProvider());
 
 		// log the user login
 		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser), "is logging in with provider " +  token.getProvider()));
@@ -306,7 +306,7 @@ public class UserResource {
 		}
 	}
 	
-	private void userTrackingLogin(HttpServletRequest request, User semossUser, AuthProvider ap) {
+	public static void userTrackingLogin(HttpServletRequest request, User semossUser, AuthProvider ap) {
 		String ip = ResourceUtility.getClientIp(request);
 		if (request.getSession() != null && request.getSession().getId() != null) {
 			UserTrackingUtils.registerLogin(request.getSession().getId(), ip, semossUser, ap);
