@@ -900,7 +900,7 @@ public class NameServer {
 			if (user == null) {
 				return WebUtility.getSO("Not properly authenticated");
 			}
-			engines = SecurityDatabaseUtils.getUserDatabaseList(user, false, null, null, null, null);
+			engines = SecurityDatabaseUtils.getUserDatabaseList(user, null, false, null, null, null, null);
 			user.setEngines(engines);
 		} else {
 			engines = SecurityDatabaseUtils.getAllDatabaseList();
