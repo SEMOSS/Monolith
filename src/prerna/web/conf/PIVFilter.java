@@ -28,6 +28,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
@@ -175,6 +176,9 @@ public class PIVFilter implements Filter {
 					
 					// log the user login
 					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
+
+					// store if db tracking
+					UserResource.userTrackingLogin((HttpServletRequest) arg0, user, token.getProvider());
 				}
 			}
 		}

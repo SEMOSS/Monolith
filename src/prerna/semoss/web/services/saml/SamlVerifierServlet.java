@@ -38,6 +38,8 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityGroupUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.SocialPropertiesUtil;
@@ -152,7 +154,7 @@ public class SamlVerifierServlet extends HttpServlet {
 			logger.info("User details looks good. Creating User/Token and setting it to session.");
 			HttpSession session = request.getSession(true);
 			// Get all details from SamlDataObject and populate into user and token object.
-			establishUserInSession(mapper, session);
+			establishUserInSession(mapper, request, session);
 			logger.info("Session is created and user all set to get in. Hold on, redirecting... ");
 			String originalRedirect = null;
 			if (session != null && session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) != null) {
@@ -200,7 +202,7 @@ public class SamlVerifierServlet extends HttpServlet {
 	 * @param SamlDataObject sdo
 	 * @param HttpSession session
 	 */
-	private void establishUserInSession(SamlDataObjectMapper mapper, HttpSession session) {
+	private void establishUserInSession(SamlDataObjectMapper mapper, HttpServletRequest request, HttpSession session) {
 		AccessToken token = null;
 		User user = new User();
 		token = new AccessToken();
@@ -233,6 +235,12 @@ public class SamlVerifierServlet extends HttpServlet {
 		SecurityUpdateUtils.addOAuthUser(token);
 		session.setAttribute(Constants.SESSION_USER, user);
 		session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
+		
+		// log the user login
+		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
+
+		// store if db tracking
+		UserResource.userTrackingLogin(request, user, token.getProvider());
 	}
 
 }
