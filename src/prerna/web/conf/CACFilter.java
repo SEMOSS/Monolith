@@ -36,6 +36,7 @@ import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.forms.FormBuilder;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
@@ -215,6 +216,9 @@ public class CACFilter implements Filter {
 					
 					// log the user login
 					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
+
+					// store if db tracking
+					UserResource.userTrackingLogin((HttpServletRequest) arg0, user, token.getProvider());
 				}
 			}
 		}
