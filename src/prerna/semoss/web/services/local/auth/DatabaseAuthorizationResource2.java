@@ -27,24 +27,23 @@ import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
-@Path("/auth/app")
-@Deprecated
-public class DatabaseAuthorizationResource {
+@Path("/auth/database")
+public class DatabaseAuthorizationResource2 {
 
-	private static final Logger logger = LogManager.getLogger(DatabaseAuthorizationResource.class);
+	private static final Logger logger = LogManager.getLogger(DatabaseAuthorizationResource2.class);
 
 	@Context
 	protected ServletContext context;
 	
 	/**
-	 * Get the apps the user has access to
+	 * Get the databases the user has access to
 	 * @param request
 	 * @return
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getApps")
-	public Response getApps(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
+	@Path("getDatabases")
+	public Response getDatabases(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -60,15 +59,15 @@ public class DatabaseAuthorizationResource {
 	}
 	
 	/**
-	 * Get the user app permission level
+	 * Get the user database permission level
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getUserAppPermission")
-	public Response getUserAppPermission(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+	@Path("getUserDatabasePermission")
+	public Response getUserDatabasePermission(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -80,9 +79,9 @@ public class DatabaseAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String permission = SecurityDatabaseUtils.getActualUserDatabasePermission(user, appId);
+		String permission = SecurityDatabaseUtils.getActualUserDatabasePermission(user, databaseId);
 		if(permission == null) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull permission details for database " + appId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull permission details for database " + databaseId + " without having proper access"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "User does not have access to this database");
 			return WebUtility.getResponse(errorMap, 401);
@@ -101,8 +100,8 @@ public class DatabaseAuthorizationResource {
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getAppUsers")
-	public Response getAppUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+	@Path("getDatabasesUsers")
+	public Response getDatabasesUsers(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -116,9 +115,9 @@ public class DatabaseAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityDatabaseUtils.getDatabaseUsers(user, appId);
+			ret = SecurityDatabaseUtils.getDatabaseUsers(user, databaseId);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for database " + appId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -136,8 +135,8 @@ public class DatabaseAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("addAppUserPermission")
-	public Response addAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("addDatabaseUserPermission")
+	public Response addDatabaseUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -150,20 +149,20 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		String newUserId = form.getFirst("id");
-		String appId = form.getFirst("appId");
+		String databaseId = form.getFirst("databaseId");
 		String permission = form.getFirst("permission");
 
 		if (AbstractSecurityUtils.adminOnlyDbAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + appId + " but is not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + databaseId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		try {
-			SecurityDatabaseUtils.addDatabaseUser(user, newUserId, appId, permission);
+			SecurityDatabaseUtils.addDatabaseUser(user, newUserId, databaseId, permission);
 		} catch (Exception e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + appId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -171,7 +170,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to database " + appId + " with permission " + permission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to database " + databaseId + " with permission " + permission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -186,8 +185,8 @@ public class DatabaseAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("editAppUserPermission")
-	public Response editAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("editDatabaseUserPermission")
+	public Response editDatabaseUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -200,20 +199,20 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		String existingUserId = form.getFirst("id");
-		String appId = form.getFirst("appId");
+		String databaseId = form.getFirst("databaseId");
 		String newPermission = form.getFirst("permission");
 
 		if (AbstractSecurityUtils.adminOnlyDbAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + appId + " but is not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + databaseId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		try {
-			SecurityDatabaseUtils.editDatabaseUserPermission(user, existingUserId, appId, newPermission);
+			SecurityDatabaseUtils.editDatabaseUserPermission(user, existingUserId, databaseId, newPermission);
 		} catch(IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + appId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -226,7 +225,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to database " + appId + " with level " + newPermission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to database " + databaseId + " with level " + newPermission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -241,8 +240,8 @@ public class DatabaseAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("removeAppUserPermission")
-	public Response removeAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("removeDatabaseUserPermission")
+	public Response removeDatabaseUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -254,19 +253,19 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		String existingUserId = form.getFirst("id");
-		String appId = form.getFirst("appId");
+		String databaseId = form.getFirst("databaseId");
 
 		if (AbstractSecurityUtils.adminOnlyDbAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + appId + " but is not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + databaseId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		try {
-			SecurityDatabaseUtils.removeDatabaseUser(user, existingUserId, appId);
+			SecurityDatabaseUtils.removeDatabaseUser(user, existingUserId, databaseId);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + appId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -279,7 +278,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to database " + appId));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to database " + databaseId));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -294,8 +293,8 @@ public class DatabaseAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("setAppGlobal")
-	public Response setAppGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("setDatabaseGlobal")
+	public Response setDatabaseGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -307,22 +306,22 @@ public class DatabaseAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String appId = form.getFirst("appId");
+		String databaseId = form.getFirst("databaseId");
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
 		boolean legacyAdminOnly = Boolean.parseBoolean(context.getInitParameter(Constants.ADMIN_SET_PUBLIC));
 		if ( (legacyAdminOnly || AbstractSecurityUtils.adminOnlyDbSetPublic()) && !SecurityAdminUtils.userIsAdmin(user)) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logPublic + " but is not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logPublic + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		try {
-			SecurityDatabaseUtils.setDatabaseGlobal(user, appId, isPublic);
+			SecurityDatabaseUtils.setDatabaseGlobal(user, databaseId, isPublic);
 		} catch(IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logPublic + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logPublic + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -335,7 +334,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + appId + logPublic));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + databaseId + logPublic));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -350,8 +349,8 @@ public class DatabaseAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("setAppDiscoverable")
-	public Response setAppDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("setDatabaseDiscoverable")
+	public Response setDatabaseDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -363,21 +362,21 @@ public class DatabaseAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String appId = form.getFirst("appId");
+		String databaseId = form.getFirst("databaseId");
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
 		if (AbstractSecurityUtils.adminOnlyDbSetPublic() && !SecurityAdminUtils.userIsAdmin(user)) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logDiscoverable + " but is not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logDiscoverable + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		try {
-			SecurityDatabaseUtils.setDatabaseDiscoverable(user, appId, isDiscoverable);
+			SecurityDatabaseUtils.setDatabaseDiscoverable(user, databaseId, isDiscoverable);
 		} catch(IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logDiscoverable + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logDiscoverable + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -390,7 +389,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + appId + logDiscoverable));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + databaseId + logDiscoverable));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -405,8 +404,8 @@ public class DatabaseAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("setAppVisibility")
-	public Response setAppVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("setDatabaseVisibility")
+	public Response setDatabaseVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -418,14 +417,14 @@ public class DatabaseAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String appId = form.getFirst("appId");
+		String databaseId = form.getFirst("databaseId");
 		boolean visible = Boolean.parseBoolean(form.getFirst("visibility"));
 		String logVisible = visible ? " visible " : " not visible";
 
 		try {
-			SecurityUpdateUtils.setDbVisibility(user, appId, visible);
+			SecurityUpdateUtils.setDbVisibility(user, databaseId, visible);
 		} catch(IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logVisible + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logVisible + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -438,7 +437,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + appId + logVisible));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + databaseId + logVisible));
 		
 		return WebUtility.getResponse(true, 200);
 	}
@@ -451,8 +450,8 @@ public class DatabaseAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("setAppFavorite")
-	public Response setAppFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("setDatabaseFavorite")
+	public Response setDatabaseFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -464,14 +463,14 @@ public class DatabaseAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String appId = form.getFirst("appId");
+		String databaseId = form.getFirst("databaseId");
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
 		try {
-			SecurityUpdateUtils.setDbFavorite(user, appId, isFavorite);
+			SecurityUpdateUtils.setDbFavorite(user, databaseId, isFavorite);
 		} catch(IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logFavorited + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logFavorited + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -484,7 +483,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + appId + logFavorited));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + databaseId + logFavorited));
 		
 		return WebUtility.getResponse(true, 200);
 	}
@@ -497,8 +496,8 @@ public class DatabaseAuthorizationResource {
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getAppUsersNoCredentials")
-	public Response getAppUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+	@Path("getDatabaseUsersNoCredentials")
+	public Response getDatabaseUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -512,9 +511,9 @@ public class DatabaseAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityDatabaseUtils.getDatabaseUsersNoCredentials(user, appId);
+			ret = SecurityDatabaseUtils.getDatabaseUsersNoCredentials(user, databaseId);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + appId + " that do not have credentials without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + databaseId + " that do not have credentials without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
