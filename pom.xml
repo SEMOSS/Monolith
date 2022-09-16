@@ -1288,6 +1288,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- 
 		<dependency>
 			<groupId>com.teamdev.jxbrowser</groupId>
 			<artifactId>jxbrowser</artifactId>
@@ -1299,6 +1300,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		-->
 		<dependency>
 			<groupId>org.rednoise</groupId>
 			<artifactId>rita</artifactId>
