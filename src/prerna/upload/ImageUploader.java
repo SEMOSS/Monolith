@@ -635,10 +635,12 @@ public class ImageUploader extends Uploader {
 			}
 			// find all the existing image files
 			// and delete them
+			String oldImage = null;
 			File[] oldImages = InsightUtility.findImageFile(f);
 			// delete if any exist
 			if (oldImages != null) {
 				for (File oldI : oldImages) {
+					oldImage = oldI.getAbsolutePath();
 					Boolean success = oldI.delete();
 					if(!success) {
 						logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
@@ -653,7 +655,7 @@ public class ImageUploader extends Uploader {
 			writeFile(imageFile, f);
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					CloudClient.getClient().pushInsightImage(projectId, insightId, imageFileName);
+					CloudClient.getClient().pushInsightImage(projectId, insightId, oldImage, imageFileName);
 				}
 			} catch (IOException ioe) {
 				logger.error(Constants.STACKTRACE, ioe);
