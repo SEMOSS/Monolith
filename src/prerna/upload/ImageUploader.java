@@ -635,12 +635,12 @@ public class ImageUploader extends Uploader {
 			}
 			// find all the existing image files
 			// and delete them
-			String oldImage = null;
+			String oldImageName = null;
 			File[] oldImages = InsightUtility.findImageFile(f);
 			// delete if any exist
 			if (oldImages != null) {
 				for (File oldI : oldImages) {
-					oldImage = oldI.getAbsolutePath();
+					oldImageName = oldI.getName();
 					Boolean success = oldI.delete();
 					if(!success) {
 						logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
@@ -655,7 +655,7 @@ public class ImageUploader extends Uploader {
 			writeFile(imageFile, f);
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					CloudClient.getClient().pushInsightImage(projectId, insightId, oldImage, imageFileName);
+					CloudClient.getClient().pushInsightImage(projectId, insightId, oldImageName, imageFileName);
 				}
 			} catch (IOException ioe) {
 				logger.error(Constants.STACKTRACE, ioe);
@@ -748,15 +748,28 @@ public class ImageUploader extends Uploader {
 		if (f.exists()) {
 			// find all the existing image files
 			// and delete them
+			String oldImageName = null;
 			File[] oldImages = InsightUtility.findImageFile(f);
 			// delete if any exist
 			if (oldImages != null) {
 				for (File oldI : oldImages) {
+					oldImageName = oldI.getName();
 					Boolean success = oldI.delete();
 					if(!success) {
 						logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
 					}
 				}
+			}
+			
+			try {
+				if (ClusterUtil.IS_CLUSTER) {
+					CloudClient.getClient().pushInsightImage(projectId, insightId, oldImageName, null);
+				}
+			} catch (IOException ioe) {
+				logger.error(Constants.STACKTRACE, ioe);
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+				logger.error(Constants.STACKTRACE, ie);
 			}
 		} else {
 			returnMap.put(Constants.ERROR_MESSAGE, "You do not have a custom insight image to delete");
