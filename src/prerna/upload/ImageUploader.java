@@ -646,10 +646,21 @@ public class ImageUploader extends Uploader {
 	
 				}
 			}
-					
-			String imageLoc = imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
+			
+			String imageFileName = "image." + imageFile.getContentType().split("/")[1];
+			String imageLoc = imageDir + DIR_SEPARATOR + imageFileName;
 			f = new File(Utility.normalizePath(imageLoc));
 			writeFile(imageFile, f);
+			try {
+				if (ClusterUtil.IS_CLUSTER) {
+					CloudClient.getClient().pushInsightImage(projectId, insightId, imageFileName);
+				}
+			} catch (IOException ioe) {
+				logger.error(Constants.STACKTRACE, ioe);
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+				logger.error(Constants.STACKTRACE, ie);
+			}
 		}
 		returnMap.put("project_id", projectId);
 		returnMap.put("project_name", projectName);
