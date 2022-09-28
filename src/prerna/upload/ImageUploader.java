@@ -60,8 +60,8 @@ public class ImageUploader extends Uploader {
 		List<FileItem> fileItems = processRequest(context, request, null);
 		// collect all of the data input on the form
 		FileItem imageFile = null;
-		String appId = null;
-		String appName = null;
+		String databaseId = null;
+		String databaseName = null;
 
 		for (FileItem fi : fileItems) {
 			String fieldName = fi.getFieldName();
@@ -70,14 +70,14 @@ public class ImageUploader extends Uploader {
 				imageFile = fi;
 			}
 			if (fieldName.equals("databaseId")) {
-				appName = value;
+				databaseName = value;
 			}
 		}
 
 		if (imageFile == null) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Could not find the file to upload for the insight in the request");
 			return WebUtility.getResponse(returnMap, 400);
-		} else if (appName == null) {
+		} else if (databaseName == null) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper database id to upload the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
@@ -99,24 +99,24 @@ public class ImageUploader extends Uploader {
 				}
 
 				try {
-					appId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, appName);
+					databaseId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, databaseName);
 				} catch (Exception e) {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityDatabaseUtils.userCanEditDatabase(user, appId)) {
+				if (!SecurityDatabaseUtils.userCanEditDatabase(user, databaseId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				appName = SecurityDatabaseUtils.getDatabaseAliasForId(appId);
+				databaseName = SecurityDatabaseUtils.getDatabaseAliasForId(databaseId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
 			}
 		} else {
-			appId = MasterDatabaseUtility.testDatabaseIdIfAlias(appName);
-			appName = MasterDatabaseUtility.getDatabaseAliasForId(appId);
-			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId);
+			databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseName);
+			databaseName = MasterDatabaseUtility.getDatabaseAliasForId(databaseId);
+			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(databaseName, databaseId);
 			if (!(new File(appDir).exists())) {
 				returnMap.put(Constants.ERROR_MESSAGE, "Could not find app directory");
 				return WebUtility.getResponse(returnMap, 400);
@@ -126,7 +126,7 @@ public class ImageUploader extends Uploader {
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
 				Map<String, String> selectors = new HashMap<>();
-				selectors.put(CouchUtil.DATABASE, appId);
+				selectors.put(CouchUtil.DATABASE, databaseId);
 				CouchUtil.upload(CouchUtil.DATABASE, selectors, imageFile);
 			} catch (CouchException e) {
 				Map<String, String> errorMap = new HashMap<>();
@@ -134,8 +134,8 @@ public class ImageUploader extends Uploader {
 				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
 			}
 		} else {
-			String imageDir = getDbImageDir(filePath, appId, appName);
-			String imageLoc = getDbImageLoc(filePath, appId, appName, imageFile);
+			String imageDir = getDbImageDir(filePath, databaseId, databaseName);
+			String imageLoc = getDbImageLoc(filePath, databaseId, databaseName, imageFile);
 			
 			File f = new File(imageDir);
 			if (!f.exists()) {
@@ -149,7 +149,7 @@ public class ImageUploader extends Uploader {
 			// and delete them
 			File[] oldImages = null;
 			if (ClusterUtil.IS_CLUSTER) {
-				FilenameFilter appIdFilter = new WildcardFileFilter(appId + "*");
+				FilenameFilter appIdFilter = new WildcardFileFilter(databaseId + "*");
 				oldImages = f.getParentFile().listFiles(appIdFilter);
 			} else {
 				oldImages = InsightUtility.findImageFile(f.getParentFile());
@@ -166,7 +166,7 @@ public class ImageUploader extends Uploader {
 			writeFile(imageFile, f);
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					CloudClient.getClient().pushAppImageFolder();
+					CloudClient.getClient().pushDatabaseImageFolder();
 				}
 			} catch (IOException ioe) {
 				logger.error(Constants.STACKTRACE, ioe);
@@ -177,8 +177,8 @@ public class ImageUploader extends Uploader {
 		}
 		
 		returnMap.put("message", "Successfully updated app image");
-		returnMap.put("database_id", appId);
-		returnMap.put("database_name", appName);
+		returnMap.put("database_id", databaseId);
+		returnMap.put("database_name", databaseName);
 		return WebUtility.getResponse(returnMap, 200);
 	}
 	
@@ -272,7 +272,7 @@ public class ImageUploader extends Uploader {
 		
 		try {
 			if (ClusterUtil.IS_CLUSTER) {
-				CloudClient.getClient().pushAppImageFolder();
+				CloudClient.getClient().pushDatabaseImageFolder();
 			}
 		} catch (IOException ioe) {
 			logger.error(Constants.STACKTRACE, ioe);
@@ -374,16 +374,9 @@ public class ImageUploader extends Uploader {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
 			}
-		} 
-//		else {
-//			projectId = MasterDatabaseUtility.testEngineIdIfAlias(projectName);
-//			projectName = MasterDatabaseUtility.getEngineAliasForId(projectId);
-//			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(projectName, projectId);
-//			if (!(new File(appDir).exists())) {
-//				returnMap.put(Constants.ERROR_MESSAGE, "Could not find app directory");
-//				return WebUtility.getResponse(returnMap, 400);
-//			}
-//		}
+		} else {
+			projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
+		}
 
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
@@ -491,16 +484,9 @@ public class ImageUploader extends Uploader {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
 			}
-		} 
-//		else {
-//			projectId = MasterDatabaseUtility.testEngineIdIfAlias(projectId);
-//			projectName = MasterDatabaseUtility.getEngineAliasForId(projectId);
-//			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(projectName, projectId);
-//			if (!(new File(appDir).exists())) {
-//				returnMap.put(Constants.ERROR_MESSAGE, "Could not find app directory");
-//				return WebUtility.getResponse(returnMap, 400);
-//			}
-//		}
+		} else {
+			projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
+		}
 
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
@@ -620,17 +606,9 @@ public class ImageUploader extends Uploader {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
 			}
-		} 
-//		else {
-//			projectId = MasterDatabaseUtility.testEngineIdIfAlias(projectName);
-//			projectName = MasterDatabaseUtility.getEngineAliasForId(projectId);
-//			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(projectName, projectId);
-//			if (!(new File(appDir).exists())) {
-//				returnMap.put(Constants.ERROR_MESSAGE, "Could not find app directory");
-//				return WebUtility.getResponse(returnMap, 400);
-//			}
-//		}
-
+		} else {
+			projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
+		}
 		
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
@@ -732,16 +710,9 @@ public class ImageUploader extends Uploader {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
 			}
-		} 
-//		else {
-//			projectId = MasterDatabaseUtility.testEngineIdIfAlias(projectId);
-//			projectName = MasterDatabaseUtility.getEngineAliasForId(projectId);
-//			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(projectName, projectId);
-//			if (!(new File(appDir).exists())) {
-//				returnMap.put(Constants.ERROR_MESSAGE, "Could not find app directory");
-//				return WebUtility.getResponse(returnMap, 400);
-//			}
-//		}
+		} else {
+			projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
+		}
 
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
