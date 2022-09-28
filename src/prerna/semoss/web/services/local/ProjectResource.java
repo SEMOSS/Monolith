@@ -809,7 +809,6 @@ public class ProjectResource {
 	@GET
 	@Path("/jdbc_csv")
 	@Produces(MediaType.TEXT_PLAIN + ";charset=utf-8")
-	
 	public StreamingOutput  getJDBCCSVOutput(@PathParam("projectId") String projectId, 
 			@QueryParam("insightId") String insightId, 
 			@QueryParam("sql") String sql,
