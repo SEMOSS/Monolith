@@ -207,7 +207,7 @@ public class DatabaseResource {
 //			cc.setMaxAge(86400);
 //			cc.setPrivate(true);
 //			cc.setMustRevalidate(true);
-		    EntityTag etag = new EntityTag(Integer.toString(exportFile.hashCode()));
+		    EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
 		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
 		    // cached resource did not change
