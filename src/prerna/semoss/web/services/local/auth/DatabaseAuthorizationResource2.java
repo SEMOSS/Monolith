@@ -18,6 +18,8 @@ import javax.ws.rs.core.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.google.gson.Gson;
+
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -178,6 +180,54 @@ public class DatabaseAuthorizationResource2 {
 	}
 	
 	/**
+	 * Add user permissions in bulk to a database
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("addDatabaseUserPermissions")
+	public Response addDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String databaseId = form.getFirst("databaseId");
+
+		if (AbstractSecurityUtils.adminOnlyDbAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permissions to database " + databaseId + " but is not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		// adding user permissions in bulk
+		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		try {
+			SecurityDatabaseUtils.addDatabaseUserPermissions(user, databaseId, permission);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user permissions to database " + databaseId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
 	 * Edit user permission for an database
 	 * @param request
 	 * @param form
@@ -279,6 +329,60 @@ public class DatabaseAuthorizationResource2 {
 		
 		// log the operation
 		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to database " + databaseId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Remove user permissions for an database, in bulk
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("removeDatabaseUserPermissions")
+	public Response removeDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		Gson gson = new Gson();
+		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		String databaseId = form.getFirst("databaseId");
+
+		if (AbstractSecurityUtils.adminOnlyDbAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to database " + databaseId + " but is not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		try {
+			SecurityDatabaseUtils.removeDatabaseUsers(user, ids, databaseId);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to database " + databaseId + " without having proper access"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed users from having access to database " + databaseId));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -520,6 +624,108 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * approval of user access requests
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("approveDatabaseUserAccessRequest")
+	public Response approveDatabaseUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String databaseId = form.getFirst("databaseId");
+
+		if (AbstractSecurityUtils.adminOnlyDbAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user access to database " + databaseId + " but is not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		// adding user permissions and updating user access requests in bulk
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
+		try {
+			SecurityDatabaseUtils.approveDatabaseUserAccessRequests(user, databaseId, requests);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant user access to database " + databaseId + " without having proper access"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has approved user access and added user permissions to database " + databaseId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * deny of user access requests
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("denyDatabaseUserAccessRequest")
+	public Response denyDatabaseUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String databaseId = form.getFirst("databaseId");
+
+		if (AbstractSecurityUtils.adminOnlyDbAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user access to database " + databaseId + " but is not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		// updating user access requests in bulk
+		List<String> userids = new Gson().fromJson(form.getFirst("userids"), List.class);
+		try {
+			SecurityDatabaseUtils.denyDatabaseUserAccessRequests(user, databaseId, userids);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has denied user access requests to database " + databaseId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
 		
