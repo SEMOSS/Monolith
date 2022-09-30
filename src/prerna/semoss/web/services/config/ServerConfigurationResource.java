@@ -178,9 +178,11 @@ public class ServerConfigurationResource {
 		loadConfig.put("permissionMappingString", AccessPermissionEnum.flushEnumString());
 		loadConfig.put("permissionMappingInteger", AccessPermissionEnum.flushEnumInteger());
 		
-		// some initial pipeline filtering
+		// some initial pipeline / widget-menu filtering
 		loadConfig.put("pipelineLandingFilter", Utility.getApplicationPipelineLandingFilter());
 		loadConfig.put("pipelineSourceFilter", Utility.getApplicationPipelineSourceFilter());
+		loadConfig.put("widgetTabShareExport", Utility.getApplicationWidgetTabShareExport());
+		loadConfig.put("widgetTabExportDashboard", Utility.getApplicationWidgetTabExportDashboard());
 		
 		ServerConfigurationResource.config = loadConfig;
 	}
