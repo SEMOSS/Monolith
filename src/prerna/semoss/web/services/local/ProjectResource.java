@@ -658,74 +658,72 @@ public class ProjectResource {
 			@Context HttpServletRequest request, 
 			@Context ResourceContext resourceContext)  
 	{
-		if(projectId == null)
+		if(projectId == null) {
 			projectId = "session";
-		//if(projectId.equalsIgnoreCase("session"))
-		{
-			// get the insight from the session
-			HttpSession session = request.getSession();
-			if(session == null)
-				return WebUtility.getBinarySO("You are not authorized");
-			
-			if(sql == null)
-			{
-				try {
-					sql = IOUtils.toString(request.getReader());
-					sql = sql.replace("'", "\\\'");
-					sql = sql.replace("\"", "\\\"");
-					//System.err.println(sql2);
-				} catch (IOException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				}
-			}
-
-			// first time 
-			if(!projectId.equalsIgnoreCase("session") && (open != null && open.equalsIgnoreCase("true"))) // && InsightStore.getInstance().get(insightId) == null) // see if you can open the insight
-			{
-				NameServer server = resourceContext.getResource(NameServer.class);
-				OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
-				Map<String, String> paramMap = new HashMap<String, String>();
-				
-				String pixel = "META | OpenInsight(project=[\"" + projectId + "\"], id=[\"" + insightId + "\"], additionalPixels=[\"ReadInsightTheme();\"]);" ;
-				paramMap.put("insightId", "new");
-				paramMap.put("expression", pixel);
-				requestWrapper.setParameters(paramMap);
-				Response resp = server.runPixelSync(requestWrapper);
-				
-				StreamingOutput utility = (StreamingOutput) resp.getEntity();
-				ByteArrayOutputStream output = new ByteArrayOutputStream();
-				try {
-					utility.write(output);
-					String s = new String(output.toByteArray());
-					System.out.println(s);
-					JSONObject obj = new JSONObject(s);
-					// pixelReturn[0].output.insightData.insightId
-					insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
-					System.err.println("Insight ID is " + insightId);				
-				} catch (WebApplicationException | IOException e) {
-				e.printStackTrace();
-				}
-			}		
-			// now we have the insight id.. execute
-			Insight insight = InsightStore.getInstance().get(insightId);
-			
-			// do the bifurcation here in terms of sql vs. pixel
-			if(insight != null)
-			{
-				Object output = insight.query(sql, null);
-				if(output instanceof Map) // add the instance so it can refer going forward
-				{
-					((Map)output).put("INSIGHT_INSTANCE", insightId);
-					
-				}
-				if(output != null)
-					return WebUtility.getBinarySO(output);					
-			}
-			else
-				return WebUtility.getBinarySO("No such insight");
 		}
-		return null;	
+		// get the insight from the session
+		HttpSession session = request.getSession();
+		if(session == null) {
+			return WebUtility.getBinarySO("You are not authorized");
+		}
+		
+		if(sql == null) {
+			try {
+				sql = IOUtils.toString(request.getReader());
+				sql = sql.replace("'", "\\\'");
+				sql = sql.replace("\"", "\\\"");
+			} catch (IOException e) {
+	    		logger.error(Constants.STACKTRACE, e);
+			}
+		}
+
+		// first time 
+		if(!projectId.equalsIgnoreCase("session") && (open != null && open.equalsIgnoreCase("true"))) {
+			NameServer server = resourceContext.getResource(NameServer.class);
+			OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
+			Map<String, String> paramMap = new HashMap<String, String>();
+
+			String pixel = "META | OpenInsight(project=[\"" + projectId + "\"], id=[\"" + insightId + "\"], additionalPixels=[\"ReadInsightTheme();\"]);" ;
+			paramMap.put("insightId", "new");
+			paramMap.put("expression", pixel);
+			requestWrapper.setParameters(paramMap);
+			Response resp = server.runPixelSync(requestWrapper);
+
+			StreamingOutput utility = (StreamingOutput) resp.getEntity();
+			ByteArrayOutputStream output = new ByteArrayOutputStream();
+			try {
+				utility.write(output);
+				String s = new String(output.toByteArray());
+				System.out.println(s);
+				JSONObject obj = new JSONObject(s);
+				insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
+				System.err.println("Insight ID is " + insightId);				
+			} catch (WebApplicationException | IOException e) {
+	    		logger.error(Constants.STACKTRACE, e);
+			}
+		}		
+		// now we have the insight id.. execute
+		Insight insight = InsightStore.getInstance().get(insightId);
+		if(insight == null) {
+			return WebUtility.getBinarySO("No such insight");
+		}
+		
+		// do the bifurcation here in terms of sql vs. pixel
+		try {
+			Object output = insight.query(sql, null);
+			// add the instance so it can refer going forward
+			if(output instanceof Map) {
+				((Map)output).put("INSIGHT_INSTANCE", insightId);
+			}
+			
+			if(output == null) {
+				return WebUtility.getBinarySO("Unable to generate output from sql: " + sql);
+			}
+	
+			return WebUtility.getBinarySO(output);
+		} catch(Exception e) {
+			return WebUtility.getBinarySO(e);
+		}
 	}
 
 	@GET
@@ -737,72 +735,70 @@ public class ProjectResource {
 			@QueryParam("sql") String  sql, @Context HttpServletRequest request, 
 			@Context ResourceContext resourceContext) 
 	{
-		if(projectId == null)
+		if(projectId == null) {
 			projectId = "session";
-		//if(projectId.equalsIgnoreCase("session"))
-		{
-			// get the insight from the session
-			HttpSession session = request.getSession();
-			if(session == null)
-				return WebUtility.getSO("You are not authorized");
-			
-			if(sql == null)
-			{
-				try {
-					sql = IOUtils.toString(request.getReader());
-					sql = sql.replace("'", "\\\'");
-					sql = sql.replace("\"", "\\\"");
-					//System.err.println(sql2);
-				} catch (IOException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				}
-			}
-
-			
-			if(!projectId.equalsIgnoreCase("session")) // && InsightStore.getInstance().get(insightId) == null) // see if you can open the insight
-			{
-				NameServer server = resourceContext.getResource(NameServer.class);
-				OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
-				Map<String, String> paramMap = new HashMap<String, String>();
-				
-				String pixel = "META | OpenInsight(project=[\"" + projectId + "\"], id=[\"" + insightId + "\"], additionalPixels=[\"ReadInsightTheme();\"]);" ;
-				paramMap.put("insightId", "new");
-				paramMap.put("expression", pixel);
-				requestWrapper.setParameters(paramMap);
-				Response resp = server.runPixelSync(requestWrapper);
-				
-				StreamingOutput utility = (StreamingOutput) resp.getEntity();
-				ByteArrayOutputStream output = new ByteArrayOutputStream();
-				try {
-					utility.write(output);
-					String s = new String(output.toByteArray());
-					System.out.println(s);
-					JSONObject obj = new JSONObject(s);
-					// pixelReturn[0].output.insightData.insightId
-					insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
-					System.err.println("Insight ID is " + insightId);				
-				} catch (WebApplicationException | IOException e) {
-				e.printStackTrace();
-				}
-			}			
-			Insight insight = InsightStore.getInstance().get(insightId);
-			if(insight != null)
-			{
-				Object output = insight.query(sql, null);
-				if(output instanceof Map) // add the instance so it can refer going forward
-				{
-					((Map)output).put("INSIGHT_INSTANCE", insightId);
-					((Map)output).remove("types");
-					
-				}
-				if(output != null)
-					return WebUtility.getSO(output);					
-			}
-			else
-				return WebUtility.getSO("No such insight");
 		}
-		return null;
+		// get the insight from the session
+		HttpSession session = request.getSession();
+		if(session == null) {
+			return WebUtility.getSO("You are not authorized");
+		}
+		
+		if(sql == null) {
+			try {
+				sql = IOUtils.toString(request.getReader());
+				sql = sql.replace("'", "\\\'");
+				sql = sql.replace("\"", "\\\"");
+			} catch (IOException e) {
+	    		logger.error(Constants.STACKTRACE, e);
+			}
+		}
+
+		if(!projectId.equalsIgnoreCase("session")) {
+			NameServer server = resourceContext.getResource(NameServer.class);
+			OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
+			Map<String, String> paramMap = new HashMap<String, String>();
+
+			String pixel = "META | OpenInsight(project=[\"" + projectId + "\"], id=[\"" + insightId + "\"], additionalPixels=[\"ReadInsightTheme();\"]);" ;
+			paramMap.put("insightId", "new");
+			paramMap.put("expression", pixel);
+			requestWrapper.setParameters(paramMap);
+			Response resp = server.runPixelSync(requestWrapper);
+
+			StreamingOutput utility = (StreamingOutput) resp.getEntity();
+			ByteArrayOutputStream output = new ByteArrayOutputStream();
+			try {
+				utility.write(output);
+				String s = new String(output.toByteArray());
+				System.out.println(s);
+				JSONObject obj = new JSONObject(s);
+				// pixelReturn[0].output.insightData.insightId
+				insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
+				System.err.println("Insight ID is " + insightId);				
+			} catch (WebApplicationException | IOException e) {
+	    		logger.error(Constants.STACKTRACE, e);
+			}
+		}			
+		Insight insight = InsightStore.getInstance().get(insightId);
+		if(insight == null) {
+			return WebUtility.getSO("No such insight");
+		}
+		
+		try {
+			Object output = insight.query(sql, null);
+			// add the instance so it can refer going forward
+			if(output instanceof Map) {
+				((Map)output).put("INSIGHT_INSTANCE", insightId);
+				((Map)output).remove("types");
+			}
+			if(output == null) {
+				return WebUtility.getSO("Unable to generate output from sql: " + sql);
+			}
+	
+			return WebUtility.getSO(output);
+		} catch(Exception e) {
+			return WebUtility.getSO(e);
+		}
 	}
 
 	@POST
