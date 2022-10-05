@@ -359,6 +359,47 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	}
 	
 	/**
+	 * Edit user permission for a database
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("editDatabaseUserPermissions")
+	public Response editDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		String databaseId = form.getFirst("databaseId");
+		try {
+			user = ResourceUtility.getUser(request);
+			performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.error(Constants.STACKTRACE, e);
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user access permissions for database " + databaseId + " when not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		try {
+			SecurityAdminUtils.editDatabaseUserPermissions(databaseId, requests);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user access permissions to database " + databaseId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
 	 * update all user's permission level to new permission level for a database
 	 * @param request
 	 * @param form
@@ -452,8 +493,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("removeDatabaseUsersPermission")
-	public Response removeDatabaseUsersPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("removeDatabaseUserPermissions")
+	public Response removeDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String databaseId = form.getFirst("databaseId");
