@@ -116,7 +116,7 @@ public class DatabaseAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityDatabaseUtils.getDatabaseUsers(user, appId);
+			ret = SecurityDatabaseUtils.getDatabaseUsers(user, appId, null, null, -1, -1);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for database " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
