@@ -92,7 +92,6 @@ public class DatabaseAuthorizationResource {
 		ret.put("permission", permission);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
 	/**
 	 * Get the database users and their permissions
 	 * @param request
@@ -243,6 +242,7 @@ public class DatabaseAuthorizationResource {
 	@Produces("application/json")
 	@Path("removeAppUserPermission")
 	public Response removeAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		System.out.println("database auth resource... ");
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
