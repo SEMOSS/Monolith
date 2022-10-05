@@ -2026,6 +2026,7 @@ public class UserResource {
 				authToken.setEmail(email);
 				// no need to auto-add since to login native you must already exist
 				addAccessToken(authToken, request, false);
+				SecurityUpdateUtils.validateUserLogin(authToken);
 
 				// log the log in
 				if (!disableRedirect) {
