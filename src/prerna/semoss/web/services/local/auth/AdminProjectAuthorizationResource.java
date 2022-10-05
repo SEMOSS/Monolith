@@ -167,7 +167,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectUsers")
-	public Response getProjectUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
+	public Response getProjectUsers(@Context HttpServletRequest request, @QueryParam("project") String projectId,  @QueryParam("user") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -181,7 +181,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(adminUtils.getProjectUsers(projectId), 200);
+		return WebUtility.getResponse(adminUtils.getProjectUsers(projectId, userId, permission, limit, offset), 200);
 	}
 	
 	/**
