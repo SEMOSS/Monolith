@@ -103,7 +103,8 @@ public class DatabaseAuthorizationResource2 {
 	@GET
 	@Produces("application/json")
 	@Path("getDatabaseUsers")
-	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("database") String databaseId,  @QueryParam("user") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId,  @QueryParam("userId") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
