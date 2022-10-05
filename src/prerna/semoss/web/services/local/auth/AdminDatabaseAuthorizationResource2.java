@@ -161,13 +161,17 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	/**
 	 * Get the database users and their permissions
 	 * @param request
-	 * @param form
+	 * @param databaseId
+	 * @param userId
+	 * @param permission
+	 * @param limit
+	 * @param offset
 	 * @return
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("getDatabaseUsers")
-	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
+	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("database") String databaseId,  @QueryParam("user") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -180,8 +184,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
-		return WebUtility.getResponse(adminUtils.getAppUsers(databaseId), 200);
+		return WebUtility.getResponse(adminUtils.getDatabaseUsers(databaseId, userId, permission, limit, offset), 200);
 	}
 	
 	/**
