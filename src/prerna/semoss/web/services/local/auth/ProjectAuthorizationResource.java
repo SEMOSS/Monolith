@@ -102,7 +102,7 @@ public class ProjectAuthorizationResource  {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectUsers")
-	public Response getProjectUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
+	public Response getProjectUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,  @QueryParam("user") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -116,7 +116,7 @@ public class ProjectAuthorizationResource  {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityProjectUtils.getProjectUsers(user, projectId);
+			ret = SecurityProjectUtils.getProjectUsers(user, projectId, userId, permission, limit, offset);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);

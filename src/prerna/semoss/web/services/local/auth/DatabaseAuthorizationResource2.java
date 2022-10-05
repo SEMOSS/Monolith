@@ -102,8 +102,8 @@ public class DatabaseAuthorizationResource2 {
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getDatabasesUsers")
-	public Response getDatabasesUsers(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
+	@Path("getDatabaseUsers")
+	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("database") String databaseId,  @QueryParam("user") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -117,7 +117,7 @@ public class DatabaseAuthorizationResource2 {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityDatabaseUtils.getDatabaseUsers(user, databaseId);
+			ret = SecurityDatabaseUtils.getDatabaseUsers(user, databaseId, userId, permission, limit, offset);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
