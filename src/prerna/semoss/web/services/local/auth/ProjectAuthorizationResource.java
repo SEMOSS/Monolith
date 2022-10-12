@@ -37,7 +37,7 @@ public class ProjectAuthorizationResource  {
 	protected ServletContext context;
 	
 	/**
-	 * Get the apps the user has access to
+	 * Get the projects the user has access to
 	 * @param request
 	 * @return
 	 */
@@ -342,6 +342,61 @@ public class ProjectAuthorizationResource  {
 		
 		// log the operation
 		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the project " + projectId + logPublic));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Set the project as being discoverable for the entire semoss instance
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setProjectDiscoverable")
+	public Response setProjectDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String projectId = form.getFirst("projectId");
+		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
+		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
+
+		if (AbstractSecurityUtils.adminOnlyProjectSetPublic() && !SecurityAdminUtils.userIsAdmin(user)) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the project " + projectId + logDiscoverable + " but is not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		try {
+			SecurityProjectUtils.setProjectDiscoverable(user, projectId, isDiscoverable);
+		} catch(IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the project " + projectId + logDiscoverable + " without having proper access"));
+    		logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+    		logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the project " + projectId + logDiscoverable));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
