@@ -57,7 +57,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(adminUtils.getAllProjectSettings(), 200);
+		return WebUtility.getResponse(adminUtils.getAllProjectSettings(projectId), 200);
 	}
 	
 	@POST
@@ -480,6 +480,51 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	} 
+	
+	/**
+	 * Set the project as being discoverable for the entire semoss instance
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setProjectDiscoverable")
+	public Response setProjectDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		
+		String projectId = form.getFirst("projectId");
+		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
+		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
+
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the project " + projectId + logDiscoverable + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		try {
+			adminUtils.setProjectDiscoverable(projectId, isDiscoverable);
+		} catch (Exception e){
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the project " + projectId + logDiscoverable));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
 	
 	/**
 	 * Get users with no access to a given project
