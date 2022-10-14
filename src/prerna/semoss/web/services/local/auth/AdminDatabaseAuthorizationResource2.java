@@ -709,12 +709,12 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 		
 		// updating user access requests in bulk
-		List<String> userids = new Gson().fromJson(form.getFirst("userids"), List.class);
+		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
 		try {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.denyDatabaseUserAccessRequests(userId, userType, databaseId, userids);
+			SecurityAdminUtils.denyDatabaseUserAccessRequests(userId, userType, databaseId, requestIds);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
