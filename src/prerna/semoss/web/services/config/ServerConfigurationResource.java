@@ -182,7 +182,7 @@ public class ServerConfigurationResource {
 		loadConfig.put("pipelineLandingFilter", Utility.getApplicationPipelineLandingFilter());
 		loadConfig.put("pipelineSourceFilter", Utility.getApplicationPipelineSourceFilter());
 		loadConfig.put("widgetTabShareExport", Utility.getApplicationWidgetTabShareExport());
-		loadConfig.put("widgetTabExportDashboard", Utility.getApplicationWidgetTabExportDashboard());
+//		loadConfig.put("widgetTabExportDashboard", Utility.getApplicationWidgetTabExportDashboard());
 		
 		ServerConfigurationResource.config = loadConfig;
 	}
