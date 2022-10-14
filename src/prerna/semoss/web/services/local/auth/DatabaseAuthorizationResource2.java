@@ -766,9 +766,9 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		// updating user access requests in bulk
-		List<String> userids = new Gson().fromJson(form.getFirst("userids"), List.class);
+		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
 		try {
-			SecurityDatabaseUtils.denyDatabaseUserAccessRequests(user, databaseId, userids);
+			SecurityDatabaseUtils.denyDatabaseUserAccessRequests(user, databaseId, requestIds);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
