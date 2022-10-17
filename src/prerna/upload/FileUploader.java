@@ -28,6 +28,9 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import net.snowflake.client.jdbc.internal.apache.tika.mime.MimeType;
+import net.snowflake.client.jdbc.internal.apache.tika.mime.MimeTypeException;
+import net.snowflake.client.jdbc.internal.apache.tika.mime.MimeTypes;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityInsightUtils;
@@ -302,6 +305,16 @@ public class FileUploader extends Uploader {
 				// Get the uploaded file parameters
 				String fieldName = fi.getFieldName();
 				String name = fi.getName();
+				String fileExtension = FilenameUtils.getExtension(name);
+				String contentType = fi.getContentType();
+				if(fileExtension == null || fileExtension.isEmpty()) {
+					try {
+						MimeType type = MimeTypes.getDefaultMimeTypes().forName(contentType);
+						name += type.getExtension();
+					} catch (MimeTypeException e) {
+						logger.error(Constants.STACKTRACE, e);
+					}
+				}
 				
 				// we need the key to be file
 				if(!fieldName.equals("file")) {
