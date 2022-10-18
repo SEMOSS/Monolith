@@ -181,7 +181,7 @@ public class ServerConfigurationResource {
 		// some initial pipeline / widget-menu filtering
 		loadConfig.put("pipelineLandingFilter", Utility.getApplicationPipelineLandingFilter());
 		loadConfig.put("pipelineSourceFilter", Utility.getApplicationPipelineSourceFilter());
-		loadConfig.put("widgetTabShareExport", Utility.getApplicationWidgetTabShareExport());
+		loadConfig.put("widgetTabShareExportList", Utility.getApplicationWidgetTabShareExportList());
 //		loadConfig.put("widgetTabExportDashboard", Utility.getApplicationWidgetTabExportDashboard());
 		
 		ServerConfigurationResource.config = loadConfig;
