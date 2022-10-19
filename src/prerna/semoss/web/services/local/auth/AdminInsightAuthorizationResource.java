@@ -19,6 +19,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.cluster.util.ClusterUtil;
@@ -59,26 +60,6 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		
 		List<Map<String, Object>> ret = adminUtils.getProjectInsights(projectId);
 		return WebUtility.getResponse(ret, 200);
-	}
-	
-	@GET
-	@Path("/getAllInsights")
-	@Produces("application/json")
-	public Response getAllInsights(@Context HttpServletRequest request, @QueryParam("search") String searchTerm, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-		SecurityAdminUtils adminUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			adminUtils = performAdminCheck(request, user);
-		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull insights when not an admin"));
-			logger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		return WebUtility.getResponse(adminUtils.getAllUserInsights(user, searchTerm, limit, offset), 200);
 	}
 	
 	/**
@@ -166,7 +147,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsightUsers")
-	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
+	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId, @QueryParam("userId") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -182,7 +163,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = adminUtils.getInsightUsers(projectId, insightId);
+			ret = adminUtils.getInsightUsers(projectId, insightId, userId, permission, limit, offset);
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -419,6 +400,48 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
+	 * Edit user permission for insight
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("editInsightUserPermissions")
+	public Response editInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		String projectId = form.getFirst("projectId");
+		String insightId = form.getFirst("insightId");
+		try {
+			user = ResourceUtility.getUser(request);
+			performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.error(Constants.STACKTRACE, e);
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user access permissions for insight " + insightId + " when not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		try {
+			SecurityAdminUtils.editInsightUserPermissions(projectId, insightId, requests);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user access permissions to insight " + insightId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
 	 * update all user's permission level to new permission level for an insight
 	 * @param request
 	 * @param form
@@ -584,6 +607,184 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		List<Map<String, Object>> ret = adminUtils.getInsightUsersNoCredentials(projectId, insightId);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Add user permissions in bulk to an insight
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("addInsightUserPermissions")
+	public Response addInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String projectId = form.getFirst("projectId");
+		String insightId = form.getFirst("insightId");
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permission to insight " + insightId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		// adding user permissions in bulk
+		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		try {
+			adminUtils.addInsightUserPermissions(projectId, insightId, permission);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user permissions to insight " + insightId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Remove user permissions for an insight, in bulk
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("removeInsightUserPermissions")
+	public Response removeInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String projectId = form.getFirst("projectId");
+		String insightId = form.getFirst("insightId");
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove usersfrom having access to insight " + insightId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		Gson gson = new Gson();
+		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		try {
+			adminUtils.removeInsightUsers(ids, projectId, insightId);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed users from having access to insight " + insightId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Admin approval of user access requests
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("approveInsightUserAccessRequest")
+	public Response approveInsightUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		String projectId = form.getFirst("projectId");
+		String insightId = form.getFirst("insightId");
+		try {
+			user = ResourceUtility.getUser(request);
+			performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user request for permission to insight " + insightId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		// adding user permissions and updating user access requests in bulk
+		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
+		try {
+			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
+			String userId = token.getId();
+			String userType = token.getProvider().toString();
+			SecurityAdminUtils.approveInsightUserAccessRequests(userId, userType, projectId, insightId, requests);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has approved user access requests and added user permissions to project " + projectId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Admin deny of user access requests
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("denyInsightUserAccessRequest")
+	public Response denyInsightUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		String projectId = form.getFirst("projectId");
+		String insightId = form.getFirst("insightId");
+		try {
+			user = ResourceUtility.getUser(request);
+			performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user request for permission to insight " + insightId + " when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		// updating user access requests in bulk
+		List<String> requestids = new Gson().fromJson(form.getFirst("requestids"), List.class);
+		try {
+			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
+			String userId = token.getId();
+			String userType = token.getProvider().toString();
+			SecurityAdminUtils.denyInsightUserAccessRequests(userId, userType, projectId, insightId, requestids);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has denied user access requests to insight " + insightId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
