@@ -252,7 +252,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		}
 		if(!ret) {
 			Map<String, String> retMap = new Hashtable<>();
-			retMap.put(ResourceUtility.ERROR_KEY, "Unknown error occured with updating user. Please try again.");
+			retMap.put(ResourceUtility.ERROR_KEY, "Unknown error occurred with updating user. Please try again.");
 			return WebUtility.getResponse(retMap, 400);
 		}
 		return WebUtility.getResponse(ret, 200);
