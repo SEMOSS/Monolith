@@ -106,7 +106,7 @@ public class FormResource {
 			formEngine.commit();
 		} catch (Exception e) {
 			logger.error("Stacktrace: " , e);
-			return WebUtility.getResponse("An error occured to update the user's access!", 400);
+			return WebUtility.getResponse("An error occurred to update the user's access!", 400);
 		}
 
 		return WebUtility.getResponse("success", 200);

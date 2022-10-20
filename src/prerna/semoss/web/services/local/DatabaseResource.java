@@ -122,7 +122,7 @@ public class DatabaseResource {
 			currentSmssContent = IOUtils.readFileToString(currentSmssFile, StandardCharsets.UTF_8);
 		} catch (IOException e) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occured reading the current database smss details. Detailed message = " + e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred reading the current database smss details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		engine.closeDB();
@@ -140,11 +140,11 @@ public class DatabaseResource {
 			} catch(Exception e2) {
 				logger.error(Constants.STACKTRACE, e2);
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "A fatal error occured and could not revert the database to an operational state. Detailed message = " + e2.getMessage());
+				errorMap.put(Constants.ERROR_MESSAGE, "A fatal error occurred and could not revert the database to an operational state. Detailed message = " + e2.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occured initializing the new database details. Detailed message = " + e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred initializing the new database details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
