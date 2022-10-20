@@ -220,7 +220,7 @@ public class DBLoader implements ServletContextListener {
 	private void loadSmss(String pathKey) {
 		String pathValue = DIHelper.getInstance().getProperty(pathKey);
 		if(pathValue == null || pathValue.trim().isEmpty()) {
-			throw new NullPointerException("Error occured - could not find " + pathKey + " in RDF_Map.prop which is required for starting the application");
+			throw new NullPointerException("Error occurred - could not find " + pathKey + " in RDF_Map.prop which is required for starting the application");
 		}
 		
 		StringTokenizer watchers = new StringTokenizer(pathValue, ";");
