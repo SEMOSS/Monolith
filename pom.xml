@@ -295,6 +295,11 @@
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.semoss</groupId>
+			<artifactId>semoss-jdbc</artifactId>
+			<version>0.0.1</version>
+		</dependency>
 		<!-- 
 		<dependency>
 			<groupId>jdk.tools</groupId>
