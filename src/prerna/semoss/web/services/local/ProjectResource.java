@@ -687,21 +687,22 @@ public class ProjectResource {
 			paramMap.put("insightId", "new");
 			paramMap.put("expression", pixel);
 			requestWrapper.setParameters(paramMap);
+			logger.info("Executing open insight - jdbc");
 			Response resp = server.runPixelSync(requestWrapper);
+			logger.info("Done executing open insight - jdbc");
 
 			StreamingOutput utility = (StreamingOutput) resp.getEntity();
 			ByteArrayOutputStream output = new ByteArrayOutputStream();
 			try {
 				utility.write(output);
 				String s = new String(output.toByteArray());
-				System.out.println(s);
 				JSONObject obj = new JSONObject(s);
+				logger.info("Done flushing open insight data to JSON");
 				insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
-				System.err.println("Insight ID is " + insightId);				
 			} catch (WebApplicationException | IOException e) {
 	    		logger.error(Constants.STACKTRACE, e);
 			}
-		}		
+		}
 		// now we have the insight id.. execute
 		Insight insight = InsightStore.getInstance().get(insightId);
 		if(insight == null) {
@@ -763,18 +764,18 @@ public class ProjectResource {
 			paramMap.put("insightId", "new");
 			paramMap.put("expression", pixel);
 			requestWrapper.setParameters(paramMap);
+			logger.info("Executing open insight - jdbc_json");
 			Response resp = server.runPixelSync(requestWrapper);
+			logger.info("Done executing open insight - jdbc_json");
 
 			StreamingOutput utility = (StreamingOutput) resp.getEntity();
 			ByteArrayOutputStream output = new ByteArrayOutputStream();
 			try {
 				utility.write(output);
 				String s = new String(output.toByteArray());
-				System.out.println(s);
 				JSONObject obj = new JSONObject(s);
-				// pixelReturn[0].output.insightData.insightId
+				logger.info("Done flushing open insight data to JSON");
 				insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
-				System.err.println("Insight ID is " + insightId);				
 			} catch (WebApplicationException | IOException e) {
 	    		logger.error(Constants.STACKTRACE, e);
 			}
@@ -794,7 +795,6 @@ public class ProjectResource {
 			if(output == null) {
 				return WebUtility.getSO("Unable to generate output from sql: " + sql);
 			}
-	
 			return WebUtility.getSO(output);
 		} catch(Exception e) {
 			return WebUtility.getSO(e);
@@ -811,25 +811,23 @@ public class ProjectResource {
 			@Context HttpServletRequest request, 
 			@Context ResourceContext resourceContext) 
 	{
-		if(projectId == null)
+		if(projectId == null) {
 			projectId = "session";
-		//if(projectId.equalsIgnoreCase("session"))
+		}
 		{
 			// get the insight from the session
 			HttpSession session = request.getSession();
-			if(session == null)
+			if(session == null) {
 				return WebUtility.getSO("You are not authorized");
+			}
 			
-			if(sql == null)
-			{
+			if(sql == null) {
 				try {
 					sql = IOUtils.toString(request.getReader());
 					sql = sql.replace("'", "\\\'");
 					sql = sql.replace("\"", "\\\"");
-					//System.err.println(sql2);
-				} catch (IOException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
+				} catch (IOException e) {
+		    		logger.error(Constants.STACKTRACE, e);
 				}
 			}
 
@@ -843,25 +841,25 @@ public class ProjectResource {
 				paramMap.put("insightId", "new");
 				paramMap.put("expression", pixel);
 				requestWrapper.setParameters(paramMap);
+				logger.info("Executing open insight - jdbc_csv");
 				Response resp = server.runPixelSync(requestWrapper);
+				logger.info("Done executing open insight - jdbc_csv");
 				
 				StreamingOutput utility = (StreamingOutput) resp.getEntity();
 				ByteArrayOutputStream output = new ByteArrayOutputStream();
 				try {
 					utility.write(output);
 					String s = new String(output.toByteArray());
-					System.out.println(s);
 					JSONObject obj = new JSONObject(s);
-					// pixelReturn[0].output.insightData.insightId
+					logger.info("Done flushing open insight data to JSON");
 					insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
-					System.err.println("Insight ID is " + insightId);				
 				} catch (WebApplicationException | IOException e) {
-				e.printStackTrace();
+		    		logger.error(Constants.STACKTRACE, e);
 				}
-			}			
+			}
+			
 			Insight insight = InsightStore.getInstance().get(insightId);
-			if(insight != null)
-			{
+			if(insight != null) {
 				//sql = URLDecoder.decode(sql);
 				//sql = Utility.decodeURIComponent(sql);
 				// https://www.eso.org/~ndelmott/url_encode.html
@@ -881,8 +879,9 @@ public class ProjectResource {
 				if(output != null)
 					return WebUtility.getSOFile(output+"");					
 			}
-			else
+			else {
 				return WebUtility.getSO("No such insight");
+			}
 		}
 		return null;
 	}
