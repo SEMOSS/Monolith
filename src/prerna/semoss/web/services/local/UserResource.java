@@ -55,6 +55,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.NewCookie;
@@ -156,7 +157,8 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/logout/{provider}")
-	public Response logout(@PathParam("provider") String provider, @Context HttpServletRequest request,
+	public Response logout(@PathParam("provider") String provider, @QueryParam("disableRedirect") boolean disableRedirect,
+			@Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws IOException {
 		boolean noUser = false;
 		boolean removed = false;
@@ -213,41 +215,43 @@ public class UserResource {
 			if (AbstractSecurityUtils.securityEnabled()) {
 				logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "has logged out from all providers in the session"));
 				// well, you have logged out and we always require a login
-				// so i will redirect you
-				response.setStatus(302);
+				// so i will redirect you by default unless you specifically say not to
+				if(!disableRedirect) {
+					response.setStatus(302);
 
-				String customUrl = DBLoader.getCustomLogoutUrl();
-				if (customUrl != null && !customUrl.isEmpty()) {
-					response.setHeader("redirect", customUrl);
-					response.sendError(302, "Need to redirect to " + customUrl);
-				} else {
-					String redirectUrl = request.getHeader("referer");
-					if (DBLoader.useLogoutPage()) {
-						String scheme = request.getScheme();
-						if (!scheme.trim().equalsIgnoreCase("https") &&
-							!scheme.trim().equalsIgnoreCase("http")) {
-							throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
-						}
-						String serverName = request.getServerName(); // hostname.com
-						int serverPort = request.getServerPort(); // 8080
-						String contextPath = request.getContextPath(); // /Monolith
-
-						redirectUrl = "";
-						redirectUrl += scheme + "://" + serverName;
-						if (serverPort != 80 && serverPort != 443) {
-							redirectUrl += ":" + serverPort;
-						}
-						redirectUrl += contextPath + "/logout/";
-						response.setHeader("redirect", redirectUrl);
-						response.sendError(302, "Need to redirect to " + redirectUrl);
+					String customUrl = DBLoader.getCustomLogoutUrl();
+					if (customUrl != null && !customUrl.isEmpty()) {
+						response.setHeader("redirect", customUrl);
+						response.sendError(302, "Need to redirect to " + customUrl);
 					} else {
-						redirectUrl = redirectUrl + "#!/login";
-						String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-						response.setHeader("redirect", encodedRedirectUrl);
-						response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
+						String redirectUrl = request.getHeader("referer");
+						if (DBLoader.useLogoutPage()) {
+							String scheme = request.getScheme();
+							if (!scheme.trim().equalsIgnoreCase("https") &&
+								!scheme.trim().equalsIgnoreCase("http")) {
+								throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
+							}
+							String serverName = request.getServerName(); // hostname.com
+							int serverPort = request.getServerPort(); // 8080
+							String contextPath = request.getContextPath(); // /Monolith
+	
+							redirectUrl = "";
+							redirectUrl += scheme + "://" + serverName;
+							if (serverPort != 80 && serverPort != 443) {
+								redirectUrl += ":" + serverPort;
+							}
+							redirectUrl += contextPath + "/logout/";
+							response.setHeader("redirect", redirectUrl);
+							response.sendError(302, "Need to redirect to " + redirectUrl);
+						} else {
+							redirectUrl = redirectUrl + "#!/login";
+							String encodedRedirectUrl = Encode.forHtml(redirectUrl);
+							response.setHeader("redirect", encodedRedirectUrl);
+							response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
+						}
 					}
 				}
-
+				
 				// remove the cookie from the browser
 				// for the session id
 				logger.info("Removing session token");
