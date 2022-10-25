@@ -126,8 +126,10 @@ public class DatabaseResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		engine.closeDB();
-		try (FileWriter fw = new FileWriter(currentSmssFile, false)){
-			fw.write(newSmssContent);
+		try {
+			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
+				fw.write(newSmssContent);
+			}
 			engine.openDB(currentSmssFileLocation);
 		} catch(Exception e) {
 			logger.error(Constants.STACKTRACE, e);
