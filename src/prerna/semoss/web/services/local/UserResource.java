@@ -105,6 +105,7 @@ import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.util.git.GitRepoUtils;
+import prerna.util.ldap.ILdapAuthenticator;
 import prerna.web.conf.DBLoader;
 import prerna.web.conf.NoUserInSessionFilter;
 import prerna.web.services.util.WebUtility;
@@ -2057,6 +2058,55 @@ public class UserResource {
 			}
 			logger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(ret, 500);
+		}
+
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Authenticates an user that's trying to log in.
+	 * 
+	 * @param request
+	 * @return true if the information provided to log in is valid otherwise error.
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("/loginLDAP")
+	public Response loginLDAP(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+		Map<String, String> ret = new HashMap<>();
+		try {
+			String username = request.getParameter("username");
+			String password = request.getParameter("password");
+			String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+			// so that the default is to redirect
+			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
+
+			if(username == null || password == null || username.isEmpty() || password.isEmpty()) {
+				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
+				return WebUtility.getResponse(ret, 401);
+			}
+			
+			ILdapAuthenticator authenticator = socialData.getLdapAuthenticator();
+			AccessToken authToken = authenticator.authenticate(username, password);
+			// no need to auto-add since to login native you must already exist
+			addAccessToken(authToken, request, false);
+			SecurityUpdateUtils.validateUserLogin(authToken);
+
+			// log the log in
+			if (!disableRedirect) {
+				setMainPageRedirect(request, response, redirect);
+			}
+		} catch (Exception e) {
+			HttpSession session = request.getSession(false);
+			if(session != null) {
+				User user = (User) session.getAttribute(Constants.SESSION_USER);
+				if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+					session.invalidate();
+				}
+			}
+			logger.error(Constants.STACKTRACE, e);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 500);
 		}
 
