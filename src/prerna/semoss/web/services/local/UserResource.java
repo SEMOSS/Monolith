@@ -2089,8 +2089,8 @@ public class UserResource {
 			
 			ILdapAuthenticator authenticator = socialData.getLdapAuthenticator();
 			AccessToken authToken = authenticator.authenticate(username, password);
-			// no need to auto-add since to login native you must already exist
-			addAccessToken(authToken, request, false);
+			boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(ILdapAuthenticator.LDAP + "auto_add", "true"));
+			addAccessToken(authToken, request, autoAdd);
 			SecurityUpdateUtils.validateUserLogin(authToken);
 
 			// log the log in
