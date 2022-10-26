@@ -692,8 +692,7 @@ public class ProjectResource {
 			logger.info("Done executing open insight - jdbc");
 
 			StreamingOutput utility = (StreamingOutput) resp.getEntity();
-			ByteArrayOutputStream output = new ByteArrayOutputStream();
-			try {
+			try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
 				utility.write(output);
 				String s = new String(output.toByteArray());
 				JSONObject obj = new JSONObject(s);
@@ -769,8 +768,7 @@ public class ProjectResource {
 			logger.info("Done executing open insight - jdbc_json");
 
 			StreamingOutput utility = (StreamingOutput) resp.getEntity();
-			ByteArrayOutputStream output = new ByteArrayOutputStream();
-			try {
+			try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
 				utility.write(output);
 				String s = new String(output.toByteArray());
 				JSONObject obj = new JSONObject(s);
@@ -846,8 +844,7 @@ public class ProjectResource {
 				logger.info("Done executing open insight - jdbc_csv");
 				
 				StreamingOutput utility = (StreamingOutput) resp.getEntity();
-				ByteArrayOutputStream output = new ByteArrayOutputStream();
-				try {
+				try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
 					utility.write(output);
 					String s = new String(output.toByteArray());
 					JSONObject obj = new JSONObject(s);
