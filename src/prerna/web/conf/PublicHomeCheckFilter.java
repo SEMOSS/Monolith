@@ -81,7 +81,7 @@ public class PublicHomeCheckFilter implements Filter {
 
 				if(appAllowed)
 				{
-					boolean mapComplete = Utility.getProject(possibleEngineId).publish(realPath + public_home, possibleEngineId);
+					boolean mapComplete = Utility.getProject(possibleEngineId).publish(realPath + public_home);
 					if(mapComplete)
 					{
 						arg2.doFilter(arg0, arg1);
