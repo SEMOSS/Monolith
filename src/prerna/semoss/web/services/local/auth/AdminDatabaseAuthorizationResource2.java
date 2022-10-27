@@ -184,7 +184,13 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		return WebUtility.getResponse(adminUtils.getDatabaseUsers(databaseId, userId, permission, limit, offset), 200);
+		Map<String, Object> ret = new HashMap<String, Object>();
+		List<Map<String, Object>> members = adminUtils.getDatabaseUsers(databaseId, userId, permission, limit, offset);
+		long totalMembers = SecurityAdminUtils.getDatabaseUsersCount(databaseId, userId, permission);
+		ret.put("totalMembers", totalMembers);
+		ret.put("members", members);
+
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	/**

@@ -180,8 +180,12 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
-		return WebUtility.getResponse(adminUtils.getProjectUsers(projectId, userId, permission, limit, offset), 200);
+		List<Map<String, Object>> members = adminUtils.getProjectUsers(projectId, userId, permission, limit, offset);
+		long totalMembers = SecurityAdminUtils.getProjectUsersCount(projectId, userId, permission);
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("totalMembers", totalMembers);
+		ret.put("Members", members);
+		return WebUtility.getResponse(ret, 200);
 	}
 	
 	/**

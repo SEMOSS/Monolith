@@ -114,9 +114,12 @@ public class ProjectAuthorizationResource  {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<Map<String, Object>> ret = null;
+		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			ret = SecurityProjectUtils.getProjectUsers(user, projectId, userId, permission, limit, offset);
+			List<Map<String, Object>> members = SecurityProjectUtils.getProjectUsers(user, projectId, userId, permission, limit, offset);
+			long totalMembers = SecurityProjectUtils.getProjectUsersCount(user, projectId, userId, permission);
+			ret.put("totalMembers", totalMembers);
+			ret.put("members", members);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
