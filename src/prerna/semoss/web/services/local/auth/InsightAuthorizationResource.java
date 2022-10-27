@@ -114,9 +114,12 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<Map<String, Object>> ret = null;
+		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			ret = SecurityInsightUtils.getInsightUsers(user, projectId, insightId, userId, permission, limit, offset);
+			List<Map<String, Object>> members = SecurityInsightUtils.getInsightUsers(user, projectId, insightId, userId, permission, limit, offset);
+			long totalMembers = SecurityInsightUtils.getInsightUsersCount(user, projectId, insightId, userId, permission);
+			ret.put("totalMembers", totalMembers);
+			ret.put("members", members);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull permission details for insight " + insightId + " in project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
