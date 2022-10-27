@@ -161,15 +161,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<Map<String, Object>> ret = null;
-		try {
-			ret = adminUtils.getInsightUsers(projectId, insightId, userId, permission, limit, offset);
-		} catch (IllegalAccessException e) {
-			logger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
+		Map<String, Object> ret = new HashMap<String, Object>();
+		List<Map<String, Object>> members = adminUtils.getInsightUsers(projectId, insightId, userId, permission, limit, offset);
+		long totalMembers = SecurityAdminUtils.getInsightUsersCount(projectId, insightId, userId, permission);
+		ret.put("totalMembers", totalMembers);
+		ret.put("members", members);
 		
 		return WebUtility.getResponse(ret, 200);
 	}
