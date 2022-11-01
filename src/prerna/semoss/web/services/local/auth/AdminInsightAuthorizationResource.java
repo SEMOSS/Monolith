@@ -1,5 +1,6 @@
 package prerna.semoss.web.services.local.auth;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,43 @@ import prerna.web.services.util.WebUtility;
 public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 
 	private static final Logger logger = LogManager.getLogger(AdminInsightAuthorizationResource.class);
+	
+	/**
+	 * Get the insights of user
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getInsights")
+	public Response getInsights(@Context HttpServletRequest request,
+			@QueryParam("projectId") String projectId, 
+			@QueryParam("searchTerm") String searchTerm, 
+			@QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to see all the insights when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		List<String> projectFilter = null;
+		if(projectId != null && !(projectId=projectId.trim()).isEmpty()) {
+			projectFilter = new ArrayList<>();
+			projectFilter.add(projectId);
+		}
+		
+		List<Map<String, Object>> ret = adminUtils.getAllUserInsights(user, projectFilter, searchTerm, limit, offset);
+		return WebUtility.getResponse(ret, 200);
+	}
 
 	/**
 	 * Get the insights for the project

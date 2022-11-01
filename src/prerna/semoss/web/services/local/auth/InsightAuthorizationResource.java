@@ -1,5 +1,6 @@
 package prerna.semoss.web.services.local.auth;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,41 @@ import prerna.web.services.util.WebUtility;
 public class InsightAuthorizationResource {
 
 	private static final Logger logger = LogManager.getLogger(InsightAuthorizationResource.class);
+	
+	/**
+	 * Get the insights of user
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getInsights")
+	public Response getInsights(@Context HttpServletRequest request, 
+			@QueryParam("projectId") String projectId, 
+			@QueryParam("searchTerm") String searchTerm, 
+			@QueryParam("limit") String limit,
+			@QueryParam("offset") String offset) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		List<String> projectFilter = null;
+		if(projectId != null && !(projectId=projectId.trim()).isEmpty()) {
+			projectFilter = new ArrayList<>();
+			projectFilter.add(projectId);
+		}
+		
+		List<Map<String, Object>> ret = SecurityInsightUtils.searchUserInsights(user, projectFilter, searchTerm, false, null, null, limit, offset);
+		return WebUtility.getResponse(ret, 200);
+	}
 	
 	/**
 	 * Get the insights the user can edit in the project
