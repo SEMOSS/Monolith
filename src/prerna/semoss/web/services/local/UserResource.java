@@ -28,6 +28,7 @@
 package prerna.semoss.web.services.local;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -44,8 +45,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.Vector;
 
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -62,6 +65,17 @@ import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.kohsuke.github.GHMyself;
@@ -124,7 +138,7 @@ public class UserResource {
 	@GET
 	@Path("/logins")
 	public Response getAllLogins(@Context HttpServletRequest request) {
-		List<NewCookie> newCookies = new Vector<>();
+		List<NewCookie> newCookies = new ArrayList<>();
 		HttpSession session = request.getSession(false);
 		User semossUser = null;
 		if (session != null) {
@@ -2112,6 +2126,151 @@ public class UserResource {
 
 		return WebUtility.getResponse(ret, 200);
 	}
+	
+	/**
+	 * One Time Passcode using LinOTP
+	 * 
+	 * @param request
+	 * @return true if the information provided to log in is valid otherwise error.
+	 * @throws IOException 
+	 * @throws ClientProtocolException 
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("/loginLinOTP")
+	public Response loginLinOTP(@Context HttpServletRequest request, @Context HttpServletResponse response) throws ClientProtocolException, IOException {
+		final String LINOTP_USERNAME = "username";
+		final String LINOTP_TRANSACTION = "transactionId";
+		
+		Map<String, String> ret = new HashMap<>();
+		// https://YOUR_LINOTP_SERVER/validate/check?user=USERNAME&pass=PINOTP
+		final String prefix = "linotp_";
+		final String hostname = socialData.getProperty(prefix + "hostname");
+		final String realm = socialData.getProperty(prefix + "realm");
+		
+        String controller = "validate";
+        String action = "check";
+        String requestURL = "https://" + hostname + "/" + controller + "/" + action;
+        String username = request.getParameter("username");
+		String pin = request.getParameter("pin");
+		String otp = request.getParameter("otp");
+		String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		// so that the default is to redirect
+		Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
+		boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+
+		if(username == null || (pin == null && otp == null) || username.isEmpty() || (pin.isEmpty() && otp.isEmpty())) {
+			ret.put(Constants.ERROR_MESSAGE, "The user name or pin are empty.");
+			return WebUtility.getResponse(ret, 401);
+		}
+		
+		if (otp==null) {
+			// first, request for challenge request using user pin
+			// Create HTTP request via ssl port (https) and pass post parameters
+	        CloseableHttpClient httpclient = HttpClients
+	        	    .custom()
+	        	    .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+	        	    .build();
+	        try {
+	            HttpPost httpPost = new HttpPost(requestURL);
+	            List <NameValuePair> nvps = new ArrayList <NameValuePair>();
+	            nvps.add(new BasicNameValuePair("user", username));
+	            nvps.add(new BasicNameValuePair("pass", pin));
+	            nvps.add(new BasicNameValuePair("realm", realm));
+	            httpPost.setEntity(new UrlEncodedFormEntity(nvps));
+	            CloseableHttpResponse postResponse = httpclient.execute(httpPost);
+	            try {
+	                HttpEntity entity = postResponse.getEntity();
+	                String s_response = EntityUtils.toString(entity);
+	                JsonReader reader = Json.createReader(new StringReader(s_response));
+	                JsonObject j_response = reader.readObject();
+	                //parse json response for result value
+	                JsonObject j_result = j_response.getJsonObject("result");
+	                Boolean authenticated = j_result.getBoolean("value", false);
+	                if (authenticated) {
+	        			if (!disableRedirect) {
+	        				setMainPageRedirect(request, response, redirect);
+	        			}
+	                } else {
+	                	// challenge request flow
+	                	if (j_response.containsKey("detail")) {
+	                		JsonObject j_detail = j_response.getJsonObject("detail");
+			                String transactionId = j_detail.getString("transactionid");
+			                HttpSession session = request.getSession();
+			                session.setAttribute(LINOTP_USERNAME, username);
+			                session.setAttribute(LINOTP_TRANSACTION, transactionId);
+	                	} else {
+	                		ret.put(Constants.ERROR_MESSAGE, "The user name or pin/password are invalid.");
+	 	    				return WebUtility.getResponse(ret, 401);
+	                	}
+	                }
+	                // consume will release the entity
+	                EntityUtils.consume(entity);
+	            } finally {
+	            	postResponse.close();
+	            }
+	        } finally {
+	            httpclient.close();
+	        }
+		} else {
+			// subsequent challenge request with otp
+			// Create HTTP request via ssl port (https) and pass post parameters
+	        CloseableHttpClient httpclient = HttpClients
+	        	    .custom()
+	        	    .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+	        	    .build();
+	        try {
+	            HttpPost httpPost = new HttpPost(requestURL);
+	            HttpSession session = request.getSession();
+                username = (String) session.getAttribute(LINOTP_USERNAME);
+                String transactionId = (String) session.getAttribute(LINOTP_TRANSACTION);
+                if(username == null || username.isEmpty() || transactionId == null || transactionId.isEmpty()) {
+	                ret.put(Constants.ERROR_MESSAGE, "The user must re-enter their username and password before proceeding to enter their 2FA pin");
+	 				return WebUtility.getResponse(ret, 401);
+                }
+                
+	            List <NameValuePair> nvps = new ArrayList <NameValuePair>();
+	            nvps.add(new BasicNameValuePair("user", username));
+	            nvps.add(new BasicNameValuePair("pass", otp));
+	            nvps.add(new BasicNameValuePair("transactionid", transactionId));
+	            httpPost.setEntity(new UrlEncodedFormEntity(nvps));
+	            CloseableHttpResponse postResponse = httpclient.execute(httpPost);
+	            try {
+	                HttpEntity entity = postResponse.getEntity();
+	                String s_response = EntityUtils.toString(entity);
+	                JsonReader reader = Json.createReader(new StringReader(s_response));
+	                JsonObject j_response = reader.readObject();
+	                //parse json response for result value
+	                JsonObject j_result = j_response.getJsonObject("result");
+	                Boolean authenticated = j_result.getBoolean("value", false);
+	
+	                if (authenticated) {
+	                	AccessToken newUser = new AccessToken();
+	        			newUser.setProvider(AuthProvider.LINOTP);
+	        			newUser.setId(username);
+	        			newUser.setUsername(username);
+	        			addAccessToken(newUser, request, autoAdd);
+	                 // log the log in
+	        			if (!disableRedirect) {
+	        				setMainPageRedirect(request, response, redirect);
+	        			}
+	                }
+	                else {
+	                    ret.put(Constants.ERROR_MESSAGE, "The username or one-time passcode are invalid.");
+	    				return WebUtility.getResponse(ret, 401);
+	                }
+	                // consume will release the entity
+	                EntityUtils.consume(entity);
+	            } finally {
+	            	postResponse.close();
+	            }
+	        } finally {
+	            httpclient.close();
+	        }
+        }
+
+		return WebUtility.getResponse(ret, 200);
+		}
 
 	/**
 	 * Create an user according to the information provided (user name, password,
@@ -2409,7 +2568,7 @@ public class UserResource {
 			output.put("name", principal.getName());
 			if (principal instanceof WindowsPrincipal) {
 				WindowsPrincipal windowsPrincipal = (WindowsPrincipal) principal;
-				List<Map<String, Object>> gropus = new Vector<>();
+				List<Map<String, Object>> gropus = new ArrayList<>();
 				for (waffle.windows.auth.WindowsAccount account : windowsPrincipal.getGroups().values()) {
 					Map<String, Object> m = new HashMap<>();
 					m.put("name", account.getName());
