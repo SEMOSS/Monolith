@@ -2106,7 +2106,8 @@ public class UserResource {
 			boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(ILdapAuthenticator.LDAP + "auto_add", "true"));
 			addAccessToken(authToken, request, autoAdd);
 			SecurityUpdateUtils.validateUserLogin(authToken);
-
+			ret.put("success", "true");
+			ret.put("username", username);
 			// log the log in
 			if (!disableRedirect) {
 				setMainPageRedirect(request, response, redirect);
@@ -2141,6 +2142,7 @@ public class UserResource {
 	public Response loginLinOTP(@Context HttpServletRequest request, @Context HttpServletResponse response) throws ClientProtocolException, IOException {
 		final String LINOTP_USERNAME = "username";
 		final String LINOTP_TRANSACTION = "transactionId";
+		final String OTP = "OTP";
 		
 		Map<String, String> ret = new HashMap<>();
 		// https://YOUR_LINOTP_SERVER/validate/check?user=USERNAME&pass=PINOTP
@@ -2199,6 +2201,8 @@ public class UserResource {
 			                HttpSession session = request.getSession();
 			                session.setAttribute(LINOTP_USERNAME, username);
 			                session.setAttribute(LINOTP_TRANSACTION, transactionId);
+			                ret.put(OTP, "Please get OTP code.");
+			                return WebUtility.getResponse(ret, 200);
 	                	} else {
 	                		ret.put(Constants.ERROR_MESSAGE, "The user name or pin/password are invalid.");
 	 	    				return WebUtility.getResponse(ret, 401);
@@ -2250,7 +2254,9 @@ public class UserResource {
 	        			newUser.setId(username);
 	        			newUser.setUsername(username);
 	        			addAccessToken(newUser, request, autoAdd);
-	                 // log the log in
+	    				ret.put("success", "true");
+	    				ret.put("username", username);
+	        			// log the log in
 	        			if (!disableRedirect) {
 	        				setMainPageRedirect(request, response, redirect);
 	        			}
@@ -2270,7 +2276,7 @@ public class UserResource {
         }
 
 		return WebUtility.getResponse(ret, 200);
-		}
+	}
 
 	/**
 	 * Create an user according to the information provided (user name, password,
@@ -2420,9 +2426,7 @@ public class UserResource {
 	 * 
 	 * @param response
 	 */
-	private void setMainPageRedirect(@Context HttpServletRequest request, 
-			@Context HttpServletResponse response,
-			String customRedirect) {
+	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response, String customRedirect) {
 		// see if we have a location to redirect the user
 		// if so, we will send them back to that URL
 		// otherwise, we send them back to the FE
