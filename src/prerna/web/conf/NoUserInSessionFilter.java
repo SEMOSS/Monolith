@@ -71,6 +71,7 @@ public class NoUserInSessionFilter implements Filter {
 		ignoreDueToFE.add("auth/loginsAllowed");
 		ignoreDueToFE.add("auth/login");
 		ignoreDueToFE.add("auth/loginLDAP");
+		ignoreDueToFE.add("auth/loginLinOTP");
 		ignoreDueToFE.add("auth/createUser");
 		ignoreDueToFE.add("auth/whoami");
 		ignoreDueToFE.add("auth/user/setupResetPassword");
