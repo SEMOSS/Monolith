@@ -2146,20 +2146,20 @@ public class UserResource {
 		
 		Map<String, String> ret = new HashMap<>();
 		// https://YOUR_LINOTP_SERVER/validate/check?user=USERNAME&pass=PINOTP
-		final String prefix = "linotp_";
-		final String hostname = socialData.getProperty(prefix + "hostname");
-		final String realm = socialData.getProperty(prefix + "realm");
+		// final String prefix = "linotp_";
+		final String hostname = socialData.getProperty("linotp_hostname"); // removed prefix for text searchability when looking for linotp_hostname
+		final String realm = socialData.getProperty("linotp_realm");
 		
         String controller = "validate";
         String action = "check";
-        String requestURL = "https://" + hostname + "/" + controller + "/" + action;
+        String requestURL = hostname + "/" + controller + "/" + action; //"https://" + removed for consistency in social.properties
         String username = request.getParameter("username");
 		String pin = request.getParameter("pin");
 		String otp = request.getParameter("otp");
 		String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
 		// so that the default is to redirect
 		Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
-		boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+		boolean autoAdd = Boolean.parseBoolean(socialData.getProperty("linotp_auto_add", "true"));
 
 		if(username == null || (pin == null && otp == null) || username.isEmpty() || (pin.isEmpty() && otp.isEmpty())) {
 			ret.put(Constants.ERROR_MESSAGE, "The user name or pin are empty.");
@@ -2236,6 +2236,7 @@ public class UserResource {
 	            List <NameValuePair> nvps = new ArrayList <NameValuePair>();
 	            nvps.add(new BasicNameValuePair("user", username));
 	            nvps.add(new BasicNameValuePair("pass", otp));
+	            nvps.add(new BasicNameValuePair("realm", realm));
 	            nvps.add(new BasicNameValuePair("transactionid", transactionId));
 	            httpPost.setEntity(new UrlEncodedFormEntity(nvps));
 	            CloseableHttpResponse postResponse = httpclient.execute(httpPost);
