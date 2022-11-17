@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import prerna.auth.User;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.util.Constants;
 
 public class FilespaceAccessFilter implements Filter {
@@ -36,7 +37,7 @@ public class FilespaceAccessFilter implements Filter {
 					String appRoot = appHome.substring(0, appRootIndex);
 					String [] appRootElements = appRoot.split("__");
 					User user = (User) hsr.getSession().getAttribute(Constants.SESSION_USER);
-					if(user.checkProjectAccess(appRootElements[0], appRootElements[1])) {
+					if(SecurityProjectUtils.userCanViewProject(user, appRootElements[1])) {
 						chain.doFilter(request, response);
 					} else {
 						((HttpServletResponse)response).sendError(HttpServletResponse.SC_FORBIDDEN, " You are not allowed to access that resource ");;
