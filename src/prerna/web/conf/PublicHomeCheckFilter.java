@@ -42,74 +42,67 @@ public class PublicHomeCheckFilter implements Filter {
 		
 		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
 		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
-		User user = null;
-		if (session != null) {
-			// System.out.println("Session ID >> " + session.getId());
-			user = (User) session.getAttribute(Constants.SESSION_USER);
+		
+		String public_home = "/public_home";
+		if(DIHelper.getInstance().getProperty(Settings.PUBLIC_HOME) != null) {
+			public_home = DIHelper.getInstance().getProperty(Settings.PUBLIC_HOME);
 		}
-		if(user != null)
-		{
-			String public_home = "/public_home";
-			if(DIHelper.getInstance().getProperty(Settings.PUBLIC_HOME) != null)
-				public_home = DIHelper.getInstance().getProperty(Settings.PUBLIC_HOME);
-
-
-			//public_home = "";
-			// this will be the deployment name of the app
-			//  Context Path  - this is already / Monolith
-			String contextPath = context.getContextPath() + public_home ;
-			String realPath = context.getRealPath(File.separator);
+		
+		// this will be the deployment name of the app
+		//  Context Path  - this is already / Monolith
+		String contextPath = context.getContextPath() + public_home ;
+		String realPath = context.getRealPath(File.separator);
+		
+		// try to get the project id
+		String projectId = fullUrl.substring(fullUrl.indexOf(contextPath) + contextPath.length() + 1);
+		projectId = projectId.substring(0, projectId.indexOf("/"));
+		
+	
+		if(!Strings.isNullOrEmpty(projectId)) {
+			// check if the alias exists, if it does the project probably exists
+			String alias = SecurityProjectUtils.getProjectAliasForId(projectId);
 			
-			// https://server/Monolith/public_home/engineid/resource
-			// plus 1 is the / on monolith
-			
-			String possibleEngineId = fullUrl.substring(fullUrl.indexOf(contextPath) + contextPath.length() + 1);
-			possibleEngineId = possibleEngineId.substring(0, possibleEngineId.indexOf("/"));
-			
-			// this is engine id ?! why are we splitting!
-			//String [] engTokens = possibleEngineId.split("__");
-			
-			String alias = SecurityProjectUtils.getProjectAliasForId(possibleEngineId);
-			if(!Strings.isNullOrEmpty(alias) && !Strings.isNullOrEmpty(possibleEngineId))
-			{
-				boolean appAllowed = user.checkProjectAccess(alias, possibleEngineId);
-			
-				File phomeFile = new File(realPath + public_home); // try to create the public home from scratch
+			if(!Strings.isNullOrEmpty(alias)) {
+				// check if the project is global				
+				boolean allowed = SecurityProjectUtils.projectIsGlobal(projectId);
 				
-				if(!phomeFile.exists())
-					phomeFile.mkdir();
-
-				if(appAllowed)
-				{
-					boolean mapComplete = Utility.getProject(possibleEngineId).publish(realPath + public_home);
-					if(mapComplete)
-					{
-						arg2.doFilter(arg0, arg1);
-						return;
-					}
-					else
-					{
-						arg1.getWriter().write("Publish is not enabled on this application or there was an error publishing this application" );
-//						String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + APP_NOT_PUBLISHED;
-//						((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-//						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
-						return;
-					}
+				// check if there is a user and the user can access the project
+				if (!allowed && session != null) {
+					User user = (User) session.getAttribute(Constants.SESSION_USER);
+					
+					allowed = user.checkProjectAccess(alias, projectId);
+					
 				}
-				else
-				{
-					// send the user to some kind of page to say the user doesnt have access to this app
-					arg1.getWriter().write("App does not exist or You do not have acess to this application" );
-//					String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_SUCH_APP;
-//					((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-//					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
-					return;
+				
 
+				if(allowed) {
+					// try to create the public home from scratch
+					File phomeFile = new File(realPath + public_home); 
+					
+					// make the directory if it doesn't exist
+					if(!phomeFile.exists()) {
+						phomeFile.mkdir();
+					}
+
+						boolean mapComplete = Utility.getProject(projectId).publish(realPath + public_home);
+						if(mapComplete) {
+							arg2.doFilter(arg0, arg1);
+							return;
+						} else {
+							arg1.getWriter().write("Publish is not enabled on this project or there was an error publishing this project" );
+//							String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + APP_NOT_PUBLISHED;
+//							((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+//							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+							return;
+						}	
+				} else {
+					arg1.getWriter().write("You do not have access to this project" );
+					return;
 				}
 			}
 		}
 
-		arg1.getWriter().write("You are trying to access an asset without being logged in, please log in first and then try again");
+		arg1.getWriter().write("Cannot find project");
 		return;
 	}
 		
