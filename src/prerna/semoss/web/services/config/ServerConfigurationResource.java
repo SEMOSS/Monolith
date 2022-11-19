@@ -107,7 +107,6 @@ public class ServerConfigurationResource {
 		loadConfig.put("adminOnlyInsightAddAccess", AbstractSecurityUtils.adminOnlyInsightAddAccess());
 		loadConfig.put("adminOnlyInsightSetPublic", AbstractSecurityUtils.adminOnlyInsightSetPublic());
 		loadConfig.put("adminOnlyInsightShare", AbstractSecurityUtils.adminOnlyInsightShare());
-		loadConfig.put("adminOnlyInsightShareSession", AbstractSecurityUtils.adminOnlyInsightShareSession());
 		
 		// return a boolean if we want to use a dedicated logout page
 		// instead of redirecting to the login page
