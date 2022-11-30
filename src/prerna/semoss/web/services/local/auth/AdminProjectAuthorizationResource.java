@@ -184,7 +184,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		long totalMembers = SecurityAdminUtils.getProjectUsersCount(projectId, userId, permission);
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("totalMembers", totalMembers);
-		ret.put("Members", members);
+		ret.put("members", members);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
