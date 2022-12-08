@@ -22,7 +22,7 @@ import prerna.ds.py.PyUtils;
 import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.tcp.client.Client;
+import prerna.tcp.client.SocketClient;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -139,7 +139,7 @@ public class UserSessionLoader implements HttpSessionListener {
 		try {
 			// stop the netty thread if used for either r or python
 			if(thisUser != null) {
-				Client nc = thisUser.getTCPServer(false);
+				SocketClient nc = thisUser.getTCPServer(false);
 				if(nc != null) {
 					String dir = thisUser.pyTupleSpace;
 					nc.stopPyServe(dir);
