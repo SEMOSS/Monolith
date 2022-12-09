@@ -31,6 +31,7 @@ import com.google.gson.reflect.TypeToken;
 import net.snowflake.client.jdbc.internal.apache.tika.mime.MimeType;
 import net.snowflake.client.jdbc.internal.apache.tika.mime.MimeTypeException;
 import net.snowflake.client.jdbc.internal.apache.tika.mime.MimeTypes;
+import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityInsightUtils;
@@ -203,8 +204,8 @@ public class FileUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 			
+		User user = in.getUser();
 		if(AbstractSecurityUtils.securityEnabled()) {
-			User user = in.getUser();
 			if(user == null) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("errorMessage", "Session could not be validated in order to upload files");
@@ -248,7 +249,7 @@ public class FileUploader extends Uploader {
 		try {
 			List<FileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
-			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, projectId);
+			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, projectId, user);
 			// clear the thread store
 			return WebUtility.getResponse(inputData, 200);
 		} catch(Exception e) {
@@ -269,13 +270,21 @@ public class FileUploader extends Uploader {
 	 * @param projectId
 	 * @return
 	 */
-	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String projectId) {
+	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String projectId, User user) {
 		// get base asset folder
 		String assetFolder = null;
 		String fePath = DIR_SEPARATOR;
 		if (projectId != null) {
-			IProject project = Utility.getProject(projectId);
-			assetFolder = AssetUtility.getProjectBaseFolder(project.getProjectName(), projectId);
+			if(projectId.equals("user")) {
+				AuthProvider provider = user.getPrimaryLogin();
+				projectId = user.getAssetProjectId(provider);
+				IProject project = Utility.getUserAssetWorkspaceProject(projectId, true);
+				String projectName = "Asset";
+				assetFolder = AssetUtility.getUserAssetAndWorkspaceBaseFolder(projectName, projectId);
+			} else {
+				IProject project = Utility.getProject(projectId);
+				assetFolder = AssetUtility.getProjectBaseFolder(project.getProjectName(), projectId);
+			}
 		} else {
 			assetFolder = in.getInsightFolder();
 		}
