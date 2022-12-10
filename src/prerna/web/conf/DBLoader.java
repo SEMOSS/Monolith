@@ -313,7 +313,13 @@ public class DBLoader implements ServletContextListener {
 
 		logger.log(SHUTDOWN, "Closing scheduler");
 		SchedulerFactorySingleton.getInstance().shutdownScheduler(true);
-
+		engine = Utility.getEngine(Constants.SCHEDULER_DB);
+		if (engine != null) {
+			logger.log(SHUTDOWN, "Closing database " + Constants.SCHEDULER_DB);
+			engine.closeDB();
+		} else {
+			logger.log(SHUTDOWN, "Couldn't find database " + Constants.SCHEDULER_DB);
+		}
 		// close r
 		try {
 			RJavaTranslatorFactory.stopRConnection();
