@@ -2161,8 +2161,13 @@ public class UserResource {
 		Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 		boolean autoAdd = Boolean.parseBoolean(socialData.getProperty("linotp_auto_add", "true"));
 
-		if(username == null || (pin == null && otp == null) || username.isEmpty() || (pin.isEmpty() && otp.isEmpty())) {
-			ret.put(Constants.ERROR_MESSAGE, "The user name or pin are empty.");
+		if(username == null || username.isEmpty()) {
+			ret.put(Constants.ERROR_MESSAGE, "The user name cannot be null or empty.");
+			return WebUtility.getResponse(ret, 401);
+		}
+		
+		if( (pin == null || pin.isEmpty()) && (otp == null || otp.isEmpty())) {
+			ret.put(Constants.ERROR_MESSAGE, "Must be providing either a pin or otp");
 			return WebUtility.getResponse(ret, 401);
 		}
 		
