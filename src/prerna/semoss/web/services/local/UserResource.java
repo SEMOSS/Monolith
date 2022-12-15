@@ -2196,6 +2196,18 @@ public class UserResource {
 	                JsonObject j_result = j_response.getJsonObject("result");
 	                Boolean authenticated = j_result.getBoolean("value", false);
 	                if (authenticated) {
+	                	// this means we have authenticated
+	                	// and there is no policy requiring an otp
+	                	// just the initial login is being performed where that
+	                	// pin can be defined as the ldap password or the otp pin
+	                	AccessToken newUser = new AccessToken();
+	        			newUser.setProvider(AuthProvider.LINOTP);
+	        			newUser.setId(username);
+	        			newUser.setUsername(username);
+	        			addAccessToken(newUser, request, autoAdd);
+	    				ret.put("success", "true");
+	    				ret.put("username", username);
+	        			// log the log in
 	        			if (!disableRedirect) {
 	        				setMainPageRedirect(request, response, redirect);
 	        			}
