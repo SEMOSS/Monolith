@@ -2161,7 +2161,8 @@ public class UserResource {
 		Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 		boolean autoAdd = Boolean.parseBoolean(socialData.getProperty("linotp_auto_add", "true"));
 
-		if(username == null || username.isEmpty()) {
+		if( (username == null || username.isEmpty())
+				&& (otp == null || otp.isEmpty()) ) {
 			ret.put(Constants.ERROR_MESSAGE, "The user name cannot be null or empty.");
 			return WebUtility.getResponse(ret, 401);
 		}
