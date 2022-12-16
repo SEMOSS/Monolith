@@ -2172,6 +2172,9 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 401);
 		}
 		
+		// we are always going to lowercase the username
+		username = username.trim().toLowerCase();
+		
 		if (otp==null) {
 			// first, request for challenge request using user pin
 			// Create HTTP request via ssl port (https) and pass post parameters
