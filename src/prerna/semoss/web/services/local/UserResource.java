@@ -2173,7 +2173,9 @@ public class UserResource {
 		}
 		
 		// we are always going to lowercase the username
-		username = username.trim().toLowerCase();
+		if(username != null) {
+			username = username.trim().toLowerCase();
+		}
 		
 		if (otp==null) {
 			// first, request for challenge request using user pin
