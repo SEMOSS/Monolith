@@ -2016,6 +2016,12 @@ public class UserResource {
 	@Path("/login")
 	public Response loginNative(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
+		
+		if(socialData.getLoginsAllowed().get("native")==null || !socialData.getLoginsAllowed().get("native")) {
+			ret.put(Constants.ERROR_MESSAGE, "Native login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
+		
 		try {
 			String username = request.getParameter("username");
 			String password = request.getParameter("password");
@@ -2314,6 +2320,17 @@ public class UserResource {
 	@Path("createUser")
 	public Response createNativeUser(@Context HttpServletRequest request) {
 		Hashtable<String, String> ret = new Hashtable<>();
+
+		if(socialData.getLoginsAllowed().get("native")==null || !socialData.getLoginsAllowed().get("native")) {
+			ret.put(Constants.ERROR_MESSAGE, "Native login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
+		
+		if(socialData.getLoginsAllowed().get("native_registration")==null || !socialData.getLoginsAllowed().get("native_registration")) {
+			ret.put(Constants.ERROR_MESSAGE, "Native registration is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
+		
 		try {
 			// Note - for native users
 			// the id and the username are always the same
