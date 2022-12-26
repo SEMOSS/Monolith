@@ -2170,17 +2170,17 @@ public class UserResource {
 		ILdapAuthenticator authenticator = null;
 		try {
 			String username = request.getParameter("username");
-			String currPassword = request.getParameter("currPassword");
+			String curPassword = request.getParameter("curPassword");
 			String newPassword = request.getParameter("newPassword");
 
-			if(username == null || currPassword == null || newPassword == null
-					|| username.isEmpty() || currPassword.isEmpty() || newPassword.isEmpty()) {
+			if(username == null || curPassword == null || newPassword == null
+					|| username.isEmpty() || curPassword.isEmpty() || newPassword.isEmpty()) {
 				ret.put(Constants.ERROR_MESSAGE, "The user name, current password, or new password are empty");
 				return WebUtility.getResponse(ret, 401);
 			}
 			
 			authenticator = socialData.getLdapAuthenticator();
-			authenticator.updateUserPassword(username, currPassword, newPassword);
+			authenticator.updateUserPassword(username, curPassword, newPassword);
 			ret.put("success", "true");
 			ret.put("username", username);
 		} catch (Exception e) {
