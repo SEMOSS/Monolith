@@ -120,6 +120,7 @@ import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.util.git.GitRepoUtils;
 import prerna.util.ldap.ILdapAuthenticator;
+import prerna.util.ldap.LDAPPasswordChangeRequiredException;
 import prerna.web.conf.DBLoader;
 import prerna.web.conf.NoUserInSessionFilter;
 import prerna.web.services.util.WebUtility;
@@ -2085,8 +2086,7 @@ public class UserResource {
 	}
 	
 	/**
-	 * Authenticates an user that's trying to log in.
-	 * 
+	 * Authenticates a user that's trying to log in through AD
 	 * @param request
 	 * @return true if the information provided to log in is valid otherwise error.
 	 */
@@ -2095,6 +2095,7 @@ public class UserResource {
 	@Path("/loginLDAP")
 	public Response loginLDAP(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
+		ILdapAuthenticator authenticator = null;
 		try {
 			String username = request.getParameter("username");
 			String password = request.getParameter("password");
@@ -2107,8 +2108,11 @@ public class UserResource {
 				return WebUtility.getResponse(ret, 401);
 			}
 			
-			ILdapAuthenticator authenticator = socialData.getLdapAuthenticator();
+			authenticator = socialData.getLdapAuthenticator();
 			AccessToken authToken = authenticator.authenticate(username, password);
+			if(authToken == null) {
+				throw new IllegalArgumentException("Unable to parse any user attributes");
+			}
 			boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(ILdapAuthenticator.LDAP + "auto_add", "true"));
 			addAccessToken(authToken, request, autoAdd);
 			SecurityUpdateUtils.validateUserLogin(authToken);
@@ -2118,6 +2122,17 @@ public class UserResource {
 			if (!disableRedirect) {
 				setMainPageRedirect(request, response, redirect);
 			}
+		} catch(LDAPPasswordChangeRequiredException e) {
+			HttpSession session = request.getSession(false);
+			if(session != null) {
+				User user = (User) session.getAttribute(Constants.SESSION_USER);
+				if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+					session.invalidate();
+				}
+			}
+			logger.error(Constants.STACKTRACE, e);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 401);
 		} catch (Exception e) {
 			HttpSession session = request.getSession(false);
 			if(session != null) {
@@ -2129,10 +2144,69 @@ public class UserResource {
 			logger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 500);
+		} finally {
+			if(authenticator != null) {
+				try {
+					authenticator.close();
+				} catch (IOException e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
+			}
 		}
 
 		return WebUtility.getResponse(ret, 200);
 	}
+	
+	/**
+	 * Authenticates a user that's trying to log in through AD
+	 * @param request
+	 * @return true if the information provided to log in is valid otherwise error.
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("/changeADPassword")
+	public Response changeADPassword(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+		Map<String, String> ret = new HashMap<>();
+		ILdapAuthenticator authenticator = null;
+		try {
+			String username = request.getParameter("username");
+			String currPassword = request.getParameter("currPassword");
+			String newPassword = request.getParameter("newPassword");
+
+			if(username == null || currPassword == null || newPassword == null
+					|| username.isEmpty() || currPassword.isEmpty() || newPassword.isEmpty()) {
+				ret.put(Constants.ERROR_MESSAGE, "The user name, current password, or new password are empty");
+				return WebUtility.getResponse(ret, 401);
+			}
+			
+			authenticator = socialData.getLdapAuthenticator();
+			authenticator.updateUserPassword(username, currPassword, newPassword);
+			ret.put("success", "true");
+			ret.put("username", username);
+		} catch (Exception e) {
+			HttpSession session = request.getSession(false);
+			if(session != null) {
+				User user = (User) session.getAttribute(Constants.SESSION_USER);
+				if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+					session.invalidate();
+				}
+			}
+			logger.error(Constants.STACKTRACE, e);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 500);
+		} finally {
+			if(authenticator != null) {
+				try {
+					authenticator.close();
+				} catch (IOException e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
+			}
+		}
+
+		return WebUtility.getResponse(ret, 200);
+	}
+
 	
 	/**
 	 * One Time Passcode using LinOTP
