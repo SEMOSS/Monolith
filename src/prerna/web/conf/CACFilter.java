@@ -7,6 +7,10 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -25,6 +29,14 @@ import javax.servlet.http.HttpSession;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.ASN1TaggedObject;
+import org.bouncycastle.asn1.DERUTF8String;
+import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
@@ -54,7 +66,7 @@ public class CACFilter implements Filter {
 	private static final String LOG_USER_INFO = "logUserInfo";
 	private static final String LOG_USER_INFO_PATH = "logUserInfoPath";
 	private static final String LOG_USER_INFO_SEP = "logUserInfoSep";
-	
+
 	// realization of init params
 	private static Boolean autoAdd = null;
 	private static Boolean updateUser = null;
@@ -93,7 +105,9 @@ public class CACFilter implements Filter {
 					logger.info("REQUEST COMING FROM " +  Utility.cleanLogString(fullName));
 
 					LdapName ldapDN;
+
 					try {
+		
 						ldapDN = new LdapName(fullName);
 						for(Rdn rdn: ldapDN.getRdns()) {
 							// only care about CN
@@ -160,7 +174,7 @@ public class CACFilter implements Filter {
 									}
 								}
 							} catch (CertificateParsingException e) {
-					    		logger.error(Constants.STACKTRACE, e);
+								logger.error(Constants.STACKTRACE, e);
 							}
 
 							if(email != null) {
@@ -172,13 +186,24 @@ public class CACFilter implements Filter {
 							token.setId(cacId);
 							token.setEmail(email);
 							token.setName(name);
+							
+//							String upn = getUPN(cert);
+//							if(upn!=null && !upn.isEmpty()) {
+//								System.out.println("UPN::: " + upn);
+//								System.out.println("UPN::: " + upn);
+//								System.out.println("UPN::: " + upn);
+//							} else {
+//								System.out.println("UPN IS NULL");
+//
+//							}
+				
 
 							// if we get here, we have a valid cac
 							break CERT_LOOP;
 						} // end rdn loop
 					} catch (InvalidNameException e) {
 						logger.error("ERROR WITH PARSING CAC INFORMATION!");
-			    		logger.error(Constants.STACKTRACE, e);
+						logger.error(Constants.STACKTRACE, e);
 					}
 				}
 
@@ -190,7 +215,7 @@ public class CACFilter implements Filter {
 					user.setAccessToken(token);
 					session.setAttribute(Constants.SESSION_USER, user);
 					session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-					
+
 					// add the user if they do not exist
 					if(CACFilter.autoAdd) {
 						SecurityUpdateUtils.addOAuthUser(token);
@@ -213,7 +238,7 @@ public class CACFilter implements Filter {
 						// grab the ip address
 						userLogger.addToQueue(new String[] {cacId, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), ResourceUtility.getClientIp((HttpServletRequest)arg0)});
 					}
-					
+
 					// log the user login
 					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
 
@@ -226,11 +251,88 @@ public class CACFilter implements Filter {
 		arg2.doFilter(arg0, arg1);
 	}
 
+	public String getUPN(X509Certificate cert) {
+		Collection<List<?>> sans;
+		try {
+			sans = JcaX509ExtensionUtils.getSubjectAlternativeNames(cert);
+			//get all subject alt names
+			if (sans != null) {
+				logger.info("Subject Alternative Names: " + sans.toString());
+				for (List<?> l : sans) {
+					
+					//expected size is 2
+					if (l.size() == 2) {
+						
+						// expected type 0 for the san
+						Integer type = (Integer) l.get(0);
+						if (type.equals(new Integer(0))) {
+							ASN1Primitive value = ((DLSequence) l.get(1)).toASN1Primitive();
+							ASN1Sequence asn1seq = ASN1Sequence.getInstance(value);
+							ASN1ObjectIdentifier oid = ASN1ObjectIdentifier.getInstance(asn1seq.getObjectAt(0));
+
+							//IF THE OID is the UPN value - grab it and we are good, else continue
+							if(oid.getId().equalsIgnoreCase("1.3.6.1.4.1.311.20.2.3")) {
+								ASN1TaggedObject tag = ASN1TaggedObject.getInstance(asn1seq.getObjectAt(1).toASN1Primitive());
+								if (tag.getTagNo() != 0) {
+									//this should be 0 for UPN
+									continue;
+								}
+								 return DERUTF8String.getInstance(tag, true).toString();
+
+							} else {
+								continue;
+							}
+						}
+					}
+				}
+			}
+		} catch (CertificateParsingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return null;
+	
+	}
+
+	private static List<String> getSubjectAltNames(X509Certificate certificate, int type) {
+		List<String> result = new ArrayList<>();
+		try {
+			Collection<?> subjectAltNames = certificate.getSubjectAlternativeNames();
+			if (subjectAltNames == null) {
+				return Collections.emptyList();
+			}
+			for (Object subjectAltName : subjectAltNames) {
+				List<?> entry = (List<?>) subjectAltName;
+				if (entry == null || entry.size() < 2) {
+					continue;
+				}
+				Integer altNameType = (Integer) entry.get(0);
+				if (altNameType == null) {
+					continue;
+				}
+				if (altNameType == type) {
+					Object x = Base64.getEncoder().encodeToString((byte[]) entry.get(1));
+					System.out.println(x.toString());
+					String altName=x.toString();
+					//		    String altName = (String) entry.get(1);
+					if (altName != null) {
+						result.add(altName);
+					}
+				}
+			}
+			return result;
+		} catch (CertificateParsingException e) {
+			return Collections.emptyList();
+		}
+	}
+
 	@Override
 	public void destroy() {
 		// TODO Auto-generated method stub
 
 	}
+
 
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
@@ -317,7 +419,7 @@ public class CACFilter implements Filter {
 		{
 			// security update block
 			RDBMSNativeEngine securityDb = (RDBMSNativeEngine) Utility.getEngine(Constants.SECURITY_DB);
-	
+
 			// let us not try to run this multiple times...
 			String requireUpdateQuery = "SELECT * FROM SMSS_USER WHERE ID='" + cleanOldId +"'";
 			IRawSelectWrapper wrapper = null;
@@ -332,34 +434,34 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-			    		logger.error(Constants.STACKTRACE, e);
+						logger.error(Constants.STACKTRACE, e);
 					}
-	
+
 					// need to update all the places the user id is used
 					updateQuery = "UPDATE ENGINEPERMISSION SET USERID='" +  cleanNewId +"' WHERE USERID='" + cleanOldId + "'";
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-			    		logger.error(Constants.STACKTRACE, e);
+						logger.error(Constants.STACKTRACE, e);
 					}
-	
+
 					// need to update all the places the user id is used
 					updateQuery = "UPDATE USERINSIGHTPERMISSION SET USERID='" +  cleanNewId +"' WHERE USERID='" + cleanOldId + "'";
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-			    		logger.error(Constants.STACKTRACE, e);
+						logger.error(Constants.STACKTRACE, e);
 					}
 				}
 			} catch (Exception e1) {
-	    		logger.error(Constants.STACKTRACE, e1);
+				logger.error(Constants.STACKTRACE, e1);
 			} finally {
 				if(wrapper != null) {
 					wrapper.cleanUp();
 				}
 			}
 		}
-		
+
 		{
 			RDBMSNativeEngine formEngine = (RDBMSNativeEngine) Utility.getEngine(FormBuilder.FORM_BUILDER_ENGINE_NAME);
 			if(formEngine != null) {
@@ -372,7 +474,7 @@ public class CACFilter implements Filter {
 					// that means we need to update
 					// from id to email
 					if(wrapper.hasNext()) {
-						
+
 						// form builder update block
 						String emailColumnExists = "SELECT COLUMN_NAME, TYPE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'FORMS_USER_ACCESS' AND COLUMN_NAME='EMAIL'";
 						IRawSelectWrapper requireFormUpdateWrapper = null;
@@ -383,24 +485,24 @@ public class CACFilter implements Filter {
 								formEngine.insertData("UPDATE FORMS_USER_ACCESS SET EMAIL = USER_ID;");
 							}
 						} catch (Exception e) {
-				    		logger.error(Constants.STACKTRACE, e);
+							logger.error(Constants.STACKTRACE, e);
 						} finally {
 							if(requireFormUpdateWrapper != null) {
 								requireFormUpdateWrapper.cleanUp();
 							}
 						}
-						
+
 						// now that the schema is in place, lets update the values
 						String updateQuery = "UPDATE FORMS_USER_ACCESS SET USER_ID='" +  cleanNewId +"' WHERE USER_ID='" + cleanOldId + "'";
 						try {
 							formEngine.insertData(updateQuery);
 						} catch (SQLException e) {
-				    		logger.error(Constants.STACKTRACE, e);
+							logger.error(Constants.STACKTRACE, e);
 						}
-						
+
 					}
 				} catch (Exception e1) {
-		    		logger.error(Constants.STACKTRACE, e1);
+					logger.error(Constants.STACKTRACE, e1);
 				} finally {
 					if(wrapper != null) {
 						wrapper.cleanUp();
