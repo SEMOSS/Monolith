@@ -2400,7 +2400,7 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 400);
 		}
 		
-		if(socialData.getLoginsAllowed().get("native_registration")==null || !socialData.getLoginsAllowed().get("native_registration")) {
+		if(socialData.getLoginsAllowed().get("registration")==null || !socialData.getLoginsAllowed().get("registration")) {
 			ret.put(Constants.ERROR_MESSAGE, "Native registration is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
