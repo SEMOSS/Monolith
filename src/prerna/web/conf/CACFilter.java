@@ -186,7 +186,10 @@ public class CACFilter implements Filter {
 							token.setId(cacId);
 							token.setEmail(email);
 							token.setName(name);
-							
+							String upn = getUPN(cert);
+							if(upn != null && !upn.isEmpty()) {
+								token.setSAN("UPN", upn);
+							}
 //							String upn = getUPN(cert);
 //							if(upn!=null && !upn.isEmpty()) {
 //								System.out.println("UPN::: " + upn);
@@ -196,7 +199,7 @@ public class CACFilter implements Filter {
 //								System.out.println("UPN IS NULL");
 //
 //							}
-				
+//				
 
 							// if we get here, we have a valid cac
 							break CERT_LOOP;
