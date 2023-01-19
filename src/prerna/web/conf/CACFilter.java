@@ -190,16 +190,6 @@ public class CACFilter implements Filter {
 							if(upn != null && !upn.isEmpty()) {
 								token.setSAN("UPN", upn);
 							}
-//							String upn = getUPN(cert);
-//							if(upn!=null && !upn.isEmpty()) {
-//								System.out.println("UPN::: " + upn);
-//								System.out.println("UPN::: " + upn);
-//								System.out.println("UPN::: " + upn);
-//							} else {
-//								System.out.println("UPN IS NULL");
-//
-//							}
-//				
 
 							// if we get here, we have a valid cac
 							break CERT_LOOP;
@@ -296,38 +286,6 @@ public class CACFilter implements Filter {
 		
 		return null;
 	
-	}
-
-	private static List<String> getSubjectAltNames(X509Certificate certificate, int type) {
-		List<String> result = new ArrayList<>();
-		try {
-			Collection<?> subjectAltNames = certificate.getSubjectAlternativeNames();
-			if (subjectAltNames == null) {
-				return Collections.emptyList();
-			}
-			for (Object subjectAltName : subjectAltNames) {
-				List<?> entry = (List<?>) subjectAltName;
-				if (entry == null || entry.size() < 2) {
-					continue;
-				}
-				Integer altNameType = (Integer) entry.get(0);
-				if (altNameType == null) {
-					continue;
-				}
-				if (altNameType == type) {
-					Object x = Base64.getEncoder().encodeToString((byte[]) entry.get(1));
-					System.out.println(x.toString());
-					String altName=x.toString();
-					//		    String altName = (String) entry.get(1);
-					if (altName != null) {
-						result.add(altName);
-					}
-				}
-			}
-			return result;
-		} catch (CertificateParsingException e) {
-			return Collections.emptyList();
-		}
 	}
 
 	@Override
