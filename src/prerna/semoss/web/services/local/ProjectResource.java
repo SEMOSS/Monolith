@@ -676,7 +676,15 @@ public class ProjectResource {
 	    		logger.error(Constants.STACKTRACE, e);
 			}
 		}
-
+		
+		// replace all instances of a prefixed project or insight
+		if(sql.contains("\""+projectId+"\".")) {
+			sql = sql.replace("\""+projectId+"\".", "");
+		}
+		if(sql.contains("\""+insightId+"\".")) {
+			sql = sql.replace("\""+insightId+"\".", "");
+		}
+		
 		// first time 
 		if(!projectId.equalsIgnoreCase("session") && (open != null && open.equalsIgnoreCase("true"))) {
 			NameServer server = resourceContext.getResource(NameServer.class);
