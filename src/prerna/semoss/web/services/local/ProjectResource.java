@@ -678,33 +678,20 @@ public class ProjectResource {
 			}
 		}
 		
-		// replace all instances of a prefixed project or insight
-		if(sql.contains(projectId+".")) {
-			sql = sql.replace(projectId+".", "");
-		} else if(sql.contains(projectId.replace("-", "_")+".")) {
-			sql = sql.replace(projectId.replace("-", "_")+".", "");
-		} else if(sql.contains("\""+projectId+"\".")) {
-			sql = sql.replace("\""+projectId+"\".", "");
-		} else if(sql.contains("\""+projectId.replace("-", "_")+"\".")) {
-			sql = sql.replace("\""+projectId.replace("-", "_")+"\".", "");
-		} else if(sql.contains("\\\""+projectId.replace("-", "_")+"\\\".")) {
-			sql = sql.replace("\\\""+projectId.replace("-", "_")+"\\\".", "");
-		}
-		
-		if(sql.contains(insightId+".")) {
-			sql = sql.replace(insightId+".", "");
-		} else if(sql.contains(insightId.replace("-", "_")+".")) {
-			sql = sql.replace(insightId.replace("-", "_")+".", "");
-		} else if(sql.contains("\""+insightId+"\".")) {
-			sql = sql.replace("\""+insightId+"\".", "");
-		} else if(sql.contains("\""+insightId.replace("-", "_")+"\".")) {
-			sql = sql.replace("\""+insightId.replace("-", "_")+"\".", "");
-		} else if(sql.contains("\\\""+insightId.replace("-", "_")+"\\\".")) {
-			sql = sql.replace("\\\""+insightId.replace("-", "_")+"\\\".", "");
-		}
+		// try to clean up project
+		// this will never be different between
+		// new insight and exisitng insight
+		sql = tryReplacements(sql, projectId);
+
+		boolean firstTime = !projectId.equalsIgnoreCase("session") 
+				&& (open != null && open.equalsIgnoreCase("true"));
 		
 		// first time 
-		if(!projectId.equalsIgnoreCase("session") && (open != null && open.equalsIgnoreCase("true"))) {
+		if(firstTime) {
+			// replace all instances of a prefixed project or insight with 
+			// what was passed in since it is the true rdbms values
+			sql = tryReplacements(sql, insightId);
+
 			NameServer server = resourceContext.getResource(NameServer.class);
 			OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
 			Map<String, String> paramMap = new HashMap<String, String>();
@@ -733,6 +720,10 @@ public class ProjectResource {
 		if(insight == null) {
 			return WebUtility.getBinarySO("No such insight");
 		}
+		if(!firstTime) {
+			// replace but use the insight id of the actual insight rdbms id
+			sql = tryReplacements(sql, insight.getRdbmsId());
+		}
 		
 		// do the bifurcation here in terms of sql vs. pixel
 		try {
@@ -750,6 +741,26 @@ public class ProjectResource {
 		} catch(Exception e) {
 			return WebUtility.getBinarySO(e);
 		}
+	}
+	
+	/**
+	 * Try many permutations of cleanup
+	 * @param s
+	 * @return
+	 */
+	private String tryReplacements(String str, String find) {
+		if(str.contains(find+".")) {
+			str = str.replace(find+".", "");
+		} else if(str.contains(find.replace("-", "_")+".")) {
+			str = str.replace(find.replace("-", "_")+".", "");
+		} else if(str.contains("\""+find+"\".")) {
+			str = str.replace("\""+find+"\".", "");
+		} else if(str.contains("\""+find.replace("-", "_")+"\".")) {
+			str = str.replace("\""+find.replace("-", "_")+"\".", "");
+		} else if(str.contains("\\\""+find.replace("-", "_")+"\\\".")) {
+			str = str.replace("\\\""+find.replace("-", "_")+"\\\".", "");
+		}
+		return str;
 	}
 
 	@GET
