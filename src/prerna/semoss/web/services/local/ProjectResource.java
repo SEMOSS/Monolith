@@ -35,6 +35,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
@@ -678,11 +679,28 @@ public class ProjectResource {
 		}
 		
 		// replace all instances of a prefixed project or insight
-		if(sql.contains("\""+projectId+"\".")) {
+		if(sql.contains(projectId+".")) {
+			sql = sql.replace(projectId+".", "");
+		} else if(sql.contains(projectId.replace("-", "_")+".")) {
+			sql = sql.replace(projectId.replace("-", "_")+".", "");
+		} else if(sql.contains("\""+projectId+"\".")) {
 			sql = sql.replace("\""+projectId+"\".", "");
+		} else if(sql.contains("\""+projectId.replace("-", "_")+"\".")) {
+			sql = sql.replace("\""+projectId.replace("-", "_")+"\".", "");
+		} else if(sql.contains("\\\""+projectId.replace("-", "_")+"\\\".")) {
+			sql = sql.replace("\\\""+projectId.replace("-", "_")+"\\\".", "");
 		}
-		if(sql.contains("\""+insightId+"\".")) {
+		
+		if(sql.contains(insightId+".")) {
+			sql = sql.replace(insightId+".", "");
+		} else if(sql.contains(insightId.replace("-", "_")+".")) {
+			sql = sql.replace(insightId.replace("-", "_")+".", "");
+		} else if(sql.contains("\""+insightId+"\".")) {
 			sql = sql.replace("\""+insightId+"\".", "");
+		} else if(sql.contains("\""+insightId.replace("-", "_")+"\".")) {
+			sql = sql.replace("\""+insightId.replace("-", "_")+"\".", "");
+		} else if(sql.contains("\\\""+insightId.replace("-", "_")+"\\\".")) {
+			sql = sql.replace("\\\""+insightId.replace("-", "_")+"\\\".", "");
 		}
 		
 		// first time 
@@ -803,7 +821,7 @@ public class ProjectResource {
 			}
 			return WebUtility.getSO(output);
 		} catch(Exception e) {
-			return WebUtility.getSO(e);
+			return WebUtility.getSO(ExceptionUtils.getStackFrames(e));
 		}
 	}
 
