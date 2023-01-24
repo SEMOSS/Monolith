@@ -224,8 +224,10 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		if(userInfo.containsKey("admin")) {
 			if(userInfo.get("admin") instanceof Number) {
 				adminChange = ((Number) userInfo.get("admin")).intValue() == 1;
+				logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + userInfo.get("id") +  " to admin level " + userInfo.get("admin")));
 			} else {
 				adminChange = Boolean.parseBoolean( userInfo.get("admin") + "");
+				logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + userInfo.get("id") +  " to admin level " + userInfo.get("admin")));
 			}
 		}
 		
