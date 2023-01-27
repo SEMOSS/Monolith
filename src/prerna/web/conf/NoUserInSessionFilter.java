@@ -61,6 +61,7 @@ public class NoUserInSessionFilter implements Filter {
 		// allow these for successful dropping of
 		// sessions when browser is closed/refreshed
 		// these do their own session checks
+		ignoreDueToFE.add("session/active");
 		ignoreDueToFE.add("session/cleanSession");
 		ignoreDueToFE.add("session/cancelCleanSession");
 		ignoreDueToFE.add("session/invalidateSession");
