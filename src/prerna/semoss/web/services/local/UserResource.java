@@ -2305,7 +2305,7 @@ public class UserResource {
 						}
 					}
 					logger.error(Constants.STACKTRACE, e);
-					ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+					ret.put(Constants.ERROR_MESSAGE, "Unable to authenticate with active directory");
 					return WebUtility.getResponse(ret, 500);
 				} finally {
 					if(authenticator != null) {
