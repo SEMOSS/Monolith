@@ -28,7 +28,6 @@ import org.owasp.encoder.Encode;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityAdminUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
@@ -54,31 +53,31 @@ public class SessionResource {
 	@Path("/active")
 	@Produces("application/json;charset=utf-8")
 	public Response getActiveSessions(@Context HttpServletRequest request) {
-		if (AbstractSecurityUtils.securityEnabled()) {
-			User user;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			if (!SecurityAdminUtils.userIsAdmin(user)) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User is not an admin");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-		}
-		
-		// the session needs to exist if the user is to exist...
-		HttpSession session = request.getSession(false);
-		StandardManager manager = getManager(session);
-		
 		Map<String, Object> ret = new HashMap<>();
-		if(manager != null) {
-			ret.put("activeSessions", manager.getActiveSessions());
-		} else {
-			ret.put("activeSessions", "Error in getting manager context");
+		HttpSession session = request.getSession(true);
+		try {
+			if (AbstractSecurityUtils.securityEnabled()) {
+				User user = null;
+				if(session != null) {
+					user = (User) session.getAttribute(Constants.SESSION_USER);
+				}
+				logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is pulling the # of active sessions"));
+			}
+			
+			StandardManager manager = getManager(session);
+			if(manager != null) {
+				int sessions = manager.getActiveSessions();
+				if(session.isNew()) {
+					sessions -= 1;
+				}
+				ret.put("activeSessions", sessions);
+			} else {
+				ret.put("activeSessions", "Error in getting manager context");
+			}
+		} finally {
+			if(session.isNew()) {
+				session.invalidate();
+			}
 		}
 		return WebUtility.getResponse(ret, 200);
 	}
