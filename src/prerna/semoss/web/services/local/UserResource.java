@@ -2095,6 +2095,11 @@ public class UserResource {
 	@Path("/loginLDAP")
 	public Response loginLDAP(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
+		if(socialData.getLoginsAllowed().get("ldap")==null || !socialData.getLoginsAllowed().get("ldap")) {
+			ret.put(Constants.ERROR_MESSAGE, "LDAP login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
+		
 		ILdapAuthenticator authenticator = null;
 		try {
 			String username = request.getParameter("username");
@@ -2167,6 +2172,11 @@ public class UserResource {
 	@Path("/changeADPassword")
 	public Response changeADPassword(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
+		if(socialData.getLoginsAllowed().get("ldap")==null || !socialData.getLoginsAllowed().get("ldap")) {
+			ret.put(Constants.ERROR_MESSAGE, "LDAP login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
+		
 		ILdapAuthenticator authenticator = null;
 		try {
 			String username = request.getParameter("username");
@@ -2220,11 +2230,16 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/loginLinOTP")
 	public Response loginLinOTP(@Context HttpServletRequest request, @Context HttpServletResponse response) throws ClientProtocolException, IOException {
+		Map<String, Object> ret = new HashMap<>();
+		if(socialData.getLoginsAllowed().get("linotp")==null || !socialData.getLoginsAllowed().get("linotp")) {
+			ret.put(Constants.ERROR_MESSAGE, "LinOTP login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
+		
 		final String LINOTP_USERNAME = "username";
 		final String LINOTP_TRANSACTION = "transactionId";
 		final String OTP = "OTP";
 		
-		Map<String, Object> ret = new HashMap<>();
 		// https://YOUR_LINOTP_SERVER/validate/check?user=USERNAME&pass=PINOTP
 		// final String prefix = "linotp_";
 		final String hostname = socialData.getProperty("linotp_hostname"); // removed prefix for text searchability when looking for linotp_hostname
