@@ -2224,7 +2224,7 @@ public class UserResource {
 		final String LINOTP_TRANSACTION = "transactionId";
 		final String OTP = "OTP";
 		
-		Map<String, String> ret = new HashMap<>();
+		Map<String, Object> ret = new HashMap<>();
 		// https://YOUR_LINOTP_SERVER/validate/check?user=USERNAME&pass=PINOTP
 		// final String prefix = "linotp_";
 		final String hostname = socialData.getProperty("linotp_hostname"); // removed prefix for text searchability when looking for linotp_hostname
@@ -2258,6 +2258,49 @@ public class UserResource {
 		}
 		
 		if (otp==null) {
+			boolean checkAD = Boolean.parseBoolean(socialData.getProperty("linotp_check_ad", "false"));
+			if(checkAD) {
+				ILdapAuthenticator authenticator = null;
+				try {
+					authenticator = socialData.getLdapAuthenticator();
+					AccessToken authToken = authenticator.authenticate(username, pin);
+					if(authToken == null) {
+						throw new IllegalArgumentException("Unable to parse any user attributes");
+					}
+				} catch(LDAPPasswordChangeRequiredException e) {
+					HttpSession session = request.getSession(false);
+					if(session != null) {
+						User user = (User) session.getAttribute(Constants.SESSION_USER);
+						if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+							session.invalidate();
+						}
+					}
+					logger.error(Constants.STACKTRACE, e);
+					ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+					ret.put(ILdapAuthenticator.LDAP_PASSWORD_CHANGE_RETURN_KEY, true);
+					return WebUtility.getResponse(ret, 401);
+				} catch (Exception e) {
+					HttpSession session = request.getSession(false);
+					if(session != null) {
+						User user = (User) session.getAttribute(Constants.SESSION_USER);
+						if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+							session.invalidate();
+						}
+					}
+					logger.error(Constants.STACKTRACE, e);
+					ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+					return WebUtility.getResponse(ret, 500);
+				} finally {
+					if(authenticator != null) {
+						try {
+							authenticator.close();
+						} catch (IOException e) {
+							logger.error(Constants.STACKTRACE, e);
+						}
+					}
+				}
+			}
+			
 			// first, request for challenge request using user pin
 			// Create HTTP request via ssl port (https) and pass post parameters
 	        CloseableHttpClient httpclient = HttpClients
