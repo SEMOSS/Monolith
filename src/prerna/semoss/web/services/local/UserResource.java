@@ -2472,12 +2472,19 @@ public class UserResource {
 			String name = request.getParameter("name");
 			String password = request.getParameter("password");
 			String email = request.getParameter("email");
+			String phone = request.getParameter("phone");
+			String phoneExtension = request.getParameter("phoneextension");
+			String countryCode = request.getParameter("countrycode");
+			
 			AccessToken newUser = new AccessToken();
 			newUser.setProvider(AuthProvider.NATIVE);
 			newUser.setId(username);
 			newUser.setUsername(username);
 			newUser.setEmail(email);
 			newUser.setName(name);
+			newUser.setPhone(phone);
+			newUser.setPhoneExtension(phoneExtension);
+			newUser.setCountryCode(countryCode);
 			boolean userCreated = SecurityNativeUserUtils.addNativeUser(newUser, password);
 			if (userCreated) {
 				ret.put("success", "true");

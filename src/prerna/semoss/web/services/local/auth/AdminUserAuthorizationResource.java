@@ -63,6 +63,9 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			}
 			String name = form.getFirst("name");
 			String email = form.getFirst("email");
+			String phone = request.getParameter("phone");
+			String phoneExtension = request.getParameter("phoneextension");
+			String countryCode = request.getParameter("countrycode");
 			String type = form.getFirst("type");
 			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
 			Boolean publisher = Boolean.parseBoolean(form.getFirst("publisher"));
@@ -72,6 +75,15 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			if (email != null && !email.isEmpty()) {
 				try {
 					AbstractSecurityUtils.validEmail(email, true);
+				} catch(Exception e) {
+					Map<String, String> errorMap = new HashMap<>();
+					errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+					return WebUtility.getResponse(errorMap, 401);
+				}
+			}
+			if (phone != null && !phone.isEmpty()) {
+				try {
+					phone = AbstractSecurityUtils.formatPhone(phone);
 				} catch(Exception e) {
 					Map<String, String> errorMap = new HashMap<>();
 					errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -99,7 +111,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			}
 			
 			if(SecurityAdminUtils.userIsAdmin(user)){
-				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, newUserAdmin, publisher, exporter);
+				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, 
+						phone, phoneExtension, countryCode, newUserAdmin, publisher, exporter);
 			} else {
 				errorRet.put(ResourceUtility.ERROR_KEY, "The user doesn't have the permissions to perform this action.");
 				return WebUtility.getResponse(errorRet, 400);
