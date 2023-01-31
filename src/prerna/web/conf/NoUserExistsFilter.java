@@ -36,6 +36,7 @@ public class NoUserExistsFilter implements Filter {
 
 	protected static List<String> ignoreDueToFE = new Vector<>();
 	static {
+		ignoreDueToFE.add("config");
 		ignoreDueToFE.add("config/fetchCsrf");
 	}
 	
