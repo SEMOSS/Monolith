@@ -150,7 +150,8 @@ public class DatabaseResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
-		//TODO: need to push smss file to minio
+		// push to cloud
+		ClusterUtil.reactorPushDatabaseSmss(databaseId);
 		
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
