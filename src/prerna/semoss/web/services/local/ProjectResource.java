@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -42,6 +43,7 @@ import org.json.JSONObject;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
@@ -51,6 +53,7 @@ import prerna.io.connector.couch.CouchUtil;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.project.api.IProject;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -105,6 +108,87 @@ public class ProjectResource {
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	@POST
+	@Path("/updateSmssFile")
+	@Produces("application/json;charset=utf-8")
+	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("projectId") String projectId) {
+		String newSmssContent = request.getParameter("smss");
+		
+		if(AbstractSecurityUtils.securityEnabled()) {
+			User user = null;
+			try {
+				user = ResourceUtility.getUser(request);
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put("error", "User session is invalid");
+				return WebUtility.getResponse(errorMap, 401);
+			}
+			try {
+				boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
+				if(!isAdmin) {
+					boolean isOwner = SecurityProjectUtils.userIsOwner(user, projectId);
+					if(!isOwner) {
+						throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
+					}
+				}
+			} catch (IllegalAccessException e) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put("error", e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		}
+		
+		IProject project = Utility.getProject(projectId);
+		String currentSmssFileLocation = project.getProjectSmssFilePath();
+		File currentSmssFile = new File(currentSmssFileLocation);
+		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not find current database smss file");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		String currentSmssContent = null;
+		try {
+			currentSmssContent = new String(Files.readAllBytes(Paths.get(currentSmssFile.toURI())));
+		} catch (IOException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred reading the current project smss details. Detailed message = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		project.closeProject();
+		try {
+			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
+				fw.write(newSmssContent);
+			}
+			project.openProject(currentSmssFileLocation);
+		} catch(Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			// reset the values
+			project.closeProject();
+			currentSmssFile.delete();
+			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
+				fw.write(currentSmssContent);
+				project.openProject(currentSmssFileLocation);
+			} catch(Exception e2) {
+				logger.error(Constants.STACKTRACE, e2);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "A fatal error occurred and could not revert the project to an operational state. Detailed message = " + e2.getMessage());
+				return WebUtility.getResponse(errorMap, 400);
+			}
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred initializing the new project details. Detailed message = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// push to cloud
+		ClusterUtil.reactorPushProjectSmss(projectId);
+		
+		Map<String, Object> success = new HashMap<>();
+		success.put("success", true);
+		return WebUtility.getResponse(success, 200);
+	}
+	
 	
 	/*
 	* Code below is around retrieving app assets
@@ -731,6 +815,7 @@ public class ProjectResource {
 			// add the instance so it can refer going forward
 			if(output instanceof Map) {
 				((Map)output).put("INSIGHT_INSTANCE", insightId);
+				System.err.println(output);
 			}
 			
 			if(output == null) {
