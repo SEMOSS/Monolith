@@ -5,7 +5,8 @@ import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,6 @@ import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import net.snowflake.client.jdbc.internal.com.nimbusds.jose.util.IOUtils;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -98,7 +98,7 @@ public class DatabaseResource {
 				if(!isAdmin) {
 					boolean isOwner = SecurityDatabaseUtils.userIsOwner(user, databaseId);
 					if(!isOwner) {
-						throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have permissions to delete the database. User must be the owner to perform this function.");
+						throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
 					}
 				}
 			} catch (IllegalAccessException e) {
@@ -119,7 +119,7 @@ public class DatabaseResource {
 		
 		String currentSmssContent = null;
 		try {
-			currentSmssContent = IOUtils.readFileToString(currentSmssFile, StandardCharsets.UTF_8);
+			currentSmssContent = new String(Files.readAllBytes(Paths.get(currentSmssFile.toURI())));
 		} catch (IOException e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred reading the current database smss details. Detailed message = " + e.getMessage());
