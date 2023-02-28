@@ -33,7 +33,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URLEncoder;
-import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -81,7 +80,6 @@ import prerna.auth.utils.SecurityDatabaseUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.engine.api.IEngine;
-import prerna.engine.impl.rdf.RemoteSemossSesameEngine;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -914,25 +912,25 @@ public class NameServer {
 	@Produces("application/json")
 	public void addEngine(@Context HttpServletRequest request, @QueryParam("api") String api,
 			@QueryParam("database") String database) {
-		// would be cool to give this as an HTML
-		RemoteSemossSesameEngine newEngine = new RemoteSemossSesameEngine();
-		newEngine.setAPI(api);
-		newEngine.setDatabase(database);
-		HttpSession session = request.getSession();
-		ArrayList<Hashtable<String, String>> engines = (ArrayList<Hashtable<String, String>>) session
-				.getAttribute(Constants.ENGINES);
-		// temporal
-		String remoteDbKey = api + ":" + database;
-		newEngine.openDB(null);
-		if (newEngine.isConnected()) {
-			Hashtable<String, String> engineHash = new Hashtable<>();
-			engineHash.put("name", database);
-			engineHash.put("api", api);
-			engines.add(engineHash);
-			session.setAttribute(Constants.ENGINES, engines);
-			session.setAttribute(remoteDbKey, newEngine);
-			DIHelper.getInstance().setLocalProperty(remoteDbKey, newEngine);
-		}
+//		// would be cool to give this as an HTML
+//		RemoteSemossSesameEngine newEngine = new RemoteSemossSesameEngine();
+//		newEngine.setAPI(api);
+//		newEngine.setDatabase(database);
+//		HttpSession session = request.getSession();
+//		ArrayList<Hashtable<String, String>> engines = (ArrayList<Hashtable<String, String>>) session
+//				.getAttribute(Constants.ENGINES);
+//		// temporal
+//		String remoteDbKey = api + ":" + database;
+//		newEngine.openDB(null);
+//		if (newEngine.isConnected()) {
+//			Hashtable<String, String> engineHash = new Hashtable<>();
+//			engineHash.put("name", database);
+//			engineHash.put("api", api);
+//			engines.add(engineHash);
+//			session.setAttribute(Constants.ENGINES, engines);
+//			session.setAttribute(remoteDbKey, newEngine);
+//			DIHelper.getInstance().setLocalProperty(remoteDbKey, newEngine);
+//		}
 	}
 
 	@GET
