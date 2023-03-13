@@ -2173,9 +2173,9 @@ public class UserResource {
 	public Response changeADPassword(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
 		if( (socialData.getLoginsAllowed().get("ldap")==null || !socialData.getLoginsAllowed().get("ldap"))
-				&& Boolean.parseBoolean(socialData.getProperty("linotp_check_ad", "false"))
+				&& !Boolean.parseBoolean(socialData.getProperty("linotp_check_ad", "false"))
 				){
-			ret.put(Constants.ERROR_MESSAGE, "LDAP login is not allowed");
+			ret.put(Constants.ERROR_MESSAGE, "LDAP change password is not allowed/configured");
 			return WebUtility.getResponse(ret, 400);
 		}
 		
