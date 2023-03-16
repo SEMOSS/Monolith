@@ -23,7 +23,6 @@ import com.google.gson.Gson;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.InsightAdministrator;
 import prerna.project.api.IProject;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -159,11 +158,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			ClusterUtil.reactorPullInsightsDB(projectId);
+//			ClusterUtil.reactorPullInsightsDB(projectId);
 			adminUtils.deleteProjectInsights(projectId, insightIds);
 			// since modifying insight list
 			// need to push to cloud storage
-			ClusterUtil.reactorPushInsightDB(projectId);
+//			ClusterUtil.reactorPushInsightDB(projectId);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -597,11 +596,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			
 			// also update in the app itself
 			// so it is properly synchronized with the security db
-			ClusterUtil.reactorPullInsightsDB(projectId);
+//			ClusterUtil.reactorPullInsightsDB(projectId);
 			IProject project = Utility.getProject(projectId);
 			InsightAdministrator admin = new InsightAdministrator(project.getInsightDatabase());
 			admin.updateInsightGlobal(insightId, isGlobal);
-			ClusterUtil.reactorPushInsightDB(projectId);
+//			ClusterUtil.reactorPushInsightDB(projectId);
 
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
