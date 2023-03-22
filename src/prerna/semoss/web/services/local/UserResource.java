@@ -35,8 +35,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Base64.Encoder;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -66,14 +68,26 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.NameValuePair;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.AuthCache;
 import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.CookieStore;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.impl.auth.DigestScheme;
+import org.apache.http.impl.client.BasicAuthCache;
+import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.cookie.BasicClientCookie2;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
@@ -160,7 +174,7 @@ public class UserResource {
 					}
 				}
 			}
-			
+
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
@@ -187,10 +201,10 @@ public class UserResource {
 			ret.put("errorMessage", "No user is currently logged in the session");
 			return WebUtility.getResponse(ret, 400);
 		}
-		
+
 		// log the user logout
 		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is logging out of provider " +  provider));
-		
+
 		if (provider.equalsIgnoreCase("ALL")) {
 			removed = true;
 			noUser = true;
@@ -244,13 +258,13 @@ public class UserResource {
 						if (DBLoader.useLogoutPage()) {
 							String scheme = request.getScheme();
 							if (!scheme.trim().equalsIgnoreCase("https") &&
-								!scheme.trim().equalsIgnoreCase("http")) {
+									!scheme.trim().equalsIgnoreCase("http")) {
 								throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
 							}
 							String serverName = request.getServerName(); // hostname.com
 							int serverPort = request.getServerPort(); // 8080
 							String contextPath = request.getContextPath(); // /Monolith
-	
+
 							redirectUrl = "";
 							redirectUrl += scheme + "://" + serverName;
 							if (serverPort != 80 && serverPort != 443) {
@@ -267,7 +281,7 @@ public class UserResource {
 						}
 					}
 				}
-				
+
 				// remove the cookie from the browser
 				// for the session id
 				logger.info("Removing session token");
@@ -287,13 +301,13 @@ public class UserResource {
 			// invalidate the session
 			session.invalidate();
 		}
-		
+
 		Map<String, Boolean> ret = new Hashtable<>();
 		ret.put("success", removed);
 		if(nullCookies == null) {
 			return WebUtility.getResponse(ret, 200);
 		}
-		
+
 		return WebUtility.getResponseNoCache(ret, 200, nullCookies.toArray(new NewCookie[] {}));
 	}
 
@@ -314,7 +328,7 @@ public class UserResource {
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
 		session.setAttribute(Constants.SESSION_USER, semossUser);
-		
+
 		UserResource.userTrackingLogin(request, semossUser, token.getProvider());
 
 		// log the user login
@@ -325,7 +339,7 @@ public class UserResource {
 			SecurityUpdateUtils.addOAuthUser(token);
 		}
 	}
-	
+
 	public static void userTrackingLogin(HttpServletRequest request, User semossUser, AuthProvider ap) {
 		String ip = ResourceUtility.getClientIp(request);
 		if (request.getSession() != null && request.getSession().getId() != null) {
@@ -389,7 +403,7 @@ public class UserResource {
 
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Gets user info for OneDrive
 	 */
@@ -453,7 +467,7 @@ public class UserResource {
 				String name = adfsToken.getName();
 				ret.put("name", name);
 			}
-			
+
 			return WebUtility.getResponse(ret, 200);
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your ADFS account");
@@ -533,7 +547,7 @@ public class UserResource {
 		}
 
 		String url = "https://api.github.com/user";
-	
+
 
 		String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
 		AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
@@ -545,7 +559,7 @@ public class UserResource {
 		}
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Gets user info for Generic Providers
 	 */
@@ -553,10 +567,10 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/userinfo/{provider}")
 	public Response userinfoGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request) {
-		
-		
+
+
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
-		
+
 		Map<String, String> ret = new Hashtable<>();
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		String prefix = provider+"_";
@@ -624,11 +638,11 @@ public class UserResource {
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-				
+
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
 				params.put("grant_type", "authorization_code");
@@ -711,7 +725,7 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
 				params.put("grant_type", "authorization_code");
@@ -795,7 +809,7 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
 				params.put("redirect_uri", redirectUri);
@@ -859,8 +873,8 @@ public class UserResource {
 		}
 		return redirectUrl;
 	}
-	
-	
+
+
 	/**
 	 * Logs user in through gitlab
 	 * https://docs.gitlab.com/13.12/ee/integration/oauth_provider.html
@@ -893,7 +907,7 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
 				params.put("redirect_uri", redirectUri);
@@ -914,7 +928,7 @@ public class UserResource {
 
 				//GitRepoUtils.addCertForDomain(url);
 				// add specific Git values
-								
+
 				String beanProps = socialData.getProperty(prefix + "beanProps");
 				String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
 				String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
@@ -936,12 +950,12 @@ public class UserResource {
 		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
 			// not authenticated
-//			GitRepoUtils.addCertForDomain("https://github.com");
+			//			GitRepoUtils.addCertForDomain("https://github.com");
 			response.setStatus(302);
 			response.sendRedirect(getGitlabRedirect(request));
 			return null;
 		}
-		
+
 		if(Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))){
 			//get groups
 			String group_url = socialData.getProperty(prefix + "group_url");
@@ -952,7 +966,7 @@ public class UserResource {
 			//String[] beanPropsArr = beanProps.split(",", -1);
 			Set<String> userGroups = new HashSet<String>();
 
-			 
+
 			JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
 			if((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
 				throw new SemossPixelException("Group result must return flat array. Please check groupJsonPatter");
@@ -961,13 +975,13 @@ public class UserResource {
 				String thisInput = result.get(inputIndex).asText();
 				userGroups.add(thisInput);
 			}
-			
+
 			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroups(userGroups);
 			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroupType(AuthProvider.GITLAB.toString());
 
-			
+
 		}
-		
+
 
 
 		setMainPageRedirect(request, response);
@@ -986,7 +1000,7 @@ public class UserResource {
 
 		String redirectUrl = auth_url + "?" + "client_id="
 				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
-				 + "&scope=" + scope + "&state=" + state;
+				+ "&scope=" + scope + "&state=" + state;
 
 		logger.info("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 
@@ -1028,7 +1042,7 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
 				params.put("scope", scope);
@@ -1037,7 +1051,7 @@ public class UserResource {
 				params.put("grant_type", "authorization_code");
 				params.put("client_secret", clientSecret);
 
-				
+
 				if(Strings.isNullOrEmpty(token_url)){
 					token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
 				}
@@ -1082,7 +1096,7 @@ public class UserResource {
 		String auth_url = socialData.getProperty(prefix + "auth_url");
 
 		String state = UUID.randomUUID().toString();
-		
+
 		if(Strings.isNullOrEmpty(auth_url)){
 			auth_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize";
 		}
@@ -1093,11 +1107,11 @@ public class UserResource {
 		if(logger.isDebugEnabled()) {
 			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
-		
+
 		return redirectUrl;
 	}
-	
-	
+
+
 	/**
 	 * Logs user in through adfs
 	 */
@@ -1129,7 +1143,7 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
 				params.put("scope", scope);
@@ -1138,12 +1152,12 @@ public class UserResource {
 				params.put("grant_type", "authorization_code");
 				params.put("client_secret", clientSecret);
 
-				
+
 				if(Strings.isNullOrEmpty(token_url)){
 					throw new IllegalArgumentException("Token URL can not be null or empty");
 				}
 
-				
+
 				AccessToken accessToken = AbstractHttpHelper.getIdToken(token_url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
@@ -1179,22 +1193,22 @@ public class UserResource {
 		setMainPageRedirect(request, response);
 		return null;
 	}
-	
+
 	public String  decodeTokenPayload(String token)
 	{
-	    String[] parts = token.split("\\.", 0);
+		String[] parts = token.split("\\.", 0);
 
-//	    for (String part : parts) {
-//	        byte[] bytes = Base64.getUrlDecoder().decode(part);
-//	        String decodedString = new String(bytes, StandardCharsets.UTF_8);
-//
-//	        System.out.println("Decoded: " + decodedString);
-//	    }
-	    byte[] bytes = Base64.getUrlDecoder().decode(parts[1]);
+		//	    for (String part : parts) {
+		//	        byte[] bytes = Base64.getUrlDecoder().decode(part);
+		//	        String decodedString = new String(bytes, StandardCharsets.UTF_8);
+		//
+		//	        System.out.println("Decoded: " + decodedString);
+		//	    }
+		byte[] bytes = Base64.getUrlDecoder().decode(parts[1]);
 
-	    String payload = new String(bytes, StandardCharsets.UTF_8);
-	    
-	    return payload;
+		String payload = new String(bytes, StandardCharsets.UTF_8);
+
+		return payload;
 	}
 
 	private String getADFSRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
@@ -1205,7 +1219,7 @@ public class UserResource {
 		String auth_url = socialData.getProperty(prefix + "auth_url");
 
 		String state = UUID.randomUUID().toString();
-		
+
 		if(Strings.isNullOrEmpty(auth_url)){
 			throw new IllegalArgumentException("A URL can not be null or empty");
 		}
@@ -1216,7 +1230,7 @@ public class UserResource {
 		if(logger.isDebugEnabled()) {
 			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
-		
+
 		return redirectUrl;
 	}
 	/**
@@ -1251,7 +1265,7 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
 				params.put("scope", scope);
@@ -1261,7 +1275,7 @@ public class UserResource {
 				params.put("client_secret", clientSecret);
 
 				if(Strings.isNullOrEmpty(token_url)){
-				 token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
+					token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
 				}
 				AccessToken accessToken = AbstractHttpHelper.getAccessToken(token_url, params, true, true);
 				if (accessToken == null) {
@@ -1302,11 +1316,11 @@ public class UserResource {
 		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
 		String auth_url = socialData.getProperty(prefix + "auth_url");
 		String state = UUID.randomUUID().toString();
-		
+
 		if(Strings.isNullOrEmpty(auth_url)){
 			auth_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize";
 		}
-		
+
 		String redirectUrl = auth_url + "?" + "client_id="
 				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
 				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
@@ -1314,7 +1328,7 @@ public class UserResource {
 		if(logger.isDebugEnabled()) {
 			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
-		
+
 		return redirectUrl;
 	}
 
@@ -1347,7 +1361,7 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
 				params.put("redirect_uri", redirectUri);
@@ -1399,7 +1413,7 @@ public class UserResource {
 		if(logger.isDebugEnabled()) {
 			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
-		
+
 		return redirectUrl;
 	}
 
@@ -1433,7 +1447,7 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				// I need to decode the return code from google since the default param's are
 				// encoded on the post of getAccessToken
 				String codeDecode = URLDecoder.decode(outputs[0]);
@@ -1465,11 +1479,11 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
-				
+
 				// this is just for testing...
 				// but i will get yelled at if i remove it so here it is...
 				// TODO: adding this todo to easily locate it
-//				performGoogleOps(request, ret);
+				//				performGoogleOps(request, ret);
 			}
 		}
 
@@ -1589,7 +1603,7 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 
 				params.put("client_id", clientId);
@@ -1642,7 +1656,7 @@ public class UserResource {
 		if(logger.isDebugEnabled()) {
 			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
-		
+
 		return redirectUrl;
 	}
 
@@ -1675,7 +1689,7 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
 				params.put("redirect_uri", redirectUri);
@@ -1694,7 +1708,7 @@ public class UserResource {
 				}
 				accessToken.setProvider(AuthProvider.IN);
 				addAccessToken(accessToken, request, autoAdd);
-				
+
 				if(logger.isDebugEnabled()) {
 					logger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
@@ -1722,11 +1736,11 @@ public class UserResource {
 		String redirectUrl = "https://www.linkedin.com/oauth/v2/authorization?" + "client_id=" + clientId
 				+ "&redirect_uri=" + redirectUri + "&state=" + UUID.randomUUID().toString() + "&response_type=code"
 				+ "&scope=" + URLEncoder.encode(scope, "UTF-8");
-		
+
 		if(logger.isDebugEnabled()) {
 			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
-		
+
 		return redirectUrl;
 	}
 
@@ -1764,7 +1778,7 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
 				params.put("redirect_uri", redirectUri);
@@ -1834,12 +1848,12 @@ public class UserResource {
 		if(logger.isDebugEnabled()) {
 			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
-		
+
 		return redirectUrl;
 	}
 
-	
-	
+
+
 	/**
 	 * Logs user in through generic provider
 	 */
@@ -1853,7 +1867,7 @@ public class UserResource {
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
-		
+
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
 
 		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
@@ -1868,7 +1882,7 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 				//String tenant = socialData.getProperty(prefix + "tenant");
-				
+
 				//removing scope for now as it isn't needed in token call usually
 				//String scope = socialData.getProperty(prefix + "scope");
 				String token_url = socialData.getProperty(prefix + "token_url");
@@ -1876,16 +1890,16 @@ public class UserResource {
 				if(logger.isDebugEnabled()) {
 					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
-				
+
 				Hashtable params = new Hashtable();
 				params.put("client_id", clientId);
-			//	params.put("scope", scope);
+				//	params.put("scope", scope);
 				params.put("redirect_uri", redirectUri);
 				params.put("code", outputs[0]);
 				params.put("grant_type", "authorization_code");
 				params.put("client_secret", clientSecret);
 
-				
+
 				if(Strings.isNullOrEmpty(token_url)){
 					throw new IllegalArgumentException("Token URL can not be null or empty");
 				}
@@ -1921,7 +1935,7 @@ public class UserResource {
 			response.sendRedirect(getGenericRedirect(provider, request));
 			return null;
 		}
-		
+
 		String prefix = provider+"_";
 
 		if(Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))){
@@ -1934,7 +1948,7 @@ public class UserResource {
 			//String[] beanPropsArr = beanProps.split(",", -1);
 			Set<String> userGroups = new HashSet<String>();
 
-			 
+
 			JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
 			if((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
 				throw new SemossPixelException("Group result must return flat array. Please check groupJsonPatter");
@@ -1960,13 +1974,13 @@ public class UserResource {
 		String auth_url = socialData.getProperty(prefix + "auth_url");
 
 		String state = UUID.randomUUID().toString();
-		
+
 		if(Strings.isNullOrEmpty(auth_url)){
 			throw new IllegalArgumentException("Authorize URL can not be null or empty");
 		}
-		
+
 		String redirectUrl; 
-		
+
 		//are you already adding custom props? if so I will skip adding the ?
 		if(auth_url.contains("?")) {
 			redirectUrl = auth_url + "&client_id="
@@ -1982,23 +1996,23 @@ public class UserResource {
 		if(logger.isDebugEnabled()) {
 			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
-		
+
 		return redirectUrl;
 	}
-//	public static String calculateRFC2104HMAC(String data, String key) throws SignatureException, NoSuchAlgorithmException, InvalidKeyException {
-//		SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), "HmacSHA1");
-//		Mac mac = Mac.getInstance("HmacSHA1");
-//		mac.init(signingKey);
-//		return toHexString(mac.doFinal(data.getBytes()));
-//	}
-//
-//	private static String toHexString(byte[] bytes) {
-//		Formatter formatter = new Formatter();
-//		for (byte b : bytes) {
-//			formatter.format("%02x", b);
-//		}
-//		return formatter.toString();
-//	}
+	//	public static String calculateRFC2104HMAC(String data, String key) throws SignatureException, NoSuchAlgorithmException, InvalidKeyException {
+	//		SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), "HmacSHA1");
+	//		Mac mac = Mac.getInstance("HmacSHA1");
+	//		mac.init(signingKey);
+	//		return toHexString(mac.doFinal(data.getBytes()));
+	//	}
+	//
+	//	private static String toHexString(byte[] bytes) {
+	//		Formatter formatter = new Formatter();
+	//		for (byte b : bytes) {
+	//			formatter.format("%02x", b);
+	//		}
+	//		return formatter.toString();
+	//	}
 
 	/////////////////////////////////////////////////////////////////
 
@@ -2017,12 +2031,12 @@ public class UserResource {
 	@Path("/login")
 	public Response loginNative(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
-		
+
 		if(socialData.getLoginsAllowed().get("native")==null || !socialData.getLoginsAllowed().get("native")) {
 			ret.put(Constants.ERROR_MESSAGE, "Native login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
-		
+
 		try {
 			String username = request.getParameter("username");
 			String password = request.getParameter("password");
@@ -2034,7 +2048,7 @@ public class UserResource {
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
 				return WebUtility.getResponse(ret, 401);
 			}
-			
+
 			boolean canLogin = SecurityNativeUserUtils.logIn(username, password);
 			if (canLogin) {
 				ret.put("success", "true");
@@ -2084,7 +2098,7 @@ public class UserResource {
 
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Authenticates a user that's trying to log in through AD
 	 * @param request
@@ -2099,7 +2113,7 @@ public class UserResource {
 			ret.put(Constants.ERROR_MESSAGE, "LDAP login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
-		
+
 		ILdapAuthenticator authenticator = null;
 		try {
 			String username = request.getParameter("username");
@@ -2112,7 +2126,7 @@ public class UserResource {
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
 				return WebUtility.getResponse(ret, 401);
 			}
-			
+
 			authenticator = socialData.getLdapAuthenticator();
 			AccessToken authToken = authenticator.authenticate(username, password);
 			if(authToken == null) {
@@ -2161,7 +2175,7 @@ public class UserResource {
 
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Authenticates a user that's trying to log in through AD
 	 * @param request
@@ -2178,7 +2192,7 @@ public class UserResource {
 			ret.put(Constants.ERROR_MESSAGE, "LDAP change password is not allowed/configured");
 			return WebUtility.getResponse(ret, 400);
 		}
-		
+
 		ILdapAuthenticator authenticator = null;
 		try {
 			String username = request.getParameter("username");
@@ -2190,7 +2204,7 @@ public class UserResource {
 				ret.put(Constants.ERROR_MESSAGE, "The user name, current password, or new password are empty");
 				return WebUtility.getResponse(ret, 401);
 			}
-			
+
 			authenticator = socialData.getLdapAuthenticator();
 			authenticator.updateUserPassword(username, curPassword, newPassword);
 			ret.put("success", "true");
@@ -2219,7 +2233,7 @@ public class UserResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 
-	
+
 	/**
 	 * One Time Passcode using LinOTP
 	 * 
@@ -2237,20 +2251,19 @@ public class UserResource {
 			ret.put(Constants.ERROR_MESSAGE, "LinOTP login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
-		
+
 		final String LINOTP_USERNAME = "username";
 		final String LINOTP_TRANSACTION = "transactionId";
 		final String OTP = "OTP";
-		
+
 		// https://YOUR_LINOTP_SERVER/validate/check?user=USERNAME&pass=PINOTP
-		// final String prefix = "linotp_";
-		final String hostname = socialData.getProperty("linotp_hostname"); // removed prefix for text searchability when looking for linotp_hostname
+		final String hostname = socialData.getProperty("linotp_hostname");
 		final String realm = socialData.getProperty("linotp_realm");
-		
-        String controller = "validate";
-        String action = "check";
-        String requestURL = hostname + "/" + controller + "/" + action; //"https://" + removed for consistency in social.properties
-        String username = request.getParameter("username");
+
+		String controller = "validate";
+		String action = "check";
+		String requestURL = hostname + "/" + controller + "/" + action;
+		String username = request.getParameter("username");
 		String pin = request.getParameter("pin");
 		String otp = request.getParameter("otp");
 		String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
@@ -2263,17 +2276,17 @@ public class UserResource {
 			ret.put(Constants.ERROR_MESSAGE, "The user name cannot be null or empty.");
 			return WebUtility.getResponse(ret, 401);
 		}
-		
+
 		if( (pin == null || pin.isEmpty()) && (otp == null || otp.isEmpty())) {
 			ret.put(Constants.ERROR_MESSAGE, "Must be providing either a pin or otp");
 			return WebUtility.getResponse(ret, 401);
 		}
-		
+
 		// we are always going to lowercase the username
 		if(username != null) {
 			username = username.trim().toLowerCase();
 		}
-		
+
 		if (otp==null) {
 			boolean checkAD = Boolean.parseBoolean(socialData.getProperty("linotp_check_ad", "false"));
 			if(checkAD) {
@@ -2317,130 +2330,256 @@ public class UserResource {
 					}
 				}
 			}
-			
+
 			// first, request for challenge request using user pin
 			// Create HTTP request via ssl port (https) and pass post parameters
-	        CloseableHttpClient httpclient = HttpClients
-	        	    .custom()
-	        	    .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-	        	    .build();
-	        try {
-	            HttpPost httpPost = new HttpPost(requestURL);
-	            List <NameValuePair> nvps = new ArrayList <NameValuePair>();
-	            nvps.add(new BasicNameValuePair("user", username));
-	            nvps.add(new BasicNameValuePair("pass", pin));
-	            nvps.add(new BasicNameValuePair("realm", realm));
-	            httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-	            CloseableHttpResponse postResponse = httpclient.execute(httpPost);
-	            try {
-	                HttpEntity entity = postResponse.getEntity();
-	                String s_response = EntityUtils.toString(entity);
-	                JsonReader reader = Json.createReader(new StringReader(s_response));
-	                JsonObject j_response = reader.readObject();
-	                //parse json response for result value
-	                JsonObject j_result = j_response.getJsonObject("result");
-	                Boolean authenticated = j_result.getBoolean("value", false);
-	                if (authenticated) {
-	                	// this means we have authenticated
-	                	// and there is no policy requiring an otp
-	                	// just the initial login is being performed where that
-	                	// pin can be defined as the ldap password or the otp pin
-	                	AccessToken newUser = new AccessToken();
-	        			newUser.setProvider(AuthProvider.LINOTP);
-	        			newUser.setId(username);
-	        			newUser.setUsername(username);
-	        			addAccessToken(newUser, request, autoAdd);
-	    				ret.put("success", "true");
-	    				ret.put("username", username);
-	        			// log the log in
-	        			if (!disableRedirect) {
-	        				setMainPageRedirect(request, response, redirect);
-	        			}
-	                } else {
-	                	// challenge request flow
-	                	if (j_response.containsKey("detail")) {
-	                		JsonObject j_detail = j_response.getJsonObject("detail");
-			                String transactionId = j_detail.getString("transactionid");
-			                HttpSession session = request.getSession();
-			                session.setAttribute(LINOTP_USERNAME, username);
-			                session.setAttribute(LINOTP_TRANSACTION, transactionId);
-			                ret.put(OTP, "Please get OTP code.");
-			                return WebUtility.getResponse(ret, 200);
-	                	} else {
-	                		ret.put(Constants.ERROR_MESSAGE, "The user name or pin/password are invalid.");
-	 	    				return WebUtility.getResponse(ret, 401);
-	                	}
-	                }
-	                // consume will release the entity
-	                EntityUtils.consume(entity);
-	            } finally {
-	            	postResponse.close();
-	            }
-	        } finally {
-	            httpclient.close();
-	        }
+			CloseableHttpClient httpclient = HttpClients
+					.custom()
+					.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+					.build();
+			try {
+				HttpPost httpPost = new HttpPost(requestURL);
+				List <NameValuePair> nvps = new ArrayList <NameValuePair>();
+				nvps.add(new BasicNameValuePair("user", username));
+				nvps.add(new BasicNameValuePair("pass", pin));
+				nvps.add(new BasicNameValuePair("realm", realm));
+				httpPost.setEntity(new UrlEncodedFormEntity(nvps));
+				CloseableHttpResponse postResponse = httpclient.execute(httpPost);
+				try {
+					HttpEntity entity = postResponse.getEntity();
+					String s_response = EntityUtils.toString(entity);
+					JsonReader reader = Json.createReader(new StringReader(s_response));
+					JsonObject j_response = reader.readObject();
+					//parse json response for result value
+					JsonObject j_result = j_response.getJsonObject("result");
+					Boolean authenticated = j_result.getBoolean("value", false);
+					if (authenticated) {
+						// this means we have authenticated
+						// and there is no policy requiring an otp
+						// just the initial login is being performed where that
+						// pin can be defined as the ldap password or the otp pin
+						AccessToken newUser = new AccessToken();
+						newUser.setProvider(AuthProvider.LINOTP);
+						newUser.setId(username);
+						newUser.setUsername(username);
+						addAccessToken(newUser, request, autoAdd);
+						ret.put("success", "true");
+						ret.put("username", username);
+						// log the log in
+						if (!disableRedirect) {
+							setMainPageRedirect(request, response, redirect);
+						}
+					} else {
+						// challenge request flow
+						if (j_response.containsKey("detail")) {
+							JsonObject j_detail = j_response.getJsonObject("detail");
+							String transactionId = j_detail.getString("transactionid");
+							HttpSession session = request.getSession();
+							session.setAttribute(LINOTP_USERNAME, username);
+							session.setAttribute(LINOTP_TRANSACTION, transactionId);
+							ret.put(OTP, "Please get OTP code.");
+							return WebUtility.getResponse(ret, 200);
+						} else {
+							ret.put(Constants.ERROR_MESSAGE, "The user name or pin/password are invalid.");
+							return WebUtility.getResponse(ret, 401);
+						}
+					}
+					// consume will release the entity
+					EntityUtils.consume(entity);
+				} finally {
+					postResponse.close();
+				}
+			} finally {
+				httpclient.close();
+			}
 		} else {
 			// subsequent challenge request with otp
 			// Create HTTP request via ssl port (https) and pass post parameters
-	        CloseableHttpClient httpclient = HttpClients
-	        	    .custom()
-	        	    .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-	        	    .build();
-	        try {
-	            HttpPost httpPost = new HttpPost(requestURL);
-	            HttpSession session = request.getSession();
-                username = (String) session.getAttribute(LINOTP_USERNAME);
-                String transactionId = (String) session.getAttribute(LINOTP_TRANSACTION);
-                if(username == null || username.isEmpty() || transactionId == null || transactionId.isEmpty()) {
-	                ret.put(Constants.ERROR_MESSAGE, "The user must re-enter their username and password before proceeding to enter their 2FA pin");
-	 				return WebUtility.getResponse(ret, 401);
-                }
-                
-	            List <NameValuePair> nvps = new ArrayList <NameValuePair>();
-	            nvps.add(new BasicNameValuePair("user", username));
-	            nvps.add(new BasicNameValuePair("pass", otp));
-	            nvps.add(new BasicNameValuePair("realm", realm));
-	            nvps.add(new BasicNameValuePair("transactionid", transactionId));
-	            httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-	            CloseableHttpResponse postResponse = httpclient.execute(httpPost);
-	            try {
-	                HttpEntity entity = postResponse.getEntity();
-	                String s_response = EntityUtils.toString(entity);
-	                JsonReader reader = Json.createReader(new StringReader(s_response));
-	                JsonObject j_response = reader.readObject();
-	                //parse json response for result value
-	                JsonObject j_result = j_response.getJsonObject("result");
-	                Boolean authenticated = j_result.getBoolean("value", false);
-	
-	                if (authenticated) {
-	                	AccessToken newUser = new AccessToken();
-	        			newUser.setProvider(AuthProvider.LINOTP);
-	        			newUser.setId(username);
-	        			newUser.setUsername(username);
-	        			addAccessToken(newUser, request, autoAdd);
-	    				ret.put("success", "true");
-	    				ret.put("username", username);
-	        			// log the log in
-	        			if (!disableRedirect) {
-	        				setMainPageRedirect(request, response, redirect);
-	        			}
-	                }
-	                else {
-	                    ret.put(Constants.ERROR_MESSAGE, "The username or one-time passcode are invalid.");
-	    				return WebUtility.getResponse(ret, 401);
-	                }
-	                // consume will release the entity
-	                EntityUtils.consume(entity);
-	            } finally {
-	            	postResponse.close();
-	            }
-	        } finally {
-	            httpclient.close();
-	        }
-        }
+			CloseableHttpClient httpclient = HttpClients
+					.custom()
+					.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+					.build();
+			try {
+				HttpPost httpPost = new HttpPost(requestURL);
+				HttpSession session = request.getSession();
+				username = (String) session.getAttribute(LINOTP_USERNAME);
+				String transactionId = (String) session.getAttribute(LINOTP_TRANSACTION);
+				if(username == null || username.isEmpty() || transactionId == null || transactionId.isEmpty()) {
+					ret.put(Constants.ERROR_MESSAGE, "The user must re-enter their username and password before proceeding to enter their 2FA pin");
+					return WebUtility.getResponse(ret, 401);
+				}
+
+				List <NameValuePair> nvps = new ArrayList <NameValuePair>();
+				nvps.add(new BasicNameValuePair("user", username));
+				nvps.add(new BasicNameValuePair("pass", otp));
+				nvps.add(new BasicNameValuePair("realm", realm));
+				nvps.add(new BasicNameValuePair("transactionid", transactionId));
+				httpPost.setEntity(new UrlEncodedFormEntity(nvps));
+				CloseableHttpResponse postResponse = httpclient.execute(httpPost);
+				try {
+					HttpEntity entity = postResponse.getEntity();
+					String s_response = EntityUtils.toString(entity);
+					JsonReader reader = Json.createReader(new StringReader(s_response));
+					JsonObject j_response = reader.readObject();
+					//parse json response for result value
+					JsonObject j_result = j_response.getJsonObject("result");
+					Boolean authenticated = j_result.getBoolean("value", false);
+
+					if (authenticated) {
+						AccessToken newUser = new AccessToken();
+						newUser.setProvider(AuthProvider.LINOTP);
+						newUser.setId(username);
+						newUser.setUsername(username);
+						addAccessToken(newUser, request, autoAdd);
+						ret.put("success", "true");
+						ret.put("username", username);
+						// log the log in
+						if (!disableRedirect) {
+							setMainPageRedirect(request, response, redirect);
+						}
+					}
+					else {
+						ret.put(Constants.ERROR_MESSAGE, "The username or one-time passcode are invalid.");
+						return WebUtility.getResponse(ret, 401);
+					}
+					// consume will release the entity
+					EntityUtils.consume(entity);
+				} finally {
+					postResponse.close();
+				}
+			} finally {
+				httpclient.close();
+			}
+		}
 
 		return WebUtility.getResponse(ret, 200);
 	}
+
+
+	/**
+	 * Reset the fail counter for a user
+	 * 
+	 * @param request
+	 * @return true if the information provided to log in is valid otherwise error.
+	 * @throws IOException 
+	 * @throws ClientProtocolException 
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("/resetLinOTPFailCounter")
+	public Response resetLinOTPFailCounter(@Context HttpServletRequest request, @Context HttpServletResponse response) throws ClientProtocolException, IOException {
+		Map<String, Object> ret = new HashMap<>();
+		if(socialData.getLoginsAllowed().get("linotp")==null || !socialData.getLoginsAllowed().get("linotp")) {
+			ret.put(Constants.ERROR_MESSAGE, "LinOTP login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
+
+		User thisUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(thisUser == null) {
+			ret.put(Constants.ERROR_MESSAGE, "User must be logged in to invoke this endpoint");
+			return WebUtility.getResponse(ret, 500);
+		}
+		if(SecurityAdminUtils.getInstance(thisUser) != null) {
+			ret.put(Constants.ERROR_MESSAGE, "User must be an admin");
+			return WebUtility.getResponse(ret, 500);
+		}
+
+		final String adminUser = socialData.getProperty("linotp_adminuser");
+		final String adminPass = socialData.getProperty("linotp_adminpassword");
+
+		if(adminUser == null || adminPass == null || adminUser.isEmpty() || adminPass.isEmpty()) {
+			ret.put(Constants.ERROR_MESSAGE, "Admin user/pass is not setup to invoke this endpoint");
+			return WebUtility.getResponse(ret, 500);
+		}
+
+		final String LINOTP_USERNAME = "user";
+
+		// https://YOUR_LINOTP_SERVER/admin/reset?user=USERNAME
+		final String hostname = socialData.getProperty("linotp_hostname"); 
+		final String realm = socialData.getProperty("linotp_realm");
+
+		String controller = "admin";
+		String action = "reset";
+		String requestURL = hostname + "/" + controller + "/" + action;
+		String username = request.getParameter("username");
+
+		if( username == null || username.isEmpty() ) {
+			ret.put(Constants.ERROR_MESSAGE, "The user name cannot be null or empty.");
+			return WebUtility.getResponse(ret, 401);
+		}
+
+		SecureRandom random = new SecureRandom();
+		byte bytes[] = new byte[32];
+		random.nextBytes(bytes);
+		Encoder encoder = Base64.getUrlEncoder().withoutPadding();
+		String token = encoder.encodeToString(bytes);
+		
+		// LinOTP does not check user authorization when accessing the administrative API
+		// but relies on the web server running LinOTP (as a WSGI app) to do this.
+		// context is passed into the httpclient.execute() method
+		HttpClientContext context = HttpClientContext.create();
+		CredentialsProvider credsProvider = new BasicCredentialsProvider();
+		credsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(adminUser, adminPass));
+		AuthCache authCache = new BasicAuthCache();
+		authCache.put(new HttpHost(hostname), new DigestScheme());
+		context.setAuthCache(authCache);
+		context.setCredentialsProvider(credsProvider);
+		
+		// must send the token in the cookie as well as the session key in the body
+		CookieStore cstore = new BasicCookieStore();
+		BasicClientCookie2 cookie = new BasicClientCookie2("admin_session", token);
+		cstore.addCookie(cookie);
+		context.setCookieStore(cstore);
+		
+		
+		// Create HTTP request via ssl port (https) and pass post parameters
+		CloseableHttpClient httpclient = HttpClients
+				.custom()
+				.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+				.build();
+		try {
+			HttpPost httpPost = new HttpPost(requestURL);
+
+			List <NameValuePair> nvps = new ArrayList <NameValuePair>();
+			nvps.add(new BasicNameValuePair("user", username));
+			nvps.add(new BasicNameValuePair("realm", realm));
+			nvps.add(new BasicNameValuePair("session", token));
+			httpPost.setEntity(new UrlEncodedFormEntity(nvps));
+			CloseableHttpResponse postResponse = httpclient.execute(httpPost, context);
+			try {
+				HttpEntity entity = postResponse.getEntity();
+				String s_response = EntityUtils.toString(entity);
+				JsonReader reader = Json.createReader(new StringReader(s_response));
+				JsonObject j_response = reader.readObject();
+				//parse json response for result value
+				JsonObject j_result = j_response.getJsonObject("result");
+				Integer validReset = j_result.getInt("value", 0);
+
+				if (validReset == 1) {
+					ret.put("success", "true");
+					ret.put("message", "Successful reset");
+				} else {
+					try {
+						JsonObject errorJson = j_response.getJsonObject("result");
+						String errorMessage = errorJson.getString("message");
+						ret.put(Constants.ERROR_MESSAGE, "Unsuccessful reset - " + errorMessage);
+					} catch(Exception ignore) {
+						//ignore
+						ret.put(Constants.ERROR_MESSAGE, "Unsuccessful reset - unable to parse error details");
+					}
+				}
+				// consume will release the entity
+				EntityUtils.consume(entity);
+			} finally {
+				postResponse.close();
+			}
+		} finally {
+			httpclient.close();
+		}
+
+		return WebUtility.getResponse(ret, 200);
+	}
+
 
 	/**
 	 * Create an user according to the information provided (user name, password,
@@ -2459,12 +2598,12 @@ public class UserResource {
 			ret.put(Constants.ERROR_MESSAGE, "Native login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
-		
+
 		if(socialData.getLoginsAllowed().get("registration")==null || !socialData.getLoginsAllowed().get("registration")) {
 			ret.put(Constants.ERROR_MESSAGE, "Native registration is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
-		
+
 		try {
 			// Note - for native users
 			// the id and the username are always the same
@@ -2475,7 +2614,7 @@ public class UserResource {
 			String phone = request.getParameter("phone");
 			String phoneExtension = request.getParameter("phoneextension");
 			String countryCode = request.getParameter("countrycode");
-			
+
 			AccessToken newUser = new AccessToken();
 			newUser.setProvider(AuthProvider.NATIVE);
 			newUser.setId(username);
@@ -2622,10 +2761,10 @@ public class UserResource {
 			// add the cookie to the header directly
 			// to allow for cross site login when embedded as iframe
 			String setCookieString = DBLoader.getSessionIdKey() + "=" + session.getId() 
-					+ "; Path=" + contextPath 
-					+ "; HttpOnly"
-					+ ( (ClusterUtil.IS_CLUSTER || request.isSecure()) ? "; Secure; SameSite=None" : "")
-					;
+			+ "; Path=" + contextPath 
+			+ "; HttpOnly"
+			+ ( (ClusterUtil.IS_CLUSTER || request.isSecure()) ? "; Secure; SameSite=None" : "")
+			;
 			response.addHeader("Set-Cookie", setCookieString);
 			if (useCustom) {
 				response.addHeader("redirect", customRedirect);
@@ -2691,7 +2830,7 @@ public class UserResource {
 		if(logger.isDebugEnabled()) {
 			logger.debug("Session id set to " + sessionId);
 		}
-		
+
 		InsightToken token = new InsightToken();
 		Hashtable outputHash = new Hashtable();
 		try {
@@ -2731,7 +2870,7 @@ public class UserResource {
 			if(logger.isDebugEnabled()) {
 				logger.debug("Redirect URL " + Utility.cleanLogString(redir));
 			}
-			
+
 			outputHash.put("PARAM", redir);
 			// also tell the system that this session is not fully validated so if someone
 			// comes without secret on this session
