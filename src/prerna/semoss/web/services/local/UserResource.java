@@ -28,17 +28,14 @@
 package prerna.semoss.web.services.local;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Base64.Encoder;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -48,9 +45,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 
-import javax.json.Json;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -67,29 +61,7 @@ import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
-import org.apache.http.NameValuePair;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.AuthCache;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.CookieStore;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.impl.auth.DigestScheme;
-import org.apache.http.impl.client.BasicAuthCache;
-import org.apache.http.impl.client.BasicCookieStore;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.cookie.BasicClientCookie2;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.kohsuke.github.GHMyself;
@@ -135,6 +107,8 @@ import prerna.util.Utility;
 import prerna.util.git.GitRepoUtils;
 import prerna.util.ldap.ILdapAuthenticator;
 import prerna.util.ldap.LDAPPasswordChangeRequiredException;
+import prerna.util.linotp.LinOTPResponse;
+import prerna.util.linotp.LinOTPUtil;
 import prerna.web.conf.DBLoader;
 import prerna.web.conf.NoUserInSessionFilter;
 import prerna.web.services.util.WebUtility;
@@ -2246,213 +2220,42 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/loginLinOTP")
 	public Response loginLinOTP(@Context HttpServletRequest request, @Context HttpServletResponse response) throws ClientProtocolException, IOException {
-		Map<String, Object> ret = new HashMap<>();
+		Map<String, Object> returnMap = new HashMap<>();
 		if(socialData.getLoginsAllowed().get("linotp")==null || !socialData.getLoginsAllowed().get("linotp")) {
-			ret.put(Constants.ERROR_MESSAGE, "LinOTP login is not allowed");
-			return WebUtility.getResponse(ret, 400);
+			returnMap.put(Constants.ERROR_MESSAGE, "LinOTP login is not allowed");
+			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		final String LINOTP_USERNAME = "username";
-		final String LINOTP_TRANSACTION = "transactionId";
-		final String OTP = "OTP";
-
-		// https://YOUR_LINOTP_SERVER/validate/check?user=USERNAME&pass=PINOTP
-		final String hostname = socialData.getProperty("linotp_hostname");
-		final String realm = socialData.getProperty("linotp_realm");
-
-		String controller = "validate";
-		String action = "check";
-		String requestURL = hostname + "/" + controller + "/" + action;
-		String username = request.getParameter("username");
-		String pin = request.getParameter("pin");
-		String otp = request.getParameter("otp");
 		String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
 		// so that the default is to redirect
 		Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 		boolean autoAdd = Boolean.parseBoolean(socialData.getProperty("linotp_auto_add", "true"));
 
-		if( (username == null || username.isEmpty())
-				&& (otp == null || otp.isEmpty()) ) {
-			ret.put(Constants.ERROR_MESSAGE, "The user name cannot be null or empty.");
-			return WebUtility.getResponse(ret, 401);
-		}
-
-		if( (pin == null || pin.isEmpty()) && (otp == null || otp.isEmpty())) {
-			ret.put(Constants.ERROR_MESSAGE, "Must be providing either a pin or otp");
-			return WebUtility.getResponse(ret, 401);
-		}
-
-		// we are always going to lowercase the username
-		if(username != null) {
-			username = username.trim().toLowerCase();
-		}
-
-		if (otp==null) {
-			boolean checkAD = Boolean.parseBoolean(socialData.getProperty("linotp_check_ad", "false"));
-			if(checkAD) {
-				ILdapAuthenticator authenticator = null;
-				try {
-					authenticator = socialData.getLdapAuthenticator();
-					AccessToken authToken = authenticator.authenticate(username, pin);
-					if(authToken == null) {
-						throw new IllegalArgumentException("Unable to parse any user attributes");
-					}
-				} catch(LDAPPasswordChangeRequiredException e) {
-					HttpSession session = request.getSession(false);
-					if(session != null) {
-						User user = (User) session.getAttribute(Constants.SESSION_USER);
-						if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
-							session.invalidate();
-						}
-					}
-					logger.error(Constants.STACKTRACE, e);
-					ret.put(Constants.ERROR_MESSAGE, e.getMessage());
-					ret.put(ILdapAuthenticator.LDAP_PASSWORD_CHANGE_RETURN_KEY, true);
-					return WebUtility.getResponse(ret, 401);
-				} catch (Exception e) {
-					HttpSession session = request.getSession(false);
-					if(session != null) {
-						User user = (User) session.getAttribute(Constants.SESSION_USER);
-						if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
-							session.invalidate();
-						}
-					}
-					logger.error(Constants.STACKTRACE, e);
-					ret.put(Constants.ERROR_MESSAGE, "Unable to authenticate with active directory");
-					return WebUtility.getResponse(ret, 500);
-				} finally {
-					if(authenticator != null) {
-						try {
-							authenticator.close();
-						} catch (IOException e) {
-							logger.error(Constants.STACKTRACE, e);
-						}
-					}
-				}
-			}
-
-			// first, request for challenge request using user pin
-			// Create HTTP request via ssl port (https) and pass post parameters
-			CloseableHttpClient httpclient = HttpClients
-					.custom()
-					.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-					.build();
-			try {
-				HttpPost httpPost = new HttpPost(requestURL);
-				List <NameValuePair> nvps = new ArrayList <NameValuePair>();
-				nvps.add(new BasicNameValuePair("user", username));
-				nvps.add(new BasicNameValuePair("pass", pin));
-				nvps.add(new BasicNameValuePair("realm", realm));
-				httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-				CloseableHttpResponse postResponse = httpclient.execute(httpPost);
-				try {
-					HttpEntity entity = postResponse.getEntity();
-					String s_response = EntityUtils.toString(entity);
-					JsonReader reader = Json.createReader(new StringReader(s_response));
-					JsonObject j_response = reader.readObject();
-					//parse json response for result value
-					JsonObject j_result = j_response.getJsonObject("result");
-					Boolean authenticated = j_result.getBoolean("value", false);
-					if (authenticated) {
-						// this means we have authenticated
-						// and there is no policy requiring an otp
-						// just the initial login is being performed where that
-						// pin can be defined as the ldap password or the otp pin
-						AccessToken newUser = new AccessToken();
-						newUser.setProvider(AuthProvider.LINOTP);
-						newUser.setId(username);
-						newUser.setUsername(username);
-						addAccessToken(newUser, request, autoAdd);
-						ret.put("success", "true");
-						ret.put("username", username);
-						// log the log in
-						if (!disableRedirect) {
-							setMainPageRedirect(request, response, redirect);
-						}
-					} else {
-						// challenge request flow
-						if (j_response.containsKey("detail")) {
-							JsonObject j_detail = j_response.getJsonObject("detail");
-							String transactionId = j_detail.getString("transactionid");
-							HttpSession session = request.getSession();
-							session.setAttribute(LINOTP_USERNAME, username);
-							session.setAttribute(LINOTP_TRANSACTION, transactionId);
-							ret.put(OTP, "Please get OTP code.");
-							return WebUtility.getResponse(ret, 200);
-						} else {
-							ret.put(Constants.ERROR_MESSAGE, "The user name or pin/password are invalid.");
-							return WebUtility.getResponse(ret, 401);
-						}
-					}
-					// consume will release the entity
-					EntityUtils.consume(entity);
-				} finally {
-					postResponse.close();
-				}
-			} finally {
-				httpclient.close();
-			}
+		LinOTPResponse linotpResponse = LinOTPUtil.login(request);
+		returnMap = linotpResponse.getReturnMap();
+		int responseCode = linotpResponse.getResponseCode();
+		if(responseCode != 200) {
+			// we just throw the error
+			return WebUtility.getResponse(returnMap, responseCode);
 		} else {
-			// subsequent challenge request with otp
-			// Create HTTP request via ssl port (https) and pass post parameters
-			CloseableHttpClient httpclient = HttpClients
-					.custom()
-					.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-					.build();
-			try {
-				HttpPost httpPost = new HttpPost(requestURL);
-				HttpSession session = request.getSession();
-				username = (String) session.getAttribute(LINOTP_USERNAME);
-				String transactionId = (String) session.getAttribute(LINOTP_TRANSACTION);
-				if(username == null || username.isEmpty() || transactionId == null || transactionId.isEmpty()) {
-					ret.put(Constants.ERROR_MESSAGE, "The user must re-enter their username and password before proceeding to enter their 2FA pin");
-					return WebUtility.getResponse(ret, 401);
-				}
-
-				List <NameValuePair> nvps = new ArrayList <NameValuePair>();
-				nvps.add(new BasicNameValuePair("user", username));
-				nvps.add(new BasicNameValuePair("pass", otp));
-				nvps.add(new BasicNameValuePair("realm", realm));
-				nvps.add(new BasicNameValuePair("transactionid", transactionId));
-				httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-				CloseableHttpResponse postResponse = httpclient.execute(httpPost);
-				try {
-					HttpEntity entity = postResponse.getEntity();
-					String s_response = EntityUtils.toString(entity);
-					JsonReader reader = Json.createReader(new StringReader(s_response));
-					JsonObject j_response = reader.readObject();
-					//parse json response for result value
-					JsonObject j_result = j_response.getJsonObject("result");
-					Boolean authenticated = j_result.getBoolean("value", false);
-
-					if (authenticated) {
-						AccessToken newUser = new AccessToken();
-						newUser.setProvider(AuthProvider.LINOTP);
-						newUser.setId(username);
-						newUser.setUsername(username);
-						addAccessToken(newUser, request, autoAdd);
-						ret.put("success", "true");
-						ret.put("username", username);
-						// log the log in
-						if (!disableRedirect) {
-							setMainPageRedirect(request, response, redirect);
-						}
-					}
-					else {
-						ret.put(Constants.ERROR_MESSAGE, "The username or one-time passcode are invalid.");
-						return WebUtility.getResponse(ret, 401);
-					}
-					// consume will release the entity
-					EntityUtils.consume(entity);
-				} finally {
-					postResponse.close();
-				}
-			} finally {
-				httpclient.close();
+			// are we logged in?
+			AccessToken token = linotpResponse.getToken();
+			if(token == null) {
+				// it is a 200 but we are not logged in
+				// you likely need to enter otp in 2nd response
+				return WebUtility.getResponse(returnMap, responseCode);
 			}
+			
+			// we have a login
+			addAccessToken(token, request, autoAdd);
+			// log the log in
+			if (!disableRedirect) {
+				setMainPageRedirect(request, response, redirect);
+			}
+			
+			return WebUtility.getResponse(returnMap, 200);
 		}
 
-		return WebUtility.getResponse(ret, 200);
 	}
 
 
@@ -2468,118 +2271,12 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/resetLinOTPFailCounter")
 	public Response resetLinOTPFailCounter(@Context HttpServletRequest request, @Context HttpServletResponse response) throws ClientProtocolException, IOException {
-		Map<String, Object> ret = new HashMap<>();
-		if(socialData.getLoginsAllowed().get("linotp")==null || !socialData.getLoginsAllowed().get("linotp")) {
-			ret.put(Constants.ERROR_MESSAGE, "LinOTP login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		User thisUser = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if(thisUser == null) {
-			ret.put(Constants.ERROR_MESSAGE, "User must be logged in to invoke this endpoint");
-			return WebUtility.getResponse(ret, 500);
-		}
-		if(SecurityAdminUtils.getInstance(thisUser) != null) {
-			ret.put(Constants.ERROR_MESSAGE, "User must be an admin");
-			return WebUtility.getResponse(ret, 500);
-		}
-
-		final String adminUser = socialData.getProperty("linotp_adminuser");
-		final String adminPass = socialData.getProperty("linotp_adminpassword");
-
-		if(adminUser == null || adminPass == null || adminUser.isEmpty() || adminPass.isEmpty()) {
-			ret.put(Constants.ERROR_MESSAGE, "Admin user/pass is not setup to invoke this endpoint");
-			return WebUtility.getResponse(ret, 500);
-		}
-
-		final String LINOTP_USERNAME = "user";
-
-		// https://YOUR_LINOTP_SERVER/admin/reset?user=USERNAME
-		final String hostname = socialData.getProperty("linotp_hostname"); 
-		final String realm = socialData.getProperty("linotp_realm");
-
-		String controller = "admin";
-		String action = "reset";
-		String requestURL = hostname + "/" + controller + "/" + action;
-		String username = request.getParameter("username");
-
-		if( username == null || username.isEmpty() ) {
-			ret.put(Constants.ERROR_MESSAGE, "The user name cannot be null or empty.");
-			return WebUtility.getResponse(ret, 401);
-		}
-
-		SecureRandom random = new SecureRandom();
-		byte bytes[] = new byte[32];
-		random.nextBytes(bytes);
-		Encoder encoder = Base64.getUrlEncoder().withoutPadding();
-		String token = encoder.encodeToString(bytes);
-		
-		// LinOTP does not check user authorization when accessing the administrative API
-		// but relies on the web server running LinOTP (as a WSGI app) to do this.
-		// context is passed into the httpclient.execute() method
-		HttpClientContext context = HttpClientContext.create();
-		CredentialsProvider credsProvider = new BasicCredentialsProvider();
-		credsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(adminUser, adminPass));
-		AuthCache authCache = new BasicAuthCache();
-		authCache.put(new HttpHost(hostname), new DigestScheme());
-		context.setAuthCache(authCache);
-		context.setCredentialsProvider(credsProvider);
-		
-		// must send the token in the cookie as well as the session key in the body
-		CookieStore cstore = new BasicCookieStore();
-		BasicClientCookie2 cookie = new BasicClientCookie2("admin_session", token);
-		cstore.addCookie(cookie);
-		context.setCookieStore(cstore);
-		
-		
-		// Create HTTP request via ssl port (https) and pass post parameters
-		CloseableHttpClient httpclient = HttpClients
-				.custom()
-				.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-				.build();
-		try {
-			HttpPost httpPost = new HttpPost(requestURL);
-
-			List <NameValuePair> nvps = new ArrayList <NameValuePair>();
-			nvps.add(new BasicNameValuePair("user", username));
-			nvps.add(new BasicNameValuePair("realm", realm));
-			nvps.add(new BasicNameValuePair("session", token));
-			httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-			CloseableHttpResponse postResponse = httpclient.execute(httpPost, context);
-			try {
-				HttpEntity entity = postResponse.getEntity();
-				String s_response = EntityUtils.toString(entity);
-				JsonReader reader = Json.createReader(new StringReader(s_response));
-				JsonObject j_response = reader.readObject();
-				//parse json response for result value
-				JsonObject j_result = j_response.getJsonObject("result");
-				Integer validReset = j_result.getInt("value", 0);
-
-				if (validReset == 1) {
-					ret.put("success", "true");
-					ret.put("message", "Successful reset");
-				} else {
-					try {
-						JsonObject errorJson = j_response.getJsonObject("result");
-						String errorMessage = errorJson.getString("message");
-						ret.put(Constants.ERROR_MESSAGE, "Unsuccessful reset - " + errorMessage);
-					} catch(Exception ignore) {
-						//ignore
-						ret.put(Constants.ERROR_MESSAGE, "Unsuccessful reset - unable to parse error details");
-					}
-				}
-				// consume will release the entity
-				EntityUtils.consume(entity);
-			} finally {
-				postResponse.close();
-			}
-		} finally {
-			httpclient.close();
-		}
-
-		return WebUtility.getResponse(ret, 200);
+		LinOTPResponse linotpResponse = LinOTPUtil.login(request);
+		Map<String, Object> returnMap = linotpResponse.getReturnMap();
+		int responseCode = linotpResponse.getResponseCode();
+		// this is simple, take response code and message and return
+		return WebUtility.getResponse(returnMap, responseCode);
 	}
-
 
 	/**
 	 * Create an user according to the information provided (user name, password,
