@@ -199,7 +199,8 @@ public class DBLoader implements ServletContextListener {
 			IEngine security = (IEngine) DIHelper.getInstance().getDbProperty(Constants.SECURITY_DB);
 			IEngine scheduler = (IEngine) DIHelper.getInstance().getDbProperty(Constants.SCHEDULER_DB);
 			IEngine userTracking = (IEngine) DIHelper.getInstance().getDbProperty(Constants.USER_TRACKING_DB);
-			if (localmaster == null || security == null || scheduler == null || !localmaster.isConnected() || !security.isConnected() || !scheduler.isConnected()
+			if (localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected()
+					|| (!Utility.schedulerForceDisable() && scheduler != null && !scheduler.isConnected())
 					|| (Utility.isUserTrackingEnabled() && (userTracking == null || !userTracking.isConnected() ))
 					) {
 				// you have messed up!!!
@@ -207,7 +208,7 @@ public class DBLoader implements ServletContextListener {
 			}
 			
 			// Load and run triggerOnLoad jobs
-			if(scheduler != null) {
+			if(!Utility.schedulerForceDisable() && scheduler != null) {
 				try {
 					SchedulerDatabaseUtility.executeAllTriggerOnLoads();
 				} catch(Exception e) {
