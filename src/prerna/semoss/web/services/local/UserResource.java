@@ -2183,6 +2183,7 @@ public class UserResource {
 			authenticator.updateUserPassword(username, curPassword, newPassword);
 			ret.put("success", "true");
 			ret.put("username", username);
+			return WebUtility.getResponse(ret, 200);
 		} catch (Exception e) {
 			HttpSession session = request.getSession(false);
 			if(session != null) {
@@ -2203,8 +2204,6 @@ public class UserResource {
 				}
 			}
 		}
-
-		return WebUtility.getResponse(ret, 200);
 	}
 
 
