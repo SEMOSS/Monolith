@@ -2271,7 +2271,7 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/resetLinOTPFailCounter")
 	public Response resetLinOTPFailCounter(@Context HttpServletRequest request, @Context HttpServletResponse response) throws ClientProtocolException, IOException {
-		LinOTPResponse linotpResponse = LinOTPUtil.login(request);
+		LinOTPResponse linotpResponse = LinOTPUtil.resetCounter(request);
 		Map<String, Object> returnMap = linotpResponse.getReturnMap();
 		int responseCode = linotpResponse.getResponseCode();
 		// this is simple, take response code and message and return
