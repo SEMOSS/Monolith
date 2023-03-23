@@ -2270,11 +2270,18 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/resetLinOTPFailCounter")
 	public Response resetLinOTPFailCounter(@Context HttpServletRequest request, @Context HttpServletResponse response) throws ClientProtocolException, IOException {
-		LinOTPResponse linotpResponse = LinOTPUtil.resetCounter(request);
-		Map<String, Object> returnMap = linotpResponse.getReturnMap();
-		int responseCode = linotpResponse.getResponseCode();
-		// this is simple, take response code and message and return
-		return WebUtility.getResponse(returnMap, responseCode);
+		try {
+			LinOTPResponse linotpResponse = LinOTPUtil.resetCounter(request);
+			Map<String, Object> returnMap = linotpResponse.getReturnMap();
+			int responseCode = linotpResponse.getResponseCode();
+			// this is simple, take response code and message and return
+			return WebUtility.getResponse(returnMap, responseCode);
+		} catch(Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, Object> errorMessage = new HashMap<>();
+			errorMessage.put(Constants.ERROR_MESSAGE, "Error occurred resetting the pin. Error message = " + e.getMessage());
+			return WebUtility.getResponse(errorMessage, 500);
+		}
 	}
 
 	/**
