@@ -78,6 +78,7 @@
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
 								accountLocked/**,
+								error/**,
 								logout/**,
 								noUserFail/**,
 								saml2/**,
@@ -132,6 +133,7 @@
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
 								accountLocked/**,
+								error/**,
 								logout/**,
 								noUserFail/**,
 								saml2/**,
