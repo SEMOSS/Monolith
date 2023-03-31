@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
@@ -22,9 +23,12 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.common.cache.CacheBuilder;
 
+import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityTokenUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/")
@@ -43,6 +47,17 @@ public class TrustedTokenService {
 	@GET
 	@Path("/getToken")
 	public Response getToken(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(Utility.getApplicationAPIUserTokenCheck()) {
+			String clientId = request.getParameter("client_id");
+			String secretKey = request.getParameter("secret_key");
+			
+			if(!SecurityAPIUserUtils.validCredentials(clientId, secretKey)) {
+				Map<String, Object> ret = new Hashtable<>();
+				ret.put("success", false);
+				ret.put(Constants.ERROR_MESSAGE, "Invalid client/secret key combination");
+				return WebUtility.getResponse(ret, 401);
+			}
+		}
 		String ip = ResourceUtility.getClientIp(request);
 		String token = null;
 		String dateAdded = null;

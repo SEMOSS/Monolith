@@ -17,6 +17,8 @@ import prerna.auth.User;
 import prerna.semoss.web.services.config.TrustedTokenService;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.SocialPropertiesUtil;
+import prerna.web.services.util.WebUtility;
 
 public class TrustedTokenFilter implements Filter {
 
@@ -37,6 +39,13 @@ public class TrustedTokenFilter implements Filter {
 		}
 		
 		if(user == null) {
+			SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
+			if(socialData.getLoginsAllowed().get("native") == null || !socialData.getLoginsAllowed().get("native")) {
+				// token is not enabled
+				arg2.doFilter(arg0, arg1);
+				return;
+			}
+			
 			// okay, we have a token
 			// and no current user
 			// we have to validate this stuff
@@ -59,7 +68,7 @@ public class TrustedTokenFilter implements Filter {
 			
 			AccessToken token = new AccessToken();
 			token.setId(userId);
-			token.setProvider(AuthProvider.WINDOWS_USER);
+			token.setProvider(AuthProvider.API_USER);
 			user = new User();
 			user.setAccessToken(token);
 			session = request.getSession(true);
