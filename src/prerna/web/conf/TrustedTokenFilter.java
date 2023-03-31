@@ -40,7 +40,7 @@ public class TrustedTokenFilter implements Filter {
 		
 		if(user == null) {
 			SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
-			if(socialData.getLoginsAllowed().get("native") == null || !socialData.getLoginsAllowed().get("native")) {
+			if(socialData.getLoginsAllowed().get("api_user") == null || !socialData.getLoginsAllowed().get("api_user")) {
 				// token is not enabled
 				arg2.doFilter(arg0, arg1);
 				return;
