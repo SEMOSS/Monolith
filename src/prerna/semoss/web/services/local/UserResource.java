@@ -82,6 +82,7 @@ import prerna.auth.InsightToken;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
@@ -2347,6 +2348,45 @@ public class UserResource {
 		}
 	}
 
+	
+	/**
+	 * Create an user according to the information provided (user name, password,
+	 * email)
+	 * 
+	 * @param request
+	 * @return true if the user is created otherwise error.
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("createAPIUser")
+	public Response createAPIUser(@Context HttpServletRequest request) {
+
+		if(socialData.getLoginsAllowed().get("api_user") == null || !socialData.getLoginsAllowed().get("api_user")) {
+			Map<String, String> ret = new Hashtable<>();
+			ret.put(Constants.ERROR_MESSAGE, "API User is not allowed for login");
+			return WebUtility.getResponse(ret, 400);
+		}
+
+		if(Utility.getApplicationAdminOnlyCreateAPIUser()) {
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+			if (user == null) {
+				Map<String, String> ret = new Hashtable<>();
+				ret.put(Constants.ERROR_MESSAGE, "No active session. Please login as an admin");
+				return WebUtility.getResponse(ret, 401);
+			}
+			if (!SecurityAdminUtils.userIsAdmin(user)) {
+				Map<String, String> ret = new Hashtable<>();
+				ret.put(Constants.ERROR_MESSAGE, "User is not an admin and does not have access. Please login as an admin");
+				return WebUtility.getResponse(ret, 401);
+			}
+		}
+		
+		String name = request.getParameter("name");
+		Map<String, String> oneTimeDetails = SecurityAPIUserUtils.addAPIUser(name);
+		return WebUtility.getResponse(oneTimeDetails, 200);
+	}
+
+	
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
@@ -2372,11 +2412,14 @@ public class UserResource {
 		if (AbstractSecurityUtils.securityEnabled()) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			if (user == null) {
-				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
+				Map<String, String> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "No user defined to access properties. Please login as an admin");
+				return WebUtility.getResponse(ret, 401);
 			}
 			if (!SecurityAdminUtils.userIsAdmin(user)) {
-				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin",
-						400);
+				Map<String, String> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "User is not an admin and does not have access. Please login as an admin");
+				return WebUtility.getResponse(ret, 401);
 			}
 		}
 
