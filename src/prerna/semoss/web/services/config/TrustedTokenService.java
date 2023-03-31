@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
@@ -46,7 +47,33 @@ public class TrustedTokenService {
 	
 	@GET
 	@Path("/getToken")
-	public Response getToken(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response getTokenGet(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(Utility.getApplicationAPIUserTokenCheck()) {
+			Map<String, Object> ret = new Hashtable<>();
+			ret.put("success", false);
+			ret.put(Constants.ERROR_MESSAGE, "Must use POST request to send client/secret keys");
+			return WebUtility.getResponse(ret, 401);
+		}
+		String ip = ResourceUtility.getClientIp(request);
+		String token = null;
+		String dateAdded = null;
+		if(ClusterUtil.IS_CLUSTER) {
+			String[] val = getClusterToken(ip);
+			token = val[0];
+			dateAdded = val[1];
+		} else {
+			token = getLocalToken(ip);
+		}
+		
+		Map<String, String> retMap = new HashMap<>();
+		retMap.put("token", token);
+		retMap.put("dateAdded", dateAdded);
+		return WebUtility.getResponse(retMap, 200);
+	}
+	
+	@POST
+	@Path("/getToken")
+	public Response getTokenPost(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		if(Utility.getApplicationAPIUserTokenCheck()) {
 			String clientId = request.getParameter("client_id");
 			String secretKey = request.getParameter("secret_key");
