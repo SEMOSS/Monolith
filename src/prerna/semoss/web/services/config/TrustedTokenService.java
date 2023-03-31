@@ -129,7 +129,8 @@ public class TrustedTokenService {
 			logger.info("IP = " + ip + ", requesting existing token id");
 		} else {
 			String token = UUID.randomUUID().toString();
-			tokenStorage.put(ip, new Object[] {token, new SemossDate(LocalDateTime.now()), clientId});
+			tokenDetails = new Object[] {token, new SemossDate(LocalDateTime.now()), clientId};
+			tokenStorage.put(ip, tokenDetails);
 			logger.info("IP = " + ip + ", generating new token id");
 		}
 		
