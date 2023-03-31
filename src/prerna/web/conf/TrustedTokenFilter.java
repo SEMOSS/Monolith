@@ -11,17 +11,22 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.semoss.web.services.config.TrustedTokenService;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
-import prerna.web.services.util.WebUtility;
 
 public class TrustedTokenFilter implements Filter {
 
+	private static final Logger logger = LogManager.getLogger(RDBMSNativeEngine.class);
+	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		HttpServletRequest request = (HttpServletRequest) arg0;
@@ -50,20 +55,33 @@ public class TrustedTokenFilter implements Filter {
 			// and no current user
 			// we have to validate this stuff
 			String ip = ResourceUtility.getClientIp(request);
-			String userId = request.getHeader("UserId");
+			Object[] tokenDetails = TrustedTokenService.getTokenForIp(ip);
+			if(tokenDetails == null) {
+				// token not found for this ip
+				arg2.doFilter(arg0, arg1);
+				return;
+			}
 			
-			String ipToken = TrustedTokenService.getTokenForIp(ip);
+			String ipToken = (String) tokenDetails[0];
 			authValue = authValue.replace("Bearer ", "");
+			
+			String userId = (String) tokenDetails[2];
 			
 			// error handling
 			if(ipToken == null) {
-				throw new IllegalArgumentException("This application does not have a valid trusted token or token has expired");
+				logger.error(Constants.STACKTRACE, "This application does not have a valid trusted token or token has expired");
+				arg2.doFilter(arg0, arg1);
+				return;
 			}
 			if(!ipToken.equals(authValue)) {
-				throw new IllegalArgumentException("The token value is invalid");
+				logger.error(Constants.STACKTRACE, "The token value is invalid");
+				arg2.doFilter(arg0, arg1);
+				return;
 			}
 			if(userId == null || (userId = userId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The user id must be defined");
+				logger.error(Constants.STACKTRACE, "The client id must be defined");
+				arg2.doFilter(arg0, arg1);
+				return;
 			}
 			
 			AccessToken token = new AccessToken();

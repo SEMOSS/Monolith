@@ -2,8 +2,6 @@ package prerna.semoss.web.services.config;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
@@ -27,6 +25,7 @@ import com.google.common.cache.CacheBuilder;
 import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityTokenUtils;
 import prerna.cluster.util.ClusterUtil;
+import prerna.date.SemossDate;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
@@ -38,11 +37,11 @@ public class TrustedTokenService {
 	private static final Logger logger = LogManager.getLogger(TrustedTokenService.class);
 	
 	private static long expirationMinutes = 120L;
-	private static ConcurrentMap<String, String> tokenStorage = null;
+	private static ConcurrentMap<String, Object[]> tokenStorage = null;
 	static {
 		TrustedTokenService.tokenStorage = CacheBuilder.newBuilder().maximumSize(1000L)
 				.expireAfterWrite(expirationMinutes, TimeUnit.MINUTES)
-				.<String, String>build().asMap();
+				.<String, Object[]>build().asMap();
 	}
 	
 	@GET
@@ -54,28 +53,27 @@ public class TrustedTokenService {
 			ret.put(Constants.ERROR_MESSAGE, "Must use POST request to send client/secret keys");
 			return WebUtility.getResponse(ret, 401);
 		}
+		String clientId = request.getParameter("client_id");
 		String ip = ResourceUtility.getClientIp(request);
-		String token = null;
-		String dateAdded = null;
+		Object[] tokenDetails = null;
 		if(ClusterUtil.IS_CLUSTER) {
-			String[] val = getClusterToken(ip);
-			token = val[0];
-			dateAdded = val[1];
+			tokenDetails = getClusterToken(ip, clientId);
 		} else {
-			token = getLocalToken(ip);
+			tokenDetails = getLocalToken(ip, clientId);
 		}
 		
-		Map<String, String> retMap = new HashMap<>();
-		retMap.put("token", token);
-		retMap.put("dateAdded", dateAdded);
+		Map<String, Object> retMap = new HashMap<>();
+		retMap.put("token", tokenDetails[0]);
+		retMap.put("dateAdded", tokenDetails[1]);
+		retMap.put("clientId", tokenDetails[2]);
 		return WebUtility.getResponse(retMap, 200);
 	}
 	
 	@POST
 	@Path("/getToken")
 	public Response getTokenPost(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		String clientId = request.getParameter("client_id");
 		if(Utility.getApplicationAPIUserTokenCheck()) {
-			String clientId = request.getParameter("client_id");
 			String secretKey = request.getParameter("secret_key");
 			
 			if(!SecurityAPIUserUtils.validCredentials(clientId, secretKey)) {
@@ -86,19 +84,17 @@ public class TrustedTokenService {
 			}
 		}
 		String ip = ResourceUtility.getClientIp(request);
-		String token = null;
-		String dateAdded = null;
+		Object[] tokenDetails = null;
 		if(ClusterUtil.IS_CLUSTER) {
-			String[] val = getClusterToken(ip);
-			token = val[0];
-			dateAdded = val[1];
+			tokenDetails = getClusterToken(ip, clientId);
 		} else {
-			token = getLocalToken(ip);
+			tokenDetails = getLocalToken(ip, clientId);
 		}
 		
-		Map<String, String> retMap = new HashMap<>();
-		retMap.put("token", token);
-		retMap.put("dateAdded", dateAdded);
+		Map<String, Object> retMap = new HashMap<>();
+		retMap.put("token", tokenDetails[0]);
+		retMap.put("dateAdded", tokenDetails[1]);
+		retMap.put("clientId", tokenDetails[2]);
 		return WebUtility.getResponse(retMap, 200);
 	}
 	
@@ -107,24 +103,17 @@ public class TrustedTokenService {
 	 * @param ip
 	 * @return
 	 */
-	private static String[] getClusterToken(String ip) {
+	private static Object[] getClusterToken(String ip, String clientId) {
 		SecurityTokenUtils.clearExpiredTokens(TrustedTokenService.expirationMinutes);
-		String token = SecurityTokenUtils.getToken(ip);
-		if(token == null) {
+		Object[] tokenDetails = SecurityTokenUtils.getToken(ip);
+		if(tokenDetails == null) {
 			logger.info("IP = " + ip + ", generating new token id");
-			Object[] genRet = SecurityTokenUtils.generateToken(ip);
-			token = (String) genRet[0];
-			
-			LocalDateTime dateAdded = (LocalDateTime) genRet[1];
-			Calendar cal = (Calendar) genRet[2];
-			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-			
-			String formattedDate = dateAdded.atZone(cal.getTimeZone().toZoneId()).format(formatter);
-			return new String[] {token, formattedDate};
+			tokenDetails = SecurityTokenUtils.generateToken(ip, clientId);
+			return tokenDetails;
 		}
 
 		logger.info("IP = " + ip + ", requesting existing token id");
-		return new String[] {token, null};
+		return tokenDetails;
 	}
 	
 	/**
@@ -132,19 +121,19 @@ public class TrustedTokenService {
 	 * @param ip
 	 * @return
 	 */
-	private static String getLocalToken(String ip) {
-		String token = null;
+	private static Object[] getLocalToken(String ip, String clientId) {
+		Object[] tokenDetails = null;
 		
 		if(tokenStorage.containsKey(ip)) {
-			token = tokenStorage.get(ip);
+			tokenDetails = tokenStorage.get(ip);
 			logger.info("IP = " + ip + ", requesting existing token id");
 		} else {
-			token = UUID.randomUUID().toString();
-			tokenStorage.put(ip, token);
+			String token = UUID.randomUUID().toString();
+			tokenStorage.put(ip, new Object[] {token, new SemossDate(LocalDateTime.now()), clientId});
 			logger.info("IP = " + ip + ", generating new token id");
 		}
 		
-		return token;
+		return tokenDetails;
 	}
 	
 	/**
@@ -152,7 +141,7 @@ public class TrustedTokenService {
 	 * @param ip
 	 * @return
 	 */
-	public static String getTokenForIp(String ip) {
+	public static Object[] getTokenForIp(String ip) {
 		if(ClusterUtil.IS_CLUSTER) {
 			SecurityTokenUtils.clearExpiredTokens(TrustedTokenService.expirationMinutes);
 			return SecurityTokenUtils.getToken(ip);
