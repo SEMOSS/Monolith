@@ -172,7 +172,7 @@ public class UserResource {
 		if(thisUser == null) {
 			Map<String, Object> ret = new Hashtable<>();
 			ret.put("success", false);
-			ret.put("errorMessage", "No user is currently logged in the session");
+			ret.put(Constants.ERROR_MESSAGE, "No user is currently logged in the session");
 			return WebUtility.getResponse(ret, 400);
 		}
 
@@ -2006,7 +2006,7 @@ public class UserResource {
 	public Response loginNative(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
 
-		if(socialData.getLoginsAllowed().get("native")==null || !socialData.getLoginsAllowed().get("native")) {
+		if(socialData.getLoginsAllowed().get("native") == null || !socialData.getLoginsAllowed().get("native")) {
 			ret.put(Constants.ERROR_MESSAGE, "Native login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
