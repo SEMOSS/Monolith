@@ -47,26 +47,27 @@ public class TrustedTokenFilter implements Filter {
 				return;
 			}
 			
-			
-			boolean dynamicToken = Utility.getApplicationRequireDynamicToken();
+			boolean requireDynamic = Utility.getApplicationRequireDynamicToken();
 			String authValue = request.getHeader("authorization");
 			if(authValue == null) {
 				// no token? just go through and other filters will validate
 				arg2.doFilter(arg0, arg1);
 				return;
 			}
-			if(dynamicToken && !authValue.contains("Bearer")) {
+			// if we require dynamic, must have Bearer token
+			if(requireDynamic && !authValue.contains("Bearer")) {
 				// no bearer token
 				arg2.doFilter(arg0, arg1);
 				return;
-			} else if(!dynamicToken && !authValue.contains("Basic")) {
-				// no basic token
-				arg2.doFilter(arg0, arg1);
-				return;
-			}
+			} 
 			
-			if(!dynamicToken) {
-				authValue = authValue.replace("Basic ", "");
+			// if we do not require dynamic, someone might still be using it
+			// so let us account for that
+			boolean usingDynamic = authValue.contains("Bearer");
+			boolean usingBasic = authValue.contains("Basic");;
+			
+			if(usingBasic && !requireDynamic) {
+				authValue = authValue.replace("Basic", "").trim();
 				// this is a base64 encoded username:password
 				byte[] decodedBytes = Base64.getDecoder().decode(authValue);
 				String userpass = new String(decodedBytes);
@@ -91,8 +92,8 @@ public class TrustedTokenFilter implements Filter {
 					logger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login as API_USER with invalid credentails using client id = '" + clientId + "'"));
 				}
 				
-			} else {
-				authValue = authValue.replace("Bearer ", "");
+			} else if(usingDynamic || requireDynamic){
+				authValue = authValue.replace("Bearer", "").trim();
 
 				// okay, we have a token
 				// and no current user
@@ -106,7 +107,6 @@ public class TrustedTokenFilter implements Filter {
 				}
 	
 				String ipToken = (String) tokenDetails[0];
-	
 				String userId = (String) tokenDetails[2];
 	
 				// error handling
@@ -133,6 +133,9 @@ public class TrustedTokenFilter implements Filter {
 			}
 		}
 
+		// doesn't matter if we made a user or didn't
+		// we will continue the filter chain because the {@link NoUserInSessionFilter} 
+		// will catch unauthorized access
 		arg2.doFilter(arg0, arg1);
 	}
 
