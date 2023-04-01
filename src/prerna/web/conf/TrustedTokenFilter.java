@@ -87,7 +87,7 @@ public class TrustedTokenFilter implements Filter {
 					session.setAttribute(Constants.SESSION_USER, user);
 					session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 					
-					logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
+					logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with basic authencation"));
 				} else {
 					logger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login as API_USER with invalid credentails using client id = '" + clientId + "'"));
 				}
@@ -129,7 +129,7 @@ public class TrustedTokenFilter implements Filter {
 				session = request.getSession(true);
 				session.setAttribute(Constants.SESSION_USER, user);
 				session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-				logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
+				logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with bearer token"));
 			}
 		}
 
