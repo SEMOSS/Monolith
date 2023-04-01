@@ -24,7 +24,6 @@ import prerna.semoss.web.services.config.TrustedTokenService;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
-import prerna.util.Utility;
 
 public class TrustedTokenFilter implements Filter {
 
@@ -47,7 +46,7 @@ public class TrustedTokenFilter implements Filter {
 				return;
 			}
 			
-			boolean requireDynamic = Utility.getApplicationRequireDynamicToken();
+			boolean requireDynamic = SecurityAPIUserUtils.getApplicationRequireDynamicToken();
 			String authValue = request.getHeader("authorization");
 			if(authValue == null) {
 				// no token? just go through and other filters will validate
