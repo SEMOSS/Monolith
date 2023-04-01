@@ -28,7 +28,6 @@ import prerna.cluster.util.ClusterUtil;
 import prerna.date.SemossDate;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/")
@@ -47,7 +46,7 @@ public class TrustedTokenService {
 	@GET
 	@Path("/getToken")
 	public Response getTokenGet(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(Utility.getApplicationAPIUserTokenCheck()) {
+		if(SecurityAPIUserUtils.getApplicationAPIUserTokenCheck()) {
 			Map<String, Object> ret = new Hashtable<>();
 			ret.put("success", false);
 			ret.put(Constants.ERROR_MESSAGE, "Must use POST request to send client/secret keys");
@@ -73,7 +72,7 @@ public class TrustedTokenService {
 	@Path("/getToken")
 	public Response getTokenPost(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		String clientId = request.getParameter("client_id");
-		if(Utility.getApplicationAPIUserTokenCheck()) {
+		if(SecurityAPIUserUtils.getApplicationAPIUserTokenCheck()) {
 			String secretKey = request.getParameter("secret_key");
 			
 			if(!SecurityAPIUserUtils.validCredentials(clientId, secretKey)) {
