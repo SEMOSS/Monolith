@@ -16,6 +16,7 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.conf.util.SSOUtil;
 
 /**
@@ -56,7 +57,7 @@ public class IdpSSOServlet extends HttpServlet {
 		// set it here so after the login we redirect to the correct page
 		if(redirect != null && !(redirect = redirect.trim()).isEmpty()) {
 			HttpSession session = request.getSession();
-			logger.info("Setting new redirect value to " + redirect);
+			logger.info(Utility.cleanLogString("Setting new redirect value to " + redirect));
 			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, redirect);
 		}
 		
