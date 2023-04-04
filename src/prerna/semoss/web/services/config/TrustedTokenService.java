@@ -28,6 +28,7 @@ import prerna.cluster.util.ClusterUtil;
 import prerna.date.SemossDate;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/")
@@ -106,12 +107,12 @@ public class TrustedTokenService {
 		SecurityTokenUtils.clearExpiredTokens(TrustedTokenService.expirationMinutes);
 		Object[] tokenDetails = SecurityTokenUtils.getToken(ip);
 		if(tokenDetails == null) {
-			logger.info("IP = " + ip + ", generating new token id");
+			logger.info(Utility.cleanLogString("IP = " + ip + ", generating new token id"));
 			tokenDetails = SecurityTokenUtils.generateToken(ip, clientId);
 			return tokenDetails;
 		}
 
-		logger.info("IP = " + ip + ", requesting existing token id");
+		logger.info(Utility.cleanLogString("IP = " + ip + ", requesting existing token id"));
 		return tokenDetails;
 	}
 	
@@ -125,12 +126,12 @@ public class TrustedTokenService {
 		
 		if(tokenStorage.containsKey(ip)) {
 			tokenDetails = tokenStorage.get(ip);
-			logger.info("IP = " + ip + ", requesting existing token id");
+			logger.info(Utility.cleanLogString("IP = " + ip + ", requesting existing token id"));
 		} else {
 			String token = UUID.randomUUID().toString();
 			tokenDetails = new Object[] {token, new SemossDate(LocalDateTime.now()), clientId};
 			tokenStorage.put(ip, tokenDetails);
-			logger.info("IP = " + ip + ", generating new token id");
+			logger.info(Utility.cleanLogString("IP = " + ip + ", generating new token id"));
 		}
 		
 		return tokenDetails;

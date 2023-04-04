@@ -358,7 +358,7 @@ public class FileUploader extends Uploader {
 				// we will do what a normal OS system does
 				
 				writeFile(fi, file);
-				logger.info("Saved Filename: " + name + "  to "+ file);
+				logger.info(Utility.cleanLogString("Saved Filename: " + name + "  to "+ file));
 				
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
@@ -382,7 +382,7 @@ public class FileUploader extends Uploader {
 					
 				File file = new File(fileLocation);
 				writeFile(fi, file);
-				logger.info("Saved Pasted Data To "+ file);
+				logger.info(Utility.cleanLogString("Saved Pasted Data To "+ file));
 				
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();

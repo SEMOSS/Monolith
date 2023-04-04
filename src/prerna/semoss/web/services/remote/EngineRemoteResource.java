@@ -223,7 +223,7 @@ public class EngineRemoteResource {
 	public StreamingOutput hasNext(@FormParam("id") String id)
 	{
 		boolean retValue = false;
-		logger.info("Got the id " + id);
+		logger.info("Got the id " + Utility.cleanLogString(id));
 		if(id != null)
 		{
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
@@ -251,7 +251,7 @@ public class EngineRemoteResource {
 	public StreamingOutput getDisplayVariables(@FormParam("id") String id)
 	{
 		String [] retValue = null;
-		logger.info("Got the id " + id);
+		logger.info("Got the id " + Utility.cleanLogString(id));
 		if(id != null)
 		{
 			Object wrapper = QueryResultHash.getInstance().getObject(id);

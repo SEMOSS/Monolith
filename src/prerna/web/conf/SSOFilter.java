@@ -84,7 +84,7 @@ public class SSOFilter implements Filter {
 			// so that we can properly come back to the referer once an admin has been added
 			String referer = ((HttpServletRequest) request).getHeader("referer");
 			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, referer);
-			logger.info("Setting session redirect value to " + referer);
+			logger.info(Utility.cleanLogString("Setting session redirect value to " + referer));
 			
 			// this will be the deployment name of the app
 			String contextPath = request.getServletContext().getContextPath();

@@ -168,8 +168,8 @@ public class SSOUtil {
 					ssoMap.put("idpEntityID", idpEntityID);
 					ssoMap.put("binding", HTTP_POST_BINDING);
 					
-					logger.info("Fedlet (SP) Entity ID:" + spEntityID);
-					logger.info("IDP Entity ID:" + idpEntityID);
+					logger.info(Utility.cleanLogString("Fedlet (SP) Entity ID:" + spEntityID));
+					logger.info(Utility.cleanLogString("IDP Entity ID:" + idpEntityID));
 					
 					//populateSSOMap(spMetaAlias, idpEntityID, HTTP_POST_BINDING);
 				}
