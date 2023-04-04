@@ -75,9 +75,9 @@ public class ResourceUtility {
 			sessionId = session.getId();
 		}
 		if(userId == null || userId.isEmpty()) {
-			return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request)) + " : Session = " + sessionId + " : USERID = INVALID " + message;
+			return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request) + " : Session = " + sessionId + " : USERID = INVALID " + message);
 		}
-		return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request)) + " : Session = " + sessionId + " : USERID = " + userId + " " + message;
+		return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request) + " : Session = " + sessionId + " : USERID = " + userId + " " + message);
 	}
 	
 }
