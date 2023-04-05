@@ -19,8 +19,9 @@ import com.google.gson.Gson;
 
 import prerna.auth.PasswordRequirements;
 import prerna.auth.User;
-import prerna.auth.utils.SecurityNativeUserUtils;
+import prerna.auth.utils.SecurityPasswordResetUtils;
 import prerna.auth.utils.UserRegistrationEmailService;
+import prerna.date.SemossDate;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
@@ -93,9 +94,12 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		String email = request.getParameter("email");
+		String type = request.getParameter("type");
+		String url = request.getParameter("url");
+		
 		String uniqueToken = null;
 		try {
-			uniqueToken = SecurityNativeUserUtils.allowUserResetPassword(email);
+			uniqueToken = SecurityPasswordResetUtils.allowUserResetPassword(email, type);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -103,12 +107,17 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
-		String contextPath = ((HttpServletRequest) request).getContextPath();
-		String resetEmailUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) 
-				+ RESET_PASSWORD + "index.html?token=" + uniqueToken;
+		String resetEmailUrl = null;
+		if(url == null || (url=url.trim()).isEmpty() ) {
+			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
+			String contextPath = ((HttpServletRequest) request).getContextPath();
+			resetEmailUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) 
+					+ RESET_PASSWORD + "index.html?token=" + uniqueToken;
+		} else {
+			url += "?token=" + uniqueToken;
+		}
 		
-		UserRegistrationEmailService.getInstance().sendPasswordResetEmail(email, resetEmailUrl);
+		UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl);
 		
 		// log the operation
 		User user = null;
@@ -124,7 +133,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		
 		Map<String, Object> retMap = new HashMap<>();
 		retMap.put("success", true);
-		retMap.put("message", "Email has been sent to " + email);
+		retMap.put("message", "Email has been sent to: " + email);
 		return WebUtility.getResponse(retMap, 200);
 	}
 	
@@ -148,9 +157,9 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		
 		String token = request.getParameter("token");
 		String password = request.getParameter("password");
-		String userId = null;
+		Map<String, Object> resetDetails = null;
 		try {
-			userId = SecurityNativeUserUtils.userResetPassword(token, password);
+			resetDetails = SecurityPasswordResetUtils.userResetPassword(token, password);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -158,17 +167,23 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
+		String userId = (String) resetDetails.get("userId");
+		String email = (String) resetDetails.get("email");
+		SemossDate dateAdded = (SemossDate) resetDetails.get("dateAdded");
+		
 		// log the operation
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user),
-					"has changed password for user id = " + userId));
+					"has changed password for user id = " + userId + " for reset request on " + dateAdded + " with email " + email));
 		} catch (IllegalAccessException e) {
 			//ignore
 			logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), "No user in session",
-					"has changed password for user id = " + userId));
+					"has changed password for user id = " + userId + " for reset request on " + dateAdded + " with email " + email));
 		}
+		
+		UserRegistrationEmailService.getInstance().sendPasswordResetSuccessEmail(email);
 		
 		Map<String, Object> retMap = new HashMap<>();
 		retMap.put("success", true);

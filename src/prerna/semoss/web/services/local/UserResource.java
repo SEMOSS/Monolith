@@ -2360,7 +2360,6 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("createAPIUser")
 	public Response createAPIUser(@Context HttpServletRequest request) {
-
 		if(socialData.getLoginsAllowed().get("api_user") == null || !socialData.getLoginsAllowed().get("api_user")) {
 			Map<String, String> ret = new Hashtable<>();
 			ret.put(Constants.ERROR_MESSAGE, "API User is not allowed for login");
