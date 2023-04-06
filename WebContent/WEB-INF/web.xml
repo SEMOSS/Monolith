@@ -480,6 +480,8 @@
       <filter-name>PublicHomeCheckFilter</filter-name>
       <url-pattern>/public_home/*</url-pattern>
    </filter-mapping>
+   
+   <!--
    <filter>
       <filter-name>FilespaceAccessFilter</filter-name>
       <filter-class>prerna.web.conf.FilespaceAccessFilter</filter-class>
@@ -488,7 +490,8 @@
       <filter-name>FilespaceAccessFilter</filter-name>
       <url-pattern>/public_home/*</url-pattern>
    </filter-mapping>
-    
+   -->
+   
    <!-- servlets -->
    <!-- Servlet For SEMOSS UI - SEMOSS BE communication -->
    <servlet>
