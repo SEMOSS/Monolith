@@ -2083,7 +2083,7 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/loginLDAP")
 	public Response loginLDAP(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		Map<String, String> ret = new HashMap<>();
+		Map<String, Object> ret = new HashMap<>();
 		if(socialData.getLoginsAllowed().get("ldap")==null || !socialData.getLoginsAllowed().get("ldap")) {
 			ret.put(Constants.ERROR_MESSAGE, "LDAP login is not allowed");
 			return WebUtility.getResponse(ret, 400);
@@ -2125,7 +2125,8 @@ public class UserResource {
 				}
 			}
 			logger.error(Constants.STACKTRACE, e);
-			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			ret.put(Constants.ERROR_MESSAGE, "User must change their password before login");
+			ret.put(ILdapAuthenticator.LDAP_PASSWORD_CHANGE_RETURN_KEY, true);
 			return WebUtility.getResponse(ret, 401);
 		} catch (Exception e) {
 			HttpSession session = request.getSession(false);
