@@ -29,8 +29,8 @@ import prerna.auth.utils.SecurityDatabaseUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.cluster.util.CloudClient;
 import prerna.cluster.util.ClusterUtil;
+import prerna.cluster.util.clients.AbstractCloudClient;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
@@ -166,7 +166,7 @@ public class ImageUploader extends Uploader {
 			writeFile(imageFile, f);
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					CloudClient.getClient().pushDatabaseImageFolder();
+					AbstractCloudClient.getClient().pushDatabaseImageFolder();
 				}
 			} catch (IOException ioe) {
 				logger.error(Constants.STACKTRACE, ioe);
@@ -272,7 +272,7 @@ public class ImageUploader extends Uploader {
 		
 		try {
 			if (ClusterUtil.IS_CLUSTER) {
-				CloudClient.getClient().pushDatabaseImageFolder();
+				AbstractCloudClient.getClient().pushDatabaseImageFolder();
 			}
 		} catch (IOException ioe) {
 			logger.error(Constants.STACKTRACE, ioe);
@@ -421,7 +421,7 @@ public class ImageUploader extends Uploader {
 			writeFile(imageFile, f);
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					CloudClient.getClient().pushProjectImageFolder();
+					AbstractCloudClient.getClient().pushProjectImageFolder();
 				}
 			} catch (IOException ioe) {
 				logger.error(Constants.STACKTRACE, ioe);
@@ -520,7 +520,7 @@ public class ImageUploader extends Uploader {
 		}
 		try {
 			if (ClusterUtil.IS_CLUSTER) {
-				CloudClient.getClient().pushProjectImageFolder();
+				AbstractCloudClient.getClient().pushProjectImageFolder();
 			}
 		} catch (IOException ioe) {
 			logger.error(Constants.STACKTRACE, ioe);
@@ -655,7 +655,7 @@ public class ImageUploader extends Uploader {
 			writeFile(imageFile, f);
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					CloudClient.getClient().pushInsightImage(projectId, insightId, oldImageName, imageFileName);
+					AbstractCloudClient.getClient().pushInsightImage(projectId, insightId, oldImageName, imageFileName);
 				}
 			} catch (IOException ioe) {
 				logger.error(Constants.STACKTRACE, ioe);
@@ -763,7 +763,7 @@ public class ImageUploader extends Uploader {
 			
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					CloudClient.getClient().pushInsightImage(projectId, insightId, oldImageName, null);
+					AbstractCloudClient.getClient().pushInsightImage(projectId, insightId, oldImageName, null);
 				}
 			} catch (IOException ioe) {
 				logger.error(Constants.STACKTRACE, ioe);
