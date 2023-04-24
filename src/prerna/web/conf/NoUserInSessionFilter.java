@@ -4,10 +4,8 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Vector;
 import java.util.stream.Collectors;
 
 import javax.servlet.Filter;
@@ -26,7 +24,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
 
-import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -53,36 +50,8 @@ public class NoUserInSessionFilter implements Filter {
 	public static final String MONOLITH_PREFIX = "MONOLITH_PREFIX";
 
 	private static final String LOGIN = "login";
-
+	
 	private static final String NO_USER_HTML = "/noUserFail/";
-	protected static List<String> ignoreDueToFE = new Vector<>();
-
-	static {
-		// allow these for successful dropping of
-		// sessions when browser is closed/refreshed
-		// these do their own session checks
-		ignoreDueToFE.add("session/active");
-		ignoreDueToFE.add("session/cleanSession");
-		ignoreDueToFE.add("session/cancelCleanSession");
-		ignoreDueToFE.add("session/invalidateSession");
-
-		ignoreDueToFE.add("config");
-		ignoreDueToFE.add("config/fetchCsrf");
-		ignoreDueToFE.add("auth/logins");
-		ignoreDueToFE.add("auth/loginsAllowed");
-		ignoreDueToFE.add("auth/login");
-		ignoreDueToFE.add("auth/loginLDAP");
-		ignoreDueToFE.add("auth/changeADPassword");
-		ignoreDueToFE.add("auth/loginLinOTP");
-		ignoreDueToFE.add("auth/createUser");
-		ignoreDueToFE.add("auth/whoami");
-		ignoreDueToFE.add("auth/user/setupResetPassword");
-		ignoreDueToFE.add("auth/user/resetPassword");
-		for (AuthProvider v : AuthProvider.values()) {
-			ignoreDueToFE.add("auth/userinfo/" + v.toString().toLowerCase());
-			ignoreDueToFE.add("auth/login/" + v.toString().toLowerCase());
-		}
-	}
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
@@ -96,7 +65,7 @@ public class NoUserInSessionFilter implements Filter {
 			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 			String contextPath = ((HttpServletRequest) arg0).getContextPath();
 
-			if (!ResourceUtility.isIgnored(ignoreDueToFE, fullUrl)) {
+			if (!ResourceUtility.allowAccessWithoutLogin(fullUrl)) {
 				// due to FE being annoying
 				// we need to push a response for this one end point
 				// since security is embedded w/ normal semoss and not standalone
