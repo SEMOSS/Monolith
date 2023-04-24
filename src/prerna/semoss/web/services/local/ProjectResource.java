@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Vector;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -904,9 +906,34 @@ public class ProjectResource {
 		if(insight == null) {
 			return WebUtility.getSO("No such insight");
 		}
-		
+    	List<String> allFrames = insight.getVarStore().getFrameKeysCopy();
 		try {
-			Object output = insight.query(sql, null);
+			// try determine the frame from the SQL statement, otherwise null
+	        Object output = null;
+			if(allFrames.size() > 1) {
+		        Pattern pattern = Pattern.compile("\\bFROM\\s+([\\w\\.]+)", Pattern.CASE_INSENSITIVE);
+		        Matcher matcher = pattern.matcher(sql);
+		        FIND_PROPER_FRAME : while(matcher.find()) {
+		        	String possibleFrame = matcher.group(1);
+		        	// validate it matches a frame
+		        	for(String frameName : allFrames) {
+		        		if(possibleFrame.equalsIgnoreCase(frameName)) {
+		        			// need to use the frame name for proper casing in varstore
+				        	output = insight.query(sql, frameName);
+				        	break FIND_PROPER_FRAME;
+		        		}
+		        	}
+		        }
+		        // if we didn't find a frame
+		        // just try the default insight frame...
+		        if(output == null) {
+		        	output = insight.query(sql, null);
+		        }
+			} else {
+				// we only have 1 frame so just pick it
+				output = insight.query(sql, allFrames.get(0));
+			}
+			
 			// add the instance so it can refer going forward
 			if(output instanceof Map) {
 				((Map)output).put("INSIGHT_INSTANCE", insightId);
@@ -934,75 +961,88 @@ public class ProjectResource {
 		if(projectId == null) {
 			projectId = "session";
 		}
-		{
-			// get the insight from the session
-			HttpSession session = request.getSession();
-			if(session == null) {
-				return WebUtility.getSO("You are not authorized");
-			}
-			
-			if(sql == null) {
-				try {
-					sql = IOUtils.toString(request.getReader());
-					sql = sql.replace("'", "\\\'");
-					sql = sql.replace("\"", "\\\"");
-				} catch (IOException e) {
-		    		logger.error(Constants.STACKTRACE, e);
-				}
-			}
+		// get the insight from the session
+		HttpSession session = request.getSession();
+		if(session == null) {
+			return WebUtility.getSO("You are not authorized");
+		}
 
-			if(!projectId.equalsIgnoreCase("session")) // && InsightStore.getInstance().get(insightId) == null) // see if you can open the insight
-			{
-				NameServer server = resourceContext.getResource(NameServer.class);
-				OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
-				Map<String, String> paramMap = new HashMap<String, String>();
-				
-				String pixel = "META | OpenInsight(project=[\"" + projectId + "\"], id=[\"" + insightId + "\"], additionalPixels=[\"ReadInsightTheme();\"]);" ;
-				paramMap.put("insightId", "new");
-				paramMap.put("expression", pixel);
-				requestWrapper.setParameters(paramMap);
-				logger.info("Executing open insight - jdbc_csv");
-				Response resp = server.runPixelSync(requestWrapper);
-				logger.info("Done executing open insight - jdbc_csv");
-				
-				StreamingOutput utility = (StreamingOutput) resp.getEntity();
-				try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
-					utility.write(output);
-					String s = new String(output.toByteArray());
-					JSONObject obj = new JSONObject(s);
-					logger.info("Done flushing open insight data to JSON");
-					insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
-				} catch (WebApplicationException | IOException e) {
-		    		logger.error(Constants.STACKTRACE, e);
-				}
-			}
-			
-			Insight insight = InsightStore.getInstance().get(insightId);
-			if(insight != null) {
-				//sql = URLDecoder.decode(sql);
-				//sql = Utility.decodeURIComponent(sql);
-				// https://www.eso.org/~ndelmott/url_encode.html
-				// % - %25
-				// > %3E
-				// < %3c
-				// = %3d 
-				// ! %21
-				// + %2b
-				// ( %28
-				// ) %29
-				// , %2c
-				// & %26
-				
-				//sql = sql.replace("%20", " ");
-				Object output = insight.queryCSV(sql, null);
-				if(output != null)
-					return WebUtility.getSOFile(output+"");					
-			}
-			else {
-				return WebUtility.getSO("No such insight");
+		if(sql == null) {
+			try {
+				sql = IOUtils.toString(request.getReader());
+				sql = sql.replace("'", "\\\'");
+				sql = sql.replace("\"", "\\\"");
+			} catch (IOException e) {
+				logger.error(Constants.STACKTRACE, e);
 			}
 		}
-		return null;
+
+		if(!projectId.equalsIgnoreCase("session")) // && InsightStore.getInstance().get(insightId) == null) // see if you can open the insight
+		{
+			NameServer server = resourceContext.getResource(NameServer.class);
+			OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
+			Map<String, String> paramMap = new HashMap<String, String>();
+
+			String pixel = "META | OpenInsight(project=[\"" + projectId + "\"], id=[\"" + insightId + "\"], additionalPixels=[\"ReadInsightTheme();\"]);" ;
+			paramMap.put("insightId", "new");
+			paramMap.put("expression", pixel);
+			requestWrapper.setParameters(paramMap);
+			logger.info("Executing open insight - jdbc_csv");
+			Response resp = server.runPixelSync(requestWrapper);
+			logger.info("Done executing open insight - jdbc_csv");
+
+			StreamingOutput utility = (StreamingOutput) resp.getEntity();
+			try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
+				utility.write(output);
+				String s = new String(output.toByteArray());
+				JSONObject obj = new JSONObject(s);
+				logger.info("Done flushing open insight data to JSON");
+				insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
+			} catch (WebApplicationException | IOException e) {
+				logger.error(Constants.STACKTRACE, e);
+			}
+		}
+
+		Insight insight = InsightStore.getInstance().get(insightId);
+		if(insight == null) {
+			return WebUtility.getSO("No such insight");
+		}
+		List<String> allFrames = insight.getVarStore().getFrameKeysCopy();
+		try {
+			// try determine the frame from the SQL statement, otherwise null
+			Object output = null;
+			if(allFrames.size() > 1) {
+				Pattern pattern = Pattern.compile("\\bFROM\\s+([\\w\\.]+)", Pattern.CASE_INSENSITIVE);
+				Matcher matcher = pattern.matcher(sql);
+				FIND_PROPER_FRAME : while(matcher.find()) {
+					String possibleFrame = matcher.group(1);
+					// validate it matches a frame
+					for(String frameName : allFrames) {
+						if(possibleFrame.equalsIgnoreCase(frameName)) {
+							// need to use the frame name for proper casing in varstore
+							output = insight.queryCSV(sql, frameName);
+							break FIND_PROPER_FRAME;
+						}
+					}
+				}
+				// if we didn't find a frame
+				// just try the default insight frame...
+				if(output == null) {
+					output = insight.queryCSV(sql, null);
+				}
+			} else {
+				// we only have 1 frame so just pick it
+				output = insight.query(sql, allFrames.get(0));
+			}
+
+			if(output == null) {
+				return WebUtility.getSO("Unable to generate output from sql: " + sql);
+			}
+			return WebUtility.getSOFile(output+"");
+
+		} catch(Exception e) {
+			return WebUtility.getSO(ExceptionUtils.getStackFrames(e));
+		}
 	}
 
 }
