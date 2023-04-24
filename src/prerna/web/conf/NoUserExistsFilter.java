@@ -1,8 +1,6 @@
 package prerna.web.conf;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Vector;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -34,12 +32,6 @@ public class NoUserExistsFilter implements Filter {
 	private static final String SET_ADMIN_HTML = "/setAdmin/";
 	private static boolean userDefined = false;
 
-	protected static List<String> ignoreDueToFE = new Vector<>();
-	static {
-		ignoreDueToFE.add("config");
-		ignoreDueToFE.add("config/fetchCsrf");
-	}
-	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		if(AbstractSecurityUtils.securityEnabled()) {
@@ -49,7 +41,7 @@ public class NoUserExistsFilter implements Filter {
 				// this will be the full path of the request
 				// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 				String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
-				if (!ResourceUtility.isIgnored(ignoreDueToFE, fullUrl)) {
+				if (!ResourceUtility.allowAccessWithoutUsers(fullUrl)) {
 					IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
 					SelectQueryStruct qs = new SelectQueryStruct();
 					qs.addSelector(new QueryColumnSelector("SMSS_USER__ID"));
