@@ -44,7 +44,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 			String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
 
 			// REALLY DISLIKE THIS CHECK!!!
-			if (!ResourceUtility.isIgnored(ignoreDueToFE, fullUrl)) {
+			if (!ResourceUtility.allowAccessWithoutLogin(fullUrl)) {
 				// how you got here without a user, i am unsure given the other filters
 				// but just in case
 				// i will redirect you to login
