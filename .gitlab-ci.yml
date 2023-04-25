@@ -1,4 +1,4 @@
-image: maven:3.5-jdk-8
+image: maven:3.8.6-jdk-8
 
 stages:
   - build_semoss
@@ -47,7 +47,7 @@ build_monolith_dev:
     - apt-get install -y openjfx
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
-    - mvn $MAVEN_CLI_OPTS clean install -Dci.version=${VERSION}-SNAPSHOT
+    - /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS clean install -Dci.version=${VERSION}-SNAPSHOT
     # So that the cache takes up less space
     - rm -rf .m2/repository/org/semoss
   artifacts:
@@ -73,7 +73,7 @@ build_monolith_sonar:
     - apt-get install -y openjfx
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
-    - mvn $MAVEN_CLI_OPTS verify -Dmaven.test.skip=$SKIP_TESTS -Dci.version=${VERSION}-SNAPSHOT
+    - /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS verify -Dmaven.test.skip=$SKIP_TESTS -Dci.version=${VERSION}-SNAPSHOT
     - wget https://cdn.azul.com/zulu/bin/zulu11.50.19-ca-jdk11.0.12-linux_amd64.deb
     - apt install ./zulu11.50.19-ca-jdk11.0.12-linux_amd64.deb
     - rm zulu11.50.19-ca-jdk11.0.12-linux_amd64.deb
@@ -81,7 +81,7 @@ build_monolith_sonar:
     - export JAVA_HOME=/usr/lib/jvm/zulu-11-amd64
     - export PATH=$PATH:$JAVA_HOME/bin
     - cp /usr/lib/jvm/java-8-openjdk-amd64/lib/tools.jar /usr/lib/jvm/zulu-11-amd64/lib/
-    - mvn sonar:sonar -Dsonar.projectKey=$PROJECT_KEY -Dsonar.projectVersion=${VERSION}-SNAPSHOT -Dsonar.host.url=$HOST_URL -Dsonar.login=$LOGIN_KEY
+    - /usr/share/maven/bin/mvn sonar:sonar -Dsonar.projectKey=$PROJECT_KEY -Dsonar.projectVersion=${VERSION}-SNAPSHOT -Dsonar.host.url=$HOST_URL -Dsonar.login=$LOGIN_KEY
     # So that the cache takes up less space
     - rm -rf .m2/repository/org/semoss
   artifacts:
@@ -110,7 +110,7 @@ build_monolith_deploy:
     - gpg2 --refresh-key
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
-    - mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${VERSION}-SNAPSHOT
+    - /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${VERSION}-SNAPSHOT
     # So that the cache takes up less space
     - rm -rf .m2/repository/org/semoss
   artifacts:
@@ -137,7 +137,7 @@ build_monolith_release:
     - gpg2 --refresh-key
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
-    - mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${VERSION}
+    - /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${VERSION}
     # So that the cache takes up less space
     - rm -rf .m2/repository/org/semoss
   artifacts:
