@@ -47,6 +47,7 @@ build_monolith_dev:
     - apt-get install -y openjfx
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
+    - sed -i "s@<blocked>true</blocked>@<blocked>false</blocked>@g" /usr/share/maven/conf/settings.xml
     - /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS clean install -Dci.version=${VERSION}-SNAPSHOT
     # So that the cache takes up less space
     - rm -rf .m2/repository/org/semoss
@@ -81,6 +82,7 @@ build_monolith_sonar:
     - export JAVA_HOME=/usr/lib/jvm/zulu-11-amd64
     - export PATH=$PATH:$JAVA_HOME/bin
     - cp /usr/lib/jvm/java-8-openjdk-amd64/lib/tools.jar /usr/lib/jvm/zulu-11-amd64/lib/
+    - sed -i "s@<blocked>true</blocked>@<blocked>false</blocked>@g" /usr/share/maven/conf/settings.xml
     - /usr/share/maven/bin/mvn sonar:sonar -Dsonar.projectKey=$PROJECT_KEY -Dsonar.projectVersion=${VERSION}-SNAPSHOT -Dsonar.host.url=$HOST_URL -Dsonar.login=$LOGIN_KEY
     # So that the cache takes up less space
     - rm -rf .m2/repository/org/semoss
@@ -110,6 +112,7 @@ build_monolith_deploy:
     - gpg2 --refresh-key
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
+    - sed -i "s@<blocked>true</blocked>@<blocked>false</blocked>@g" /usr/share/maven/conf/settings.xml
     - /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${VERSION}-SNAPSHOT
     # So that the cache takes up less space
     - rm -rf .m2/repository/org/semoss
@@ -137,6 +140,7 @@ build_monolith_release:
     - gpg2 --refresh-key
     # So that the most up-to-date artifacts are pulled
     - rm -rf .m2/repository/org/semoss
+    - sed -i "s@<blocked>true</blocked>@<blocked>false</blocked>@g" /usr/share/maven/conf/settings.xml
     - /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${VERSION}
     # So that the cache takes up less space
     - rm -rf .m2/repository/org/semoss
