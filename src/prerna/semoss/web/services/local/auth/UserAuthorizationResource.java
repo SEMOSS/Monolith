@@ -96,6 +96,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		String email = request.getParameter("email");
 		String type = request.getParameter("type");
 		String url = request.getParameter("url");
+		String sender = request.getParameter("sender");
 		
 		String uniqueToken = null;
 		try {
@@ -117,7 +118,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			url += "?token=" + uniqueToken;
 		}
 		
-		UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl);
+		UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, sender);
 		
 		// log the operation
 		User user = null;
@@ -157,6 +158,8 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		
 		String token = request.getParameter("token");
 		String password = request.getParameter("password");
+		String sender = request.getParameter("sender");
+
 		Map<String, Object> resetDetails = null;
 		try {
 			resetDetails = SecurityPasswordResetUtils.userResetPassword(token, password);
@@ -183,10 +186,9 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 					"has changed password for user id = " + userId + " for reset request on " + dateAdded + " with email " + email));
 		}
 		
-		UserRegistrationEmailService.getInstance().sendPasswordResetSuccessEmail(email);
+		UserRegistrationEmailService.getInstance().sendPasswordResetSuccessEmail(email, sender);
 		
 		Map<String, Object> retMap = new HashMap<>();
-		retMap.put("success", true);
 		return WebUtility.getResponse(retMap, 200);
 	}
 
