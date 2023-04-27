@@ -118,7 +118,12 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			url += "?token=" + uniqueToken;
 		}
 		
-		UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, sender);
+		if(!UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, sender)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "Error occurred sending email to " + email);
+			SecurityPasswordResetUtils.deleteToken(uniqueToken);
+			return WebUtility.getResponse(errorMap, 500);
+		}
 		
 		// log the operation
 		User user = null;
@@ -189,6 +194,9 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		UserRegistrationEmailService.getInstance().sendPasswordResetSuccessEmail(email, sender);
 		
 		Map<String, Object> retMap = new HashMap<>();
+		retMap.put("success", true);
+		retMap.put("userId", userId);
+		retMap.put("message", "Email has been sent to: " + email);
 		return WebUtility.getResponse(retMap, 200);
 	}
 
