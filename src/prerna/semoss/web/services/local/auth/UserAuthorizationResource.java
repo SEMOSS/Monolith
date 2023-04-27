@@ -95,7 +95,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		
 		String email = request.getParameter("email");
 		String type = request.getParameter("type");
-		String url = request.getParameter("url");
+		String resetEmailUrl = request.getParameter("url");
 		String sender = request.getParameter("sender");
 		
 		String uniqueToken = null;
@@ -108,14 +108,13 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String resetEmailUrl = null;
-		if(url == null || (url=url.trim()).isEmpty() ) {
+		if(resetEmailUrl == null || (resetEmailUrl=resetEmailUrl.trim()).isEmpty() ) {
 			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
 			String contextPath = ((HttpServletRequest) request).getContextPath();
 			resetEmailUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) 
 					+ RESET_PASSWORD + "index.html?token=" + uniqueToken;
 		} else {
-			url += "?token=" + uniqueToken;
+			resetEmailUrl += "?token=" + uniqueToken;
 		}
 		
 		if(!UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, sender)) {
