@@ -1,9 +1,9 @@
 package prerna.semoss.web.services.config;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 
 import javax.servlet.FilterChain;
 import javax.servlet.http.Cookie;
@@ -234,7 +234,7 @@ public class ServerConfigurationResource {
 	@Path("/")
 	@Produces("application/json")
 	public Response getServerConfig(@Context HttpServletRequest request, @Context HttpServletResponse response, @Context FilterChain filterChain) {
-		List<NewCookie> newCookies = new Vector<>();
+		List<NewCookie> newCookies = new ArrayList<>();
 
 		try {
 			ResourceUtility.getUser(request);

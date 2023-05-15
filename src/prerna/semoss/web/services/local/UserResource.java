@@ -341,19 +341,42 @@ public class UserResource {
 	@Path("/userinfo/google")
 	public Response userinfoGoogle(@Context HttpServletRequest request) {
 		Map<String, String> ret = new Hashtable<>();
-		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if (session != null) {
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (semossUser == null) {
+			List<NewCookie> newCookies = new ArrayList<>();
+			// not authenticated
+			// remove any cookies we shouldn't have
+			Cookie[] cookies = request.getCookies();
+			if (cookies != null) {
+				for (Cookie c : cookies) {
+					if (DBLoader.getSessionIdKey().equals(c.getName())) {
+						// we need to null this out
+						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
+								c.getComment(), 0, c.getSecure());
+						newCookies.add(nullC);
+					}
+				}
+			}
+
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			
+			ret.put(Constants.ERROR_MESSAGE, "Log into your Google account");
+			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
+		}
 
 		String[] beanProps = { "name", "profile" };
 		String jsonPattern = "[name, picture]";
 		String accessString = null;
 		try {
-			if (user == null) {
-				ret.put(Constants.ERROR_MESSAGE, "Log into your Google account");
-				return WebUtility.getResponse(ret, 200);
-			} else {
-				AccessToken googleToken = user.getAccessToken(AuthProvider.GOOGLE);
-				accessString = googleToken.getAccess_token();
-			}
+			AccessToken googleToken = semossUser.getAccessToken(AuthProvider.GOOGLE);
+			accessString = googleToken.getAccess_token();
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Google account");
 			return WebUtility.getResponse(ret, 200);
@@ -385,28 +408,53 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/userinfo/ms")
-	public Response userinfoOneDrive(@Context HttpServletRequest request) {
+	public Response userinfoMs(@Context HttpServletRequest request) {
 		Map<String, String> ret = new Hashtable<>();
-		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if (session != null) {
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (semossUser == null) {
+			List<NewCookie> newCookies = new ArrayList<>();
+			// not authenticated
+			// remove any cookies we shouldn't have
+			Cookie[] cookies = request.getCookies();
+			if (cookies != null) {
+				for (Cookie c : cookies) {
+					if (DBLoader.getSessionIdKey().equals(c.getName())) {
+						// we need to null this out
+						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
+								c.getComment(), 0, c.getSecure());
+						newCookies.add(nullC);
+					}
+				}
+			}
+
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			
+			ret.put(Constants.ERROR_MESSAGE, "Log into your Microsoft account");
+			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
+		}
 
 		String[] beanProps = { "name" };
 		String jsonPattern = "[displayName]";
 
 		String accessString = null;
 		try {
-			if (user == null) {
-				ret.put(Constants.ERROR_MESSAGE, "Log into your Microsoft account");
-			} else {
-				AccessToken msToken = user.getAccessToken(AuthProvider.MS);
-				accessString = msToken.getAccess_token();
-				String url = "https://graph.microsoft.com/v1.0/me/";
-				String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
-				AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
-						new AccessToken());
-				String name = accessToken2.getName();
-				ret.put("name", name);
-			}
+			AccessToken msToken = semossUser.getAccessToken(AuthProvider.MS);
+			accessString = msToken.getAccess_token();
+			String url = "https://graph.microsoft.com/v1.0/me/";
+			String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
+			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
+					new AccessToken());
+			String name = accessToken2.getName();
+			ret.put("name", name);
 			return WebUtility.getResponse(ret, 200);
+				
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Microsoft account");
 			return WebUtility.getResponse(ret, 200);
@@ -422,7 +470,35 @@ public class UserResource {
 	@Path("/userinfo/adfs")
 	public Response userinfoADFS(@Context HttpServletRequest request) {
 		Map<String, String> ret = new Hashtable<>();
-		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if (session != null) {
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (semossUser == null) {
+			List<NewCookie> newCookies = new ArrayList<>();
+			// not authenticated
+			// remove any cookies we shouldn't have
+			Cookie[] cookies = request.getCookies();
+			if (cookies != null) {
+				for (Cookie c : cookies) {
+					if (DBLoader.getSessionIdKey().equals(c.getName())) {
+						// we need to null this out
+						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
+								c.getComment(), 0, c.getSecure());
+						newCookies.add(nullC);
+					}
+				}
+			}
+
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			
+			ret.put(Constants.ERROR_MESSAGE, "Log into your ADFS account");
+			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
+		}
 
 		String prefix="adfs_";
 		String beanProps = socialData.getProperty(prefix + "beanProps");
@@ -432,16 +508,12 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			if (user == null) {
-				ret.put(Constants.ERROR_MESSAGE, "Log into your ADFS account");
-			} else {								
-				AccessToken adfsToken = user.getAccessToken(AuthProvider.ADFS);
-				accessString = adfsToken.getAccess_token();
-				String json = decodeTokenPayload(adfsToken.getAccess_token());
-				adfsToken = (AccessToken)BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, adfsToken);
-				String name = adfsToken.getName();
-				ret.put("name", name);
-			}
+			AccessToken adfsToken = semossUser.getAccessToken(AuthProvider.ADFS);
+			accessString = adfsToken.getAccess_token();
+			String json = decodeTokenPayload(adfsToken.getAccess_token());
+			adfsToken = (AccessToken)BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, adfsToken);
+			String name = adfsToken.getName();
+			ret.put("name", name);
 
 			return WebUtility.getResponse(ret, 200);
 		} catch (Exception e) {
@@ -458,19 +530,42 @@ public class UserResource {
 	@Path("/userinfo/dropbox")
 	public Response userinfoDropbox(@Context HttpServletRequest request) {
 		Map<String, String> ret = new Hashtable<>();
-		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if (session != null) {
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (semossUser == null) {
+			List<NewCookie> newCookies = new ArrayList<>();
+			// not authenticated
+			// remove any cookies we shouldn't have
+			Cookie[] cookies = request.getCookies();
+			if (cookies != null) {
+				for (Cookie c : cookies) {
+					if (DBLoader.getSessionIdKey().equals(c.getName())) {
+						// we need to null this out
+						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
+								c.getComment(), 0, c.getSecure());
+						newCookies.add(nullC);
+					}
+				}
+			}
+
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			
+			ret.put(Constants.ERROR_MESSAGE, "Log into your DropBox account");
+			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
+		}
 
 		String[] beanProps = { "name", "profile" }; // add is done when you have a list
 		String jsonPattern = "[name.display_name, profile_photo_url]";
 		String accessString = null;
 		try {
-			if (user == null) {
-				ret.put(Constants.ERROR_MESSAGE, "Log into your DropBox account");
-				return WebUtility.getResponse(ret, 200);
-			} else {
-				AccessToken dropToken = user.getAccessToken(AuthProvider.DROPBOX);
-				accessString = dropToken.getAccess_token();
-			}
+			AccessToken dropToken = semossUser.getAccessToken(AuthProvider.DROPBOX);
+			accessString = dropToken.getAccess_token();
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your DropBox account");
 			return WebUtility.getResponse(ret, 200);
@@ -502,20 +597,43 @@ public class UserResource {
 	@Path("/userinfo/github")
 	public Response userinfoGithub(@Context HttpServletRequest request) {
 		Map<String, String> ret = new Hashtable<>();
-		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if (session != null) {
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (semossUser == null) {
+			List<NewCookie> newCookies = new ArrayList<>();
+			// not authenticated
+			// remove any cookies we shouldn't have
+			Cookie[] cookies = request.getCookies();
+			if (cookies != null) {
+				for (Cookie c : cookies) {
+					if (DBLoader.getSessionIdKey().equals(c.getName())) {
+						// we need to null this out
+						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
+								c.getComment(), 0, c.getSecure());
+						newCookies.add(nullC);
+					}
+				}
+			}
+
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			
+			ret.put(Constants.ERROR_MESSAGE, "Log into your Github account");
+			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
+		}
 
 		String[] beanProps = { "name", "profile" }; // add is done when you have a list
 		String jsonPattern = "[name,login]";
 
 		String accessString = null;
 		try {
-			if (user == null) {
-				ret.put(Constants.ERROR_MESSAGE, "Log into your Github account");
-				return WebUtility.getResponse(ret, 200);
-			} else {
-				AccessToken gitToken = user.getAccessToken(AuthProvider.GITHUB);
-				accessString = gitToken.getAccess_token();
-			}
+			AccessToken gitToken = semossUser.getAccessToken(AuthProvider.GITHUB);
+			accessString = gitToken.getAccess_token();
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Github account");
 			return WebUtility.getResponse(ret, 200);
@@ -542,12 +660,38 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/userinfo/{provider}")
 	public Response userinfoGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request) {
-
-
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
-
 		Map<String, String> ret = new Hashtable<>();
-		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if (session != null) {
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (semossUser == null) {
+			List<NewCookie> newCookies = new ArrayList<>();
+			// not authenticated
+			// remove any cookies we shouldn't have
+			Cookie[] cookies = request.getCookies();
+			if (cookies != null) {
+				for (Cookie c : cookies) {
+					if (DBLoader.getSessionIdKey().equals(c.getName())) {
+						// we need to null this out
+						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
+								c.getComment(), 0, c.getSecure());
+						newCookies.add(nullC);
+					}
+				}
+			}
+
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			
+			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.toString() + " account");
+			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
+		}
+		
 		String prefix = provider+"_";
 		String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
 		//"name","id","email"
@@ -558,18 +702,15 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			if (user == null) {
-				ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.toString() + " account");
-			} else {
-				AccessToken genericToken = user.getAccessToken(providerEnum);
-				accessString = genericToken.getAccess_token();
-				//String url = "https://graph.microsoft.com/v1.0/me/";
-				String output = AbstractHttpHelper.makeGetCall(userInfoURL, accessString, null, true);
-				AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr,
-						new AccessToken());
-				String name = accessToken2.getName();
-				ret.put("name", name);
-			}
+			AccessToken genericToken = semossUser.getAccessToken(providerEnum);
+			accessString = genericToken.getAccess_token();
+			//String url = "https://graph.microsoft.com/v1.0/me/";
+			String output = AbstractHttpHelper.makeGetCall(userInfoURL, accessString, null, true);
+			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr,
+					new AccessToken());
+			String name = accessToken2.getName();
+			ret.put("name", name);
+			
 			return WebUtility.getResponse(ret, 200);
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.toString() + " account");
