@@ -2650,7 +2650,7 @@ public class UserResource {
 			String setCookieString = DBLoader.getSessionIdKey() + "=" + session.getId() 
 			+ "; Path=" + contextPath 
 			+ "; HttpOnly"
-			+ ( (ClusterUtil.IS_CLUSTER || request.isSecure()) ? "; Secure; SameSite=None" : "")
+			+ ( (ClusterUtil.IS_CLUSTER || request.isSecure()) ? ("; Secure; SameSite="+Utility.getSameSiteCookieValue()) : "")
 			;
 			response.addHeader("Set-Cookie", setCookieString);
 			if (useCustom) {

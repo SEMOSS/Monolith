@@ -55,6 +55,7 @@ import com.google.gson.Gson;
 
 import prerna.util.Constants;
 import prerna.util.FstUtil;
+import prerna.util.Utility;
 import prerna.util.gson.GsonUtility;
 
 /**
@@ -192,7 +193,7 @@ public class WebUtility {
 		c.append("; ");
 		c.append("SameSite");
 		c.append('=');
-		c.append("Strict");
+		c.append(Utility.getSameSiteCookieValue());
 		// get the domain
 		if(cookie.getDomain() != null) {
 			c.append("; ");
