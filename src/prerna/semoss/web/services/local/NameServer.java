@@ -230,17 +230,23 @@ public class NameServer {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		String filePath = insight.getExportFileLocation(fileKey);
-		File exportFile = new File(filePath);
-		if (!exportFile.exists()) {
+		try {
+			String filePath = insight.getExportFileLocation(fileKey);
+			File exportFile = new File(filePath);
+			if (!exportFile.exists()) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Could not find the file for given file id");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+			
+			String exportName = FilenameUtils.getName(filePath);
+			return Response.status(200).entity(exportFile)
+					.header("Content-Disposition", "attachment; filename=\"" + exportName + "\"").build();
+		} catch(Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the file for given file id");
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-
-		String exportName = FilenameUtils.getName(filePath);
-		return Response.status(200).entity(exportFile)
-				.header("Content-Disposition", "attachment; filename=\"" + exportName + "\"").build();
 	}
 
 	///////////////////////////////////////////////
