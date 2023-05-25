@@ -94,7 +94,7 @@ public class PublicHomeCheckFilter implements Filter {
 			} else {
 				arg1.getWriter().write("Publish is not enabled on this project or there was an error publishing this project" );
 				return;
-			}	
+			}
 		}
 
 		arg1.getWriter().write("Improper portal URL - unable to find project ID for the portal");
