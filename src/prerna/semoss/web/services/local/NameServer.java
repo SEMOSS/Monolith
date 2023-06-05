@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.UUID;
 
 import javax.servlet.http.Cookie;
@@ -71,6 +72,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 
+import com.google.common.base.Optional;
 import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 
@@ -366,6 +368,11 @@ public class NameServer {
 		}
 		// set the user
 		insight.setUser(user);
+		
+		// set the user timezone
+		String tz = Optional.of(request.getParameter("tz")).or(() -> Utility.getApplicationTimeZoneId());
+		user.setTimeZone(TimeZone.getTimeZone(tz));
+		
 		// set if we are scheduler mode
 		Boolean schedulerMode = ThreadStore.isSchedulerMode();
 		if(schedulerMode != null) {
