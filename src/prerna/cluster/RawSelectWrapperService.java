@@ -2,6 +2,7 @@ package prerna.cluster;
 
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.servlet.http.HttpServletRequest;
@@ -551,4 +552,15 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		return null;
 	}
 
+	// THESE METHODS WILL BE IMPLEMENTED IN INTERFACE SOON
+	// WILL COMMENT OUT OVERRIDE ANNOTATION UNTIL THEN
+	
+//	@Override
+	public void setTimeZone(TimeZone val) {
+	}
+	
+//	@Override
+	public TimeZone getTimeZone() {
+		return null; 
+	}
 }
