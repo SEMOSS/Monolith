@@ -370,8 +370,21 @@ public class NameServer {
 		insight.setUser(user);
 		
 		// set the user timezone
-		String tz = Optional.of(request.getParameter("tz")).or(() -> Utility.getApplicationTimeZoneId());
-		user.setTimeZone(TimeZone.getTimeZone(tz));
+		TimeZone tz = null;
+		String strTz = request.getParameter("tz");
+		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
+			tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
+		} else {
+			try {
+				tz = TimeZone.getTimeZone(strTz);
+			} catch(Exception e) {
+				logger.warn("Error parsing out users timezone value: " + strTz);
+				logger.error(Constants.STACKTRACE, e);
+				tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
+			}
+		}
+		user.setTimeZone(tz);
+		
 		
 		// set if we are scheduler mode
 		Boolean schedulerMode = ThreadStore.isSchedulerMode();
