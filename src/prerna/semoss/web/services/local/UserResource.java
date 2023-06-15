@@ -2234,7 +2234,6 @@ public class UserResource {
 		try {
 			String username = request.getParameter("username");
 			String password = request.getParameter("password");
-			String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
@@ -2255,7 +2254,7 @@ public class UserResource {
 			ret.put("username", username);
 			// log the log in
 			if (!disableRedirect) {
-				setMainPageRedirect(request, response, redirect);
+				setMainPageRedirect(request, response);
 			}
 		} catch(LDAPPasswordChangeRequiredException e) {
 			HttpSession session = request.getSession(false);
@@ -2626,7 +2625,8 @@ public class UserResource {
 	 * @param response
 	 */
 	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		setMainPageRedirect(request, response, null);
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		setMainPageRedirect(request, response, customRedirect);
 	}
 
 	/**
