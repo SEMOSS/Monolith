@@ -385,7 +385,6 @@ public class NameServer {
 		}
 		user.setTimeZone(tz);
 		
-		
 		// set if we are scheduler mode
 		Boolean schedulerMode = ThreadStore.isSchedulerMode();
 		if(schedulerMode != null) {
