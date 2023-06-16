@@ -119,7 +119,9 @@ import waffle.servlet.WindowsPrincipal;
 public class UserResource {
 
 	private static final Logger logger = LogManager.getLogger(UserResource.class);
-
+	
+	private static final String CUSTOM_REDIRECT_SESSION_KEY = "custom_redirect";
+	
 	private static SocialPropertiesUtil socialData = null;
 	static {
 		socialData = SocialPropertiesUtil.getInstance();
@@ -735,15 +737,25 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/sf")
-	public Response loginSF(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginSF(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
@@ -785,7 +797,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -818,15 +832,25 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/surveymonkey")
-	public Response loginSurveyMonkey(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginSurveyMonkey(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
@@ -869,7 +893,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -902,15 +928,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/github")
-	public Response loginGithub(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginGithub(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
@@ -961,7 +998,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			GitRepoUtils.addCertForDomain("https://github.com");
@@ -999,15 +1038,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/gitlab")
-	public Response loginGitlab(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginGitlab(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		
 		String queryString = request.getQueryString();
 		String prefix = "gitlab_";
 
@@ -1063,7 +1113,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
 			// not authenticated
 			//			GitRepoUtils.addCertForDomain("https://github.com");
@@ -1094,11 +1146,7 @@ public class UserResource {
 
 			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroups(userGroups);
 			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroupType(AuthProvider.GITLAB.toString());
-
-
 		}
-
-
 
 		setMainPageRedirect(request, response);
 		return null;
@@ -1132,15 +1180,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/ms")
-	public Response loginMS(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginMS(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
@@ -1167,7 +1226,6 @@ public class UserResource {
 				params.put("grant_type", "authorization_code");
 				params.put("client_secret", clientSecret);
 
-
 				if(Strings.isNullOrEmpty(token_url)){
 					token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
 				}
@@ -1191,7 +1249,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -1234,15 +1294,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/adfs")
-	public Response loginADFS(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginADFS(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.ADFS) == null) {
@@ -1298,7 +1369,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.ADFS) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -1355,15 +1428,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/siteminder")
-	public Response loginSiteminder(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginSiteminder(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.SITEMINDER) == null) {
@@ -1412,7 +1496,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.SITEMINDER) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -1454,15 +1540,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/dropbox")
-	public Response loginDropBox(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginDropBox(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
@@ -1504,7 +1601,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -1540,15 +1639,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/google")
-	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
@@ -1604,7 +1714,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -1695,15 +1807,25 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/producthunt")
-	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
 
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
@@ -1747,7 +1869,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getProducthuntRedirect(request));
@@ -1782,15 +1906,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/linkedin")
-	public Response loginIn(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginIn(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
 		 * Redirect the FE
 		 */
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
@@ -1832,7 +1967,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getInRedirect(request));
@@ -1871,15 +2008,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/twitter")
-	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		// getting the bearer token on twitter for app authentication is a lot simpler
 		// need to just combine the id and secret
 		// base 64 and send as authorization
 
 		// https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
@@ -1922,7 +2070,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -1976,8 +2126,7 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/{provider}")
-	public Response loginGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
+	public Response loginGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1986,7 +2135,19 @@ public class UserResource {
 
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
 
-		User userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(providerEnum) == null) {
@@ -2044,7 +2205,9 @@ public class UserResource {
 		}
 
 		// grab the user again
-		userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 		if (userObj == null || userObj.getAccessToken(providerEnum) == null) {
 			// not authenticated
 			response.setStatus(302);
@@ -2626,6 +2789,9 @@ public class UserResource {
 	 */
 	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect == null || customRedirect.isEmpty()) {
+			customRedirect = (String) request.getSession().getAttribute(CUSTOM_REDIRECT_SESSION_KEY);
+		}
 		setMainPageRedirect(request, response, customRedirect);
 	}
 
