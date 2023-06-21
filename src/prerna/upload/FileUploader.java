@@ -38,6 +38,7 @@ import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.io.connector.antivirus.VirusScannerUtils;
+import prerna.io.connector.antivirus.VirusScanningException;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
@@ -252,6 +253,11 @@ public class FileUploader extends Uploader {
 			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, projectId, user);
 			// clear the thread store
 			return WebUtility.getResponse(inputData, 200);
+		} catch(VirusScanningException e) {
+			logger.error(Constants.STACKTRACE, e);
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("errorMessage", e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		} catch(Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			HashMap<String, String> errorMap = new HashMap<String, String>();
@@ -269,8 +275,10 @@ public class FileUploader extends Uploader {
 	 * @param relativePath
 	 * @param projectId
 	 * @return
+	 * @throws IOException 
+	 * @throws VirusScanningException 
 	 */
-	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String projectId, User user) {
+	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String projectId, User user) throws VirusScanningException, IOException {
 		// get base asset folder
 		String assetFolder = null;
 		String fePath = DIR_SEPARATOR;
@@ -409,20 +417,24 @@ public class FileUploader extends Uploader {
 	 * 
 	 * @param fi
 	 */
-	private void checkForViruses(FileItem fi) {
+	private void checkForViruses(FileItem fi) throws VirusScanningException, IOException {
 		if (Utility.isVirusScanningEnabled()) {
 			try {
 				Map<String, Collection<String>> viruses = VirusScannerUtils.getViruses(fi.getInputStream());
 				
 				if (!viruses.isEmpty()) {	
-					String error = "File contained " + viruses.size() + " virus";
+					String error = "Detected " + viruses.size() + " virus";
 					
 					if (viruses.size() > 1) {
 						error = error + "es";
 					}
 					
-					throw new IllegalArgumentException(error);
+					error += ". If you believe this is an error, please contact an administrator.";
+					
+					throw new VirusScanningException(error);
 				}
+			} catch(VirusScanningException e) {
+				throw e;
 			} catch (IOException e) {
 				throw new IllegalArgumentException("Could not read file item.", e);
 			}
