@@ -2791,6 +2791,8 @@ public class UserResource {
 		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect == null || customRedirect.isEmpty()) {
 			customRedirect = (String) request.getSession().getAttribute(CUSTOM_REDIRECT_SESSION_KEY);
+			// also remove the attribute so additional logins dont do the redirect as well
+			request.getSession().removeAttribute(CUSTOM_REDIRECT_SESSION_KEY);
 		}
 		setMainPageRedirect(request, response, customRedirect);
 	}
