@@ -422,7 +422,8 @@ public class FileUploader extends Uploader {
 			try {
 				Map<String, Collection<String>> viruses = VirusScannerUtils.getViruses(fi.getInputStream());
 				
-				if (!viruses.isEmpty()) {	
+				if (!viruses.isEmpty()) {
+					logger.warn("Virus scanner errors map for " + fi.getName() + " : " + viruses);
 					String error = "Detected " + viruses.size() + " virus";
 					
 					if (viruses.size() > 1) {
