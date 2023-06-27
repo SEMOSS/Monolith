@@ -57,8 +57,9 @@ public class DatabaseAuthorizationResource2 {
 			@QueryParam("limit") Integer limit,
 			@QueryParam("offset") Integer offset,
 			@QueryParam("onlyFavorites") Boolean favoritesOnly,
-			@QueryParam("metaKeys") List<String> metaKeys
-//			@QueryParam("metaFilters") Map<String, Object> metaFilters
+			@QueryParam("metaKeys") List<String> metaKeys,
+//			@QueryParam("metaFilters") Map<String, Object> metaFilters,
+			@QueryParam("noMeta") Boolean noMeta
 			) {
 		User user = null;
 		try {
@@ -115,7 +116,12 @@ public class DatabaseAuthorizationResource2 {
 //			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
 //			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
 //		}
-
+		if(noMeta != null) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(noMeta, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
+		}
+		
 		NounMetadata outputNoun = reactor.execute();
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
