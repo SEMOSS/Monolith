@@ -23,7 +23,13 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityDatabaseUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.om.Insight;
+import prerna.sablecc2.om.GenRowStruct;
+import prerna.sablecc2.om.PixelDataType;
+import prerna.sablecc2.om.ReactorKeysEnum;
+import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.solr.reactor.MyDatabasesReactor;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
@@ -44,7 +50,15 @@ public class DatabaseAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getApps")
-	public Response getApps(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
+	public Response getApps(@Context HttpServletRequest request, 
+			@QueryParam("databaseId") List<String> databaseFilter,
+			@QueryParam("filterWord") String searchTerm, 
+			@QueryParam("limit") Integer limit,
+			@QueryParam("offset") Integer offset,
+			@QueryParam("onlyFavorites") Boolean favoritesOnly,
+			@QueryParam("metaKeys") List<String> metaKeys
+//			@QueryParam("metaFilters") Map<String, Object> metaFilters
+			) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -56,7 +70,53 @@ public class DatabaseAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(SecurityDatabaseUtils.getUserDatabaseSettings(user, databaseId), 200);
+		MyDatabasesReactor reactor = new MyDatabasesReactor();
+		reactor.In();
+		Insight temp = new Insight();
+		temp.setUser(user);
+		reactor.setInsight(temp);
+		if(searchTerm != null) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.FILTER_WORD.getKey(), struct);
+		}
+		if(limit != null) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(limit, PixelDataType.CONST_INT));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.LIMIT.getKey(), struct);
+		}
+		if(offset != null) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(offset, PixelDataType.CONST_INT));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.OFFSET.getKey(), struct);
+		}
+		if(favoritesOnly != null) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(favoritesOnly, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.ONLY_FAVORITES.getKey(), struct);
+		}
+		if(databaseFilter != null && !databaseFilter.isEmpty()) {
+			GenRowStruct struct = new GenRowStruct();
+			for(String db : databaseFilter) {
+				struct.add(new NounMetadata(db, PixelDataType.CONST_STRING));
+			}
+			reactor.getNounStore().addNoun(ReactorKeysEnum.DATABASE.getKey(), struct);
+		}
+		if(metaKeys != null && !metaKeys.isEmpty()) {
+			GenRowStruct struct = new GenRowStruct();
+			for(String metaK : metaKeys) {
+				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+			}
+			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
+		}
+//		if(metaFilters != null) {
+//			GenRowStruct struct = new GenRowStruct();
+//			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
+//			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
+//		}
+
+		NounMetadata outputNoun = reactor.execute();
+		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
 	
 	/**
