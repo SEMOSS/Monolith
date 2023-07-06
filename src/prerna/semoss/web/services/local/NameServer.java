@@ -383,8 +383,10 @@ public class NameServer {
 				tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
 			}
 		}
-		user.setTimeZone(tz);
-		
+		// need null check if security is off
+		if(user != null) {
+			user.setTimeZone(tz);
+		}
 		// set if we are scheduler mode
 		Boolean schedulerMode = ThreadStore.isSchedulerMode();
 		if(schedulerMode != null) {
