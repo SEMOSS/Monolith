@@ -24,7 +24,6 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityDatabaseUtils;
-import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.om.Insight;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
@@ -650,7 +649,7 @@ public class DatabaseAuthorizationResource2 {
 		String logVisible = visible ? " visible " : " not visible";
 
 		try {
-			SecurityUpdateUtils.setDbVisibility(user, databaseId, visible);
+			SecurityDatabaseUtils.setDbVisibility(user, databaseId, visible);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logVisible + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -696,7 +695,7 @@ public class DatabaseAuthorizationResource2 {
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
 		try {
-			SecurityUpdateUtils.setDbFavorite(user, databaseId, isFavorite);
+			SecurityDatabaseUtils.setDbFavorite(user, databaseId, isFavorite);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logFavorited + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
