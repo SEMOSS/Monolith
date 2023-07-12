@@ -72,7 +72,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 
-import com.google.common.base.Optional;
 import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 
@@ -502,6 +501,7 @@ public class NameServer {
 			// example is ExportToExcel grids 
 			if(dropLogging) {
 				jt.setStatus(JobStatus.COMPLETE);
+				manager.clearJob(jobId);
 				manager.removeJob(jobId);
 			}
 		}
@@ -650,6 +650,23 @@ public class NameServer {
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
+	
+	@POST
+	@Path("/partial")
+	@Produces("application/json")
+	public Response partial(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String jobId = form.getFirst("jobId");
+		// HttpSession session = request.getSession(true);
+		// if(session.getAttribute(jobId) != null) {
+		// if(jobId != null)
+		JobThread jt = JobManager.getManager().getJob(jobId);
+		Map<String, String> console = JobManager.getManager().getPartial(jobId);
+		Map<String, Object> dataReturn = new HashMap<>();
+		dataReturn.put("status", jt == null ? JobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
+		dataReturn.put("message", console);
+		// }
+		return WebUtility.getResponseNoCache(dataReturn, 200);
+	}
 
 	@POST
 	@Path("/error")
@@ -675,7 +692,7 @@ public class NameServer {
 		String jobId = form.getFirst("jobId");
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
-		JobManager.getManager().flushJob(jobId);
+		JobManager.getManager().clearJob(jobId);
 		// }
 		// session.removeAttribute(jobId);
 		return WebUtility.getSO("success");
