@@ -50,7 +50,7 @@ public class SetAdminSessionTimeoutFilter implements Filter {
 					
 					// store in session so we do not redo the check
 					session.setAttribute(SESSIOIN_ATTRIBUTE_CHECK, true);
-					logger.info("Setting the admin timeout to " + sessionTimeout + " seconds");
+					logger.info("Setting the admin timeout to " + interval + " seconds");
 				} else {
 					
 					// also still store in the session so we do not redo the check
