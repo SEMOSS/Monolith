@@ -19,7 +19,7 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.User;
-import prerna.auth.utils.SecurityGroupDatabaseUtils;
+import prerna.auth.utils.SecurityGroupEngineUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -65,7 +65,7 @@ public class GroupDatabaseAuthorizationResource {
 				throw new IllegalArgumentException("The appId cannot be null or empty");
 			}
 			
-			Integer permissionCode = SecurityGroupDatabaseUtils.getGroupDatabasePermission(groupId, type, appId);
+			Integer permissionCode = SecurityGroupEngineUtils.getGroupDatabasePermission(groupId, type, appId);
 			String permission = permissionCode == null ? null : AccessPermissionEnum.getPermissionValueById(permissionCode);
 			
 			Map<String, String> ret = new HashMap<String, String>();
@@ -121,7 +121,7 @@ public class GroupDatabaseAuthorizationResource {
 				throw new IllegalArgumentException("The permission cannot be null or empty");
 			}
 
-			SecurityGroupDatabaseUtils.addDatabaseGroupPermission(user, groupId, type, appId, permission);
+			SecurityGroupEngineUtils.addDatabaseGroupPermission(user, groupId, type, appId, permission);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add groups to app " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -181,7 +181,7 @@ public class GroupDatabaseAuthorizationResource {
 			if(newPermission == null || (newPermission = newPermission.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The permission cannot be null or empty");
 			}
-			SecurityGroupDatabaseUtils.editDatabaseGroupPermission(user, groupId, type, appId, newPermission);
+			SecurityGroupEngineUtils.editDatabaseGroupPermission(user, groupId, type, appId, newPermission);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit group " + groupId + " and type " + type + " permissions for app " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -237,7 +237,7 @@ public class GroupDatabaseAuthorizationResource {
 				throw new IllegalArgumentException("The appId cannot be null or empty");
 			}
 			
-			SecurityGroupDatabaseUtils.removeDatabaseGroupPermission(user, groupId, type, appId);
+			SecurityGroupEngineUtils.removeDatabaseGroupPermission(user, groupId, type, appId);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove group " + groupId + " and type " + type + " from having access to app " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);

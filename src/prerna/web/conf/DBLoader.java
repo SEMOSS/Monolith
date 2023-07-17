@@ -175,7 +175,7 @@ public class DBLoader implements ServletContextListener {
 		// Load empty engine list into DIHelper, then load engines from db folder
 		logger.log(STARTUP, "Loading engines...");
 		String engines = "";
-		DIHelper.getInstance().setDbProperty(Constants.ENGINES, engines);
+		DIHelper.getInstance().setEngineProperty(Constants.ENGINES, engines);
 		loadSmss(Constants.ENGINE_WEB_WATCHER);
 		String projects = "";
 		DIHelper.getInstance().setProjectProperty(Constants.PROJECTS, projects);
@@ -195,10 +195,10 @@ public class DBLoader implements ServletContextListener {
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
 		{
-			IEngine localmaster = (IEngine) DIHelper.getInstance().getDbProperty(Constants.LOCAL_MASTER_DB_NAME);
-			IEngine security = (IEngine) DIHelper.getInstance().getDbProperty(Constants.SECURITY_DB);
-			IEngine scheduler = (IEngine) DIHelper.getInstance().getDbProperty(Constants.SCHEDULER_DB);
-			IEngine userTracking = (IEngine) DIHelper.getInstance().getDbProperty(Constants.USER_TRACKING_DB);
+			IEngine localmaster = (IEngine) DIHelper.getInstance().getEngineProperty(Constants.LOCAL_MASTER_DB_NAME);
+			IEngine security = (IEngine) DIHelper.getInstance().getEngineProperty(Constants.SECURITY_DB);
+			IEngine scheduler = (IEngine) DIHelper.getInstance().getEngineProperty(Constants.SCHEDULER_DB);
+			IEngine userTracking = (IEngine) DIHelper.getInstance().getEngineProperty(Constants.USER_TRACKING_DB);
 			if (localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected()
 					|| (!Utility.schedulerForceDisable() && scheduler != null && !scheduler.isConnected())
 					|| (Utility.isUserTrackingEnabled() && (userTracking == null || !userTracking.isConnected() ))
@@ -270,7 +270,7 @@ public class DBLoader implements ServletContextListener {
 		List<String> eIds = MasterDatabaseUtility.getAllDatabaseIds();
 		for (String id : eIds) {
 			// grab only loaded engines
-			IEngine engine = (IEngine) DIHelper.getInstance().getDbProperty(id);
+			IEngine engine = (IEngine) DIHelper.getInstance().getEngineProperty(id);
 			if (engine != null) {
 				// if it is loaded, close it
 				logger.log(SHUTDOWN, "Closing database " + id);

@@ -34,7 +34,7 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.auth.utils.SecurityDatabaseUtils;
+import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
@@ -58,8 +58,8 @@ public class DatabaseResource {
 	private boolean canViewDatabase(User user, String databaseId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			databaseId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, databaseId);
-			if(!SecurityDatabaseUtils.userCanViewDatabase(user, databaseId)
-					&& !SecurityDatabaseUtils.databaseIsDiscoverable(databaseId)) {
+			if(!SecurityEngineUtils.userCanViewDatabase(user, databaseId)
+					&& !SecurityEngineUtils.databaseIsDiscoverable(databaseId)) {
 				throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have access to the database");
 			}
 		} else {
@@ -96,7 +96,7 @@ public class DatabaseResource {
 			try {
 				boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
 				if(!isAdmin) {
-					boolean isOwner = SecurityDatabaseUtils.userIsOwner(user, databaseId);
+					boolean isOwner = SecurityEngineUtils.userIsOwner(user, databaseId);
 					if(!isOwner) {
 						throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
 					}
@@ -240,7 +240,7 @@ public class DatabaseResource {
 		if(ClusterUtil.IS_CLUSTER){
 			return ClusterUtil.getDatabaseImage(databaseId);
 		}
-		String propFileLoc = (String) DIHelper.getInstance().getDbProperty(databaseId + "_" + Constants.STORE);
+		String propFileLoc = (String) DIHelper.getInstance().getEngineProperty(databaseId + "_" + Constants.STORE);
 		if(propFileLoc == null && !databaseId.equals("NEWSEMOSSAPP")) {
 			String imageDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "/images/stock/";
 			return new File(imageDir + "color-logo.png");
