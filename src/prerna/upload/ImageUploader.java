@@ -25,7 +25,7 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityDatabaseUtils;
+import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
@@ -104,11 +104,11 @@ public class ImageUploader extends Uploader {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityDatabaseUtils.userCanEditDatabase(user, databaseId)) {
+				if (!SecurityEngineUtils.userCanEditDatabase(user, databaseId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				databaseName = SecurityDatabaseUtils.getDatabaseAliasForId(databaseId);
+				databaseName = SecurityEngineUtils.getDatabaseAliasForId(databaseId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
@@ -220,11 +220,11 @@ public class ImageUploader extends Uploader {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityDatabaseUtils.userCanEditDatabase(user, appId)) {
+				if (!SecurityEngineUtils.userCanEditDatabase(user, appId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this app or the database id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				appName = SecurityDatabaseUtils.getDatabaseAliasForId(appId);
+				appName = SecurityEngineUtils.getDatabaseAliasForId(appId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);

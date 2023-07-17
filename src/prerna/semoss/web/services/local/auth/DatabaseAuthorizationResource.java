@@ -21,7 +21,7 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.auth.utils.SecurityDatabaseUtils;
+import prerna.auth.utils.SecurityEngineUtils;
 import prerna.om.Insight;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
@@ -145,7 +145,7 @@ public class DatabaseAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String permission = SecurityDatabaseUtils.getActualUserDatabasePermission(user, appId);
+		String permission = SecurityEngineUtils.getActualUserDatabasePermission(user, appId);
 		if(permission == null) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull permission details for database " + appId + " without having proper access"));
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -180,7 +180,7 @@ public class DatabaseAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityDatabaseUtils.getDatabaseUsers(user, appId, null, null, -1, -1);
+			ret = SecurityEngineUtils.getDatabaseUsers(user, appId, null, null, -1, -1);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for database " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -225,7 +225,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityDatabaseUtils.addDatabaseUser(user, newUserId, appId, permission);
+			SecurityEngineUtils.addDatabaseUser(user, newUserId, appId, permission);
 		} catch (Exception e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -275,7 +275,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityDatabaseUtils.editDatabaseUserPermission(user, existingUserId, appId, newPermission);
+			SecurityEngineUtils.editDatabaseUserPermission(user, existingUserId, appId, newPermission);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -329,7 +329,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityDatabaseUtils.removeDatabaseUser(user, existingUserId, appId);
+			SecurityEngineUtils.removeDatabaseUser(user, existingUserId, appId);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -385,7 +385,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityDatabaseUtils.setDatabaseGlobal(user, appId, isPublic);
+			SecurityEngineUtils.setDatabaseGlobal(user, appId, isPublic);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logPublic + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -440,7 +440,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityDatabaseUtils.setDatabaseDiscoverable(user, appId, isDiscoverable);
+			SecurityEngineUtils.setDatabaseDiscoverable(user, appId, isDiscoverable);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logDiscoverable + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -488,7 +488,7 @@ public class DatabaseAuthorizationResource {
 		String logVisible = visible ? " visible " : " not visible";
 
 		try {
-			SecurityDatabaseUtils.setDbVisibility(user, appId, visible);
+			SecurityEngineUtils.setDbVisibility(user, appId, visible);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logVisible + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -534,7 +534,7 @@ public class DatabaseAuthorizationResource {
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
 		try {
-			SecurityDatabaseUtils.setDbFavorite(user, appId, isFavorite);
+			SecurityEngineUtils.setDbFavorite(user, appId, isFavorite);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logFavorited + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -577,7 +577,7 @@ public class DatabaseAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityDatabaseUtils.getDatabaseUsersNoCredentials(user, appId);
+			ret = SecurityEngineUtils.getDatabaseUsersNoCredentials(user, appId);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + appId + " that do not have credentials without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
