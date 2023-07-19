@@ -942,10 +942,10 @@ public class NameServer {
 			if (user == null) {
 				return WebUtility.getSO("Not properly authenticated");
 			}
-			engines = SecurityEngineUtils.getUserDatabaseList(user, null, false, null, null, null, null);
+			engines = SecurityEngineUtils.getUserEngineList(user, null, null, false, null, null, null, null);
 			user.setEngines(engines);
 		} else {
-			engines = SecurityEngineUtils.getAllDatabaseList();
+			engines = SecurityEngineUtils.getAllEngineList(null, null, null, null, null, null);
 		}
 		
 		return WebUtility.getSO(engines);
