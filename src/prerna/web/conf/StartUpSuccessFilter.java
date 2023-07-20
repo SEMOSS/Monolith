@@ -12,11 +12,14 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.Utility;
 
 public class StartUpSuccessFilter implements Filter {
 
 	private static boolean startUpSuccess = true;
+	private static boolean firstTime = true;
 	private static final String FAIL_HTML = "/startUpFail/";
 	
 	@Override
@@ -37,6 +40,22 @@ public class StartUpSuccessFilter implements Filter {
 				((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
 				((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
 				return;
+			}
+		}
+		
+		// setting the URL for this instance so that we can give back the portal URL
+		if(firstTime) {
+			synchronized(StartUpSuccessFilter.class) {
+				if(firstTime) {
+					firstTime = false;
+					
+					String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+					// Context Path  - this should be /Monolith or /Monolith_Dev
+					String contextPath = context.getContextPath();
+					// try to get the project id
+					String baseUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length() + 1)+ "public_home/";
+					DIHelper.getInstance().setLocalProperty(Constants.PORTAL_PREFIX_URL_KEY, baseUrl);
+				}
 			}
 		}
 		
