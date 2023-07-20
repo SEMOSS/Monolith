@@ -27,11 +27,11 @@
  *******************************************************************************/
 package prerna.web.conf;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
-import java.util.Vector;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
@@ -71,13 +71,13 @@ public class DBLoader implements ServletContextListener {
 	private static String customLogoutUrl = null;
 
 	// keep track of all the watcher threads to kill
-	private static List<AbstractFileWatcher> watcherList = new Vector<>();
+	private static List<AbstractFileWatcher> watcherList = new ArrayList<>();
 
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
 		ServletContext context = arg0.getServletContext();
 		String contextPath = context.getContextPath();
-
+		
 		String rdfPropFile = context.getInitParameter(RDFMAP);
 		// see if security is enabled
 		String securityEnabled = context.getInitParameter(Constants.SECURITY_ENABLED);
@@ -140,7 +140,7 @@ public class DBLoader implements ServletContextListener {
 				ChromeDriverUtility.setSessionCookie(cookieConfig.getName());
 			}
 		}
-
+		
 		logger.log(STARTUP, "Initializing application context..." + Utility.cleanLogString(contextPath));
 
 		// Set default file separator system variable
@@ -171,7 +171,7 @@ public class DBLoader implements ServletContextListener {
 		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
 		DIHelper.getInstance().setLocalProperty(Constants.USE_LOGOUT_PAGE, useLogoutPage);
 		DIHelper.getInstance().setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
-
+		
 		// Load empty engine list into DIHelper, then load engines from db folder
 		logger.log(STARTUP, "Loading engines...");
 		String engines = "";
@@ -181,13 +181,6 @@ public class DBLoader implements ServletContextListener {
 		DIHelper.getInstance().setProjectProperty(Constants.PROJECTS, projects);
 		loadSmss(Constants.PROJECT_WATCHER);
 		
-//		//Just load R right away to avoid synchronization issues
-//		try {
-//			RJavaTranslatorFactory.initRConnection();
-//		} catch(Exception e) {
-//			e.printStackTrace();
-//		}
-
 		// need to set the path
 		// important for taking the image with security
 		ChromeDriverUtility.setContextPath(contextPath);
