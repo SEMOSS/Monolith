@@ -23,6 +23,8 @@ import com.google.gson.Gson;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IRawSelectWrapper;
+import prerna.query.querystruct.SelectQueryStruct;
+import prerna.query.querystruct.selectors.QueryColumnSelector;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
 import prerna.util.Utility;
@@ -44,10 +46,12 @@ public class AdminConfigService {
 		HttpSession session = request.getSession(false);
 
 		IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
-		String q = "SELECT * FROM SMSS_USER LIMIT 1";
+		SelectQueryStruct qs = new SelectQueryStruct();
+		qs.addSelector(new QueryColumnSelector("SMSS_USER__ID"));
+		qs.setLimit(1);
 		IRawSelectWrapper wrapper = null;
 		try {
-			wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
+			wrapper = WrapperManager.getInstance().getRawWrapper(engine, qs);
 			boolean hasUser = wrapper.hasNext();
 			// if there are users, redirect to the main semoss page
 			// we do not want to allow the person to make any admin requests
