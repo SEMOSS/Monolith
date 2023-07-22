@@ -2781,6 +2781,34 @@ public class UserResource {
 
 		return WebUtility.getResponse(true, 200);
 	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("/modifyAllLoginProperties")
+	public synchronized Response modifyAllLoginProperties(@Context HttpServletRequest request) throws IOException {
+		if (AbstractSecurityUtils.securityEnabled()) {
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+			if (user == null) {
+				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
+			}
+			if (!SecurityAdminUtils.userIsAdmin(user)) {
+				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin",
+						400);
+			}
+		}
+
+		String newSocialProperties = request.getParameter("socialProperties");
+		try {
+			socialData.updateAllProperties(newSocialProperties);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Hashtable<String, String> errorRet = new Hashtable<>();
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorRet, 500);
+		}
+
+		return WebUtility.getResponse(true, 200);
+	}
 
 	/**
 	 * Redirect the login back to the main app page
