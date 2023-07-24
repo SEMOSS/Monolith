@@ -29,7 +29,7 @@ public class AdminStartupFilter implements Filter {
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		if (AbstractSecurityUtils.securityEnabled()) {
-			IDatabase engine = Utility.getEngine(Constants.SECURITY_DB);
+			IDatabase engine = Utility.getDatabase(Constants.SECURITY_DB);
 			String q = "SELECT * FROM SMSS_USER LIMIT 1";
 			IRawSelectWrapper wrapper = null;
 			try {
