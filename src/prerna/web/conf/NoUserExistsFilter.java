@@ -15,7 +15,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.engine.api.IEngine;
+import prerna.engine.api.IDatabase;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.query.querystruct.SelectQueryStruct;
 import prerna.query.querystruct.selectors.QueryColumnSelector;
@@ -42,7 +42,7 @@ public class NoUserExistsFilter implements Filter {
 				// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 				String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 				if (!ResourceUtility.allowAccessWithoutUsers(fullUrl)) {
-					IEngine engine = Utility.getEngine(Constants.SECURITY_DB);
+					IDatabase engine = Utility.getEngine(Constants.SECURITY_DB);
 					SelectQueryStruct qs = new SelectQueryStruct();
 					qs.addSelector(new QueryColumnSelector("SMSS_USER__ID"));
 					qs.setLimit(1);

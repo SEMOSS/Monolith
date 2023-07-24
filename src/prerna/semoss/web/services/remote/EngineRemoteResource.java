@@ -43,7 +43,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.engine.api.IConstructWrapper;
-import prerna.engine.api.IEngine;
+import prerna.engine.api.IDatabase;
 import prerna.engine.api.IRemoteQueryable;
 import prerna.engine.impl.rdf.SesameJenaSelectWrapper;
 import prerna.rdf.engine.wrappers.AbstractWrapper;
@@ -66,11 +66,11 @@ public class EngineRemoteResource {
 	private static final Logger logger = LogManager.getLogger(EngineRemoteResource.class); 
 	private static final String STACKTRACE = "StackTrace: ";
 
-	public IEngine coreEngine = null;
+	public IDatabase coreEngine = null;
 	String output = null;
 	String uriBase = null;
 	
-	public void setEngine(IEngine coreEngine)
+	public void setEngine(IDatabase coreEngine)
 	{
 		this.coreEngine = coreEngine;
 		if(uriBase == null && DIHelper.getInstance().getCoreProp().containsKey(Constants.URI_BASE))
@@ -237,7 +237,7 @@ public class EngineRemoteResource {
 //				retValue = ((SesameJenaSelectCheater)wrapper).hasNext();
 
 			//TODO: this shouldnt' be commented out!!!
-			// retValue = ((IEngineWrapper) wrapper).hasNext();
+			// retValue = ((IDatabaseWrapper) wrapper).hasNext();
 			// if(!retValue) // cleanup
 			QueryResultHash.getInstance().cleanObject(id);
 		}
