@@ -34,7 +34,7 @@ public class CACTrackingUtil {
 
 	public static CACTrackingUtil getInstance(String trackingEngineId) {
 		if(!singletonStore.containsKey(trackingEngineId)) {
-			IDatabase engine = Utility.getEngine(trackingEngineId);
+			IDatabase engine = Utility.getDatabase(trackingEngineId);
 			if(engine == null) {
 				throw new IllegalArgumentException("Could not find tracking engine");
 			}
