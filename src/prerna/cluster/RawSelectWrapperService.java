@@ -16,7 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.algorithm.api.SemossDataType;
-import prerna.engine.api.IEngine;
+import prerna.engine.api.IDatabase;
 import prerna.engine.api.IHeadersDataRow;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -74,7 +74,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		if (activeWrappers.containsKey(wrapperKey)) {
 			return activeWrappers.get(wrapperKey);
 		} else {
-			IEngine engine = getEngine(appId);
+			IDatabase engine = getEngine(appId);
 			IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, query);
 			activeWrappers.put(wrapperKey, wrapper);
 			return wrapper;
@@ -102,11 +102,11 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	//////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////// Util methods /////////////////////////////////////////
 
-	private IEngine getEngine(String appId) {
-		IEngine engine = null;
+	private IDatabase getEngine(String appId) {
+		IDatabase engine = null;
 //		if (appId.endsWith("_InsightsRDBMS")) {
 //			String parentAppId = appId.replace("_InsightsRDBMS", "");
-//			IEngine parentEngine = Utility.getEngine(parentAppId);
+//			IDatabase parentEngine = Utility.getEngine(parentAppId);
 //			engine = parentEngine.getInsightDatabase();
 //		} else {
 			engine = Utility.getEngine(appId);
@@ -257,12 +257,12 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	}
 
 	@Override
-	public void setEngine(IEngine engine) {
+	public void setEngine(IDatabase engine) {
 		throw new IllegalStateException("Only overriding this method for reference.");			
 	}
 
 	@Override
-	public IEngine getEngine() {
+	public IDatabase getEngine() {
 		throw new IllegalStateException("Only overriding this method for reference.");			
 	}
 
@@ -284,7 +284,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		IRawSelectWrapper wrapper;
 		try {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
-			IEngine engine = getEngine(appId);
+			IDatabase engine = getEngine(appId);
 			wrapper.setEngine(engine);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE,e);

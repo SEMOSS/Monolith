@@ -22,7 +22,7 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.ds.util.RdbmsQueryBuilder;
-import prerna.engine.api.IEngine;
+import prerna.engine.api.IDatabase;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.AbstractFormBuilder;
 import prerna.forms.FormBuilder;
@@ -39,7 +39,7 @@ public class FormResource {
 
 	private static final Logger logger = LogManager.getLogger(FormResource.class);
 
-	private IEngine formEngine;
+	private IDatabase formEngine;
 
 	@POST
 	@Path("/modifyUserAccess")
@@ -98,7 +98,7 @@ public class FormResource {
 			return WebUtility.getResponse("Error: need to specify Add or Remove", 400);
 		}
 
-		IEngine formEngine = getEngine();
+		IDatabase formEngine = getEngine();
 		// execute the query
 		try {
 			formEngine.insertData(query);
@@ -145,7 +145,7 @@ public class FormResource {
 		// log the operation
 		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is renaming " + origUri + " to " + newUri));
 
-		IEngine coreEngine = Utility.getEngine(MasterDatabaseUtility.testDatabaseIdIfAlias(dbName));		
+		IDatabase coreEngine = Utility.getEngine(MasterDatabaseUtility.testDatabaseIdIfAlias(dbName));		
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
 		formbuilder.modifyInstanceValue(origUri, newUri, deleteInstanceBoolean);
 		return WebUtility.getResponse("success", 200);
@@ -177,7 +177,7 @@ public class FormResource {
 			return WebUtility.getResponse(err, 400);
 		}
 
-		IEngine coreEngine = Utility.getEngine(MasterDatabaseUtility.testDatabaseIdIfAlias(dbName));		
+		IDatabase coreEngine = Utility.getEngine(MasterDatabaseUtility.testDatabaseIdIfAlias(dbName));		
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
 		formbuilder.setUser(cacId);
 		formbuilder.certifyInstance(instanceType, instanceName);
@@ -321,7 +321,7 @@ public class FormResource {
 	 * after DBLoader is done loading
 	 * @return
 	 */
-	public IEngine getEngine() {
+	public IDatabase getEngine() {
 		if(formEngine == null) {
 			formEngine = Utility.getEngine(FormBuilder.FORM_BUILDER_ENGINE_NAME);
 			AbstractFormBuilder.generateFormPermissionTable(formEngine);
