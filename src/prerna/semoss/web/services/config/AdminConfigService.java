@@ -45,7 +45,7 @@ public class AdminConfigService {
 			MultivaluedMap<String, String> form) throws IOException {
 		HttpSession session = request.getSession(false);
 
-		IDatabase engine = Utility.getEngine(Constants.SECURITY_DB);
+		IDatabase engine = Utility.getDatabase(Constants.SECURITY_DB);
 		SelectQueryStruct qs = new SelectQueryStruct();
 		qs.addSelector(new QueryColumnSelector("SMSS_USER__ID"));
 		qs.setLimit(1);
