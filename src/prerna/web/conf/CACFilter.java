@@ -379,7 +379,7 @@ public class CACFilter implements Filter {
 		String cleanNewId = RdbmsQueryBuilder.escapeForSQLStatement(newId);
 		{
 			// security update block
-			RDBMSNativeEngine securityDb = (RDBMSNativeEngine) Utility.getEngine(Constants.SECURITY_DB);
+			RDBMSNativeEngine securityDb = (RDBMSNativeEngine) Utility.getDatabase(Constants.SECURITY_DB);
 
 			// let us not try to run this multiple times...
 			String requireUpdateQuery = "SELECT * FROM SMSS_USER WHERE ID='" + cleanOldId +"'";
@@ -424,7 +424,7 @@ public class CACFilter implements Filter {
 		}
 
 		{
-			RDBMSNativeEngine formEngine = (RDBMSNativeEngine) Utility.getEngine(FormBuilder.FORM_BUILDER_ENGINE_NAME);
+			RDBMSNativeEngine formEngine = (RDBMSNativeEngine) Utility.getDatabase(FormBuilder.FORM_BUILDER_ENGINE_NAME);
 			if(formEngine != null) {
 				// let us not try to run this multiple times...
 				String requireUpdateQuery = "SELECT * FROM FORMS_USER_ACCESS WHERE USER_ID='" + cleanOldId +"'";
