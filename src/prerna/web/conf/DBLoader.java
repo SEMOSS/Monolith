@@ -273,7 +273,7 @@ public class DBLoader implements ServletContextListener {
 
 		// these are not loaded in the normal fashion
 		// so specifically pull them to close
-		IDatabase engine = Utility.getEngine(AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
+		IDatabase engine = Utility.getDatabase(AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 			engine.closeDB();
@@ -281,7 +281,7 @@ public class DBLoader implements ServletContextListener {
 			logger.log(SHUTDOWN, "Couldn't find database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		}
 
-		engine = Utility.getEngine(Constants.SECURITY_DB);
+		engine = Utility.getDatabase(Constants.SECURITY_DB);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + Constants.SECURITY_DB);
 			engine.closeDB();
@@ -289,7 +289,7 @@ public class DBLoader implements ServletContextListener {
 			logger.log(SHUTDOWN, "Couldn't find database " + Constants.SECURITY_DB);
 		}
 
-		engine = Utility.getEngine(Constants.USER_TRACKING_DB);
+		engine = Utility.getDatabase(Constants.USER_TRACKING_DB);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + Constants.USER_TRACKING_DB);
 			engine.closeDB();
@@ -297,7 +297,7 @@ public class DBLoader implements ServletContextListener {
 			logger.log(SHUTDOWN, "Couldn't find database " + Constants.USER_TRACKING_DB);
 		}
 		
-		engine = Utility.getEngine(Constants.LOCAL_MASTER_DB_NAME);
+		engine = Utility.getDatabase(Constants.LOCAL_MASTER_DB_NAME);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + Constants.LOCAL_MASTER_DB_NAME);
 			engine.closeDB();
@@ -307,7 +307,7 @@ public class DBLoader implements ServletContextListener {
 
 		logger.log(SHUTDOWN, "Closing scheduler");
 		SchedulerFactorySingleton.getInstance().shutdownScheduler(true);
-		engine = Utility.getEngine(Constants.SCHEDULER_DB);
+		engine = Utility.getDatabase(Constants.SCHEDULER_DB);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + Constants.SCHEDULER_DB);
 			engine.closeDB();

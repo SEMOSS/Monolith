@@ -108,7 +108,7 @@ public class DatabaseResource {
 			}
 		}
 		
-		IDatabase engine = Utility.getEngine(databaseId);
+		IDatabase engine = Utility.getDatabase(databaseId);
 		String currentSmssFileLocation = engine.getPropFile();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {

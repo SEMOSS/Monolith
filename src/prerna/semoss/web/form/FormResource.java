@@ -145,7 +145,7 @@ public class FormResource {
 		// log the operation
 		logger.info(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is renaming " + origUri + " to " + newUri));
 
-		IDatabase coreEngine = Utility.getEngine(MasterDatabaseUtility.testDatabaseIdIfAlias(dbName));		
+		IDatabase coreEngine = Utility.getDatabase(MasterDatabaseUtility.testDatabaseIdIfAlias(dbName));		
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
 		formbuilder.modifyInstanceValue(origUri, newUri, deleteInstanceBoolean);
 		return WebUtility.getResponse("success", 200);
@@ -177,7 +177,7 @@ public class FormResource {
 			return WebUtility.getResponse(err, 400);
 		}
 
-		IDatabase coreEngine = Utility.getEngine(MasterDatabaseUtility.testDatabaseIdIfAlias(dbName));		
+		IDatabase coreEngine = Utility.getDatabase(MasterDatabaseUtility.testDatabaseIdIfAlias(dbName));		
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
 		formbuilder.setUser(cacId);
 		formbuilder.certifyInstance(instanceType, instanceName);
@@ -323,7 +323,7 @@ public class FormResource {
 	 */
 	public IDatabase getEngine() {
 		if(formEngine == null) {
-			formEngine = Utility.getEngine(FormBuilder.FORM_BUILDER_ENGINE_NAME);
+			formEngine = Utility.getDatabase(FormBuilder.FORM_BUILDER_ENGINE_NAME);
 			AbstractFormBuilder.generateFormPermissionTable(formEngine);
 		}
 		return formEngine;
