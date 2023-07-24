@@ -37,7 +37,7 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.engine.api.IEngine;
+import prerna.engine.api.IDatabase;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
@@ -108,7 +108,7 @@ public class DatabaseResource {
 			}
 		}
 		
-		IEngine engine = Utility.getEngine(databaseId);
+		IDatabase engine = Utility.getEngine(databaseId);
 		String currentSmssFileLocation = engine.getPropFile();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {
