@@ -42,7 +42,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.engine.api.IEngine;
+import prerna.engine.api.IDatabase;
 import prerna.engine.impl.r.RserveUtil;
 import prerna.forms.AbstractFormBuilder;
 import prerna.nameserver.utility.MasterDatabaseUtility;
@@ -188,10 +188,10 @@ public class DBLoader implements ServletContextListener {
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
 		{
-			IEngine localmaster = (IEngine) DIHelper.getInstance().getEngineProperty(Constants.LOCAL_MASTER_DB_NAME);
-			IEngine security = (IEngine) DIHelper.getInstance().getEngineProperty(Constants.SECURITY_DB);
-			IEngine scheduler = (IEngine) DIHelper.getInstance().getEngineProperty(Constants.SCHEDULER_DB);
-			IEngine userTracking = (IEngine) DIHelper.getInstance().getEngineProperty(Constants.USER_TRACKING_DB);
+			IDatabase localmaster = (IDatabase) DIHelper.getInstance().getEngineProperty(Constants.LOCAL_MASTER_DB_NAME);
+			IDatabase security = (IDatabase) DIHelper.getInstance().getEngineProperty(Constants.SECURITY_DB);
+			IDatabase scheduler = (IDatabase) DIHelper.getInstance().getEngineProperty(Constants.SCHEDULER_DB);
+			IDatabase userTracking = (IDatabase) DIHelper.getInstance().getEngineProperty(Constants.USER_TRACKING_DB);
 			if (localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected()
 					|| (!Utility.schedulerForceDisable() && scheduler != null && !scheduler.isConnected())
 					|| (Utility.isUserTrackingEnabled() && (userTracking == null || !userTracking.isConnected() ))
@@ -263,7 +263,7 @@ public class DBLoader implements ServletContextListener {
 		List<String> eIds = MasterDatabaseUtility.getAllDatabaseIds();
 		for (String id : eIds) {
 			// grab only loaded engines
-			IEngine engine = (IEngine) DIHelper.getInstance().getEngineProperty(id);
+			IDatabase engine = (IDatabase) DIHelper.getInstance().getEngineProperty(id);
 			if (engine != null) {
 				// if it is loaded, close it
 				logger.log(SHUTDOWN, "Closing database " + id);
@@ -273,7 +273,7 @@ public class DBLoader implements ServletContextListener {
 
 		// these are not loaded in the normal fashion
 		// so specifically pull them to close
-		IEngine engine = Utility.getEngine(AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
+		IDatabase engine = Utility.getEngine(AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 			engine.closeDB();
