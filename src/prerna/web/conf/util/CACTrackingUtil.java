@@ -9,7 +9,7 @@ import java.util.concurrent.BlockingQueue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.engine.api.IEngine;
+import prerna.engine.api.IDatabase;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Utility;
@@ -25,7 +25,7 @@ public class CACTrackingUtil {
 	private BlockingQueue<LocalDate> queue;
 	private CountUpdater updater;
 
-	public CACTrackingUtil(IEngine trackingEngine) {
+	public CACTrackingUtil(IDatabase trackingEngine) {
 		queue = new ArrayBlockingQueue<LocalDate>(50);
 		updater = new CountUpdater(trackingEngine, queue);
 
@@ -34,7 +34,7 @@ public class CACTrackingUtil {
 
 	public static CACTrackingUtil getInstance(String trackingEngineId) {
 		if(!singletonStore.containsKey(trackingEngineId)) {
-			IEngine engine = Utility.getEngine(trackingEngineId);
+			IDatabase engine = Utility.getEngine(trackingEngineId);
 			if(engine == null) {
 				throw new IllegalArgumentException("Could not find tracking engine");
 			}
@@ -63,11 +63,11 @@ class CountUpdater implements Runnable {
 	private String lastDateExists = "xxxx-xx-xx";
 	// no need to recreate this query every time either
 	private String updateQuery = null;
-	protected IEngine engine;
+	protected IDatabase engine;
 
 	protected BlockingQueue<LocalDate> queue = null;
 	
-	public CountUpdater(IEngine engine, BlockingQueue<LocalDate> queue) {
+	public CountUpdater(IDatabase engine, BlockingQueue<LocalDate> queue) {
 		this.engine = engine;
 		this.queue = queue;
 		
