@@ -891,7 +891,7 @@ public class NameServer {
 			}
 		}
 
-		IDatabase engine = Utility.getEngine(engineId);
+		IDatabase engine = Utility.getDatabase(engineId);
 		EngineResource res = new EngineResource();
 		res.setEngine(engine);
 		return res;
