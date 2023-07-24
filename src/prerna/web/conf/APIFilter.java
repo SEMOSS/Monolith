@@ -80,7 +80,7 @@ public class APIFilter implements Filter {
 		// pull the project and insight id from the key
 		String pidQuery = "Select consumer_id, project_id, insight_id, creator_id, disabled, expires_on  from API_KEY where api_key = '"
 				+ apiKey + "'";
-		IRDBMSEngine secDB = (IRDBMSEngine) Utility.getEngine(Constants.SECURITY_DB);
+		IRDBMSEngine secDB = (IRDBMSEngine) Utility.getDatabase(Constants.SECURITY_DB);
 		
 		HttpSession session = ((HttpServletRequest)request).getSession(true);
 
