@@ -2704,14 +2704,14 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/loginsAllowed/")
-	public Response loginsAllowed(@Context HttpServletRequest request) throws IOException {
+	public Response loginsAllowed(@Context HttpServletRequest request) {
 		return WebUtility.getResponse(socialData.getLoginsAllowed(), 200);
 	}
 
 	@GET
 	@Produces("application/json")
 	@Path("/loginProperties/")
-	public Response loginProperties(@Context HttpServletRequest request) throws IOException {
+	public Response loginProperties(@Context HttpServletRequest request) {
 		if (AbstractSecurityUtils.securityEnabled()) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			if (user == null) {
@@ -2755,7 +2755,7 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/modifyLoginProperties/{provider}")
 	public synchronized Response modifyLoginProperties(@PathParam("provider") String provider,
-			MultivaluedMap<String, String> form, @Context HttpServletRequest request) throws IOException {
+			MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		if (AbstractSecurityUtils.securityEnabled()) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			if (user == null) {
@@ -2785,7 +2785,7 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("/modifyAllLoginProperties")
-	public synchronized Response modifyAllLoginProperties(@Context HttpServletRequest request) throws IOException {
+	public synchronized Response modifyAllLoginProperties(@Context HttpServletRequest request) {
 		if (AbstractSecurityUtils.securityEnabled()) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			if (user == null) {
@@ -2810,6 +2810,34 @@ public class UserResource {
 		return WebUtility.getResponse(true, 200);
 	}
 
+	@GET
+	@Produces("application/json")
+	@Path("/getAllLoginProperties")
+	public synchronized Response getAllLoginProperties(@Context HttpServletRequest request) {
+		if (AbstractSecurityUtils.securityEnabled()) {
+			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+			if (user == null) {
+				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
+			}
+			if (!SecurityAdminUtils.userIsAdmin(user)) {
+				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin",
+						400);
+			}
+		}
+
+		try {
+			String fileContent = socialData.getFileContents();
+			Map<String, String> retMap = new HashMap<>();
+			retMap.put("content", fileContent);
+			return WebUtility.getResponse(retMap, 200);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+			Hashtable<String, String> errorRet = new Hashtable<>();
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorRet, 500);
+		}
+	}
+	
 	/**
 	 * Redirect the login back to the main app page
 	 * 
