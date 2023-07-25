@@ -326,7 +326,7 @@ public class EngineResource {
 //		// close the engine so we can export it
 //		session.removeAttribute(engineId);
 //		DIHelper.getInstance().removeLocalProperty(engineId);
-//		coreEngine.closeDB();
+//		coreEngine.close();
 //		
 //		LOGGER.info("Attending to export engine = " + engineId);
 //		File zip = ZipDatabase.zipEngine(engineId, engineName);
