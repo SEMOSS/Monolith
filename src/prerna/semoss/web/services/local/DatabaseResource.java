@@ -109,7 +109,7 @@ public class DatabaseResource {
 		}
 		
 		IDatabase engine = Utility.getDatabase(databaseId);
-		String currentSmssFileLocation = engine.getPropFile();
+		String currentSmssFileLocation = engine.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {
 			Map<String, String> errorMap = new HashMap<>();
