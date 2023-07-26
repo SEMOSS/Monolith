@@ -420,7 +420,7 @@ public class FileUploader extends Uploader {
 	private void checkForViruses(FileItem fi) throws VirusScanningException, IOException {
 		if (Utility.isVirusScanningEnabled()) {
 			try {
-				Map<String, Collection<String>> viruses = VirusScannerUtils.getViruses(fi.getInputStream());
+				Map<String, Collection<String>> viruses = VirusScannerUtils.getViruses(fi.getName(), fi.getInputStream());
 				
 				if (!viruses.isEmpty()) {
 					logger.warn("Virus scanner errors map for " + fi.getName() + " : " + viruses);
