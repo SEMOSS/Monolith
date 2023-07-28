@@ -898,7 +898,6 @@ public class ProjectAuthorizationResource  {
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
-		
 		try {
 			String projectSmss = project.getProjectSmssFilePath();
 			Map<String, String> mods = new HashMap<>();
