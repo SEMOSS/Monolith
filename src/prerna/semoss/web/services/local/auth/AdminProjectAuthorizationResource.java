@@ -3,6 +3,7 @@ package prerna.semoss.web.services.local.auth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -23,8 +24,13 @@ import com.google.gson.Gson;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityProjectUtils;
+import prerna.cluster.util.ClusterUtil;
+import prerna.project.api.IProject;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.Settings;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/project")
@@ -729,6 +735,79 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("setProjectPortal")
+	public Response setProjectPortal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		
+		String projectId = form.getFirst("projectId");
+		boolean hasPortal = Boolean.parseBoolean(form.getFirst("hasPortal"));
+		String portalName = form.getFirst("portalName");
+		String logPortal = hasPortal ? " enable portal " : " disable portal";
+		
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to " + logPortal + " for project " + projectId));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		try {
+			adminUtils.setProjectPortal(user, projectId, hasPortal, portalName);
+		} catch (Exception e){
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+
+		IProject project = Utility.getProject(projectId);
+		try {
+			SecurityProjectUtils.setProjectPortal(user, projectId, hasPortal, portalName);
+		} catch(IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to " + logPortal + " for project " + projectId));
+    		logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+    		logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		try {
+			String projectSmss = project.getProjectSmssFilePath();
+			Map<String, String> mods = new HashMap<>();
+			mods.put(Settings.PUBLIC_HOME_ENABLE, hasPortal+"");
+			Properties props = Utility.loadProperties(projectSmss);
+			if(props.get(Settings.PUBLIC_HOME_ENABLE) == null) {
+				logger.info("Updating project smss to include public home property to " + logPortal + " for project " + projectId);
+				Utility.addKeysAtLocationIntoPropertiesFile(projectSmss, Constants.CONNECTION_URL, mods);
+			} else {
+				logger.info("Modifying project smss to " + logPortal + " for project " + projectId);
+				Utility.changePropertiesFileValue(projectSmss, Settings.PUBLIC_HOME_ENABLE, hasPortal+"");
+			}
+			
+			// push to cloud
+			ClusterUtil.reactorPushProjectSmss(projectId);
+		} catch(Exception e) {
+			//ignore
+		}
+		
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to " + logPortal + " for project " + projectId));
+		
+		return WebUtility.getResponse(true, 200);
 	}
 	
 }
