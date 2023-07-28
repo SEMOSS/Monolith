@@ -31,7 +31,6 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.sablecc2.reactor.project.MyProjectsReactor;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.solr.reactor.MyDatabasesReactor;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
@@ -856,6 +855,47 @@ public class ProjectAuthorizationResource  {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("setProjectPortal")
+	public Response setProjectPortal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String projectId = form.getFirst("projectId");
+		boolean hasPortal = Boolean.parseBoolean(form.getFirst("hasPortal"));
+		String portalName = form.getFirst("portalName");
+		String logPortal = hasPortal ? " enable portal " : " disable portal";
+
+		try {
+			SecurityProjectUtils.setProjectPortal(user, projectId, hasPortal, portalName);
+		} catch(IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to " + logPortal + " for project " + projectId));
+    		logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+    		logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		// log the operation
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to " + logPortal + " for project " + projectId));
+		
+		return WebUtility.getResponse(true, 200);
 	}
 		
 }
