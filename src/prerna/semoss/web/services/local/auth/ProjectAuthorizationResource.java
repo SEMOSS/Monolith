@@ -3,6 +3,7 @@ package prerna.semoss.web.services.local.auth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -24,7 +25,9 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityProjectUtils;
+import prerna.cluster.util.ClusterUtil;
 import prerna.om.Insight;
+import prerna.project.api.IProject;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
@@ -32,6 +35,8 @@ import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.sablecc2.reactor.project.MyProjectsReactor;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.Settings;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/project")
@@ -877,6 +882,7 @@ public class ProjectAuthorizationResource  {
 		String portalName = form.getFirst("portalName");
 		String logPortal = hasPortal ? " enable portal " : " disable portal";
 
+		IProject project = Utility.getProject(projectId);
 		try {
 			SecurityProjectUtils.setProjectPortal(user, projectId, hasPortal, portalName);
 		} catch(IllegalAccessException e) {
@@ -890,6 +896,26 @@ public class ProjectAuthorizationResource  {
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
+		}
+		
+		
+		try {
+			String projectSmss = project.getProjectSmssFilePath();
+			Map<String, String> mods = new HashMap<>();
+			mods.put(Settings.PUBLIC_HOME_ENABLE, hasPortal+"");
+			Properties props = Utility.loadProperties(projectSmss);
+			if(props.get(Settings.PUBLIC_HOME_ENABLE) == null) {
+				logger.info("Updating project smss to include public home property to " + logPortal + " for project " + projectId);
+				Utility.addKeysAtLocationIntoPropertiesFile(projectSmss, Constants.CONNECTION_URL, mods);
+			} else {
+				logger.info("Modifying project smss to " + logPortal + " for project " + projectId);
+				Utility.changePropertiesFileValue(projectSmss, Settings.PUBLIC_HOME_ENABLE, hasPortal+"");
+			}
+			
+			// push to cloud
+			ClusterUtil.reactorPushProjectSmss(projectId);
+		} catch(Exception e) {
+			//ignore
 		}
 		
 		// log the operation
