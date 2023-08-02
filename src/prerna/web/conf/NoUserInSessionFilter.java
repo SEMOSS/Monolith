@@ -295,7 +295,12 @@ public class NoUserInSessionFilter implements Filter {
 				((HttpServletResponse) arg1).sendRedirect(redirectUrl);
 			}
 		} else {
-			redirectUrl = redirectUrl + "#!/" + endpoint;
+			// are we in public home - if no, we dont include ! in the redirect
+			if(redirectUrl.contains("/public_home/")) {
+				redirectUrl = redirectUrl + "#/" + endpoint;
+			} else {
+				redirectUrl = redirectUrl + "#!/" + endpoint;
+			}
 			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
 			((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
 			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
