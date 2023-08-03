@@ -7,12 +7,24 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Vector;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -57,9 +69,9 @@ public class DatabaseResource {
 	
 	private boolean canViewDatabase(User user, String databaseId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
-			databaseId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, databaseId);
-			if(!SecurityEngineUtils.userCanViewDatabase(user, databaseId)
-					&& !SecurityEngineUtils.databaseIsDiscoverable(databaseId)) {
+			databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseId);
+			if(!SecurityEngineUtils.userCanViewEngine(user, databaseId)
+					&& !SecurityEngineUtils.engineIsDiscoverable(databaseId)) {
 				throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have access to the database");
 			}
 		} else {
@@ -83,6 +95,7 @@ public class DatabaseResource {
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
 		String newSmssContent = request.getParameter("smss");
+		String [] newSmssContentArray = newSmssContent.split("\\n");
 		
 		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = null;
@@ -120,7 +133,46 @@ public class DatabaseResource {
 		String currentSmssContent = null;
 		try {
 			currentSmssContent = new String(Files.readAllBytes(Paths.get(currentSmssFile.toURI())));
-		} catch (IOException e) {
+			// get password for the current smss file
+			int index = currentSmssContent.indexOf(Constants.PASSWORD);
+			String passWordToEnd = currentSmssContent.substring(index);
+			index = passWordToEnd.indexOf("\n");
+			String passStr = passWordToEnd.substring(0, index);
+			passStr = passStr.split("\\t",2)[1];
+			
+	        // Generate a secure 256-bit AES key using PBKDF2
+            SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+            KeySpec spec = new PBEKeySpec(passStr.trim().toCharArray(), passStr.trim().getBytes(), 65536, 256);
+            SecretKey tmp = factory.generateSecret(spec);
+            SecretKey secretKey = new SecretKeySpec(tmp.getEncoded(), "AES");
+
+            // Initialize the Cipher with the encryption mode and secret key
+            Cipher cipher = Cipher.getInstance("AES");
+			
+            // Now, let's decrypt the encrypted string back to the original string
+            cipher.init(Cipher.DECRYPT_MODE, secretKey);
+            
+    		for (String smssLine: newSmssContentArray) {
+    			// split each line into an array of items using the tab character as the delimiter, with a maximum of 2 substrings
+    			String[] keyValue = smssLine.split("\\t",2);
+    			if (keyValue.length == 2 && keyValue[0].equals(Constants.PASSWORD) && keyValue[1] != null && !keyValue[1].isEmpty()) {
+    	            byte[] decodedEncryptedBytes = java.util.Base64.getDecoder().decode(keyValue[1]);
+    	            byte[] decryptedBytes = cipher.doFinal(decodedEncryptedBytes);
+    	            
+    	            // Convert the decrypted bytes back to the original string
+    	            String decryptedString = new String(decryptedBytes);
+    	            if (!decryptedString.equals(passStr)) {
+    	    			Map<String, String> errorMap = new HashMap<>();
+    	    			errorMap.put(Constants.ERROR_MESSAGE, "The provided password is incorrect.");
+    	    			return WebUtility.getResponse(errorMap, 401);
+    	            }
+    	            // add password to new smss content
+    	    		newSmssContent = newSmssContent.replace(keyValue[1], passStr);
+    	            break;
+    			}
+    		}
+		} catch (IOException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException | 
+				NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeySpecException e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred reading the current database smss details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -318,5 +370,4 @@ public class DatabaseResource {
 			}
 		}
 	}
-	
 }

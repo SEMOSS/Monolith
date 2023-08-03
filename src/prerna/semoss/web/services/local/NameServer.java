@@ -875,8 +875,8 @@ public class NameServer {
 			if (user == null) {
 				return WebUtility.getSO("Not properly authenticated");
 			}
-			engineId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, engineId);
-			if (!SecurityEngineUtils.userCanViewDatabase(user, engineId)) {
+			engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
+			if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Database " + engineId + " does not exist or user does not have access to database");

@@ -782,7 +782,7 @@ public class DatabaseAuthorizationResource2 {
 		// adding user permissions and updating user access requests in bulk
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
 		try {
-			SecurityEngineUtils.approveDatabaseUserAccessRequests(user, databaseId, requests);
+			SecurityEngineUtils.approveEngineUserAccessRequests(user, databaseId, requests);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant user access to database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -836,7 +836,7 @@ public class DatabaseAuthorizationResource2 {
 		// updating user access requests in bulk
 		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
 		try {
-			SecurityEngineUtils.denyDatabaseUserAccessRequests(user, databaseId, requestIds);
+			SecurityEngineUtils.denyEngineUserAccessRequests(user, databaseId, requestIds);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
