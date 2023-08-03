@@ -99,16 +99,16 @@ public class ImageUploader extends Uploader {
 				}
 
 				try {
-					databaseId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, databaseName);
+					databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseName);
 				} catch (Exception e) {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityEngineUtils.userCanEditDatabase(user, databaseId)) {
+				if (!SecurityEngineUtils.userCanEditEngine(user, databaseId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				databaseName = SecurityEngineUtils.getDatabaseAliasForId(databaseId);
+				databaseName = SecurityEngineUtils.getEngineAliasForId(databaseId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);
@@ -215,16 +215,16 @@ public class ImageUploader extends Uploader {
 				}
 
 				try {
-					appId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, appId);
+					appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
 				} catch (Exception e) {
 					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				if (!SecurityEngineUtils.userCanEditDatabase(user, appId)) {
+				if (!SecurityEngineUtils.userCanEditEngine(user, appId)) {
 					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this app or the database id does not exist");
 					return WebUtility.getResponse(returnMap, 400);
 				}
-				appName = SecurityEngineUtils.getDatabaseAliasForId(appId);
+				appName = SecurityEngineUtils.getEngineAliasForId(appId);
 			} else {
 				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(returnMap, 400);

@@ -60,7 +60,7 @@ public class ExecuteInsightResource {
 		}
 		
 		if(securityEnabled) {
-			projectId = SecurityQueryUtils.testUserDatabaseIdForAlias(user, projectId);
+			projectId = SecurityQueryUtils.testUserEngineIdForAlias(user, projectId);
 			if(!SecurityInsightUtils.userCanViewInsight(user, projectId, rdbmsId)) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put("error", "User does not have access to this insight");
