@@ -145,7 +145,7 @@ public class DatabaseAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String permission = SecurityEngineUtils.getActualUserDatabasePermission(user, appId);
+		String permission = SecurityEngineUtils.getActualUserEnginePermission(user, appId);
 		if(permission == null) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull permission details for database " + appId + " without having proper access"));
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -180,7 +180,7 @@ public class DatabaseAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityEngineUtils.getDatabaseUsers(user, appId, null, null, -1, -1);
+			ret = SecurityEngineUtils.getEngineUsers(user, appId, null, null, -1, -1);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for database " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -217,7 +217,7 @@ public class DatabaseAuthorizationResource {
 		String appId = form.getFirst("appId");
 		String permission = form.getFirst("permission");
 
-		if (AbstractSecurityUtils.adminOnlyDbAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + appId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
@@ -225,7 +225,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.addDatabaseUser(user, newUserId, appId, permission);
+			SecurityEngineUtils.addEngineUser(user, newUserId, appId, permission);
 		} catch (Exception e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -267,7 +267,7 @@ public class DatabaseAuthorizationResource {
 		String appId = form.getFirst("appId");
 		String newPermission = form.getFirst("permission");
 
-		if (AbstractSecurityUtils.adminOnlyDbAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + appId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
@@ -275,7 +275,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.editDatabaseUserPermission(user, existingUserId, appId, newPermission);
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, appId, newPermission);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -321,7 +321,7 @@ public class DatabaseAuthorizationResource {
 		String existingUserId = form.getFirst("id");
 		String appId = form.getFirst("appId");
 
-		if (AbstractSecurityUtils.adminOnlyDbAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + appId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
@@ -329,7 +329,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.removeDatabaseUser(user, existingUserId, appId);
+			SecurityEngineUtils.removeEngineUser(user, existingUserId, appId);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -377,7 +377,7 @@ public class DatabaseAuthorizationResource {
 		String logPublic = isPublic ? " public " : " private";
 
 		boolean legacyAdminOnly = Boolean.parseBoolean(context.getInitParameter(Constants.ADMIN_SET_PUBLIC));
-		if ( (legacyAdminOnly || AbstractSecurityUtils.adminOnlyDbSetPublic()) && !SecurityAdminUtils.userIsAdmin(user)) {
+		if ( (legacyAdminOnly || AbstractSecurityUtils.adminOnlyEngineSetPublic()) && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logPublic + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
@@ -385,7 +385,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.setDatabaseGlobal(user, appId, isPublic);
+			SecurityEngineUtils.setEngineGlobal(user, appId, isPublic);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logPublic + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -432,7 +432,7 @@ public class DatabaseAuthorizationResource {
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
-		if (AbstractSecurityUtils.adminOnlyDbSetPublic() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyEngineSetPublic() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logDiscoverable + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
@@ -440,7 +440,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.setDatabaseDiscoverable(user, appId, isDiscoverable);
+			SecurityEngineUtils.setEngineDiscoverable(user, appId, isDiscoverable);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logDiscoverable + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -488,7 +488,7 @@ public class DatabaseAuthorizationResource {
 		String logVisible = visible ? " visible " : " not visible";
 
 		try {
-			SecurityEngineUtils.setDbVisibility(user, appId, visible);
+			SecurityEngineUtils.setEngineVisibility(user, appId, visible);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logVisible + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -534,7 +534,7 @@ public class DatabaseAuthorizationResource {
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
 		try {
-			SecurityEngineUtils.setDbFavorite(user, appId, isFavorite);
+			SecurityEngineUtils.setEngineFavorite(user, appId, isFavorite);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logFavorited + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
@@ -577,7 +577,7 @@ public class DatabaseAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityEngineUtils.getDatabaseUsersNoCredentials(user, appId);
+			ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, appId);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + appId + " that do not have credentials without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
