@@ -1,6 +1,5 @@
 package prerna.semoss.web.services.local.auth;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,16 +23,14 @@ import com.google.gson.Gson;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.engine.api.IDatabase;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
-@Path("/auth/admin/database")
-@Deprecated
-public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
+@Path("/auth/admin/engine")
+public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
-	private static final Logger logger = LogManager.getLogger(AdminDatabaseAuthorizationResource2.class);
+	private static final Logger logger = LogManager.getLogger(AdminEngineAuthorizationResource.class);
 
 	@Context
 	protected ServletContext context;
@@ -45,30 +42,30 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getDatabases")
-	public Response getDatabases(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
+	@Path("getEngines")
+	public Response getEngines(@Context HttpServletRequest request, 
+			@QueryParam("engineId") String engineId,
+			@QueryParam("engineTypes") List<String> engineTypes) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all databases when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all engines when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<String> eTypes = new ArrayList<>();
-		eTypes.add(IDatabase.CATALOG_TYPE);
-		return WebUtility.getResponse(adminUtils.getAllEngineSettings(databaseId, eTypes), 200);
+		return WebUtility.getResponse(adminUtils.getAllEngineSettings(engineId, engineTypes), 200);
 	}
 	
 	@POST
-	@Path("/getAllUserDatabases")
+	@Path("/getAllUserEngines")
 	@Produces("application/json")
-	public Response getAllUserDatabases(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response getAllUserEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String userId = form.getFirst("userId");
@@ -76,7 +73,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull the databases that user " + userId + " has access to when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull the engines that user " + userId + " has access to when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
