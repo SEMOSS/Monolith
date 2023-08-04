@@ -158,7 +158,7 @@ public class EngineAuthorizationResource {
 		if(permission == null) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull permission details for engine " + engineId + " without having proper access"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User does not have access to this database");
+			errorMap.put(ResourceUtility.ERROR_KEY, "User does not have access to this engine");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -434,7 +434,7 @@ public class EngineAuthorizationResource {
 		}
 		
 		String existingUserId = form.getFirst("id");
-		String engineId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to engine " + engineId + " but is not an admin"));
