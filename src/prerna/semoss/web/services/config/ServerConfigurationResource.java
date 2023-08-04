@@ -97,12 +97,24 @@ public class ServerConfigurationResource {
 		loadConfig.put("adminOnlyProjectDelete", AbstractSecurityUtils.adminOnlyProjectDelete());
 		loadConfig.put("adminOnlyProjectAddAccess", AbstractSecurityUtils.adminOnlyProjectAddAccess());
 		loadConfig.put("adminOnlyProjectSetPublic", AbstractSecurityUtils.adminOnlyProjectSetPublic());
-		// admin only for db actions
-		loadConfig.put("adminOnlyDbAdd", AbstractSecurityUtils.adminOnlyDbAdd());
-		loadConfig.put("adminOnlyDbDelete", AbstractSecurityUtils.adminOnlyDbDelete());
-		loadConfig.put("adminOnlyDbAddAccess", AbstractSecurityUtils.adminOnlyDbAddAccess());
-		loadConfig.put("adminOnlyDbSetPublic", AbstractSecurityUtils.adminOnlyDbSetPublic());
-		loadConfig.put("adminOnlyDbSetDiscoverable", AbstractSecurityUtils.adminOnlyDbSetDiscoverable());
+		// admin only for engine actions
+		{
+			//TODO: old values to delete after FE update
+			//TODO: old values to delete after FE update
+			//TODO: old values to delete after FE update
+			//TODO: old values to delete after FE update
+			loadConfig.put("adminOnlyDbAdd", AbstractSecurityUtils.adminOnlyEngineAdd());
+			loadConfig.put("adminOnlyDbDelete", AbstractSecurityUtils.adminOnlyEngineDelete());
+			loadConfig.put("adminOnlyDbAddAccess", AbstractSecurityUtils.adminOnlyEngineAddAccess());
+			loadConfig.put("adminOnlyDbSetPublic", AbstractSecurityUtils.adminOnlyEngineSetPublic());
+			loadConfig.put("adminOnlyDbSetDiscoverable", AbstractSecurityUtils.adminOnlyEngineSetDiscoverable());
+		}
+		// new values 
+		loadConfig.put("adminOnlyEngineAdd", AbstractSecurityUtils.adminOnlyEngineAdd());
+		loadConfig.put("adminOnlyEngineDelete", AbstractSecurityUtils.adminOnlyEngineDelete());
+		loadConfig.put("adminOnlyEngineAddAccess", AbstractSecurityUtils.adminOnlyEngineAddAccess());
+		loadConfig.put("adminOnlyEngineSetPublic", AbstractSecurityUtils.adminOnlyEngineSetPublic());
+		loadConfig.put("adminOnlyEngineSetDiscoverable", AbstractSecurityUtils.adminOnlyEngineSetDiscoverable());
 		// admin only for insight actions
 		loadConfig.put("adminOnlyInsightAddAccess", AbstractSecurityUtils.adminOnlyInsightAddAccess());
 		loadConfig.put("adminOnlyInsightSetPublic", AbstractSecurityUtils.adminOnlyInsightSetPublic());
