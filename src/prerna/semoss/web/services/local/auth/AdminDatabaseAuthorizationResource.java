@@ -1,5 +1,6 @@
 package prerna.semoss.web.services.local.auth;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.engine.api.IDatabase;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -54,8 +56,9 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
-		return WebUtility.getResponse(adminUtils.getAllDatabaseSettings(databaseId), 200);
+		List<String> eTypes = new ArrayList<>();
+		eTypes.add(IDatabase.CATALOG_TYPE);
+		return WebUtility.getResponse(adminUtils.getAllEngineSettings(databaseId, eTypes), 200);
 	}
 	
 	@POST
@@ -76,7 +79,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		return WebUtility.getResponse(adminUtils.getAllUserDbs(userId), 200);
+		return WebUtility.getResponse(adminUtils.getAllUserEngines(userId), 200);
 	}
 	
 	@POST
