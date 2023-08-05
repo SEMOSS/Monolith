@@ -108,7 +108,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllDatabases(userId, permission, isAddNew);
+			adminUtils.grantAllEngines(userId, permission, isAddNew, null);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -146,7 +146,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersDatabaseAccess(databaseId, permission);
+			adminUtils.grantNewUsersEngineAccess(databaseId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -190,8 +190,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		Map<String, Object> ret = new HashMap<String, Object>();
-		List<Map<String, Object>> members = adminUtils.getDatabaseUsers(databaseId, userId, permission, limit, offset);
-		long totalMembers = SecurityAdminUtils.getDatabaseUsersCount(databaseId, userId, permission);
+		List<Map<String, Object>> members = adminUtils.getEngineUsers(databaseId, userId, permission, limit, offset);
+		long totalMembers = SecurityAdminUtils.getEngineUsersCount(databaseId, userId, permission);
 		ret.put("totalMembers", totalMembers);
 		ret.put("members", members);
 

@@ -104,7 +104,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllDatabases(userId, permission, isAddNew);
+			adminUtils.grantAllEngines(userId, permission, isAddNew, null);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -142,7 +142,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersDatabaseAccess(appId, permission);
+			adminUtils.grantNewUsersEngineAccess(appId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
