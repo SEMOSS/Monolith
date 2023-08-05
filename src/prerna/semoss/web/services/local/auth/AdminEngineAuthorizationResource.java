@@ -84,20 +84,26 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	@POST
-	@Path("/grantAllDatabases")
+	@Path("/grantAllEngines")
 	@Produces("application/json")
-	public Response grantAllDatabases(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response grantAllEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String userId = form.getFirst("userId");
 		String permission = form.getFirst("permission");
 		boolean isAddNew = Boolean.parseBoolean(form.getFirst("isAddNew") + "");
+		List<String> engineTypes = null;
+		if(form.getFirst("engineTypes") != null) {
+			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
+		}
 
+		String logETypes = (engineTypes == null || engineTypes.isEmpty()) ? "[ALL]" : ("[" + String.join(", ", engineTypes) + "]");
+		
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant all the databases to user " + userId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant all the engines of type " + logETypes + " to user " + userId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -105,7 +111,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllDatabases(userId, permission, isAddNew);
+			adminUtils.grantAllEngines(userId, permission, isAddNew, engineTypes);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -114,8 +120,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user),
-				"has granted all databases to " + userId + "with permission " + permission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has granted all engines of type " + logETypes + " to " + userId + "with permission " + permission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -124,18 +129,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	
 	
 	@POST
-	@Path("/grantNewUsersDatabaseAccess")
+	@Path("/grantNewUsersEngineAccess")
 	@Produces("application/json")
-	public Response grantNewUsersDatabaseAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response grantNewUsersEngineAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String permission = form.getFirst("permission");
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant database to new users when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant engine to new users when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -143,7 +148,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersDatabaseAccess(databaseId, permission);
+			adminUtils.grantNewUsersEngineAccess(engineId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -152,8 +157,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user),
-				"has granted database " + databaseId + "to new users with permission " + permission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has granted engine " + engineId + "to new users with permission " + permission));
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -161,9 +165,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Get the database users and their permissions
+	 * Get the engine users and their permissions
 	 * @param request
-	 * @param databaseId
+	 * @param engineId
 	 * @param userId
 	 * @param permission
 	 * @param limit
@@ -172,23 +176,23 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getDatabaseUsers")
-	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId,  @QueryParam("userId") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	@Path("getEngineUsers")
+	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,  @QueryParam("userId") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull all the users who use database " + databaseId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull all the users who use engine " + engineId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		Map<String, Object> ret = new HashMap<String, Object>();
-		List<Map<String, Object>> members = adminUtils.getDatabaseUsers(databaseId, userId, permission, limit, offset);
-		long totalMembers = SecurityAdminUtils.getDatabaseUsersCount(databaseId, userId, permission);
+		List<Map<String, Object>> members = adminUtils.getEngineUsers(engineId, userId, permission, limit, offset);
+		long totalMembers = SecurityAdminUtils.getEngineUsersCount(engineId, userId, permission);
 		ret.put("totalMembers", totalMembers);
 		ret.put("members", members);
 
