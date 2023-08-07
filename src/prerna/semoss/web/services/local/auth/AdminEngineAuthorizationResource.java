@@ -200,25 +200,25 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Add a user to a database
+	 * Add a user to a engine
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("addDatabaseUserPermission")
-	public Response addDatabaseUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("addEngineUserPermission")
+	public Response addEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String newUserId = form.getFirst("id");
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		String permission = form.getFirst("permission");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to database " + databaseId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to engine " + engineId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -226,7 +226,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addDatabaseUser(newUserId, databaseId, permission);
+			adminUtils.addEngineUser(newUserId, engineId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -235,7 +235,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to database " + databaseId + " with permission " + permission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to engine " + engineId + " with permission " + permission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -243,23 +243,23 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Add user permissions in bulk to a database
+	 * Add user permissions in bulk to a engine
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("addDatabaseUserPermissions")
-	public Response addDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("addEngineUserPermissions")
+	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permission to database " + databaseId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permission to engine " + engineId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -269,7 +269,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			adminUtils.addDatabaseUserPermissions(databaseId, permission);
+			adminUtils.addEngineUserPermissions(engineId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -278,7 +278,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user permissions to database " + databaseId));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user permissions to engine " + engineId));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -286,7 +286,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Add all users to a database
+	 * Add all users to a engine
 	 * @param request
 	 * @param form
 	 * @return
@@ -297,14 +297,14 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		String permission = form.getFirst("permission");
 
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add all users to database " + databaseId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add all users to engine " + engineId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -312,7 +312,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addAllDatabaseUsers(databaseId, permission);
+			adminUtils.addAllEngineUsers(engineId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -321,7 +321,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added all users to database " + databaseId + " with permission " + permission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added all users to engine " + engineId + " with permission " + permission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -329,20 +329,20 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Edit user permission for a database
+	 * Edit user permission for a engine
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("editDatabaseUserPermission")
-	public Response editDatabaseUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("editEngineUserPermission")
+	public Response editEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 
 		String existingUserId = form.getFirst("id");
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		String newPermission = form.getFirst("permission");
 
 		try {
@@ -350,14 +350,14 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + databaseId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for engine " + engineId + " when not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		try {
-			adminUtils.editDatabaseUserPermission(existingUserId, databaseId, newPermission);
+			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -366,7 +366,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to database " + databaseId + " with level " + newPermission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to engine " + engineId + " with level " + newPermission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -374,23 +374,23 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Edit user permission for a database
+	 * Edit user permission for a engine
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("editDatabaseUserPermissions")
-	public Response editDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("editEngineUserPermissions")
+	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user access permissions for database " + databaseId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user access permissions for engine " + engineId + " when not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -398,7 +398,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editDatabaseUserPermissions(databaseId, requests);
+			SecurityAdminUtils.editEngineUserPermissions(engineId, requests);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -407,7 +407,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user access permissions to database " + databaseId));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user access permissions to engine " + engineId));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -415,32 +415,32 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * update all user's permission level to new permission level for a database
+	 * update all user's permission level to new permission level for a engine
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("updateDatabaseUserPermissions")
-	public Response updateDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("updateEngineUserPermissions")
+	public Response updateEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		String newPermission = form.getFirst("permission");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for database " + databaseId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for engine " + engineId + " when not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		try {
-			adminUtils.updateDatabaseUserPermissions(databaseId, newPermission);
+			adminUtils.updateEngineUserPermissions(engineId, newPermission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -449,7 +449,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user permissions to database " + databaseId + " with level " + newPermission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user permissions to engine " + engineId + " with level " + newPermission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -457,26 +457,26 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Remove user permission for a database
+	 * Remove user permission for a engine
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("removeDatabaseUserPermission")
-	public Response removeDatabaseUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("removeEngineUserPermission")
+	public Response removeEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
 		String existingUserId = form.getFirst("id");
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + databaseId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to engine " + engineId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -484,7 +484,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.removeDatabaseUser(existingUserId, databaseId);
+			adminUtils.removeEngineUser(existingUserId, engineId);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -493,7 +493,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to database " + databaseId));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to engine " + engineId));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -501,23 +501,23 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * Remove user permissions for a database, in bulk
+	 * Remove user permissions for a engine, in bulk
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("removeDatabaseUserPermissions")
-	public Response removeDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("removeEngineUserPermissions")
+	public Response removeEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove usersfrom having access to database " + databaseId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove usersfrom having access to engine " + engineId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -526,7 +526,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
 		try {
-			adminUtils.removeDatabaseUsers(ids, databaseId);
+			adminUtils.removeEngineUsers(ids, engineId);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -535,7 +535,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed users from having access to database " + databaseId));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed users from having access to engine " + engineId));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -544,12 +544,12 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	
 	@POST
 	@Produces("application/json")
-	@Path("setDatabaseGlobal")
-	public Response setDatabaseGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("setEngineGlobal")
+	public Response setEngineGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
@@ -557,7 +557,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logPublic + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the engine " + engineId + logPublic + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -565,7 +565,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.setDatabaseGlobal(databaseId, isPublic);
+			adminUtils.setEngineGlobal(engineId, isPublic);
 		} catch (Exception e){
 			logger.error(Constants.STACKTRACE,e);
 			Map<String, String> errorRet = new HashMap<String, String>();
@@ -574,7 +574,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + databaseId + logPublic));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the engine " + engineId + logPublic));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -582,19 +582,19 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	} 
 	
 	/**
-	 * Set the database as being discoverable for the entire semoss instance
+	 * Set the engine as being discoverable for the entire semoss instance
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("setDatabaseDiscoverable")
-	public Response setDatabaseDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("setEngineDiscoverable")
+	public Response setEngineDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
@@ -602,7 +602,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logDiscoverable + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the engine " + engineId + logDiscoverable + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -610,7 +610,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.setDatabaseDiscoverable(databaseId, isDiscoverable);
+			adminUtils.setEngineDiscoverable(engineId, isDiscoverable);
 		} catch (Exception e){
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
@@ -619,7 +619,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + databaseId + logDiscoverable));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the engine " + engineId + logDiscoverable));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -627,15 +627,15 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 
 	/**
-	 * Get users with no access to a given database
+	 * Get users with no access to a given engine
 	 * @param request
 	 * @param form
 	 * @return
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getDatabaseUsersNoCredentials")
-	public Response getDatabaseUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
+	@Path("getEngineUsersNoCredentials")
+	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("engineId") String engineId) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -648,7 +648,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> ret = adminUtils.getDatabaseUsersNoCredentials(databaseId);
+		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(engineId);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
@@ -660,15 +660,15 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("approveDatabaseUserAccessRequest")
-	public Response approveDatabaseUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("approveEngineUserAccessRequest")
+	public Response approveEngineUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user request for permission to database " + databaseId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user request for permission to engine " + engineId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -681,7 +681,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.approveDatabaseUserAccessRequests(userId, userType, databaseId, requests);
+			SecurityAdminUtils.approveEngineUserAccessRequests(userId, userType, engineId, requests);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -690,7 +690,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has approved user access requests and added user permissions to database " + databaseId));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has approved user access requests and added user permissions to engine " + engineId));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -705,15 +705,15 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("denyDatabaseUserAccessRequest")
-	public Response denyDatabaseUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("denyEngineUserAccessRequest")
+	public Response denyEngineUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
-		String databaseId = form.getFirst("databaseId");
+		String engineId = form.getFirst("engineId");
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user request for permission to database " + databaseId + " when not an admin"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user request for permission to engine " + engineId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
@@ -726,7 +726,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.denyDatabaseUserAccessRequests(userId, userType, databaseId, requestIds);
+			SecurityAdminUtils.denyEngineUserAccessRequests(userId, userType, engineId, requestIds);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -735,7 +735,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has denied user access requests to database " + databaseId));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has denied user access requests to engine " + engineId));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
