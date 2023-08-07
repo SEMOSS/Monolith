@@ -212,7 +212,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addDatabaseUser(newUserId, appId, permission);
+			adminUtils.addEngineUser(newUserId, appId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -255,7 +255,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addAllDatabaseUsers(appId, permission);
+			adminUtils.addAllEngineUsers(appId, permission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -300,7 +300,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.editDatabaseUserPermission(existingUserId, appId, newPermission);
+			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -342,7 +342,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.updateDatabaseUserPermissions(appId, newPermission);
+			adminUtils.updateEngineUserPermissions(appId, newPermission);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -386,7 +386,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.removeDatabaseUser(existingUserId, appId);
+			adminUtils.removeEngineUser(existingUserId, appId);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -425,7 +425,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.setDatabaseGlobal(appId, isPublic);
+			adminUtils.setEngineGlobal(appId, isPublic);
 		} catch (Exception e){
 			logger.error(Constants.STACKTRACE,e);
 			Map<String, String> errorRet = new HashMap<String, String>();
@@ -470,7 +470,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.setDatabaseDiscoverable(appId, isDiscoverable);
+			adminUtils.setEngineDiscoverable(appId, isDiscoverable);
 		} catch (Exception e){
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
@@ -508,7 +508,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> ret = adminUtils.getDatabaseUsersNoCredentials(appId);
+		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(appId);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
