@@ -115,8 +115,6 @@ public class ProjectResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("projectId") String projectId) {
-		String newSmssContent = request.getParameter("smss");
-		
 		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = null;
 			try {
@@ -146,10 +144,18 @@ public class ProjectResource {
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Could not find current database smss file");
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not find current project smss file");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
+		// using the current smss properties
+		// and the new file contents
+		// unconceal any hidden values that have not been altered
+		Properties currentSmssProperties = project.getProp();
+		String newSmssContent = request.getParameter("smss");
+		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent, currentSmssProperties);
+		
+		// read the current smss as text in case of an error
 		String currentSmssContent = null;
 		try {
 			currentSmssContent = new String(Files.readAllBytes(Paths.get(currentSmssFile.toURI())));
@@ -161,7 +167,7 @@ public class ProjectResource {
 		project.closeProject();
 		try {
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
-				fw.write(newSmssContent);
+				fw.write(unconcealedNewSmssContent);
 			}
 			project.openProject(currentSmssFileLocation);
 		} catch(Exception e) {
