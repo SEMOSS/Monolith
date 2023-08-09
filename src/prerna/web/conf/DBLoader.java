@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.web.conf;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -267,7 +268,11 @@ public class DBLoader implements ServletContextListener {
 			if (engine != null) {
 				// if it is loaded, close it
 				logger.log(SHUTDOWN, "Closing database " + id);
-				engine.close();
+				try {
+					engine.close();
+				} catch (IOException e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
 			}
 		}
 
@@ -276,7 +281,11 @@ public class DBLoader implements ServletContextListener {
 		IDatabase engine = Utility.getDatabase(AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
-			engine.close();
+			try {
+				engine.close();
+			} catch (IOException e) {
+				logger.error(Constants.STACKTRACE, e);
+			}
 		} else {
 			logger.log(SHUTDOWN, "Couldn't find database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		}
@@ -284,7 +293,11 @@ public class DBLoader implements ServletContextListener {
 		engine = Utility.getDatabase(Constants.SECURITY_DB);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + Constants.SECURITY_DB);
-			engine.close();
+			try {
+				engine.close();
+			} catch (IOException e) {
+				logger.error(Constants.STACKTRACE, e);
+			}
 		} else {
 			logger.log(SHUTDOWN, "Couldn't find database " + Constants.SECURITY_DB);
 		}
@@ -292,7 +305,11 @@ public class DBLoader implements ServletContextListener {
 		engine = Utility.getDatabase(Constants.USER_TRACKING_DB);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + Constants.USER_TRACKING_DB);
-			engine.close();
+			try {
+				engine.close();
+			} catch (IOException e) {
+				logger.error(Constants.STACKTRACE, e);
+			}
 		} else {
 			logger.log(SHUTDOWN, "Couldn't find database " + Constants.USER_TRACKING_DB);
 		}
@@ -300,7 +317,11 @@ public class DBLoader implements ServletContextListener {
 		engine = Utility.getDatabase(Constants.LOCAL_MASTER_DB_NAME);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + Constants.LOCAL_MASTER_DB_NAME);
-			engine.close();
+			try {
+				engine.close();
+			} catch (IOException e) {
+				logger.error(Constants.STACKTRACE, e);
+			}
 		} else {
 			logger.log(SHUTDOWN, "Couldn't find database " + Constants.LOCAL_MASTER_DB_NAME);
 		}
@@ -310,7 +331,11 @@ public class DBLoader implements ServletContextListener {
 		engine = Utility.getDatabase(Constants.SCHEDULER_DB);
 		if (engine != null) {
 			logger.log(SHUTDOWN, "Closing database " + Constants.SCHEDULER_DB);
-			engine.close();
+			try {
+				engine.close();
+			} catch (IOException e) {
+				logger.error(Constants.STACKTRACE, e);
+			}
 		} else {
 			logger.log(SHUTDOWN, "Couldn't find database " + Constants.SCHEDULER_DB);
 		}
