@@ -131,7 +131,13 @@ public class DatabaseResource {
 			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred reading the current database smss details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		engine.close();
+		try {
+			engine.close();
+		} catch (IOException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred closing the connection to the database. Detailed message = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		try {
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(unconcealedNewSmssContent);
@@ -140,7 +146,12 @@ public class DatabaseResource {
 		} catch(Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			// reset the values
-			engine.close();
+			try {
+				// close the database again
+				engine.close();
+			} catch (IOException e1) {
+				logger.error(Constants.STACKTRACE, e1);
+			}
 			currentSmssFile.delete();
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(currentSmssContent);
