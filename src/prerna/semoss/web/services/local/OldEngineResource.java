@@ -73,9 +73,9 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Deprecated
-public class EngineResource {
+public class OldEngineResource {
 
-	private static final Logger logger = LogManager.getLogger(EngineResource.class);
+	private static final Logger logger = LogManager.getLogger(OldEngineResource.class);
 
 	@Deprecated
 	private static final String APP_KEY = "app";
