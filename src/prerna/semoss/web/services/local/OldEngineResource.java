@@ -52,7 +52,7 @@ import com.google.gson.reflect.TypeToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.engine.api.IDatabase;
-import prerna.engine.api.IDatabase.ENGINE_TYPE;
+import prerna.engine.api.IDatabase.DATABASE_TYPE;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.AbstractFormBuilder;
 import prerna.forms.FormBuilder;
@@ -128,7 +128,7 @@ public class OldEngineResource {
 			for(int i = 0; i < paramBind.length && query.contains(paramBind[i]); i++){
 //				String paramValueStr = coreEngine.getTransformedNodeName(paramValue[i], false);
 				String paramValueStr = paramValue[i];
-				if(coreEngine.getEngineType() == ENGINE_TYPE.RDBMS){
+				if(coreEngine.getDatabaseType() == DATABASE_TYPE.RDBMS){
 					String paramValueTable = Utility.getInstanceName(paramValueStr);
 					String paramValueCol = Utility.getClassName(paramValueStr);
 
