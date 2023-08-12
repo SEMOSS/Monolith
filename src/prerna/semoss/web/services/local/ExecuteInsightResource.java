@@ -19,6 +19,7 @@ import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.project.api.IProject;
+import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -74,22 +75,28 @@ public class ExecuteInsightResource {
 		if(project == null) {
 			throw new IllegalArgumentException("Cannot find project = " + projectId);
 		}
+		
 		Insight newInsight = null;
 		try {
-			List<Insight> in = project.getInsight(rdbmsId + "");
-			newInsight = in.get(0);
-		} catch (ArrayIndexOutOfBoundsException e) {
-			ClusterUtil.reactorUpdateApp(projectId);
+			newInsight = SecurityInsightUtils.getInsight(projectId, rdbmsId);
+		} catch (Exception e) {
+			ClusterUtil.reactorPullInsightsDB(projectId);
+			// this is needed for the pipeline json
+			ClusterUtil.reactorPullProjectFolder(project, AssetUtility.getProjectVersionFolder(project.getProjectName(), projectId));
 			try {
 				List<Insight> in = project.getInsight(rdbmsId + "");
 				newInsight = in.get(0);
+			} catch(IllegalArgumentException e2) {
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Error occured creating the insight. Detailed message = " + e2.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
 			} catch (ArrayIndexOutOfBoundsException e2) {
 				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("error", "Insight does not exist");
+				errorMap.put(Constants.ERROR_MESSAGE, "Insight does not exist");
 				return WebUtility.getResponse(errorMap, 401);
 			}
 		}
-
+		
 		InsightStore.getInstance().put(newInsight);
 		newInsight.reRunPixelInsight(false);
 		RunInsight runner = new RunInsight(newInsight);
