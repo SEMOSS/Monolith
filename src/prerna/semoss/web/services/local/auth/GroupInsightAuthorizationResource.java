@@ -24,7 +24,7 @@ import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
-@Path("/auth/insightGroup")
+@Path("/auth/group/insight")
 public class GroupInsightAuthorizationResource {
 
 	private static final Logger logger = LogManager.getLogger(GroupInsightAuthorizationResource.class);
