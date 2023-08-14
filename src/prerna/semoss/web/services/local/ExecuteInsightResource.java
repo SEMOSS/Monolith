@@ -45,7 +45,7 @@ public class ExecuteInsightResource {
 			session = request.getSession(false);
 			if(session == null) {
 				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put("errorMessage", "Invalid session to retrieve insight data");
+				errorHash.put(Constants.ERROR_MESSAGE, "Invalid session to retrieve insight data");
 				return WebUtility.getResponse(errorHash, 400);
 			}
 			

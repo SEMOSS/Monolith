@@ -153,7 +153,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper.execute();
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE,e);
-			ret.put("errorMessage", e.getMessage());
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
 
@@ -459,7 +459,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE,e);
 			Hashtable<String, Object> ret = new Hashtable<>();
-			ret.put("errorMessage", e.getMessage());
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
 
@@ -494,7 +494,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			numRecords = wrapper.getNumRows();
 		} catch (Exception e) {
 			Hashtable<String, Object> ret = new Hashtable<>();
-			ret.put("errorMessage", e.getMessage());
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
 
@@ -530,7 +530,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper.reset();
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE,e);
-			ret.put("errorMessage", e.getMessage());
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
 

@@ -21,6 +21,7 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.om.Insight;
 import prerna.om.OldInsight;
+import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 public class DataframeResource {
@@ -71,7 +72,7 @@ public class DataframeResource {
 			return WebUtility.getResponse(ret, 200);
 		} else {
 			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Rest call is not applicable for this insight");
+			errorHash.put(Constants.ERROR_MESSAGE, "Rest call is not applicable for this insight");
 			return WebUtility.getResponse(errorHash, 200);
 		}
 	}
@@ -248,7 +249,7 @@ public class DataframeResource {
 //			if(e.getMessage() != null && !e.getMessage().isEmpty()) {
 //				errorMessage = e.getMessage();
 //			}
-//			errorMap.put("errorMessage", errorMessage);
+//			errorMap.put(Constants.ERROR_MESSAGE, errorMessage);
 //			return WebUtility.getResponse(errorMap, 200);
 //		}
 //

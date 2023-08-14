@@ -16,8 +16,6 @@ import prerna.util.Utility;
 
 public class ResourceUtility {
 
-	public static final String ERROR_KEY = "errorMessage";
-	
 	protected static List<String> allowAccessWithoutUsers = new ArrayList<>();
 	static {
 		allowAccessWithoutUsers.add("config");

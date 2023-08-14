@@ -71,7 +71,7 @@ public class AdminConfigService {
 		String idString = form.getFirst("ids");
 		if (idString == null || idString.isEmpty()) {
 			Map<String, String> errorMessage = new HashMap<>();
-			errorMessage.put("errorMessage", "Need to send valid ids");
+			errorMessage.put(Constants.ERROR_MESSAGE, "Need to send valid ids");
 			return WebUtility.getResponse(errorMessage, 200);
 		}
 		List<String> ids = GSON.fromJson(idString, List.class);
