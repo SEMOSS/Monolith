@@ -415,7 +415,7 @@ public class InsightAuthorizationResource {
 		String logPublic = isPublic ? " public " : " private";
 
 		try {
-			SecurityInsightUtils.setInsightGlobalWithinApp(user, projectId, insightId, isPublic);
+			SecurityInsightUtils.setInsightGlobalWithinProject(user, projectId, insightId, isPublic);
 			
 			/*
 			 * BELOW COMMENTED OUT IS INVALID LOGIC
