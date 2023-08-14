@@ -201,7 +201,7 @@ public class FileUploader extends Uploader {
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
 			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Session could not be validated in order to upload files");
+			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 			
@@ -209,38 +209,38 @@ public class FileUploader extends Uploader {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			if(user == null) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "Session could not be validated in order to upload files");
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			
 			if(user.isAnonymous() && !AbstractSecurityUtils.anonymousUserUploadData()) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "Must be logged in to upload files");
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			
 			if(user.isAnonymous() && in.isSavedInsight()) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "Must be logged in to upload files to a saved insight");
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files to a saved insight");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			
 			if(in.isSavedInsight() && !SecurityInsightUtils.userCanEditInsight(user, in.getProjectId(), in.getRdbmsId())) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "User does not edit access for this insight");
+				errorMap.put(Constants.ERROR_MESSAGE, "User does not edit access for this insight");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			
 			if(AbstractSecurityUtils.adminSetPublisher() && !SecurityQueryUtils.userIsPublisher(user)) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("errorMessage", "User does not have permission to publish data. Please reach out to the admin to get proper access");
+				errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission to publish data. Please reach out to the admin to get proper access");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			
 			if(projectId != null && !projectId.equalsIgnoreCase("user")) {
 				if (!SecurityProjectUtils.userCanEditProject(in.getUser(), projectId)) {
 					HashMap<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put("errorMessage", "User does not have permission for this project.");
+					errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission for this project.");
 					return WebUtility.getResponse(errorMap, 400);
 				}
 			}
@@ -256,12 +256,12 @@ public class FileUploader extends Uploader {
 		} catch(VirusScanningException e) {
 			logger.error(Constants.STACKTRACE, e);
 			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch(Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Error moving file to server");
+			errorMap.put(Constants.ERROR_MESSAGE, "Error moving file to server");
 			return WebUtility.getResponse(errorMap, 400);
 		} finally {
 			ThreadStore.remove();

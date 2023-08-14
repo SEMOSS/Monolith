@@ -261,12 +261,12 @@ public class OldEngineResource {
 			}
 		} catch(Exception e) {
 			Map<String, String> err = new HashMap<String, String>();
-			err.put("errorMessage", "Could not identify user");
+			err.put(Constants.ERROR_MESSAGE, "Could not identify user");
 			return WebUtility.getResponse(err, 400);
 		}
 		if(userId == null) {
 			Map<String, String> err = new HashMap<String, String>();
-			err.put("errorMessage", "Could not identify user");
+			err.put(Constants.ERROR_MESSAGE, "Could not identify user");
 			return WebUtility.getResponse(err, 400);
 		}
 		Gson gson = new Gson();
