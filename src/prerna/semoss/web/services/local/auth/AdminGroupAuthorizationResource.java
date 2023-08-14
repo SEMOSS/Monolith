@@ -39,12 +39,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		if(!SecurityAdminUtils.userIsAdmin(user)){
-			errorRet.put(ResourceUtility.ERROR_KEY, "The user doesn't have the permissions to perform this action.");
+			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
 			return WebUtility.getResponse(errorRet, 400);
 		}
 		
@@ -68,11 +68,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			
 		} catch (IllegalArgumentException e){
 			logger.error(Constants.STACKTRACE, e);
-			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
 			logger.error(Constants.STACKTRACE, e);
-			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		return WebUtility.getResponse(success, 200);
@@ -88,12 +88,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		if(!SecurityAdminUtils.userIsAdmin(user)){
-			errorRet.put(ResourceUtility.ERROR_KEY, "The user doesn't have the permissions to perform this action.");
+			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
 			return WebUtility.getResponse(errorRet, 400);
 		}
 		
@@ -111,11 +111,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			SecurityGroupUtils.getInstance(user).deleteGroupAndPropagate(groupId, type);
 		} catch (IllegalArgumentException e){
 			logger.error(Constants.STACKTRACE, e);
-			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
 			logger.error(Constants.STACKTRACE, e);
-			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		return WebUtility.getResponse(success, 200);
@@ -131,12 +131,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		if(!SecurityAdminUtils.userIsAdmin(user)){
-			errorRet.put(ResourceUtility.ERROR_KEY, "The user doesn't have the permissions to perform this action.");
+			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
 			return WebUtility.getResponse(errorRet, 400);
 		}
 		
@@ -168,11 +168,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			
 		} catch (IllegalArgumentException e){
 			logger.error(Constants.STACKTRACE, e);
-			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
 			logger.error(Constants.STACKTRACE, e);
-			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		return WebUtility.getResponse(success, 200);
@@ -190,7 +190,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 

@@ -49,7 +49,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -68,7 +68,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -83,13 +83,13 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		try {
 			if(!PasswordRequirements.getInstance().isAllowUserChangePassword()) {
 				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(ResourceUtility.ERROR_KEY, "Only the administrator is allowed to change the user password");
+				errorMap.put(Constants.ERROR_MESSAGE, "Only the administrator is allowed to change the user password");
 				return WebUtility.getResponse(errorMap, 401);
 			}
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -104,7 +104,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -119,7 +119,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		
 		if(!UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, sender)) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "Error occurred sending email to " + email);
+			errorMap.put(Constants.ERROR_MESSAGE, "Error occurred sending email to " + email);
 			SecurityPasswordResetUtils.deleteToken(uniqueToken);
 			return WebUtility.getResponse(errorMap, 500);
 		}
@@ -150,13 +150,13 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		try {
 			if(!PasswordRequirements.getInstance().isAllowUserChangePassword()) {
 				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(ResourceUtility.ERROR_KEY, "Only the administrator is allowed to change the user password");
+				errorMap.put(Constants.ERROR_MESSAGE, "Only the administrator is allowed to change the user password");
 				return WebUtility.getResponse(errorMap, 401);
 			}
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -170,7 +170,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		

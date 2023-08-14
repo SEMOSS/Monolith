@@ -42,7 +42,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -77,7 +77,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 					AbstractSecurityUtils.validEmail(email, true);
 				} catch(Exception e) {
 					Map<String, String> errorMap = new HashMap<>();
-					errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+					errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(errorMap, 401);
 				}
 			}
@@ -86,7 +86,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 					phone = AbstractSecurityUtils.formatPhone(phone);
 				} catch(Exception e) {
 					Map<String, String> errorMap = new HashMap<>();
-					errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+					errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(errorMap, 401);
 				}
 			}
@@ -96,7 +96,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 					AbstractSecurityUtils.validPassword(newUserId, AuthProvider.NATIVE, password);
 				} catch(Exception e) {
 					Map<String, String> errorMap = new HashMap<>();
-					errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+					errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 					return WebUtility.getResponse(errorMap, 401);
 				}
 			}
@@ -106,7 +106,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 				user = ResourceUtility.getUser(request);
 			} catch (IllegalAccessException e) {
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+				errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 				return WebUtility.getResponse(errorMap, 401);
 			}
 			
@@ -114,16 +114,16 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, 
 						phone, phoneExtension, countryCode, newUserAdmin, publisher, exporter);
 			} else {
-				errorRet.put(ResourceUtility.ERROR_KEY, "The user doesn't have the permissions to perform this action.");
+				errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
 				return WebUtility.getResponse(errorRet, 400);
 			}
 		} catch (IllegalArgumentException e){
     		logger.error(Constants.STACKTRACE, e);
-			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
-			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		return WebUtility.getResponse(success, 200);
@@ -147,7 +147,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -159,7 +159,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -186,7 +186,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -199,7 +199,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -226,7 +226,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -251,7 +251,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 				int numAdmins = adminUtils.getNumAdmins();
 				if(numAdmins <= 1) {
 					Map<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put(ResourceUtility.ERROR_KEY, "You cannot remove the last admin from having admin level permissions. Please assign a new admin before removing admin access.");
+					errorMap.put(Constants.ERROR_MESSAGE, "You cannot remove the last admin from having admin level permissions. Please assign a new admin before removing admin access.");
 					return WebUtility.getResponse(errorMap, 400);
 				}
 			}
@@ -262,12 +262,12 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			ret = adminUtils.editUser(userInfo);
 		} catch(IllegalArgumentException e) {
 			Map<String, String> retMap = new Hashtable<>();
-			retMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			retMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(retMap, 400);
 		}
 		if(!ret) {
 			Map<String, String> retMap = new Hashtable<>();
-			retMap.put(ResourceUtility.ERROR_KEY, "Unknown error occurred with updating user. Please try again.");
+			retMap.put(Constants.ERROR_MESSAGE, "Unknown error occurred with updating user. Please try again.");
 			return WebUtility.getResponse(retMap, 400);
 		}
 		return WebUtility.getResponse(ret, 200);
@@ -285,7 +285,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -297,7 +297,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			// need to make sure there are other admins and we are not deleting the last admin
 			if(!adminUtils.otherAdminsExist(userIdToDelete, userTypeToDelete)) {
 				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(ResourceUtility.ERROR_KEY, "You cannot delete this user as it is the last admin. Please assign a new admin before deleting this user.");
+				errorMap.put(Constants.ERROR_MESSAGE, "You cannot delete this user as it is the last admin. Please assign a new admin before deleting this user.");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
@@ -324,7 +324,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -344,7 +344,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 

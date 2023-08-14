@@ -253,12 +253,12 @@ public class ProjectResource {
 						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("errorMessage", "Unable to load landing html file");
+				errorMap.put(Constants.ERROR_MESSAGE, "Unable to load landing html file");
 				return WebUtility.getResponse(errorMap, 404);
 			}
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("errorMessage", "No custom landing page found");
+			errorMap.put(Constants.ERROR_MESSAGE, "No custom landing page found");
 			return WebUtility.getResponse(errorMap, 404);
 		}
 	} 
@@ -314,12 +314,12 @@ public class ProjectResource {
 						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("errorMessage", "Unable to load file");
+				errorMap.put(Constants.ERROR_MESSAGE, "Unable to load file");
 				return WebUtility.getResponse(errorMap, 404);
 			}
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("errorMessage", "No file found");
+			errorMap.put(Constants.ERROR_MESSAGE, "No file found");
 			return WebUtility.getResponse(errorMap, 404);
 		}
 	}
@@ -381,12 +381,12 @@ public class ProjectResource {
 						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("errorMessage", "Unable to load file");
+				errorMap.put(Constants.ERROR_MESSAGE, "Unable to load file");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("errorMessage", "Default logo file not found");
+			errorMap.put(Constants.ERROR_MESSAGE, "Default logo file not found");
 			return WebUtility.getResponse(errorMap, 404);
 		}
 	}
@@ -473,7 +473,7 @@ public class ProjectResource {
 					.build();
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("errorMessage", "error sending image file");
+			errorMap.put(Constants.ERROR_MESSAGE, "error sending image file");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
@@ -579,7 +579,7 @@ public class ProjectResource {
 					.build();
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("errorMessage", "Error sending image file");
+			errorMap.put(Constants.ERROR_MESSAGE, "Error sending image file");
 			return WebUtility.getResponse(errorMap, 404);
 		}
 	}
@@ -726,7 +726,7 @@ public class ProjectResource {
 		}
 		// return error
 		Map<String, String> errorMap = new HashMap<>();
-		errorMap.put("errorMessage", "error sending widget file " + widgetName + "\\" + fileName);
+		errorMap.put(Constants.ERROR_MESSAGE, "error sending widget file " + widgetName + "\\" + fileName);
 		return WebUtility.getResponse(errorMap, 400);
 	}
 	
