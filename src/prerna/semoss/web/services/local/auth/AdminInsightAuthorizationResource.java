@@ -58,7 +58,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to see all the insights when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -91,7 +91,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to see all the insight for project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -121,7 +121,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to see all the user insight access for project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -153,7 +153,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to delete insight from projectId " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -166,7 +166,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -194,7 +194,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all users who have access to insight " + insightId + " in project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -233,7 +233,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to insight " + insightId + " in project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -242,7 +242,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -276,7 +276,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull the projects that user " + userId + " has access to when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -285,7 +285,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
@@ -320,7 +320,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant new users insight access when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -329,7 +329,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
@@ -364,7 +364,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add all users to insight " + insightId + " in project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -373,7 +373,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
@@ -411,7 +411,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for insight " + insightId + " in project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -420,7 +420,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -452,7 +452,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.error(Constants.STACKTRACE, e);
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user access permissions for insight " + insightId + " when not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -462,7 +462,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -496,7 +496,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.error(Constants.STACKTRACE, e);
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for project " + projectId + " when not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -505,7 +505,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -541,7 +541,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to insight " + insightId + " in project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -550,7 +550,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -587,7 +587,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the insight " + insightId + " in project " + projectId + logPublic + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -605,7 +605,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -636,7 +636,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all users who have access to insight " + insightId + " in project " + projectId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		List<Map<String, Object>> ret = adminUtils.getInsightUsersNoCredentials(projectId, insightId);
@@ -664,7 +664,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permission to insight " + insightId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		// adding user permissions in bulk
@@ -674,7 +674,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
@@ -707,7 +707,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove usersfrom having access to insight " + insightId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		Gson gson = new Gson();
@@ -717,7 +717,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -749,7 +749,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user request for permission to insight " + insightId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -763,7 +763,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
@@ -795,7 +795,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user request for permission to insight " + insightId + " when not an admin"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -809,7 +809,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 

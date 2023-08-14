@@ -186,7 +186,7 @@ public class EngineRemoteResource {
 		} catch (Exception e) {
 			logger.error(STACKTRACE,e);
 			Hashtable<String, Object> ret = new Hashtable<>();
-			ret.put("errorMessage", e.getMessage());
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getSO(ret);
 		}
 	}

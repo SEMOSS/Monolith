@@ -12,6 +12,7 @@ import javax.ws.rs.core.Context;
 
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 @Path("share")
@@ -22,14 +23,14 @@ public class ShareInsightResource {
 		HttpSession session = request.getSession(false);
 		if(session == null) {
 			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Invalid session to retrieve insight data");
+			errorHash.put(Constants.ERROR_MESSAGE, "Invalid session to retrieve insight data");
 			return WebUtility.getResponse(errorHash, 400);
 		}
 		
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
 			Map<String, String> errorHash = new HashMap<String, String>();
-			errorHash.put("errorMessage", "Invalid insight id");
+			errorHash.put(Constants.ERROR_MESSAGE, "Invalid insight id");
 			return WebUtility.getResponse(errorHash, 400);
 		}
 		
@@ -37,7 +38,7 @@ public class ShareInsightResource {
 		Set<String> sessionStore = InsightStore.getInstance().getInsightIDsForSession(sessionId);
 		if(sessionStore == null || !sessionStore.contains(insightId)) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put("errorMessage", "Invaid session to retrieve insight data");
+			errorMap.put(Constants.ERROR_MESSAGE, "Invaid session to retrieve insight data");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		

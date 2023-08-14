@@ -242,7 +242,7 @@ public class DatabaseResource {
 					.build();
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("errorMessage", "error sending image file");
+			errorMap.put(Constants.ERROR_MESSAGE, "error sending image file");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	}

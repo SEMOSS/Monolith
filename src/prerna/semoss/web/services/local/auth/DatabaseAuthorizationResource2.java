@@ -68,7 +68,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -143,7 +143,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -151,7 +151,7 @@ public class DatabaseAuthorizationResource2 {
 		if(permission == null) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull permission details for database " + databaseId + " without having proper access"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User does not have access to this database");
+			errorMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -178,7 +178,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -192,7 +192,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -216,7 +216,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -227,7 +227,7 @@ public class DatabaseAuthorizationResource2 {
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + databaseId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -237,7 +237,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -265,7 +265,7 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -274,7 +274,7 @@ public class DatabaseAuthorizationResource2 {
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permissions to database " + databaseId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -285,7 +285,7 @@ public class DatabaseAuthorizationResource2 {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
@@ -314,7 +314,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -325,7 +325,7 @@ public class DatabaseAuthorizationResource2 {
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + databaseId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -335,12 +335,12 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -369,7 +369,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -378,7 +378,7 @@ public class DatabaseAuthorizationResource2 {
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for database " + databaseId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -389,12 +389,12 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -422,7 +422,7 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -432,7 +432,7 @@ public class DatabaseAuthorizationResource2 {
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + databaseId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -442,12 +442,12 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -475,7 +475,7 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -486,7 +486,7 @@ public class DatabaseAuthorizationResource2 {
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to database " + databaseId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -496,12 +496,12 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -530,7 +530,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -542,7 +542,7 @@ public class DatabaseAuthorizationResource2 {
 		if ( (legacyAdminOnly || AbstractSecurityUtils.adminOnlyEngineSetPublic()) && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logPublic + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -552,12 +552,12 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logPublic + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
@@ -586,7 +586,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -597,7 +597,7 @@ public class DatabaseAuthorizationResource2 {
 		if (AbstractSecurityUtils.adminOnlyEngineSetPublic() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logDiscoverable + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -607,12 +607,12 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logDiscoverable + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
@@ -641,7 +641,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -655,12 +655,12 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logVisible + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
@@ -687,7 +687,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -701,12 +701,12 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + databaseId + logFavorited + " without having proper access"));
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
     		logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(ResourceUtility.ERROR_KEY, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		
@@ -733,7 +733,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " invalid user session trying to access authorization resources"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -744,7 +744,7 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + databaseId + " that do not have credentials without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -767,7 +767,7 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -776,7 +776,7 @@ public class DatabaseAuthorizationResource2 {
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user access to database " + databaseId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -788,12 +788,12 @@ public class DatabaseAuthorizationResource2 {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant user access to database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -821,7 +821,7 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "User session is invalid");
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -830,7 +830,7 @@ public class DatabaseAuthorizationResource2 {
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user access to database " + databaseId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, "This functionality is limited to only admins");
+			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -841,7 +841,7 @@ public class DatabaseAuthorizationResource2 {
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(ResourceUtility.ERROR_KEY, e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
