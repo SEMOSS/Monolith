@@ -24,10 +24,10 @@ import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
-@Path("/auth/appGroup")
-public class GroupDatabaseAuthorizationResource {
+@Path("/auth/group/engine")
+public class GroupEngineAuthorizationResource {
 
-	private static final Logger logger = LogManager.getLogger(GroupDatabaseAuthorizationResource.class);
+	private static final Logger logger = LogManager.getLogger(GroupEngineAuthorizationResource.class);
 
 	@Context
 	protected ServletContext context;
