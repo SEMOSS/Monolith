@@ -50,7 +50,7 @@ public class FormResource {
 			cacId = getCacId(request);
 		} catch (IOException e) {
 			Map<String, String> err = new HashMap<String, String>();
-			err.put("errorMessage", e.getMessage());
+			err.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(err, 400);
 		}
 
@@ -59,7 +59,7 @@ public class FormResource {
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to modify user access while not being an admin"));
 			Map<String, String> err = new HashMap<String, String>();
-			err.put("errorMessage", e.getMessage());
+			err.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(err, 400);
 		}
 		
@@ -121,7 +121,7 @@ public class FormResource {
 			cacId = getCacId(request);
 		} catch (IOException e) {
 			Map<String, String> err = new HashMap<String, String>();
-			err.put("errorMessage", e.getMessage());
+			err.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(err, 400);
 		}
 
@@ -130,7 +130,7 @@ public class FormResource {
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to rename an instance while not being an admin"));
 			Map<String, String> err = new HashMap<String, String>();
-			err.put("errorMessage", e.getMessage());
+			err.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(err, 400);
 		}
 
@@ -160,7 +160,7 @@ public class FormResource {
 			cacId = getCacId(request);
 		} catch (IOException e) {
 			Map<String, String> err = new HashMap<String, String>();
-			err.put("errorMessage", e.getMessage());
+			err.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(err, 400);
 		}
 
@@ -173,7 +173,7 @@ public class FormResource {
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(), cacId, "is trying to certify " + instanceName + " when he is not the system admin for the system"));
 			Map<String, String> err = new HashMap<String, String>();
-			err.put("errorMessage", e.getMessage());
+			err.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(err, 400);
 		}
 
@@ -200,7 +200,7 @@ public class FormResource {
 			cacId = getCacId(request);
 		} catch (IOException e) {
 			Map<String, String> err = new HashMap<String, String>();
-			err.put("errorMessage", e.getMessage());
+			err.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(err, 400);
 		}
 
