@@ -87,7 +87,7 @@ public class PublicHomeCheckFilter implements Filter {
 				publicHomeDir.mkdir();
 			}
 			
-			boolean mapComplete = project.publish(realPath + public_home);
+			boolean mapComplete = project.publish(realPath + public_home, contextPath);
 			if(mapComplete) {
 				arg2.doFilter(arg0, arg1);
 				return;

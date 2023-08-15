@@ -44,11 +44,6 @@ public class NoUserInSessionFilter implements Filter {
 	// after you sign in
 	// we can redirect you back to the original call
 	// instead of taking you to the base SemossWeb URL
-	public static final String ENDPOINT_REDIRECT_KEY = "ENDPOINT_REDIRECT_KEY";
-
-	public static final String MONOLITH_ROUTE = "MONOLITH_ROUTE";
-	public static final String MONOLITH_PREFIX = "MONOLITH_PREFIX";
-
 	private static final String LOGIN = "login";
 	
 	private static final String NO_USER_HTML = "/noUserFail/";
@@ -142,8 +137,8 @@ public class NoUserInSessionFilter implements Filter {
 						if (method.equalsIgnoreCase("GET")) {
 							// modify the prefix if necessary
 							Map<String, String> envMap = System.getenv();
-							if (envMap.containsKey(MONOLITH_PREFIX)) {
-								fullUrl = fullUrl.replace(contextPath, envMap.get(MONOLITH_PREFIX));
+							if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
+								fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
 							}
 
 							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
@@ -151,8 +146,8 @@ public class NoUserInSessionFilter implements Filter {
 						} else if (method.equalsIgnoreCase("POST")) {
 							// modify the prefix if necessary
 							Map<String, String> envMap = System.getenv();
-							if (envMap.containsKey(MONOLITH_PREFIX)) {
-								fullUrl = fullUrl.replace(contextPath, envMap.get(MONOLITH_PREFIX));
+							if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
+								fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
 							}
 
 							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
@@ -179,11 +174,11 @@ public class NoUserInSessionFilter implements Filter {
 				// @Context HttpServletResponse response)}
 				// is sent to the pop-up for OAuth login
 				if(session != null) {
-					String endpointRedirectUrl = Utility.cleanHttpResponse((String) session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY));
+					String endpointRedirectUrl = Utility.cleanHttpResponse((String) session.getAttribute(Constants.ENDPOINT_REDIRECT_KEY));
 					if (endpointRedirectUrl != null && !endpointRedirectUrl.isEmpty()) {
 						((HttpServletResponse) arg1).setHeader("redirect", endpointRedirectUrl);
 						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + endpointRedirectUrl);
-						session.removeAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY);
+						session.removeAttribute(Constants.ENDPOINT_REDIRECT_KEY);
 						return;
 					}
 				}
@@ -283,7 +278,7 @@ public class NoUserInSessionFilter implements Filter {
 		// if no referrer
 		// then a person hit the endpoint directly
 		if (redirectUrl == null) {
-			((HttpServletRequest) arg0).getSession(true).setAttribute(ENDPOINT_REDIRECT_KEY, fullUrl);
+			((HttpServletRequest) arg0).getSession(true).setAttribute(Constants.ENDPOINT_REDIRECT_KEY, fullUrl);
 			// this will be the deployment name of the app
 			String loginRedirect = SocialPropertiesUtil.getInstance().getLoginRedirect();
 			((HttpServletResponse) arg1).setStatus(302);
