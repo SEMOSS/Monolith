@@ -20,8 +20,6 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.project.api.IProject;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
-import prerna.util.Settings;
 import prerna.util.Utility;
 
 public class PublicHomeCheckFilter implements Filter {
@@ -38,22 +36,13 @@ public class PublicHomeCheckFilter implements Filter {
 		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
 		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 
-		String public_home = "public_home";
-		if(DIHelper.getInstance().getProperty(Settings.PUBLIC_HOME) != null) {
-			public_home = DIHelper.getInstance().getProperty(Settings.PUBLIC_HOME);
-		}
-		// assume public home is clean for lower paths
-		if(public_home.startsWith("/")) {
-			public_home = public_home.substring(1);
-		}
-		if(public_home.endsWith("/")) {
-			public_home = public_home.substring(0, public_home.length()-1);
-		}
+		// default is public_home
+		String publicHomeFolder = Utility.getPublicHomeFolder();
 
 		// this will be the deployment name of the app
 		//  Context Path  - this is already / Monolith
 		String contextPath = context.getContextPath();
-		String contextPathPublicHome = contextPath + "/" + public_home ;
+		String contextPathPublicHome = contextPath + "/" + publicHomeFolder ;
 		String realPath = context.getRealPath(File.separator);
 
 		// try to get the project id
@@ -89,13 +78,13 @@ public class PublicHomeCheckFilter implements Filter {
 			}
 			
 			// try to create the public home from scratch
-			File publicHomeDir = new File(realPath+"/"+public_home); 
+			File publicHomeDir = new File(realPath+"/"+publicHomeFolder); 
 			// make the directory if it doesn't exist
 			if(!publicHomeDir.exists()) {
 				publicHomeDir.mkdir();
 			}
 			
-			boolean mapComplete = project.publish(realPath+"/"+public_home, contextPath);
+			boolean mapComplete = project.publish(realPath+"/"+publicHomeFolder);
 			if(mapComplete) {
 				arg2.doFilter(arg0, arg1);
 				return;
