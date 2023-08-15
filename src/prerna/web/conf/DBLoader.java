@@ -78,6 +78,16 @@ public class DBLoader implements ServletContextListener {
 	public void contextInitialized(ServletContextEvent arg0) {
 		ServletContext context = arg0.getServletContext();
 		String contextPath = context.getContextPath();
+		{
+			//TODO: now putting this in RDFMap.prop
+			//TODO: now putting this in RDFMap.prop
+			// remove below and update code to pull there 
+			// using Constants.CONTEXT_PATH_KEY
+			
+			// need to set the path
+			// important for taking the image with security
+			ChromeDriverUtility.setContextPath(contextPath);
+		}
 		
 		String rdfPropFile = context.getInitParameter(RDFMAP);
 		// see if security is enabled
@@ -132,7 +142,7 @@ public class DBLoader implements ServletContextListener {
 			context.setInitParameter(Constants.CUSTOM_LOGOUT_URL, trimmedUrl);
 			DBLoader.customLogoutUrl = trimmedUrl;
 		}
-
+		
 		// get the session id key
 		if (context.getSessionCookieConfig() != null) {
 			SessionCookieConfig cookieConfig = context.getSessionCookieConfig();
@@ -141,7 +151,7 @@ public class DBLoader implements ServletContextListener {
 				ChromeDriverUtility.setSessionCookie(cookieConfig.getName());
 			}
 		}
-		
+
 		logger.log(STARTUP, "Initializing application context..." + Utility.cleanLogString(contextPath));
 
 		// Set default file separator system variable
@@ -172,7 +182,8 @@ public class DBLoader implements ServletContextListener {
 		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
 		DIHelper.getInstance().setLocalProperty(Constants.USE_LOGOUT_PAGE, useLogoutPage);
 		DIHelper.getInstance().setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
-		
+		DIHelper.getInstance().setLocalProperty(Constants.CONTEXT_PATH_KEY, contextPath);
+
 		// Load empty engine list into DIHelper, then load engines from db folder
 		logger.log(STARTUP, "Loading engines...");
 		String engines = "";
@@ -182,10 +193,6 @@ public class DBLoader implements ServletContextListener {
 		DIHelper.getInstance().setProjectProperty(Constants.PROJECTS, projects);
 		loadSmss(Constants.PROJECT_WATCHER);
 		
-		// need to set the path
-		// important for taking the image with security
-		ChromeDriverUtility.setContextPath(contextPath);
-
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
 		{
