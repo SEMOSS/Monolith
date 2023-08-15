@@ -164,8 +164,8 @@ public class ProjectResource {
 			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred reading the current project smss details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		project.closeProject();
 		try {
+			project.close();
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(unconcealedNewSmssContent);
 			}
@@ -173,7 +173,12 @@ public class ProjectResource {
 		} catch(Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			// reset the values
-			project.closeProject();
+			try {
+				project.close();
+			} catch (IOException e1) {
+				// will ignore this and try to reopen the project
+				logger.error(Constants.STACKTRACE, e1);
+			}
 			currentSmssFile.delete();
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(currentSmssContent);
