@@ -38,18 +38,26 @@ public class PublicHomeCheckFilter implements Filter {
 		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
 		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 
-		String public_home = "/public_home";
+		String public_home = "public_home";
 		if(DIHelper.getInstance().getProperty(Settings.PUBLIC_HOME) != null) {
 			public_home = DIHelper.getInstance().getProperty(Settings.PUBLIC_HOME);
+		}
+		// assume public home is clean for lower paths
+		if(public_home.startsWith("/")) {
+			public_home = public_home.substring(1);
+		}
+		if(public_home.endsWith("/")) {
+			public_home = public_home.substring(0, public_home.length()-1);
 		}
 
 		// this will be the deployment name of the app
 		//  Context Path  - this is already / Monolith
-		String contextPath = context.getContextPath() + public_home ;
+		String contextPath = context.getContextPath();
+		String contextPathPublicHome = contextPath + "/" + public_home ;
 		String realPath = context.getRealPath(File.separator);
 
 		// try to get the project id
-		String projectId = fullUrl.substring(fullUrl.indexOf(contextPath) + contextPath.length() + 1);
+		String projectId = fullUrl.substring(fullUrl.indexOf(contextPathPublicHome) + contextPathPublicHome.length() + 1);
 		projectId = projectId.substring(0, projectId.indexOf("/"));
 
 		if(!Strings.isNullOrEmpty(projectId)) {
