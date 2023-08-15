@@ -111,7 +111,6 @@ import prerna.util.ldap.LDAPPasswordChangeRequiredException;
 import prerna.util.linotp.LinOTPResponse;
 import prerna.util.linotp.LinOTPUtil;
 import prerna.web.conf.DBLoader;
-import prerna.web.conf.NoUserInSessionFilter;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
 
@@ -2866,7 +2865,7 @@ public class UserResource {
 		String contextPath = request.getContextPath();
 
 		boolean useCustom = customRedirect != null && !customRedirect.isEmpty();
-		boolean endpoint = session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY) != null;
+		boolean endpoint = session.getAttribute(Constants.ENDPOINT_REDIRECT_KEY) != null;
 		response.setStatus(302);
 		try {
 			// add the cookie to the header directly
@@ -2882,7 +2881,7 @@ public class UserResource {
 				String encodedCustomRedirect = Encode.forHtml(customRedirect);
 				response.sendError(302, "Need to redirect to " + encodedCustomRedirect);
 			} else if (endpoint) {
-				String redirectUrl = session.getAttribute(NoUserInSessionFilter.ENDPOINT_REDIRECT_KEY) + "";
+				String redirectUrl = session.getAttribute(Constants.ENDPOINT_REDIRECT_KEY) + "";
 				response.addHeader("redirect", redirectUrl);
 				response.sendError(302, "Need to redirect to " + redirectUrl);
 			} else {
@@ -2966,8 +2965,8 @@ public class UserResource {
 			Map<String, String> envMap = System.getenv();
 			// the environment variable for this box will tell me which route variable
 			// is for this specific box
-			if (envMap.containsKey(NoUserInSessionFilter.MONOLITH_ROUTE)) {
-				String routeCookieName = envMap.get(NoUserInSessionFilter.MONOLITH_ROUTE);
+			if (envMap.containsKey(Constants.MONOLITH_ROUTE)) {
+				String routeCookieName = envMap.get(Constants.MONOLITH_ROUTE);
 				Cookie[] curCookies = request.getCookies();
 				if (curCookies != null) {
 					for (Cookie c : curCookies) {
