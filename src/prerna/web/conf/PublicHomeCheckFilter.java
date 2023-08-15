@@ -89,13 +89,13 @@ public class PublicHomeCheckFilter implements Filter {
 			}
 			
 			// try to create the public home from scratch
-			File publicHomeDir = new File(realPath + public_home); 
+			File publicHomeDir = new File(realPath+"/"+public_home); 
 			// make the directory if it doesn't exist
 			if(!publicHomeDir.exists()) {
 				publicHomeDir.mkdir();
 			}
 			
-			boolean mapComplete = project.publish(realPath + public_home, contextPath);
+			boolean mapComplete = project.publish(realPath+"/"+public_home, contextPath);
 			if(mapComplete) {
 				arg2.doFilter(arg0, arg1);
 				return;
