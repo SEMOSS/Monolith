@@ -657,11 +657,11 @@ public class ImageUploader extends Uploader {
 				if (ClusterUtil.IS_CLUSTER) {
 					AbstractCloudClient.getClient().pushInsightImage(projectId, insightId, oldImageName, imageFileName);
 				}
-			} catch (IOException ioe) {
-				logger.error(Constants.STACKTRACE, ioe);
 			} catch (InterruptedException ie) {
 				Thread.currentThread().interrupt();
 				logger.error(Constants.STACKTRACE, ie);
+			} catch (Exception e) {
+				logger.error(Constants.STACKTRACE, e);
 			}
 		}
 		returnMap.put("project_id", projectId);
@@ -765,11 +765,11 @@ public class ImageUploader extends Uploader {
 				if (ClusterUtil.IS_CLUSTER) {
 					AbstractCloudClient.getClient().pushInsightImage(projectId, insightId, oldImageName, null);
 				}
-			} catch (IOException ioe) {
-				logger.error(Constants.STACKTRACE, ioe);
 			} catch (InterruptedException ie) {
 				Thread.currentThread().interrupt();
 				logger.error(Constants.STACKTRACE, ie);
+			} catch (Exception e) {
+				logger.error(Constants.STACKTRACE, e);
 			}
 		} else {
 			returnMap.put(Constants.ERROR_MESSAGE, "You do not have a custom insight image to delete");
