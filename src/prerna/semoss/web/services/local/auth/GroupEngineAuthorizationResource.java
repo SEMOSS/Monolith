@@ -90,8 +90,8 @@ public class GroupEngineAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("addGroupAppPermission")
-	public Response addGroupAppPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	@Path("addGroupEnginePermission")
+	public Response addGroupEnginePermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -105,7 +105,7 @@ public class GroupEngineAuthorizationResource {
 		
 		String groupId = form.getFirst("groupId");
 		String type = form.getFirst("type");
-		String appId = form.getFirst("appId");
+		String engineId = form.getFirst("engineId");
 		String permission = form.getFirst("permission");
 		try {
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
@@ -114,16 +114,16 @@ public class GroupEngineAuthorizationResource {
 			if(type == null || (type = type.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group type cannot be null or empty");
 			}
-			if(appId == null || (appId = appId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The appId cannot be null or empty");
+			if(engineId == null || (engineId = engineId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The engineId cannot be null or empty");
 			}
 			if(permission == null || (permission = permission.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The permission cannot be null or empty");
 			}
 
-			SecurityGroupEngineUtils.addDatabaseGroupPermission(user, groupId, type, appId, permission);
+			SecurityGroupEngineUtils.addEngineGroupPermission(user, groupId, type, engineId, permission);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add groups to app " + appId + " without having proper access"));
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add groups to engine " + engineId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -136,7 +136,7 @@ public class GroupEngineAuthorizationResource {
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added group " + groupId + " and type " + type + " to app " + appId + " with permission " + permission));
+		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added group " + groupId + " and type " + type + " to engine " + engineId + " with permission " + permission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
