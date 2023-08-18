@@ -912,7 +912,7 @@ public class ProjectAuthorizationResource  {
 			}
 			
 			// push to cloud
-			ClusterUtil.reactorPushProjectSmss(projectId);
+			ClusterUtil.pushProjectSmss(projectId);
 		} catch(Exception e) {
 			//ignore
 		}
