@@ -183,7 +183,7 @@ public class ModelEngineResource {
 	@GET
 	@Path("/modelImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response downloadStorageImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("modelId") String modelId) {
+	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("modelId") String modelId) {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = null;
 			try {
