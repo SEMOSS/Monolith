@@ -37,35 +37,29 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.engine.api.IDatabase;
+import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
-import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.util.insight.TextToGraphic;
 import prerna.web.services.util.WebUtility;
 
-@Path("/app-{databaseId}")
-public class DatabaseResource {
+@Path("/model-{modelId}")
+public class ModelEngineResource {
 
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	
-	private static final Logger logger = LogManager.getLogger(DatabaseResource.class);
+	private static final Logger logger = LogManager.getLogger(ModelEngineResource.class);
 	
-	private boolean canViewDatabase(User user, String databaseId) throws IllegalAccessException {
+	private boolean canViewModel(User user, String modelId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
-			databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseId);
-			if(!SecurityEngineUtils.userCanViewEngine(user, databaseId)
-					&& !SecurityEngineUtils.engineIsDiscoverable(databaseId)) {
-				throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have access to the database");
-			}
-		} else {
-			databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
-			if(!MasterDatabaseUtility.getAllDatabaseIds().contains(databaseId)) {
-				throw new IllegalAccessException("Database " + databaseId + " does not exist");
+			modelId = SecurityQueryUtils.testUserEngineIdForAlias(user, modelId);
+			if(!SecurityEngineUtils.userCanViewEngine(user, modelId)
+					&& !SecurityEngineUtils.engineIsDiscoverable(modelId)) {
+				throw new IllegalAccessException("Model " + modelId + " does not exist or user does not have access");
 			}
 		}
 		
@@ -81,7 +75,7 @@ public class DatabaseResource {
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
-	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
+	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = null;
 			try {
@@ -94,9 +88,9 @@ public class DatabaseResource {
 			try {
 				boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
 				if(!isAdmin) {
-					boolean isOwner = SecurityEngineUtils.userIsOwner(user, databaseId);
+					boolean isOwner = SecurityEngineUtils.userIsOwner(user, storageId);
 					if(!isOwner) {
-						throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
+						throw new IllegalAccessException("Model " + storageId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
 					}
 				}
 			} catch (IllegalAccessException e) {
@@ -106,12 +100,12 @@ public class DatabaseResource {
 			}
 		}
 
-		IDatabase engine = Utility.getDatabase(databaseId);
+		IModelEngine engine = Utility.getModel(storageId);
 		String currentSmssFileLocation = engine.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Could not find current database smss file");
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not find current storage smss file");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
@@ -128,26 +122,26 @@ public class DatabaseResource {
 			currentSmssContent = new String(Files.readAllBytes(Paths.get(currentSmssFile.toURI())));
 		} catch (IOException e) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred reading the current database smss details. Detailed message = " + e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred reading the current storage smss details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		try {
 			engine.close();
 		} catch (IOException e) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred closing the connection to the database. Detailed message = " + e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred closing the connection to the storage. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		try {
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(unconcealedNewSmssContent);
 			}
-			engine.openDB(currentSmssFileLocation);
+			engine.loadModel(currentSmssFileLocation);
 		} catch(Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			// reset the values
 			try {
-				// close the database again
+				// close the model engine again
 				engine.close();
 			} catch (IOException e1) {
 				logger.error(Constants.STACKTRACE, e1);
@@ -155,20 +149,20 @@ public class DatabaseResource {
 			currentSmssFile.delete();
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(currentSmssContent);
-				engine.openDB(currentSmssFileLocation);
+				engine.loadModel(currentSmssFileLocation);
 			} catch(Exception e2) {
 				logger.error(Constants.STACKTRACE, e2);
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "A fatal error occurred and could not revert the database to an operational state. Detailed message = " + e2.getMessage());
+				errorMap.put(Constants.ERROR_MESSAGE, "A fatal error occurred and could not revert the storage to an operational state. Detailed message = " + e2.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred initializing the new database details. Detailed message = " + e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred initializing the new storage details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
 		// push to cloud
-		ClusterUtil.pushDatabaseSmss(databaseId);
+		ClusterUtil.pushModelSmss(storageId);
 		
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
@@ -187,9 +181,9 @@ public class DatabaseResource {
 	 */
 	
 	@GET
-	@Path("/appImage/download")
+	@Path("/modelImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response downloadDatabaseImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
+	public Response downloadStorageImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("modelId") String modelId) {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = null;
 			try {
@@ -200,7 +194,7 @@ public class DatabaseResource {
 				return WebUtility.getResponse(errorMap, 401);
 			}
 			try {
-				canViewDatabase(user, databaseId);
+				canViewModel(user, modelId);
 			} catch (IllegalAccessException e) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put("error", e.getMessage());
@@ -210,18 +204,17 @@ public class DatabaseResource {
 		
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
-				String actualDatabaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
 				Map<String, String> selectors = new HashMap<>();
-				selectors.put(CouchUtil.DATABASE, actualDatabaseId);
+				selectors.put(CouchUtil.MODEL, modelId);
 				return CouchUtil.download(CouchUtil.DATABASE, selectors);
 			} catch (CouchException e) {
 				logger.error(Constants.STACKTRACE, e);
 			}
 		}
 		
-		File exportFile = getDatabaseImageFile(databaseId);
+		File exportFile = getModelImageFile(modelId);
 		if(exportFile != null && exportFile.exists()) {
-			String exportName = databaseId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
+			String exportName = modelId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
 //			CacheControl cc = new CacheControl();
 //			cc.setMaxAge(86400);
@@ -242,33 +235,32 @@ public class DatabaseResource {
 					.build();
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "error sending image file");
+			errorMap.put(Constants.ERROR_MESSAGE, "Error sending image file");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
 	
 	/**
 	 * Use to find the file for the image
-	 * @param databaseId
+	 * @param modelId
 	 * @return
 	 */
-	protected File getDatabaseImageFile(String databaseId) {
-		databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
+	protected File getModelImageFile(String modelId) {
 		if(ClusterUtil.IS_CLUSTER){
-			return ClusterUtil.getDatabaseImage(databaseId);
+			return ClusterUtil.getModelImage(modelId);
 		}
-		String propFileLoc = (String) DIHelper.getInstance().getEngineProperty(databaseId + "_" + Constants.STORE);
-		if(propFileLoc == null && !databaseId.equals("NEWSEMOSSAPP")) {
+		String propFileLoc = (String) DIHelper.getInstance().getEngineProperty(modelId + "_" + Constants.STORE);
+		if(propFileLoc == null && !modelId.equals("NEWSEMOSSAPP")) {
 			String imageDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "/images/stock/";
 			return new File(imageDir + "color-logo.png");
 		}
 		Properties prop = Utility.loadProperties(propFileLoc);
-		String databaseName = prop.getProperty(Constants.ENGINE_ALIAS);
+		String modelName = prop.getProperty(Constants.ENGINE_ALIAS);
 		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = baseFolder 
-				+ DIR_SEPARATOR + Constants.DB_FOLDER 
-				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(databaseName, databaseId) 
+				+ DIR_SEPARATOR + Constants.MODEL_FOLDER 
+				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(modelName, modelId) 
 				+ DIR_SEPARATOR + "app_root" 
 				+ DIR_SEPARATOR + "version";
 
@@ -285,10 +277,10 @@ public class DatabaseResource {
 			}
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-			if(databaseName != null) {
-				TextToGraphic.makeImage(databaseName, fileLocation);
+			if(modelName != null) {
+				TextToGraphic.makeImage(modelName, fileLocation);
 			} else {
-				TextToGraphic.makeImage(databaseId, fileLocation);
+				TextToGraphic.makeImage(modelId, fileLocation);
 			}
 			f = new File(fileLocation);
 			return f;
