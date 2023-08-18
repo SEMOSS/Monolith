@@ -168,7 +168,7 @@ public class DatabaseResource {
 		}
 		
 		// push to cloud
-		ClusterUtil.reactorPushDatabaseSmss(databaseId);
+		ClusterUtil.pushDatabaseSmss(databaseId);
 		
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
