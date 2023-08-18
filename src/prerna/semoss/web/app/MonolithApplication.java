@@ -37,13 +37,15 @@ import prerna.cluster.RawSelectWrapperService;
 import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.config.ServerConfigurationResource;
 import prerna.semoss.web.services.local.AuthorizationResource;
-import prerna.semoss.web.services.local.DatabaseResource;
+import prerna.semoss.web.services.local.DatabaseEngineResource;
 import prerna.semoss.web.services.local.ExecuteInsightResource;
+import prerna.semoss.web.services.local.ModelEngineResource;
 import prerna.semoss.web.services.local.NameServer;
 import prerna.semoss.web.services.local.ProjectResource;
 import prerna.semoss.web.services.local.SchedulerResource;
 import prerna.semoss.web.services.local.SessionResource;
 import prerna.semoss.web.services.local.ShareInsightResource;
+import prerna.semoss.web.services.local.StorageEngineResource;
 import prerna.semoss.web.services.local.ThemeResource;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.semoss.web.services.local.auth.AdminDatabaseAuthorizationResource;
@@ -74,7 +76,9 @@ public class MonolithApplication extends Application {
 	   // core
       singletons.add(new UserResource());
       singletons.add(new NameServer());
-      singletons.add(new DatabaseResource());
+      singletons.add(new DatabaseEngineResource());
+      singletons.add(new StorageEngineResource());
+      singletons.add(new ModelEngineResource());
       singletons.add(new ProjectResource());
       singletons.add(new FileUploader());
       singletons.add(new ImageUploader());
