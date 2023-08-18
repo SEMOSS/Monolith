@@ -45,6 +45,10 @@ public class ImageUploader extends Uploader {
 	
 	private static final Logger logger = LogManager.getLogger(ImageUploader.class);
 
+	/*
+	 * DATABASE
+	 */
+	
 	@POST
 	@Path("/databaseImage/upload")
 	@Produces("application/json")
@@ -302,6 +306,273 @@ public class ImageUploader extends Uploader {
 		return imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
 	}
 
+	
+	/*
+	 * STORAGE
+	 */
+	
+//	@POST
+//	@Path("/databaseImage/upload")
+//	@Produces("application/json")
+//	public Response uploadDatabaseImage(@Context ServletContext context, @Context HttpServletRequest request) throws SQLException {
+//		Map<String, String> returnMap = new HashMap<>();
+//
+//		// base path is the db folder
+//		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + Constants.DATABASE_FOLDER;
+//		filePath = Utility.normalizePath(filePath);
+//		
+//		List<FileItem> fileItems = processRequest(context, request, null);
+//		// collect all of the data input on the form
+//		FileItem imageFile = null;
+//		String databaseId = null;
+//		String databaseName = null;
+//
+//		for (FileItem fi : fileItems) {
+//			String fieldName = fi.getFieldName();
+//			String value = fi.getString();
+//			if (fieldName.equals("file")) {
+//				imageFile = fi;
+//			}
+//			if (fieldName.equals("databaseId")) {
+//				databaseName = value;
+//			}
+//		}
+//
+//		if (imageFile == null) {
+//			returnMap.put(Constants.ERROR_MESSAGE, "Could not find the file to upload for the insight in the request");
+//			return WebUtility.getResponse(returnMap, 400);
+//		} else if (databaseName == null) {
+//			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper database id to upload the image");
+//			return WebUtility.getResponse(returnMap, 400);
+//		}
+//
+//		if (AbstractSecurityUtils.securityEnabled()) {
+//			HttpSession session = request.getSession(false);
+//			if (session != null) {
+//				User user = ((User) session.getAttribute(Constants.SESSION_USER));
+//				if (user == null) {
+//					HashMap<String, String> errorMap = new HashMap<>();
+//					errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
+//					return WebUtility.getResponse(errorMap, 400);
+//				}
+//
+//				if (user.isAnonymous()) {
+//					HashMap<String, String> errorMap = new HashMap<>();
+//					errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an database image");
+//					return WebUtility.getResponse(errorMap, 400);
+//				}
+//
+//				try {
+//					databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseName);
+//				} catch (Exception e) {
+//					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+//					return WebUtility.getResponse(returnMap, 400);
+//				}
+//				if (!SecurityEngineUtils.userCanEditEngine(user, databaseId)) {
+//					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
+//					return WebUtility.getResponse(returnMap, 400);
+//				}
+//				databaseName = SecurityEngineUtils.getEngineAliasForId(databaseId);
+//			} else {
+//				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+//				return WebUtility.getResponse(returnMap, 400);
+//			}
+//		} else {
+//			databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseName);
+//			databaseName = MasterDatabaseUtility.getDatabaseAliasForId(databaseId);
+//			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(databaseName, databaseId);
+//			if (!(new File(appDir).exists())) {
+//				returnMap.put(Constants.ERROR_MESSAGE, "Could not find app directory");
+//				return WebUtility.getResponse(returnMap, 400);
+//			}
+//		}
+//		
+//		if(CouchUtil.COUCH_ENABLED) {
+//			try {
+//				Map<String, String> selectors = new HashMap<>();
+//				selectors.put(CouchUtil.DATABASE, databaseId);
+//				CouchUtil.upload(CouchUtil.DATABASE, selectors, imageFile);
+//			} catch (CouchException e) {
+//				Map<String, String> errorMap = new HashMap<>();
+//				errorMap.put(Constants.ERROR_MESSAGE, "Upload of database image failed");
+//				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
+//			}
+//		} else {
+//			String imageDir = getDbImageDir(filePath, databaseId, databaseName);
+//			String imageLoc = getDbImageLoc(filePath, databaseId, databaseName, imageFile);
+//			
+//			File f = new File(imageDir);
+//			if (!f.exists()) {
+//				Boolean success = f.mkdirs();
+//				if(!success) {
+//					logger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+//				}
+//			}
+//			f = new File(Utility.normalizePath(imageLoc));
+//			// find all the existing image files
+//			// and delete them
+//			File[] oldImages = null;
+//			if (ClusterUtil.IS_CLUSTER) {
+//				FilenameFilter appIdFilter = new WildcardFileFilter(databaseId + "*");
+//				oldImages = f.getParentFile().listFiles(appIdFilter);
+//			} else {
+//				oldImages = InsightUtility.findImageFile(f.getParentFile());
+//			}
+//			// delete if any exist
+//			if (oldImages != null) {
+//				for (File oldI : oldImages) {
+//					Boolean success = oldI.delete();
+//					if (!success) {
+//						logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+//					}
+//				}
+//			}
+//			writeFile(imageFile, f);
+//			try {
+//				if (ClusterUtil.IS_CLUSTER) {
+//					ClusterUtil.pushDatabaseImageFolder();
+//				}
+//			} catch(Exception e) {
+//				Thread.currentThread().interrupt();
+//				logger.error(Constants.STACKTRACE, e);
+//			}
+//		}
+//		
+//		returnMap.put("message", "Successfully updated app image");
+//		returnMap.put("database_id", databaseId);
+//		returnMap.put("database_name", databaseName);
+//		return WebUtility.getResponse(returnMap, 200);
+//	}
+//	
+//	@POST
+//	@Path("/databaseImage/delete")
+//	public Response deleteDatabaseImage(@Context HttpServletRequest request) throws SQLException {
+//		Map<String, String> returnMap = new HashMap<>();
+//
+//		// base path is the db folder
+//		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + "db";
+//		filePath = Utility.normalizePath(filePath);
+//
+//		String appId = request.getParameter("databaseId");
+//		String appName = null;
+//		if(appId == null) {
+//			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper database id to remove the image");
+//			return WebUtility.getResponse(returnMap, 400);
+//		}
+//
+//		if (AbstractSecurityUtils.securityEnabled()) {
+//			HttpSession session = request.getSession(false);
+//			if (session != null) {
+//				User user = ((User) session.getAttribute(Constants.SESSION_USER));
+//				if (user == null) {
+//					HashMap<String, String> errorMap = new HashMap<>();
+//					errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
+//					return WebUtility.getResponse(errorMap, 400);
+//				}
+//
+//				if (user.isAnonymous()) {
+//					HashMap<String, String> errorMap = new HashMap<>();
+//					errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an database image");
+//					return WebUtility.getResponse(errorMap, 400);
+//				}
+//
+//				try {
+//					appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
+//				} catch (Exception e) {
+//					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+//					return WebUtility.getResponse(returnMap, 400);
+//				}
+//				if (!SecurityEngineUtils.userCanEditEngine(user, appId)) {
+//					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this app or the database id does not exist");
+//					return WebUtility.getResponse(returnMap, 400);
+//				}
+//				appName = SecurityEngineUtils.getEngineAliasForId(appId);
+//			} else {
+//				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+//				return WebUtility.getResponse(returnMap, 400);
+//			}
+//		} else {
+//			appId = MasterDatabaseUtility.testDatabaseIdIfAlias(appId);
+//			appName = MasterDatabaseUtility.getDatabaseAliasForId(appId);
+//			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId);
+//			if (!(new File(appDir).exists())) {
+//				returnMap.put(Constants.ERROR_MESSAGE, "Could not find app directory");
+//				return WebUtility.getResponse(returnMap, 400);
+//			}
+//		}
+//		
+//		if(CouchUtil.COUCH_ENABLED) {
+//			try {
+//				Map<String, String> selectors = new HashMap<>();
+//				selectors.put(CouchUtil.DATABASE, appId);
+//				CouchUtil.delete(CouchUtil.DATABASE, selectors);
+//			} catch (CouchException e) {
+//				Map<String, String> errorMap = new HashMap<>();
+//				errorMap.put(Constants.ERROR_MESSAGE, "Database image deletion failed");
+//				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
+//			}
+//		}
+//		
+//		String imageDir = getDbImageDir(filePath, appId, appName);
+//		File f = new File(imageDir);
+//		File[] oldImages = null;
+//		if (ClusterUtil.IS_CLUSTER) {
+//			FilenameFilter appIdFilter = new WildcardFileFilter(appId + "*");
+//			oldImages = f.listFiles(appIdFilter);
+//		} else {
+//			oldImages = InsightUtility.findImageFile(f);
+//		}
+//		// delete if any exist
+//		if (oldImages != null) {
+//			for (File oldI : oldImages) {
+//				Boolean success = oldI.delete();
+//				if (!success) {
+//					logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+//				}
+//			}
+//		}
+//		
+//		try {
+//			if (ClusterUtil.IS_CLUSTER) {
+//				ClusterUtil.pushDatabaseImageFolder();
+//			}
+//		} catch(Exception e) {
+//			Thread.currentThread().interrupt();
+//			logger.error(Constants.STACKTRACE, e);
+//		}
+//		
+//		returnMap.put("database_id", appId);
+//		returnMap.put("database_name", appName);
+//		returnMap.put("message", "Successfully deleted database image");
+//		return WebUtility.getResponse(returnMap, 200);
+//	}
+//	
+//	private String getDbImageDir(String filePath, String appId, String appName) {
+//		if(ClusterUtil.IS_CLUSTER){
+//			return ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "databases";
+//		}
+//		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+//		String versionFolder = baseFolder 
+//				+ DIR_SEPARATOR + Constants.DB_FOLDER
+//				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId)
+//				+ DIR_SEPARATOR + "app_root"
+//				+ DIR_SEPARATOR + "version";
+//		return versionFolder;
+//	}
+//
+//	private String getDbImageLoc(String filePath, String id, String name, FileItem imageFile){
+//		String imageDir = getDbImageDir(filePath, id, name);
+//		if(ClusterUtil.IS_CLUSTER){
+//			return imageDir + DIR_SEPARATOR + id + "." + imageFile.getContentType().split("/")[1];
+//		}
+//		return imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
+//	}
+
+	
+	/*
+	 * PROJECT
+	 */
+	
 	@POST
 	@Path("/projectImage/upload")
 	@Produces("application/json")
@@ -527,7 +798,25 @@ public class ImageUploader extends Uploader {
 		return WebUtility.getResponse(returnMap, 200);
 	}
 	
+	private String getProjectImageDir(String filePath, String projectId, String projectName) {
+		if(ClusterUtil.IS_CLUSTER){
+			return ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "projects";
+		}
+		return AssetUtility.getProjectVersionFolder(projectName, projectId);
+	}
 
+	private String getProjectImageLoc(String filePath, String id, String name, FileItem imageFile){
+		String imageDir = getProjectImageDir(filePath, id, name);
+		if(ClusterUtil.IS_CLUSTER){
+			return imageDir + DIR_SEPARATOR + id + "." + imageFile.getContentType().split("/")[1];
+		}
+		return imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
+	}
+	
+	/*
+	 * INSIGHT
+	 */
+	
 	@POST
 	@Path("/insightImage/upload")
 	@Produces("application/json")
@@ -772,19 +1061,4 @@ public class ImageUploader extends Uploader {
 		return WebUtility.getResponse(returnMap, 200);
 	}
 
-	private String getProjectImageDir(String filePath, String projectId, String projectName) {
-		if(ClusterUtil.IS_CLUSTER){
-			return ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "projects";
-		}
-		return AssetUtility.getProjectVersionFolder(projectName, projectId);
-	}
-
-	private String getProjectImageLoc(String filePath, String id, String name, FileItem imageFile){
-		String imageDir = getProjectImageDir(filePath, id, name);
-		if(ClusterUtil.IS_CLUSTER){
-			return imageDir + DIR_SEPARATOR + id + "." + imageFile.getContentType().split("/")[1];
-		}
-		return imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
-	}
-	
 }
