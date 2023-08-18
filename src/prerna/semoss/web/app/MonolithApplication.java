@@ -38,6 +38,7 @@ import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.config.ServerConfigurationResource;
 import prerna.semoss.web.services.local.AuthorizationResource;
 import prerna.semoss.web.services.local.DatabaseEngineResource;
+import prerna.semoss.web.services.local.EngineRouteResource;
 import prerna.semoss.web.services.local.ExecuteInsightResource;
 import prerna.semoss.web.services.local.ModelEngineResource;
 import prerna.semoss.web.services.local.NameServer;
@@ -76,6 +77,7 @@ public class MonolithApplication extends Application {
 	   // core
       singletons.add(new UserResource());
       singletons.add(new NameServer());
+      singletons.add(new EngineRouteResource());
       singletons.add(new DatabaseEngineResource());
       singletons.add(new StorageEngineResource());
       singletons.add(new ModelEngineResource());

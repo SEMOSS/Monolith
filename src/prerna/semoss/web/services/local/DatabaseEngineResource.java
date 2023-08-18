@@ -189,7 +189,7 @@ public class DatabaseEngineResource {
 	@GET
 	@Path("/appImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response downloadDatabaseImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
+	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = null;
 			try {
