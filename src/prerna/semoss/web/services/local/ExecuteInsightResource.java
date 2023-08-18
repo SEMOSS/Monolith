@@ -80,9 +80,9 @@ public class ExecuteInsightResource {
 		try {
 			newInsight = SecurityInsightUtils.getInsight(projectId, rdbmsId);
 		} catch (Exception e) {
-			ClusterUtil.reactorPullInsightsDB(projectId);
+			ClusterUtil.pullInsightsDB(projectId);
 			// this is needed for the pipeline json
-			ClusterUtil.reactorPullProjectFolder(project, AssetUtility.getProjectVersionFolder(project.getProjectName(), projectId));
+			ClusterUtil.pullProjectFolder(project, AssetUtility.getProjectVersionFolder(project.getProjectName(), projectId));
 			try {
 				List<Insight> in = project.getInsight(rdbmsId + "");
 				newInsight = in.get(0);

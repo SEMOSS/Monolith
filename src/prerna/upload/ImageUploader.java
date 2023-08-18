@@ -2,7 +2,6 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.FilenameFilter;
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +29,6 @@ import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.cluster.util.clients.AbstractCloudClient;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
@@ -166,13 +164,11 @@ public class ImageUploader extends Uploader {
 			writeFile(imageFile, f);
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					AbstractCloudClient.getClient().pushDatabaseImageFolder();
+					ClusterUtil.pushDatabaseImageFolder();
 				}
-			} catch (IOException ioe) {
-				logger.error(Constants.STACKTRACE, ioe);
-			} catch (InterruptedException ie) {
+			} catch(Exception e) {
 				Thread.currentThread().interrupt();
-				logger.error(Constants.STACKTRACE, ie);
+				logger.error(Constants.STACKTRACE, e);
 			}
 		}
 		
@@ -272,13 +268,11 @@ public class ImageUploader extends Uploader {
 		
 		try {
 			if (ClusterUtil.IS_CLUSTER) {
-				AbstractCloudClient.getClient().pushDatabaseImageFolder();
+				ClusterUtil.pushDatabaseImageFolder();
 			}
-		} catch (IOException ioe) {
-			logger.error(Constants.STACKTRACE, ioe);
-		} catch (InterruptedException ie) {
+		} catch(Exception e) {
 			Thread.currentThread().interrupt();
-			logger.error(Constants.STACKTRACE, ie);
+			logger.error(Constants.STACKTRACE, e);
 		}
 		
 		returnMap.put("database_id", appId);
@@ -419,15 +413,14 @@ public class ImageUploader extends Uploader {
 				}
 			}
 			writeFile(imageFile, f);
+
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					AbstractCloudClient.getClient().pushProjectImageFolder();
+					ClusterUtil.pushProjectImageFolder();
 				}
-			} catch (IOException ioe) {
-				logger.error(Constants.STACKTRACE, ioe);
-			} catch (InterruptedException ie) {
+			} catch(Exception e) {
 				Thread.currentThread().interrupt();
-				logger.error(Constants.STACKTRACE, ie);
+				logger.error(Constants.STACKTRACE, e);
 			}
 		}
 		
@@ -518,15 +511,14 @@ public class ImageUploader extends Uploader {
 				}
 			}
 		}
+		
 		try {
 			if (ClusterUtil.IS_CLUSTER) {
-				AbstractCloudClient.getClient().pushProjectImageFolder();
+				ClusterUtil.pushProjectImageFolder();
 			}
-		} catch (IOException ioe) {
-			logger.error(Constants.STACKTRACE, ioe);
-		} catch (InterruptedException ie) {
+		} catch(Exception e) {
 			Thread.currentThread().interrupt();
-			logger.error(Constants.STACKTRACE, ie);
+			logger.error(Constants.STACKTRACE, e);
 		}
 		
 		returnMap.put("project_id", projectId);
@@ -653,14 +645,13 @@ public class ImageUploader extends Uploader {
 			String imageLoc = imageDir + DIR_SEPARATOR + imageFileName;
 			f = new File(Utility.normalizePath(imageLoc));
 			writeFile(imageFile, f);
+			
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					AbstractCloudClient.getClient().pushInsightImage(projectId, insightId, oldImageName, imageFileName);
+					ClusterUtil.pushInsightImage(projectId, insightId, oldImageName, imageFileName);
 				}
-			} catch (InterruptedException ie) {
+			} catch(Exception e) {
 				Thread.currentThread().interrupt();
-				logger.error(Constants.STACKTRACE, ie);
-			} catch (Exception e) {
 				logger.error(Constants.STACKTRACE, e);
 			}
 		}
@@ -763,12 +754,10 @@ public class ImageUploader extends Uploader {
 			
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					AbstractCloudClient.getClient().pushInsightImage(projectId, insightId, oldImageName, null);
+					ClusterUtil.pushInsightImage(projectId, insightId, oldImageName, null);
 				}
-			} catch (InterruptedException ie) {
+			} catch(Exception e) {
 				Thread.currentThread().interrupt();
-				logger.error(Constants.STACKTRACE, ie);
-			} catch (Exception e) {
 				logger.error(Constants.STACKTRACE, e);
 			}
 		} else {
