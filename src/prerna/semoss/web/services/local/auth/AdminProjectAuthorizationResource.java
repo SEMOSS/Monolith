@@ -799,7 +799,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			}
 			
 			// push to cloud
-			ClusterUtil.reactorPushProjectSmss(projectId);
+			ClusterUtil.pushProjectSmss(projectId);
 		} catch(Exception e) {
 			//ignore
 		}
