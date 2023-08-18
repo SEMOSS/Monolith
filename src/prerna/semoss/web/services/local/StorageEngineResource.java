@@ -183,7 +183,7 @@ public class StorageEngineResource {
 	@GET
 	@Path("/storageImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response downloadStorageImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("storageId") String storageId) {
+	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("storageId") String storageId) {
 		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = null;
 			try {
