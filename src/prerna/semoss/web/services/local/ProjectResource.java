@@ -195,7 +195,7 @@ public class ProjectResource {
 		}
 		
 		// push to cloud
-		ClusterUtil.reactorPushProjectSmss(projectId);
+		ClusterUtil.pushProjectSmss(projectId);
 		
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
