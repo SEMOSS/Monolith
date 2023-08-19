@@ -40,6 +40,7 @@ import prerna.semoss.web.services.local.AuthorizationResource;
 import prerna.semoss.web.services.local.DatabaseEngineResource;
 import prerna.semoss.web.services.local.EngineRouteResource;
 import prerna.semoss.web.services.local.ExecuteInsightResource;
+import prerna.semoss.web.services.local.LegacyAppResource;
 import prerna.semoss.web.services.local.ModelEngineResource;
 import prerna.semoss.web.services.local.NameServer;
 import prerna.semoss.web.services.local.ProjectResource;
@@ -78,6 +79,7 @@ public class MonolithApplication extends Application {
       singletons.add(new UserResource());
       singletons.add(new NameServer());
       singletons.add(new EngineRouteResource());
+      singletons.add(new LegacyAppResource());
       singletons.add(new DatabaseEngineResource());
       singletons.add(new StorageEngineResource());
       singletons.add(new ModelEngineResource());
