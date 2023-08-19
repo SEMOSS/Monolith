@@ -70,6 +70,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Path("/getAllUserApps")
 	@Produces("application/json")
 	public Response getAllUserApps(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getAllUserEngines");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getAllUserEngines");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getAllUserEngines");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getAllUserEngines");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String userId = form.getFirst("userId");
@@ -91,6 +96,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Path("/grantAllApps")
 	@Produces("application/json")
 	public Response grantAllApps(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantAllEngines WITH PARAM engineTypes");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantAllEngines WITH PARAM engineTypes");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantAllEngines WITH PARAM engineTypes");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantAllEngines WITH PARAM engineTypes");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String userId = form.getFirst("userId");
@@ -131,6 +141,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Path("/grantNewUsersAppAccess")
 	@Produces("application/json")
 	public Response grantNewUsersAppAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantNewUsersEngineAccess");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantNewUsersEngineAccess");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantNewUsersEngineAccess");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantNewUsersEngineAccess");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String permission = form.getFirst("permission");
@@ -174,6 +189,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("getAppUsers")
 	public Response getAppUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -200,6 +220,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("addAppUserPermission")
 	public Response addAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addEngineUserPermission with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addEngineUserPermission with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addEngineUserPermission with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addEngineUserPermission with PARAM engineId");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String newUserId = form.getFirst("id");
@@ -243,6 +268,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("addAllUsers")
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addAllUsers with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addAllUsers with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addAllUsers with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addAllUsers with PARAM engineId");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String appId = form.getFirst("appId");
@@ -286,6 +316,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("editAppUserPermission")
 	public Response editAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/editEngineUserPermission with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/editEngineUserPermission with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/editEngineUserPermission with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/editEngineUserPermission with PARAM engineId");
+		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 
@@ -331,6 +366,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("updateAppUserPermissions")
 	public Response updateAppUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/updateEngineUserPermissions with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/updateEngineUserPermissions with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/updateEngineUserPermissions with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/updateEngineUserPermissions with PARAM engineId");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String appId = form.getFirst("appId");
@@ -373,6 +413,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("removeAppUserPermission")
 	public Response removeAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/removeEngineUserPermission with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/removeEngineUserPermission with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/removeEngineUserPermission with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/removeEngineUserPermission with PARAM engineId");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
@@ -411,6 +456,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("setAppGlobal")
 	public Response setAppGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineGlobal with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineGlobal with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineGlobal with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineGlobal with PARAM engineId");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
@@ -456,6 +506,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("setAppDiscoverable")
 	public Response setAppDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineDiscoverable with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineDiscoverable with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineDiscoverable with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineDiscoverable with PARAM engineId");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
@@ -501,6 +556,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("getAppUsersNoCredentials")
 	public Response getAppUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
