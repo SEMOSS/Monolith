@@ -48,12 +48,14 @@ import prerna.util.Utility;
 import prerna.util.insight.TextToGraphic;
 import prerna.web.services.util.WebUtility;
 
-@Path("/database-{databaseId}")
-public class DatabaseEngineResource {
+@Path("/app-{databaseId}")
+@Deprecated
+// replaced by DatabaseResource
+public class LegacyAppResource {
 
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	
-	private static final Logger logger = LogManager.getLogger(DatabaseEngineResource.class);
+	private static final Logger logger = LogManager.getLogger(LegacyAppResource.class);
 	
 	private boolean canViewDatabase(User user, String databaseId) throws IllegalAccessException {
 		if(AbstractSecurityUtils.securityEnabled()) {
@@ -82,6 +84,11 @@ public class DatabaseEngineResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
+		
 		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = null;
 			try {
@@ -190,6 +197,11 @@ public class DatabaseEngineResource {
 	@Path("/appImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
+
 		if(AbstractSecurityUtils.securityEnabled()) {
 			User user = null;
 			try {
