@@ -44,6 +44,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("getApps")
 	public Response getUserApps(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngines WITH PARAM engineTypes");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngines WITH PARAM engineTypes");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngines WITH PARAM engineTypes");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngines WITH PARAM engineTypes");
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
