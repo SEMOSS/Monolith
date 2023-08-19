@@ -59,6 +59,11 @@ public class DatabaseAuthorizationResource {
 //			@QueryParam("metaFilters") Map<String, Object> metaFilters,
 			@QueryParam("noMeta") Boolean noMeta
 			) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -134,6 +139,11 @@ public class DatabaseAuthorizationResource {
 	@Produces("application/json")
 	@Path("getUserAppPermission")
 	public Response getUserAppPermission(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission");
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -167,6 +177,11 @@ public class DatabaseAuthorizationResource {
 	@Produces("application/json")
 	@Path("getAppUsers")
 	public Response getAppUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers");
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -202,6 +217,11 @@ public class DatabaseAuthorizationResource {
 	@Produces("application/json")
 	@Path("addAppUserPermission")
 	public Response addAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission");
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -252,6 +272,11 @@ public class DatabaseAuthorizationResource {
 	@Produces("application/json")
 	@Path("editAppUserPermission")
 	public Response editAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/editEngineUserPermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/editEngineUserPermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/editEngineUserPermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/editEngineUserPermission");
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -307,6 +332,11 @@ public class DatabaseAuthorizationResource {
 	@Produces("application/json")
 	@Path("removeAppUserPermission")
 	public Response removeAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/removeEngineUserPermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/removeEngineUserPermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/removeEngineUserPermission");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/removeEngineUserPermission");
+		
 		System.out.println("database auth resource... ");
 		User user = null;
 		try {
@@ -361,6 +391,11 @@ public class DatabaseAuthorizationResource {
 	@Produces("application/json")
 	@Path("setAppGlobal")
 	public Response setAppGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineGlobal");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineGlobal");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineGlobal");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineGlobal");
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -417,6 +452,11 @@ public class DatabaseAuthorizationResource {
 	@Produces("application/json")
 	@Path("setAppDiscoverable")
 	public Response setAppDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineDiscoverable");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineDiscoverable");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineDiscoverable");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineDiscoverable");
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -472,6 +512,11 @@ public class DatabaseAuthorizationResource {
 	@Produces("application/json")
 	@Path("setAppVisibility")
 	public Response setAppVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineVisibility");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineVisibility");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineVisibility");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineVisibility");
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -518,6 +563,11 @@ public class DatabaseAuthorizationResource {
 	@Produces("application/json")
 	@Path("setAppFavorite")
 	public Response setAppFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineFavorite");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineFavorite");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineFavorite");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineFavorite");
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -564,6 +614,11 @@ public class DatabaseAuthorizationResource {
 	@Produces("application/json")
 	@Path("getAppUsersNoCredentials")
 	public Response getAppUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials");
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
