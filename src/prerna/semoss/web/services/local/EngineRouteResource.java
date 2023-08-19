@@ -14,39 +14,15 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
-import prerna.auth.utils.SecurityQueryUtils;
 import prerna.engine.api.IDatabase;
-import prerna.engine.api.IEngine;
 import prerna.engine.api.IModelEngine;
 import prerna.engine.api.IStorage;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/e-{engineId}")
 public class EngineRouteResource {
 
-	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
-	private static final Logger logger = LogManager.getLogger(EngineRouteResource.class);
-	
-	private boolean canViewEngine(User user, String engineId) throws IllegalAccessException {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
-			if(!SecurityEngineUtils.userCanViewEngine(user, engineId)
-					&& !SecurityEngineUtils.engineIsDiscoverable(engineId)) {
-				throw new IllegalAccessException("Engine " + engineId + " does not exist or user does not have access to the engine");
-			}
-		}
-		
-		return true;
-	}
-	
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -57,36 +33,24 @@ public class EngineRouteResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			User user = null;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			try {
-				boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-				if(!isAdmin) {
-					boolean isOwner = SecurityEngineUtils.userIsOwner(user, engineId);
-					if(!isOwner) {
-						throw new IllegalAccessException("Engine " + engineId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
-					}
-				}
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		// the called resource class does the security checks
+
+		String catalogType = null;
+		Object[] typeAndSubtype = null;
+		try {
+			typeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
+			catalogType = (String) typeAndSubtype[0];
+		} catch(Exception e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "Unknown engine with id " + engineId);
+			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		IEngine engine = Utility.getEngine(engineId);
-		if(engine.getCatalogType().equals(IDatabase.CATALOG_TYPE)) {
+		if(IDatabase.CATALOG_TYPE.equals(catalogType)) {
 			return new DatabaseEngineResource().updateSmssFile(request, engineId);
-		} else if(engine.getCatalogType().equals(IStorage.CATALOG_TYPE)) {
+		} else if(IStorage.CATALOG_TYPE.equals(catalogType)) {
 			return new StorageEngineResource().updateSmssFile(request, engineId);
-		} else if(engine.getCatalogType().equals(IModelEngine.CATALOG_TYPE)) {
+		} else if(IModelEngine.CATALOG_TYPE.equals(catalogType)) {
 			return new ModelEngineResource().updateSmssFile(request, engineId);
 		}
 		
@@ -110,30 +74,24 @@ public class EngineRouteResource {
 	@Path("/image/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("engineId") String engineId) {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			User user = null;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			try {
-				canViewEngine(user, engineId);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		// the called resource class does the security checks
+
+		String catalogType = null;
+		Object[] typeAndSubtype = null;
+		try {
+			typeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
+			catalogType = (String) typeAndSubtype[0];
+		} catch(Exception e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "Unknown engine with id " + engineId);
+			return WebUtility.getResponse(errorMap, 400);
 		}
-		
-		IEngine engine = Utility.getEngine(engineId);
-		if(engine.getCatalogType().equals(IDatabase.CATALOG_TYPE)) {
+
+		if(IDatabase.CATALOG_TYPE.equals(catalogType)) {
 			return new DatabaseEngineResource().imageDownload(coreRequest, request, engineId);
-		} else if(engine.getCatalogType().equals(IStorage.CATALOG_TYPE)) {
+		} else if(IStorage.CATALOG_TYPE.equals(catalogType)) {
 			return new StorageEngineResource().imageDownload(coreRequest, request, engineId);
-		} else if(engine.getCatalogType().equals(IModelEngine.CATALOG_TYPE)) {
+		} else if(IModelEngine.CATALOG_TYPE.equals(catalogType)) {
 			return new ModelEngineResource().imageDownload(coreRequest, request, engineId);
 		}
 		
