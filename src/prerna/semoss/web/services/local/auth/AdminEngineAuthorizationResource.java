@@ -69,6 +69,10 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String userId = form.getFirst("userId");
+		List<String> engineTypes = null;
+		if(form.getFirst("engineTypes") != null) {
+			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
+		}
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -80,7 +84,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		return WebUtility.getResponse(adminUtils.getAllUserEngines(userId), 200);
+		return WebUtility.getResponse(adminUtils.getAllUserEngines(userId, engineTypes), 200);
 	}
 	
 	@POST
