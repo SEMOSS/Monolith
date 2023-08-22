@@ -136,7 +136,7 @@ public class ModelEngineResource {
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(unconcealedNewSmssContent);
 			}
-			engine.loadModel(currentSmssFileLocation);
+			engine.open(currentSmssFileLocation);
 		} catch(Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			// reset the values
@@ -149,7 +149,7 @@ public class ModelEngineResource {
 			currentSmssFile.delete();
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(currentSmssContent);
-				engine.loadModel(currentSmssFileLocation);
+				engine.open(currentSmssFileLocation);
 			} catch(Exception e2) {
 				logger.error(Constants.STACKTRACE, e2);
 				Map<String, String> errorMap = new HashMap<>();
