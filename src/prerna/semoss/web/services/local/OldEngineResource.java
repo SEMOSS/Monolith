@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -155,7 +156,11 @@ public class OldEngineResource {
 			logger.error(Constants.STACKTRACE,e);
 		} finally {
 			if(wrapper != null) {
-				wrapper.cleanUp();
+				try {
+					wrapper.close();
+				} catch (IOException e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
 			}
 		}
 		
