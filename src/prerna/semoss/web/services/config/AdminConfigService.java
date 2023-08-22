@@ -62,9 +62,16 @@ public class AdminConfigService {
 			}
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error occurred attempting to determine if the initial admin is set. Please check the system logs for assistance");
+			return WebUtility.getResponse(errorMap, 400);
 		} finally {
 			if (wrapper != null) {
-				wrapper.cleanUp();
+				try {
+					wrapper.close();
+				} catch(IOException e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
 			}
 		}
 		
