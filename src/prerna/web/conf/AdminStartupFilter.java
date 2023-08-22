@@ -15,7 +15,7 @@ import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
 
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.engine.api.IDatabase;
+import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
@@ -29,7 +29,7 @@ public class AdminStartupFilter implements Filter {
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		if (AbstractSecurityUtils.securityEnabled()) {
-			IDatabase engine = Utility.getDatabase(Constants.SECURITY_DB);
+			IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
 			String q = "SELECT * FROM SMSS_USER LIMIT 1";
 			IRawSelectWrapper wrapper = null;
 			try {
