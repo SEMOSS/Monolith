@@ -105,7 +105,7 @@ public class FormResource {
 			// commit to engine
 			formEngine.commit();
 		} catch (Exception e) {
-			logger.error("Stacktrace: " , e);
+			logger.error(Constants.STACKTRACE, e);
 			return WebUtility.getResponse("An error occurred to update the user's access!", 400);
 		}
 
@@ -216,10 +216,14 @@ public class FormResource {
 				userAccessableInstances.put(values[0].toString(), values[1].toString());
 			}
 		} catch (Exception e) {
-			logger.error("Stacktrace: " , e);
-			} finally {
+			logger.error(Constants.STACKTRACE, e);
+		} finally {
 			if(wrapper != null) {
-				wrapper.cleanUp();
+				try {
+					wrapper.close();
+				} catch (IOException e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
 			}
 		}
 
@@ -279,10 +283,14 @@ public class FormResource {
 				throw new IllegalAccessException("User is not an admin and cannot perform this operation");
 			}
 		} catch (Exception e) {
-			logger.error("Stacktrace: " , e);
+			logger.error(Constants.STACKTRACE, e);
 		} finally {
 			if(wrapper != null) {
-				wrapper.cleanUp();
+				try {
+					wrapper.close();
+				} catch (IOException e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
 			}
 		}
 	}
@@ -306,10 +314,14 @@ public class FormResource {
 				throw new IllegalAccessException("User is not an admin and cannot perform this operation");
 			}
 		} catch (Exception e) {
-			logger.error("Stacktrace: " , e);
+			logger.error(Constants.STACKTRACE, e);
 		} finally {
 			if(wrapper != null) {
-				wrapper.cleanUp();
+				try {
+					wrapper.close();
+				} catch (IOException e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
 			}
 		}
 	}
