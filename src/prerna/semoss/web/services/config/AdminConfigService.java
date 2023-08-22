@@ -21,7 +21,7 @@ import org.owasp.encoder.Encode;
 import com.google.gson.Gson;
 
 import prerna.auth.utils.SecurityUpdateUtils;
-import prerna.engine.api.IDatabase;
+import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.query.querystruct.SelectQueryStruct;
 import prerna.query.querystruct.selectors.QueryColumnSelector;
@@ -45,7 +45,7 @@ public class AdminConfigService {
 			MultivaluedMap<String, String> form) throws IOException {
 		HttpSession session = request.getSession(false);
 
-		IDatabase engine = Utility.getDatabase(Constants.SECURITY_DB);
+		IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
 		SelectQueryStruct qs = new SelectQueryStruct();
 		qs.addSelector(new QueryColumnSelector("SMSS_USER__ID"));
 		qs.setLimit(1);

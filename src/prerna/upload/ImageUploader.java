@@ -29,10 +29,16 @@ import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
+import prerna.engine.api.IDatabaseEngine;
+import prerna.engine.api.IModelEngine;
+import prerna.engine.api.IStorageEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
 import prerna.nameserver.utility.MasterDatabaseUtility;
+import prerna.semoss.web.services.local.DatabaseEngineResource;
+import prerna.semoss.web.services.local.ModelEngineResource;
+import prerna.semoss.web.services.local.StorageEngineResource;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -46,8 +52,300 @@ public class ImageUploader extends Uploader {
 	private static final Logger logger = LogManager.getLogger(ImageUploader.class);
 
 	/*
-	 * DATABASE
+	 * ENGINE
 	 */
+	
+//	@POST
+//	@Path("/engine/upload")
+//	@Produces("application/json")
+//	public Response uploadEngineImage(@Context ServletContext context, @Context HttpServletRequest request) throws SQLException {
+//		Map<String, String> returnMap = new HashMap<>();
+//
+//		List<FileItem> fileItems = processRequest(context, request, null);
+//		// collect all of the data input on the form
+//		FileItem imageFile = null;
+//		String engineId = null;
+//		
+//		for (FileItem fi : fileItems) {
+//			String fieldName = fi.getFieldName();
+//			String value = fi.getString();
+//			if (fieldName.equals("file")) {
+//				imageFile = fi;
+//			}
+//			if (fieldName.equals("engineId")) {
+//				engineId = value;
+//			}
+//		}
+//
+//		if (imageFile == null) {
+//			returnMap.put(Constants.ERROR_MESSAGE, "Could not find the file to upload for the insight in the request");
+//			return WebUtility.getResponse(returnMap, 400);
+//		} else if (engineId == null) {
+//			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to upload the image");
+//			return WebUtility.getResponse(returnMap, 400);
+//		}
+//
+//		if (AbstractSecurityUtils.securityEnabled()) {
+//			HttpSession session = request.getSession(false);
+//			if (session != null) {
+//				User user = ((User) session.getAttribute(Constants.SESSION_USER));
+//				if (user == null) {
+//					HashMap<String, String> errorMap = new HashMap<>();
+//					errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
+//					return WebUtility.getResponse(errorMap, 400);
+//				}
+//
+//				if (user.isAnonymous()) {
+//					HashMap<String, String> errorMap = new HashMap<>();
+//					errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
+//					return WebUtility.getResponse(errorMap, 400);
+//				}
+//
+//				if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
+//					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
+//					return WebUtility.getResponse(returnMap, 400);
+//				}
+//			} else {
+//				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+//				return WebUtility.getResponse(returnMap, 400);
+//			}
+//		}
+//		String engineName = SecurityEngineUtils.getEngineAliasForId(engineId);
+//		String engineNameAndId = SmssUtilities.getUniqueName(engineName, engineId);
+//		
+//		Object[] engineTypeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
+//		String engineType = (String) engineTypeAndSubtype[0];
+//		
+//		// base path is the db folder
+//		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER).replace("\\", "/");
+//		if(baseFolder.endsWith("/")) {
+//			baseFolder += "/";
+//		}
+//		
+//		// will define these here, so i dont have to keep doing if statments
+//		String couchSelector = null;
+//		String cloudImageFolderName = baseFolder + "images/";
+//		String engineVersionPath = baseFolder;
+//		
+//		if(IDatabase.CATALOG_TYPE.equals(engineType)) {
+//			engineVersionPath += Constants.DATABASE_FOLDER;
+//			couchSelector = CouchUtil.DATABASE;
+//			cloudImageFolderName += "databases";
+//					
+//		} else if(IStorage.CATALOG_TYPE.equals(engineType)) {
+//			engineVersionPath += Constants.STORAGE_FOLDER;
+//			couchSelector = CouchUtil.STORAGE;
+//			cloudImageFolderName += "storages";
+//
+//		} else if(IModelEngine.CATALOG_TYPE.equals(engineType)) {
+//			engineVersionPath += Constants.MODEL_FOLDER;
+//			couchSelector = CouchUtil.MODEL;
+//			cloudImageFolderName += "models";
+//
+//		} else {
+//			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
+//			return WebUtility.getResponse(returnMap, 400);
+//		}
+//		engineVersionPath += "/"+engineNameAndId+"/"+Constants.APP_ROOT_FOLDER+"/"+Constants.VERSION_FOLDER;
+//		engineVersionPath = Utility.normalizePath(engineVersionPath);
+//
+//		// i always want to fix it in the engine version folder
+//		// so that way export works as expected
+//		
+//		// if it is on cloud - also push it to the images/<eType> folder and sync that
+//		// if it is on couchdb - push to that
+//		
+//		// local changes
+//		{
+//			File engineVersionF = new File(engineVersionPath);
+//			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
+//				Boolean success = engineVersionF.mkdirs();
+//				if(!success) {
+//					logger.warn("Unable to make engine version folder at path " + engineVersionPath);
+//					returnMap.put(Constants.ERROR_MESSAGE, "Error occured attempting to make the engine version folder");
+//					return WebUtility.getResponse(returnMap, 400);
+//				}
+//			}
+//			
+//		}
+//		
+//		if(CouchUtil.COUCH_ENABLED) {
+//			try {
+//				Map<String, String> selectors = new HashMap<>();
+//				selectors.put(couchSelector, engineId);
+//				CouchUtil.upload(couchSelector, selectors, imageFile);
+//			} catch (CouchException e) {
+//				Map<String, String> errorMap = new HashMap<>();
+//				errorMap.put(Constants.ERROR_MESSAGE, "Upload of database image failed");
+//				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
+//			}
+//		} else {
+//			
+//			String imageDir = getEngineImageDir(engineVersionPath, engineType, engineId, engineName);
+//			String imageLoc = createNewImageFileLocation(engineVersionPath, engineType, engineId, engineName, imageFile);
+//			
+//			File f = new File(imageDir);
+//			if (!f.exists()) {
+//				Boolean success = f.mkdirs();
+//				if(!success) {
+//					logger.info("Unable to make direction at location: " + Utility.cleanLogString(engineType));
+//				}
+//			}
+//			f = new File(Utility.normalizePath(imageLoc));
+//			// find all the existing image files
+//			// and delete them
+//			File[] oldImages = null;
+//			if (ClusterUtil.IS_CLUSTER) {
+//				FilenameFilter appIdFilter = new WildcardFileFilter(engineId + "*");
+//				oldImages = f.getParentFile().listFiles(appIdFilter);
+//			} else {
+//				oldImages = InsightUtility.findImageFile(f.getParentFile());
+//			}
+//			// delete if any exist
+//			if (oldImages != null) {
+//				for (File oldI : oldImages) {
+//					Boolean success = oldI.delete();
+//					if (!success) {
+//						logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+//					}
+//				}
+//			}
+//			writeFile(imageFile, f);
+//			try {
+//				if (ClusterUtil.IS_CLUSTER) {
+//					ClusterUtil.pushDatabaseImageFolder();
+//				}
+//			} catch(Exception e) {
+//				Thread.currentThread().interrupt();
+//				logger.error(Constants.STACKTRACE, e);
+//			}
+//		}
+//		
+//		returnMap.put("message", "Successfully updated app image");
+//		returnMap.put("database_id", engineId);
+//		returnMap.put("database_name", engineName);
+//		return WebUtility.getResponse(returnMap, 200);
+//	}
+//	
+//	@POST
+//	@Path("/engine/delete")
+//	public Response deleteEngineImage(@Context HttpServletRequest request) throws SQLException {
+//		Map<String, String> returnMap = new HashMap<>();
+//
+//		// base path is the db folder
+//		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + "db";
+//		filePath = Utility.normalizePath(filePath);
+//
+//		String appId = request.getParameter("databaseId");
+//		String appName = null;
+//		if(appId == null) {
+//			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper database id to remove the image");
+//			return WebUtility.getResponse(returnMap, 400);
+//		}
+//
+//		if (AbstractSecurityUtils.securityEnabled()) {
+//			HttpSession session = request.getSession(false);
+//			if (session != null) {
+//				User user = ((User) session.getAttribute(Constants.SESSION_USER));
+//				if (user == null) {
+//					HashMap<String, String> errorMap = new HashMap<>();
+//					errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
+//					return WebUtility.getResponse(errorMap, 400);
+//				}
+//
+//				if (user.isAnonymous()) {
+//					HashMap<String, String> errorMap = new HashMap<>();
+//					errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an database image");
+//					return WebUtility.getResponse(errorMap, 400);
+//				}
+//
+//				try {
+//					appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
+//				} catch (Exception e) {
+//					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+//					return WebUtility.getResponse(returnMap, 400);
+//				}
+//				if (!SecurityEngineUtils.userCanEditEngine(user, appId)) {
+//					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this app or the database id does not exist");
+//					return WebUtility.getResponse(returnMap, 400);
+//				}
+//				appName = SecurityEngineUtils.getEngineAliasForId(appId);
+//			} else {
+//				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+//				return WebUtility.getResponse(returnMap, 400);
+//			}
+//		} else {
+//			appId = MasterDatabaseUtility.testDatabaseIdIfAlias(appId);
+//			appName = MasterDatabaseUtility.getDatabaseAliasForId(appId);
+//			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId);
+//			if (!(new File(appDir).exists())) {
+//				returnMap.put(Constants.ERROR_MESSAGE, "Could not find app directory");
+//				return WebUtility.getResponse(returnMap, 400);
+//			}
+//		}
+//		
+//		if(CouchUtil.COUCH_ENABLED) {
+//			try {
+//				Map<String, String> selectors = new HashMap<>();
+//				selectors.put(CouchUtil.DATABASE, appId);
+//				CouchUtil.delete(CouchUtil.DATABASE, selectors);
+//			} catch (CouchException e) {
+//				Map<String, String> errorMap = new HashMap<>();
+//				errorMap.put(Constants.ERROR_MESSAGE, "Database image deletion failed");
+//				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
+//			}
+//		}
+//		
+//		String imageDir = getEngineImageLoc(filePath, appId, appName);
+//		File f = new File(imageDir);
+//		File[] oldImages = null;
+//		if (ClusterUtil.IS_CLUSTER) {
+//			FilenameFilter appIdFilter = new WildcardFileFilter(appId + "*");
+//			oldImages = f.listFiles(appIdFilter);
+//		} else {
+//			oldImages = InsightUtility.findImageFile(f);
+//		}
+//		// delete if any exist
+//		if (oldImages != null) {
+//			for (File oldI : oldImages) {
+//				Boolean success = oldI.delete();
+//				if (!success) {
+//					logger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+//				}
+//			}
+//		}
+//		
+//		try {
+//			if (ClusterUtil.IS_CLUSTER) {
+//				ClusterUtil.pushDatabaseImageFolder();
+//			}
+//		} catch(Exception e) {
+//			Thread.currentThread().interrupt();
+//			logger.error(Constants.STACKTRACE, e);
+//		}
+//		
+//		returnMap.put("database_id", appId);
+//		returnMap.put("database_name", appName);
+//		returnMap.put("message", "Successfully deleted database image");
+//		return WebUtility.getResponse(returnMap, 200);
+//	}
+//	
+//	private String getLocalEngineImageFile(String engineVersionFilePath, FileItem imageFile) {
+//		return engineVersionFilePath + "/image." + imageFile.getContentType().split("/")[1];
+//	}
+//	
+//	/**
+//	 * 
+//	 * @param rootPath
+//	 * @param engineId
+//	 * @param imageFile
+//	 * @return
+//	 */
+//	private String getLocalCloudImageFile(String rootPath, String engineId, FileItem imageFile){
+//		return rootPath + "/" + engineId + "." + imageFile.getContentType().split("/")[1];
+//	}
+	
+	
 	
 	@POST
 	@Path("/databaseImage/upload")
