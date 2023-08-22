@@ -1,5 +1,6 @@
 package prerna.cluster;
 
+import java.io.IOException;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.TimeZone;
@@ -211,10 +212,10 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	}
 
 	@Override
-	public void cleanUp() {
+	public void close() throws IOException {
 		throw new IllegalStateException("Only overriding this method for reference.");
 	}
-
+	
 	/**
 	 * Clean up requires appId and wrapperId
 	 * @param request
@@ -241,7 +242,11 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			logger.error(Constants.STACKTRACE,e);
 		} finally {
 			if(wrapper != null) {
-				wrapper.cleanUp();
+				try {
+					wrapper.close();
+				} catch (IOException e) {
+					logger.error(Constants.STACKTRACE,e);
+				}
 			}
 		}
 		boolean removed = removeRawSelectWrapper(appId, wrapperId); // Also remove from active list
