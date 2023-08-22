@@ -15,9 +15,9 @@ import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 
 import prerna.auth.utils.SecurityEngineUtils;
-import prerna.engine.api.IDatabase;
+import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IModelEngine;
-import prerna.engine.api.IStorage;
+import prerna.engine.api.IStorageEngine;
 import prerna.web.services.util.WebUtility;
 
 @Path("/e-{engineId}")
@@ -46,9 +46,9 @@ public class EngineRouteResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		if(IDatabase.CATALOG_TYPE.equals(catalogType)) {
+		if(IDatabaseEngine.CATALOG_TYPE.equals(catalogType)) {
 			return new DatabaseEngineResource().updateSmssFile(request, engineId);
-		} else if(IStorage.CATALOG_TYPE.equals(catalogType)) {
+		} else if(IStorageEngine.CATALOG_TYPE.equals(catalogType)) {
 			return new StorageEngineResource().updateSmssFile(request, engineId);
 		} else if(IModelEngine.CATALOG_TYPE.equals(catalogType)) {
 			return new ModelEngineResource().updateSmssFile(request, engineId);
@@ -87,9 +87,9 @@ public class EngineRouteResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		if(IDatabase.CATALOG_TYPE.equals(catalogType)) {
+		if(IDatabaseEngine.CATALOG_TYPE.equals(catalogType)) {
 			return new DatabaseEngineResource().imageDownload(coreRequest, request, engineId);
-		} else if(IStorage.CATALOG_TYPE.equals(catalogType)) {
+		} else if(IStorageEngine.CATALOG_TYPE.equals(catalogType)) {
 			return new StorageEngineResource().imageDownload(coreRequest, request, engineId);
 		} else if(IModelEngine.CATALOG_TYPE.equals(catalogType)) {
 			return new ModelEngineResource().imageDownload(coreRequest, request, engineId);
