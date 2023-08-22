@@ -80,7 +80,7 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.engine.api.IDatabase;
+import prerna.engine.api.IDatabaseEngine;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -891,7 +891,7 @@ public class NameServer {
 			}
 		}
 
-		IDatabase engine = Utility.getDatabase(engineId);
+		IDatabaseEngine engine = Utility.getDatabase(engineId);
 		OldEngineResource res = new OldEngineResource();
 		res.setEngine(engine);
 		return res;
@@ -903,7 +903,7 @@ public class NameServer {
 		// this needs to return stuff
 		logger.debug(" Getting DB... " + db);
 		HttpSession session = request.getSession();
-		IDatabase engine = (IDatabase) session.getAttribute(db);
+		IDatabaseEngine engine = (IDatabaseEngine) session.getAttribute(db);
 		EngineRemoteResource res = new EngineRemoteResource();
 		res.setEngine(engine);
 		return res;

@@ -16,7 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.algorithm.api.SemossDataType;
-import prerna.engine.api.IDatabase;
+import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IHeadersDataRow;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -74,7 +74,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		if (activeWrappers.containsKey(wrapperKey)) {
 			return activeWrappers.get(wrapperKey);
 		} else {
-			IDatabase engine = getEngine(appId);
+			IDatabaseEngine engine = getEngine(appId);
 			IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, query);
 			activeWrappers.put(wrapperKey, wrapper);
 			return wrapper;
@@ -102,8 +102,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	//////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////// Util methods /////////////////////////////////////////
 
-	private IDatabase getEngine(String appId) {
-		IDatabase engine = null;
+	private IDatabaseEngine getEngine(String appId) {
+		IDatabaseEngine engine = null;
 //		if (appId.endsWith("_InsightsRDBMS")) {
 //			String parentAppId = appId.replace("_InsightsRDBMS", "");
 //			IDatabase parentEngine = Utility.getDatabase(parentAppId);
@@ -257,12 +257,12 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	}
 
 	@Override
-	public void setEngine(IDatabase engine) {
+	public void setEngine(IDatabaseEngine engine) {
 		throw new IllegalStateException("Only overriding this method for reference.");			
 	}
 
 	@Override
-	public IDatabase getEngine() {
+	public IDatabaseEngine getEngine() {
 		throw new IllegalStateException("Only overriding this method for reference.");			
 	}
 
@@ -284,7 +284,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		IRawSelectWrapper wrapper;
 		try {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
-			IDatabase engine = getEngine(appId);
+			IDatabaseEngine engine = getEngine(appId);
 			wrapper.setEngine(engine);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE,e);
