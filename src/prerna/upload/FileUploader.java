@@ -34,6 +34,7 @@ import net.snowflake.client.jdbc.internal.apache.tika.mime.MimeTypes;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
@@ -197,7 +198,8 @@ public class FileUploader extends Uploader {
 	public Response baseUpload(@Context ServletContext context, @Context HttpServletRequest request, 
 			@QueryParam("insightId") String insightId,
 			@QueryParam("path") String relativePath, 
-			@QueryParam("projectId") String projectId) {
+			@QueryParam("projectId") String projectId,
+			@QueryParam("engineId") String engineId) {
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
 			HashMap<String, String> errorMap = new HashMap<String, String>();
@@ -244,13 +246,21 @@ public class FileUploader extends Uploader {
 					return WebUtility.getResponse(errorMap, 400);
 				}
 			}
+			
+			if(engineId != null) {
+				if (!SecurityEngineUtils.userCanEditEngine(in.getUser(), engineId)) {
+					HashMap<String, String> errorMap = new HashMap<String, String>();
+					errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission for this engine.");
+					return WebUtility.getResponse(errorMap, 400);
+				}
+			}
 		}
 		
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
 			List<FileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
-			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, projectId, user);
+			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, projectId, engineId, user);
 			// clear the thread store
 			return WebUtility.getResponse(inputData, 200);
 		} catch(VirusScanningException e) {
@@ -274,11 +284,13 @@ public class FileUploader extends Uploader {
 	 * @param in
 	 * @param relativePath
 	 * @param projectId
+	 * @param engineId
+	 * @param user
 	 * @return
-	 * @throws IOException 
-	 * @throws VirusScanningException 
+	 * @throws VirusScanningException
+	 * @throws IOException
 	 */
-	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String projectId, User user) throws VirusScanningException, IOException {
+	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath, String projectId, String engineId, User user) throws VirusScanningException, IOException {
 		// get base asset folder
 		String assetFolder = null;
 		String fePath = DIR_SEPARATOR;
@@ -286,13 +298,18 @@ public class FileUploader extends Uploader {
 			if(projectId.equals("user")) {
 				AuthProvider provider = user.getPrimaryLogin();
 				projectId = user.getAssetProjectId(provider);
-				IProject project = Utility.getUserAssetWorkspaceProject(projectId, true);
 				String projectName = "Asset";
 				assetFolder = AssetUtility.getUserAssetAndWorkspaceBaseFolder(projectName, projectId);
 			} else {
 				IProject project = Utility.getProject(projectId);
 				assetFolder = AssetUtility.getProjectBaseFolder(project.getProjectName(), projectId);
 			}
+		} else if (engineId != null) {
+			//TODO: build out
+			//TODO: build out
+			//TODO: build out
+			//TODO: build out
+
 		} else {
 			assetFolder = in.getInsightFolder();
 		}
