@@ -51,8 +51,8 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
-import prerna.engine.api.IDatabase;
-import prerna.engine.api.IDatabase.DATABASE_TYPE;
+import prerna.engine.api.IDatabaseEngine;
+import prerna.engine.api.IDatabaseEngine.DATABASE_TYPE;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.AbstractFormBuilder;
 import prerna.forms.FormBuilder;
@@ -82,9 +82,9 @@ public class OldEngineResource {
 	
 	// gets everything specific to an engine
 	// essentially this is a wrapper over the engine
-	private IDatabase coreEngine = null;
+	private IDatabaseEngine coreEngine = null;
 
-	public void setEngine(IDatabase coreEngine)
+	public void setEngine(IDatabaseEngine coreEngine)
 	{
 		logger.info("Setting core engine to " + coreEngine);
 		this.coreEngine = coreEngine;
