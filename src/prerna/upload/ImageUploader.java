@@ -36,9 +36,6 @@ import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
 import prerna.nameserver.utility.MasterDatabaseUtility;
-import prerna.semoss.web.services.local.DatabaseEngineResource;
-import prerna.semoss.web.services.local.ModelEngineResource;
-import prerna.semoss.web.services.local.StorageEngineResource;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -127,12 +124,12 @@ public class ImageUploader extends Uploader {
 //		String cloudImageFolderName = baseFolder + "images/";
 //		String engineVersionPath = baseFolder;
 //		
-//		if(IDatabase.CATALOG_TYPE.equals(engineType)) {
+//		if(IDatabaseEngine.CATALOG_TYPE.equals(engineType)) {
 //			engineVersionPath += Constants.DATABASE_FOLDER;
 //			couchSelector = CouchUtil.DATABASE;
 //			cloudImageFolderName += "databases";
 //					
-//		} else if(IStorage.CATALOG_TYPE.equals(engineType)) {
+//		} else if(IStorageEngine.CATALOG_TYPE.equals(engineType)) {
 //			engineVersionPath += Constants.STORAGE_FOLDER;
 //			couchSelector = CouchUtil.STORAGE;
 //			cloudImageFolderName += "storages";

@@ -7,10 +7,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -29,7 +26,6 @@ import javax.servlet.http.HttpSession;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
@@ -418,7 +414,11 @@ public class CACFilter implements Filter {
 				logger.error(Constants.STACKTRACE, e1);
 			} finally {
 				if(wrapper != null) {
-					wrapper.cleanUp();
+					try {
+						wrapper.close();
+					} catch (IOException e) {
+						logger.error(Constants.STACKTRACE, e);
+					}
 				}
 			}
 		}
@@ -449,7 +449,11 @@ public class CACFilter implements Filter {
 							logger.error(Constants.STACKTRACE, e);
 						} finally {
 							if(requireFormUpdateWrapper != null) {
-								requireFormUpdateWrapper.cleanUp();
+								try {
+									requireFormUpdateWrapper.close();
+								} catch(IOException e) {
+									logger.error(Constants.STACKTRACE, e);
+								}
 							}
 						}
 
@@ -466,7 +470,11 @@ public class CACFilter implements Filter {
 					logger.error(Constants.STACKTRACE, e1);
 				} finally {
 					if(wrapper != null) {
-						wrapper.cleanUp();
+						try {
+							wrapper.close();
+						} catch (IOException e) {
+							logger.error(Constants.STACKTRACE, e);
+						}
 					}
 				}
 			}
