@@ -965,7 +965,7 @@ public class NameServer {
 //				.getAttribute(Constants.ENGINES);
 //		// temporal
 //		String remoteDbKey = api + ":" + database;
-//		newEngine.openDB(null);
+//		newEngine.open(null);
 //		if (newEngine.isConnected()) {
 //			Hashtable<String, String> engineHash = new Hashtable<>();
 //			engineHash.put("name", database);

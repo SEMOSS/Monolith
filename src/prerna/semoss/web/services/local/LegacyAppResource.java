@@ -149,7 +149,7 @@ public class LegacyAppResource {
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(unconcealedNewSmssContent);
 			}
-			engine.openDB(currentSmssFileLocation);
+			engine.open(currentSmssFileLocation);
 		} catch(Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			// reset the values
@@ -162,7 +162,7 @@ public class LegacyAppResource {
 			currentSmssFile.delete();
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(currentSmssContent);
-				engine.openDB(currentSmssFileLocation);
+				engine.open(currentSmssFileLocation);
 			} catch(Exception e2) {
 				logger.error(Constants.STACKTRACE, e2);
 				Map<String, String> errorMap = new HashMap<>();
