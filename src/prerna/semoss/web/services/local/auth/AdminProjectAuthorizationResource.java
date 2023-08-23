@@ -786,7 +786,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			String projectSmss = project.getProjectSmssFilePath();
+			String projectSmss = project.getSmssFilePath();
 			Map<String, String> mods = new HashMap<>();
 			mods.put(Settings.PUBLIC_HOME_ENABLE, hasPortal+"");
 			Properties props = Utility.loadProperties(projectSmss);
