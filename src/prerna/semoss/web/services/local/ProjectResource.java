@@ -140,7 +140,7 @@ public class ProjectResource {
 		}
 		
 		IProject project = Utility.getProject(projectId);
-		String currentSmssFileLocation = project.getProjectSmssFilePath();
+		String currentSmssFileLocation = project.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -151,7 +151,7 @@ public class ProjectResource {
 		// using the current smss properties
 		// and the new file contents
 		// unconceal any hidden values that have not been altered
-		Properties currentSmssProperties = project.getProp();
+		Properties currentSmssProperties = project.getSmssProp();
 		String newSmssContent = request.getParameter("smss");
 		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent, currentSmssProperties);
 		
@@ -169,7 +169,7 @@ public class ProjectResource {
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(unconcealedNewSmssContent);
 			}
-			project.openProject(currentSmssFileLocation);
+			project.open(currentSmssFileLocation);
 		} catch(Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			// reset the values
@@ -182,7 +182,7 @@ public class ProjectResource {
 			currentSmssFile.delete();
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(currentSmssContent);
-				project.openProject(currentSmssFileLocation);
+				project.open(currentSmssFileLocation);
 			} catch(Exception e2) {
 				logger.error(Constants.STACKTRACE, e2);
 				Map<String, String> errorMap = new HashMap<>();
