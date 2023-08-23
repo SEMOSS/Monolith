@@ -15,9 +15,7 @@ import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 
 import prerna.auth.utils.SecurityEngineUtils;
-import prerna.engine.api.IDatabaseEngine;
-import prerna.engine.api.IModelEngine;
-import prerna.engine.api.IStorageEngine;
+import prerna.engine.api.IEngine;
 import prerna.web.services.util.WebUtility;
 
 @Path("/e-{engineId}")
@@ -35,22 +33,22 @@ public class EngineRouteResource {
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
 		// the called resource class does the security checks
 
-		String catalogType = null;
+		IEngine.CATALOG_TYPE catalogType = null;
 		Object[] typeAndSubtype = null;
 		try {
 			typeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
-			catalogType = (String) typeAndSubtype[0];
+			catalogType = (IEngine.CATALOG_TYPE) typeAndSubtype[0];
 		} catch(Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "Unknown engine with id " + engineId);
 			return WebUtility.getResponse(errorMap, 400);
 		}
-
-		if(IDatabaseEngine.CATALOG_TYPE.equals(catalogType)) {
+		
+		if(IEngine.CATALOG_TYPE.DATABASE == catalogType) {
 			return new DatabaseEngineResource().updateSmssFile(request, engineId);
-		} else if(IStorageEngine.CATALOG_TYPE.equals(catalogType)) {
+		} else if(IEngine.CATALOG_TYPE.STORAGE == catalogType) {
 			return new StorageEngineResource().updateSmssFile(request, engineId);
-		} else if(IModelEngine.CATALOG_TYPE.equals(catalogType)) {
+		} else if(IEngine.CATALOG_TYPE.MODEL == catalogType) {
 			return new ModelEngineResource().updateSmssFile(request, engineId);
 		}
 		
@@ -76,22 +74,22 @@ public class EngineRouteResource {
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("engineId") String engineId) {
 		// the called resource class does the security checks
 
-		String catalogType = null;
+		IEngine.CATALOG_TYPE catalogType = null;
 		Object[] typeAndSubtype = null;
 		try {
 			typeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
-			catalogType = (String) typeAndSubtype[0];
+			catalogType = (IEngine.CATALOG_TYPE) typeAndSubtype[0];
 		} catch(Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "Unknown engine with id " + engineId);
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		if(IDatabaseEngine.CATALOG_TYPE.equals(catalogType)) {
+		if(IEngine.CATALOG_TYPE.DATABASE == catalogType) {
 			return new DatabaseEngineResource().imageDownload(coreRequest, request, engineId);
-		} else if(IStorageEngine.CATALOG_TYPE.equals(catalogType)) {
+		} else if(IEngine.CATALOG_TYPE.STORAGE == catalogType) {
 			return new StorageEngineResource().imageDownload(coreRequest, request, engineId);
-		} else if(IModelEngine.CATALOG_TYPE.equals(catalogType)) {
+		} else if(IEngine.CATALOG_TYPE.MODEL == catalogType) {
 			return new ModelEngineResource().imageDownload(coreRequest, request, engineId);
 		}
 		
