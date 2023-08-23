@@ -23,7 +23,7 @@ import com.google.gson.Gson;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.engine.api.IDatabaseEngine;
+import prerna.engine.api.IEngine;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -64,7 +64,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		List<String> eTypes = new ArrayList<>();
-		eTypes.add(IDatabaseEngine.CATALOG_TYPE);
+		eTypes.add(IEngine.CATALOG_TYPE.DATABASE.toString());
 		return WebUtility.getResponse(adminUtils.getAllEngineSettings(databaseId, eTypes), 200);
 	}
 	
