@@ -76,12 +76,10 @@ import com.google.gson.Gson;
 import com.google.gson.internal.StringMap;
 
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.engine.api.IDatabaseEngine;
-import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
@@ -275,35 +273,25 @@ public class NameServer {
 		// it has a stack of messages
 		// once the job is done, the stack is also cleared
 
-		HttpSession session = null;
+		HttpSession session = request.getSession(false);
 		String sessionId = null;
 		User user = null;
 		Insight insight = null;
 		boolean dropLogging = true;
 		
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
-		// If security is enabled try to get an existing session.
-		// Otherwise get a session with the default user.
-		if (securityEnabled) {
-			session = request.getSession(false);
-			if (session != null) {
-				sessionId = session.getId();
-				user = ((User) session.getAttribute(Constants.SESSION_USER));
-			}
-
-			// how did you even get past the no user in session filter?
-			if (user == null) {
-				if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-					session.invalidate();
-				}
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-		} else {
-			session = request.getSession(true);
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
+		if (session != null) {
 			sessionId = session.getId();
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+		}
+		
+		// how did you even get past the no user in session filter?
+		if (user == null) {
+			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		// add the route if this is server deployment
@@ -411,30 +399,20 @@ public class NameServer {
 	@Path("/getPipeline")
 	@Produces("application/json;charset=utf-8")
 	public Response getPixelPipelinePlan(@Context HttpServletRequest request) {
-		HttpSession session = null;
+		HttpSession session = request.getSession(false);
 		String sessionId = null;
 		User user = null;
 		
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
-		// If security is enabled try to get an existing session.
-		// Otherwise get a session with the default user.
-		if (securityEnabled) {
-			session = request.getSession(false);
-			if (session != null) {
-				sessionId = session.getId();
-				user = ((User) session.getAttribute(Constants.SESSION_USER));
-			}
-
-			if (user == null) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				logger.debug("User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-		} else {
-			session = request.getSession(true);
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
+		if (session != null) {
 			sessionId = session.getId();
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+		}
+
+		if (user == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			logger.debug("User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		String insightId = request.getParameter("insightId");
@@ -532,17 +510,22 @@ public class NameServer {
 	@Path("runPixelAsync")
 	@Produces("application/json;charset=utf-8")
 	public Response runPixelAsync(@Context HttpServletRequest request) {
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
-		HttpSession session = null;
+		HttpSession session = request.getSession(false);
 		User user = null;
-		if (securityEnabled) {
-			session = request.getSession(false);
+		String sessionId = null;
+		
+		if (session != null) {
+			sessionId = session.getId();
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		} else {
-			session = request.getSession(true);
 		}
-		String sessionId = session.getId();
 
+		if (user == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			logger.debug("User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
 		String jobId = "";
 		Map<String, String> dataReturn = new HashMap<>();
 
@@ -865,30 +848,20 @@ public class NameServer {
 	@Path("e-{engine}")
 	public Object getLocalDatabase(@Context HttpServletRequest request, @PathParam("engine") String engineId,
 			@QueryParam("api") String api) throws IOException {
-		boolean security = AbstractSecurityUtils.securityEnabled();
-		if (security) {
-			HttpSession session = request.getSession(false);
-			if (session == null) {
-				return WebUtility.getSO("Not properly authenticated");
-			}
-			User user = (User) session.getAttribute(Constants.SESSION_USER);
-			if (user == null) {
-				return WebUtility.getSO("Not properly authenticated");
-			}
-			engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
-			if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE,
-						"Database " + engineId + " does not exist or user does not have access to database");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-		} else {
-			engineId = MasterDatabaseUtility.testDatabaseIdIfAlias(engineId);
-			if (!MasterDatabaseUtility.getAllDatabaseIds().contains(engineId)) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Database " + engineId + " does not exist");
-				return WebUtility.getResponse(errorMap, 400);
-			}
+		HttpSession session = request.getSession(false);
+		if (session == null) {
+			return WebUtility.getSO("Not properly authenticated");
+		}
+		User user = (User) session.getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			return WebUtility.getSO("Not properly authenticated");
+		}
+		engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"Database " + engineId + " does not exist or user does not have access to database");
+			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		IDatabaseEngine engine = Utility.getDatabase(engineId);
@@ -931,22 +904,17 @@ public class NameServer {
 	@Path("all")
 	@Produces("application/json")
 	public StreamingOutput printEngines(@Context HttpServletRequest request) {
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		List<Map<String, Object>> engines = null;
-		if (securityEnabled) {
-			HttpSession session = request.getSession(false);
-			if (session == null) {
-				return WebUtility.getSO("Not properly authenticated");
-			}
-			User user = (User) session.getAttribute(Constants.SESSION_USER);
-			if (user == null) {
-				return WebUtility.getSO("Not properly authenticated");
-			}
-			engines = SecurityEngineUtils.getUserEngineList(user, null, null, false, null, null, null, null, null);
-			user.setEngines(engines);
-		} else {
-			engines = SecurityEngineUtils.getAllEngineList(null, null, null, null, null, null);
+		HttpSession session = request.getSession(false);
+		if (session == null) {
+			return WebUtility.getSO("Not properly authenticated");
 		}
+		User user = (User) session.getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			return WebUtility.getSO("Not properly authenticated");
+		}
+		engines = SecurityEngineUtils.getUserEngineList(user, null, null, false, null, null, null, null, null);
+		user.setEngines(engines);
 		
 		return WebUtility.getSO(engines);
 	}
@@ -1107,15 +1075,9 @@ public class NameServer {
 	@Produces("application/json")
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String searchString,
 			@Context HttpServletRequest request) {
-		List<String> searchResults = null;
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
-		if (securityEnabled) {
-			HttpSession session = request.getSession(false);
-			User user = (User) session.getAttribute(Constants.SESSION_USER);
-			searchResults = SecurityInsightUtils.predictUserInsightSearch(user, searchString, "15", "0");
-		} else {
-			searchResults = SecurityInsightUtils.predictInsightSearch(searchString, "15", "0");
-		}
+		HttpSession session = request.getSession(false);
+		User user = (User) session.getAttribute(Constants.SESSION_USER);
+		List<String> searchResults = SecurityInsightUtils.predictUserInsightSearch(user, searchString, "15", "0");
 		return WebUtility.getSO(searchResults);
 	}
 
@@ -1165,16 +1127,10 @@ public class NameServer {
 		// If security is enabled, remove the engines in the filters that aren't
 		// accessible - if none in filters, add all accessible engines to filter
 		// list
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
-		List<Map<String, Object>> queryResults = null;
-		if (securityEnabled) {
-			// filter insights based on what the user has access to
-			HttpSession session = request.getSession(false);
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			queryResults = SecurityInsightUtils.searchUserInsights(user, appIds, searchString, false, null, null, limit, offset);
-		} else {
-			queryResults = SecurityInsightUtils.searchInsights(appIds, searchString, null, null, limit, offset);
-		}
+		// filter insights based on what the user has access to
+		HttpSession session = request.getSession(false);
+		User user = ((User) session.getAttribute(Constants.SESSION_USER));
+		List<Map<String, Object>> queryResults = SecurityInsightUtils.searchUserInsights(user, appIds, searchString, false, null, null, limit, offset);
 
 		return WebUtility.getSO(queryResults);
 	}
