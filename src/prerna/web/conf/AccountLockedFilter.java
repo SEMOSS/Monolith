@@ -17,7 +17,6 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.AccessToken;
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.util.Constants;
 import prerna.util.Utility;
 
@@ -29,28 +28,26 @@ public class AccountLockedFilter implements Filter {
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			HttpSession session = ((HttpServletRequest) arg0).getSession(false);
-			User user = null;
-			if (session != null) {
-				user = (User) session.getAttribute(Constants.SESSION_USER);
-			}
-			
-			if(user != null && !user.isAnonymous()) {
-				AccessToken token = user.getAccessToken(user.getPrimaryLogin());
-				boolean isLocked = token.isLocked();
-				if(isLocked) {
-					logger.info("User " + token.getId() + " is locked and being redirected");
-					// this will be the deployment name of the app
-					String contextPath = arg0.getServletContext().getContextPath();
-					String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
+		User user = null;
+		if (session != null) {
+			user = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+		
+		if(user != null && !user.isAnonymous()) {
+			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
+			boolean isLocked = token.isLocked();
+			if(isLocked) {
+				logger.info("User " + token.getId() + " is locked and being redirected");
+				// this will be the deployment name of the app
+				String contextPath = arg0.getServletContext().getContextPath();
+				String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 
-					// we redirect to the index.html page where we have pushed the admin page
-					String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + SET_ACCOUNT_LOCKED_HTML;
-					((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
-					return;
-				}
+				// we redirect to the index.html page where we have pushed the admin page
+				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + SET_ACCOUNT_LOCKED_HTML;
+				((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+				((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+				return;
 			}
 		}
 

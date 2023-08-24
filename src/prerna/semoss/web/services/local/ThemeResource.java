@@ -15,7 +15,6 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.theme.AbstractThemeUtils;
 import prerna.theme.AdminThemeUtils;
 import prerna.web.services.util.WebUtility;
@@ -64,14 +63,12 @@ public class ThemeResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		User user = null;
-		if(AbstractSecurityUtils.securityEnabled()) {
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
@@ -96,14 +93,12 @@ public class ThemeResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		User user = null;
-		if(AbstractSecurityUtils.securityEnabled()) {
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
@@ -136,14 +131,12 @@ public class ThemeResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		User user = null;
-		if(AbstractSecurityUtils.securityEnabled()) {
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
@@ -177,14 +170,12 @@ public class ThemeResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		User user = null;
-		if(AbstractSecurityUtils.securityEnabled()) {
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
@@ -215,14 +206,12 @@ public class ThemeResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		User user = null;
-		if(AbstractSecurityUtils.securityEnabled()) {
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
@@ -253,14 +242,12 @@ public class ThemeResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		User user = null;
-		if(AbstractSecurityUtils.securityEnabled()) {
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);

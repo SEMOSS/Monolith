@@ -53,209 +53,207 @@ public class NoUserInSessionFilter implements Filter {
 			throws IOException, ServletException {
 		ServletContext context = arg0.getServletContext();
 
-		if (AbstractSecurityUtils.securityEnabled()) {
-			// this will be the full path of the request
-			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
+		// this will be the full path of the request
+		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 
-			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
-			String contextPath = ((HttpServletRequest) arg0).getContextPath();
+		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+		String contextPath = ((HttpServletRequest) arg0).getContextPath();
 
-			if (!ResourceUtility.allowAccessWithoutLogin(fullUrl)) {
-				// due to FE being annoying
-				// we need to push a response for this one end point
-				// since security is embedded w/ normal semoss and not standalone
+		if (!ResourceUtility.allowAccessWithoutLogin(fullUrl)) {
+			// due to FE being annoying
+			// we need to push a response for this one end point
+			// since security is embedded w/ normal semoss and not standalone
 
-				HttpSession session = ((HttpServletRequest) arg0).getSession(false);
-				User user = null;
-				if (session != null) {
-					// System.out.println("Session ID >> " + session.getId());
-					user = (User) session.getAttribute(Constants.SESSION_USER);
-				}
+			HttpSession session = ((HttpServletRequest) arg0).getSession(false);
+			User user = null;
+			if (session != null) {
+				// System.out.println("Session ID >> " + session.getId());
+				user = (User) session.getAttribute(Constants.SESSION_USER);
+			}
 
-				// if no user
-				// need to make a check in terms of am I a part of trusted host scheme
-				// basically the RDF_map will have a list of IPs for trusted host who can make a
-				// call
-				// when that IP makes a call, we will transfer the session and give the user
-				// over
-				// RDF_MAP
-				// Trusted_token true // says this instance will work with trusted token
-				// Trusted_host <list of ips to accept request from>
-				// Token_Prefix this is an optional piece - I am not going to implement right
-				// now
+			// if no user
+			// need to make a check in terms of am I a part of trusted host scheme
+			// basically the RDF_map will have a list of IPs for trusted host who can make a
+			// call
+			// when that IP makes a call, we will transfer the session and give the user
+			// over
+			// RDF_MAP
+			// Trusted_token true // says this instance will work with trusted token
+			// Trusted_host <list of ips to accept request from>
+			// Token_Prefix this is an optional piece - I am not going to implement right
+			// now
 
-				if (user == null || (!AbstractSecurityUtils.anonymousUsersEnabled() && user.getLogins().isEmpty())) {
-					// do a condition here if the session id request parameter is available
-					// eventually this will be that and the tableau
-					HttpServletRequest req = (HttpServletRequest) arg0;
+			if (user == null || (!AbstractSecurityUtils.anonymousUsersEnabled() && user.getLogins().isEmpty())) {
+				// do a condition here if the session id request parameter is available
+				// eventually this will be that and the tableau
+				HttpServletRequest req = (HttpServletRequest) arg0;
 
-					if (req.getParameter(DBLoader.getSessionIdKey()) != null) {
-						String sessionId = Utility.cleanHttpResponse(req.getParameter(DBLoader.getSessionIdKey()));
-						// create the cookie add it and sent it back
-						Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
-						k.setHttpOnly(true);
-						k.setSecure(req.isSecure());
-						k.setPath(contextPath);
-						((HttpServletResponse) arg1).addCookie(k);
-						// in case there are other JSESSIONID
-						// cookies, reset the value to the correct sessionId
-						Cookie[] cookies = req.getCookies();
-						if (cookies != null) {
-							for (Cookie c : cookies) {
-								if (c.getName().equals(DBLoader.getSessionIdKey())) {
-									c.setValue(sessionId);
-									((HttpServletResponse) arg1).addCookie(c);
-								}
-							}
-						}
-
-						Set<String> routes = Collections.list(req.getParameterNames()).stream()
-								.filter(s -> s.startsWith("route")).collect(Collectors.toSet());
-						if (routes != null && !routes.isEmpty()) {
-							for (String r : routes) {
-								Cookie c = new Cookie(r, Utility.cleanHttpResponse(req.getParameter(r)));
-								c.setHttpOnly(true);
-								c.setSecure(req.isSecure());
-								c.setPath(contextPath);
+				if (req.getParameter(DBLoader.getSessionIdKey()) != null) {
+					String sessionId = Utility.cleanHttpResponse(req.getParameter(DBLoader.getSessionIdKey()));
+					// create the cookie add it and sent it back
+					Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
+					k.setHttpOnly(true);
+					k.setSecure(req.isSecure());
+					k.setPath(contextPath);
+					((HttpServletResponse) arg1).addCookie(k);
+					// in case there are other JSESSIONID
+					// cookies, reset the value to the correct sessionId
+					Cookie[] cookies = req.getCookies();
+					if (cookies != null) {
+						for (Cookie c : cookies) {
+							if (c.getName().equals(DBLoader.getSessionIdKey())) {
+								c.setValue(sessionId);
 								((HttpServletResponse) arg1).addCookie(c);
 							}
 						}
-
-						// add the hash cookie
-						String hash = req.getParameter("hash");
-						if(hash != null) {
-							Cookie h = new Cookie("HASH", Utility.cleanHttpResponse(hash));
-							h.setHttpOnly(true);
-							h.setSecure(req.isSecure());
-							h.setPath(contextPath);
-							((HttpServletResponse) arg1).addCookie(h);
-						}
-
-						// and now redirect back to the URL
-						// if get, we can do it
-						String method = req.getMethod();
-						if (method.equalsIgnoreCase("GET")) {
-							// modify the prefix if necessary
-							Map<String, String> envMap = System.getenv();
-							if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
-								fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
-							}
-
-							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
-							((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
-						} else if (method.equalsIgnoreCase("POST")) {
-							// modify the prefix if necessary
-							Map<String, String> envMap = System.getenv();
-							if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
-								fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
-							}
-
-							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-							((HttpServletResponse) arg1).setHeader("Location", fullUrl);
-						} else {
-							// don't know what i am redirecting
-							// send back an error and have the client remake the request
-							setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
-						}
-
-						return;
 					}
-					// no jsession id as a param
-					// just a normal redirect
-					else {
+
+					Set<String> routes = Collections.list(req.getParameterNames()).stream()
+							.filter(s -> s.startsWith("route")).collect(Collectors.toSet());
+					if (routes != null && !routes.isEmpty()) {
+						for (String r : routes) {
+							Cookie c = new Cookie(r, Utility.cleanHttpResponse(req.getParameter(r)));
+							c.setHttpOnly(true);
+							c.setSecure(req.isSecure());
+							c.setPath(contextPath);
+							((HttpServletResponse) arg1).addCookie(c);
+						}
+					}
+
+					// add the hash cookie
+					String hash = req.getParameter("hash");
+					if(hash != null) {
+						Cookie h = new Cookie("HASH", Utility.cleanHttpResponse(hash));
+						h.setHttpOnly(true);
+						h.setSecure(req.isSecure());
+						h.setPath(contextPath);
+						((HttpServletResponse) arg1).addCookie(h);
+					}
+
+					// and now redirect back to the URL
+					// if get, we can do it
+					String method = req.getMethod();
+					if (method.equalsIgnoreCase("GET")) {
+						// modify the prefix if necessary
+						Map<String, String> envMap = System.getenv();
+						if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
+							fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
+						}
+
+						((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+						((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
+					} else if (method.equalsIgnoreCase("POST")) {
+						// modify the prefix if necessary
+						Map<String, String> envMap = System.getenv();
+						if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
+							fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
+						}
+
+						((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
+						((HttpServletResponse) arg1).setHeader("Location", fullUrl);
+					} else {
+						// don't know what i am redirecting
+						// send back an error and have the client remake the request
+						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+					}
+
+					return;
+				}
+				// no jsession id as a param
+				// just a normal redirect
+				else {
+					setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+					return;
+				}
+			}
+
+			// is the user logging in, but was previously at a different page?
+			// this is because even if i set the redirect URL in the
+			// {@link UserResource#setMainPageRedirect(@Context HttpServletRequest request,
+			// @Context HttpServletResponse response)}
+			// is sent to the pop-up for OAuth login
+			if(session != null) {
+				String endpointRedirectUrl = Utility.cleanHttpResponse((String) session.getAttribute(Constants.ENDPOINT_REDIRECT_KEY));
+				if (endpointRedirectUrl != null && !endpointRedirectUrl.isEmpty()) {
+					((HttpServletResponse) arg1).setHeader("redirect", endpointRedirectUrl);
+					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + endpointRedirectUrl);
+					session.removeAttribute(Constants.ENDPOINT_REDIRECT_KEY);
+					return;
+				}
+			}
+
+			// so we have a user
+			// let us look at the cookies
+			// are we redirecting based on the above
+			// or it is the main session
+			String hashId = null;
+			Cookie[] cookies = ((HttpServletRequest) arg0).getCookies();
+			if (cookies != null) {
+				for (Cookie c : cookies) {
+					if (c.getName().equals("HASH")) {
+						hashId = c.getValue();
+						break;
+					}
+				}
+			}
+
+			// well, we are the shared session
+			if (hashId != null) {
+				// is this the first time we are hooking up the shared session?
+				if (!user.isShareSession(session.getId())) {
+					// tricky tricky
+					// if you have a hash id but not shared
+					// you are trying to get in when you shouldn't
+					setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+					return;
+				}
+
+				// use a wrapper otherwise
+				// POST data consumed will be destroyed
+				// when we get to the actual request method
+				MultiReadHttpServletRequest wrapper = new MultiReadHttpServletRequest(((HttpServletRequest) arg0));
+				String insightId = wrapper.getParameter("i");
+				String secret = wrapper.getParameter("s");
+
+				// not enough input
+				if (insightId == null || secret == null) {
+					setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+					return;
+				}
+
+				// we have the required input, but is it valid
+				InsightToken token = user.getInsight(insightId);
+				try {
+					MessageDigest md = MessageDigest.getInstance("SHA-256");
+					String finalData = token.getSalt() + secret;
+					byte[] digest = md.digest(finalData.getBytes());
+					StringBuffer sb = new StringBuffer();
+					for (int i = 0; i < digest.length; i++) {
+						sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
+					}
+					if (hashId == null || !hashId.equals(sb + "")) {
+						// bad input
 						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
 						return;
 					}
-				}
 
-				// is the user logging in, but was previously at a different page?
-				// this is because even if i set the redirect URL in the
-				// {@link UserResource#setMainPageRedirect(@Context HttpServletRequest request,
-				// @Context HttpServletResponse response)}
-				// is sent to the pop-up for OAuth login
-				if(session != null) {
-					String endpointRedirectUrl = Utility.cleanHttpResponse((String) session.getAttribute(Constants.ENDPOINT_REDIRECT_KEY));
-					if (endpointRedirectUrl != null && !endpointRedirectUrl.isEmpty()) {
-						((HttpServletResponse) arg1).setHeader("redirect", endpointRedirectUrl);
-						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + endpointRedirectUrl);
-						session.removeAttribute(Constants.ENDPOINT_REDIRECT_KEY);
-						return;
-					}
-				}
-
-				// so we have a user
-				// let us look at the cookies
-				// are we redirecting based on the above
-				// or it is the main session
-				String hashId = null;
-				Cookie[] cookies = ((HttpServletRequest) arg0).getCookies();
-				if (cookies != null) {
+					// this session has been ratified so remove the session and move the user
+					// forward
+					//user.removeShare(session.getId());
+					// remove the hash cookie since the user has validated this session
 					for (Cookie c : cookies) {
 						if (c.getName().equals("HASH")) {
-							hashId = c.getValue();
+							c.setMaxAge(0);
+							c.setPath(contextPath);
+							((HttpServletResponse) arg1).addCookie(c);
 							break;
 						}
 					}
-				}
 
-				// well, we are the shared session
-				if (hashId != null) {
-					// is this the first time we are hooking up the shared session?
-					if (!user.isShareSession(session.getId())) {
-						// tricky tricky
-						// if you have a hash id but not shared
-						// you are trying to get in when you shouldn't
-						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
-						return;
-					}
-
-					// use a wrapper otherwise
-					// POST data consumed will be destroyed
-					// when we get to the actual request method
-					MultiReadHttpServletRequest wrapper = new MultiReadHttpServletRequest(((HttpServletRequest) arg0));
-					String insightId = wrapper.getParameter("i");
-					String secret = wrapper.getParameter("s");
-
-					// not enough input
-					if (insightId == null || secret == null) {
-						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
-						return;
-					}
-
-					// we have the required input, but is it valid
-					InsightToken token = user.getInsight(insightId);
-					try {
-						MessageDigest md = MessageDigest.getInstance("SHA-256");
-						String finalData = token.getSalt() + secret;
-						byte[] digest = md.digest(finalData.getBytes());
-						StringBuffer sb = new StringBuffer();
-						for (int i = 0; i < digest.length; i++) {
-							sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
-						}
-						if (hashId == null || !hashId.equals(sb + "")) {
-							// bad input
-							setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
-							return;
-						}
-
-						// this session has been ratified so remove the session and move the user
-						// forward
-						//user.removeShare(session.getId());
-						// remove the hash cookie since the user has validated this session
-						for (Cookie c : cookies) {
-							if (c.getName().equals("HASH")) {
-								c.setMaxAge(0);
-								c.setPath(contextPath);
-								((HttpServletResponse) arg1).addCookie(c);
-								break;
-							}
-						}
-
-						arg2.doFilter(wrapper, arg1);
-						return;
-					} catch (NoSuchAlgorithmException e) {
-						logger.error(Constants.STACKTRACE, e);
-					}
+					arg2.doFilter(wrapper, arg1);
+					return;
+				} catch (NoSuchAlgorithmException e) {
+					logger.error(Constants.STACKTRACE, e);
 				}
 			}
 		}
