@@ -213,64 +213,57 @@ public class UserResource {
 
 		List<NewCookie> nullCookies = null;
 		if(noUser) {
-			// if there are no users and there is security
-			// redirect the user
-			// and invalidate the session
-			// session invalidation will go to UserSessionLoader
-			// which will close R and Python on the user object
-			if (AbstractSecurityUtils.securityEnabled()) {
-				logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "has logged out from all providers in the session"));
-				// well, you have logged out and we always require a login
-				// so i will redirect you by default unless you specifically say not to
-				if(!disableRedirect) {
-					response.setStatus(302);
+			logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "has logged out from all providers in the session"));
+			// well, you have logged out and we always require a login
+			// so i will redirect you by default unless you specifically say not to
+			if(!disableRedirect) {
+				response.setStatus(302);
 
-					String customUrl = DBLoader.getCustomLogoutUrl();
-					if (customUrl != null && !customUrl.isEmpty()) {
-						response.setHeader("redirect", customUrl);
-						response.sendError(302, "Need to redirect to " + customUrl);
-					} else {
-						String redirectUrl = request.getHeader("referer");
-						if (DBLoader.useLogoutPage()) {
-							String scheme = request.getScheme();
-							if (!scheme.trim().equalsIgnoreCase("https") &&
-									!scheme.trim().equalsIgnoreCase("http")) {
-								throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
-							}
-							String serverName = request.getServerName(); // hostname.com
-							int serverPort = request.getServerPort(); // 8080
-							String contextPath = request.getContextPath(); // /Monolith
-
-							redirectUrl = "";
-							redirectUrl += scheme + "://" + serverName;
-							if (serverPort != 80 && serverPort != 443) {
-								redirectUrl += ":" + serverPort;
-							}
-							redirectUrl += contextPath + "/logout/";
-							response.setHeader("redirect", redirectUrl);
-							response.sendError(302, "Need to redirect to " + redirectUrl);
-						} else {
-							redirectUrl = redirectUrl + "#!/login";
-							String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-							response.setHeader("redirect", encodedRedirectUrl);
-							response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
+				String customUrl = DBLoader.getCustomLogoutUrl();
+				if (customUrl != null && !customUrl.isEmpty()) {
+					response.setHeader("redirect", customUrl);
+					response.sendError(302, "Need to redirect to " + customUrl);
+				} else {
+					String redirectUrl = request.getHeader("referer");
+					if (DBLoader.useLogoutPage()) {
+						String scheme = request.getScheme();
+						if (!scheme.trim().equalsIgnoreCase("https") &&
+								!scheme.trim().equalsIgnoreCase("http")) {
+							throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
 						}
+						String serverName = request.getServerName(); // hostname.com
+						int serverPort = request.getServerPort(); // 8080
+						String contextPath = request.getContextPath(); // /Monolith
+
+						redirectUrl = "";
+						redirectUrl += scheme + "://" + serverName;
+						if (serverPort != 80 && serverPort != 443) {
+							redirectUrl += ":" + serverPort;
+						}
+						redirectUrl += contextPath + "/logout/";
+						response.setHeader("redirect", redirectUrl);
+						response.sendError(302, "Need to redirect to " + redirectUrl);
+					} else {
+						redirectUrl = redirectUrl + "#!/login";
+						String encodedRedirectUrl = Encode.forHtml(redirectUrl);
+						response.setHeader("redirect", encodedRedirectUrl);
+						response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
 					}
 				}
+			}
 
-				// remove the cookie from the browser
-				// for the session id
-				logger.info("Removing session token");
-				Cookie[] cookies = request.getCookies();
-				nullCookies = new ArrayList<>();
-				if (cookies != null) {
-					for (Cookie c : cookies) {
-						if (DBLoader.getSessionIdKey().equals(c.getName())) {
-							// we need to null this out
-							NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), 
-									c.getDomain(), c.getComment(), 0, c.getSecure());
-							nullCookies.add(nullC);
-						}
+			// remove the cookie from the browser
+			// for the session id
+			logger.info("Removing session token");
+			Cookie[] cookies = request.getCookies();
+			nullCookies = new ArrayList<>();
+			if (cookies != null) {
+				for (Cookie c : cookies) {
+					if (DBLoader.getSessionIdKey().equals(c.getName())) {
+						// we need to null this out
+						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), 
+								c.getDomain(), c.getComment(), 0, c.getSecure());
+						nullCookies.add(nullC);
 					}
 				}
 			}
@@ -2711,18 +2704,16 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/loginProperties/")
 	public Response loginProperties(@Context HttpServletRequest request) {
-		if (AbstractSecurityUtils.securityEnabled()) {
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			if (user == null) {
-				Map<String, String> ret = new HashMap<>();
-				ret.put(Constants.ERROR_MESSAGE, "No user defined to access properties. Please login as an admin");
-				return WebUtility.getResponse(ret, 401);
-			}
-			if (!SecurityAdminUtils.userIsAdmin(user)) {
-				Map<String, String> ret = new HashMap<>();
-				ret.put(Constants.ERROR_MESSAGE, "User is not an admin and does not have access. Please login as an admin");
-				return WebUtility.getResponse(ret, 401);
-			}
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			Map<String, String> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "No user defined to access properties. Please login as an admin");
+			return WebUtility.getResponse(ret, 401);
+		}
+		if (!SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "User is not an admin and does not have access. Please login as an admin");
+			return WebUtility.getResponse(ret, 401);
 		}
 
 		// you have access - lets send all the info
@@ -2755,15 +2746,12 @@ public class UserResource {
 	@Path("/modifyLoginProperties/{provider}")
 	public synchronized Response modifyLoginProperties(@PathParam("provider") String provider,
 			MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		if (AbstractSecurityUtils.securityEnabled()) {
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			if (user == null) {
-				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
-			}
-			if (!SecurityAdminUtils.userIsAdmin(user)) {
-				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin",
-						400);
-			}
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
+		}
+		if (!SecurityAdminUtils.userIsAdmin(user)) {
+			return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);
 		}
 
 		Gson gson = new Gson();
@@ -2785,15 +2773,12 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/modifyAllLoginProperties")
 	public synchronized Response modifyAllLoginProperties(@Context HttpServletRequest request) {
-		if (AbstractSecurityUtils.securityEnabled()) {
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			if (user == null) {
-				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
-			}
-			if (!SecurityAdminUtils.userIsAdmin(user)) {
-				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin",
-						400);
-			}
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
+		}
+		if (!SecurityAdminUtils.userIsAdmin(user)) {
+			return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);
 		}
 
 		String newSocialProperties = request.getParameter("socialProperties");
@@ -2813,15 +2798,12 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/getAllLoginProperties")
 	public synchronized Response getAllLoginProperties(@Context HttpServletRequest request) {
-		if (AbstractSecurityUtils.securityEnabled()) {
-			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-			if (user == null) {
-				return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
-			}
-			if (!SecurityAdminUtils.userIsAdmin(user)) {
-				return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin",
-						400);
-			}
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
+		}
+		if (!SecurityAdminUtils.userIsAdmin(user)) {
+			return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);
 		}
 
 		try {

@@ -16,7 +16,6 @@ import javax.servlet.http.HttpSession;
 import com.google.common.base.Strings;
 
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.project.api.IProject;
 import prerna.util.Constants;
@@ -55,19 +54,16 @@ public class PublicHomeCheckFilter implements Filter {
 			// second, if public, allow them to go - rest runPixel endpoint still have security enabled 
 			// so this is the case when we want user to go to portal and have a login page there
 			// third, if not public - you must have access
-			
-			if(AbstractSecurityUtils.securityEnabled()) {
-				if(!SecurityProjectUtils.projectIsGlobal(projectId)) {
-					if(session != null) {
-						User user = (User) session.getAttribute(Constants.SESSION_USER);
-						if(!SecurityProjectUtils.userCanViewProject(user, projectId)) {
-							arg1.getWriter().write("User does not have access to this project" );
-							return;	
-						}
-					} else {
-						arg1.getWriter().write("User must be logged in to access this project");
-						return;
+			if(!SecurityProjectUtils.projectIsGlobal(projectId)) {
+				if(session != null) {
+					User user = (User) session.getAttribute(Constants.SESSION_USER);
+					if(!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+						arg1.getWriter().write("User does not have access to this project" );
+						return;	
 					}
+				} else {
+					arg1.getWriter().write("User must be logged in to access this project");
+					return;
 				}
 			}
 

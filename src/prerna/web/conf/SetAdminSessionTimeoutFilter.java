@@ -15,7 +15,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.util.Constants;
 
@@ -37,7 +36,7 @@ public class SetAdminSessionTimeoutFilter implements Filter {
 		setInitParams(arg0);
 
 		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
-		if(sessionTimeout != null && session != null && AbstractSecurityUtils.securityEnabled()) {
+		if(sessionTimeout != null && session != null) {
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
 
 			if (user != null && session.getAttribute(SESSIOIN_ATTRIBUTE_CHECK) == null ) {
