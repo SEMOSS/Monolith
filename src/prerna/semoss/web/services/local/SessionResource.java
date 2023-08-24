@@ -27,7 +27,6 @@ import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
 
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
@@ -56,14 +55,12 @@ public class SessionResource {
 		Map<String, Object> ret = new HashMap<>();
 		HttpSession session = request.getSession(true);
 		try {
-			if (AbstractSecurityUtils.securityEnabled()) {
-				User user = null;
-				if(session != null) {
-					user = (User) session.getAttribute(Constants.SESSION_USER);
-				}
-				logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is pulling the # of active sessions"));
+			User user = null;
+			if(session != null) {
+				user = (User) session.getAttribute(Constants.SESSION_USER);
 			}
-			
+			logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is pulling the # of active sessions"));
+		
 			StandardManager manager = getManager(session);
 			if(manager != null) {
 				int sessions = manager.getActiveSessions();

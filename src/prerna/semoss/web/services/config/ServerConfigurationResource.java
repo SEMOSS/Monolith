@@ -88,8 +88,8 @@ public class ServerConfigurationResource {
 		// python enabled
 		loadConfig.put("python", PyUtils.pyEnabled());
 
-		// security enabled
-		loadConfig.put("security", AbstractSecurityUtils.securityEnabled());
+		// security is always enabled...
+		loadConfig.put("security", true);
 		loadConfig.put("anonymousUsers", AbstractSecurityUtils.anonymousUsersEnabled());
 		loadConfig.put("anonymousUserUploadData", AbstractSecurityUtils.anonymousUserUploadData());
 		// admin only for project actions

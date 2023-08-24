@@ -25,7 +25,6 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.semoss.web.services.local.SessionResource;
@@ -51,153 +50,151 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		setInitParams(arg0);
 
-		if(AbstractSecurityUtils.securityEnabled()) {
-			// this will be the full path of the request
-			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
-			String contextPath = ((HttpServletRequest) arg0).getContextPath();
-			HttpSession session = ((HttpServletRequest) arg0).getSession(false);
+		// this will be the full path of the request
+		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
+		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+		String contextPath = ((HttpServletRequest) arg0).getContextPath();
+		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
 
-			User user = null;
-			if(session != null) {
-				user = (User) session.getAttribute(Constants.SESSION_USER);
-			}
+		User user = null;
+		if(session != null) {
+			user = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 
-			// if we have a user, there is nothing to do
-			if(user == null) {
-				
-				// the front end comes with
-				// fullUrl?prefix_token=userId
-				// check if the ip address is allowed
-				// check if the userId actually exists
-				// if first time, add the user
-				// if not, redirect the GET/POST call
-				
-				HttpServletRequest req = (HttpServletRequest) arg0;
-				// grab the token id
-				// if the token exists
-				String userId = req.getParameter(tokenName);
-				if(userId != null) {
-					boolean redirectToExistingSession = false;
-					String redirectSessionId = sessionMapper.get(userId);
-					if(redirectSessionId != null) {
-						// validate that the session exists within tomcats session manager
-						session = ((HttpServletRequest) arg0).getSession();
-						StandardManager manager = SessionResource.getManager(session);
-						if(manager.getSession(redirectSessionId) != null) {
-							redirectToExistingSession = true;
-							// we are going to try to redirect
-							// so invalidate this new session
-							if (((HttpServletRequest) arg0).isRequestedSessionIdValid()) {
-								session.invalidate();
-							}
-						} else {
-							// remove from the session mapper
-							sessionMapper.remove(userId);
-						}
-					}
-					if(!redirectToExistingSession) {
-						// grab the ip address
-						String ipAddress = req.getHeader("X-FORWARDED-FOR");
-						if (ipAddress == null) {  
-							ipAddress = req.getRemoteAddr();  
-						}
-						// check if the ip address is allowed
-						boolean allow = trustedDomains.contains("*");
-						if(!allow) {
-							for(String domain : trustedDomains) {
-								if(ipAddress.matches(domain)) {
-									allow = true;
-									break;
-								}
-							}
-						}
-						if(allow && SecurityQueryUtils.checkUserExist(userId)) {
-							// you are allowed
-							// i just have to check if the token id exists
-							// and id you do, i make the user object
-							user = new User();
-							AccessToken token = new AccessToken();
-							token.setProvider(AuthProvider.WINDOWS_USER);
-							token.setId(userId);
-							token.setName(userId);
-							user.setAccessToken(token);
-							// if the session hasn't been instantiated yet
-							// start one
-							if(session == null) {
-								session = ((HttpServletRequest) arg0).getSession();
-							}
-							session.setAttribute(Constants.SESSION_USER, user);
-
-							String sessionId = session.getId();
-							sessionMapper.put(userId, sessionId);
-							
-							// add the session id cookie
-							// use addHeader to allow for SameSite option
-							// SameSite only works if Secure tag also there
-							String setCookieString = DBLoader.getSessionIdKey() + "=" + sessionId 
-									+ "; Path=" + contextPath 
-									+ "; HttpOnly"
-									+ ( (ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "")
-									;
-							((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
-						} else {
-							// invalidate the session
-							if(((HttpServletRequest) arg0).isRequestedSessionIdValid()) {
-								session.invalidate();
-							}
+		// if we have a user, there is nothing to do
+		if(user == null) {
+			
+			// the front end comes with
+			// fullUrl?prefix_token=userId
+			// check if the ip address is allowed
+			// check if the userId actually exists
+			// if first time, add the user
+			// if not, redirect the GET/POST call
+			
+			HttpServletRequest req = (HttpServletRequest) arg0;
+			// grab the token id
+			// if the token exists
+			String userId = req.getParameter(tokenName);
+			if(userId != null) {
+				boolean redirectToExistingSession = false;
+				String redirectSessionId = sessionMapper.get(userId);
+				if(redirectSessionId != null) {
+					// validate that the session exists within tomcats session manager
+					session = ((HttpServletRequest) arg0).getSession();
+					StandardManager manager = SessionResource.getManager(session);
+					if(manager.getSession(redirectSessionId) != null) {
+						redirectToExistingSession = true;
+						// we are going to try to redirect
+						// so invalidate this new session
+						if (((HttpServletRequest) arg0).isRequestedSessionIdValid()) {
+							session.invalidate();
 						}
 					} else {
-						// this is the case where you redirect
-						// we have also validated that the session id is active
+						// remove from the session mapper
+						sessionMapper.remove(userId);
+					}
+				}
+				if(!redirectToExistingSession) {
+					// grab the ip address
+					String ipAddress = req.getHeader("X-FORWARDED-FOR");
+					if (ipAddress == null) {  
+						ipAddress = req.getRemoteAddr();  
+					}
+					// check if the ip address is allowed
+					boolean allow = trustedDomains.contains("*");
+					if(!allow) {
+						for(String domain : trustedDomains) {
+							if(ipAddress.matches(domain)) {
+								allow = true;
+								break;
+							}
+						}
+					}
+					if(allow && SecurityQueryUtils.checkUserExist(userId)) {
+						// you are allowed
+						// i just have to check if the token id exists
+						// and id you do, i make the user object
+						user = new User();
+						AccessToken token = new AccessToken();
+						token.setProvider(AuthProvider.WINDOWS_USER);
+						token.setId(userId);
+						token.setName(userId);
+						user.setAccessToken(token);
+						// if the session hasn't been instantiated yet
+						// start one
+						if(session == null) {
+							session = ((HttpServletRequest) arg0).getSession();
+						}
+						session.setAttribute(Constants.SESSION_USER, user);
+
+						String sessionId = session.getId();
+						sessionMapper.put(userId, sessionId);
 						
 						// add the session id cookie
+						// use addHeader to allow for SameSite option
+						// SameSite only works if Secure tag also there
+						String setCookieString = DBLoader.getSessionIdKey() + "=" + sessionId 
+								+ "; Path=" + contextPath 
+								+ "; HttpOnly"
+								+ ( (ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "")
+								;
+						((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
+					} else {
+						// invalidate the session
+						if(((HttpServletRequest) arg0).isRequestedSessionIdValid()) {
+							session.invalidate();
+						}
+					}
+				} else {
+					// this is the case where you redirect
+					// we have also validated that the session id is active
+					
+					// add the session id cookie
 //						Cookie k = new Cookie(DBLoader.getSessionIdKey(), redirectSessionId);
 //						k.setHttpOnly(true);
 //						k.setSecure(req.isSecure());
 //						k.setPath(contextPath);
 //						((HttpServletResponse)arg1).addCookie(k);
-						// replace any other session id cookies
-						Cookie[] cookies = req.getCookies();
-						if (cookies != null) {
-							logger.info("Forcing session value !");
-							for (Cookie c : cookies) {
-								if (c.getName().equals(DBLoader.getSessionIdKey())) {
-									if(c.getName().equalsIgnoreCase(DBLoader.getSessionIdKey())) {
-										c.setValue(redirectSessionId);
-									}
+					// replace any other session id cookies
+					Cookie[] cookies = req.getCookies();
+					if (cookies != null) {
+						logger.info("Forcing session value !");
+						for (Cookie c : cookies) {
+							if (c.getName().equals(DBLoader.getSessionIdKey())) {
+								if(c.getName().equalsIgnoreCase(DBLoader.getSessionIdKey())) {
+									c.setValue(redirectSessionId);
 								}
 							}
 						}
-						
-						// add the session id cookie
-						// use addHeader to allow for SameSite option
-						// SameSite only works if Secure tag also there
-						String setCookieString = DBLoader.getSessionIdKey() + "=" + redirectSessionId 
-								+ "; Path=" + contextPath 
-								+ "; HttpOnly"
-								+ ( (ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "")
-								;
-						
-						String method = req.getMethod();
-						if(method.equalsIgnoreCase("GET")) {
-							((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
-							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
-							((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
-							return;
-						} else if(method.equalsIgnoreCase("POST")) {
-							((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
-							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-							((HttpServletResponse) arg1).setHeader("Location", fullUrl);
-							return;
-						}
+					}
+					
+					// add the session id cookie
+					// use addHeader to allow for SameSite option
+					// SameSite only works if Secure tag also there
+					String setCookieString = DBLoader.getSessionIdKey() + "=" + redirectSessionId 
+							+ "; Path=" + contextPath 
+							+ "; HttpOnly"
+							+ ( (ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "")
+							;
+					
+					String method = req.getMethod();
+					if(method.equalsIgnoreCase("GET")) {
+						((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
+						((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+						((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
+						return;
+					} else if(method.equalsIgnoreCase("POST")) {
+						((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
+						((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
+						((HttpServletResponse) arg1).setHeader("Location", fullUrl);
+						return;
 					}
 				}
 			}
-//			else {
-//				System.out.println("Have user = " + user.getAccessToken(user.getPrimaryLogin()).getId());
-//			}
 		}
+//		else {
+//			System.out.println("Have user = " + user.getAccessToken(user.getPrimaryLogin()).getId());
+//		}
 		arg2.doFilter(arg0, arg1);
 	}
 
