@@ -32,7 +32,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
@@ -55,14 +54,12 @@ public class StorageEngineResource {
 	private static final Logger logger = LogManager.getLogger(StorageEngineResource.class);
 	
 	private boolean canViewStorage(User user, String storageId) throws IllegalAccessException {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			storageId = SecurityQueryUtils.testUserEngineIdForAlias(user, storageId);
-			if(!SecurityEngineUtils.userCanViewEngine(user, storageId)
-					&& !SecurityEngineUtils.engineIsDiscoverable(storageId)) {
-				throw new IllegalAccessException("Storage " + storageId + " does not exist or user does not have access");
-			}
+		storageId = SecurityQueryUtils.testUserEngineIdForAlias(user, storageId);
+		if(!SecurityEngineUtils.userCanViewEngine(user, storageId)
+				&& !SecurityEngineUtils.engineIsDiscoverable(storageId)) {
+			throw new IllegalAccessException("Storage " + storageId + " does not exist or user does not have access");
 		}
-		
+	
 		return true;
 	}
 	
@@ -76,28 +73,26 @@ public class StorageEngineResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			User user = null;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			try {
-				boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-				if(!isAdmin) {
-					boolean isOwner = SecurityEngineUtils.userIsOwner(user, storageId);
-					if(!isOwner) {
-						throw new IllegalAccessException("Storage " + storageId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
-					}
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
+			if(!isAdmin) {
+				boolean isOwner = SecurityEngineUtils.userIsOwner(user, storageId);
+				if(!isOwner) {
+					throw new IllegalAccessException("Storage " + storageId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
 				}
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
 			}
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 
 		IStorageEngine engine = Utility.getStorage(storageId);
@@ -184,22 +179,20 @@ public class StorageEngineResource {
 	@Path("/storageImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("storageId") String storageId) {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			User user = null;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			try {
-				canViewStorage(user, storageId);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			canViewStorage(user, storageId);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		if(CouchUtil.COUCH_ENABLED) {

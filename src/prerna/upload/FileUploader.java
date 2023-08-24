@@ -208,51 +208,49 @@ public class FileUploader extends Uploader {
 		}
 			
 		User user = in.getUser();
-		if(AbstractSecurityUtils.securityEnabled()) {
-			if(user == null) {
+		if(user == null) {
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		if(user.isAnonymous() && !AbstractSecurityUtils.anonymousUserUploadData()) {
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		if(user.isAnonymous() && in.isSavedInsight()) {
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files to a saved insight");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		if(in.isSavedInsight() && !SecurityInsightUtils.userCanEditInsight(user, in.getProjectId(), in.getRdbmsId())) {
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User does not edit access for this insight");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		if(AbstractSecurityUtils.adminSetPublisher() && !SecurityQueryUtils.userIsPublisher(user)) {
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission to publish data. Please reach out to the admin to get proper access");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		if(projectId != null && !projectId.equalsIgnoreCase("user")) {
+			if (!SecurityProjectUtils.userCanEditProject(in.getUser(), projectId)) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
+				errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission for this project.");
 				return WebUtility.getResponse(errorMap, 400);
 			}
-			
-			if(user.isAnonymous() && !AbstractSecurityUtils.anonymousUserUploadData()) {
+		}
+		
+		if(engineId != null) {
+			if (!SecurityEngineUtils.userCanEditEngine(in.getUser(), engineId)) {
 				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files");
+				errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission for this engine.");
 				return WebUtility.getResponse(errorMap, 400);
-			}
-			
-			if(user.isAnonymous() && in.isSavedInsight()) {
-				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files to a saved insight");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-			
-			if(in.isSavedInsight() && !SecurityInsightUtils.userCanEditInsight(user, in.getProjectId(), in.getRdbmsId())) {
-				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "User does not edit access for this insight");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-			
-			if(AbstractSecurityUtils.adminSetPublisher() && !SecurityQueryUtils.userIsPublisher(user)) {
-				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission to publish data. Please reach out to the admin to get proper access");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-			
-			if(projectId != null && !projectId.equalsIgnoreCase("user")) {
-				if (!SecurityProjectUtils.userCanEditProject(in.getUser(), projectId)) {
-					HashMap<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission for this project.");
-					return WebUtility.getResponse(errorMap, 400);
-				}
-			}
-			
-			if(engineId != null) {
-				if (!SecurityEngineUtils.userCanEditEngine(in.getUser(), engineId)) {
-					HashMap<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission for this engine.");
-					return WebUtility.getResponse(errorMap, 400);
-				}
 			}
 		}
 		

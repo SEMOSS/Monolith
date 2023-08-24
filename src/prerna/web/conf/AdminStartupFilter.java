@@ -14,7 +14,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
 
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
@@ -28,33 +27,31 @@ public class AdminStartupFilter implements Filter {
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		if (AbstractSecurityUtils.securityEnabled()) {
-			IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
-			String q = "SELECT * FROM SMSS_USER LIMIT 1";
-			IRawSelectWrapper wrapper = null;
-			try {
-				wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
-				boolean hasUser = wrapper.hasNext();
-				// if there are users, redirect to the main semoss page
-				// we do not want to allow the person to make any admin requests
-				if (hasUser) {
-					if (initialRedirect != null) {
-						String encodedRedirectUrl = Encode.forHtml(initialRedirect);
-						((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
-						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
-					} else {
-						((HttpServletResponse) arg1).sendError(404, "Page Not Found");
-					}
+		IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
+		String q = "SELECT * FROM SMSS_USER LIMIT 1";
+		IRawSelectWrapper wrapper = null;
+		try {
+			wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
+			boolean hasUser = wrapper.hasNext();
+			// if there are users, redirect to the main semoss page
+			// we do not want to allow the person to make any admin requests
+			if (hasUser) {
+				if (initialRedirect != null) {
+					String encodedRedirectUrl = Encode.forHtml(initialRedirect);
+					((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
+					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
+				} else {
+					((HttpServletResponse) arg1).sendError(404, "Page Not Found");
 				}
-			} catch (Exception e) {
-				logger.error(Constants.STACKTRACE, e);
-			} finally {
-				if (wrapper != null) {
-					try {
-						wrapper.close();
-					} catch(IOException e) {
-						logger.error(Constants.STACKTRACE, e);
-					}
+			}
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+		} finally {
+			if (wrapper != null) {
+				try {
+					wrapper.close();
+				} catch(IOException e) {
+					logger.error(Constants.STACKTRACE, e);
 				}
 			}
 		}

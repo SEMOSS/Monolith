@@ -11,11 +11,9 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Context;
 
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.project.api.IProject;
@@ -37,38 +35,26 @@ public class ExecuteInsightResource {
 	public Object generateInsight(@Context HttpServletRequest request, 
 			@PathParam("appId") String projectId, 
 			@PathParam("insightId") String rdbmsId) {
-		boolean securityEnabled = AbstractSecurityUtils.securityEnabled();
 		User user = null;
-
-		HttpSession session = null;
-		if(securityEnabled){
-			session = request.getSession(false);
-			if(session == null) {
-				Map<String, String> errorHash = new HashMap<String, String>();
-				errorHash.put(Constants.ERROR_MESSAGE, "Invalid session to retrieve insight data");
-				return WebUtility.getResponse(errorHash, 400);
-			}
-			
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-			if(user == null) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-		} else {
-			session = request.getSession(true);
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
+		HttpSession session = request.getSession(false);
+		if(session == null) {
+			Map<String, String> errorHash = new HashMap<String, String>();
+			errorHash.put(Constants.ERROR_MESSAGE, "Invalid session to retrieve insight data");
+			return WebUtility.getResponse(errorHash, 400);
 		}
 		
-		if(securityEnabled) {
-			projectId = SecurityQueryUtils.testUserEngineIdForAlias(user, projectId);
-			if(!SecurityInsightUtils.userCanViewInsight(user, projectId, rdbmsId)) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put("error", "User does not have access to this insight");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-		} else {
-			projectId = MasterDatabaseUtility.testDatabaseIdIfAlias(projectId);
+		user = ((User) session.getAttribute(Constants.SESSION_USER));
+		if(user == null) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		projectId = SecurityQueryUtils.testUserEngineIdForAlias(user, projectId);
+		if(!SecurityInsightUtils.userCanViewInsight(user, projectId, rdbmsId)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put("error", "User does not have access to this insight");
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		IProject project = Utility.getProject(projectId);

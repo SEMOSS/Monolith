@@ -52,7 +52,6 @@ import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
-import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.project.api.IProject;
@@ -74,32 +73,18 @@ public class ProjectResource {
 	private static final Logger logger = LogManager.getLogger(ProjectResource.class);
 	
 	private boolean canAccessProject(User user, String projectId) throws IllegalAccessException {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-			if(!SecurityProjectUtils.userCanViewProject(user, projectId)) {
-				throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have access");
-			}
-		} else {
-			projectId = MasterDatabaseUtility.testDatabaseIdIfAlias(projectId);
-			if(!MasterDatabaseUtility.getAllDatabaseIds().contains(projectId)) {
-				throw new IllegalAccessException("Project " + projectId + " does not exist");
-			}
+		projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+		if(!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+			throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have access");
 		}
 		
 		return true;
 	}
 	
 	private boolean canAccessInsight(User user, String projectId, String insightId) throws IllegalAccessException {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-			if(!SecurityInsightUtils.userCanViewInsight(user, projectId, insightId)) {
-				throw new IllegalAccessException("Insight does not exist or user does not have access to view");
-			}
-		} else {
-			projectId = MasterDatabaseUtility.testDatabaseIdIfAlias(projectId);
-			if(!MasterDatabaseUtility.getAllDatabaseIds().contains(projectId)) {
-				throw new IllegalAccessException("Project " + projectId + " does not exist");
-			}
+		projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+		if(!SecurityInsightUtils.userCanViewInsight(user, projectId, insightId)) {
+			throw new IllegalAccessException("Insight does not exist or user does not have access to view");
 		}
 		
 		return true;
@@ -115,28 +100,26 @@ public class ProjectResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("projectId") String projectId) {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			User user = null;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			try {
-				boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-				if(!isAdmin) {
-					boolean isOwner = SecurityProjectUtils.userIsOwner(user, projectId);
-					if(!isOwner) {
-						throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
-					}
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
+			if(!isAdmin) {
+				boolean isOwner = SecurityProjectUtils.userIsOwner(user, projectId);
+				if(!isOwner) {
+					throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
 				}
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
 			}
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		IProject project = Utility.getProject(projectId);
@@ -334,21 +317,19 @@ public class ProjectResource {
 	@Produces({MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM})
 	public Response getEmbedUrl(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
 		User user = null;
-		if(AbstractSecurityUtils.securityEnabled()) {
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			try {
-				canAccessProject(user, projectId);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			canAccessProject(user, projectId);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		//TODO: ALLOW APP SPECIFIC EMBED IMAGES 
@@ -427,22 +408,20 @@ public class ProjectResource {
 	@Path("/projectImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response downloadProjectImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("projectId") String projectId) {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			User user = null;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			try {
-				canAccessProject(user, projectId);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			canAccessProject(user, projectId);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		if(CouchUtil.COUCH_ENABLED) {
@@ -530,25 +509,23 @@ public class ProjectResource {
 	public Response downloadInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request, 
 			@PathParam("projectId") String projectId, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
 		String sessionId = null;
-		if(AbstractSecurityUtils.securityEnabled()) {
-			User user = null;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			try {
-				canAccessInsight(user, projectId, id);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			
-			sessionId = request.getSession(false).getId();
-		}		
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			canAccessInsight(user, projectId, id);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		sessionId = request.getSession(false).getId();
 		
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
