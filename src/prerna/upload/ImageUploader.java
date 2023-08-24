@@ -23,19 +23,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.engine.api.IDatabaseEngine;
-import prerna.engine.api.IModelEngine;
-import prerna.engine.api.IStorageEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
-import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -379,45 +374,35 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		if (AbstractSecurityUtils.securityEnabled()) {
-			HttpSession session = request.getSession(false);
-			if (session != null) {
-				User user = ((User) session.getAttribute(Constants.SESSION_USER));
-				if (user == null) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+		HttpSession session = request.getSession(false);
+		if (session != null) {
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if (user == null) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				if (user.isAnonymous()) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an database image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+			if (user.isAnonymous()) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an database image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				try {
-					databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseName);
-				} catch (Exception e) {
-					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				if (!SecurityEngineUtils.userCanEditEngine(user, databaseId)) {
-					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				databaseName = SecurityEngineUtils.getEngineAliasForId(databaseId);
-			} else {
-				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			try {
+				databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseName);
+			} catch (Exception e) {
+				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(returnMap, 400);
 			}
+			if (!SecurityEngineUtils.userCanEditEngine(user, databaseId)) {
+				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
+				return WebUtility.getResponse(returnMap, 400);
+			}
+			databaseName = SecurityEngineUtils.getEngineAliasForId(databaseId);
 		} else {
-			databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseName);
-			databaseName = MasterDatabaseUtility.getDatabaseAliasForId(databaseId);
-			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(databaseName, databaseId);
-			if (!(new File(appDir).exists())) {
-				returnMap.put(Constants.ERROR_MESSAGE, "Could not find app directory");
-				return WebUtility.getResponse(returnMap, 400);
-			}
+			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(returnMap, 400);
 		}
 		
 		if(CouchUtil.COUCH_ENABLED) {
@@ -493,45 +478,35 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		if (AbstractSecurityUtils.securityEnabled()) {
-			HttpSession session = request.getSession(false);
-			if (session != null) {
-				User user = ((User) session.getAttribute(Constants.SESSION_USER));
-				if (user == null) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+		HttpSession session = request.getSession(false);
+		if (session != null) {
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if (user == null) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				if (user.isAnonymous()) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an database image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+			if (user.isAnonymous()) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an database image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				try {
-					appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
-				} catch (Exception e) {
-					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				if (!SecurityEngineUtils.userCanEditEngine(user, appId)) {
-					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this app or the database id does not exist");
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				appName = SecurityEngineUtils.getEngineAliasForId(appId);
-			} else {
-				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			try {
+				appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
+			} catch (Exception e) {
+				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(returnMap, 400);
 			}
+			if (!SecurityEngineUtils.userCanEditEngine(user, appId)) {
+				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this app or the database id does not exist");
+				return WebUtility.getResponse(returnMap, 400);
+			}
+			appName = SecurityEngineUtils.getEngineAliasForId(appId);
 		} else {
-			appId = MasterDatabaseUtility.testDatabaseIdIfAlias(appId);
-			appName = MasterDatabaseUtility.getDatabaseAliasForId(appId);
-			String appDir = filePath + DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId);
-			if (!(new File(appDir).exists())) {
-				returnMap.put(Constants.ERROR_MESSAGE, "Could not find app directory");
-				return WebUtility.getResponse(returnMap, 400);
-			}
+			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(returnMap, 400);
 		}
 		
 		if(CouchUtil.COUCH_ENABLED) {
@@ -903,39 +878,35 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		if (AbstractSecurityUtils.securityEnabled()) {
-			HttpSession session = request.getSession(false);
-			if (session != null) {
-				User user = ((User) session.getAttribute(Constants.SESSION_USER));
-				if (user == null) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the project image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+		HttpSession session = request.getSession(false);
+		if (session != null) {
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if (user == null) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the project image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				if (user.isAnonymous()) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an project image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+			if (user.isAnonymous()) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an project image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				try {
-					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-				} catch (Exception e) {
-					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
-					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this project");
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
-			} else {
-				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			try {
+				projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+			} catch (Exception e) {
+				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(returnMap, 400);
 			}
-		} else {
+			if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
+				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this project");
+				return WebUtility.getResponse(returnMap, 400);
+			}
 			projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
+		} else {
+			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(returnMap, 400);
 		}
 
 		if(CouchUtil.COUCH_ENABLED) {
@@ -1012,39 +983,35 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		if (AbstractSecurityUtils.securityEnabled()) {
-			HttpSession session = request.getSession(false);
-			if (session != null) {
-				User user = ((User) session.getAttribute(Constants.SESSION_USER));
-				if (user == null) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the project image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+		HttpSession session = request.getSession(false);
+		if (session != null) {
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if (user == null) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the project image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				if (user.isAnonymous()) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an project image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+			if (user.isAnonymous()) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an project image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				try {
-					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-				} catch (Exception e) {
-					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
-					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project or the project id does not exist");
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
-			} else {
-				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			try {
+				projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+			} catch (Exception e) {
+				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(returnMap, 400);
 			}
-		} else {
+			if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
+				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project or the project id does not exist");
+				return WebUtility.getResponse(returnMap, 400);
+			}
 			projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
+		} else {
+			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(returnMap, 400);
 		}
 
 		if(CouchUtil.COUCH_ENABLED) {
@@ -1151,39 +1118,35 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		if (AbstractSecurityUtils.securityEnabled()) {
-			HttpSession session = request.getSession(false);
-			if (session != null) {
-				User user = ((User) session.getAttribute(Constants.SESSION_USER));
-				if (user == null) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the insight image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+		HttpSession session = request.getSession(false);
+		if (session != null) {
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if (user == null) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the insight image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				if (user.isAnonymous()) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an insight image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+			if (user.isAnonymous()) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an insight image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				try {
-					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-				} catch (Exception e) {
-					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				if (!SecurityInsightUtils.userCanEditInsight(user, projectId, insightId)) {
-					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this insight within the project");
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
-			} else {
-				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			try {
+				projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+			} catch (Exception e) {
+				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(returnMap, 400);
 			}
-		} else {
+			if (!SecurityInsightUtils.userCanEditInsight(user, projectId, insightId)) {
+				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this insight within the project");
+				return WebUtility.getResponse(returnMap, 400);
+			}
 			projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
+		} else {
+			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(returnMap, 400);
 		}
 		
 		if(CouchUtil.COUCH_ENABLED) {
@@ -1267,39 +1230,35 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		if (AbstractSecurityUtils.securityEnabled()) {
-			HttpSession session = request.getSession(false);
-			if (session != null) {
-				User user = ((User) session.getAttribute(Constants.SESSION_USER));
-				if (user == null) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the app image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+		HttpSession session = request.getSession(false);
+		if (session != null) {
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if (user == null) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the app image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				if (user.isAnonymous()) {
-					HashMap<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an app image");
-					return WebUtility.getResponse(errorMap, 400);
-				}
+			if (user.isAnonymous()) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an app image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
 
-				try {
-					projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-				} catch (Exception e) {
-					returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
-					returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project or the project id does not exist");
-					return WebUtility.getResponse(returnMap, 400);
-				}
-				projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
-			} else {
-				returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			try {
+				projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+			} catch (Exception e) {
+				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(returnMap, 400);
 			}
-		} else {
+			if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
+				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project or the project id does not exist");
+				return WebUtility.getResponse(returnMap, 400);
+			}
 			projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
+		} else {
+			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(returnMap, 400);
 		}
 
 		if(CouchUtil.COUCH_ENABLED) {

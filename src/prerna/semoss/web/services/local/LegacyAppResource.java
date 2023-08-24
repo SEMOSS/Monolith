@@ -32,7 +32,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
@@ -58,17 +57,10 @@ public class LegacyAppResource {
 	private static final Logger logger = LogManager.getLogger(LegacyAppResource.class);
 	
 	private boolean canViewDatabase(User user, String databaseId) throws IllegalAccessException {
-		if(AbstractSecurityUtils.securityEnabled()) {
-			databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseId);
-			if(!SecurityEngineUtils.userCanViewEngine(user, databaseId)
-					&& !SecurityEngineUtils.engineIsDiscoverable(databaseId)) {
-				throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have access to the database");
-			}
-		} else {
-			databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
-			if(!MasterDatabaseUtility.getAllDatabaseIds().contains(databaseId)) {
-				throw new IllegalAccessException("Database " + databaseId + " does not exist");
-			}
+		databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseId);
+		if(!SecurityEngineUtils.userCanViewEngine(user, databaseId)
+				&& !SecurityEngineUtils.engineIsDiscoverable(databaseId)) {
+			throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have access to the database");
 		}
 		
 		return true;
@@ -89,28 +81,26 @@ public class LegacyAppResource {
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
 		
-		if(AbstractSecurityUtils.securityEnabled()) {
-			User user = null;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			try {
-				boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-				if(!isAdmin) {
-					boolean isOwner = SecurityEngineUtils.userIsOwner(user, databaseId);
-					if(!isOwner) {
-						throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
-					}
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
+			if(!isAdmin) {
+				boolean isOwner = SecurityEngineUtils.userIsOwner(user, databaseId);
+				if(!isOwner) {
+					throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
 				}
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
 			}
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 
 		IDatabaseEngine engine = Utility.getDatabase(databaseId);
@@ -202,22 +192,20 @@ public class LegacyAppResource {
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
 
-		if(AbstractSecurityUtils.securityEnabled()) {
-			User user = null;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			try {
-				canViewDatabase(user, databaseId);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put("error", e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		try {
+			canViewDatabase(user, databaseId);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
 		if(CouchUtil.COUCH_ENABLED) {

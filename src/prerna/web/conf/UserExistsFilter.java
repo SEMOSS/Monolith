@@ -18,7 +18,6 @@ import org.owasp.encoder.Encode;
 
 import prerna.auth.AccessToken;
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityGroupUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -32,73 +31,71 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		if (AbstractSecurityUtils.securityEnabled()) {
-			HttpSession session = ((HttpServletRequest) arg0).getSession(false);
-			User user = null;
-			if(session != null) {
-				user = (User) session.getAttribute(Constants.SESSION_USER);
-			}
+		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
+		User user = null;
+		if(session != null) {
+			user = (User) session.getAttribute(Constants.SESSION_USER);
+		}
 
-			// this will be the full path of the request
-			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-			String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
+		// this will be the full path of the request
+		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
+		String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
 
-			// REALLY DISLIKE THIS CHECK!!!
-			if (!ResourceUtility.allowAccessWithoutLogin(fullUrl)) {
-				// how you got here without a user, i am unsure given the other filters
-				// but just in case
-				// i will redirect you to login
-				if (user == null || user.getLogins().isEmpty()) {
+		// REALLY DISLIKE THIS CHECK!!!
+		if (!ResourceUtility.allowAccessWithoutLogin(fullUrl)) {
+			// how you got here without a user, i am unsure given the other filters
+			// but just in case
+			// i will redirect you to login
+			if (user == null || user.getLogins().isEmpty()) {
+				((HttpServletResponse) arg1).setStatus(302);
+
+				String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
+				redirectUrl = redirectUrl + "#!/login";
+				String encodedRedirectUrl = Encode.forHtml(redirectUrl);
+				((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
+				((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
+				return;
+			} else {
+				// okay, need to make sure the user is a valid one
+				AccessToken token = user.getAccessToken(user.getLogins().get(0));
+				
+				if(!areGroupsValid(token)) {
+					session.removeAttribute(Constants.SESSION_USER);
+					((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN, "User lacks permissions for this resource" );
+					// log the user login
+					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is trying to login BUT doesn't have access with provider " +  token.getProvider()));
+
+					return;
+				}
+				
+				if(!onlyPerformGroupCheck() && !userExists(token)) {
+					session.removeAttribute(Constants.SESSION_USER);
 					((HttpServletResponse) arg1).setStatus(302);
-
 					String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
 					redirectUrl = redirectUrl + "#!/login";
 					String encodedRedirectUrl = Encode.forHtml(redirectUrl);
 					((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
 					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
-					return;
-				} else {
-					// okay, need to make sure the user is a valid one
-					AccessToken token = user.getAccessToken(user.getLogins().get(0));
 					
-					if(!areGroupsValid(token)) {
-						session.removeAttribute(Constants.SESSION_USER);
-						((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN, "User lacks permissions for this resource" );
-						// log the user login
-						logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is trying to login BUT doesn't have access with provider " +  token.getProvider()));
+					// log the user login
+					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is trying to login BUT doesn't have access with provider " +  token.getProvider()));
 
-						return;
-					}
-					
-					if(!onlyPerformGroupCheck() && !userExists(token)) {
-						session.removeAttribute(Constants.SESSION_USER);
-						((HttpServletResponse) arg1).setStatus(302);
-						String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
-						redirectUrl = redirectUrl + "#!/login";
-						String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-						((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
-						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
-						
-						// log the user login
-						logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is trying to login BUT doesn't have access with provider " +  token.getProvider()));
-
-						return;
-					}
-				}
-			} else if(user != null && user.getLogins().size() == 1) {
-				// you might be SSO
-				// so need to check your login even if you haven't gone through the normal flow
-				AccessToken token = user.getAccessToken(user.getLogins().get(0));
-				if(!areGroupsValid(token)) {
-					session.removeAttribute(Constants.SESSION_USER);
-					((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN, "User lacks permissions for this resource" );
-					return;
-				} 
-				if(!onlyPerformGroupCheck() && !userExists(token)) {
-					session.removeAttribute(Constants.SESSION_USER);
-					((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN, "User lacks permissions for this resource" );
 					return;
 				}
+			}
+		} else if(user != null && user.getLogins().size() == 1) {
+			// you might be SSO
+			// so need to check your login even if you haven't gone through the normal flow
+			AccessToken token = user.getAccessToken(user.getLogins().get(0));
+			if(!areGroupsValid(token)) {
+				session.removeAttribute(Constants.SESSION_USER);
+				((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN, "User lacks permissions for this resource" );
+				return;
+			} 
+			if(!onlyPerformGroupCheck() && !userExists(token)) {
+				session.removeAttribute(Constants.SESSION_USER);
+				((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN, "User lacks permissions for this resource" );
+				return;
 			}
 		}
 
