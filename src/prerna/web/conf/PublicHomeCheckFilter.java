@@ -6,6 +6,7 @@ import java.io.IOException;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
+import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -80,9 +81,18 @@ public class PublicHomeCheckFilter implements Filter {
 				publicHomeDir.mkdir();
 			}
 			
+			// are we already published?
+			// then send along
+			if(project.isPublished()) {
+				arg2.doFilter(arg0, arg1);
+				return;
+			}
+			
 			boolean mapComplete = project.publish(realPath+"/"+publicHomeFolder);
 			if(mapComplete) {
-				arg2.doFilter(arg0, arg1);
+				String url = fullUrl.substring(fullUrl.indexOf("/"+publicHomeFolder+"/"));
+				RequestDispatcher dispatcher = arg0.getRequestDispatcher(url);
+				dispatcher.forward(arg0, arg1);
 				return;
 			} else {
 				arg1.getWriter().write("Publish is not enabled on this project or there was an error publishing this project" );
