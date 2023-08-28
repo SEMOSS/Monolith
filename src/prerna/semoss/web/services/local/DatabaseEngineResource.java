@@ -43,8 +43,8 @@ import prerna.io.connector.couch.CouchUtil;
 import prerna.nameserver.utility.MasterDatabaseUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.DefaultImageGeneratorUtil;
 import prerna.util.Utility;
-import prerna.util.insight.TextToGraphic;
 import prerna.web.services.util.WebUtility;
 
 @Path("/database-{databaseId}")
@@ -273,13 +273,7 @@ public class DatabaseEngineResource {
 			}
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-			if(databaseName != null) {
-				TextToGraphic.makeImage(databaseName, fileLocation);
-			} else {
-				TextToGraphic.makeImage(databaseId, fileLocation);
-			}
-			f = new File(fileLocation);
-			return f;
+			return DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
 		}
 	}
 	
