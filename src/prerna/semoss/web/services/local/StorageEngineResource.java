@@ -42,8 +42,8 @@ import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.DefaultImageGeneratorUtil;
 import prerna.util.Utility;
-import prerna.util.insight.TextToGraphic;
 import prerna.web.services.util.WebUtility;
 
 @Path("/storage-{storageId}")
@@ -270,13 +270,7 @@ public class StorageEngineResource {
 			}
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-			if(storageName != null) {
-				TextToGraphic.makeImage(storageName, fileLocation);
-			} else {
-				TextToGraphic.makeImage(storageId, fileLocation);
-			}
-			f = new File(fileLocation);
-			return f;
+			return DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
 		}
 	}
 	
