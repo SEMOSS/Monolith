@@ -82,14 +82,16 @@ public class PublicHomeCheckFilter implements Filter {
 			}
 			
 			// are we already published?
-			// then send along
-			if(project.isPublished()) {
+			// and am i up to date with the last publish date?
+			if(!project.requirePublish(false)) {
+				// then send along
 				arg2.doFilter(arg0, arg1);
 				return;
 			}
 			
-			boolean mapComplete = project.publish(realPath+"/"+publicHomeFolder);
-			if(mapComplete) {
+			// dont need to pull from cloud again
+			boolean successfulPublish = project.publish(realPath+"/"+publicHomeFolder, true);
+			if(successfulPublish) {
 				String url = fullUrl.substring(fullUrl.indexOf("/"+publicHomeFolder+"/"));
 				RequestDispatcher dispatcher = arg0.getRequestDispatcher(url);
 				dispatcher.forward(arg0, arg1);
