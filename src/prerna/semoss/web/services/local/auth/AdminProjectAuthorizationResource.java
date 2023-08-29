@@ -26,8 +26,14 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
+import prerna.om.Insight;
 import prerna.project.api.IProject;
+import prerna.sablecc2.om.GenRowStruct;
+import prerna.sablecc2.om.PixelDataType;
+import prerna.sablecc2.om.ReactorKeysEnum;
+import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.solr.reactor.AdminMyProjectsReactor;
 import prerna.util.Constants;
 import prerna.util.Settings;
 import prerna.util.Utility;
@@ -49,7 +55,16 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjects")
-	public Response getProjects(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
+	public Response getProjectsGET(@Context HttpServletRequest request, 
+			@QueryParam("projectId") List<String> projectFilter,
+			@QueryParam("filterWord") String searchTerm, 
+			@QueryParam("limit") Integer limit,
+			@QueryParam("offset") Integer offset,
+			@QueryParam("metaKeys") List<String> metaKeys,
+//			@QueryParam("metaFilters") Map<String, Object> metaFilters,
+			@QueryParam("noMeta") Boolean noMeta,
+			@QueryParam("userT") Boolean includeUserTracking
+			) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -63,7 +78,134 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(adminUtils.getAllProjectSettings(projectId), 200);
+		AdminMyProjectsReactor reactor = new AdminMyProjectsReactor();
+		reactor.In();
+		Insight temp = new Insight();
+		temp.setUser(user);
+		reactor.setInsight(temp);
+		if(searchTerm != null) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.FILTER_WORD.getKey(), struct);
+		}
+		if(limit != null) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(limit, PixelDataType.CONST_INT));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.LIMIT.getKey(), struct);
+		}
+		if(offset != null) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(offset, PixelDataType.CONST_INT));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.OFFSET.getKey(), struct);
+		}
+		if(projectFilter != null && !projectFilter.isEmpty()) {
+			GenRowStruct struct = new GenRowStruct();
+			for(String engine : projectFilter) {
+				struct.add(new NounMetadata(engine, PixelDataType.CONST_STRING));
+			}
+			reactor.getNounStore().addNoun(ReactorKeysEnum.PROJECT.getKey(), struct);
+		}
+		if(metaKeys != null && !metaKeys.isEmpty()) {
+			GenRowStruct struct = new GenRowStruct();
+			for(String metaK : metaKeys) {
+				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+			}
+			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
+		}
+//		if(metaFilters != null) {
+//			GenRowStruct struct = new GenRowStruct();
+//			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
+//			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
+//		}
+		if(noMeta != null) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(noMeta, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
+		}
+		if(includeUserTracking != null) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(includeUserTracking, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
+		}
+		
+		NounMetadata outputNoun = reactor.execute();
+		return WebUtility.getResponse(outputNoun.getValue(), 200);
+	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("getEngines")
+	public Response getEnginesPOST(@Context HttpServletRequest request) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all engines when not an admin"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		AdminMyProjectsReactor reactor = new AdminMyProjectsReactor();
+		reactor.In();
+		Insight temp = new Insight();
+		temp.setUser(user);
+		reactor.setInsight(temp);
+		
+		Map<String, String[]> parameterMap = request.getParameterMap();
+		
+		if(parameterMap.containsKey("filterWord") && parameterMap.get("filterWord") != null && parameterMap.get("filterWord").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(parameterMap.get("filterWord")[0], PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.FILTER_WORD.getKey(), struct);
+		}
+		if(parameterMap.containsKey("limit") && parameterMap.get("limit") != null && parameterMap.get("limit").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(parameterMap.get("limit")[0], PixelDataType.CONST_INT));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.LIMIT.getKey(), struct);
+		}
+		if(parameterMap.containsKey("offset") && parameterMap.get("offset") != null && parameterMap.get("offset").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(parameterMap.get("offset")[0], PixelDataType.CONST_INT));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.OFFSET.getKey(), struct);
+		}
+		if(parameterMap.containsKey("projectId") && parameterMap.get("projectId") != null && parameterMap.get("projectId").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			String[] projectFilter = parameterMap.get("projectId");
+			for(String project : projectFilter) {
+				struct.add(new NounMetadata(project, PixelDataType.CONST_STRING));
+			}
+			reactor.getNounStore().addNoun(ReactorKeysEnum.PROJECT.getKey(), struct);
+		}
+		if(parameterMap.containsKey("metaKeys") && parameterMap.get("metaKeys") != null && parameterMap.get("metaKeys").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			String[] metaKeys = parameterMap.get("metaKeys");
+			for(String metaK : metaKeys) {
+				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+			}
+			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
+		}
+		if(parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null && parameterMap.get("metaFilters").length > 0) {
+			Map<String, Object> metaFilters = new Gson().fromJson(parameterMap.get("metaFilters")[0], Map.class);
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
+		}
+		if(parameterMap.containsKey("noMeta") && parameterMap.get("noMeta") != null && parameterMap.get("noMeta").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(parameterMap.get("noMeta")[0], PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
+		}
+		if(parameterMap.containsKey("userT") && parameterMap.get("userT") != null && parameterMap.get("userT").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(parameterMap.get("userT")[0], PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
+		}
+		
+		NounMetadata outputNoun = reactor.execute();
+		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
 	
 	@POST
