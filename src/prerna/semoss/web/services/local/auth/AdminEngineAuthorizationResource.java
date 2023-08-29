@@ -58,7 +58,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("onlyFavorites") Boolean favoritesOnly,
 			@QueryParam("metaKeys") List<String> metaKeys,
 //			@QueryParam("metaFilters") Map<String, Object> metaFilters,
-			@QueryParam("noMeta") Boolean noMeta
+			@QueryParam("noMeta") Boolean noMeta,
+			@QueryParam("userT") Boolean includeUserTracking
 			) {
 		User user = null;
 		try {
@@ -122,6 +123,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(noMeta, PixelDataType.BOOLEAN));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
+		}
+		if(includeUserTracking != null) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(includeUserTracking, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
 		}
 		
 		NounMetadata outputNoun = reactor.execute();
