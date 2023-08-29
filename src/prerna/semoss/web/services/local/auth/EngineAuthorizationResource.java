@@ -138,6 +138,89 @@ public class EngineAuthorizationResource {
 		NounMetadata outputNoun = reactor.execute();
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
+	
+	@POST
+	@Produces("application/json")
+	@Path("getEngines")
+	public Response getEnginesPOST(@Context HttpServletRequest request) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		MyEnginesReactor reactor = new MyEnginesReactor();
+		reactor.In();
+		Insight temp = new Insight();
+		temp.setUser(user);
+		reactor.setInsight(temp);
+		
+		Map<String, String[]> parameterMap = request.getParameterMap();
+		
+		if(parameterMap.containsKey("filterWord") && parameterMap.get("filterWord") != null && parameterMap.get("filterWord").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(parameterMap.get("filterWord")[0], PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.FILTER_WORD.getKey(), struct);
+		}
+		if(parameterMap.containsKey("limit") && parameterMap.get("limit") != null && parameterMap.get("limit").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(parameterMap.get("limit")[0], PixelDataType.CONST_INT));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.LIMIT.getKey(), struct);
+		}
+		if(parameterMap.containsKey("offset") && parameterMap.get("offset") != null && parameterMap.get("offset").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(parameterMap.get("offset")[0], PixelDataType.CONST_INT));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.OFFSET.getKey(), struct);
+		}
+		if(parameterMap.containsKey("engineId") && parameterMap.get("engineId") != null && parameterMap.get("engineId").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			String[] engineFilter = parameterMap.get("engineId");
+			for(String engine : engineFilter) {
+				struct.add(new NounMetadata(engine, PixelDataType.CONST_STRING));
+			}
+			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE.getKey(), struct);
+		}
+		if(parameterMap.containsKey("engineTypes") && parameterMap.get("engineTypes") != null && parameterMap.get("engineTypes").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			String[] engineTypes = parameterMap.get("engineTypes");
+			for(String eType : engineTypes) {
+				struct.add(new NounMetadata(eType, PixelDataType.CONST_STRING));
+			}
+			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
+		}
+		if(parameterMap.containsKey("metaKeys") && parameterMap.get("metaKeys") != null && parameterMap.get("metaKeys").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			String[] metaKeys = parameterMap.get("metaKeys");
+			for(String metaK : metaKeys) {
+				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+			}
+			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
+		}
+		if(parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null && parameterMap.get("metaFilters").length > 0) {
+			Map<String, Object> metaFilters = new Gson().fromJson(parameterMap.get("metaFilters")[0], Map.class);
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
+		}
+		if(parameterMap.containsKey("noMeta") && parameterMap.get("noMeta") != null && parameterMap.get("noMeta").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(parameterMap.get("noMeta")[0], PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
+		}
+		if(parameterMap.containsKey("userT") && parameterMap.get("userT") != null && parameterMap.get("userT").length > 0) {
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(parameterMap.get("userT")[0], PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
+		}
+		
+		NounMetadata outputNoun = reactor.execute();
+		return WebUtility.getResponse(outputNoun.getValue(), 200);
+	}
 
 	/**
 	 * Get the user engine permission level
