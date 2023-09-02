@@ -2,13 +2,13 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -78,7 +78,7 @@ public class FileUploader extends Uploader {
 		// grab the checker
 		HeadersException headerChecker = HeadersException.getInstance();
 		if(type.equalsIgnoreCase("EXCEL")) {
-			List<Map<String, Map<String, String>>> invalidHeadersList = new Vector<>();
+			List<Map<String, Map<String, String>>> invalidHeadersList = new ArrayList<>();
 			
 			// each entry (outer map object) in the list if a workbook
 			// each key in that map object is the sheetName for that given workbook
@@ -326,9 +326,8 @@ public class FileUploader extends Uploader {
 		}
 		
 		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
-
 		// collect all of the data input on the form
-		List<Map<String, String>> retData = new Vector<Map<String, String>>();
+		List<Map<String, String>> retData = new ArrayList<Map<String, String>>();
 
 		while(iteratorFileItems.hasNext()) 
 		{
