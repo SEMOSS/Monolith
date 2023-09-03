@@ -1,10 +1,12 @@
 package prerna.semoss.web.services.local.auth;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -20,6 +22,7 @@ import com.google.gson.Gson;
 import prerna.auth.PasswordRequirements;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityPasswordResetUtils;
+import prerna.auth.utils.SecurityUserAccessKeyUtils;
 import prerna.auth.utils.UserRegistrationEmailService;
 import prerna.date.SemossDate;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -30,7 +33,8 @@ import prerna.web.services.util.WebUtility;
 @Path("/auth/user")
 public class UserAuthorizationResource extends AbstractAdminResource {
 	
-	private static final Logger logger = LogManager.getLogger(UserAuthorizationResource.class);
+	private static final Logger classLogger = LogManager.getLogger(UserAuthorizationResource.class);
+	
 	private static final String RESET_PASSWORD = "/resetPassword/";
 
 	/**
@@ -47,7 +51,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -58,6 +62,12 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		return null;
 	}
 
+	/**
+	 * 
+	 * @param request
+	 * @param form
+	 * @return
+	 */
 	@POST
 	@Produces("application/json")
 	@Path("/deleteUser")
@@ -66,7 +76,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -75,6 +85,35 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		return null;
 	}
 	
+	/**
+	 * Get the user access keys
+	 * @param request
+	 * @return
+	 */
+	@GET
+	@Path("/getUserAccessKeys")
+	@Produces("application/json")
+	public Response getUserAccessKeys(@Context HttpServletRequest request) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		List<Map<String, Object>> results = SecurityUserAccessKeyUtils.getUserAccessKeyInfo(user.getPrimaryLoginToken());
+		return WebUtility.getResponse(results, 200);
+	}
+	
+	/**
+	 * 
+	 * @param context
+	 * @param request
+	 * @return
+	 */
 	@POST
 	@Produces("application/json")
 	@Path("/setupResetPassword")
@@ -87,7 +126,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 				return WebUtility.getResponse(errorMap, 401);
 			}
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -102,7 +141,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		try {
 			uniqueToken = SecurityPasswordResetUtils.allowUserResetPassword(email, type);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -128,11 +167,11 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
-			logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user),
+			classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user),
 					"has requested a password reset for email = " + email));
 		} catch (IllegalAccessException e) {
 			//ignore
-			logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), "No user in session",
+			classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), "No user in session",
 					"has requested a password reset for email = " + email));
 		}
 		
@@ -142,6 +181,12 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(retMap, 200);
 	}
 	
+	/**
+	 * 
+	 * @param context
+	 * @param request
+	 * @return
+	 */
 	@POST
 	@Produces("application/json")
 	@Path("/resetPassword")
@@ -154,7 +199,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 				return WebUtility.getResponse(errorMap, 401);
 			}
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -168,7 +213,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		try {
 			resetDetails = SecurityPasswordResetUtils.userResetPassword(token, password);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -182,11 +227,11 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
-			logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user),
+			classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user),
 					"has changed password for user id = " + userId + " for reset request on " + dateAdded + " with email " + email));
 		} catch (IllegalAccessException e) {
 			//ignore
-			logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), "No user in session",
+			classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), "No user in session",
 					"has changed password for user id = " + userId + " for reset request on " + dateAdded + " with email " + email));
 		}
 		
