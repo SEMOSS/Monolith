@@ -19,6 +19,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import prerna.auth.AccessToken;
 import prerna.auth.PasswordRequirements;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityPasswordResetUtils;
@@ -83,6 +84,62 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		}
 
 		return null;
+	}
+	
+	/**
+	 * 
+	 * @param request
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("createUserAccessKey")
+	public Response createUserAccessKey(@Context HttpServletRequest request) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		AccessToken token = user.getPrimaryLoginToken();
+		Map<String, String> oneTimeDetails = SecurityUserAccessKeyUtils.createUserAccessToken(token);
+		return WebUtility.getResponse(oneTimeDetails, 200);
+	}
+	
+	/**
+	 * 
+	 * @param request
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("deleteUserAccessKey")
+	public Response deleteUserAccessKey(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		Map<String, Object> retMap = new HashMap<>();
+		
+		AccessToken token = user.getPrimaryLoginToken();
+		String accessKey = form.getFirst("accessKey");
+		boolean success = SecurityUserAccessKeyUtils.deleteUserAccessToken(token, accessKey);
+		retMap.put("success", success);
+		if(success) {
+			return WebUtility.getResponse(retMap, 200);
+		} else {
+			return WebUtility.getResponse(retMap, 400);
+		}
 	}
 	
 	/**
