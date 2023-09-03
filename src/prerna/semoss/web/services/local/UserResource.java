@@ -86,6 +86,7 @@ import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.auth.utils.SecurityUserAccessKeyUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.io.connector.GenericProfile;
 import prerna.io.connector.IConnectorIOp;
@@ -2677,7 +2678,29 @@ public class UserResource {
 		}
 		
 		String name = request.getParameter("name");
-		Map<String, String> oneTimeDetails = SecurityAPIUserUtils.addAPIUser(name);
+		Map<String, String> oneTimeDetails = SecurityAPIUserUtils.createAPIUser(name);
+		return WebUtility.getResponse(oneTimeDetails, 200);
+	}
+	
+	/**
+	 * Create an user according to the information provided (user name, password,
+	 * email)
+	 * 
+	 * @param request
+	 * @return true if the user is created otherwise error.
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("createUserAccessKey")
+	public Response createUserAccessKey(@Context HttpServletRequest request) {
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			Map<String, String> ret = new Hashtable<>();
+			ret.put(Constants.ERROR_MESSAGE, "No active session. Please login");
+			return WebUtility.getResponse(ret, 401);
+		}
+		AccessToken token = user.getPrimaryLoginToken();
+		Map<String, String> oneTimeDetails = SecurityUserAccessKeyUtils.createUserAccessToken(token);
 		return WebUtility.getResponse(oneTimeDetails, 200);
 	}
 
