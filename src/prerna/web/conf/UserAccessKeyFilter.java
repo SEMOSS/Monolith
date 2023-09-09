@@ -61,7 +61,7 @@ public class UserAccessKeyFilter implements Filter {
 					classLogger.error(Constants.STACKTRACE, e);
 				}
 				if(user == null) {
-					classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login using user access key '"+accessKey+"' with invalid secret key"));
+					classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login using user access key '"+accessKey+"' with invalid secret key"));
 				}
 				
 				AccessToken token = user.getPrimaryLoginToken();
