@@ -2647,8 +2647,8 @@ public class UserResource {
 
 	
 	/**
-	 * Create an user according to the information provided (user name, password,
-	 * email)
+	 * Create an user according to the information provided 
+	 * (user name, password, email)
 	 * 
 	 * @param request
 	 * @return true if the user is created otherwise error.
@@ -2681,29 +2681,6 @@ public class UserResource {
 		Map<String, String> oneTimeDetails = SecurityAPIUserUtils.createAPIUser(name);
 		return WebUtility.getResponse(oneTimeDetails, 200);
 	}
-	
-	/**
-	 * Create an user according to the information provided (user name, password,
-	 * email)
-	 * 
-	 * @param request
-	 * @return true if the user is created otherwise error.
-	 */
-	@POST
-	@Produces("application/json")
-	@Path("createUserAccessKey")
-	public Response createUserAccessKey(@Context HttpServletRequest request) {
-		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if (user == null) {
-			Map<String, String> ret = new Hashtable<>();
-			ret.put(Constants.ERROR_MESSAGE, "No active session. Please login");
-			return WebUtility.getResponse(ret, 401);
-		}
-		AccessToken token = user.getPrimaryLoginToken();
-		Map<String, String> oneTimeDetails = SecurityUserAccessKeyUtils.createUserAccessToken(token);
-		return WebUtility.getResponse(oneTimeDetails, 200);
-	}
-
 	
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
