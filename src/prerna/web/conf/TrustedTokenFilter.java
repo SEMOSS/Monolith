@@ -79,7 +79,6 @@ public class TrustedTokenFilter implements Filter {
 					
 					// can you login?
 					if(SecurityAPIUserUtils.validCredentials(clientId, secretKey)) {
-						
 						AccessToken token = new AccessToken();
 						token.setId(clientId);
 						token.setProvider(AuthProvider.API_USER);
@@ -91,7 +90,7 @@ public class TrustedTokenFilter implements Filter {
 						
 						classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with basic authencation"));
 					} else {
-						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login as API_USER with invalid credentails using client id = '" + clientId + "'"));
+						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login as API_USER with invalid credentails using client id = '" + clientId + "'"));
 					}
 					
 				} else if(usingDynamic || requireDynamic){
@@ -113,12 +112,12 @@ public class TrustedTokenFilter implements Filter {
 		
 					// error handling
 					if(ipToken == null) {
-						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login as API_USER but does not have a valid trust token or token has expired"));
+						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login as API_USER but does not have a valid trust token or token has expired"));
 						arg2.doFilter(arg0, arg1);
 						return;
 					}
 					if(!ipToken.equals(authValue)) {
-						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login as API_USER but token value is invalid"));
+						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login as API_USER but token value is invalid"));
 						arg2.doFilter(arg0, arg1);
 						return;
 					}
