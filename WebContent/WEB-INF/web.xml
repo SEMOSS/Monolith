@@ -152,6 +152,16 @@
       <url-pattern>/*</url-pattern>
    </filter-mapping>
    
+   <!-- User Access Key Filter -->
+   <filter>
+      <filter-name>UserAccessKeyFilter</filter-name>
+      <filter-class>prerna.web.conf.UserAccessKeyFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>UserAccessKeyFilter</filter-name>
+      <url-pattern>/*</url-pattern>
+   </filter-mapping>
+   
    <!-- scheduler filter -->
    <filter>
       <filter-name>SchedulerFilter</filter-name>
