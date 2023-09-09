@@ -19,7 +19,6 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAPIUserUtils;
-import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.semoss.web.services.config.TrustedTokenService;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
@@ -28,7 +27,7 @@ import prerna.util.Utility;
 
 public class TrustedTokenFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(RDBMSNativeEngine.class);
+	private static final Logger classLogger = LogManager.getLogger(TrustedTokenFilter.class);
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
@@ -90,9 +89,9 @@ public class TrustedTokenFilter implements Filter {
 						session.setAttribute(Constants.SESSION_USER, user);
 						session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 						
-						logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with basic authencation"));
+						classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with basic authencation"));
 					} else {
-						logger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login as API_USER with invalid credentails using client id = '" + clientId + "'"));
+						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login as API_USER with invalid credentails using client id = '" + clientId + "'"));
 					}
 					
 				} else if(usingDynamic || requireDynamic){
@@ -114,12 +113,12 @@ public class TrustedTokenFilter implements Filter {
 		
 					// error handling
 					if(ipToken == null) {
-						logger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login as API_USER but does not have a valid trust token or token has expired"));
+						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login as API_USER but does not have a valid trust token or token has expired"));
 						arg2.doFilter(arg0, arg1);
 						return;
 					}
 					if(!ipToken.equals(authValue)) {
-						logger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login as API_USER but token value is invalid"));
+						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login as API_USER but token value is invalid"));
 						arg2.doFilter(arg0, arg1);
 						return;
 					}
@@ -132,7 +131,7 @@ public class TrustedTokenFilter implements Filter {
 					session = request.getSession(true);
 					session.setAttribute(Constants.SESSION_USER, user);
 					session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-					logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with bearer token"));
+					classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with bearer token"));
 				}
 			}
 		}
