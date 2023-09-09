@@ -1,6 +1,7 @@
 package prerna.semoss.web.services.local.auth;
 
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +29,7 @@ import prerna.auth.utils.UserRegistrationEmailService;
 import prerna.date.SemossDate;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -87,7 +89,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	/**
-	 * 
+	 * Create your user access/secret key
 	 * @param request
 	 * @return
 	 */
@@ -95,17 +97,22 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("createUserAccessKey")
 	public Response createUserAccessKey(@Context HttpServletRequest request) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			Map<String, String> ret = new Hashtable<>();
+			ret.put(Constants.ERROR_MESSAGE, "No active session. Please login");
+			return WebUtility.getResponse(ret, 401);
+		}
+		AccessToken token = user.getPrimaryLoginToken();
+		
+		String prefix = token.getProvider().toString().toLowerCase();
+		boolean accessKeysAllowed = Boolean.parseBoolean(SocialPropertiesUtil.getInstance().getProperty(prefix + "_access_keys_allowed")+"");
+		if(!accessKeysAllowed) {
+			Map<String, String> ret = new Hashtable<>();
+			ret.put(Constants.ERROR_MESSAGE, "Creating access keys is not allowed. Please reach out to an administrator if you require this functionality");
+			return WebUtility.getResponse(ret, 401);
 		}
 		
-		AccessToken token = user.getPrimaryLoginToken();
 		Map<String, String> oneTimeDetails = SecurityUserAccessKeyUtils.createUserAccessToken(token);
 		return WebUtility.getResponse(oneTimeDetails, 200);
 	}
