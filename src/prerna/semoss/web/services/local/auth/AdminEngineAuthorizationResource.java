@@ -23,13 +23,13 @@ import com.google.gson.Gson;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.reactors.admin.AdminMyEnginesReactor;
 import prerna.om.Insight;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.solr.reactor.AdminMyEnginesReactor;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
