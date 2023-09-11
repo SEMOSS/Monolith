@@ -27,35 +27,28 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
-import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.auth.User;
 import prerna.auth.utils.SecurityQueryUtils;
-import prerna.auth.utils.SecurityUpdateUtils;
-import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 @Path("/authorization")
 public class AuthorizationResource {
 
-	private static final Logger logger = LogManager.getLogger(AuthorizationResource.class);
+	private static final Logger classLogger = LogManager.getLogger(AuthorizationResource.class);
 	@Context
 	protected ServletContext context;
 
@@ -66,73 +59,5 @@ public class AuthorizationResource {
 		List<Map<String, Object>> ret = SecurityQueryUtils.searchForUser(searchTerm.trim());
 		return WebUtility.getSO(ret);
 	}
-
-	@POST
-	@Produces("application/json")
-	@Path("requestAccess")
-	public Response requestAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		// what engine are you requesting permission from
-		String engineId = form.getFirst("engineId");
-		// what is the permission of the ask
-		int requestedPermission = Integer.parseInt(form.getFirst("permission"));
-
-		boolean addedRequests = true;
-		try {
-			addedRequests = SecurityUpdateUtils.makeRequest(user, engineId, requestedPermission);
-		} catch(IllegalArgumentException e) {
-    		logger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorRet = new HashMap<>();
-			errorRet.put("error", e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e){
-    		logger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorRet = new HashMap<>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
-		return WebUtility.getResponse(addedRequests, 200);
-	}
-
-	@GET
-	@Produces("application/json")
-	@Path("myRequests")
-	public Response getMyRequests(@Context HttpServletRequest request) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		List<Map<String, Object>> userRequests = null;
-		try {
-			userRequests = SecurityQueryUtils.getUserAccessRequests(user);
-		} catch(IllegalArgumentException e) {
-    		logger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorRet = new HashMap<>();
-			errorRet.put("error", e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e){
-    		logger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorRet = new HashMap<>();
-			errorRet.put("error", "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
-		return WebUtility.getResponse(userRequests, 200);
-	}
-
 
 }
