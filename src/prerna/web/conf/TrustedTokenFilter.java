@@ -50,12 +50,16 @@ public class TrustedTokenFilter implements Filter {
 				}
 				
 				boolean requireDynamic = SecurityAPIUserUtils.getApplicationRequireDynamicToken();
-				String authValue = request.getHeader("authorization");
+				String authValue = request.getHeader("Authorization");
 				if(authValue == null) {
-					// no token? just go through and other filters will validate
-					arg2.doFilter(arg0, arg1);
-					return;
+					authValue = request.getHeader("authorization");
+					if(authValue == null) {
+						// no token? just go through and other filters will validate
+						arg2.doFilter(arg0, arg1);
+						return;
+					}
 				}
+				
 				// if we require dynamic, must have Bearer token
 				if(requireDynamic && !authValue.contains("Bearer")) {
 					// no bearer token
