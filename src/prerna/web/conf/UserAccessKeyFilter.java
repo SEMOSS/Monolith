@@ -40,11 +40,14 @@ public class UserAccessKeyFilter implements Filter {
 		if(user == null) {
 			String fullUrl = Utility.cleanHttpResponse(request.getRequestURL().toString());
 			if (!ResourceUtility.allowAccessWithoutUsers(fullUrl)) {
-				String authValue = request.getHeader("authorization");
+				String authValue = request.getHeader("Authorization");
 				if(authValue == null) {
-					// no token? just go through and other filters will validate
-					arg2.doFilter(arg0, arg1);
-					return;
+					authValue = request.getHeader("authorization");
+					if(authValue == null) {
+						// no token? just go through and other filters will validate
+						arg2.doFilter(arg0, arg1);
+						return;
+					}
 				}
 				
 				authValue = authValue.replace("Basic", "").trim();
