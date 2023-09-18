@@ -77,24 +77,28 @@ public class TrustedTokenFilter implements Filter {
 					// this is a base64 encoded username:password
 					byte[] decodedBytes = Base64.getDecoder().decode(authValue);
 					String userpass = new String(decodedBytes);
-					String[] split = userpass.split(":");
-					String clientId = split[0];
-					String secretKey = split[1];
-					
-					// can you login?
-					if(SecurityAPIUserUtils.validCredentials(clientId, secretKey)) {
-						AccessToken token = new AccessToken();
-						token.setId(clientId);
-						token.setProvider(AuthProvider.API_USER);
-						user = new User();
-						user.setAccessToken(token);
-						session = request.getSession(true);
-						session.setAttribute(Constants.SESSION_USER, user);
-						session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-						
-						classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with basic authencation"));
-					} else {
-						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login as API_USER with invalid credentails using client id = '" + clientId + "'"));
+					if(userpass != null && !userpass.isEmpty()) {
+						String[] split = userpass.split(":");
+						if(split.length == 2) {
+							String clientId = split[0];
+							String secretKey = split[1];
+							
+							// can you login?
+							if(SecurityAPIUserUtils.validCredentials(clientId, secretKey)) {
+								AccessToken token = new AccessToken();
+								token.setId(clientId);
+								token.setProvider(AuthProvider.API_USER);
+								user = new User();
+								user.setAccessToken(token);
+								session = request.getSession(true);
+								session.setAttribute(Constants.SESSION_USER, user);
+								session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
+								
+								classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with basic authencation"));
+							} else {
+								classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login as API_USER with invalid credentails using client id = '" + clientId + "'"));
+							}
+						}
 					}
 					
 				} else if(usingDynamic || requireDynamic){
@@ -105,7 +109,7 @@ public class TrustedTokenFilter implements Filter {
 					// we have to validate this stuff
 					String ip = ResourceUtility.getClientIp(request);
 					Object[] tokenDetails = TrustedTokenService.getTokenForIp(ip);
-					if(tokenDetails == null) {
+					if(tokenDetails == null || tokenDetails.length != 3) {
 						// token not found for this ip
 						arg2.doFilter(arg0, arg1);
 						return;
