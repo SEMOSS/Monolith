@@ -72,7 +72,7 @@ public class ModelEngineResource {
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
-	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
+	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -84,9 +84,9 @@ public class ModelEngineResource {
 		try {
 			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
 			if(!isAdmin) {
-				boolean isOwner = SecurityEngineUtils.userIsOwner(user, storageId);
+				boolean isOwner = SecurityEngineUtils.userIsOwner(user, modelId);
 				if(!isOwner) {
-					throw new IllegalAccessException("Model " + storageId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
+					throw new IllegalAccessException("Model " + modelId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
 				}
 			}
 		} catch (IllegalAccessException e) {
@@ -95,7 +95,7 @@ public class ModelEngineResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		IModelEngine engine = Utility.getModel(storageId);
+		IModelEngine engine = Utility.getModel(modelId);
 		String currentSmssFileLocation = engine.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {
@@ -122,9 +122,9 @@ public class ModelEngineResource {
 		}
 		try {
 			engine.close();
-		} catch (IOException e) {
+		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred closing the connection to the storage. Detailed message = " + e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred closing the connection to the model. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		try {
@@ -148,16 +148,16 @@ public class ModelEngineResource {
 			} catch(Exception e2) {
 				logger.error(Constants.STACKTRACE, e2);
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "A fatal error occurred and could not revert the storage to an operational state. Detailed message = " + e2.getMessage());
+				errorMap.put(Constants.ERROR_MESSAGE, "A fatal error occurred and could not revert the model to an operational state. Detailed message = " + e2.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred initializing the new storage details. Detailed message = " + e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred initializing the new model details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
 		// push to cloud
-		ClusterUtil.pushModelSmss(storageId);
+		ClusterUtil.pushModelSmss(modelId);
 		
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
