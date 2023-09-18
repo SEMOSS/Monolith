@@ -54,37 +54,41 @@ public class UserAccessKeyFilter implements Filter {
 				// this is a base64 encoded username:password
 				byte[] decodedBytes = Base64.getDecoder().decode(authValue);
 				String userpass = new String(decodedBytes);
-				String[] split = userpass.split(":");
-				String accessKey = split[0];
-				String secretKey = split[1];
-				
-				try {
-					user = SecurityUserAccessKeyUtils.validateKeysAndReturnUser(accessKey, secretKey);
-				} catch (IllegalAccessException e) {
-					classLogger.error(Constants.STACKTRACE, e);
-				}
-				if(user == null) {
-					classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login using user access key '"+accessKey+"' with invalid secret key"));
-				}
-				
-				AccessToken token = user.getPrimaryLoginToken();
-				// let us make sure this login type is still allowed to login via access/secret key
-				{
-					AuthProvider provider = token.getProvider();
-					String prefix = provider.toString().toLowerCase();
-					boolean accessKeysAllowed = Boolean.parseBoolean(SocialPropertiesUtil.getInstance().getProperty(prefix + "_access_keys_allowed")+"");
-					if(!accessKeysAllowed) {
-						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to login using access/secret key but administrator has disabeled for provider "+provider.name()));
-						user = null;
+				if(userpass != null && !userpass.isEmpty()) {
+					String[] split = userpass.split(":");
+					if(split != null && split.length == 2) {
+						String accessKey = split[0];
+						String secretKey = split[1];
+						
+						try {
+							user = SecurityUserAccessKeyUtils.validateKeysAndReturnUser(accessKey, secretKey);
+						} catch (IllegalAccessException e) {
+							classLogger.error(Constants.STACKTRACE, e);
+						}
+						if(user == null) {
+							classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login using user access key '"+accessKey+"' with invalid secret key"));
+						}
+						
+						AccessToken token = user.getPrimaryLoginToken();
+						// let us make sure this login type is still allowed to login via access/secret key
+						{
+							AuthProvider provider = token.getProvider();
+							String prefix = provider.toString().toLowerCase();
+							boolean accessKeysAllowed = Boolean.parseBoolean(SocialPropertiesUtil.getInstance().getProperty(prefix + "_access_keys_allowed")+"");
+							if(!accessKeysAllowed) {
+								classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to login using access/secret key but administrator has disabeled for provider "+provider.name()));
+								user = null;
+							}
+						}
+						
+						if(user != null) {
+							SecurityUserAccessKeyUtils.updateAccessTokenLastUsed(accessKey, token);
+							session = request.getSession(true);
+							session.setAttribute(Constants.SESSION_USER, user);
+							session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
+							classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with user access key"));
+						}
 					}
-				}
-				
-				if(user != null) {
-					SecurityUserAccessKeyUtils.updateAccessTokenLastUsed(accessKey, token);
-					session = request.getSession(true);
-					session.setAttribute(Constants.SESSION_USER, user);
-					session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-					classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with user access key"));
 				}
 			}
 		}
