@@ -123,7 +123,7 @@ public class DatabaseEngineResource {
 		}
 		try {
 			engine.close();
-		} catch (IOException e) {
+		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred closing the connection to the database. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
