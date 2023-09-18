@@ -193,7 +193,7 @@ public class DBLoader implements ServletContextListener {
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
 		{
-			IDatabaseEngine localmaster = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(Constants.LOCAL_MASTER_DB_NAME);
+			IDatabaseEngine localmaster = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(Constants.LOCAL_MASTER_DB);
 			IDatabaseEngine security = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(Constants.SECURITY_DB);
 			IDatabaseEngine scheduler = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(Constants.SCHEDULER_DB);
 			IDatabaseEngine userTracking = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(Constants.USER_TRACKING_DB);
@@ -318,16 +318,16 @@ public class DBLoader implements ServletContextListener {
 			logger.log(SHUTDOWN, "Couldn't find database " + Constants.USER_TRACKING_DB);
 		}
 		
-		engine = Utility.getDatabase(Constants.LOCAL_MASTER_DB_NAME);
+		engine = Utility.getDatabase(Constants.LOCAL_MASTER_DB);
 		if (engine != null) {
-			logger.log(SHUTDOWN, "Closing database " + Constants.LOCAL_MASTER_DB_NAME);
+			logger.log(SHUTDOWN, "Closing database " + Constants.LOCAL_MASTER_DB);
 			try {
 				engine.close();
 			} catch (IOException e) {
 				logger.error(Constants.STACKTRACE, e);
 			}
 		} else {
-			logger.log(SHUTDOWN, "Couldn't find database " + Constants.LOCAL_MASTER_DB_NAME);
+			logger.log(SHUTDOWN, "Couldn't find database " + Constants.LOCAL_MASTER_DB);
 		}
 
 		logger.log(SHUTDOWN, "Closing scheduler");
