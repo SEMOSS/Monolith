@@ -122,7 +122,7 @@ public class StorageEngineResource {
 		}
 		try {
 			engine.close();
-		} catch (IOException e) {
+		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred closing the connection to the storage. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
