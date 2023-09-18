@@ -1,59 +1,44 @@
 <!DOCTYPE html>
 <html lang="en" xml:lang="en">
-	<head>
-		<title>Logout</title>
+<head>
+    <title>Logout</title>
 
-		<link href='https://fonts.googleapis.com/css?family=Libre Franklin' rel='stylesheet'>
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<style>
-			body {
-				margin: 0;
-				font-family: "Libre Franklin", sans-serif;
-			}
-			.topnav {
-				overflow: hidden;
-				background-color: #1f2238;
-				height:48px;
-			}
-			.topnav h2 {
-				float: left;
-				color: #f2f2f2;
-				text-align: center;
-				padding: 0px 10px;
-				text-decoration: none;
-				font-size: 17.5px;
-				font-family: "Libre Franklin", sans-serif;
-				font-weight: 400;
-				margin-top: 13px;
-			}
-			.logo {
-				height: 30px;
-				width: 48px;
-				float: left;
-				margin: 8px -5px;
-			}
-			.center-content {
-				margin: 18% 18% 18% 18%;
-				text-align: center;
-				padding-bottom: 20px;
-			}
-			.center-content.outset {
-				border-style: outset;
-				border-radius: 2%;
-			}
-		</style>
-	</head>
-	<body>
-		<div class="topnav">
-			<img class="logo" src="white-logo.svg"/>
-			<h2>SEMOSS</h2>
-		</div>
-
-		<div class="center-content outset">
-			<h1>
-				You're now logged out.
-			</h1>
-			<span>Click <a href="http://localhost:8080/AppDev/#!/login">here</a> to go back to login page.</span>
-		</div>
-	</body>
+    <link href='https://fonts.googleapis.com/css?family=Libre Franklin' rel='stylesheet'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            margin: 0;
+            font-family: "Libre Franklin", sans-serif;
+            background-color: #f5f5f5;
+        }
+        .center-content {
+            margin: 10% auto;
+            text-align: center;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            max-width: 400px;
+        }
+        .center-content h1 {
+            color: #333;
+            font-size: 24px;
+        }
+        .center-content a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .center-content a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="center-content">
+    <h1>
+        You're now logged out.
+    </h1>
+    <span>Click <a href="http://localhost:8080/AppDev/#!/login">here</a> to go back to the login page.</span>
+</div>
+</body>
 </html>
