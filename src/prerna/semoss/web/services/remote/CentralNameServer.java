@@ -45,7 +45,7 @@ public class CentralNameServer {
 	
 	private static final Logger logger = LogManager.getLogger(CentralNameServer.class.getName());
 	private String centralApi = "";
-	private List<String> localDb = Arrays.asList(Constants.LOCAL_MASTER_DB_NAME);
+	private List<String> localDb = Arrays.asList(Constants.LOCAL_MASTER_DB);
 	
 	public void setCentralApi(String centralApi){
 		this.centralApi = centralApi;
