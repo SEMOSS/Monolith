@@ -118,7 +118,7 @@ import waffle.servlet.WindowsPrincipal;
 @Path("/auth")
 public class UserResource {
 
-	private static final Logger logger = LogManager.getLogger(UserResource.class);
+	private static final Logger classLogger = LogManager.getLogger(UserResource.class);
 	
 	private static final String CUSTOM_REDIRECT_SESSION_KEY = "custom_redirect";
 	
@@ -180,7 +180,7 @@ public class UserResource {
 		}
 
 		// log the user logout
-		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is logging out of provider " +  provider));
+		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is logging out of provider " +  provider));
 
 		if (provider.equalsIgnoreCase("ALL")) {
 			removed = true;
@@ -214,7 +214,7 @@ public class UserResource {
 
 		List<NewCookie> nullCookies = null;
 		if(noUser) {
-			logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "has logged out from all providers in the session"));
+			classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "has logged out from all providers in the session"));
 			// well, you have logged out and we always require a login
 			// so i will redirect you by default unless you specifically say not to
 			if(!disableRedirect) {
@@ -255,7 +255,7 @@ public class UserResource {
 
 			// remove the cookie from the browser
 			// for the session id
-			logger.info("Removing session token");
+			classLogger.info("Removing session token");
 			Cookie[] cookies = request.getCookies();
 			nullCookies = new ArrayList<>();
 			if (cookies != null) {
@@ -302,7 +302,7 @@ public class UserResource {
 		UserResource.userTrackingLogin(request, semossUser, token.getProvider());
 
 		// log the user login
-		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser), "is logging in with provider " +  token.getProvider()));
+		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser), "is logging in with provider " +  token.getProvider()));
 
 		// add new users into the database
 		if(autoAdd) {
@@ -391,7 +391,7 @@ public class UserResource {
 				ret.put("picture", accessToken2.getProfile());
 			}
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 
 		return WebUtility.getResponse(ret, 200);
@@ -578,7 +578,7 @@ public class UserResource {
 			}
 			ret.put("name", accessToken2.getName());
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 		return WebUtility.getResponse(ret, 200);
 
@@ -643,7 +643,7 @@ public class UserResource {
 		try {
 			ret.put("name", accessToken2.getProfile());
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -760,8 +760,8 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -783,8 +783,8 @@ public class UserResource {
 				accessToken.setProvider(AuthProvider.SF);
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -813,8 +813,8 @@ public class UserResource {
 				+ "&response_type=code" + "&redirect_uri=" + redirectUri + "&scope="
 				+ URLEncoder.encode("api", "UTF-8");
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
 	}
@@ -855,8 +855,8 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -879,8 +879,8 @@ public class UserResource {
 				MonkeyProfile.fillAccessToken(accessToken, null);
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -908,8 +908,8 @@ public class UserResource {
 		String redirectUrl = "https://api.surveymonkey.com/oauth/authorize?" + "client_id=" + clientId
 				+ "&response_type=code" + "&redirect_uri=" + redirectUri;
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
 	}
@@ -952,8 +952,8 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -984,8 +984,8 @@ public class UserResource {
 				accessToken.setUsername(myGit.getLogin());
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -1016,8 +1016,8 @@ public class UserResource {
 				+ redirectUri + "&state=" + UUID.randomUUID().toString() + "&allow_signup=true" + "&scope="
 				+ URLEncoder.encode(scope, "UTF-8");
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
 	}
@@ -1063,8 +1063,8 @@ public class UserResource {
 				String token_url = socialData.getProperty(prefix + "token_url");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -1099,8 +1099,8 @@ public class UserResource {
 
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -1159,10 +1159,10 @@ public class UserResource {
 				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
 				+ "&scope=" + scope + "&state=" + state;
 
-		logger.info("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		classLogger.info("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
 	}
@@ -1207,8 +1207,8 @@ public class UserResource {
 				String token_url = socialData.getProperty(prefix + "token_url");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -1235,8 +1235,8 @@ public class UserResource {
 				MSProfile.fillAccessToken(accessToken, null);
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -1273,8 +1273,8 @@ public class UserResource {
 				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
 				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
@@ -1320,8 +1320,8 @@ public class UserResource {
 				String token_url = socialData.getProperty(prefix + "token_url");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -1355,8 +1355,8 @@ public class UserResource {
 
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -1409,8 +1409,8 @@ public class UserResource {
 				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
 				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
@@ -1455,8 +1455,8 @@ public class UserResource {
 				String token_url = socialData.getProperty(prefix + "token_url");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -1482,8 +1482,8 @@ public class UserResource {
 				MSProfile.fillAccessToken(accessToken, null);
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -1520,8 +1520,8 @@ public class UserResource {
 				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
 				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
@@ -1564,8 +1564,8 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -1587,8 +1587,8 @@ public class UserResource {
 				accessToken.setProvider(AuthProvider.DROPBOX);
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -1618,8 +1618,8 @@ public class UserResource {
 				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&require_role="
 				+ role + "&disable_signup=false";
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
@@ -1663,8 +1663,8 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				// I need to decode the return code from google since the default param's are
@@ -1695,8 +1695,8 @@ public class UserResource {
 				addAccessToken(accessToken, request, autoAdd);
 
 				// Shows how to make a google credential from an access token
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 
 				// this is just for testing...
@@ -1733,8 +1733,8 @@ public class UserResource {
 				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&access_type="
 				+ accessType + "&scope=" + URLEncoder.encode(scope, "UTF-8") + "&state=" + state;
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
 	}
@@ -1779,7 +1779,7 @@ public class UserResource {
 		try {
 			ret.put("files", BeanFiller.getJson(fileList));
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 
 		IConnectorIOp lat = new GoogleLatLongGetter();
@@ -1831,8 +1831,8 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -1855,8 +1855,8 @@ public class UserResource {
 				accessToken.setProvider(AuthProvider.PRODUCT_HUNT);
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -1886,8 +1886,8 @@ public class UserResource {
 				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&scope="
 				+ URLEncoder.encode(scope, "UTF-8");
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
@@ -1930,8 +1930,8 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -1953,8 +1953,8 @@ public class UserResource {
 				accessToken.setProvider(AuthProvider.IN);
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -1983,8 +1983,8 @@ public class UserResource {
 				+ "&redirect_uri=" + redirectUri + "&state=" + UUID.randomUUID().toString() + "&response_type=code"
 				+ "&scope=" + URLEncoder.encode(scope, "UTF-8");
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
@@ -2032,8 +2032,8 @@ public class UserResource {
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -2056,8 +2056,8 @@ public class UserResource {
 				accessToken.setProvider(AuthProvider.GITHUB);
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -2104,8 +2104,8 @@ public class UserResource {
 				+ "&oauth_callback=" + redirectUri + "&oauth_nonce=" + nonce + "&oauth_timestamp=" + timestamp
 				+ "&scope=" + URLEncoder.encode(scope, "UTF-8");
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
@@ -2157,8 +2157,8 @@ public class UserResource {
 				//String scope = socialData.getProperty(prefix + "scope");
 				String token_url = socialData.getProperty(prefix + "token_url");
 
-				if(logger.isDebugEnabled()) {
-					logger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 				}
 
 				Hashtable params = new Hashtable();
@@ -2191,8 +2191,8 @@ public class UserResource {
 				GenericProfile.fillAccessToken(accessToken,userInfoURL, beanProps, jsonPattern, null);
 				addAccessToken(accessToken, request, autoAdd);
 
-				if(logger.isDebugEnabled()) {
-					logger.debug("Access Token is.. " + accessToken.getAccess_token());
+				if(classLogger.isDebugEnabled()) {
+					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 				}
 			}
 		}
@@ -2265,8 +2265,8 @@ public class UserResource {
 		}
 
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
@@ -2363,7 +2363,7 @@ public class UserResource {
 					session.invalidate();
 				}
 			}
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}
@@ -2420,7 +2420,7 @@ public class UserResource {
 					session.invalidate();
 				}
 			}
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, "User must change their password before login");
 			ret.put(ILdapAuthenticator.LDAP_PASSWORD_CHANGE_RETURN_KEY, true);
 			return WebUtility.getResponse(ret, 401);
@@ -2432,7 +2432,7 @@ public class UserResource {
 					session.invalidate();
 				}
 			}
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 500);
 		} finally {
@@ -2440,7 +2440,7 @@ public class UserResource {
 				try {
 					authenticator.close();
 				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error(Constants.STACKTRACE, e);
 				}
 			}
 		}
@@ -2490,7 +2490,7 @@ public class UserResource {
 					session.invalidate();
 				}
 			}
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 500);
 		} finally {
@@ -2498,7 +2498,7 @@ public class UserResource {
 				try {
 					authenticator.close();
 				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error(Constants.STACKTRACE, e);
 				}
 			}
 		}
@@ -2575,7 +2575,7 @@ public class UserResource {
 			// this is simple, take response code and message and return
 			return WebUtility.getResponse(returnMap, responseCode);
 		} catch(Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, Object> errorMessage = new HashMap<>();
 			errorMessage.put(Constants.ERROR_MESSAGE, "Error occurred resetting the pin. Error message = " + e.getMessage());
 			return WebUtility.getResponse(errorMessage, 500);
@@ -2635,11 +2635,11 @@ public class UserResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		} catch (IllegalArgumentException iae) {
-			logger.error(Constants.STACKTRACE, iae);
+			classLogger.error(Constants.STACKTRACE, iae);
 			ret.put(Constants.ERROR_MESSAGE, iae.getMessage());
 			return WebUtility.getResponse(ret, 500);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}
@@ -2760,7 +2760,7 @@ public class UserResource {
 		try {
 			socialData.updateSocialProperties(provider, mods);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Hashtable<String, String> errorRet = new Hashtable<>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -2785,7 +2785,7 @@ public class UserResource {
 		try {
 			socialData.updateAllProperties(newSocialProperties);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Hashtable<String, String> errorRet = new Hashtable<>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -2812,7 +2812,7 @@ public class UserResource {
 			retMap.put("content", fileContent);
 			return WebUtility.getResponse(retMap, 200);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Hashtable<String, String> errorRet = new Hashtable<>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -2870,7 +2870,7 @@ public class UserResource {
 				response.sendRedirect(socialData.getProperty("redirect"));
 			}
 		} catch (IOException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 	}
 
@@ -2919,8 +2919,8 @@ public class UserResource {
 		k.setPath(request.getContextPath());
 		response.addCookie(k);
 
-		if(logger.isDebugEnabled()) {
-			logger.debug("Session id set to " + sessionId);
+		if(classLogger.isDebugEnabled()) {
+			classLogger.debug("Session id set to " + sessionId);
 		}
 
 		InsightToken token = new InsightToken();
@@ -2959,8 +2959,8 @@ public class UserResource {
 				}
 			}
 
-			if(logger.isDebugEnabled()) {
-				logger.debug("Redirect URL " + Utility.cleanLogString(redir));
+			if(classLogger.isDebugEnabled()) {
+				classLogger.debug("Redirect URL " + Utility.cleanLogString(redir));
 			}
 
 			outputHash.put("PARAM", redir);
@@ -2969,7 +2969,7 @@ public class UserResource {
 			// dont allow
 			user.addShare(sessionId);
 		} catch (NoSuchAlgorithmException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 
 		return WebUtility.getSO(outputHash);
