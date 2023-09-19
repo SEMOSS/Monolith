@@ -1,5 +1,6 @@
 package prerna.semoss.web.services.local.auth;
 
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
@@ -113,8 +114,25 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(ret, 401);
 		}
 		
-		Map<String, String> oneTimeDetails = SecurityUserAccessKeyUtils.createUserAccessToken(token);
-		return WebUtility.getResponse(oneTimeDetails, 200);
+		String tokenName = request.getParameter("tokenName");
+		String tokenDescription = request.getParameter("tokenDescription");
+		if(tokenDescription != null) {
+			if(tokenDescription.length() > 500) {
+				Map<String, String> ret = new Hashtable<>();
+				ret.put(Constants.ERROR_MESSAGE, "Token description must be less than 500 characters long");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		
+		Map<String, String> oneTimeDetails;
+		try {
+			oneTimeDetails = SecurityUserAccessKeyUtils.createUserAccessToken(token, tokenName, tokenDescription);
+			return WebUtility.getResponse(oneTimeDetails, 200);
+		} catch (SQLException e) {
+			Map<String, String> ret = new Hashtable<>();
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 400);
+		}
 	}
 	
 	/**
@@ -140,12 +158,18 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		
 		AccessToken token = user.getPrimaryLoginToken();
 		String accessKey = form.getFirst("accessKey");
-		boolean success = SecurityUserAccessKeyUtils.deleteUserAccessToken(token, accessKey);
-		retMap.put("success", success);
-		if(success) {
-			return WebUtility.getResponse(retMap, 200);
-		} else {
-			return WebUtility.getResponse(retMap, 400);
+		try {
+			boolean success = SecurityUserAccessKeyUtils.deleteUserAccessToken(token, accessKey);
+			retMap.put("success", success);
+			if(success) {
+				return WebUtility.getResponse(retMap, 200);
+			} else {
+				return WebUtility.getResponse(retMap, 400);
+			}
+		} catch(Exception e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
 	
