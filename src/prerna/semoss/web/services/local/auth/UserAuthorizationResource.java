@@ -115,6 +115,13 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		String tokenName = request.getParameter("tokenName");
+		if(tokenName != null) {
+			if(tokenName.length() > 255) {
+				Map<String, String> ret = new Hashtable<>();
+				ret.put(Constants.ERROR_MESSAGE, "Token name must be less than 255 characters long");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
 		String tokenDescription = request.getParameter("tokenDescription");
 		if(tokenDescription != null) {
 			if(tokenDescription.length() > 500) {
