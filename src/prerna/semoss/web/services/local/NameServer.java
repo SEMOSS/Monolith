@@ -105,7 +105,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/engine")
 public class NameServer {
 
-	private static final Logger logger = LogManager.getLogger(NameServer.class);
+	private static final Logger classLogger = LogManager.getLogger(NameServer.class);
 
 	private static final String ERROR_TYPE = "errorType";
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
@@ -132,7 +132,7 @@ public class NameServer {
 			@QueryParam("dataFrameType") String dataFrameType, @Context HttpServletRequest request) {
 		// eventually I want to pick this from session
 		// but for now let us pick it from the insight store
-		logger.debug("Came into this point.. " + insightID);
+		classLogger.debug("Came into this point.. " + insightID);
 
 		Insight existingInsight = null;
 		if (insightID != null && !insightID.isEmpty() && !insightID.startsWith("new")) {
@@ -300,7 +300,7 @@ public class NameServer {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
 				for (Cookie c : curCookies) {
-					logger.debug(Utility.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
+					classLogger.debug(Utility.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
 					if (c.getName().equals(routeCookieName)) {
 						ThreadStore.setRouteId(c.getValue());
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());
@@ -330,17 +330,12 @@ public class NameServer {
 			insight.setBaseURL(getServerURL(request));
 			insight.setInsightId(insightId);
 			insight.setTemporaryInsight(true);
-			// we will still store this
-			// so that when the session ends
-			// we clean it up
-			InsightStore.getInstance().addToSessionHash(sessionId, insightId);
 		} else if (insightId.equals("new")) { 
 			// need to make a new insight here
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
 			InsightStore.getInstance().put(insight);
 			insightId = insight.getInsightId();
-			InsightStore.getInstance().addToSessionHash(sessionId, insightId);
 		} else {
 			// or just get it from the store
 			// the session id needs to be checked
@@ -353,6 +348,7 @@ public class NameServer {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
+		InsightStore.getInstance().addToSessionHash(sessionId, insightId);
 		// set the user
 		insight.setUser(user);
 		
@@ -365,8 +361,8 @@ public class NameServer {
 			try {
 				tz = TimeZone.getTimeZone(strTz);
 			} catch(Exception e) {
-				logger.warn("Error parsing out users timezone value: " + strTz);
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.warn("Error parsing out users timezone value: " + strTz);
+				classLogger.error(Constants.STACKTRACE, e);
 				tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
 			}
 		}
@@ -411,7 +407,7 @@ public class NameServer {
 		if (user == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			logger.debug("User session is invalid");
+			classLogger.debug("User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -481,6 +477,10 @@ public class NameServer {
 				jt.setStatus(JobStatus.COMPLETE);
 				manager.clearJob(jobId);
 				manager.removeJob(jobId);
+				// remove temp insights from store
+				if(insight.isTemporaryInsight()) {
+					InsightStore.getInstance().removeFromSessionHash(sessionId, insightId);
+				}
 			}
 		}
 	}
@@ -498,7 +498,7 @@ public class NameServer {
 						.entity(GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline(insight)))
 						.build();
 			} catch (Exception e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
@@ -522,7 +522,7 @@ public class NameServer {
 		if (user == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			logger.debug("User session is invalid");
+			classLogger.debug("User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
@@ -725,12 +725,12 @@ public class NameServer {
 		// output = thread.getOutput() + "";
 		// }
 		if (myResponse != null) {
-			logger.debug("Response Done ? " + myResponse.isDone());
-			logger.debug("Response suspended ? " + myResponse.isSuspended());
-			logger.debug("Is the response done..  ? " + myResponse.isDone());
+			classLogger.debug("Response Done ? " + myResponse.isDone());
+			classLogger.debug("Response suspended ? " + myResponse.isSuspended());
+			classLogger.debug("Is the response done..  ? " + myResponse.isDone());
 			myResponse.resume("Hello2222");
 			myResponse.resume("Hola again");
-			logger.debug("MyResponse is not null");
+			classLogger.debug("MyResponse is not null");
 		}
 
 		return output;
@@ -827,7 +827,7 @@ public class NameServer {
 						}
 					}
 				} catch (ClientProtocolException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error(Constants.STACKTRACE, e);
 				} finally {
 					if (httpClient != null) {
 						httpClient.close();
@@ -837,7 +837,7 @@ public class NameServer {
 					}
 				}
 			} catch (IOException e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
 
@@ -874,7 +874,7 @@ public class NameServer {
 	public Object getEngineProxy(@PathParam("engine") String db, @Context HttpServletRequest request) {
 		// this is the name server
 		// this needs to return stuff
-		logger.debug(" Getting DB... " + db);
+		classLogger.debug(" Getting DB... " + db);
 		HttpSession session = request.getSession();
 		IDatabaseEngine engine = (IDatabaseEngine) session.getAttribute(db);
 		EngineRemoteResource res = new EngineRemoteResource();
@@ -888,7 +888,7 @@ public class NameServer {
 			@Context HttpServletRequest request) {
 		// this is the name server
 		// this needs to return stuff
-		logger.debug(" Going to central name server ... " + url);
+		classLogger.debug(" Going to central name server ... " + url);
 		CentralNameServer cns = new CentralNameServer();
 		cns.setCentralApi(url);
 		return cns;
@@ -1023,7 +1023,7 @@ public class NameServer {
 					out.println("</body>");
 					out.println("</html>");
 				} catch (Exception e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error(Constants.STACKTRACE, e);
 				}
 			}
 		};
@@ -1117,7 +1117,7 @@ public class NameServer {
 				appIds = filterMap.get("app_id");
 				tags = filterMap.get("tags");
 			} catch (Exception e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Invalid filter map");
 				return WebUtility.getSO(errorMap);
@@ -1143,7 +1143,7 @@ public class NameServer {
 		if (!file.exists()) {			
 			Boolean success = file.mkdir();
 			if(!success) {
-				logger.info("Unable to created insight tuple space at: " + Utility.cleanLogString(normalizedInsightSpecificFolder));
+				classLogger.info("Unable to created insight tuple space at: " + Utility.cleanLogString(normalizedInsightSpecificFolder));
 			}
 			String command = "addFolder@@" + normalizedInsightSpecificFolder;
 			String normalizedCmdFilePath = Utility.normalizePath(baseFolder + "/" + insightId +".admin");
@@ -1152,7 +1152,7 @@ public class NameServer {
 			try {
 				FileUtils.writeStringToFile(cmdFile, command);
 			} catch (IOException ioe) {
-				logger.error(Constants.STACKTRACE, ioe);
+				classLogger.error(Constants.STACKTRACE, ioe);
 			}
 		}
 		return normalizedInsightSpecificFolder;
