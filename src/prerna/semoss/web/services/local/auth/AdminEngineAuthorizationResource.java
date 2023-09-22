@@ -270,7 +270,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllEngines(userId, permission, isAddNew, engineTypes);
+			adminUtils.grantAllEngines(userId, permission, isAddNew, engineTypes, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -307,7 +307,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersEngineAccess(engineId, permission);
+			adminUtils.grantNewUsersEngineAccess(engineId, permission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -385,7 +385,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addEngineUser(newUserId, engineId, permission);
+			adminUtils.addEngineUser(newUserId, engineId, permission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -428,7 +428,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			adminUtils.addEngineUserPermissions(engineId, permission);
+			adminUtils.addEngineUserPermissions(engineId, permission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -471,7 +471,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addAllEngineUsers(engineId, permission);
+			adminUtils.addAllEngineUsers(engineId, permission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -516,7 +516,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission);
+			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -557,7 +557,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editEngineUserPermissions(engineId, requests);
+			SecurityAdminUtils.editEngineUserPermissions(engineId, requests, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -599,7 +599,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.updateEngineUserPermissions(engineId, newPermission);
+			adminUtils.updateEngineUserPermissions(engineId, newPermission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
