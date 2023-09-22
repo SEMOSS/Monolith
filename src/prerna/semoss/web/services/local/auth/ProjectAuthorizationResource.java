@@ -24,6 +24,7 @@ import com.google.gson.Gson;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.om.Insight;
@@ -371,7 +372,10 @@ public class ProjectAuthorizationResource {
 			List<String> dependentEngineIds = SecurityProjectUtils.getProjectDependencies(user, projectId);
 
 			// ADD IN CODE
-
+			for(String engineId : dependentEngineIds) {
+				SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission);
+			}
+			
 			
 		} catch (Exception e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
