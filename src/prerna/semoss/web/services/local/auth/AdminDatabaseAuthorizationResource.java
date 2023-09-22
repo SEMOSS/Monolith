@@ -125,7 +125,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllEngines(userId, permission, isAddNew, null);
+			adminUtils.grantAllEngines(userId, permission, isAddNew, null, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -168,7 +168,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersEngineAccess(appId, permission);
+			adminUtils.grantNewUsersEngineAccess(appId, permission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -248,7 +248,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addEngineUser(newUserId, appId, permission);
+			adminUtils.addEngineUser(newUserId, appId, permission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -296,7 +296,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addAllEngineUsers(appId, permission);
+			adminUtils.addAllEngineUsers(appId, permission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -346,7 +346,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission);
+			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -393,7 +393,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.updateEngineUserPermissions(appId, newPermission);
+			adminUtils.updateEngineUserPermissions(appId, newPermission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
