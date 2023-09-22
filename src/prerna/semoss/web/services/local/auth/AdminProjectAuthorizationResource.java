@@ -251,7 +251,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllProjects(userId, permission, isAddNew);
+			adminUtils.grantAllProjects(userId, permission, isAddNew, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -289,7 +289,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersProjectAccess(projectId, permission);
+			adminUtils.grantNewUsersProjectAccess(projectId, permission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -363,7 +363,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addProjectUser(newUserId, projectId, permission);
+			adminUtils.addProjectUser(newUserId, projectId, permission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -406,7 +406,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addAllProjectUsers(projectId, permission);
+			adminUtils.addAllProjectUsers(projectId, permission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -451,7 +451,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.editProjectUserPermission(existingUserId, projectId, newPermission);
+			adminUtils.editProjectUserPermission(existingUserId, projectId, newPermission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -492,7 +492,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editProjectUserPermissions(projectId, requests);
+			SecurityAdminUtils.editProjectUserPermissions(projectId, requests, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -534,7 +534,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.updateProjectUserPermissions(projectId, newPermission);
+			adminUtils.updateProjectUserPermissions(projectId, newPermission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -821,7 +821,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			adminUtils.addProjectUserPermissions(projectId, permission);
+			adminUtils.addProjectUserPermissions(projectId, permission, user);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
