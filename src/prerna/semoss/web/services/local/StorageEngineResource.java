@@ -36,6 +36,7 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
+import prerna.engine.api.IEngine;
 import prerna.engine.api.IStorageEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
@@ -157,7 +158,7 @@ public class StorageEngineResource {
 		}
 		
 		// push to cloud
-		ClusterUtil.pushStorageSmss(storageId);
+		ClusterUtil.pushEngineSmss(storageId, IEngine.CATALOG_TYPE.STORAGE);
 		
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
