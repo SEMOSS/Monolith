@@ -114,7 +114,7 @@ public class ImageUploader extends Uploader {
 		
 		// base path is the engine folder
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER).replace("\\", "/");
-		if(baseFolder.endsWith("/")) {
+		if(!baseFolder.endsWith("/")) {
 			baseFolder += "/";
 		}
 		
