@@ -188,10 +188,10 @@ public class LegacyAppResource {
 	@Path("/appImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
-		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
-		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
-		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
-		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
+		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
 
 		User user = null;
 		try {
@@ -220,7 +220,12 @@ public class LegacyAppResource {
 			}
 		}
 		
-		File exportFile = getDatabaseImageFile(databaseId);
+		File exportFile = null;
+		try {
+			exportFile = getDatabaseImageFile(databaseId);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+		}
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = databaseId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
@@ -252,11 +257,12 @@ public class LegacyAppResource {
 	 * Use to find the file for the image
 	 * @param databaseId
 	 * @return
+	 * @throws Exception 
 	 */
-	protected File getDatabaseImageFile(String databaseId) {
+	protected File getDatabaseImageFile(String databaseId) throws Exception {
 		databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
 		if(ClusterUtil.IS_CLUSTER){
-			return ClusterUtil.getDatabaseImage(databaseId);
+			return ClusterUtil.getEngineImage(databaseId, IEngine.CATALOG_TYPE.DATABASE);
 		}
 		String propFileLoc = (String) DIHelper.getInstance().getEngineProperty(databaseId + "_" + Constants.STORE);
 		if(propFileLoc == null && !databaseId.equals("NEWSEMOSSAPP")) {
@@ -280,10 +286,10 @@ public class LegacyAppResource {
 			// make the image
 			f = new File(fileLocation);
 			if(!f.exists()) {
-			Boolean success = f.mkdirs();
-			if(!success) {
-				logger.info("Unable to make direction at location: " + Utility.cleanLogString(fileLocation));
-			}
+				Boolean success = f.mkdirs();
+				if(!success) {
+					logger.info("Unable to make direction at location: " + Utility.cleanLogString(fileLocation));
+				}
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
 			return DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
