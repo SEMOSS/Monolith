@@ -514,12 +514,15 @@ public class ImageUploader extends Uploader {
 					if (!success) {
 						classLogger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
 					}
+					if (ClusterUtil.IS_CLUSTER) {
+						ClusterUtil.deleteEngineImage(IEngine.CATALOG_TYPE.DATABASE, oldI.getName());
+					}
 				}
 			}
 			writeFile(imageFile, f);
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					ClusterUtil.pushEngineImageFolder(IEngine.CATALOG_TYPE.DATABASE);
+					ClusterUtil.pushEngineImage(IEngine.CATALOG_TYPE.DATABASE, f.getName());
 				}
 			} catch(Exception e) {
 				Thread.currentThread().interrupt();
@@ -609,16 +612,15 @@ public class ImageUploader extends Uploader {
 				if (!success) {
 					classLogger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
 				}
+				try {
+					if (ClusterUtil.IS_CLUSTER) {
+						ClusterUtil.deleteEngineImage(IEngine.CATALOG_TYPE.DATABASE, oldI.getName());
+					}
+				} catch(Exception e) {
+					Thread.currentThread().interrupt();
+					classLogger.error(Constants.STACKTRACE, e);
+				}
 			}
-		}
-		
-		try {
-			if (ClusterUtil.IS_CLUSTER) {
-				ClusterUtil.pushEngineImageFolder(IEngine.CATALOG_TYPE.DATABASE);
-			}
-		} catch(Exception e) {
-			Thread.currentThread().interrupt();
-			classLogger.error(Constants.STACKTRACE, e);
 		}
 		
 		returnMap.put("database_id", appId);
@@ -627,6 +629,7 @@ public class ImageUploader extends Uploader {
 		return WebUtility.getResponse(returnMap, 200);
 	}
 	
+	@Deprecated
 	private String getDbImageDir(String filePath, String appId, String appName) {
 		if(ClusterUtil.IS_CLUSTER){
 			return ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "databases";
@@ -640,6 +643,7 @@ public class ImageUploader extends Uploader {
 		return versionFolder;
 	}
 
+	@Deprecated
 	private String getDbImageLoc(String filePath, String id, String name, FileItem imageFile){
 		String imageDir = getDbImageDir(filePath, id, name);
 		if(ClusterUtil.IS_CLUSTER){
@@ -649,7 +653,10 @@ public class ImageUploader extends Uploader {
 	}
 
 	////////////////////////////////////////////////////////////////////////////
-	
+	////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////
+
 	/*
 	 * PROJECT
 	 */
