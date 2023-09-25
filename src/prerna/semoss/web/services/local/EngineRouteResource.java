@@ -1,6 +1,10 @@
 package prerna.semoss.web.services.local;
 
+import java.io.File;
+import java.io.FileFilter;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -10,17 +14,47 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.ResponseBuilder;
 
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
+import prerna.auth.utils.SecurityQueryUtils;
+import prerna.cluster.util.ClusterUtil;
+import prerna.cluster.util.clients.CentralCloudStorage;
 import prerna.engine.api.IEngine;
+import prerna.engine.impl.SmssUtilities;
+import prerna.io.connector.couch.CouchException;
+import prerna.io.connector.couch.CouchUtil;
+import prerna.util.Constants;
+import prerna.util.DIHelper;
+import prerna.util.DefaultImageGeneratorUtil;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/e-{engineId}")
 public class EngineRouteResource {
 
+	private static final Logger classLogger = LogManager.getLogger(ModelEngineResource.class);
+	
+	private boolean canViewEngine(User user, String engineId) throws IllegalAccessException {
+		engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
+		if(!SecurityEngineUtils.userCanViewEngine(user, engineId)
+				&& !SecurityEngineUtils.engineIsDiscoverable(engineId)) {
+			throw new IllegalAccessException("Engine " + engineId + " does not exist or user does not have access");
+		}
+		
+		return true;
+	}
+	
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -72,30 +106,147 @@ public class EngineRouteResource {
 	@Path("/image/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("engineId") String engineId) {
-		// the called resource class does the security checks
-
-		IEngine.CATALOG_TYPE catalogType = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		IEngine.CATALOG_TYPE engineType = null;
 		Object[] typeAndSubtype = null;
 		try {
 			typeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
-			catalogType = (IEngine.CATALOG_TYPE) typeAndSubtype[0];
+			engineType = (IEngine.CATALOG_TYPE) typeAndSubtype[0];
 		} catch(Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "Unknown engine with id " + engineId);
 			return WebUtility.getResponse(errorMap, 400);
 		}
-
-		if(IEngine.CATALOG_TYPE.DATABASE == catalogType) {
-			return new DatabaseEngineResource().imageDownload(coreRequest, request, engineId);
-		} else if(IEngine.CATALOG_TYPE.STORAGE == catalogType) {
-			return new StorageEngineResource().imageDownload(coreRequest, request, engineId);
-		} else if(IEngine.CATALOG_TYPE.MODEL == catalogType) {
-			return new ModelEngineResource().imageDownload(coreRequest, request, engineId);
+		try {
+			canViewEngine(user, engineId);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		Map<String, String> errorMap = new HashMap<>();
-		errorMap.put("error", "Unknown engine with id " + engineId);
-		return WebUtility.getResponse(errorMap, 400);
+		String engineName = SecurityEngineUtils.getEngineAliasForId(engineId);
+		String engineNameAndId = SmssUtilities.getUniqueName(engineName, engineId);
+		
+		// base path is the engine folder
+		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER).replace("\\", "/");
+		if(!baseFolder.endsWith("/")) {
+			baseFolder += "/";
+		}
+		
+		// will define these here, so i dont have to keep doing if statments
+		String couchSelector = null;
+		String localEngineImageFolderPath = baseFolder;
+		String engineVersionPath = baseFolder;
+		
+		if(IEngine.CATALOG_TYPE.DATABASE == engineType) {
+			engineVersionPath += Constants.DATABASE_FOLDER;
+			couchSelector = CouchUtil.DATABASE;
+			localEngineImageFolderPath += CentralCloudStorage.LOCAL_DATABASE_IMAGE_RELPATH;
+					
+		} else if(IEngine.CATALOG_TYPE.STORAGE == engineType) {
+			engineVersionPath += Constants.STORAGE_FOLDER;
+			couchSelector = CouchUtil.STORAGE;
+			localEngineImageFolderPath += CentralCloudStorage.LOCAL_STORAGE_IMAGE_RELPATH;
+
+		} else if(IEngine.CATALOG_TYPE.MODEL == engineType) {
+			engineVersionPath += Constants.MODEL_FOLDER;
+			couchSelector = CouchUtil.MODEL;
+			localEngineImageFolderPath += CentralCloudStorage.LOCAL_MODEL_IMAGE_RELPATH;
+
+		} else {
+			Map<String, String> returnMap = new HashMap<>();
+			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
+			return WebUtility.getResponse(returnMap, 400);
+		}
+		engineVersionPath += "/"+engineNameAndId+"/"+Constants.APP_ROOT_FOLDER+"/"+Constants.VERSION_FOLDER;
+		engineVersionPath = Utility.normalizePath(engineVersionPath);
+
+		File exportFile = null;
+		// is the image in couch db
+		if(CouchUtil.COUCH_ENABLED) {
+			try {
+				Map<String, String> selectors = new HashMap<>();
+				selectors.put(couchSelector, engineId);
+				return CouchUtil.download(couchSelector, selectors);
+			} catch (CouchException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+			}
+		} 
+		// is the image in cloud storage
+		else if(ClusterUtil.IS_CLUSTER) {
+			try {
+				exportFile = ClusterUtil.getEngineImage(engineId, engineType);
+			} catch (Exception e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Error sending image file");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		// is the image local in engine folder
+		} else {
+			exportFile = findImageFile(engineVersionPath);
+			if(exportFile == null) {
+				// make the image
+				String fileLocation = engineVersionPath + "/" + "image.png";
+				exportFile = DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
+			}
+		}
+		
+		if(exportFile != null && exportFile.exists()) {
+			String exportName = engineId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
+			// want to cache this on browser if user has access
+//			CacheControl cc = new CacheControl();
+//			cc.setMaxAge(86400);
+//			cc.setPrivate(true);
+//			cc.setMustRevalidate(true);
+		    EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
+		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
+
+		    // cached resource did not change
+		    if(builder != null) {
+		        return builder.build();
+		    }
+		    
+			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
+//					.cacheControl(cc)
+					.tag(etag)
+//					.lastModified(new Date(exportFile.lastModified()))
+					.build();
+		} else {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error sending image file");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+	}
+	
+	/**
+	 * Find an image in the directory
+	 * @param folderDirectory
+	 * @return
+	 */
+	private File findImageFile(String folderDirectory) {
+		List<String> extensions = new ArrayList<>();
+		extensions.add("image.png");
+		extensions.add("image.jpeg");
+		extensions.add("image.jpg");
+		extensions.add("image.gif");
+		extensions.add("image.svg");
+		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
+		File baseFolder = new File(folderDirectory);
+		File[] imageFiles = baseFolder.listFiles(imageExtensionFilter);
+		if(imageFiles != null && imageFiles.length > 0) {
+			return imageFiles[0];
+		}
+		return null;
 	}
 	
 }
