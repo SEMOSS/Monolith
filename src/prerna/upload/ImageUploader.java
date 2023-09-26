@@ -29,7 +29,6 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
-import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.cluster.util.clients.CentralCloudStorage;
 import prerna.engine.api.IEngine;
@@ -915,32 +914,30 @@ public class ImageUploader extends Uploader {
 	public Response uploadDatabaseImage(@Context ServletContext context, @Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		// base path is the db folder
-		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + Constants.DATABASE_FOLDER;
-		filePath = Utility.normalizePath(filePath);
-		
 		List<FileItem> fileItems = processRequest(context, request, null);
 		// collect all of the data input on the form
 		FileItem imageFile = null;
-		String databaseId = null;
-		String databaseName = null;
-
+		String engineId = null;
+		
 		for (FileItem fi : fileItems) {
 			String fieldName = fi.getFieldName();
 			String value = fi.getString();
 			if (fieldName.equals("file")) {
 				imageFile = fi;
 			}
+			if (fieldName.equals("engineId")) {
+				engineId = value;
+			}
 			if (fieldName.equals("databaseId")) {
-				databaseName = value;
+				engineId = value;
 			}
 		}
 
 		if (imageFile == null) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Could not find the file to upload for the insight in the request");
 			return WebUtility.getResponse(returnMap, 400);
-		} else if (databaseName == null) {
-			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper database id to upload the image");
+		} else if (engineId == null) {
+			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to upload the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
@@ -955,83 +952,163 @@ public class ImageUploader extends Uploader {
 
 			if (user.isAnonymous()) {
 				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an database image");
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
-			try {
-				databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseName);
-			} catch (Exception e) {
-				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(returnMap, 400);
-			}
-			if (!SecurityEngineUtils.userCanEditEngine(user, databaseId)) {
+			if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
 				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
 				return WebUtility.getResponse(returnMap, 400);
 			}
-			databaseName = SecurityEngineUtils.getEngineAliasForId(databaseId);
 		} else {
 			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(returnMap, 400);
 		}
 		
+		String engineName = SecurityEngineUtils.getEngineAliasForId(engineId);
+		String engineNameAndId = SmssUtilities.getUniqueName(engineName, engineId);
+		
+		Object[] engineTypeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
+		IEngine.CATALOG_TYPE engineType = (IEngine.CATALOG_TYPE) engineTypeAndSubtype[0];
+		
+		// base path is the engine folder
+		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER).replace("\\", "/");
+		if(!baseFolder.endsWith("/")) {
+			baseFolder += "/";
+		}
+		
+		// will define these here, so i dont have to keep doing if statments
+		String couchSelector = null;
+		String localEngineImageFolderPath = baseFolder;
+		String engineVersionPath = baseFolder;
+		
+		if(IEngine.CATALOG_TYPE.DATABASE == engineType) {
+			engineVersionPath += Constants.DATABASE_FOLDER;
+			couchSelector = CouchUtil.DATABASE;
+			localEngineImageFolderPath += CentralCloudStorage.LOCAL_DATABASE_IMAGE_RELPATH;
+					
+		} else if(IEngine.CATALOG_TYPE.STORAGE == engineType) {
+			engineVersionPath += Constants.STORAGE_FOLDER;
+			couchSelector = CouchUtil.STORAGE;
+			localEngineImageFolderPath += CentralCloudStorage.LOCAL_STORAGE_IMAGE_RELPATH;
+
+		} else if(IEngine.CATALOG_TYPE.MODEL == engineType) {
+			engineVersionPath += Constants.MODEL_FOLDER;
+			couchSelector = CouchUtil.MODEL;
+			localEngineImageFolderPath += CentralCloudStorage.LOCAL_MODEL_IMAGE_RELPATH;
+
+		} else {
+			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
+			return WebUtility.getResponse(returnMap, 400);
+		}
+		engineVersionPath += "/"+engineNameAndId+"/"+Constants.APP_ROOT_FOLDER+"/"+Constants.VERSION_FOLDER;
+		engineVersionPath = Utility.normalizePath(engineVersionPath);
+
+		// i always want to fix it in the engine version folder
+		// so that way export works as expected
+		
+		// if it is on cloud - also push it to the images/<eType> folder and sync that
+		// if it is on couchdb - push to that	
+		
+		// regardless, have to pull the engine
+		Utility.getEngine(engineId, engineType, true);
+		
+		// local changes
+		File newImageFileInVersionFolder = null;
+		String newImageFileType = null;
+		{
+			// remove the old image files in the version folder
+			// and push new one to the version folder
+			File engineVersionF = new File(engineVersionPath);
+			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
+				Boolean success = engineVersionF.mkdirs();
+				if(!success) {
+					classLogger.warn("Unable to make engine version folder at path " + engineVersionPath);
+					returnMap.put(Constants.ERROR_MESSAGE, "Error occured attempting to make the engine version folder");
+					return WebUtility.getResponse(returnMap, 400);
+				}
+			}
+			
+			// find all the image files and delete them
+			File[] oldImageFiles = engineVersionF.listFiles(new FilenameFilter() {
+				@Override
+				public boolean accept(File dir, String name) {
+					return name.startsWith("image.");
+				}
+			});
+			
+			for(File f : oldImageFiles) {
+				f.delete();
+				if(ClusterUtil.IS_CLUSTER) {
+					ClusterUtil.deleteEngineCloudFile(engineId, engineType, f.getAbsolutePath());
+				}
+			}
+			
+			newImageFileType = imageFile.getContentType().split("/")[1];
+			String imageFileName = "image." + newImageFileType;
+			String imageLoc = engineVersionF.getAbsolutePath() + DIR_SEPARATOR + imageFileName;
+			newImageFileInVersionFolder = new File(Utility.normalizePath(imageLoc));
+			writeFile(imageFile, newImageFileInVersionFolder);
+			ClusterUtil.copyLocalFileToEngineCloudFolder(engineId, engineType, imageLoc);
+		}
+		
+		// now we figure out the cloud and where we push this
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
 				Map<String, String> selectors = new HashMap<>();
-				selectors.put(CouchUtil.DATABASE, databaseId);
-				CouchUtil.upload(CouchUtil.DATABASE, selectors, imageFile);
+				selectors.put(couchSelector, engineId);
+				CouchUtil.upload(couchSelector, selectors, imageFile);
 			} catch (CouchException e) {
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Upload of database image failed");
+				errorMap.put(Constants.ERROR_MESSAGE, "Upload of engine image failed");
 				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
 			}
-		} else {
-			String imageDir = getDbImageDir(filePath, databaseId, databaseName);
-			String imageLoc = getDbImageLoc(filePath, databaseId, databaseName, imageFile);
+		} else if(ClusterUtil.IS_CLUSTER) {
+			// we need to push to the engine specific image folder
+			File localCloudImageF = new File(localEngineImageFolderPath);
+			File newImageFileInCloudFolder = new File(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType);
 			
-			File f = new File(imageDir);
-			if (!f.exists()) {
-				Boolean success = f.mkdirs();
-				if(!success) {
-					classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+			// find all the image files and delete them
+			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {
+				
+				String engineId = null;
+				
+				private FilenameFilter init(String engineId) {
+					this.engineId = engineId;
+					return this;
 				}
-			}
-			f = new File(Utility.normalizePath(imageLoc));
-			// find all the existing image files
-			// and delete them
-			File[] oldImages = null;
-			if (ClusterUtil.IS_CLUSTER) {
-				FilenameFilter appIdFilter = new WildcardFileFilter(databaseId + "*");
-				oldImages = f.getParentFile().listFiles(appIdFilter);
-			} else {
-				oldImages = InsightUtility.findImageFile(f.getParentFile());
-			}
-			// delete if any exist
-			if (oldImages != null) {
-				for (File oldI : oldImages) {
-					Boolean success = oldI.delete();
-					if (!success) {
-						classLogger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
-					}
-					if (ClusterUtil.IS_CLUSTER) {
-						ClusterUtil.deleteEngineImage(IEngine.CATALOG_TYPE.DATABASE, oldI.getName());
-					}
+				
+				@Override
+				public boolean accept(File dir, String name) {
+					return name.startsWith(engineId);
 				}
+			}.init(engineId));
+			
+			for(File f : oldImageFiles) {
+				// delete on local
+				f.delete();
+				// delete from cloud as well
+				ClusterUtil.deleteEngineImage(engineType, f.getName());
 			}
-			writeFile(imageFile, f);
+			
+			// move the current image file to the cloud folder
 			try {
-				if (ClusterUtil.IS_CLUSTER) {
-					ClusterUtil.pushEngineImage(IEngine.CATALOG_TYPE.DATABASE, f.getName());
-				}
-			} catch(Exception e) {
-				Thread.currentThread().interrupt();
-				classLogger.error(Constants.STACKTRACE, e);
+				Files.copy(newImageFileInVersionFolder, newImageFileInCloudFolder);
+			} catch (IOException e) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Upload of engine image failed");
+				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
 			}
+			ClusterUtil.pushEngineImage(engineType, newImageFileInCloudFolder.getName());
 		}
-		
+		// new keys
+		returnMap.put("message", "Successfully updated engine image");
+		returnMap.put("engine_id", engineId);
+		returnMap.put("engine_name", engineName);
+		// old keys
 		returnMap.put("message", "Successfully updated app image");
-		returnMap.put("database_id", databaseId);
-		returnMap.put("database_name", databaseName);
+		returnMap.put("database_id", engineId);
+		returnMap.put("database_name", engineName);
 		return WebUtility.getResponse(returnMap, 200);
 	}
 	
@@ -1040,18 +1117,16 @@ public class ImageUploader extends Uploader {
 	@Deprecated
 	public Response deleteDatabaseImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
-
-		// base path is the db folder
-		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + "db";
-		filePath = Utility.normalizePath(filePath);
-
-		String appId = request.getParameter("databaseId");
-		String appName = null;
-		if(appId == null) {
-			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper database id to remove the image");
-			return WebUtility.getResponse(returnMap, 400);
+		
+		String engineId = request.getParameter("engineId");
+		if(engineId == null) {
+			engineId = request.getParameter("databaseId");
+			if(engineId == null) {
+				returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
+				return WebUtility.getResponse(returnMap, 400);
+			}
 		}
-
+		
 		HttpSession session = request.getSession(false);
 		if (session != null) {
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
@@ -1063,101 +1138,144 @@ public class ImageUploader extends Uploader {
 
 			if (user.isAnonymous()) {
 				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an database image");
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
-			try {
-				appId = SecurityQueryUtils.testUserEngineIdForAlias(user, appId);
-			} catch (Exception e) {
-				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
+				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
 				return WebUtility.getResponse(returnMap, 400);
 			}
-			if (!SecurityEngineUtils.userCanEditEngine(user, appId)) {
-				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this app or the database id does not exist");
-				return WebUtility.getResponse(returnMap, 400);
-			}
-			appName = SecurityEngineUtils.getEngineAliasForId(appId);
 		} else {
 			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(returnMap, 400);
 		}
 		
+		String engineName = SecurityEngineUtils.getEngineAliasForId(engineId);
+		String engineNameAndId = SmssUtilities.getUniqueName(engineName, engineId);
+		
+		Object[] engineTypeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
+		IEngine.CATALOG_TYPE engineType = (IEngine.CATALOG_TYPE) engineTypeAndSubtype[0];
+		
+		// base path is the engine folder
+		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER).replace("\\", "/");
+		if(!baseFolder.endsWith("/")) {
+			baseFolder += "/";
+		}
+		
+		// will define these here, so i dont have to keep doing if statments
+		String couchSelector = null;
+		String localEngineImageFolderPath = baseFolder;
+		String engineVersionPath = baseFolder;
+		
+		if(IEngine.CATALOG_TYPE.DATABASE == engineType) {
+			engineVersionPath += Constants.DATABASE_FOLDER;
+			couchSelector = CouchUtil.DATABASE;
+			localEngineImageFolderPath += CentralCloudStorage.LOCAL_DATABASE_IMAGE_RELPATH;
+					
+		} else if(IEngine.CATALOG_TYPE.STORAGE == engineType) {
+			engineVersionPath += Constants.STORAGE_FOLDER;
+			couchSelector = CouchUtil.STORAGE;
+			localEngineImageFolderPath += CentralCloudStorage.LOCAL_STORAGE_IMAGE_RELPATH;
+
+		} else if(IEngine.CATALOG_TYPE.MODEL == engineType) {
+			engineVersionPath += Constants.MODEL_FOLDER;
+			couchSelector = CouchUtil.MODEL;
+			localEngineImageFolderPath += CentralCloudStorage.LOCAL_MODEL_IMAGE_RELPATH;
+
+		} else {
+			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
+			return WebUtility.getResponse(returnMap, 400);
+		}
+		engineVersionPath += "/"+engineNameAndId+"/"+Constants.APP_ROOT_FOLDER+"/"+Constants.VERSION_FOLDER;
+		engineVersionPath = Utility.normalizePath(engineVersionPath);
+
+		// i always want to delete it in the engine version folder
+		// so that way export works as expected
+		
+		// if it is on cloud - also delete it to the images/<eType> folder and sync that
+		// if it is on couchdb - delete from that	
+		
+		// regardless, have to pull the engine
+		Utility.getEngine(engineId, engineType, true);
+		
+		// local changes
+		{
+			// remove the old image files in the version folder
+			// and push new one to the version folder
+			File engineVersionF = new File(engineVersionPath);
+			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
+				Boolean success = engineVersionF.mkdirs();
+				if(!success) {
+					classLogger.warn("Unable to make engine version folder at path " + engineVersionPath);
+					returnMap.put(Constants.ERROR_MESSAGE, "Error occured attempting to make the engine version folder");
+					return WebUtility.getResponse(returnMap, 400);
+				}
+			}
+			
+			// find all the image files and delete them
+			File[] oldImageFiles = engineVersionF.listFiles(new FilenameFilter() {
+				@Override
+				public boolean accept(File dir, String name) {
+					return name.startsWith("image.");
+				}
+			});
+			
+			for(File f : oldImageFiles) {
+				f.delete();
+				if(ClusterUtil.IS_CLUSTER) {
+					ClusterUtil.deleteEngineCloudFile(engineId, engineType, f.getAbsolutePath());
+				}
+			}
+		}
+		
+		// now we figure out the cloud and where we push this
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
 				Map<String, String> selectors = new HashMap<>();
-				selectors.put(CouchUtil.DATABASE, appId);
-				CouchUtil.delete(CouchUtil.DATABASE, selectors);
+				selectors.put(couchSelector, engineId);
+				CouchUtil.delete(couchSelector, selectors);
 			} catch (CouchException e) {
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Database image deletion failed");
+				errorMap.put(Constants.ERROR_MESSAGE, "Delete of engine image failed");
 				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
 			}
-		}
-		
-		String imageDir = getDbImageDir(filePath, appId, appName);
-		File f = new File(imageDir);
-		File[] oldImages = null;
-		if (ClusterUtil.IS_CLUSTER) {
-			FilenameFilter appIdFilter = new WildcardFileFilter(appId + "*");
-			oldImages = f.listFiles(appIdFilter);
-		} else {
-			oldImages = InsightUtility.findImageFile(f);
-		}
-		// delete if any exist
-		if (oldImages != null) {
-			for (File oldI : oldImages) {
-				Boolean success = oldI.delete();
-				if (!success) {
-					classLogger.info("Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+		} else if(ClusterUtil.IS_CLUSTER) {
+			// we need to push to the engine specific image folder
+			File localCloudImageF = new File(localEngineImageFolderPath);
+			// find all the image files and delete them
+			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {
+				
+				String engineId = null;
+				
+				private FilenameFilter init(String engineId) {
+					this.engineId = engineId;
+					return this;
 				}
-				try {
-					if (ClusterUtil.IS_CLUSTER) {
-						ClusterUtil.deleteEngineImage(IEngine.CATALOG_TYPE.DATABASE, oldI.getName());
-					}
-				} catch(Exception e) {
-					Thread.currentThread().interrupt();
-					classLogger.error(Constants.STACKTRACE, e);
+				
+				@Override
+				public boolean accept(File dir, String name) {
+					return name.startsWith(engineId);
 				}
+			}.init(engineId));
+			
+			for(File f : oldImageFiles) {
+				// delete on local
+				f.delete();
+				// delete from cloud as well
+				ClusterUtil.deleteEngineImage(engineType, f.getName());
 			}
 		}
 		
-		returnMap.put("database_id", appId);
-		returnMap.put("database_name", appName);
+		// new keys
+		returnMap.put("message", "Successfully deleted engine image");
+		returnMap.put("engine_id", engineId);
+		returnMap.put("engine_name", engineName);
+		// old keys
+		returnMap.put("database_id", engineId);
+		returnMap.put("database_name", engineName);
 		returnMap.put("message", "Successfully deleted database image");
 		return WebUtility.getResponse(returnMap, 200);
 	}
-	
-	@Deprecated
-	private String getDbImageDir(String filePath, String appId, String appName) {
-		if(ClusterUtil.IS_CLUSTER){
-			return ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "databases";
-		}
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String versionFolder = baseFolder 
-				+ DIR_SEPARATOR + Constants.DB_FOLDER
-				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(appName, appId)
-				+ DIR_SEPARATOR + "app_root"
-				+ DIR_SEPARATOR + "version";
-		return versionFolder;
-	}
-
-	@Deprecated
-	private String getDbImageLoc(String filePath, String id, String name, FileItem imageFile){
-		String imageDir = getDbImageDir(filePath, id, name);
-		if(ClusterUtil.IS_CLUSTER){
-			return imageDir + DIR_SEPARATOR + id + "." + imageFile.getContentType().split("/")[1];
-		}
-		return imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
-	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	
 }
