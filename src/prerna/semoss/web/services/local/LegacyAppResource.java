@@ -274,7 +274,7 @@ public class LegacyAppResource {
 		
 		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = baseFolder 
-				+ DIR_SEPARATOR + Constants.DB_FOLDER 
+				+ DIR_SEPARATOR + Constants.DATABASE_FOLDER 
 				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(databaseName, databaseId) 
 				+ DIR_SEPARATOR + "app_root" 
 				+ DIR_SEPARATOR + "version";
