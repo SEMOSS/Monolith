@@ -30,7 +30,6 @@ import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.cluster.util.clients.CentralCloudStorage;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
@@ -38,6 +37,7 @@ import prerna.io.connector.couch.CouchUtil;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.EngineUtility;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
 import prerna.web.services.util.WebUtility;
@@ -111,42 +111,22 @@ public class ImageUploader extends Uploader {
 		Object[] engineTypeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
 		IEngine.CATALOG_TYPE engineType = (IEngine.CATALOG_TYPE) engineTypeAndSubtype[0];
 		
-		// base path is the engine folder
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER).replace("\\", "/");
-		if(!baseFolder.endsWith("/")) {
-			baseFolder += "/";
-		}
-		
-		// will define these here, so i dont have to keep doing if statments
+		// will define these here up front
 		String couchSelector = null;
-		String localEngineImageFolderPath = baseFolder;
-		String engineVersionPath = baseFolder;
-		
-		if(IEngine.CATALOG_TYPE.DATABASE == engineType) {
-			engineVersionPath += Constants.DATABASE_FOLDER;
-			couchSelector = CouchUtil.DATABASE;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_DATABASE_IMAGE_RELPATH;
-					
-		} else if(IEngine.CATALOG_TYPE.STORAGE == engineType) {
-			engineVersionPath += Constants.STORAGE_FOLDER;
-			couchSelector = CouchUtil.STORAGE;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_STORAGE_IMAGE_RELPATH;
-
-		} else if(IEngine.CATALOG_TYPE.MODEL == engineType) {
-			engineVersionPath += Constants.MODEL_FOLDER;
-			couchSelector = CouchUtil.MODEL;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_MODEL_IMAGE_RELPATH;
-
-		} else {
+		String localEngineImageFolderPath = null;
+		String engineVersionPath = null;
+		try {
+			couchSelector = EngineUtility.getCouchSelector(engineType);
+			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
+			engineVersionPath = EngineUtility.getEngineVersionFolder(engineType, engineNameAndId);
+		} catch(Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
 			return WebUtility.getResponse(returnMap, 400);
 		}
-		engineVersionPath += "/"+engineNameAndId+"/"+Constants.APP_ROOT_FOLDER+"/"+Constants.VERSION_FOLDER;
-		engineVersionPath = Utility.normalizePath(engineVersionPath);
 
 		// i always want to fix it in the engine version folder
 		// so that way export works as expected
-		
 		// if it is on cloud - also push it to the images/<eType> folder and sync that
 		// if it is on couchdb - push to that	
 		
@@ -289,42 +269,22 @@ public class ImageUploader extends Uploader {
 		Object[] engineTypeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
 		IEngine.CATALOG_TYPE engineType = (IEngine.CATALOG_TYPE) engineTypeAndSubtype[0];
 		
-		// base path is the engine folder
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER).replace("\\", "/");
-		if(!baseFolder.endsWith("/")) {
-			baseFolder += "/";
-		}
-		
-		// will define these here, so i dont have to keep doing if statments
+		// will define these here up front
 		String couchSelector = null;
-		String localEngineImageFolderPath = baseFolder;
-		String engineVersionPath = baseFolder;
-		
-		if(IEngine.CATALOG_TYPE.DATABASE == engineType) {
-			engineVersionPath += Constants.DATABASE_FOLDER;
-			couchSelector = CouchUtil.DATABASE;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_DATABASE_IMAGE_RELPATH;
-					
-		} else if(IEngine.CATALOG_TYPE.STORAGE == engineType) {
-			engineVersionPath += Constants.STORAGE_FOLDER;
-			couchSelector = CouchUtil.STORAGE;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_STORAGE_IMAGE_RELPATH;
-
-		} else if(IEngine.CATALOG_TYPE.MODEL == engineType) {
-			engineVersionPath += Constants.MODEL_FOLDER;
-			couchSelector = CouchUtil.MODEL;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_MODEL_IMAGE_RELPATH;
-
-		} else {
+		String localEngineImageFolderPath = null;
+		String engineVersionPath = null;
+		try {
+			couchSelector = EngineUtility.getCouchSelector(engineType);
+			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
+			engineVersionPath = EngineUtility.getEngineVersionFolder(engineType, engineNameAndId);
+		} catch(Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
 			return WebUtility.getResponse(returnMap, 400);
 		}
-		engineVersionPath += "/"+engineNameAndId+"/"+Constants.APP_ROOT_FOLDER+"/"+Constants.VERSION_FOLDER;
-		engineVersionPath = Utility.normalizePath(engineVersionPath);
 
 		// i always want to delete it in the engine version folder
 		// so that way export works as expected
-		
 		// if it is on cloud - also delete it to the images/<eType> folder and sync that
 		// if it is on couchdb - delete from that	
 		
@@ -971,42 +931,22 @@ public class ImageUploader extends Uploader {
 		Object[] engineTypeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
 		IEngine.CATALOG_TYPE engineType = (IEngine.CATALOG_TYPE) engineTypeAndSubtype[0];
 		
-		// base path is the engine folder
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER).replace("\\", "/");
-		if(!baseFolder.endsWith("/")) {
-			baseFolder += "/";
-		}
-		
-		// will define these here, so i dont have to keep doing if statments
+		// will define these here up front
 		String couchSelector = null;
-		String localEngineImageFolderPath = baseFolder;
-		String engineVersionPath = baseFolder;
-		
-		if(IEngine.CATALOG_TYPE.DATABASE == engineType) {
-			engineVersionPath += Constants.DATABASE_FOLDER;
-			couchSelector = CouchUtil.DATABASE;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_DATABASE_IMAGE_RELPATH;
-					
-		} else if(IEngine.CATALOG_TYPE.STORAGE == engineType) {
-			engineVersionPath += Constants.STORAGE_FOLDER;
-			couchSelector = CouchUtil.STORAGE;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_STORAGE_IMAGE_RELPATH;
-
-		} else if(IEngine.CATALOG_TYPE.MODEL == engineType) {
-			engineVersionPath += Constants.MODEL_FOLDER;
-			couchSelector = CouchUtil.MODEL;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_MODEL_IMAGE_RELPATH;
-
-		} else {
+		String localEngineImageFolderPath = null;
+		String engineVersionPath = null;
+		try {
+			couchSelector = EngineUtility.getCouchSelector(engineType);
+			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
+			engineVersionPath = EngineUtility.getEngineVersionFolder(engineType, engineNameAndId);
+		} catch(Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
 			return WebUtility.getResponse(returnMap, 400);
 		}
-		engineVersionPath += "/"+engineNameAndId+"/"+Constants.APP_ROOT_FOLDER+"/"+Constants.VERSION_FOLDER;
-		engineVersionPath = Utility.normalizePath(engineVersionPath);
 
 		// i always want to fix it in the engine version folder
 		// so that way export works as expected
-		
 		// if it is on cloud - also push it to the images/<eType> folder and sync that
 		// if it is on couchdb - push to that	
 		
@@ -1157,42 +1097,22 @@ public class ImageUploader extends Uploader {
 		Object[] engineTypeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
 		IEngine.CATALOG_TYPE engineType = (IEngine.CATALOG_TYPE) engineTypeAndSubtype[0];
 		
-		// base path is the engine folder
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER).replace("\\", "/");
-		if(!baseFolder.endsWith("/")) {
-			baseFolder += "/";
-		}
-		
-		// will define these here, so i dont have to keep doing if statments
+		// will define these here up front
 		String couchSelector = null;
-		String localEngineImageFolderPath = baseFolder;
-		String engineVersionPath = baseFolder;
-		
-		if(IEngine.CATALOG_TYPE.DATABASE == engineType) {
-			engineVersionPath += Constants.DATABASE_FOLDER;
-			couchSelector = CouchUtil.DATABASE;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_DATABASE_IMAGE_RELPATH;
-					
-		} else if(IEngine.CATALOG_TYPE.STORAGE == engineType) {
-			engineVersionPath += Constants.STORAGE_FOLDER;
-			couchSelector = CouchUtil.STORAGE;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_STORAGE_IMAGE_RELPATH;
-
-		} else if(IEngine.CATALOG_TYPE.MODEL == engineType) {
-			engineVersionPath += Constants.MODEL_FOLDER;
-			couchSelector = CouchUtil.MODEL;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_MODEL_IMAGE_RELPATH;
-
-		} else {
+		String localEngineImageFolderPath = null;
+		String engineVersionPath = null;
+		try {
+			couchSelector = EngineUtility.getCouchSelector(engineType);
+			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
+			engineVersionPath = EngineUtility.getEngineVersionFolder(engineType, engineNameAndId);
+		} catch(Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
 			return WebUtility.getResponse(returnMap, 400);
 		}
-		engineVersionPath += "/"+engineNameAndId+"/"+Constants.APP_ROOT_FOLDER+"/"+Constants.VERSION_FOLDER;
-		engineVersionPath = Utility.normalizePath(engineVersionPath);
-
+		
 		// i always want to delete it in the engine version folder
 		// so that way export works as expected
-		
 		// if it is on cloud - also delete it to the images/<eType> folder and sync that
 		// if it is on couchdb - delete from that	
 		

@@ -29,15 +29,13 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.cluster.util.clients.CentralCloudStorage;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.DefaultImageGeneratorUtil;
-import prerna.util.Utility;
+import prerna.util.EngineUtility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/e-{engineId}")
@@ -136,40 +134,19 @@ public class EngineRouteResource {
 		String engineName = SecurityEngineUtils.getEngineAliasForId(engineId);
 		String engineNameAndId = SmssUtilities.getUniqueName(engineName, engineId);
 		
-		// base path is the engine folder
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER).replace("\\", "/");
-		if(!baseFolder.endsWith("/")) {
-			baseFolder += "/";
-		}
-		
-		// will define these here, so i dont have to keep doing if statments
+		// will define these here up front
 		String couchSelector = null;
-		String localEngineImageFolderPath = baseFolder;
-		String engineVersionPath = baseFolder;
-		
-		if(IEngine.CATALOG_TYPE.DATABASE == engineType) {
-			engineVersionPath += Constants.DATABASE_FOLDER;
-			couchSelector = CouchUtil.DATABASE;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_DATABASE_IMAGE_RELPATH;
-					
-		} else if(IEngine.CATALOG_TYPE.STORAGE == engineType) {
-			engineVersionPath += Constants.STORAGE_FOLDER;
-			couchSelector = CouchUtil.STORAGE;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_STORAGE_IMAGE_RELPATH;
-
-		} else if(IEngine.CATALOG_TYPE.MODEL == engineType) {
-			engineVersionPath += Constants.MODEL_FOLDER;
-			couchSelector = CouchUtil.MODEL;
-			localEngineImageFolderPath += CentralCloudStorage.LOCAL_MODEL_IMAGE_RELPATH;
-
-		} else {
+		String engineVersionPath = null;
+		try {
+			couchSelector = EngineUtility.getCouchSelector(engineType);
+			engineVersionPath = EngineUtility.getEngineVersionFolder(engineType, engineNameAndId);
+		} catch(Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> returnMap = new HashMap<>();
 			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
 			return WebUtility.getResponse(returnMap, 400);
 		}
-		engineVersionPath += "/"+engineNameAndId+"/"+Constants.APP_ROOT_FOLDER+"/"+Constants.VERSION_FOLDER;
-		engineVersionPath = Utility.normalizePath(engineVersionPath);
-
+		
 		File exportFile = null;
 		// is the image in couch db
 		if(CouchUtil.COUCH_ENABLED) {
