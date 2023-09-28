@@ -271,7 +271,6 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("getEngineUsers")
 	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,  @QueryParam("userId") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
