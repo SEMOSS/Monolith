@@ -44,6 +44,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.engine.api.IDatabaseEngine;
+import prerna.engine.api.IEngine;
 import prerna.engine.impl.r.RserveUtil;
 import prerna.forms.AbstractFormBuilder;
 import prerna.nameserver.utility.MasterDatabaseUtility;
@@ -227,20 +228,18 @@ public class DBLoader implements ServletContextListener {
 			while (watchers.hasMoreElements()) {
 				String watcher = watchers.nextToken();
 				if(watcher != null && !(watcher=watcher.trim()).isEmpty()) {
-					Object monitor = new Object();
 					String watcherClass = DIHelper.getInstance().getProperty(watcher);
 					String folder = DIHelper.getInstance().getProperty(watcher + "_DIR");
 					String ext = DIHelper.getInstance().getProperty(watcher + "_EXT");
+					String engineType = DIHelper.getInstance().getProperty(watcher + "_ETYPE").trim();
 					AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass).getConstructor(null).newInstance(null);
-					watcherInstance.setMonitor(monitor);
 					watcherInstance.setFolderToWatch(folder);
 					watcherInstance.setExtension(ext);
+					watcherInstance.setEngineType(IEngine.CATALOG_TYPE.valueOf(engineType));
 					watcherInstance.init();
-					synchronized (monitor) {
-						Thread thread = new Thread(watcherInstance);
-						thread.start();
-						watcherList.add(watcherInstance);
-					}
+					Thread thread = new Thread(watcherInstance);
+					thread.start();
+					watcherList.add(watcherInstance);
 				}
 			}
 		} catch (Exception ex) {
