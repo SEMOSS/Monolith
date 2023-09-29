@@ -231,11 +231,13 @@ public class DBLoader implements ServletContextListener {
 					String watcherClass = DIHelper.getInstance().getProperty(watcher);
 					String folder = DIHelper.getInstance().getProperty(watcher + "_DIR");
 					String ext = DIHelper.getInstance().getProperty(watcher + "_EXT");
-					String engineType = DIHelper.getInstance().getProperty(watcher + "_ETYPE").trim();
+					String engineType = DIHelper.getInstance().getProperty(watcher + "_ETYPE");
 					AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass).getConstructor(null).newInstance(null);
 					watcherInstance.setFolderToWatch(folder);
 					watcherInstance.setExtension(ext);
-					watcherInstance.setEngineType(IEngine.CATALOG_TYPE.valueOf(engineType));
+					if( engineType != null && !(engineType=engineType.trim()).isEmpty() ) {
+						watcherInstance.setEngineType(IEngine.CATALOG_TYPE.valueOf(engineType));
+					}
 					watcherInstance.init();
 					Thread thread = new Thread(watcherInstance);
 					thread.start();
