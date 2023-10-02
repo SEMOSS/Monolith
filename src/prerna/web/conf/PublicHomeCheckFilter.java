@@ -12,6 +12,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import com.google.common.base.Strings;
@@ -84,6 +85,8 @@ public class PublicHomeCheckFilter implements Filter {
 			// are we already published?
 			// and am i up to date with the last publish date?
 			if(!project.requirePublish(false)) {
+				// we dont want any cache headers
+				((HttpServletResponse) arg1).setHeader("Cache-Control", "private, no-store, no-cache, must-revalidate");
 				// then send along
 				arg2.doFilter(arg0, arg1);
 				return;
