@@ -118,7 +118,7 @@ public class ImageUploader extends Uploader {
 		try {
 			couchSelector = EngineUtility.getCouchSelector(engineType);
 			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
-			engineVersionPath = EngineUtility.getEngineVersionFolder(engineType, engineNameAndId);
+			engineVersionPath = EngineUtility.getSpecificEngineVersionFolder(engineType, engineNameAndId);
 		} catch(Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
@@ -276,7 +276,7 @@ public class ImageUploader extends Uploader {
 		try {
 			couchSelector = EngineUtility.getCouchSelector(engineType);
 			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
-			engineVersionPath = EngineUtility.getEngineVersionFolder(engineType, engineNameAndId);
+			engineVersionPath = EngineUtility.getSpecificEngineVersionFolder(engineType, engineNameAndId);
 		} catch(Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
@@ -938,7 +938,7 @@ public class ImageUploader extends Uploader {
 		try {
 			couchSelector = EngineUtility.getCouchSelector(engineType);
 			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
-			engineVersionPath = EngineUtility.getEngineVersionFolder(engineType, engineNameAndId);
+			engineVersionPath = EngineUtility.getSpecificEngineVersionFolder(engineType, engineNameAndId);
 		} catch(Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
@@ -1104,7 +1104,7 @@ public class ImageUploader extends Uploader {
 		try {
 			couchSelector = EngineUtility.getCouchSelector(engineType);
 			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
-			engineVersionPath = EngineUtility.getEngineVersionFolder(engineType, engineNameAndId);
+			engineVersionPath = EngineUtility.getSpecificEngineVersionFolder(engineType, engineNameAndId);
 		} catch(Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
