@@ -139,7 +139,7 @@ public class EngineRouteResource {
 		String engineVersionPath = null;
 		try {
 			couchSelector = EngineUtility.getCouchSelector(engineType);
-			engineVersionPath = EngineUtility.getEngineVersionFolder(engineType, engineNameAndId);
+			engineVersionPath = EngineUtility.getSpecificEngineVersionFolder(engineType, engineNameAndId);
 		} catch(Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> returnMap = new HashMap<>();
