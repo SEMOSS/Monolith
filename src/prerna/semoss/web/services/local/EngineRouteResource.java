@@ -26,6 +26,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
@@ -44,6 +45,10 @@ public class EngineRouteResource {
 	private static final Logger classLogger = LogManager.getLogger(ModelEngineResource.class);
 	
 	private boolean canViewEngine(User user, String engineId) throws IllegalAccessException {
+		if(SecurityAdminUtils.userIsAdmin(user)) {
+			return true;
+		}
+		
 		engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
 		if(!SecurityEngineUtils.userCanViewEngine(user, engineId)
 				&& !SecurityEngineUtils.engineIsDiscoverable(engineId)) {
