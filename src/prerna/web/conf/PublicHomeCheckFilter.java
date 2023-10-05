@@ -27,6 +27,9 @@ public class PublicHomeCheckFilter implements Filter {
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
+		// we dont want any cache on portals
+		((HttpServletResponse) arg1).setHeader("Cache-Control", "private, no-store, no-cache, must-revalidate");
+
 		// check to see if the user is logged in
 		// if so pick the user object from session
 		// isolate the index of public_home/ to the next /
@@ -85,8 +88,6 @@ public class PublicHomeCheckFilter implements Filter {
 			// are we already published?
 			// and am i up to date with the last publish date?
 			if(!project.requirePublish(false)) {
-				// we dont want any cache headers
-				((HttpServletResponse) arg1).setHeader("Cache-Control", "private, no-store, no-cache, must-revalidate");
 				// then send along
 				arg2.doFilter(arg0, arg1);
 				return;
