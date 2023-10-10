@@ -369,7 +369,7 @@ public class ProjectAuthorizationResource {
 		// give user access to the dependencies IF i have editor access to that dependency
 		// or submit a request on their behalf to access to that dependency if i am read only
 		try {
-			List<String> dependentEngineIds = SecurityProjectUtils.getProjectDependencies(user, projectId);
+			List<String> dependentEngineIds = SecurityProjectUtils.getProjectDependencies(projectId);
 
 			// ADD IN CODE
 			for(String engineId : dependentEngineIds) {
