@@ -14,7 +14,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import prerna.auth.User;
-import prerna.sablecc2.reactor.mgmt.MgmtUtil;
+import prerna.reactor.mgmt.MgmtUtil;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.Settings;
