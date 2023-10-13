@@ -27,7 +27,7 @@ import org.owasp.encoder.Encode;
 import prerna.auth.InsightToken;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.sablecc2.reactor.mgmt.MgmtUtil;
+import prerna.reactor.mgmt.MgmtUtil;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
