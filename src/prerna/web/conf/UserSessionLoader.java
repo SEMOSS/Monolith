@@ -32,7 +32,9 @@ import prerna.util.insight.InsightUtility;
 @WebListener
 public class UserSessionLoader implements HttpSessionListener {
 
-	private static final Logger logger = LogManager.getLogger(UserSessionLoader.class);
+	public static final String IS_USER_LOGOUT = "IS_USER_LOGOUT";
+	
+	private static final Logger classLogger = LogManager.getLogger(UserSessionLoader.class);
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 
 	public void sessionCreated(HttpSessionEvent sessionEvent) {
@@ -48,10 +50,15 @@ public class UserSessionLoader implements HttpSessionListener {
 			// no need to log a new session that is auto dropped
 			// this just keeps writing to the log
 			if(!session.isNew()) {
-				logger.info(sessionId + " >>> Unknown user ending session");
+				classLogger.info(sessionId + " >>> Unknown user ending session");
 			}
 		} else {
-			logger.info(sessionId + " >>> User " + User.getSingleLogginName(thisUser) + " ending session");
+			boolean isUserLogout = Boolean.parseBoolean(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT)+"");
+			if(isUserLogout) {
+				classLogger.info(sessionId + " >>> User " + User.getSingleLogginName(thisUser) + " has logged out to end session");
+			} else {
+				classLogger.info(sessionId + " >>> User " + User.getSingleLogginName(thisUser) + " is ending session from non-logout event");
+			}
 			// remove the user memory
 			thisUser.removeUserMemory();
 		}
@@ -59,7 +66,7 @@ public class UserSessionLoader implements HttpSessionListener {
 		try {
 			SyncUserAppsThread.execute(session);
 		} catch(Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 
 		// clear up insight store
@@ -72,15 +79,15 @@ public class UserSessionLoader implements HttpSessionListener {
 				if(insight == null) {
 					continue;
 				}
-				logger.info(sessionId + " >>> Trying to drop insight " + insightId);
+				classLogger.info(sessionId + " >>> Trying to drop insight " + insightId);
 				try {
 					InsightUtility.dropInsight(insight);
-					logger.info(sessionId + " >>> Dropped insight " + insightId);
+					classLogger.info(sessionId + " >>> Dropped insight " + insightId);
 				} catch(Exception e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error(Constants.STACKTRACE, e);
 				}
 			}
-			logger.info(sessionId + " >>> Successfully removed insight information from session");
+			classLogger.info(sessionId + " >>> Successfully removed insight information from session");
 
 			// clear the current session store
 			insightIDs.removeAll(copy);
@@ -90,7 +97,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			String sessionStorage = DIHelper.getInstance().getProperty(Constants.INSIGHT_CACHE_DIR) + DIR_SEPARATOR + sessionId;
 			ICache.deleteFolder(sessionStorage);
 		} catch(Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 		
 		// drop the r thread if not netty
@@ -98,7 +105,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			if (thisUser != null) {
 				IRUserConnection rserve = thisUser.getRcon();
 				if (rserve != null && !rserve.isStopped()) {
-					logger.info(sessionId + " >>> Dropping user r serve");
+					classLogger.info(sessionId + " >>> Dropping user r serve");
 					ExecutorService executor = Executors.newSingleThreadExecutor();
 					try {
 						executor.submit(new Callable<Void>() {
@@ -106,9 +113,9 @@ public class UserSessionLoader implements HttpSessionListener {
 							public Void call() throws Exception {
 								try {
 									rserve.stopR();
-									logger.info(sessionId + " >>> Successfully dropped user r serve");
+									classLogger.info(sessionId + " >>> Successfully dropped user r serve");
 								} catch (Exception e) {
-									logger.warn(sessionId + " >>> Unable to drop user r serve");
+									classLogger.warn(sessionId + " >>> Unable to drop user r serve");
 								}
 								return null;
 							}
@@ -119,7 +126,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 			}
 		} catch(Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 
 		try {
@@ -133,7 +140,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 			}
 		} catch(Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 		
 		try {
@@ -146,7 +153,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 			}
 		} catch(Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 		
 		//remove the mounts if chroot enabled
@@ -160,7 +167,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 			}
 		} catch(Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 		
 		// register the successful logout
