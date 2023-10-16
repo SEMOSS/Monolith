@@ -86,7 +86,6 @@ import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
-import prerna.auth.utils.SecurityUserAccessKeyUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.io.connector.GenericProfile;
 import prerna.io.connector.IConnectorIOp;
@@ -112,6 +111,7 @@ import prerna.util.ldap.LDAPPasswordChangeRequiredException;
 import prerna.util.linotp.LinOTPResponse;
 import prerna.util.linotp.LinOTPUtil;
 import prerna.web.conf.DBLoader;
+import prerna.web.conf.UserSessionLoader;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
 
@@ -214,6 +214,8 @@ public class UserResource {
 
 		List<NewCookie> nullCookies = null;
 		if(noUser) {
+			// when we call session.invalidate() the UserSessionLoader will properly log is user logout or tomcat ending
+			session.setAttribute(UserSessionLoader.IS_USER_LOGOUT, true);
 			classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "has logged out from all providers in the session"));
 			// well, you have logged out and we always require a login
 			// so i will redirect you by default unless you specifically say not to
