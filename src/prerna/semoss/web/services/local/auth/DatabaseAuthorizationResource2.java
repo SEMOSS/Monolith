@@ -242,6 +242,7 @@ public class DatabaseAuthorizationResource2 {
 		String newUserId = form.getFirst("id");
 		String databaseId = form.getFirst("databaseId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + databaseId + " but is not an admin"));
@@ -251,7 +252,7 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		try {
-			SecurityEngineUtils.addEngineUser(user, newUserId, databaseId, permission);
+			SecurityEngineUtils.addEngineUser(user, newUserId, databaseId, permission, endDate);
 		} catch (Exception e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -294,6 +295,7 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		String databaseId = form.getFirst("databaseId");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permissions to database " + databaseId + " but is not an admin"));
@@ -305,7 +307,7 @@ public class DatabaseAuthorizationResource2 {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityEngineUtils.addEngineUserPermissions(user, databaseId, permission);
+			SecurityEngineUtils.addEngineUserPermissions(user, databaseId, permission, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -350,6 +352,7 @@ public class DatabaseAuthorizationResource2 {
 		String existingUserId = form.getFirst("id");
 		String databaseId = form.getFirst("databaseId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + databaseId + " but is not an admin"));
@@ -359,7 +362,7 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		try {
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, databaseId, newPermission);
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, databaseId, newPermission, endDate);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -408,6 +411,7 @@ public class DatabaseAuthorizationResource2 {
 		}
 
 		String databaseId = form.getFirst("databaseId");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for database " + databaseId + " but is not an admin"));
@@ -418,7 +422,7 @@ public class DatabaseAuthorizationResource2 {
 
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityEngineUtils.editEngineUserPermissions(user, databaseId, requests);
+			SecurityEngineUtils.editEngineUserPermissions(user, databaseId, requests, endDate);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -846,6 +850,7 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		String databaseId = form.getFirst("databaseId");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user access to database " + databaseId + " but is not an admin"));
@@ -857,7 +862,7 @@ public class DatabaseAuthorizationResource2 {
 		// adding user permissions and updating user access requests in bulk
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
 		try {
-			SecurityEngineUtils.approveEngineUserAccessRequests(user, databaseId, requests);
+			SecurityEngineUtils.approveEngineUserAccessRequests(user, databaseId, requests, endDate);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant user access to database " + databaseId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
