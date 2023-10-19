@@ -277,6 +277,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String permission = form.getFirst("permission");
 		String projectId = form.getFirst("projectId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -289,7 +290,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersProjectAccess(projectId, permission, user);
+			adminUtils.grantNewUsersProjectAccess(projectId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -351,6 +352,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		String newUserId = form.getFirst("id");
 		String projectId = form.getFirst("projectId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -363,7 +365,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addProjectUser(newUserId, projectId, permission, user);
+			adminUtils.addProjectUser(newUserId, projectId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -393,6 +395,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String projectId = form.getFirst("projectId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		try {
 			user = ResourceUtility.getUser(request);
@@ -406,7 +409,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addAllProjectUsers(projectId, permission, user);
+			adminUtils.addAllProjectUsers(projectId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -438,6 +441,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		String existingUserId = form.getFirst("id");
 		String projectId = form.getFirst("projectId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		try {
 			user = ResourceUtility.getUser(request);
@@ -451,7 +455,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.editProjectUserPermission(existingUserId, projectId, newPermission, user);
+			adminUtils.editProjectUserPermission(existingUserId, projectId, newPermission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -479,6 +483,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response editProjectUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		String projectId = form.getFirst("projectId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
@@ -492,7 +497,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editProjectUserPermissions(projectId, requests, user);
+			SecurityAdminUtils.editProjectUserPermissions(projectId, requests, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -522,6 +527,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String projectId = form.getFirst("projectId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -534,7 +540,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.updateProjectUserPermissions(projectId, newPermission, user);
+			adminUtils.updateProjectUserPermissions(projectId, newPermission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -716,6 +722,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response approveProjectUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		String projectId = form.getFirst("projectId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
@@ -733,7 +740,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.approveProjectUserAccessRequests(userId, userType, projectId, requests);
+			SecurityAdminUtils.approveProjectUserAccessRequests(userId, userType, projectId, requests, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -807,6 +814,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String projectId = form.getFirst("projectId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -821,7 +829,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			adminUtils.addProjectUserPermissions(projectId, permission, user);
+			adminUtils.addProjectUserPermissions(projectId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

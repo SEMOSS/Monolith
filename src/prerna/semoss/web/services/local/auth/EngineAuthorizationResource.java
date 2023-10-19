@@ -323,6 +323,7 @@ public class EngineAuthorizationResource {
 		String newUserId = form.getFirst("id");
 		String engineId = form.getFirst("engineId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for engine " + engineId + " but is not an admin"));
@@ -332,7 +333,7 @@ public class EngineAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission);
+			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission, endDate);
 		} catch (Exception e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for engine " + engineId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -370,6 +371,7 @@ public class EngineAuthorizationResource {
 		}
 		
 		String engineId = form.getFirst("engineId");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permissions to engine " + engineId + " but is not an admin"));
@@ -381,7 +383,7 @@ public class EngineAuthorizationResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityEngineUtils.addEngineUserPermissions(user, engineId, permission);
+			SecurityEngineUtils.addEngineUserPermissions(user, engineId, permission, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -421,6 +423,7 @@ public class EngineAuthorizationResource {
 		String existingUserId = form.getFirst("id");
 		String engineId = form.getFirst("engineId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for engine " + engineId + " but is not an admin"));
@@ -430,7 +433,7 @@ public class EngineAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, engineId, newPermission);
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, engineId, newPermission, endDate);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for engine " + engineId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -474,6 +477,7 @@ public class EngineAuthorizationResource {
 		}
 
 		String engineId = form.getFirst("engineId");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for engine " + engineId + " but is not an admin"));
@@ -484,7 +488,7 @@ public class EngineAuthorizationResource {
 
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityEngineUtils.editEngineUserPermissions(user, engineId, requests);
+			SecurityEngineUtils.editEngineUserPermissions(user, engineId, requests, endDate);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for engine " + engineId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -872,6 +876,7 @@ public class EngineAuthorizationResource {
 		}
 		
 		String engineId = form.getFirst("engineId");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user access to engine " + engineId + " but is not an admin"));
@@ -883,7 +888,7 @@ public class EngineAuthorizationResource {
 		// adding user permissions and updating user access requests in bulk
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
 		try {
-			SecurityEngineUtils.approveEngineUserAccessRequests(user, engineId, requests);
+			SecurityEngineUtils.approveEngineUserAccessRequests(user, engineId, requests, endDate);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant user access to engine " + engineId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
