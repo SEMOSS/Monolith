@@ -1,5 +1,6 @@
 package prerna.semoss.web.services.local.auth;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -156,6 +157,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String permission = form.getFirst("permission");
 		String appId = form.getFirst("appId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -168,7 +170,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersEngineAccess(appId, permission, user);
+			adminUtils.grantNewUsersEngineAccess(appId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -236,6 +238,8 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		String newUserId = form.getFirst("id");
 		String appId = form.getFirst("appId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
+		
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -248,7 +252,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addEngineUser(newUserId, appId, permission, user);
+			adminUtils.addEngineUser(newUserId, appId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -283,6 +287,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String appId = form.getFirst("appId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		try {
 			user = ResourceUtility.getUser(request);
@@ -296,7 +301,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addAllEngineUsers(appId, permission, user);
+			adminUtils.addAllEngineUsers(appId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -333,7 +338,8 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		String existingUserId = form.getFirst("id");
 		String appId = form.getFirst("appId");
 		String newPermission = form.getFirst("permission");
-
+		String endDate = null; // form.getFirst("endDate");
+		
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -346,7 +352,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user);
+			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -381,6 +387,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String appId = form.getFirst("appId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -393,7 +400,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.updateEngineUserPermissions(appId, newPermission, user);
+			adminUtils.updateEngineUserPermissions(appId, newPermission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

@@ -159,6 +159,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		User user = null;
 		String permission = form.getFirst("permission");
 		String databaseId = form.getFirst("databaseId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -171,7 +172,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersEngineAccess(databaseId, permission, user);
+			adminUtils.grantNewUsersEngineAccess(databaseId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -248,6 +249,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		String newUserId = form.getFirst("id");
 		String databaseId = form.getFirst("databaseId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -260,7 +262,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addEngineUser(newUserId, databaseId, permission, user);
+			adminUtils.addEngineUser(newUserId, databaseId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -294,6 +296,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String databaseId = form.getFirst("databaseId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -308,7 +311,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			adminUtils.addEngineUserPermissions(databaseId, permission, user);
+			adminUtils.addEngineUserPermissions(databaseId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -343,6 +346,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		User user = null;
 		String databaseId = form.getFirst("databaseId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		try {
 			user = ResourceUtility.getUser(request);
@@ -356,7 +360,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addAllEngineUsers(databaseId, permission, user);
+			adminUtils.addAllEngineUsers(databaseId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -393,6 +397,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		String existingUserId = form.getFirst("id");
 		String databaseId = form.getFirst("databaseId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		try {
 			user = ResourceUtility.getUser(request);
@@ -406,7 +411,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, databaseId, newPermission, user);
+			adminUtils.editEngineUserPermission(existingUserId, databaseId, newPermission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -439,6 +444,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 
 		User user = null;
 		String databaseId = form.getFirst("databaseId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
@@ -452,7 +458,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editEngineUserPermissions(databaseId, requests, user);
+			SecurityAdminUtils.editEngineUserPermissions(databaseId, requests, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -487,6 +493,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		User user = null;
 		String databaseId = form.getFirst("databaseId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -499,7 +506,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.updateEngineUserPermissions(databaseId, newPermission, user);
+			adminUtils.updateEngineUserPermissions(databaseId, newPermission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -753,6 +760,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 
 		User user = null;
 		String databaseId = form.getFirst("databaseId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
@@ -770,7 +778,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.approveEngineUserAccessRequests(userId, userType, databaseId, requests);
+			SecurityAdminUtils.approveEngineUserAccessRequests(userId, userType, databaseId, requests, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

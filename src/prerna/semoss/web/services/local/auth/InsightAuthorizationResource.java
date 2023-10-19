@@ -192,11 +192,12 @@ public class InsightAuthorizationResource {
 		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		// add the person with read only access if they do not have access to the app
 		if(SecurityProjectUtils.getUserProjectPermission(newUserId, projectId) == null) {
 			try {
-				SecurityProjectUtils.addProjectUser(user, newUserId, projectId, AccessPermissionEnum.READ_ONLY.getPermission());
+				SecurityProjectUtils.addProjectUser(user, newUserId, projectId, AccessPermissionEnum.READ_ONLY.getPermission(), endDate);
 			} catch(IllegalAccessException e) {
 				logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to insight " + insightId + " in project " + projectId + " without having proper access"));
 				logger.error(Constants.STACKTRACE, e);
@@ -212,7 +213,7 @@ public class InsightAuthorizationResource {
 		}
 		
 		try {
-			SecurityInsightUtils.addInsightUser(user, newUserId, projectId, insightId, permission);
+			SecurityInsightUtils.addInsightUser(user, newUserId, projectId, insightId, permission, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -253,9 +254,10 @@ public class InsightAuthorizationResource {
 		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		try {
-			SecurityInsightUtils.editInsightUserPermission(user, existingUserId, projectId, insightId, newPermission);
+			SecurityInsightUtils.editInsightUserPermission(user, existingUserId, projectId, insightId, newPermission, endDate);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for insight " + insightId + " in project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -300,6 +302,7 @@ public class InsightAuthorizationResource {
 
 		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for insight " + insightId + " but is not an admin"));
@@ -310,7 +313,7 @@ public class InsightAuthorizationResource {
 
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityInsightUtils.editInsightUserPermissions(user, projectId, insightId, requests);
+			SecurityInsightUtils.editInsightUserPermissions(user, projectId, insightId, requests, endDate);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for insight " + insightId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -558,6 +561,7 @@ public class InsightAuthorizationResource {
 		}
 		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permissions to insight " + insightId + " but is not an admin"));
@@ -569,7 +573,7 @@ public class InsightAuthorizationResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityInsightUtils.addInsightUserPermissions(user, projectId, insightId, permission);
+			SecurityInsightUtils.addInsightUserPermissions(user, projectId, insightId, permission, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -661,6 +665,7 @@ public class InsightAuthorizationResource {
 		
 		String projectId = form.getFirst("projectId");
 		String insightId = form.getFirst("insightId");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user access to insight " + insightId + " but is not an admin"));
@@ -672,7 +677,7 @@ public class InsightAuthorizationResource {
 		// adding user permissions and updating user access requests in bulk
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
 		try {
-			SecurityInsightUtils.approveInsightUserAccessRequests(user, projectId, insightId, requests);
+			SecurityInsightUtils.approveInsightUserAccessRequests(user, projectId, insightId, requests, endDate);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant user access to insight " + insightId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
