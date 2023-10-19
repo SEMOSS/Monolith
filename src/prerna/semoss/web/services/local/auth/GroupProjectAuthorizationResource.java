@@ -107,6 +107,8 @@ public class GroupProjectAuthorizationResource {
 		String type = form.getFirst("type");
 		String projectId = form.getFirst("projectId");
 		String permission = form.getFirst("permission");
+		String endDate = form.getFirst("endDate");
+		
 		try {
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
@@ -121,7 +123,7 @@ public class GroupProjectAuthorizationResource {
 				throw new IllegalArgumentException("The permission cannot be null or empty");
 			}
 
-			SecurityGroupProjectUtils.addProjectGroupPermission(user, groupId, type, projectId, permission);
+			SecurityGroupProjectUtils.addProjectGroupPermission(user, groupId, type, projectId, permission, endDate);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add groups to project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -168,6 +170,7 @@ public class GroupProjectAuthorizationResource {
 		String type = form.getFirst("type");
 		String projectId = form.getFirst("projectId");
 		String newPermission = form.getFirst("permission");
+		String endDate = form.getFirst("endDate");
 		try {
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
@@ -181,7 +184,7 @@ public class GroupProjectAuthorizationResource {
 			if(newPermission == null || (newPermission = newPermission.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The permission cannot be null or empty");
 			}
-			SecurityGroupProjectUtils.editProjectGroupPermission(user, groupId, type, projectId, newPermission);
+			SecurityGroupProjectUtils.editProjectGroupPermission(user, groupId, type, projectId, newPermission, endDate);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit group " + groupId + " and type " + type + " permissions for project " + projectId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);

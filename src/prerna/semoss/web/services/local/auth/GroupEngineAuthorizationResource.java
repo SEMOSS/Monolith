@@ -107,6 +107,8 @@ public class GroupEngineAuthorizationResource {
 		String type = form.getFirst("type");
 		String engineId = form.getFirst("engineId");
 		String permission = form.getFirst("permission");
+		String endDate = form.getFirst("endDate");
+		
 		try {
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
@@ -121,7 +123,7 @@ public class GroupEngineAuthorizationResource {
 				throw new IllegalArgumentException("The permission cannot be null or empty");
 			}
 
-			SecurityGroupEngineUtils.addEngineGroupPermission(user, groupId, type, engineId, permission);
+			SecurityGroupEngineUtils.addEngineGroupPermission(user, groupId, type, engineId, permission, endDate);
 		} catch (IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add groups to engine " + engineId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -168,6 +170,7 @@ public class GroupEngineAuthorizationResource {
 		String type = form.getFirst("type");
 		String appId = form.getFirst("appId");
 		String newPermission = form.getFirst("permission");
+		String endDate = form.getFirst("endDate");
 		try {
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
@@ -181,7 +184,7 @@ public class GroupEngineAuthorizationResource {
 			if(newPermission == null || (newPermission = newPermission.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The permission cannot be null or empty");
 			}
-			SecurityGroupEngineUtils.editDatabaseGroupPermission(user, groupId, type, appId, newPermission);
+			SecurityGroupEngineUtils.editDatabaseGroupPermission(user, groupId, type, appId, newPermission, endDate);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit group " + groupId + " and type " + type + " permissions for app " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
