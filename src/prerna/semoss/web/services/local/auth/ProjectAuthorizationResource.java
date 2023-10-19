@@ -308,6 +308,7 @@ public class ProjectAuthorizationResource {
 		String newUserId = form.getFirst("id");
 		String projectId = form.getFirst("projectId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a user for project " + projectId + " but is not an admin"));
@@ -317,7 +318,7 @@ public class ProjectAuthorizationResource {
 		}
 		
 		try {
-			SecurityProjectUtils.addProjectUser(user, newUserId, projectId, permission);
+			SecurityProjectUtils.addProjectUser(user, newUserId, projectId, permission, endDate);
 		} catch (Exception e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a user for project " + projectId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -358,6 +359,7 @@ public class ProjectAuthorizationResource {
 		String newUserId = form.getFirst("id");
 		String projectId = form.getFirst("projectId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a user for project " + projectId + " but is not an admin"));
@@ -373,7 +375,7 @@ public class ProjectAuthorizationResource {
 
 			// ADD IN CODE
 			for(String engineId : dependentEngineIds) {
-				SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission);
+				SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission, endDate);
 			}
 			
 			
@@ -417,6 +419,7 @@ public class ProjectAuthorizationResource {
 		String existingUserId = form.getFirst("id");
 		String projectId = form.getFirst("projectId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for project " + projectId + " but is not an admin"));
@@ -426,7 +429,7 @@ public class ProjectAuthorizationResource {
 		}
 		
 		try {
-			SecurityProjectUtils.editProjectUserPermission(user, existingUserId, projectId, newPermission);
+			SecurityProjectUtils.editProjectUserPermission(user, existingUserId, projectId, newPermission, endDate);
 		} catch(IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for project " + projectId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -470,6 +473,7 @@ public class ProjectAuthorizationResource {
 		}
 
 		String projectId = form.getFirst("projectId");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for project " + projectId + " but is not an admin"));
@@ -480,7 +484,7 @@ public class ProjectAuthorizationResource {
 
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityProjectUtils.editProjectUserPermissions(user, projectId, requests);
+			SecurityProjectUtils.editProjectUserPermissions(user, projectId, requests, endDate);
 		} catch(IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for project " + projectId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -627,6 +631,7 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("setProjectDiscoverable")
 	public Response setProjectDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		classLogger.info("THIS IS CALLED HERE: " + request);
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -820,6 +825,7 @@ public class ProjectAuthorizationResource {
 		}
 		
 		String projectId = form.getFirst("projectId");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user access to project " + projectId + " but is not an admin"));
@@ -831,7 +837,7 @@ public class ProjectAuthorizationResource {
 		// adding user permissions and updating user access requests in bulk
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
 		try {
-			SecurityProjectUtils.approveProjectUserAccessRequests(user, projectId, requests);
+			SecurityProjectUtils.approveProjectUserAccessRequests(user, projectId, requests, endDate);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant user access to project " + projectId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -922,6 +928,8 @@ public class ProjectAuthorizationResource {
 		}
 		
 		String projectId = form.getFirst("projectId");
+		String endDate = null; // form.getFirst("endDate");
+		
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permissions to project " + projectId + " but is not an admin"));
@@ -933,7 +941,7 @@ public class ProjectAuthorizationResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityProjectUtils.addProjectUserPermissions(user, projectId, permission);
+			SecurityProjectUtils.addProjectUserPermissions(user, projectId, permission, endDate);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

@@ -295,6 +295,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String permission = form.getFirst("permission");
 		String engineId = form.getFirst("engineId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -307,7 +308,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersEngineAccess(engineId, permission, user);
+			adminUtils.grantNewUsersEngineAccess(engineId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -373,6 +374,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		String newUserId = form.getFirst("id");
 		String engineId = form.getFirst("engineId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -385,7 +387,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addEngineUser(newUserId, engineId, permission, user);
+			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -414,6 +416,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String engineId = form.getFirst("engineId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -428,7 +431,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			adminUtils.addEngineUserPermissions(engineId, permission, user);
+			adminUtils.addEngineUserPermissions(engineId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -458,6 +461,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String engineId = form.getFirst("engineId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		try {
 			user = ResourceUtility.getUser(request);
@@ -471,7 +475,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addAllEngineUsers(engineId, permission, user);
+			adminUtils.addAllEngineUsers(engineId, permission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -503,6 +507,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		String existingUserId = form.getFirst("id");
 		String engineId = form.getFirst("engineId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		try {
 			user = ResourceUtility.getUser(request);
@@ -516,7 +521,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user);
+			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -544,6 +549,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		String engineId = form.getFirst("engineId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
@@ -557,7 +563,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editEngineUserPermissions(engineId, requests, user);
+			SecurityAdminUtils.editEngineUserPermissions(engineId, requests, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -587,6 +593,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String engineId = form.getFirst("engineId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -599,7 +606,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.updateEngineUserPermissions(engineId, newPermission, user);
+			adminUtils.updateEngineUserPermissions(engineId, newPermission, user, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -823,6 +830,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response approveEngineUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		String engineId = form.getFirst("engineId");
+		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
@@ -840,7 +848,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.approveEngineUserAccessRequests(userId, userType, engineId, requests);
+			SecurityAdminUtils.approveEngineUserAccessRequests(userId, userType, engineId, requests, endDate);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

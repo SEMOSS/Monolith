@@ -1,5 +1,6 @@
 package prerna.semoss.web.services.local.auth;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,7 @@ import javax.ws.rs.core.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import net.snowflake.client.jdbc.internal.threeten.bp.temporal.ChronoUnit;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -236,6 +238,7 @@ public class DatabaseAuthorizationResource {
 		String newUserId = form.getFirst("id");
 		String appId = form.getFirst("appId");
 		String permission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + appId + " but is not an admin"));
@@ -245,7 +248,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.addEngineUser(user, newUserId, appId, permission);
+			SecurityEngineUtils.addEngineUser(user, newUserId, appId, permission, endDate);
 		} catch (Exception e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
@@ -291,6 +294,7 @@ public class DatabaseAuthorizationResource {
 		String existingUserId = form.getFirst("id");
 		String appId = form.getFirst("appId");
 		String newPermission = form.getFirst("permission");
+		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + appId + " but is not an admin"));
@@ -300,7 +304,7 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, appId, newPermission);
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, appId, newPermission, endDate);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + appId + " without having proper access"));
 			logger.error(Constants.STACKTRACE, e);
