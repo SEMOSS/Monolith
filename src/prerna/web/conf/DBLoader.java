@@ -281,69 +281,43 @@ public class DBLoader implements ServletContextListener {
 			}
 		}
 
-		// these are not loaded in the normal fashion
-		// so specifically pull them to close
-		IDatabaseEngine engine = Utility.getDatabase(AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
-		if (engine != null) {
-			logger.log(SHUTDOWN, "Closing database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
-			try {
-				engine.close();
-			} catch (IOException e) {
-				logger.error(Constants.STACKTRACE, e);
+		String[] autoLoadedDbs = new String[] {
+				AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME,
+				Constants.SECURITY_DB,
+				Constants.USER_TRACKING_DB,
+				Constants.LOCAL_MASTER_DB,
+		};
+		
+		for(String db : autoLoadedDbs) {
+			IDatabaseEngine engine = Utility.getDatabase(db, false);
+			if (engine != null) {
+				logger.log(SHUTDOWN, "Closing database " + db);
+				try {
+					engine.close();
+				} catch (IOException e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
+			} else {
+				logger.log(SHUTDOWN, "Couldn't find database " + db);
 			}
-		} else {
-			logger.log(SHUTDOWN, "Couldn't find database " + AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME);
 		}
 
-		engine = Utility.getDatabase(Constants.SECURITY_DB);
-		if (engine != null) {
-			logger.log(SHUTDOWN, "Closing database " + Constants.SECURITY_DB);
-			try {
-				engine.close();
-			} catch (IOException e) {
-				logger.error(Constants.STACKTRACE, e);
+		if(SchedulerFactorySingleton.isInit()) {
+			logger.log(SHUTDOWN, "Closing scheduler");
+			SchedulerFactorySingleton.getInstance().shutdownScheduler(true);
+			IDatabaseEngine engine = Utility.getDatabase(Constants.SCHEDULER_DB, false);
+			if (engine != null) {
+				logger.log(SHUTDOWN, "Closing database " + Constants.SCHEDULER_DB);
+				try {
+					engine.close();
+				} catch (IOException e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
+			} else {
+				logger.log(SHUTDOWN, "Couldn't find database " + Constants.SCHEDULER_DB);
 			}
-		} else {
-			logger.log(SHUTDOWN, "Couldn't find database " + Constants.SECURITY_DB);
-		}
-
-		engine = Utility.getDatabase(Constants.USER_TRACKING_DB);
-		if (engine != null) {
-			logger.log(SHUTDOWN, "Closing database " + Constants.USER_TRACKING_DB);
-			try {
-				engine.close();
-			} catch (IOException e) {
-				logger.error(Constants.STACKTRACE, e);
-			}
-		} else {
-			logger.log(SHUTDOWN, "Couldn't find database " + Constants.USER_TRACKING_DB);
 		}
 		
-		engine = Utility.getDatabase(Constants.LOCAL_MASTER_DB);
-		if (engine != null) {
-			logger.log(SHUTDOWN, "Closing database " + Constants.LOCAL_MASTER_DB);
-			try {
-				engine.close();
-			} catch (IOException e) {
-				logger.error(Constants.STACKTRACE, e);
-			}
-		} else {
-			logger.log(SHUTDOWN, "Couldn't find database " + Constants.LOCAL_MASTER_DB);
-		}
-
-		logger.log(SHUTDOWN, "Closing scheduler");
-		SchedulerFactorySingleton.getInstance().shutdownScheduler(true);
-		engine = Utility.getDatabase(Constants.SCHEDULER_DB);
-		if (engine != null) {
-			logger.log(SHUTDOWN, "Closing database " + Constants.SCHEDULER_DB);
-			try {
-				engine.close();
-			} catch (IOException e) {
-				logger.error(Constants.STACKTRACE, e);
-			}
-		} else {
-			logger.log(SHUTDOWN, "Couldn't find database " + Constants.SCHEDULER_DB);
-		}
 		// close r
 		try {
 			RJavaTranslatorFactory.stopRConnection();
