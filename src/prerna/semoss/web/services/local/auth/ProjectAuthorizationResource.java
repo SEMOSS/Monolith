@@ -360,6 +360,8 @@ public class ProjectAuthorizationResource {
 		}
 
 		// Get form info
+		// Get form info
+				
 		String newUserId = form.getFirst("id");
 		String newUserType = form.getFirst("type");
 		String projectId = form.getFirst("projectId");
@@ -368,7 +370,7 @@ public class ProjectAuthorizationResource {
 		// get the requested permission as a numeric -- it was passed as a string
 		Integer requestedPermissionNumeric = AccessPermissionEnum.getIdByPermission(requestedPermission);
 
-		// Determine if admin right are required to add users and, if so, if requestor has those rights.
+		// Determine if admin right are required to add users and, if so, if requester has those rights.
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(requester)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(requester), "is trying to add a user for project " + projectId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -401,7 +403,7 @@ public class ProjectAuthorizationResource {
 			// if requester has insufficient privileges on the engine so forward request to engine owner
 			} else if (requesterEnginePermission == null || requesterEnginePermission == 3) {
 				try {
-					SecurityEngineUtils.setUserAccessRequest(newUserId, newUserType, dependentEngineIds.get(i), "No Comment at this time", requestedPermissionNumeric);
+					SecurityEngineUtils.setUserAccessRequest(newUserId, newUserType, dependentEngineIds.get(i), "No Comment at this time", requestedPermissionNumeric, requester);
 					newRequestAdded.add(engineId);
 					classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(requester), "has forwarded " + newUserId + "'s request to the owner of engine " + engineId));
 				} catch (Exception e) {
@@ -436,7 +438,7 @@ public class ProjectAuthorizationResource {
 		}
 
 		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
+		ret.put("Successfully processed permission propagation", true);
 		ret.put("alreadyHaveAccess", alreadyHaveAccess);
 		ret.put("requestAlreadyExists", requestAlreadyExists);
 		ret.put("newRequestAdded", newRequestAdded);
