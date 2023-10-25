@@ -1,12 +1,14 @@
 package prerna.web.conf;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
-import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -14,6 +16,9 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.google.common.base.Strings;
 
@@ -25,10 +30,13 @@ import prerna.util.Utility;
 
 public class PublicHomeCheckFilter implements Filter {
 
+	private static final Logger classLogger = LogManager.getLogger(PublicHomeCheckFilter.class);
+	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		// we dont want any cache on portals
-		((HttpServletResponse) arg1).setHeader("Cache-Control", "private, no-store, no-cache, must-revalidate");
+		HttpServletResponse response = ((HttpServletResponse) arg1);
+		response.setHeader("Cache-Control", "private, no-store, no-cache, must-revalidate");
 
 		// check to see if the user is logged in
 		// if so pick the user object from session
@@ -77,14 +85,14 @@ public class PublicHomeCheckFilter implements Filter {
 				arg1.getWriter().write("Unable to load project with id='" + projectId + "'");
 				return;	
 			}
-			
+
 			// try to create the public home from scratch
 			File publicHomeDir = new File(realPath+"/"+publicHomeFolder); 
 			// make the directory if it doesn't exist
 			if(!publicHomeDir.exists()) {
 				publicHomeDir.mkdir();
 			}
-			
+
 			// are we already published?
 			// and am i up to date with the last publish date?
 			if(!project.requirePublish(false)) {
@@ -92,13 +100,40 @@ public class PublicHomeCheckFilter implements Filter {
 				arg2.doFilter(arg0, arg1);
 				return;
 			}
-			
+
 			// dont need to pull from cloud again
 			boolean successfulPublish = project.publish(realPath+"/"+publicHomeFolder, true);
 			if(successfulPublish) {
-				String url = fullUrl.substring(fullUrl.indexOf("/"+publicHomeFolder+"/"));
-				RequestDispatcher dispatcher = arg0.getRequestDispatcher(url);
-				dispatcher.forward(arg0, arg1);
+				String thisPortalsPath = "/"+publicHomeFolder+"/"+projectId+"/"+Constants.PORTALS_FOLDER+"/";
+				String fileToPull = realPath+thisPortalsPath;
+				if(!fileToPull.endsWith("/")) {
+					fileToPull += "/";
+				} 
+				// find the last index if we are trying to pull a specific file
+				int index = fullUrl.indexOf(thisPortalsPath)+thisPortalsPath.length();
+				if(index < fullUrl.length()) {
+					String specificFile = fullUrl.substring(fullUrl.indexOf(thisPortalsPath)+thisPortalsPath.length());
+					fileToPull += specificFile;
+				} else {
+					fileToPull += "index.html";
+				}
+
+				File file = new File(fileToPull);
+				// Set appropriate response headers
+				response.setContentType("text/html");
+				// Serve the file content
+				try (BufferedReader reader = new BufferedReader(new FileReader(file));
+						// Get the response writer
+						PrintWriter writer = response.getWriter()) {
+					String line;
+					while ((line = reader.readLine()) != null) {
+						writer.println(line);
+					}
+				} catch (IOException e) {
+					classLogger.error(Constants.STACKTRACE, e);
+					response.getWriter().write("Error serving the file.");
+					response.flushBuffer();
+				}
 				return;
 			} else {
 				arg1.getWriter().write("Publish is not enabled on this project or there was an error publishing this project" );
