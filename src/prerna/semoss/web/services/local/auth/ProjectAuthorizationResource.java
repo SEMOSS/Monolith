@@ -360,7 +360,6 @@ public class ProjectAuthorizationResource {
 		}
 
 		// Get form info
-		// Get form info
 				
 		String newUserId = form.getFirst("id");
 		String newUserType = form.getFirst("type");
