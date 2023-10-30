@@ -1207,6 +1207,8 @@ public class UserResource {
 				String tenant = socialData.getProperty(prefix + "tenant");
 				String scope = socialData.getProperty(prefix + "scope");
 				String token_url = socialData.getProperty(prefix + "token_url");
+				boolean login_external_allowed = Boolean.parseBoolean(socialData.getProperty(prefix + "login_external"));
+
 				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 				if(classLogger.isDebugEnabled()) {
@@ -1235,6 +1237,12 @@ public class UserResource {
 
 				accessToken.setProvider(AuthProvider.MS);
 				MSProfile.fillAccessToken(accessToken, null);
+				if(!login_external_allowed) {
+					if(accessToken.getName().contains("External")) {
+						accessToken = null;
+					throw new IllegalArgumentException("External users are not allowed");
+				}
+				}
 				addAccessToken(accessToken, request, autoAdd);
 
 				if(classLogger.isDebugEnabled()) {
