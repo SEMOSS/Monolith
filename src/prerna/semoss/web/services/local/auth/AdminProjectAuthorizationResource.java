@@ -922,6 +922,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		IProject project = Utility.getProject(projectId);
 		try {
 			SecurityProjectUtils.setProjectPortal(user, projectId, hasPortal, portalName);
+			project.setHasPortal(hasPortal);
 		} catch(IllegalAccessException e) {
 			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to " + logPortal + " for project " + projectId));
     		logger.error(Constants.STACKTRACE, e);
@@ -947,6 +948,10 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 				logger.info("Modifying project smss to " + logPortal + " for project " + projectId);
 				Utility.changePropertiesFileValue(projectSmss, Settings.PUBLIC_HOME_ENABLE, hasPortal+"");
 			}
+			
+			// reload and set the prop again
+			Properties newSmssProp = Utility.loadProperties(projectSmss);
+			project.setSmssProp(newSmssProp);
 			
 			// push to cloud
 			ClusterUtil.pushProjectSmss(projectId);
