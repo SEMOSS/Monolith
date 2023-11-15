@@ -111,14 +111,36 @@ public class PublicHomeCheckFilter implements Filter {
 				} 
 				// find the last index if we are trying to pull a specific file
 				int index = fullUrl.indexOf(thisPortalsPath)+thisPortalsPath.length();
+				String specificFile = null;
 				if(index < fullUrl.length()) {
-					String specificFile = fullUrl.substring(fullUrl.indexOf(thisPortalsPath)+thisPortalsPath.length());
+					specificFile = fullUrl.substring(fullUrl.indexOf(thisPortalsPath)+thisPortalsPath.length());
 					fileToPull += specificFile;
 				} else {
 					fileToPull += "index.html";
 				}
 
 				File file = new File(fileToPull);
+				if(!file.exists()) {
+					String errorMessage = "Could not find file at path " + thisPortalsPath;
+					if(specificFile != null) {
+						errorMessage += specificFile;
+					}
+					response.getWriter().write(errorMessage);
+					response.flushBuffer();
+					return;
+				}
+				if(file.isDirectory()) {
+					file = new File(file.getAbsolutePath()+"/index.html");
+					if(!file.exists()) {
+						String errorMessage = "Could not find file at path " + thisPortalsPath;
+						if(specificFile != null) {
+							errorMessage += specificFile;
+						}
+						response.getWriter().write(errorMessage);
+						response.flushBuffer();
+						return;
+					}
+				}
 				// Set appropriate response headers
 				response.setContentType("text/html");
 				// Serve the file content
