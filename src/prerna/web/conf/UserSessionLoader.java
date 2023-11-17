@@ -146,7 +146,7 @@ public class UserSessionLoader implements HttpSessionListener {
 		try {
 			// stop the netty thread if used for either r or python
 			if(thisUser != null) {
-				SocketClient nc = thisUser.getTCPServer(false);
+				SocketClient nc = thisUser.getSocketClient(false);
 				if(nc != null) {
 					String dir = thisUser.pyTupleSpace;
 					nc.stopPyServe(dir);
