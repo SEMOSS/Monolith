@@ -508,7 +508,7 @@ public class OpenAIEndpoints {
         List<Map<String, Object>> dataList = new ArrayList<>();
         for (int i = 0; i < embeddings.size(); i++) {
             Map<String, Object> embeddingMap = new HashMap<>();
-            embeddingMap.put("embedding", embeddings);
+            embeddingMap.put("embedding", embeddings.get(i));
             embeddingMap.put("index", i);
             embeddingMap.put("object", "embedding");
 
