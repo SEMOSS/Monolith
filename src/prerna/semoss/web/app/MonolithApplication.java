@@ -43,6 +43,7 @@ import prerna.semoss.web.services.local.ExecuteInsightResource;
 import prerna.semoss.web.services.local.LegacyAppResource;
 import prerna.semoss.web.services.local.ModelEngineResource;
 import prerna.semoss.web.services.local.NameServer;
+import prerna.semoss.web.services.local.OpenAIEndpoints;
 import prerna.semoss.web.services.local.ProjectResource;
 import prerna.semoss.web.services.local.SchedulerResource;
 import prerna.semoss.web.services.local.SessionResource;
@@ -118,6 +119,9 @@ public class MonolithApplication extends Application {
       singletons.add(new RawSelectWrapperService());
       // legacy forms - still used in production - RDF specific
       singletons.add(new FormResource());
+      
+      //openai endpoints for CFG AI Model Inference
+      singletons.add(new OpenAIEndpoints());
    }
 
    @Override
