@@ -134,8 +134,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	
 	@POST
 	@Produces("application/json")
-	@Path("getEngines")
-	public Response getEnginesPOST(@Context HttpServletRequest request) {
+	@Path("getProjects")
+	public Response getProjectsPOST(@Context HttpServletRequest request) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
