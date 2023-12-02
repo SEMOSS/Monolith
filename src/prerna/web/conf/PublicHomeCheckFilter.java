@@ -5,10 +5,13 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
+import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -96,6 +99,16 @@ public class PublicHomeCheckFilter implements Filter {
 			// are we already published?
 			// and am i up to date with the last publish date?
 			if(!project.requirePublish(false)) {
+				// if we are doing blocks
+				// and this is the root request
+				// we have to return the json file
+				if(project.getProjectType() == IProject.PROJECT_TYPE.BLOCKS) {
+					if(fullUrl.endsWith(publicHomeFolder+"/"+project.getProjectId()+"/"+Constants.PORTALS_FOLDER+"/")) {
+						RequestDispatcher dispatcher = arg0.getRequestDispatcher(IProject.BLOCK_FILE_NAME);
+						dispatcher.forward(arg0, arg1);
+						return;
+					}
+				}
 				// then send along
 				arg2.doFilter(arg0, arg1);
 				return;
@@ -116,7 +129,11 @@ public class PublicHomeCheckFilter implements Filter {
 					specificFile = fullUrl.substring(fullUrl.indexOf(thisPortalsPath)+thisPortalsPath.length());
 					fileToPull += specificFile;
 				} else {
-					fileToPull += "index.html";
+					if(project.getProjectType() == IProject.PROJECT_TYPE.BLOCKS) {
+						fileToPull += IProject.BLOCK_FILE_NAME;
+					} else {
+						fileToPull += "index.html";
+					}
 				}
 
 				File file = new File(fileToPull);
@@ -142,7 +159,7 @@ public class PublicHomeCheckFilter implements Filter {
 					}
 				}
 				// Set appropriate response headers
-				response.setContentType("text/html");
+				response.setContentType(Files.probeContentType(Paths.get(file.getAbsolutePath())));
 				// Serve the file content
 				try (BufferedReader reader = new BufferedReader(new FileReader(file));
 						// Get the response writer
