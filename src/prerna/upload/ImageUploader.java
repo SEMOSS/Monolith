@@ -18,6 +18,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
 import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
@@ -57,7 +58,34 @@ public class ImageUploader extends Uploader {
 	public Response uploadEngineImage(@Context ServletContext context, @Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		List<FileItem> fileItems = processRequest(context, request, null);
+		HttpSession session = request.getSession(false);
+		User user = null;
+		if (session != null) {
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if (user == null) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the engine image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+
+			if (user.isAnonymous()) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		} else {
+			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(returnMap, 400);
+		}
+		
+		List<FileItem> fileItems = null;
+		try {
+			fileItems = processRequest(context, request, null);
+		} catch (FileUploadException e) {
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		// collect all of the data input on the form
 		FileItem imageFile = null;
 		String engineId = null;
@@ -80,28 +108,9 @@ public class ImageUploader extends Uploader {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to upload the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
-
-		HttpSession session = request.getSession(false);
-		if (session != null) {
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			if (user == null) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
-				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
-				return WebUtility.getResponse(returnMap, 400);
-			}
-		} else {
-			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+		
+		if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
+			returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this engine or the engine id does not exist");
 			return WebUtility.getResponse(returnMap, 400);
 		}
 		
@@ -244,7 +253,7 @@ public class ImageUploader extends Uploader {
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
 			if (user == null) {
 				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to delete the engine image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
@@ -255,7 +264,7 @@ public class ImageUploader extends Uploader {
 			}
 
 			if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
-				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
+				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this engine or the engine id does not exist");
 				return WebUtility.getResponse(returnMap, 400);
 			}
 		} else {
@@ -384,7 +393,34 @@ public class ImageUploader extends Uploader {
 		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + Constants.PROJECT_FOLDER;
 		filePath = Utility.normalizePath(filePath);
 		
-		List<FileItem> fileItems = processRequest(context, request, null);
+		HttpSession session = request.getSession(false);
+		User user = null;
+		if (session != null) {
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if (user == null) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the project image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+
+			if (user.isAnonymous()) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an project image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		} else {
+			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(returnMap, 400);
+		}
+		
+		List<FileItem> fileItems = null;
+		try {
+			fileItems = processRequest(context, request, null);
+		} catch (FileUploadException e) {
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		// collect all of the data input on the form
 		FileItem imageFile = null;
 		String projectId = null;
@@ -408,37 +444,18 @@ public class ImageUploader extends Uploader {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper project id to upload the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
-
-		HttpSession session = request.getSession(false);
-		if (session != null) {
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			if (user == null) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the project image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an project image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			try {
-				projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-			} catch (Exception e) {
-				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(returnMap, 400);
-			}
-			if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
-				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this project");
-				return WebUtility.getResponse(returnMap, 400);
-			}
-			projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
-		} else {
-			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+		
+		try {
+			projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+		} catch (Exception e) {
+			returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(returnMap, 400);
 		}
+		if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
+			returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this project");
+			return WebUtility.getResponse(returnMap, 400);
+		}
+		projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
 
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
@@ -519,7 +536,7 @@ public class ImageUploader extends Uploader {
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
 			if (user == null) {
 				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the project image");
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to delete the project image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
@@ -620,7 +637,34 @@ public class ImageUploader extends Uploader {
 		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + Constants.PROJECT_FOLDER;
 		filePath = Utility.normalizePath(filePath);
 
-		List<FileItem> fileItems = processRequest(context, request, null);
+		HttpSession session = request.getSession(false);
+		User user = null;
+		if (session != null) {
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if (user == null) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the insight image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+
+			if (user.isAnonymous()) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an insight image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		} else {
+			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(returnMap, 400);
+		}
+		
+		List<FileItem> fileItems = null;
+		try {
+			fileItems = processRequest(context, request, null);
+		} catch (FileUploadException e) {
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		// collect all of the data input on the form
 		FileItem imageFile = null;
 		String projectId = null;
@@ -648,37 +692,18 @@ public class ImageUploader extends Uploader {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper project and insight ids to upload the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
-
-		HttpSession session = request.getSession(false);
-		if (session != null) {
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			if (user == null) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the insight image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an insight image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			try {
-				projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-			} catch (Exception e) {
-				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(returnMap, 400);
-			}
-			if (!SecurityInsightUtils.userCanEditInsight(user, projectId, insightId)) {
-				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this insight within the project");
-				return WebUtility.getResponse(returnMap, 400);
-			}
-			projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
-		} else {
-			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+		
+		try {
+			projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+		} catch (Exception e) {
+			returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(returnMap, 400);
 		}
+		if (!SecurityInsightUtils.userCanEditInsight(user, projectId, insightId)) {
+			returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this insight within the project");
+			return WebUtility.getResponse(returnMap, 400);
+		}
+		projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
 		
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
@@ -766,7 +791,7 @@ public class ImageUploader extends Uploader {
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
 			if (user == null) {
 				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the app image");
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to delete the insight image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
@@ -782,8 +807,8 @@ public class ImageUploader extends Uploader {
 				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(returnMap, 400);
 			}
-			if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
-				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project or the project id does not exist");
+			if (!SecurityInsightUtils.userCanEditInsight(user, projectId, insightId)) {
+				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this insight or the insight id does not exist");
 				return WebUtility.getResponse(returnMap, 400);
 			}
 			projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
@@ -874,7 +899,34 @@ public class ImageUploader extends Uploader {
 	public Response uploadDatabaseImage(@Context ServletContext context, @Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		List<FileItem> fileItems = processRequest(context, request, null);
+		HttpSession session = request.getSession(false);
+		User user = null;
+		if (session != null) {
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if (user == null) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the engine image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+
+			if (user.isAnonymous()) {
+				HashMap<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		} else {
+			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(returnMap, 400);
+		}
+		
+		List<FileItem> fileItems = null;
+		try {
+			fileItems = processRequest(context, request, null);
+		} catch (FileUploadException e) {
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		// collect all of the data input on the form
 		FileItem imageFile = null;
 		String engineId = null;
@@ -900,28 +952,9 @@ public class ImageUploader extends Uploader {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to upload the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
-
-		HttpSession session = request.getSession(false);
-		if (session != null) {
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			if (user == null) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
-				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
-				return WebUtility.getResponse(returnMap, 400);
-			}
-		} else {
-			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+		
+		if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
+			returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this engine or the engine id does not exist");
 			return WebUtility.getResponse(returnMap, 400);
 		}
 		
@@ -1072,7 +1105,7 @@ public class ImageUploader extends Uploader {
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
 			if (user == null) {
 				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the database image");
+				errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload the engine image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
@@ -1083,7 +1116,7 @@ public class ImageUploader extends Uploader {
 			}
 
 			if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
-				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database or the database id does not exist");
+				returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to this engine or the engine id does not exist");
 				return WebUtility.getResponse(returnMap, 400);
 			}
 		} else {
