@@ -105,42 +105,36 @@ public abstract class Uploader extends HttpServlet {
 		}
 	}
 
-	protected List<FileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request, String insightId) {
+	protected List<FileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request, String insightId) throws FileUploadException {
 		String tempFilePath = context.getInitParameter(TEMP_FILE_UPLOAD_KEY);
 		tempFilePath = normalizeAndCreatePath(tempFilePath);
 		
 		List<FileItem> fileItems = null;
-		try {
-			DiskFileItemFactory factory = new DiskFileItemFactory();
-			// maximum size that will be stored in memory
-			factory.setSizeThreshold(maxMemSize);
-			// Location to save data that is larger than maxMemSize.
-			factory.setRepository(new File(tempFilePath));
-			// Create a new file upload handler
-			ServletFileUpload upload = new ServletFileUpload(factory);
-			// maximum file size to be uploaded.
-			upload.setSizeMax(maxFileSize);
-			// set encoding as well for the request
-			upload.setHeaderEncoding("UTF-8"); 
-			// make sure the insight id is valid if present
-			if(insightId != null) {
-				if(InsightStore.getInstance().get(insightId) == null) {
-					// this is an invalid insight id
-					// null it out
-					// no logging for you
-					insightId = null;
-				}
+		DiskFileItemFactory factory = new DiskFileItemFactory();
+		// maximum size that will be stored in memory
+		factory.setSizeThreshold(maxMemSize);
+		// Location to save data that is larger than maxMemSize.
+		factory.setRepository(new File(tempFilePath));
+		// Create a new file upload handler
+		ServletFileUpload upload = new ServletFileUpload(factory);
+		// maximum file size to be uploaded.
+		upload.setSizeMax(maxFileSize);
+		// set encoding as well for the request
+		upload.setHeaderEncoding("UTF-8"); 
+		// make sure the insight id is valid if present
+		if(insightId != null) {
+			if(InsightStore.getInstance().get(insightId) == null) {
+				// this is an invalid insight id
+				// null it out
+				// no logging for you
+				insightId = null;
 			}
-			ProgressListener progressListener = new FileUploadProgressListener(insightId);
-			upload.setProgressListener(progressListener);
-
-			// Parse the request to get file items
-			fileItems = upload.parseRequest(request);
-		} catch (FileUploadException fue) {
-			logger.error(Constants.STACKTRACE, fue);
-		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
 		}
+		ProgressListener progressListener = new FileUploadProgressListener(insightId);
+		upload.setProgressListener(progressListener);
+
+		// Parse the request to get file items
+		fileItems = upload.parseRequest(request);
 		return fileItems;
 	}
 

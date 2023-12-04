@@ -2,6 +2,8 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -53,7 +55,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/uploadFile")
 public class FileUploader extends Uploader {
 
-	private static final Logger logger = LogManager.getLogger(FileUploader.class);
+	private static final Logger classLogger = LogManager.getLogger(FileUploader.class);
 	/*
 	 * Moving a file onto the BE cannot be performed through pixel
 	 * Thus, we still expose "drag and drop" of a file through a rest call
@@ -87,7 +89,7 @@ public class FileUploader extends Uploader {
 			try {
 				userDefinedHeadersMap = gson.fromJson(headersToCheckString, new TypeToken<List<Map<String, String[]>>>() {}.getType());
 			} catch(Exception e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Invalid format passed for user defined headers: " + headersToCheckString);
 				return WebUtility.getResponse(errorMap, 400);
@@ -148,7 +150,7 @@ public class FileUploader extends Uploader {
 			try {
 				userDefinedHeadersMap = gson.fromJson(headersToCheckString, new TypeToken<Map<String, String[]>>() {}.getType());
 			} catch(Exception e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Invalid format passed for user defined headers: " + headersToCheckString);
 				return WebUtility.getResponse(errorMap, 400);
@@ -262,14 +264,14 @@ public class FileUploader extends Uploader {
 			// clear the thread store
 			return WebUtility.getResponse(inputData, 200);
 		} catch(VirusScanningException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			HashMap<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch(Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error moving file to server");
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} finally {
 			ThreadStore.remove();
@@ -321,7 +323,7 @@ public class FileUploader extends Uploader {
 		if (!fileDir.exists()) {
 			Boolean success =fileDir.mkdirs();
 			if(!success) {
-				logger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+				classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
 			}
 		}
 		
@@ -343,7 +345,7 @@ public class FileUploader extends Uploader {
 						MimeType type = MimeTypes.getDefaultMimeTypes().forName(contentType);
 						name += type.getExtension();
 					} catch (MimeTypeException e) {
-						logger.error(Constants.STACKTRACE, e);
+						classLogger.error(Constants.STACKTRACE, e);
 					}
 				}
 				
@@ -380,8 +382,13 @@ public class FileUploader extends Uploader {
 				// we will do what a normal OS system does
 				
 				writeFile(fi, file);
-				logger.info(Utility.cleanLogString("Saved Filename: " + name + "  to "+ file));
-				
+//				System.out.println("Type is: " + Files.probeContentType(Paths.get(file.getAbsolutePath())));
+//				System.out.println("Can execute: " + file.canExecute());
+//				classLogger.info(Utility.cleanLogString("Saved Filename: " + name + "  to "+ file));
+//				if(file.canExecute()) {
+//					
+//				}
+
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
 				fileMap.put("fileName", savedName);
@@ -395,7 +402,7 @@ public class FileUploader extends Uploader {
 				// its a file, but not in a form
 				// i.e. this is a person copy/pasting 
 				// the values directly 
-				logger.info("Writing Input To File");
+				classLogger.info("Writing Input To File");
 //				Date date = new Date();
 //				String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
 //				String fileSuffix = "FileString_" + modifiedDate;;
@@ -408,7 +415,7 @@ public class FileUploader extends Uploader {
 					
 				File file = new File(fileLocation);
 				writeFile(fi, file);
-				logger.info(Utility.cleanLogString("Saved Pasted Data To "+ file));
+				classLogger.info(Utility.cleanLogString("Saved Pasted Data To "+ file));
 				
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
@@ -437,7 +444,7 @@ public class FileUploader extends Uploader {
 				Map<String, Collection<String>> viruses = VirusScannerUtils.getViruses(fi.getName(), fi.getInputStream());
 				
 				if (!viruses.isEmpty()) {
-					logger.warn("Virus scanner errors map for " + fi.getName() + " : " + viruses);
+					classLogger.warn("Virus scanner errors map for " + fi.getName() + " : " + viruses);
 					String error = "Detected " + viruses.size() + " virus";
 					
 					if (viruses.size() > 1) {
