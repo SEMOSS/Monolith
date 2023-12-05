@@ -337,7 +337,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsers")
-	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,  @QueryParam("userId") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -351,8 +351,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		Map<String, Object> ret = new HashMap<String, Object>();
-		List<Map<String, Object>> members = adminUtils.getEngineUsers(engineId, userId, permission, limit, offset);
-		long totalMembers = SecurityAdminUtils.getEngineUsersCount(engineId, userId, permission);
+		String searchParam = userInfo != null ? userInfo : userId;
+		List<Map<String, Object>> members = adminUtils.getEngineUsers(engineId, searchParam, permission, limit, offset);
+		long totalMembers = SecurityAdminUtils.getEngineUsersCount(engineId, searchParam, permission);
 		ret.put("totalMembers", totalMembers);
 		ret.put("members", members);
 
