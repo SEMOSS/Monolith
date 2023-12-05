@@ -202,7 +202,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getDatabaseUsers")
-	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId,  @QueryParam("userId") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
@@ -221,8 +221,9 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		Map<String, Object> ret = new HashMap<String, Object>();
-		List<Map<String, Object>> members = adminUtils.getEngineUsers(databaseId, userId, permission, limit, offset);
-		long totalMembers = SecurityAdminUtils.getEngineUsersCount(databaseId, userId, permission);
+		String searchParam = userInfo != null ? userInfo : userId;
+		List<Map<String, Object>> members = adminUtils.getEngineUsers(databaseId, searchParam, permission, limit, offset);
+		long totalMembers = SecurityAdminUtils.getEngineUsersCount(databaseId, searchParam, permission);
 		ret.put("totalMembers", totalMembers);
 		ret.put("members", members);
 

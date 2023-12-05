@@ -286,7 +286,7 @@ public class EngineAuthorizationResource {
 		try {
 			String searchParam = userInfo != null ? userInfo : userId;
 			List<Map<String, Object>> members = SecurityEngineUtils.getEngineUsers(user, engineId, searchParam, permission, limit, offset);
-			long totalMembers = SecurityEngineUtils.getEngineUsersCount(user, engineId, userId, permission);
+			long totalMembers = SecurityEngineUtils.getEngineUsersCount(user, engineId, searchParam, permission);
 			ret.put("totalMembers", totalMembers);
 			ret.put("members", members);
 		} catch (IllegalAccessException e) {
