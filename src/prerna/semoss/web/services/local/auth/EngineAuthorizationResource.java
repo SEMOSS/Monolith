@@ -270,7 +270,7 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsers")
-	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,  @QueryParam("userId") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -284,7 +284,8 @@ public class EngineAuthorizationResource {
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			List<Map<String, Object>> members = SecurityEngineUtils.getEngineUsers(user, engineId, userId, permission, limit, offset);
+			String searchParam = userInfo != null ? userInfo : userId;
+			List<Map<String, Object>> members = SecurityEngineUtils.getEngineUsers(user, engineId, searchParam, permission, limit, offset);
 			long totalMembers = SecurityEngineUtils.getEngineUsersCount(user, engineId, userId, permission);
 			ret.put("totalMembers", totalMembers);
 			ret.put("members", members);
