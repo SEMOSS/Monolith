@@ -273,7 +273,7 @@ public class ProjectAuthorizationResource {
 		try {
 			String searchParam = userInfo != null ? userInfo : userId;
 			List<Map<String, Object>> members = SecurityProjectUtils.getProjectUsers(user, projectId, searchParam, permission, limit, offset);
-			long totalMembers = SecurityProjectUtils.getProjectUsersCount(user, projectId, userId, permission);
+			long totalMembers = SecurityProjectUtils.getProjectUsersCount(user, projectId, searchParam, permission);
 			ret.put("totalMembers", totalMembers);
 			ret.put("members", members);
 		} catch (IllegalAccessException e) {
