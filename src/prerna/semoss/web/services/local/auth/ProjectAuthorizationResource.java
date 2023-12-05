@@ -257,7 +257,7 @@ public class ProjectAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectUsers")
-	public Response getProjectUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,  @QueryParam("userId") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getProjectUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -271,7 +271,8 @@ public class ProjectAuthorizationResource {
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			List<Map<String, Object>> members = SecurityProjectUtils.getProjectUsers(user, projectId, userId, permission, limit, offset);
+			String searchParam = userInfo != null ? userInfo : userId;
+			List<Map<String, Object>> members = SecurityProjectUtils.getProjectUsers(user, projectId, searchParam, permission, limit, offset);
 			long totalMembers = SecurityProjectUtils.getProjectUsersCount(user, projectId, userId, permission);
 			ret.put("totalMembers", totalMembers);
 			ret.put("members", members);
