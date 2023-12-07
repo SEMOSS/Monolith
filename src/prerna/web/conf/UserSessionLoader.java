@@ -148,7 +148,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			if(thisUser != null) {
 				ClientProcessWrapper cpw = thisUser.getClientProcessWrapper();
 				if(cpw != null) {
-					cpw.shutdown();
+					cpw.shutdown(true);
 				}
 			}
 		} catch(Exception e) {
