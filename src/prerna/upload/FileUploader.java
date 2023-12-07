@@ -340,9 +340,10 @@ public class FileUploader extends Uploader {
 				String name = fi.getName();
 				String fileExtension = FilenameUtils.getExtension(name);
 				String contentType = fi.getContentType();
+				MimeType type = null;
 				if(fileExtension == null || fileExtension.isEmpty()) {
 					try {
-						MimeType type = MimeTypes.getDefaultMimeTypes().forName(contentType);
+						type = MimeTypes.getDefaultMimeTypes().forName(contentType);
 						name += type.getExtension();
 					} catch (MimeTypeException e) {
 						classLogger.error(Constants.STACKTRACE, e);
@@ -380,14 +381,7 @@ public class FileUploader extends Uploader {
 				
 				// instead of adding unique
 				// we will do what a normal OS system does
-				
 				writeFile(fi, file);
-//				System.out.println("Type is: " + Files.probeContentType(Paths.get(file.getAbsolutePath())));
-//				System.out.println("Can execute: " + file.canExecute());
-//				classLogger.info(Utility.cleanLogString("Saved Filename: " + name + "  to "+ file));
-//				if(file.canExecute()) {
-//					
-//				}
 
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
