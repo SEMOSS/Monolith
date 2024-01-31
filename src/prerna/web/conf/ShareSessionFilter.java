@@ -54,13 +54,14 @@ public class ShareSessionFilter implements Filter {
 			// check if there is a session key 
 			// for sharing in the url
 
-			if (user == null || user.getLogins().isEmpty()) {
-				// do a condition here if the share key is provided
-				HttpServletRequest req = (HttpServletRequest) arg0;
+			// do a condition here if the share key is provided
+			HttpServletRequest req = (HttpServletRequest) arg0;
 
-				if (req.getParameter(SHARE_TOKEN_KEY) != null) {
-					String shareToken = Utility.cleanHttpResponse(req.getParameter(SHARE_TOKEN_KEY));
-					
+			if (req.getParameter(SHARE_TOKEN_KEY) != null) {
+				String shareToken = Utility.cleanHttpResponse(req.getParameter(SHARE_TOKEN_KEY));
+				
+				// user doesn't exist, lets try to validate
+				if (user == null || user.getLogins().isEmpty()) {
 					try {
 						Object[] shareDetails = SecurityShareSessionUtils.getShareSessionDetails(shareToken);
 						if(shareDetails == null) {
@@ -102,46 +103,50 @@ public class ShareSessionFilter implements Filter {
 							c.setPath(contextPath);
 							((HttpServletResponse) arg1).addCookie(c);
 						}
-						
-						// and now redirect back to the URL
-						// if get, we can do it
-						String method = req.getMethod();
-						if (method.equalsIgnoreCase("GET")) {
-							// modify the prefix if necessary
-							Map<String, String> envMap = System.getenv();
-							if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
-								fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
-							}
-	
-							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
-							String currentQueryString = req.getQueryString();
-							String newQueryString = removeQueryParam(currentQueryString, SHARE_TOKEN_KEY);
-							if(newQueryString != null && !newQueryString.isEmpty()) {
-								((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + newQueryString);
-							} else {
-								((HttpServletResponse) arg1).sendRedirect(fullUrl);
-							}
-							return;
-						} else if (method.equalsIgnoreCase("POST")) {
-							// modify the prefix if necessary
-							Map<String, String> envMap = System.getenv();
-							if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
-								fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
-							}
-	
-							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-							((HttpServletResponse) arg1).setHeader("Location", fullUrl);
-							return;
-						} 
 					} catch (Exception e) {
 						classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
 								User.getSingleLogginName(user), "is trying to login through a share token but the token '"+shareToken+"' resulted in the error: " + e.getMessage()));
 						classLogger.error(Constants.STACKTRACE, e);
 					}
-					
-					// don't know if you are not a POST or a GET
-					// continue the chain
+				} else {
+					// user does exist
+					// why do you have the share session still?
+					// i'm going to remove it
+					// and redirect you back
+					classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
+							User.getSingleLogginName(user), "is already logged in but trying to login again using a share token '" + shareToken + "'"));
 				}
+				
+				// and now redirect back to the URL
+				// if get, we can do it
+				String method = req.getMethod();
+				if (method.equalsIgnoreCase("GET")) {
+					// modify the prefix if necessary
+					Map<String, String> envMap = System.getenv();
+					if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
+						fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
+					}
+
+					((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+					String currentQueryString = req.getQueryString();
+					String newQueryString = removeQueryParam(currentQueryString, SHARE_TOKEN_KEY);
+					if(newQueryString != null && !newQueryString.isEmpty()) {
+						((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + newQueryString);
+					} else {
+						((HttpServletResponse) arg1).sendRedirect(fullUrl);
+					}
+					return;
+				} else if (method.equalsIgnoreCase("POST")) {
+					// modify the prefix if necessary
+					Map<String, String> envMap = System.getenv();
+					if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
+						fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
+					}
+
+					((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
+					((HttpServletResponse) arg1).setHeader("Location", fullUrl);
+					return;
+				} 
 			}
 		}
 
