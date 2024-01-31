@@ -153,7 +153,17 @@
       <filter-name>MemoryCheckFilter</filter-name>
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
-   
+
+   <!-- Share Session Filter -->
+   <filter>
+      <filter-name>ShareSessionFilter</filter-name>
+      <filter-class>prerna.web.conf.ShareSessionFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>ShareSessionFilter</filter-name>
+      <url-pattern>/*</url-pattern>
+   </filter-mapping>
+  
    <!-- Trusted Token Filter -->
    <filter>
       <filter-name>TrustedTokenFilter</filter-name>
