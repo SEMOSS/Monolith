@@ -114,7 +114,13 @@ public class ShareSessionFilter implements Filter {
 							}
 	
 							((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
-							((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
+							String currentQueryString = req.getQueryString();
+							String newQueryString = removeQueryParam(currentQueryString, SHARE_TOKEN_KEY);
+							if(newQueryString != null && !newQueryString.isEmpty()) {
+								((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + newQueryString);
+							} else {
+								((HttpServletResponse) arg1).sendRedirect(fullUrl);
+							}
 							return;
 						} else if (method.equalsIgnoreCase("POST")) {
 							// modify the prefix if necessary
@@ -142,6 +148,29 @@ public class ShareSessionFilter implements Filter {
 		arg2.doFilter(arg0, arg1);
 	}
 
+	/**
+	 * 
+	 * @param query
+	 * @param parameterToRemove
+	 * @return
+	 */
+	private static String removeQueryParam(String query, String parameterToRemove) {
+	    String[] params = query.split("&");
+	    StringBuilder updatedQuery = new StringBuilder();
+
+	    for (String param : params) {
+	        String[] keyValue = param.split("=");
+	        if (keyValue.length > 0 && !keyValue[0].equals(parameterToRemove)) {
+	            if (updatedQuery.length() > 0) {
+	                updatedQuery.append("&");
+	            }
+	            updatedQuery.append(param);
+	        }
+	    }
+
+	    return updatedQuery.toString();
+	}
+	
 	@Override
 	public void destroy() {
 		// destroy
