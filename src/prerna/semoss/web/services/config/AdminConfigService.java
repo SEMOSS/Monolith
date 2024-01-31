@@ -11,7 +11,6 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
@@ -41,8 +40,8 @@ public class AdminConfigService {
 
 	@POST
 	@Path("/setInitialAdmins")
-	public Response setInitialAdmins(@Context HttpServletRequest request, @Context HttpServletResponse response,
-			MultivaluedMap<String, String> form) throws IOException {
+	public Response setInitialAdmins(@Context HttpServletRequest request, @Context HttpServletResponse response) 
+			throws IOException {
 		HttpSession session = request.getSession(false);
 
 		IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
@@ -75,7 +74,7 @@ public class AdminConfigService {
 			}
 		}
 		
-		String idString = form.getFirst("ids");
+		String idString = request.getParameter("ids");
 		if (idString == null || idString.isEmpty()) {
 			Map<String, String> errorMessage = new HashMap<>();
 			errorMessage.put(Constants.ERROR_MESSAGE, "Need to send valid ids");
