@@ -1,10 +1,8 @@
 package prerna.web.conf;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -14,6 +12,7 @@ import javax.servlet.FilterConfig;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
@@ -22,6 +21,7 @@ import javax.servlet.http.HttpSession;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.tika.Tika;
 
 import com.google.common.base.Strings;
 
@@ -159,21 +159,40 @@ public class PublicHomeCheckFilter implements Filter {
 					}
 				}
 				// Set appropriate response headers
-				response.setContentType(Files.probeContentType(Paths.get(file.getAbsolutePath())));
-				// Serve the file content
-				try (BufferedReader reader = new BufferedReader(new FileReader(file));
-						// Get the response writer
-						PrintWriter writer = response.getWriter()) {
-					String line;
-					while ((line = reader.readLine()) != null) {
-						writer.println(line);
+				String tomcatMimeType = context.getMimeType(file.getAbsolutePath());
+				if(tomcatMimeType != null && !tomcatMimeType.isEmpty()) {
+					response.setContentType(tomcatMimeType);
+				} else {
+					String fileProbeContentType = Files.probeContentType(Paths.get(file.getAbsolutePath()));
+					if(fileProbeContentType != null && !fileProbeContentType.isEmpty()) {
+						response.setContentType(fileProbeContentType);
+					} else {
+						try {
+							Tika tika = new Tika();
+				            String tikeContentType = tika.detect(file);
+							response.setContentType(tikeContentType);
+						} catch(IOException e) {
+							classLogger.error(Constants.STACKTRACE, e);
+							response.setContentType("application/octet-stream");
+						}
 					}
+				}
+				// Serve the file content
+				try (FileInputStream  reader = new FileInputStream(file);
+						// Get the response writer
+						ServletOutputStream outputStream = response.getOutputStream()) {
+					byte[] buffer = new byte[1024];
+		            int bytesRead;
+		            while ((bytesRead = reader.read(buffer)) != -1) {
+		                outputStream.write(buffer, 0, bytesRead);
+		            }
 				} catch (IOException e) {
 					classLogger.error(Constants.STACKTRACE, e);
 					response.getWriter().write("Error serving the file.");
 					response.flushBuffer();
 				}
 				return;
+
 			} else {
 				arg1.getWriter().write("Publish is not enabled on this project or there was an error publishing this project" );
 				return;
