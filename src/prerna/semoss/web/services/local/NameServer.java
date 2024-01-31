@@ -275,6 +275,7 @@ public class NameServer {
 
 		HttpSession session = request.getSession(false);
 		String sessionId = null;
+		String routeId = null;
 		User user = null;
 		Insight insight = null;
 		boolean dropLogging = true;
@@ -302,7 +303,7 @@ public class NameServer {
 				for (Cookie c : curCookies) {
 					classLogger.debug(Utility.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
 					if (c.getName().equals(routeCookieName)) {
-						ThreadStore.setRouteId(c.getValue());
+						routeId = c.getValue();
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());
 					}
 				}
@@ -388,7 +389,7 @@ public class NameServer {
 		long curTime = System.currentTimeMillis();
 		long lastTime = session.getLastAccessedTime();
 		long sessionTimeRemaining = (long) secondsForExpiration - (long) ( (curTime - lastTime) /1000 );
-		return runPixelJob(user, insight, expression, jobId, insightId, sessionId, dropLogging, sessionTimeRemaining);
+		return runPixelJob(user, insight, expression, jobId, insightId, sessionId, routeId, dropLogging, sessionTimeRemaining);
 	}
 
 	@POST
@@ -441,7 +442,7 @@ public class NameServer {
 	 * @return
 	 */
 	public static Response runPixelJob(User user, Insight insight, String expression, String jobId, 
-			String insightId, String sessionId, boolean dropLogging, long sessionTimeRemaining) {
+			String insightId, String sessionId, String routeId, boolean dropLogging, long sessionTimeRemaining) {
 		JobManager manager = JobManager.getManager();
 		JobThread jt = manager.makeJob(insightId);
 		jobId = jt.getJobId();
@@ -449,10 +450,16 @@ public class NameServer {
 		// set in thread
 		ThreadStore.setInsightId(insightId);
 		ThreadStore.setSessionId(sessionId);
+		ThreadStore.setRouteId(routeId);
 		ThreadStore.setJobId(jobId);
 		ThreadStore.setUser(user);
 
-		String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
+		String job = null;
+		if(routeId == null || routeId.isEmpty()) {
+			job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\", \"" + routeId + "\");";
+		} else {
+			job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
+		}
 		// add the job first
 		// so we can do things like logging
 		jt.addPixel(job);
