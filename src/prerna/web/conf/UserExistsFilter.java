@@ -25,7 +25,7 @@ import prerna.util.Constants;
 
 public class UserExistsFilter extends NoUserInSessionFilter {
 	
-	private static final Logger logger = LogManager.getLogger(UserExistsFilter.class);
+	private static final Logger classLogger = LogManager.getLogger(UserExistsFilter.class);
 
 	private static FilterConfig filterConfig;
 	
@@ -63,7 +63,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 					session.removeAttribute(Constants.SESSION_USER);
 					((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN, "User lacks permissions for this resource" );
 					// log the user login
-					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is trying to login BUT doesn't have access with provider " +  token.getProvider()));
+					classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is trying to login BUT doesn't have access with provider " +  token.getProvider()));
 
 					return;
 				}
@@ -78,7 +78,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
 					
 					// log the user login
-					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is trying to login BUT doesn't have access with provider " +  token.getProvider()));
+					classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is trying to login BUT doesn't have access with provider " +  token.getProvider()));
 
 					return;
 				}
