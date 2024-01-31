@@ -50,13 +50,7 @@ public class ShareSessionFilter implements Filter {
 				user = (User) session.getAttribute(Constants.SESSION_USER);
 			}
 			
-			// if no user
-			// check if there is a session key 
-			// for sharing in the url
-
-			// do a condition here if the share key is provided
 			HttpServletRequest req = (HttpServletRequest) arg0;
-
 			if (req.getParameter(SHARE_TOKEN_KEY) != null) {
 				String shareToken = Utility.cleanHttpResponse(req.getParameter(SHARE_TOKEN_KEY));
 				
@@ -107,6 +101,8 @@ public class ShareSessionFilter implements Filter {
 						classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
 								User.getSingleLogginName(user), "is trying to login through a share token but the token '"+shareToken+"' resulted in the error: " + e.getMessage()));
 						classLogger.error(Constants.STACKTRACE, e);
+						arg2.doFilter(arg0, arg1);
+						return;
 					}
 				} else {
 					// user does exist
