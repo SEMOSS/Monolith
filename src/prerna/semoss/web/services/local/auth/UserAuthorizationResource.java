@@ -150,7 +150,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("deleteUserAccessKey")
-	public Response deleteUserAccessKey(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response deleteUserAccessKey(@Context HttpServletRequest request) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -164,7 +164,11 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		Map<String, Object> retMap = new HashMap<>();
 		
 		AccessToken token = user.getPrimaryLoginToken();
-		String accessKey = form.getFirst("accessKey");
+		String accessKey = request.getParameter("accessKey");
+		if(accessKey == null || accessKey.isEmpty()) {
+			retMap.put(Constants.ERROR_MESSAGE, "accessKey parameter is not defined");
+			return WebUtility.getResponse(retMap, 400);
+		}
 		try {
 			boolean success = SecurityUserAccessKeyUtils.deleteUserAccessToken(token, accessKey);
 			retMap.put("success", success);
