@@ -11,6 +11,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
@@ -39,6 +40,8 @@ public class ShareSessionFilter implements Filter {
 		String contextPath = ((HttpServletRequest) arg0).getContextPath();
 
 		if (!ResourceUtility.allowAccessWithoutLogin(fullUrl)) {
+			arg2.doFilter(arg0, arg1);
+		} else {
 			// due to FE being annoying
 			// we need to push a response for this one end point
 			// since security is embedded w/ normal semoss and not standalone
@@ -144,9 +147,12 @@ public class ShareSessionFilter implements Filter {
 					return;
 				} 
 			}
+			
+	        // wrap the request to allow subsequent reading
+	        HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(req);
+	        // continue with the filter chain
+			arg2.doFilter(requestWrapper, arg1);
 		}
-
-		arg2.doFilter(arg0, arg1);
 	}
 
 	/**
