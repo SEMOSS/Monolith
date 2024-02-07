@@ -41,118 +41,119 @@ public class ShareSessionFilter implements Filter {
 
 		if (!ResourceUtility.allowAccessWithoutLogin(fullUrl)) {
 			arg2.doFilter(arg0, arg1);
-		} else {
-			// due to FE being annoying
-			// we need to push a response for this one end point
-			// since security is embedded w/ normal semoss and not standalone
+			return;
+		}
+		
+		// due to FE being annoying
+		// we need to push a response for this one end point
+		// since security is embedded w/ normal semoss and not standalone
 
-			HttpSession session = ((HttpServletRequest) arg0).getSession(false);
-			User user = null;
-			if (session != null) {
-				// System.out.println("Session ID >> " + session.getId());
-				user = (User) session.getAttribute(Constants.SESSION_USER);
-			}
+		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
+		User user = null;
+		if (session != null) {
+			// System.out.println("Session ID >> " + session.getId());
+			user = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+		
+		HttpServletRequest req = (HttpServletRequest) arg0;
+		if (req.getParameter(SHARE_TOKEN_KEY) != null) {
+			String shareToken = Utility.cleanHttpResponse(req.getParameter(SHARE_TOKEN_KEY));
 			
-			HttpServletRequest req = (HttpServletRequest) arg0;
-			if (req.getParameter(SHARE_TOKEN_KEY) != null) {
-				String shareToken = Utility.cleanHttpResponse(req.getParameter(SHARE_TOKEN_KEY));
-				
-				// user doesn't exist, lets try to validate
-				if (user == null || user.getLogins().isEmpty()) {
-					try {
-						Object[] shareDetails = SecurityShareSessionUtils.getShareSessionDetails(shareToken);
-						if(shareDetails == null) {
-							classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
-									User.getSingleLogginName(user), "is trying to login through a share token but the token '"+shareToken+"' doesn't exist"));
-						}
-						// this either returns true or throws an error
-						SecurityShareSessionUtils.validateShareSessionDetails(shareDetails);
+			// user doesn't exist, lets try to validate
+			if (user == null || user.getLogins().isEmpty()) {
+				try {
+					Object[] shareDetails = SecurityShareSessionUtils.getShareSessionDetails(shareToken);
+					if(shareDetails == null) {
 						classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
-								User.getSingleLogginName(user), "successfully used a share token '" + shareToken + "' to attempt to redirect to the session and login"));
+								User.getSingleLogginName(user), "is trying to login through a share token but the token '"+shareToken+"' doesn't exist"));
+					}
+					// this either returns true or throws an error
+					SecurityShareSessionUtils.validateShareSessionDetails(shareDetails);
+					classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
+							User.getSingleLogginName(user), "successfully used a share token '" + shareToken + "' to attempt to redirect to the session and login"));
 
-						String sessionId = (String) shareDetails[1];
-						String routeId = (String) shareDetails[2];
-						// create the cookie add it and sent it back
-						Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
-						k.setHttpOnly(true);
-						k.setSecure(req.isSecure());
-						k.setPath(contextPath);
-						((HttpServletResponse) arg1).addCookie(k);
-						// in case there are other JSESSIONID
-						// cookies, reset the value to the correct sessionId
-						Cookie[] cookies = req.getCookies();
-						if (cookies != null) {
-							for (Cookie c : cookies) {
-								if (c.getName().equals(DBLoader.getSessionIdKey())) {
-									c.setValue(sessionId);
-									((HttpServletResponse) arg1).addCookie(c);
-								}
+					String sessionId = (String) shareDetails[1];
+					String routeId = (String) shareDetails[2];
+					// create the cookie add it and sent it back
+					Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
+					k.setHttpOnly(true);
+					k.setSecure(req.isSecure());
+					k.setPath(contextPath);
+					((HttpServletResponse) arg1).addCookie(k);
+					// in case there are other JSESSIONID
+					// cookies, reset the value to the correct sessionId
+					Cookie[] cookies = req.getCookies();
+					if (cookies != null) {
+						for (Cookie c : cookies) {
+							if (c.getName().equals(DBLoader.getSessionIdKey())) {
+								c.setValue(sessionId);
+								((HttpServletResponse) arg1).addCookie(c);
 							}
 						}
-						
-						// add route if it exists
-						String routeCookieName = DIHelper.getInstance().getProperty(Constants.MONOLITH_ROUTE);
-						if (routeCookieName != null && !routeCookieName.isEmpty()
-								&& routeId != null && !routeId.isEmpty()) {
-							Cookie c = new Cookie(routeCookieName, routeId);
-							c.setHttpOnly(true);
-							c.setSecure(req.isSecure());
-							c.setPath(contextPath);
-							((HttpServletResponse) arg1).addCookie(c);
-						}
-					} catch (Exception e) {
-						classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
-								User.getSingleLogginName(user), "is trying to login through a share token but the token '"+shareToken+"' resulted in the error: " + e.getMessage()));
-						classLogger.error(Constants.STACKTRACE, e);
-						arg2.doFilter(arg0, arg1);
-						return;
 					}
-				} else {
-					// user does exist
-					// why do you have the share session still?
-					// i'm going to remove it
-					// and redirect you back
+					
+					// add route if it exists
+					String routeCookieName = DIHelper.getInstance().getProperty(Constants.MONOLITH_ROUTE);
+					if (routeCookieName != null && !routeCookieName.isEmpty()
+							&& routeId != null && !routeId.isEmpty()) {
+						Cookie c = new Cookie(routeCookieName, routeId);
+						c.setHttpOnly(true);
+						c.setSecure(req.isSecure());
+						c.setPath(contextPath);
+						((HttpServletResponse) arg1).addCookie(c);
+					}
+				} catch (Exception e) {
 					classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
-							User.getSingleLogginName(user), "is already logged in but trying to login again using a share token '" + shareToken + "'"));
+							User.getSingleLogginName(user), "is trying to login through a share token but the token '"+shareToken+"' resulted in the error: " + e.getMessage()));
+					classLogger.error(Constants.STACKTRACE, e);
+					arg2.doFilter(arg0, arg1);
+					return;
 				}
-				
-				// and now redirect back to the URL
-				// if get, we can do it
-				String method = req.getMethod();
-				if (method.equalsIgnoreCase("GET")) {
-					// modify the prefix if necessary
-					Map<String, String> envMap = System.getenv();
-					if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
-						fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
-					}
-
-					((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
-					String currentQueryString = req.getQueryString();
-					String newQueryString = removeQueryParam(currentQueryString, SHARE_TOKEN_KEY);
-					if(newQueryString != null && !newQueryString.isEmpty()) {
-						((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + newQueryString);
-					} else {
-						((HttpServletResponse) arg1).sendRedirect(fullUrl);
-					}
-					return;
-				} else if (method.equalsIgnoreCase("POST")) {
-					// modify the prefix if necessary
-					Map<String, String> envMap = System.getenv();
-					if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
-						fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
-					}
-
-					((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-					((HttpServletResponse) arg1).setHeader("Location", fullUrl);
-					return;
-				} 
+			} else {
+				// user does exist
+				// why do you have the share session still?
+				// i'm going to remove it
+				// and redirect you back
+				classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
+						User.getSingleLogginName(user), "is already logged in but trying to login again using a share token '" + shareToken + "'"));
 			}
 			
-	        // wrap the request to allow subsequent reading
-	        HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(req);
-	        // continue with the filter chain
-			arg2.doFilter(requestWrapper, arg1);
+			// and now redirect back to the URL
+			// if get, we can do it
+			String method = req.getMethod();
+			if (method.equalsIgnoreCase("GET")) {
+				// modify the prefix if necessary
+				Map<String, String> envMap = System.getenv();
+				if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
+					fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
+				}
+
+				((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+				String currentQueryString = req.getQueryString();
+				String newQueryString = removeQueryParam(currentQueryString, SHARE_TOKEN_KEY);
+				if(newQueryString != null && !newQueryString.isEmpty()) {
+					((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + newQueryString);
+				} else {
+					((HttpServletResponse) arg1).sendRedirect(fullUrl);
+				}
+				return;
+			} else if (method.equalsIgnoreCase("POST")) {
+				// modify the prefix if necessary
+				Map<String, String> envMap = System.getenv();
+				if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
+					fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
+				}
+
+				((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
+				((HttpServletResponse) arg1).setHeader("Location", fullUrl);
+				return;
+			} 
 		}
+		
+        // wrap the request to allow subsequent reading
+        HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(req);
+        // continue with the filter chain
+		arg2.doFilter(requestWrapper, arg1);
 	}
 
 	/**
