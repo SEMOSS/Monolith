@@ -39,11 +39,6 @@ public class ShareSessionFilter implements Filter {
 		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 		String contextPath = ((HttpServletRequest) arg0).getContextPath();
 
-		if (!ResourceUtility.allowAccessWithoutLogin(fullUrl)) {
-			arg2.doFilter(arg0, arg1);
-			return;
-		}
-		
 		// due to FE being annoying
 		// we need to push a response for this one end point
 		// since security is embedded w/ normal semoss and not standalone
@@ -116,6 +111,8 @@ public class ShareSessionFilter implements Filter {
 				// and redirect you back
 				classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
 						User.getSingleLogginName(user), "is already logged in but trying to login again using a share token '" + shareToken + "'"));
+				arg2.doFilter(arg0, arg1);
+				return;
 			}
 			
 			// and now redirect back to the URL
