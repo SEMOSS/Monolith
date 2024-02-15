@@ -1,6 +1,7 @@
 package prerna.web.conf;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.servlet.Filter;
@@ -51,8 +52,10 @@ public class ShareSessionFilter implements Filter {
 		}
 		
 		HttpServletRequest req = (HttpServletRequest) arg0;
-		if (req.getParameter(SHARE_TOKEN_KEY) != null) {
-			String shareToken = Utility.cleanHttpResponse(req.getParameter(SHARE_TOKEN_KEY));
+		String currentQueryString = req.getQueryString();
+		Map<String, String> parsedQueryParams = parseQueryParameters(currentQueryString);
+		if (parsedQueryParams.get(SHARE_TOKEN_KEY) != null) {
+			String shareToken = Utility.cleanHttpResponse(parsedQueryParams.get(SHARE_TOKEN_KEY));
 			
 			// user doesn't exist, lets try to validate
 			if (user == null || user.getLogins().isEmpty()) {
@@ -126,7 +129,6 @@ public class ShareSessionFilter implements Filter {
 				}
 
 				((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
-				String currentQueryString = req.getQueryString();
 				String newQueryString = removeQueryParam(currentQueryString, SHARE_TOKEN_KEY);
 				if(newQueryString != null && !newQueryString.isEmpty()) {
 					((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + newQueryString);
@@ -160,6 +162,9 @@ public class ShareSessionFilter implements Filter {
 	 * @return
 	 */
 	private static String removeQueryParam(String query, String parameterToRemove) {
+		if(query == null) {
+			return null;
+		}
 	    String[] params = query.split("&");
 	    StringBuilder updatedQuery = new StringBuilder();
 
@@ -174,6 +179,33 @@ public class ShareSessionFilter implements Filter {
 	    }
 
 	    return updatedQuery.toString();
+	}
+	
+	/**
+	 * 
+	 * @param query
+	 * @return
+	 */
+	private static Map<String, String> parseQueryParameters(String query) {
+        Map<String, String> queryParams = new HashMap<>();
+        if(query == null) {
+			return queryParams;
+		}
+        
+        // Split query string by "&" to get individual parameters
+        String[] params = query.split("&");
+        for (String param : params) {
+            // Split each parameter by "=" to get key-value pairs
+            String[] keyValue = param.split("=");
+            if (keyValue.length == 2) {
+                // Store key-value pairs in the map
+                String key = keyValue[0];
+                String value = keyValue[1];
+                queryParams.put(key, value);
+            }
+        }
+
+	    return queryParams;
 	}
 	
 	@Override
