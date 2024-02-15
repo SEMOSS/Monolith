@@ -37,109 +37,112 @@ public class TrustedTokenFilter implements Filter {
 		if(session != null) {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 		}
+		
+		if(user != null) {
+			arg2.doFilter(arg0, arg1);
+			return;
+		} 
 
-		if(user == null) {
-			String fullUrl = Utility.cleanHttpResponse(request.getRequestURL().toString());
-			if (!ResourceUtility.allowAccessWithoutUsers(fullUrl)) {
-				
-				SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
-				if(socialData.getLoginsAllowed().get("api_user") == null || !socialData.getLoginsAllowed().get("api_user")) {
-					// token is not enabled
-					arg2.doFilter(arg0, arg1);
-					return;
-				}
-				
-				boolean requireDynamic = SecurityAPIUserUtils.getApplicationRequireDynamicToken();
-				String authValue = request.getHeader("Authorization");
+		String fullUrl = Utility.cleanHttpResponse(request.getRequestURL().toString());
+		if (!ResourceUtility.allowAccessWithoutUsers(fullUrl)) {
+			
+			SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
+			if(socialData.getLoginsAllowed().get("api_user") == null || !socialData.getLoginsAllowed().get("api_user")) {
+				// token is not enabled
+				arg2.doFilter(arg0, arg1);
+				return;
+			}
+			
+			boolean requireDynamic = SecurityAPIUserUtils.getApplicationRequireDynamicToken();
+			String authValue = request.getHeader("Authorization");
+			if(authValue == null) {
+				authValue = request.getHeader("authorization");
 				if(authValue == null) {
-					authValue = request.getHeader("authorization");
-					if(authValue == null) {
-						// no token? just go through and other filters will validate
-						arg2.doFilter(arg0, arg1);
-						return;
-					}
-				}
-				
-				// if we require dynamic, must have Bearer token
-				if(requireDynamic && !authValue.contains("Bearer")) {
-					// no bearer token
+					// no token? just go through and other filters will validate
 					arg2.doFilter(arg0, arg1);
 					return;
-				} 
-				
-				// if we do not require dynamic, someone might still be using it
-				// so let us account for that
-				boolean usingDynamic = authValue.contains("Bearer");
-				boolean usingBasic = authValue.contains("Basic");;
-				
-				if(usingBasic && !requireDynamic) {
-					authValue = authValue.replace("Basic", "").trim();
-					// this is a base64 encoded username:password
-					byte[] decodedBytes = Base64.getDecoder().decode(authValue);
-					String userpass = new String(decodedBytes);
-					if(userpass != null && !userpass.isEmpty()) {
-						String[] split = userpass.split(":");
-						if(split.length == 2) {
-							String clientId = split[0];
-							String secretKey = split[1];
+				}
+			}
+			
+			// if we require dynamic, must have Bearer token
+			if(requireDynamic && !authValue.contains("Bearer")) {
+				// no bearer token
+				arg2.doFilter(arg0, arg1);
+				return;
+			} 
+			
+			// if we do not require dynamic, someone might still be using it
+			// so let us account for that
+			boolean usingDynamic = authValue.contains("Bearer");
+			boolean usingBasic = authValue.contains("Basic");;
+			
+			if(usingBasic && !requireDynamic) {
+				authValue = authValue.replace("Basic", "").trim();
+				// this is a base64 encoded username:password
+				byte[] decodedBytes = Base64.getDecoder().decode(authValue);
+				String userpass = new String(decodedBytes);
+				if(userpass != null && !userpass.isEmpty()) {
+					String[] split = userpass.split(":");
+					if(split.length == 2) {
+						String clientId = split[0];
+						String secretKey = split[1];
+						
+						// can you login?
+						if(SecurityAPIUserUtils.validCredentials(clientId, secretKey)) {
+							AccessToken token = new AccessToken();
+							token.setId(clientId);
+							token.setProvider(AuthProvider.API_USER);
+							user = new User();
+							user.setAccessToken(token);
+							session = request.getSession(true);
+							session.setAttribute(Constants.SESSION_USER, user);
+							session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 							
-							// can you login?
-							if(SecurityAPIUserUtils.validCredentials(clientId, secretKey)) {
-								AccessToken token = new AccessToken();
-								token.setId(clientId);
-								token.setProvider(AuthProvider.API_USER);
-								user = new User();
-								user.setAccessToken(token);
-								session = request.getSession(true);
-								session.setAttribute(Constants.SESSION_USER, user);
-								session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-								
-								classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with basic authencation"));
-							} else {
-								classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login as API_USER with invalid credentails using client id = '" + clientId + "'"));
-							}
+							classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with basic authencation"));
+						} else {
+							classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login as API_USER with invalid credentails using client id = '" + clientId + "'"));
 						}
 					}
-					
-				} else if(usingDynamic || requireDynamic){
-					authValue = authValue.replace("Bearer", "").trim();
-	
-					// okay, we have a token
-					// and no current user
-					// we have to validate this stuff
-					String ip = ResourceUtility.getClientIp(request);
-					Object[] tokenDetails = TrustedTokenService.getTokenForIp(ip);
-					if(tokenDetails == null || tokenDetails.length != 3) {
-						// token not found for this ip
-						arg2.doFilter(arg0, arg1);
-						return;
-					}
-		
-					String ipToken = (String) tokenDetails[0];
-					String userId = (String) tokenDetails[2];
-		
-					// error handling
-					if(ipToken == null) {
-						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login as API_USER but does not have a valid trust token or token has expired"));
-						arg2.doFilter(arg0, arg1);
-						return;
-					}
-					if(!ipToken.equals(authValue)) {
-						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login as API_USER but token value is invalid"));
-						arg2.doFilter(arg0, arg1);
-						return;
-					}
-		
-					AccessToken token = new AccessToken();
-					token.setId(userId);
-					token.setProvider(AuthProvider.API_USER);
-					user = new User();
-					user.setAccessToken(token);
-					session = request.getSession(true);
-					session.setAttribute(Constants.SESSION_USER, user);
-					session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-					classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with bearer token"));
 				}
+				
+			} else if(usingDynamic || requireDynamic){
+				authValue = authValue.replace("Bearer", "").trim();
+
+				// okay, we have a token
+				// and no current user
+				// we have to validate this stuff
+				String ip = ResourceUtility.getClientIp(request);
+				Object[] tokenDetails = TrustedTokenService.getTokenForIp(ip);
+				if(tokenDetails == null || tokenDetails.length != 3) {
+					// token not found for this ip
+					arg2.doFilter(arg0, arg1);
+					return;
+				}
+	
+				String ipToken = (String) tokenDetails[0];
+				String userId = (String) tokenDetails[2];
+	
+				// error handling
+				if(ipToken == null) {
+					classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login as API_USER but does not have a valid trust token or token has expired"));
+					arg2.doFilter(arg0, arg1);
+					return;
+				}
+				if(!ipToken.equals(authValue)) {
+					classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null, "could not login as API_USER but token value is invalid"));
+					arg2.doFilter(arg0, arg1);
+					return;
+				}
+	
+				AccessToken token = new AccessToken();
+				token.setId(userId);
+				token.setProvider(AuthProvider.API_USER);
+				user = new User();
+				user.setAccessToken(token);
+				session = request.getSession(true);
+				session.setAttribute(Constants.SESSION_USER, user);
+				session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
+				classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with bearer token"));
 			}
 		}
 
