@@ -2327,6 +2327,7 @@ public class UserResource {
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
 			if(username == null || password == null || username.isEmpty() || password.isEmpty()) {
+				classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login using username='"+username+"' but user name or password are empty"));
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
 				return WebUtility.getResponse(ret, 401);
 			}
@@ -2356,12 +2357,14 @@ public class UserResource {
 				}
 			} else {
 				HttpSession session = request.getSession(false);
+				User user = null;
 				if(session != null) {
-					User user = (User) session.getAttribute(Constants.SESSION_USER);
+					user = (User) session.getAttribute(Constants.SESSION_USER);
 					if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
 						session.invalidate();
 					}
 				}
+				classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to login using username='"+username+"' but user name or password are empty"));
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are invalid.");
 				return WebUtility.getResponse(ret, 401);
 			}
