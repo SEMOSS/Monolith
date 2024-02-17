@@ -27,7 +27,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/auth/group/insight")
 public class GroupInsightAuthorizationResource {
 
-	private static final Logger logger = LogManager.getLogger(GroupInsightAuthorizationResource.class);
+	private static final Logger classLogger = LogManager.getLogger(GroupInsightAuthorizationResource.class);
 
 	@Context
 	protected ServletContext context;
@@ -48,8 +48,8 @@ public class GroupInsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.error(Constants.STACKTRACE, e);
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
@@ -75,11 +75,11 @@ public class GroupInsightAuthorizationResource {
 			ret.put("permission", permission);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e){
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e){
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorMap, 500);
 		}
@@ -99,8 +99,8 @@ public class GroupInsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -132,20 +132,20 @@ public class GroupInsightAuthorizationResource {
 
 			SecurityGroupInsightsUtils.addInsightGroupPermission(user, groupId, type, projectId, insightId, permission, endDate);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add groups to insight " + insightId + " under project " + projectId + " without having proper access"));
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add groups to insight " + insightId + " under project " + projectId + " without having proper access"));
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added group " + groupId + " and type " + type + " to insight " + insightId + " under project " + projectId + " with permission " + permission));
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added group " + groupId + " and type " + type + " to insight " + insightId + " under project " + projectId + " with permission " + permission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -166,8 +166,8 @@ public class GroupInsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -197,20 +197,20 @@ public class GroupInsightAuthorizationResource {
 			}
 			SecurityGroupInsightsUtils.editInsightGroupPermission(user, groupId, type, projectId, insightId, newPermission, endDate);
 		} catch(IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit group " + groupId + " and type " + type + " permissions to insight " + insightId + " under project " + projectId + " without having proper access"));
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit group " + groupId + " and type " + type + " permissions to insight " + insightId + " under project " + projectId + " without having proper access"));
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited group " + groupId + " and type " + type + " permission to insight " + insightId + " under project " + projectId + " with level " + newPermission));
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited group " + groupId + " and type " + type + " permission to insight " + insightId + " under project " + projectId + " with level " + newPermission));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -231,7 +231,7 @@ public class GroupInsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -257,20 +257,20 @@ public class GroupInsightAuthorizationResource {
 			
 			SecurityGroupInsightsUtils.removeInsightGroupPermission(user, groupId, type, projectId, insightId);
 		} catch (IllegalAccessException e) {
-			logger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove group " + groupId + " and type " + type + " from having access to insight " + insightId + " under project " + projectId + " without having proper access"));
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove group " + groupId + " and type " + type + " from having access to insight " + insightId + " under project " + projectId + " without having proper access"));
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
 		// log the operation
-		logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed group " + groupId + " and type " + type + " from having access to insight " + insightId + " under project " + projectId));
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed group " + groupId + " and type " + type + " from having access to insight " + insightId + " under project " + projectId));
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
