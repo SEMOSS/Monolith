@@ -10,6 +10,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
@@ -200,20 +201,32 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getAllGroups")
 	@Produces("application/json")
-	public Response getAllGroups(@Context HttpServletRequest request) {
+	public Response getAllGroups(@Context HttpServletRequest request, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		SecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			groupUtils = SecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all groups"));
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> ret = groupUtils.getAllGroups();
+		List<Map<String, Object>> ret = groupUtils.getAllGroups(limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 }

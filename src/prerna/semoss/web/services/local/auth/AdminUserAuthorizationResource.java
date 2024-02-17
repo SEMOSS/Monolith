@@ -32,7 +32,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/auth/admin/user")
 public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	
-	private static final Logger logger = LogManager.getLogger(AdminUserAuthorizationResource.class);
+	private static final Logger classLogger = LogManager.getLogger(AdminUserAuthorizationResource.class);
 	
 	@GET
 	@Path("/isAdminUser")
@@ -118,11 +118,11 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 				return WebUtility.getResponse(errorRet, 400);
 			}
 		} catch (IllegalArgumentException e){
-    		logger.error(Constants.STACKTRACE, e);
+    		classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
-    		logger.error(Constants.STACKTRACE, e);
+    		classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
@@ -145,7 +145,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -157,7 +157,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setUserPublisher(userId, isPublisher);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -184,7 +184,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -197,7 +197,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setUserLock(userId, type, isLocked);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -224,7 +224,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -237,10 +237,10 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		if(userInfo.containsKey("admin")) {
 			if(userInfo.get("admin") instanceof Number) {
 				adminChange = ((Number) userInfo.get("admin")).intValue() == 1;
-				logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + userInfo.get("id") +  " to admin level " + userInfo.get("admin")));
+				classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + userInfo.get("id") +  " to admin level " + userInfo.get("admin")));
 			} else {
 				adminChange = Boolean.parseBoolean( userInfo.get("admin") + "");
-				logger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + userInfo.get("id") +  " to admin level " + userInfo.get("admin")));
+				classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + userInfo.get("id") +  " to admin level " + userInfo.get("admin")));
 			}
 		}
 		
@@ -283,7 +283,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -322,7 +322,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -342,7 +342,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
