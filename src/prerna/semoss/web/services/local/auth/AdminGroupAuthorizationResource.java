@@ -75,7 +75,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				throw new IllegalArgumentException("A custom group cannot have a login type passed in");
 			}
 			
-			SecurityGroupUtils.getInstance(user).addGroup(newGroupId, type, description, isCustomGroup);
+			SecurityGroupUtils.getInstance(user).addGroup(user, newGroupId, type, description, isCustomGroup);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -185,7 +185,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				throw new IllegalArgumentException("A custom group cannot have a login type passed in");
 			}
 			
-			SecurityGroupUtils.getInstance(user).editGroupAndPropagate(groupId, type, newGroupId, newType, newDescription, newCustomGroup);
+			SecurityGroupUtils.getInstance(user).editGroupAndPropagate(user, groupId, type, newGroupId, newType, newDescription, newCustomGroup);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -199,7 +199,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	@GET
-	@Path("/getAllGroups")
+	@Path("/getGroups")
 	@Produces("application/json")
 	public Response getAllGroups(@Context HttpServletRequest request, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		SecurityGroupUtils groupUtils = null;
@@ -215,10 +215,30 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> ret = groupUtils.getAllGroups(limit, offset);
+		List<Map<String, Object>> ret = groupUtils.getGroups(limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	@GET
+	@Path("/getGroupMembers")
+	@Produces("application/json")
+	public Response getGroupMembers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		SecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = SecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all groups"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		List<Map<String, Object>> ret = groupUtils.getGroupMembers(groupId, limit, offset);
+		return WebUtility.getResponse(ret, 200);
+	}
 	
 	
 	
