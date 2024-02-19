@@ -29,6 +29,27 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	
 	private static final Logger classLogger = LogManager.getLogger(AdminGroupAuthorizationResource.class);
 	
+	@GET
+	@Path("/getGroups")
+	@Produces("application/json")
+	public Response getAllGroups(@Context HttpServletRequest request, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		SecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = SecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all groups"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		List<Map<String, Object>> ret = groupUtils.getGroups(limit, offset);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
 	@POST
 	@Produces("application/json")
 	@Path("/addGroup")
@@ -199,27 +220,6 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	@GET
-	@Path("/getGroups")
-	@Produces("application/json")
-	public Response getAllGroups(@Context HttpServletRequest request, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-		SecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = SecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all groups"));
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		List<Map<String, Object>> ret = groupUtils.getGroups(limit, offset);
-		return WebUtility.getResponse(ret, 200);
-	}
-	
-	@GET
 	@Path("/getGroupMembers")
 	@Produces("application/json")
 	public Response getGroupMembers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
@@ -240,10 +240,55 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
-	
-	
-	
-	
+	@POST
+	@Produces("application/json")
+	@Path("/addGroupMember")
+	public Response addGroupMember(@Context HttpServletRequest request) {
+		Map<String, String> errorRet = new Hashtable<>();
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a group but couldn't find user session"));
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(!SecurityAdminUtils.userIsAdmin(user)){
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a group but is not an admin"));
+			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
+			return WebUtility.getResponse(errorRet, 400);
+		}
+		
+		boolean success = false;
+		try {
+			String groupId = request.getParameter("groupId");
+			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
+			}
+			String userId = request.getParameter("userId");
+			if(userId == null || (userId = userId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The user id ('userId') cannot be null or empty");
+			}
+			String type = request.getParameter("type");
+			if(type == null || (type = type.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The user login type ('type') cannot be null or empty");
+			}
+			String endDate = request.getParameter("endDate");
+			
+			SecurityGroupUtils.getInstance(user).addUserToGroup(user, groupId, userId, type, endDate);
+		} catch (IllegalArgumentException e){
+			classLogger.error(Constants.STACKTRACE, e);
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			classLogger.error(Constants.STACKTRACE, e);
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		return WebUtility.getResponse(success, 200);
+	}
 	
 	
 	
