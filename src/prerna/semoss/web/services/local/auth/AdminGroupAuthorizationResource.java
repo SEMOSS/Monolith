@@ -32,7 +32,8 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getGroups")
 	@Produces("application/json")
-	public Response getAllGroups(@Context HttpServletRequest request, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getAllGroups(@Context HttpServletRequest request, 
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset, @QueryParam("searchTerm") String searchTerm) {
 		SecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -46,7 +47,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> ret = groupUtils.getGroups(limit, offset);
+		List<Map<String, Object>> ret = groupUtils.getGroups(limit, offset, searchTerm);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
