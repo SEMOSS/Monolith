@@ -49,7 +49,7 @@ import prerna.web.conf.util.SSOUtil;
 public class SamlVerifierServlet extends HttpServlet {
 
 	private static final long serialVersionUID = -3853767230988751741L;
-	private static final Logger logger = LogManager.getLogger(SamlVerifierServlet.class);
+	private static final Logger classLogger = LogManager.getLogger(SamlVerifierServlet.class);
 	
 	public SamlVerifierServlet() {
 		super();
@@ -57,15 +57,15 @@ public class SamlVerifierServlet extends HttpServlet {
 
 	protected void doPost(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
-		logger.info("Starting saml verification doPost.");
+		classLogger.info("Starting saml verification doPost.");
 		verifySamlOutput(request, response);
-		logger.info("Ending saml verification doPost.");
+		classLogger.info("Ending saml verification doPost.");
 	}
 
 	public void verifySamlOutput(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 		
-		logger.info("Connected to IDP. Starting validation of the assertions and other details.");
+		classLogger.info("Connected to IDP. Starting validation of the assertions and other details.");
 		// We define a map which will carry all the output from the saml verifications.
 		Map map;
 		
@@ -122,7 +122,7 @@ public class SamlVerifierServlet extends HttpServlet {
 			
 			// Lets create the SamlDataObjects for only those fields which are present in our props.
 			// IDP can send tons of attributes, no need to get and check all of them.
-			logger.info("Checking if all mandatory fields is present in the SAML...");
+			classLogger.info("Checking if all mandatory fields is present in the SAML...");
 			List<AttributeStatement> attrlist = assertion.getAttributeStatements();
 			for (AttributeStatement stmt : attrlist) {
 				List<Attribute> attributeList = stmt.getAttribute();
@@ -151,17 +151,17 @@ public class SamlVerifierServlet extends HttpServlet {
 			}
 			mapper.setValidUserGroups(validUserGroups);
 			
-			logger.info("User details looks good. Creating User/Token and setting it to session.");
+			classLogger.info("User details looks good. Creating User/Token and setting it to session.");
 			HttpSession session = request.getSession(true);
 			// Get all details from SamlDataObject and populate into user and token object.
 			establishUserInSession(mapper, request, session);
-			logger.info("Session is created and user all set to get in. Hold on, redirecting... ");
+			classLogger.info("Session is created and user all set to get in. Hold on, redirecting... ");
 			String originalRedirect = null;
 			if (session != null && session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) != null) {
 				originalRedirect = session.getAttribute(SSOUtil.SAML_REDIRECT_KEY) + "";
 			} else {
-				logger.info("No redirect url was found...");
-				logger.info("Redirect to social.properties value");
+				classLogger.info("No redirect url was found...");
+				classLogger.info("Redirect to social.properties value");
 				originalRedirect = SocialPropertiesUtil.getInstance().getLoginRedirect();
 			}
 
@@ -171,7 +171,7 @@ public class SamlVerifierServlet extends HttpServlet {
 			response.sendRedirect(encodedRedirectUrl);
 			
 		} catch (SAML2Exception | IOException | SessionException | ServletException sme) {
-			logger.error(Constants.STACKTRACE, sme);
+			classLogger.error(Constants.STACKTRACE, sme);
 			SAMLUtils.sendError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
 					"failedToProcessSSOResponse", sme.getMessage());
 		}
@@ -187,7 +187,12 @@ public class SamlVerifierServlet extends HttpServlet {
 	private Set<String> getValidUserGroups(SamlDataObjectMapper mapper, String groupType) {
 		if(Boolean.parseBoolean(getInitParameter("useSAMLGroupWhitelist"))) {
 			if(!mapper.getUserGroups().isEmpty() && groupType != null) {
-				return SecurityGroupUtils.getMatchingGroupsByType(mapper.getUserGroups(), groupType);
+				try {
+					return SecurityGroupUtils.getMatchingGroupsByType(mapper.getUserGroups(), groupType);
+				} catch (Exception e) {
+					classLogger.error(Constants.STACKTRACE, e);
+					throw new IllegalArgumentException("Error occurred to retrieve the valid groups for SAML login");
+				}
 			} else {
 				return new HashSet<>();
 			}
@@ -237,7 +242,7 @@ public class SamlVerifierServlet extends HttpServlet {
 		session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 		
 		// log the user login
-		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
+		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
 
 		// store if db tracking
 		UserResource.userTrackingLogin(request, user, token.getProvider());
