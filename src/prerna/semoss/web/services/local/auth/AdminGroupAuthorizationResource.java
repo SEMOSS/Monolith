@@ -104,7 +104,8 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
 			classLogger.error(Constants.STACKTRACE, e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
+			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		return WebUtility.getResponse(success, 200);
@@ -149,7 +150,8 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
 			classLogger.error(Constants.STACKTRACE, e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
+			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		return WebUtility.getResponse(success, 200);
@@ -214,7 +216,8 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
 			classLogger.error(Constants.STACKTRACE, e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
+			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		return WebUtility.getResponse(success, 200);
@@ -239,6 +242,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
+		
+		if(groupId == null || (groupId=groupId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		List<Map<String, Object>> ret = groupUtils.getGroupMembers(groupId, limit, offset, searchTerm);
 		return WebUtility.getResponse(ret, 200);
@@ -262,6 +271,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(groupId == null || (groupId=groupId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
+			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		List<Map<String, Object>> ret = groupUtils.getNonGroupMembers(groupId, limit, offset, searchTerm);
@@ -312,7 +327,8 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
 			classLogger.error(Constants.STACKTRACE, e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
+			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		return WebUtility.getResponse(success, 200);
@@ -361,7 +377,8 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e){
 			classLogger.error(Constants.STACKTRACE, e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
+			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		return WebUtility.getResponse(success, 200);
