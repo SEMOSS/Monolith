@@ -240,6 +240,27 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	@GET
+	@Path("/getNonGroupMembers")
+	@Produces("application/json")
+	public Response getNonGroupMembers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		SecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = SecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all groups"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		List<Map<String, Object>> ret = groupUtils.getNonGroupMembers(groupId, limit, offset);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
 	@POST
 	@Produces("application/json")
 	@Path("/addGroupMember")
