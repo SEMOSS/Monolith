@@ -222,7 +222,10 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getGroupMembers")
 	@Produces("application/json")
-	public Response getGroupMembers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getGroupMembers(@Context HttpServletRequest request, 
+			@QueryParam("groupId") String groupId, 
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
+			@QueryParam("searchTerm") String searchTerm) {
 		SecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -236,14 +239,17 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> ret = groupUtils.getGroupMembers(groupId, limit, offset);
+		List<Map<String, Object>> ret = groupUtils.getGroupMembers(groupId, limit, offset, searchTerm);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
 	@GET
 	@Path("/getNonGroupMembers")
 	@Produces("application/json")
-	public Response getNonGroupMembers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getNonGroupMembers(@Context HttpServletRequest request, 
+			@QueryParam("groupId") String groupId, 
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
+			@QueryParam("searchTerm") String searchTerm) {
 		SecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -257,7 +263,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> ret = groupUtils.getNonGroupMembers(groupId, limit, offset);
+		List<Map<String, Object>> ret = groupUtils.getNonGroupMembers(groupId, limit, offset, searchTerm);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
