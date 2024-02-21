@@ -311,6 +311,54 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(success, 200);
 	}
 	
+	@POST
+	@Produces("application/json")
+	@Path("/deleteGroupMember")
+	public Response deleteGroupMember(@Context HttpServletRequest request) {
+		Map<String, String> errorRet = new Hashtable<>();
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a group but couldn't find user session"));
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(!SecurityAdminUtils.userIsAdmin(user)){
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a group but is not an admin"));
+			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
+			return WebUtility.getResponse(errorRet, 400);
+		}
+		
+		boolean success = false;
+		try {
+			String groupId = request.getParameter("groupId");
+			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
+			}
+			String userId = request.getParameter("userId");
+			if(userId == null || (userId = userId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The user id ('userId') cannot be null or empty");
+			}
+			String type = request.getParameter("type");
+			if(type == null || (type = type.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The user login type ('type') cannot be null or empty");
+			}
+			
+			SecurityGroupUtils.getInstance(user).removeUserFromGroup(groupId, userId, type);
+		} catch (IllegalArgumentException e){
+			classLogger.error(Constants.STACKTRACE, e);
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			classLogger.error(Constants.STACKTRACE, e);
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		return WebUtility.getResponse(success, 200);
+	}
 	
 	
 	
