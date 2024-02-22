@@ -223,7 +223,8 @@ public class ProjectAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getUserProjectPermission")
-	public Response getUserProjectPermission(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
+	public Response getUserProjectPermission(@Context HttpServletRequest request, 
+			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -257,7 +258,10 @@ public class ProjectAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectUsers")
-	public Response getProjectUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getProjectUsers(@Context HttpServletRequest request, 
+			@QueryParam("projectId") String projectId,  @QueryParam("userId") String userId, 
+			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -830,7 +834,11 @@ public class ProjectAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectUsersNoCredentials")
-	public Response getProjectUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
+	public Response getProjectUsersNoCredentials(@Context HttpServletRequest request, 
+			@QueryParam("projectId") String projectId, 
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -844,7 +852,7 @@ public class ProjectAuthorizationResource {
 
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityProjectUtils.getProjectUsersNoCredentials(user, projectId);
+			ret = SecurityProjectUtils.getProjectUsersNoCredentials(user, projectId, searchTerm, limit, offset);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + projectId + " that do not have credentials without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);

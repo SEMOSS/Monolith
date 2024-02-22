@@ -36,7 +36,7 @@ import com.sun.identity.saml2.protocol.Response;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
-import prerna.auth.utils.SecurityGroupUtils;
+import prerna.auth.utils.AdminSecurityGroupUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
@@ -188,7 +188,7 @@ public class SamlVerifierServlet extends HttpServlet {
 		if(Boolean.parseBoolean(getInitParameter("useSAMLGroupWhitelist"))) {
 			if(!mapper.getUserGroups().isEmpty() && groupType != null) {
 				try {
-					return SecurityGroupUtils.getMatchingGroupsByType(mapper.getUserGroups(), groupType);
+					return AdminSecurityGroupUtils.getMatchingGroupsByType(mapper.getUserGroups(), groupType);
 				} catch (Exception e) {
 					classLogger.error(Constants.STACKTRACE, e);
 					throw new IllegalArgumentException("Error occurred to retrieve the valid groups for SAML login");
