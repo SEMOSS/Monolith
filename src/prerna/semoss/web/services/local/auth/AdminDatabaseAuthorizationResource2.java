@@ -202,7 +202,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getDatabaseUsers")
-	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getDatabaseUsers(@Context HttpServletRequest request, 
+			@QueryParam("databaseId") String databaseId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
@@ -722,7 +723,11 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getDatabaseUsersNoCredentials")
-	public Response getDatabaseUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
+	public Response getDatabaseUsersNoCredentials(@Context HttpServletRequest request, 
+			@QueryParam("databaseId") String databaseId, 
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
@@ -740,7 +745,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(databaseId);
+		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(databaseId, searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
