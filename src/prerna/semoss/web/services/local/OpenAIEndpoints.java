@@ -12,11 +12,9 @@ import java.util.Map;
 import java.util.TimeZone;
 
 import javax.servlet.http.HttpServletRequest;
-
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
@@ -160,7 +158,7 @@ public class OpenAIEndpoints {
         
         Map<String, Object> llmResponseMap;
         try {
-        	llmResponseMap = engine.ask(engineId, null, insight, dataMap);
+        	llmResponseMap = engine.ask(engineId, null, insight, dataMap).toMap();
         } catch (Exception e){
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -329,7 +327,7 @@ public class OpenAIEndpoints {
         
         Map<String, Object> llmResponseMap;
         try {
-        	llmResponseMap = engine.ask(question, null, insight, dataMap);
+        	llmResponseMap = engine.ask(question, null, insight, dataMap).toMap();
         } catch (Exception e){
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
