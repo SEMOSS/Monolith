@@ -337,7 +337,10 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsers")
-	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getEngineUsers(@Context HttpServletRequest request, 
+			@QueryParam("engineId") String engineId,  @QueryParam("userId") String userId, 
+			@QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, 
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -802,7 +805,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsersNoCredentials")
-	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("engineId") String engineId) {
+	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request,
+			@QueryParam("engineId") String engineId, 
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -815,7 +822,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(engineId);
+		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(engineId, searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
