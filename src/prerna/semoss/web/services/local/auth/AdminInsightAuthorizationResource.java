@@ -81,7 +81,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectInsights")
-	public Response getProjectInsights(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
+	public Response getProjectInsights(@Context HttpServletRequest request, 
+			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -178,13 +179,24 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	/**
 	 * Get the user insight permissions for a given insight
 	 * @param request
-	 * @param form
+	 * @param projectId
+	 * @param insightId
+	 * @param userId
+	 * @param permission
+	 * @param limit
+	 * @param offset
 	 * @return
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("getInsightUsers")
-	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId, @QueryParam("userId") String userId,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getInsightUsers(@Context HttpServletRequest request, 
+			@QueryParam("projectId") String projectId, 
+			@QueryParam("insightId") String insightId, 
+			@QueryParam("userId") String userId, 
+			@QueryParam("permission") String permission, 
+			@QueryParam("limit") long limit, 
+			@QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -633,7 +645,12 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsightUsersNoCredentials")
-	public Response getInsightUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
+	public Response getInsightUsersNoCredentials(@Context HttpServletRequest request, 
+			@QueryParam("projectId") String projectId, 
+			@QueryParam("insightId") String insightId,
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -646,7 +663,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> ret = adminUtils.getInsightUsersNoCredentials(projectId, insightId);
+		List<Map<String, Object>> ret = adminUtils.getInsightUsersNoCredentials(projectId, insightId, searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 	

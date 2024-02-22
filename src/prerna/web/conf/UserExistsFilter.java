@@ -18,7 +18,7 @@ import org.owasp.encoder.Encode;
 
 import prerna.auth.AccessToken;
 import prerna.auth.User;
-import prerna.auth.utils.SecurityGroupUtils;
+import prerna.auth.utils.AdminSecurityGroupUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
@@ -113,7 +113,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 			if(groups != null && !groups.isEmpty() && groupType != null) {
 				Set<String> validGroups = null;
 				try {
-					validGroups = SecurityGroupUtils.getMatchingGroupsByType(groups, groupType);
+					validGroups = AdminSecurityGroupUtils.getMatchingGroupsByType(groups, groupType);
 				} catch (Exception e) {
 					classLogger.error(Constants.STACKTRACE, e);
 					throw new IllegalArgumentException("Error occurred to retrieve the valid groups for SAML login");
