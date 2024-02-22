@@ -316,7 +316,10 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectUsers")
-	public Response getProjectUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getProjectUsers(@Context HttpServletRequest request, 
+			@QueryParam("projectId") String projectId, @QueryParam("userId") String userId, 
+			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -694,7 +697,11 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectUsersNoCredentials")
-	public Response getProjectUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("projectId") String projectId) {
+	public Response getProjectUsersNoCredentials(@Context HttpServletRequest request, 
+			@QueryParam("projectId") String projectId, 
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -707,7 +714,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> ret = adminUtils.getProjectUsersNoCredentials(projectId);
+		List<Map<String, Object>> ret = adminUtils.getProjectUsersNoCredentials(projectId, searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 	

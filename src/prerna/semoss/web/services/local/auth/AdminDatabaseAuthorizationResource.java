@@ -1,6 +1,5 @@
 package prerna.semoss.web.services.local.auth;
 
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -196,7 +195,12 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getAppUsers")
-	public Response getAppUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+	public Response getAppUsers(@Context HttpServletRequest request, 
+			@QueryParam("appId") String appId, 
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit,
+			@QueryParam("offset") long offset
+			) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
@@ -215,7 +219,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(adminUtils.getAppUsers(appId), 200);
+		return WebUtility.getResponse(adminUtils.getEngineUsers(appId, searchTerm, null, limit, offset), 200);
 	}
 	
 	/**
@@ -568,7 +572,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getAppUsersNoCredentials")
-	public Response getAppUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+	public Response getAppUsersNoCredentials(@Context HttpServletRequest request, 
+			@QueryParam("appId") String appId, 
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
@@ -586,7 +594,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(appId);
+		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(appId, searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 	

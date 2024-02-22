@@ -19,7 +19,7 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.auth.utils.SecurityGroupUtils;
+import prerna.auth.utils.AdminSecurityGroupUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -33,12 +33,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Path("/getGroups")
 	@Produces("application/json")
 	public Response getAllGroups(@Context HttpServletRequest request, 
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset, @QueryParam("searchTerm") String searchTerm) {
-		SecurityGroupUtils groupUtils = null;
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
-			groupUtils = SecurityGroupUtils.getInstance(user);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all groups"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -47,7 +47,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> ret = groupUtils.getGroups(limit, offset, searchTerm);
+		List<Map<String, Object>> ret = groupUtils.getGroups(searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
@@ -97,7 +97,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				throw new IllegalArgumentException("A custom group cannot have a login type passed in");
 			}
 			
-			SecurityGroupUtils.getInstance(user).addGroup(user, newGroupId, type, description, isCustomGroup);
+			AdminSecurityGroupUtils.getInstance(user).addGroup(user, newGroupId, type, description, isCustomGroup);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -143,7 +143,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				type = "";
 			}
 			
-			SecurityGroupUtils.getInstance(user).deleteGroupAndPropagate(groupId, type);
+			AdminSecurityGroupUtils.getInstance(user).deleteGroupAndPropagate(groupId, type);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -209,7 +209,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				throw new IllegalArgumentException("A custom group cannot have a login type passed in");
 			}
 			
-			SecurityGroupUtils.getInstance(user).editGroupAndPropagate(user, groupId, type, newGroupId, newType, newDescription, newCustomGroup);
+			AdminSecurityGroupUtils.getInstance(user).editGroupAndPropagate(user, groupId, type, newGroupId, newType, newDescription, newCustomGroup);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -227,14 +227,13 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Path("/getGroupMembers")
 	@Produces("application/json")
 	public Response getGroupMembers(@Context HttpServletRequest request, 
-			@QueryParam("groupId") String groupId, 
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
-			@QueryParam("searchTerm") String searchTerm) {
-		SecurityGroupUtils groupUtils = null;
+			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
-			groupUtils = SecurityGroupUtils.getInstance(user);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all groups"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -249,7 +248,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		List<Map<String, Object>> ret = groupUtils.getGroupMembers(groupId, limit, offset, searchTerm);
+		List<Map<String, Object>> ret = groupUtils.getGroupMembers(groupId, searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
@@ -257,14 +256,13 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Path("/getNonGroupMembers")
 	@Produces("application/json")
 	public Response getNonGroupMembers(@Context HttpServletRequest request, 
-			@QueryParam("groupId") String groupId, 
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
-			@QueryParam("searchTerm") String searchTerm) {
-		SecurityGroupUtils groupUtils = null;
+			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
-			groupUtils = SecurityGroupUtils.getInstance(user);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all groups"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -279,7 +277,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		List<Map<String, Object>> ret = groupUtils.getNonGroupMembers(groupId, limit, offset, searchTerm);
+		List<Map<String, Object>> ret = groupUtils.getNonGroupMembers(groupId, searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
@@ -320,7 +318,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			}
 			String endDate = request.getParameter("endDate");
 			
-			SecurityGroupUtils.getInstance(user).addUserToGroup(user, groupId, userId, type, endDate);
+			AdminSecurityGroupUtils.getInstance(user).addUserToGroup(user, groupId, userId, type, endDate);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -370,7 +368,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				throw new IllegalArgumentException("The user login type ('type') cannot be null or empty");
 			}
 			
-			SecurityGroupUtils.getInstance(user).removeUserFromGroup(groupId, userId, type);
+			AdminSecurityGroupUtils.getInstance(user).removeUserFromGroup(groupId, userId, type);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
