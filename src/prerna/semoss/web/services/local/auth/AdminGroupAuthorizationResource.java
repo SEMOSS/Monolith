@@ -18,8 +18,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
-import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.AdminSecurityGroupUtils;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -250,6 +250,34 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 
 		List<Map<String, Object>> ret = groupUtils.getGroupMembers(groupId, searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
+	}
+	
+	@GET
+	@Path("/getNumMembersInGroup")
+	@Produces("application/json")
+	public Response getNumMembersInGroup(@Context HttpServletRequest request, 
+			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm) {
+		AdminSecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all groups"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(groupId == null || (groupId=groupId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		long numUsers = groupUtils.getNumMembersInGroup(groupId, searchTerm);
+		return WebUtility.getResponse(numUsers, 200);
 	}
 	
 	@GET
