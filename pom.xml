@@ -738,18 +738,6 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- cleanup -->
-		<dependency>
-			<groupId>com.hp.hpl.jena</groupId>
-			<artifactId>iri</artifactId>
-			<version>0.6</version>
-			<exclusions>
-				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
 		<!-- REMOVING - AGPL -->
 		<!-- 
 		<dependency>
@@ -800,7 +788,7 @@
 		<dependency>
 			<groupId>org.apache.jena</groupId>
 			<artifactId>jena-arq</artifactId>
-			<version>2.9.4</version>
+			<version>3.17.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
@@ -810,8 +798,8 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.jena</groupId>
-			<artifactId>jena-core</artifactId>
-			<version>2.7.4</version>
+			<artifactId>jena-base</artifactId>
+			<version>3.17.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
@@ -819,34 +807,11 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.jena</groupId>
-			<artifactId>jena-iri</artifactId>
-			<version>0.9.4</version>
-			<exclusions>
-				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<!--  SubjectIndexer
-		<dependency>
-			<groupId>org.apache.jena</groupId>
-			<artifactId>jena-larq</artifactId>
-			<version>1.0.0-incubating</version>
-			<exclusions>
-				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency> -->
 		<!-- cleanup -->
 		<dependency>
 			<groupId>org.apache.jena</groupId>
-			<artifactId>jena-tdb</artifactId>
-			<version>0.9.4</version>
+			<artifactId>jena-iri</artifactId>
+			<version>3.17.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
@@ -854,6 +819,44 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.jena/jena-core -->
+		<dependency>
+		    <groupId>org.apache.jena</groupId>
+		    <artifactId>jena-core</artifactId>
+		    <version>3.17.0</version>
+		    <exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.jena/jena-tdb2 -->
+		<dependency>
+		    <groupId>org.apache.jena</groupId>
+		    <artifactId>jena-tdb2</artifactId>
+		    <version>3.17.0</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.jena/jena-shaded-guava -->
+		<dependency>
+		    <groupId>org.apache.jena</groupId>
+		    <artifactId>jena-shaded-guava</artifactId>
+		    <version>3.17.0</version>
+		</dependency>
+		<!-- cleanup -->
+		<!-- 
+		<dependency>
+			<groupId>com.hp.hpl.jena</groupId>
+			<artifactId>iri</artifactId>
+			<version>0.6</version>
+			<exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		-->
 		<!-- https://mvnrepository.com/artifact/org.python/jython -->
 		<!-- 		
 		<dependency>
@@ -1081,12 +1084,14 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- 
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
 			<version>4.1.73.Final</version>
 			<scope>compile</scope>
 		</dependency>
+		-->
 		<dependency>
 			<groupId>com.oracle</groupId>
 			<artifactId>ojdbc6</artifactId>
