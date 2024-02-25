@@ -73,7 +73,7 @@ import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 
 import com.google.gson.Gson;
-import com.google.gson.internal.StringMap;
+import com.google.gson.internal.LinkedTreeMap;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
@@ -808,7 +808,7 @@ public class NameServer {
 		String MEDAWIKI_ENDPOINT = "https://en.wikipedia.org/w/api.php?action=query&srlimit=" + numResults
 				+ "&list=search&format=json&utf8=1&srprop=snippet&srsearch=";
 		String PRODUCT_ONTOLOGY_PREFIX = "http://www.productontology.org/id/";
-		StringMap<String> ret = new StringMap<>();
+		LinkedTreeMap<String, String> ret = new LinkedTreeMap<>();
 
 		if (searchTerm != null && !searchTerm.isEmpty()) {
 			try {
@@ -825,10 +825,10 @@ public class NameServer {
 						if (is != null) {
 							String resp = EntityUtils.toString(entity);
 							Gson gson = new Gson();
-							HashMap<String, StringMap<List<StringMap<String>>>> k = gson.fromJson(resp, HashMap.class);
-							List<StringMap<String>> mapsList = k.get("query").get("search");
+							HashMap<String, LinkedTreeMap<String, List<LinkedTreeMap<String, String>>>> k = gson.fromJson(resp, HashMap.class);
+							List<LinkedTreeMap<String, String>> mapsList = k.get("query").get("search");
 
-							for (StringMap<String> s : mapsList) {
+							for (LinkedTreeMap<String, String> s : mapsList) {
 								ret.put(PRODUCT_ONTOLOGY_PREFIX + s.get("title"), Jsoup.parse(s.get("snippet")).text());
 							}
 						}
