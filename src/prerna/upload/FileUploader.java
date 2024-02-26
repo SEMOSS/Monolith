@@ -2,8 +2,6 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -26,13 +24,13 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.tika.mime.MimeType;
+import org.apache.tika.mime.MimeTypeException;
+import org.apache.tika.mime.MimeTypes;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import net.snowflake.client.jdbc.internal.apache.tika.mime.MimeType;
-import net.snowflake.client.jdbc.internal.apache.tika.mime.MimeTypeException;
-import net.snowflake.client.jdbc.internal.apache.tika.mime.MimeTypes;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
