@@ -1,5 +1,5 @@
 
-var socket = new WebSocket("ws://localhost:8080/Monolith_Dev/pixelSocket");
+var socket = new WebSocket("ws://localhost:8080/Monolith_Dev/insightSocket?insightId=insightUUID");
 socket.onmessage = onMessage;
 
 function onMessage(event) {
