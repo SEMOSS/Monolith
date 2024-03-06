@@ -577,11 +577,11 @@ public class NameServer {
 		JobThread jt = manager.makeJob();
 		jobId = jt.getJobId();
 		session.setAttribute(jobId + "", "TRUE");
-//				String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
-//				// so we can do things like logging
-//				jt.addPixel(job);
-		// then add the expression
-		jt.addPixel(expression);
+		
+		// so we can do things like logging
+		String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
+		jt.addPixel(job); 				// use the JobReactor to set the jobId for logs
+		jt.addPixel(expression);  		// then add the expression
 		jt.setInsight(insight);
 		jt.start();
 		dataReturn.put("jobId", jobId);
