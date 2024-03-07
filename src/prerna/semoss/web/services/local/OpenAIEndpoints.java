@@ -29,6 +29,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.engine.api.IModelEngine;
+import prerna.engine.impl.model.responses.AskModelEngineResponse;
+import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
@@ -156,22 +158,21 @@ public class OpenAIEndpoints {
 		
 		IModelEngine engine = Utility.getModel(engineId);
         
-        Map<String, Object> llmResponseMap;
+		AskModelEngineResponse llmResponse;
         try {
-        	llmResponseMap = engine.ask(engineId, null, insight, dataMap).toMap();
+        	llmResponse = engine.ask(engineId, null, insight, dataMap);
         } catch (Exception e){
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
         }
         
-        Object response = llmResponseMap.remove("response");
-        Object messageId = llmResponseMap.remove("messageId");
-        Integer promptTokens = getTokensAsInt(llmResponseMap.remove("numberOfTokensInPrompt"));
-        Integer responseTokens = getTokensAsInt(llmResponseMap.remove("numberOfTokensInResponse"));
+        String response = llmResponse.getResponse();
+        String messageId = llmResponse.getMessageId();
+        Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
+        Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
         
-        // empty the map
-        llmResponseMap.remove("roomId");
+        Map<String, Object> llmResponseMap = new HashMap<>();
 
         // "choices" array
         List<Map<String, Object>> choicesList = new ArrayList<>();
@@ -218,6 +219,7 @@ public class OpenAIEndpoints {
             	usage.put("prompt_tokens", promptTokens);
             }
         }
+
 
         llmResponseMap.put("usage", usage);
         
@@ -302,7 +304,7 @@ public class OpenAIEndpoints {
         }
         
         String engineId = (String) dataMap.remove("model");
-        if (insightId == null || insightId.isEmpty()) {
+        if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'model' field.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -335,22 +337,21 @@ public class OpenAIEndpoints {
 		
 		IModelEngine engine = Utility.getModel(engineId);
         
-        Map<String, Object> llmResponseMap;
+        AskModelEngineResponse llmResponse;
         try {
-        	llmResponseMap = engine.ask(question, null, insight, dataMap).toMap();
+        	llmResponse = engine.ask(question, null, insight, dataMap);
         } catch (Exception e){
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
         }
         
-        Object response = llmResponseMap.remove("response");
-        Object messageId = llmResponseMap.remove("messageId");
-        Integer promptTokens = getTokensAsInt(llmResponseMap.remove("numberOfTokensInPrompt"));
-        Integer responseTokens = getTokensAsInt(llmResponseMap.remove("numberOfTokensInResponse"));
+        String response = llmResponse.getResponse();
+        String messageId = llmResponse.getMessageId();
+        Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
+        Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
         
-        // empty the map
-        llmResponseMap.remove("roomId");
+        Map<String, Object> llmResponseMap = new HashMap<>();
 
         // "choices" array
         List<Map<String, Object>> choicesList = new ArrayList<>();
@@ -476,7 +477,7 @@ public class OpenAIEndpoints {
         }
         
         String engineId = (String) dataMap.remove("model");
-        if (insightId == null || insightId.isEmpty()) {
+        if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'model' field.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -509,18 +510,22 @@ public class OpenAIEndpoints {
 		insight.setUser(user);
 		
 		IModelEngine engine = Utility.getModel(engineId);
-        Map<String, Object> embeddingsResponse;
+		
+        EmbeddingsModelEngineResponse embeddingsResponse;
 		try {
-			embeddingsResponse = (Map<String, Object>) engine.embeddings(stringsToEncode, insight, dataMap);
+			embeddingsResponse = engine.embeddings(stringsToEncode, insight, dataMap);
         } catch (Exception e){
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
         }
         
-        List<Object> embeddings = (List<Object>) embeddingsResponse.remove("response");
-        Integer promptTokens = getTokensAsInt(embeddingsResponse.remove("numberOfTokensInPrompt"));
-        Integer responseTokens = getTokensAsInt(embeddingsResponse.remove("numberOfTokensInResponse"));
+        List<List<Double>> embeddings = embeddingsResponse.getResponse();
+        Integer promptTokens = embeddingsResponse.getNumberOfTokensInPrompt();
+        Integer responseTokens = embeddingsResponse.getNumberOfTokensInResponse();
+        
+        Map<String, Object> embeddingsResponseMap = new HashMap<>();
+
         
         // "choices" array
         List<Map<String, Object>> dataList = new ArrayList<>();
@@ -533,33 +538,23 @@ public class OpenAIEndpoints {
             dataList.add(embeddingMap);
         }
 
-        embeddingsResponse.put("data", dataList);
+        embeddingsResponseMap.put("data", dataList);
         
-        embeddingsResponse.put("model", engineId);
-        embeddingsResponse.put("object", "list");
+        embeddingsResponseMap.put("model", engineId);
+        embeddingsResponseMap.put("object", "list");
 
         // "usage" object
         Map<String, Object> usage = new HashMap<>();
-
-        usage.put("prompt_tokens", promptTokens);
-        usage.put("total_tokens", promptTokens + responseTokens);
-
-        embeddingsResponse.put("usage", usage);
         
-		return WebUtility.getResponse(embeddingsResponse, 200);
-	}
-	
-	private Integer getTokensAsInt(Object numTokens) {
-		if (numTokens instanceof Integer) {
-			return (Integer) numTokens;
-		} else if (numTokens instanceof Long) {
-			return ((Long) numTokens).intValue();
-		} else if (numTokens instanceof Double) {
-			return ((Double) numTokens).intValue();
-		} else if (numTokens instanceof String){
-			return Integer.valueOf((String) numTokens);
-		} else {
-			return null;
-		}
+        if (promptTokens!= null && responseTokens != null) {
+        	usage.put("prompt_tokens", promptTokens);
+            usage.put("total_tokens", promptTokens + responseTokens);
+        } else {
+        	usage.put("prompt_tokens", promptTokens);
+        }
+       
+        embeddingsResponseMap.put("usage", usage);
+        
+		return WebUtility.getResponse(embeddingsResponseMap, 200);
 	}
 }
