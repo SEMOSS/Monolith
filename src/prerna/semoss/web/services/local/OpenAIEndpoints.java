@@ -121,7 +121,7 @@ public class OpenAIEndpoints {
         }
         
         String engineId = (String) dataMap.remove("model");
-        if (insightId == null || insightId.isEmpty()) {
+        if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'model' field.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -204,10 +204,20 @@ public class OpenAIEndpoints {
 
         // "usage" object
         Map<String, Object> usage = new HashMap<>();
-
-        usage.put("completion_tokens", responseTokens);
-        usage.put("prompt_tokens", promptTokens);
-        usage.put("total_tokens", promptTokens + responseTokens);
+        
+        if (promptTokens!= null && responseTokens != null) {
+        	usage.put("completion_tokens", responseTokens);
+        	usage.put("prompt_tokens", promptTokens);
+            usage.put("total_tokens", promptTokens + responseTokens);
+        } else {
+        	if (responseTokens != null) {
+            	usage.put("completion_tokens", responseTokens);
+            } 
+        	
+        	if (promptTokens != null) {
+            	usage.put("prompt_tokens", promptTokens);
+            }
+        }
 
         llmResponseMap.put("usage", usage);
         
@@ -368,11 +378,21 @@ public class OpenAIEndpoints {
 
         // "usage" object
         Map<String, Object> usage = new HashMap<>();
-
-        usage.put("completion_tokens", responseTokens);
-        usage.put("prompt_tokens", promptTokens);
-        usage.put("total_tokens", promptTokens + responseTokens);
-
+        
+        if (promptTokens!= null && responseTokens != null) {
+        	usage.put("completion_tokens", responseTokens);
+        	usage.put("prompt_tokens", promptTokens);
+            usage.put("total_tokens", promptTokens + responseTokens);
+        } else {
+        	if (responseTokens != null) {
+            	usage.put("completion_tokens", responseTokens);
+            } 
+        	
+        	if (promptTokens != null) {
+            	usage.put("prompt_tokens", promptTokens);
+            }
+        }
+		
         llmResponseMap.put("usage", usage);
         
 		return WebUtility.getResponse(llmResponseMap, 200);
@@ -530,7 +550,9 @@ public class OpenAIEndpoints {
 	}
 	
 	private Integer getTokensAsInt(Object numTokens) {
-		if (numTokens instanceof Long) {
+		if (numTokens instanceof Integer) {
+			return (Integer) numTokens;
+		} else if (numTokens instanceof Long) {
 			return ((Long) numTokens).intValue();
 		} else if (numTokens instanceof Double) {
 			return ((Double) numTokens).intValue();
