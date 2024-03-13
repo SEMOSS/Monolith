@@ -2270,6 +2270,9 @@ public class UserResource {
 					String thisInput = result.get(inputIndex).asText();
 					userGroups.add(thisInput);
 				}	
+			}
+
+
 			userObj.getAccessToken(providerEnum).setUserGroups(userGroups);
 			userObj.getAccessToken(providerEnum).setUserGroupType(providerEnum.toString());			
 		}
