@@ -44,6 +44,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -119,9 +121,9 @@ import waffle.servlet.WindowsPrincipal;
 public class UserResource {
 
 	private static final Logger classLogger = LogManager.getLogger(UserResource.class);
-	
+
 	private static final String CUSTOM_REDIRECT_SESSION_KEY = "custom_redirect";
-	
+
 	private static SocialPropertiesUtil socialData = null;
 	static {
 		socialData = SocialPropertiesUtil.getInstance();
@@ -363,7 +365,7 @@ public class UserResource {
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
-			
+
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Google account");
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
@@ -432,7 +434,7 @@ public class UserResource {
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
-			
+
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Microsoft account");
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
@@ -451,7 +453,7 @@ public class UserResource {
 			String name = accessToken2.getName();
 			ret.put("name", name);
 			return WebUtility.getResponse(ret, 200);
-				
+
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Microsoft account");
 			return WebUtility.getResponse(ret, 200);
@@ -492,7 +494,7 @@ public class UserResource {
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
-			
+
 			ret.put(Constants.ERROR_MESSAGE, "Log into your ADFS account");
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
@@ -552,7 +554,7 @@ public class UserResource {
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
-			
+
 			ret.put(Constants.ERROR_MESSAGE, "Log into your DropBox account");
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
@@ -619,7 +621,7 @@ public class UserResource {
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
-			
+
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Github account");
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
@@ -684,11 +686,11 @@ public class UserResource {
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
-			
+
 			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.toString() + " account");
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
-		
+
 		String prefix = provider+"_";
 		String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
 		//"name","id","email"
@@ -707,7 +709,7 @@ public class UserResource {
 					new AccessToken());
 			String name = accessToken2.getName();
 			ret.put("name", name);
-			
+
 			return WebUtility.getResponse(ret, 200);
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.toString() + " account");
@@ -942,7 +944,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		
+
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
@@ -1052,7 +1054,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		
+
 		String queryString = request.getQueryString();
 		String prefix = "gitlab_";
 
@@ -1194,7 +1196,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		
+
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
@@ -1240,8 +1242,8 @@ public class UserResource {
 				if(!login_external_allowed) {
 					if(accessToken.getName().contains("External")) {
 						accessToken = null;
-					throw new IllegalArgumentException("External users are not allowed");
-				}
+						throw new IllegalArgumentException("External users are not allowed");
+					}
 				}
 				addAccessToken(accessToken, request, autoAdd);
 
@@ -1316,7 +1318,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		
+
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.ADFS) == null) {
@@ -1450,7 +1452,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		
+
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.SITEMINDER) == null) {
@@ -1562,7 +1564,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		
+
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
@@ -1661,7 +1663,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		
+
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
@@ -1928,7 +1930,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		
+
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
@@ -2030,7 +2032,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		
+
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
@@ -2150,7 +2152,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		
+
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(providerEnum) == null) {
@@ -2223,22 +2225,51 @@ public class UserResource {
 		if(Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))){
 			//get groups
 			String group_url = socialData.getProperty(prefix + "group_url");
+
+			// make the call to get the groups
 			String groupsJson = AbstractHttpHelper.makeGetCall(group_url,  userObj.getAccessToken(providerEnum).getAccess_token());
-			System.out.println(groupsJson);
-			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
-			//String beanProps = socialData.getProperty(prefix + "groupBeanProps");
-			//String[] beanPropsArr = beanProps.split(",", -1);
+
 			Set<String> userGroups = new HashSet<String>();
 
+			// are groups returned as a single string or an array in a json. Usually it is an array in a json.
+			boolean groupStringResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "group_string_return"));
+			if(groupStringResponse) {
+				//this json pattern should return a single string with groups concat
+				// ""fakeGroups":"CN=group1, CN=group2, CN=group3"
+				String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
+				JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
+				try {
+					//get the single string and the regex pattern. validate the pattern
+					String groupText = result.asText();
+					String regexPattern = socialData.getProperty(prefix + "group_string_regex");
+					try {
+						Pattern pattern = Pattern.compile(regexPattern);
+					} catch (PatternSyntaxException e) {
+						classLogger.error(Constants.STACKTRACE, e);
+						throw new SemossPixelException("Pattern input is not a valid regex");
+					}
 
-			JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
-			if((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
-				throw new SemossPixelException("Group result must return flat array. Please check groupJsonPatter");
-			}
-			for(int inputIndex = 0;result != null && inputIndex < result.size();inputIndex++) {
-				String thisInput = result.get(inputIndex).asText();
-				userGroups.add(thisInput);
-			}	
+					// split the groups
+					String[] groups = groupText.split(regexPattern);
+					for (String group : groups) {
+						userGroups.add(group);
+					}
+				} catch (Exception e) {
+					classLogger.error(Constants.STACKTRACE, e);
+					throw new SemossPixelException("Could not parse response as string");
+				}
+
+			} else {
+				//this json pattern should return an array
+				String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
+				JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
+				if((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
+					throw new SemossPixelException("Group result must return flat array. Please check groupJsonPatter");
+				}
+				for(int inputIndex = 0;result != null && inputIndex < result.size();inputIndex++) {
+					String thisInput = result.get(inputIndex).asText();
+					userGroups.add(thisInput);
+				}	
 			userObj.getAccessToken(providerEnum).setUserGroups(userGroups);
 			userObj.getAccessToken(providerEnum).setUserGroupType(providerEnum.toString());			
 		}
@@ -2555,14 +2586,14 @@ public class UserResource {
 				// you likely need to enter otp in 2nd response
 				return WebUtility.getResponse(returnMap, responseCode);
 			}
-			
+
 			// we have a login
 			addAccessToken(token, request, autoAdd);
 			// log the log in
 			if (!disableRedirect) {
 				setMainPageRedirect(request, response, redirect);
 			}
-			
+
 			return WebUtility.getResponse(returnMap, 200);
 		}
 
@@ -2658,7 +2689,7 @@ public class UserResource {
 		}
 	}
 
-	
+
 	/**
 	 * Create an user according to the information provided 
 	 * (user name, password, email)
@@ -2689,12 +2720,12 @@ public class UserResource {
 				return WebUtility.getResponse(ret, 401);
 			}
 		}
-		
+
 		String name = request.getParameter("name");
 		Map<String, String> oneTimeDetails = SecurityAPIUserUtils.createAPIUser(name);
 		return WebUtility.getResponse(oneTimeDetails, 200);
 	}
-	
+
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////
@@ -2781,7 +2812,7 @@ public class UserResource {
 
 		return WebUtility.getResponse(true, 200);
 	}
-	
+
 	@POST
 	@Produces("application/json")
 	@Path("/modifyAllLoginProperties")
@@ -2831,7 +2862,7 @@ public class UserResource {
 			return WebUtility.getResponse(errorRet, 500);
 		}
 	}
-	
+
 	/**
 	 * Redirect the login back to the main app page
 	 * 
