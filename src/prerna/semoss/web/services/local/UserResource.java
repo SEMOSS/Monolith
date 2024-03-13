@@ -2368,23 +2368,26 @@ public class UserResource {
 
 			boolean canLogin = SecurityNativeUserUtils.logIn(username, password);
 			if (canLogin) {
-				ret.put("success", "true");
-				ret.put("username", username);
 				String name = SecurityNativeUserUtils.getNameUser(username);
 				String email = SecurityNativeUserUtils.getUserEmail(username);
-
-				ret.put("name", name);
-				ret.put("email", email);
+				
 				String id = SecurityNativeUserUtils.getUserId(username);
 				AccessToken authToken = new AccessToken();
 				authToken.setProvider(AuthProvider.NATIVE);
 				authToken.setId(id);
-				authToken.setName(username);
+				authToken.setName(name);
+				authToken.setUsername(username);
 				authToken.setEmail(email);
 				// no need to auto-add since to login native you must already exist
 				addAccessToken(authToken, request, false);
 				SecurityUpdateUtils.validateUserLogin(authToken);
 
+				// add these to the return 
+				ret.put("success", "true");
+				ret.put("username", username);
+				ret.put("name", name);
+				ret.put("email", email);
+				
 				// log the log in
 				if (!disableRedirect) {
 					setMainPageRedirect(request, response, redirect);
