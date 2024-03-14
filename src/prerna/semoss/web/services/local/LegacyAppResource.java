@@ -262,7 +262,7 @@ public class LegacyAppResource {
 	protected File getDatabaseImageFile(String databaseId) throws Exception {
 		databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
 		if(ClusterUtil.IS_CLUSTER){
-			return ClusterUtil.getEngineImage(databaseId, IEngine.CATALOG_TYPE.DATABASE);
+			return ClusterUtil.getEngineAndProjectImage(databaseId, IEngine.CATALOG_TYPE.DATABASE);
 		}
 		String propFileLoc = (String) DIHelper.getInstance().getEngineProperty(databaseId + "_" + Constants.STORE);
 		if(propFileLoc == null && !databaseId.equals("NEWSEMOSSAPP")) {
