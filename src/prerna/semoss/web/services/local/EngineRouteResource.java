@@ -238,7 +238,7 @@ public class EngineRouteResource {
 		// is the image in cloud storage
 		else if(ClusterUtil.IS_CLUSTER) {
 			try {
-				exportFile = ClusterUtil.getEngineImage(engineId, engineType);
+				exportFile = ClusterUtil.getEngineAndProjectImage(engineId, engineType);
 			} catch (Exception e) {
 				classLogger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
