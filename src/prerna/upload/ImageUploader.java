@@ -217,7 +217,7 @@ public class ImageUploader extends Uploader {
 				// delete on local
 				f.delete();
 				// delete from cloud as well
-				ClusterUtil.deleteEngineImage(engineType, f.getName());
+				ClusterUtil.deleteEngineAndProjectImage(engineType, f.getName());
 			}
 			
 			// move the current image file to the cloud folder
@@ -228,7 +228,7 @@ public class ImageUploader extends Uploader {
 				errorMap.put(Constants.ERROR_MESSAGE, "Upload of engine image failed");
 				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
 			}
-			ClusterUtil.pushEngineImage(engineType, newImageFileInCloudFolder.getName());
+			ClusterUtil.pushEngineAndProjectImage(engineType, newImageFileInCloudFolder.getName());
 		}
 			
 		returnMap.put("message", "Successfully updated engine image");
@@ -364,7 +364,7 @@ public class ImageUploader extends Uploader {
 				// delete on local
 				f.delete();
 				// delete from cloud as well
-				ClusterUtil.deleteEngineImage(engineType, f.getName());
+				ClusterUtil.deleteEngineAndProjectImage(engineType, f.getName());
 			}
 		}
 			
@@ -501,7 +501,7 @@ public class ImageUploader extends Uploader {
 
 			try {
 				if (ClusterUtil.IS_CLUSTER) {
-					ClusterUtil.pushProjectImageFolder();
+					ClusterUtil.pushEngineAndProjectImage(IEngine.CATALOG_TYPE.PROJECT, f.getName());
 				}
 			} catch(Exception e) {
 				Thread.currentThread().interrupt();
@@ -595,7 +595,7 @@ public class ImageUploader extends Uploader {
 		
 		try {
 			if (ClusterUtil.IS_CLUSTER) {
-				ClusterUtil.pushProjectImageFolder();
+				ClusterUtil.deleteEngineAndProjectImageById(IEngine.CATALOG_TYPE.PROJECT, projectId);
 			}
 		} catch(Exception e) {
 			Thread.currentThread().interrupt();
@@ -1061,7 +1061,7 @@ public class ImageUploader extends Uploader {
 				// delete on local
 				f.delete();
 				// delete from cloud as well
-				ClusterUtil.deleteEngineImage(engineType, f.getName());
+				ClusterUtil.deleteEngineAndProjectImage(engineType, f.getName());
 			}
 			
 			// move the current image file to the cloud folder
@@ -1072,7 +1072,7 @@ public class ImageUploader extends Uploader {
 				errorMap.put(Constants.ERROR_MESSAGE, "Upload of engine image failed");
 				return WebUtility.getResponse(errorMap, HttpStatus.SC_INTERNAL_SERVER_ERROR);
 			}
-			ClusterUtil.pushEngineImage(engineType, newImageFileInCloudFolder.getName());
+			ClusterUtil.pushEngineAndProjectImage(engineType, newImageFileInCloudFolder.getName());
 		}
 		// new keys
 		returnMap.put("message", "Successfully updated engine image");
@@ -1216,7 +1216,7 @@ public class ImageUploader extends Uploader {
 				// delete on local
 				f.delete();
 				// delete from cloud as well
-				ClusterUtil.deleteEngineImage(engineType, f.getName());
+				ClusterUtil.deleteEngineAndProjectImage(engineType, f.getName());
 			}
 		}
 		
