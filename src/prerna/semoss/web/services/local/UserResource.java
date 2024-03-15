@@ -2200,7 +2200,12 @@ public class UserResource {
 				String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
 
 				accessToken.setProvider(providerEnum);
-				GenericProfile.fillAccessToken(accessToken,userInfoURL, beanProps, jsonPattern, null);
+				
+				// this is a check for sanitizing a response back from an IAM provider - not common and should be false
+				// examples would be unescaped special chars in the response that then can't be parsed into a json. 
+				boolean sanitizeResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeUserResponse"));
+				
+				GenericProfile.fillAccessToken(accessToken,userInfoURL, beanProps, jsonPattern, null, sanitizeResponse);
 				addAccessToken(accessToken, request, autoAdd);
 
 				if(classLogger.isDebugEnabled()) {
