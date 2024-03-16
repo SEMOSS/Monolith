@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?><project-modules id="moduleCoreId" project-version="1.5.0">
-    <wb-module deploy-name="Monolith">
+    <wb-module deploy-name="monolith-0.0.1-SNAPSHOT">
+        <wb-resource deploy-path="/WEB-INF/web.xml" source-path="/WebContent/WEB-INF/web.xml"/>
+        <wb-resource deploy-path="/" source-path="/target/m2e-wtp/web-resources"/>
         <wb-resource deploy-path="/" source-path="/WebContent" tag="defaultRootSource"/>
         <wb-resource deploy-path="/WEB-INF/classes" source-path="/src"/>
-        <wb-resource deploy-path="/WEB-INF/classes" source-path="/Semosssrc"/>
+        <wb-resource deploy-path="/WEB-INF/classes" source-path="/SemossSrc"/>
+        <dependent-module archiveName="semoss-0.0.1-SNAPSHOT.jar" deploy-path="/WEB-INF/lib" handle="module:/resource/Semoss_Dev/Semoss_Dev">
+            <dependency-type>uses</dependency-type>
+        </dependent-module>
         <property name="java-output-path" value="/Monolith/build/classes"/>
-        <property name="context-root" value="Monolith"/>
+        <property name="context-root" value="monolith"/>
+        <property name="component.inclusion.patterns" value="accountLocked/**,error/**,logout/**,noUserFail/**,saml2/**,samlLogin/**,samlSPLogin/**,sessionCounterFail/**,setAdmin/**,share/**,startUpFail/**"/>
     </wb-module>
 </project-modules>
