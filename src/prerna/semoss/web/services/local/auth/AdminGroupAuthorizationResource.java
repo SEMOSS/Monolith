@@ -78,10 +78,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			if(newGroupId == null || (newGroupId = newGroupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
 			}
-			String type = request.getParameter("type");
-			if(type == null) {
-				type = "";
-			}
+			String newGroupType = request.getParameter("type");
 			String description = request.getParameter("description");
 			if(description == null) {
 				description = "";
@@ -91,13 +88,13 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			
 			// you can have a type or be a custom group
 			// cannot be both
-			if(!isCustomGroup && (type == null || (type = type.trim()).isEmpty()) ) {
+			if(!isCustomGroup && (newGroupType == null || (newGroupType = newGroupType.trim()).isEmpty()) ) {
 				throw new IllegalArgumentException("The group type cannot be null or empty if this is not a custom group");
-			} else if(isCustomGroup && (type != null && !(type = type.trim()).isEmpty()) ) {
+			} else if(isCustomGroup && (newGroupType != null && !(newGroupType = newGroupType.trim()).isEmpty()) ) {
 				throw new IllegalArgumentException("A custom group cannot have a login type passed in");
 			}
 			
-			AdminSecurityGroupUtils.getInstance(user).addGroup(user, newGroupId, type, description, isCustomGroup);
+			AdminSecurityGroupUtils.getInstance(user).addGroup(user, newGroupId, newGroupType, description, isCustomGroup);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -138,12 +135,9 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
 			}
-			String type = request.getParameter("type");
-			if(type == null) {
-				type = "";
-			}
+			String groupType = request.getParameter("type");
 			
-			AdminSecurityGroupUtils.getInstance(user).deleteGroupAndPropagate(groupId, type);
+			AdminSecurityGroupUtils.getInstance(user).deleteGroupAndPropagate(groupId, groupType);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -184,10 +178,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
 			}
-			String type = request.getParameter("type");
-			if(type == null) {
-				type = "";
-			}
+			String groupType = request.getParameter("type");
 			boolean isCustomGroup = Boolean.parseBoolean(request.getParameter("isCustomGroup")+"");
 
 			String newGroupId = request.getParameter("newGroupId");
@@ -195,9 +186,6 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				throw new IllegalArgumentException("The new group id cannot be null or empty");
 			}
 			String newType = request.getParameter("newType");
-			if(newType == null) {
-				newType = "";
-			}
 			boolean newCustomGroup = Boolean.parseBoolean(request.getParameter("newIsCustomGroup")+"");
 			String newDescription = request.getParameter("newDescription");
 			
@@ -209,7 +197,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				throw new IllegalArgumentException("A custom group cannot have a login type passed in");
 			}
 			
-			AdminSecurityGroupUtils.getInstance(user).editGroupAndPropagate(user, groupId, type, newGroupId, newType, newDescription, newCustomGroup);
+			AdminSecurityGroupUtils.getInstance(user).editGroupAndPropagate(user, groupId, groupType, newGroupId, newType, newDescription, newCustomGroup);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -340,13 +328,13 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			if(userId == null || (userId = userId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The user id ('userId') cannot be null or empty");
 			}
-			String type = request.getParameter("type");
-			if(type == null || (type = type.trim()).isEmpty()) {
+			String userLoginType = request.getParameter("type");
+			if(userLoginType == null || (userLoginType = userLoginType.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The user login type ('type') cannot be null or empty");
 			}
 			String endDate = request.getParameter("endDate");
 			
-			AdminSecurityGroupUtils.getInstance(user).addUserToGroup(user, groupId, userId, type, endDate);
+			AdminSecurityGroupUtils.getInstance(user).addUserToGroup(user, groupId, userId, userLoginType, endDate);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -391,12 +379,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			if(userId == null || (userId = userId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The user id ('userId') cannot be null or empty");
 			}
-			String type = request.getParameter("type");
-			if(type == null || (type = type.trim()).isEmpty()) {
+			String userLoginType = request.getParameter("type");
+			if(userLoginType == null || (userLoginType = userLoginType.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The user login type ('type') cannot be null or empty");
 			}
 			
-			AdminSecurityGroupUtils.getInstance(user).removeUserFromGroup(groupId, userId, type);
+			AdminSecurityGroupUtils.getInstance(user).removeUserFromGroup(groupId, userId, userLoginType);
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -410,6 +398,65 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(success, 200);
 	}
 	
+	@POST
+	@Produces("application/json")
+	@Path("/addGroupProjectPermission")
+	public Response addGroupProjectPermission(@Context HttpServletRequest request) {
+		Map<String, String> errorRet = new Hashtable<>();
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a group project permission but couldn't find user session"));
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(!SecurityAdminUtils.userIsAdmin(user)){
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a group project permission but is not an admin"));
+			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
+			return WebUtility.getResponse(errorRet, 400);
+		}
+		
+		boolean success = false;
+		try {
+			String groupId = request.getParameter("groupId");
+			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
+			}
+			String projectId = request.getParameter("projectId");
+			if(projectId == null || (projectId = projectId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The project id ('projectId') cannot be null or empty");
+			}
+			String permissionStr = request.getParameter("permission");
+			if(permissionStr == null || (permissionStr = permissionStr.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The permission integer value ('permission') cannot be null or empty");
+			}
+			int permission = -1;
+			try {
+				permission = Integer.parseInt(permissionStr);
+			} catch(NumberFormatException nbe) {
+				classLogger.error(Constants.STACKTRACE, nbe);
+				throw new IllegalArgumentException("Must pass a valid integer value. Received value = " + permissionStr);
+			}
+			
+			String groupType = request.getParameter("type");
+			String endDate = request.getParameter("endDate");
+
+			AdminSecurityGroupUtils.getInstance(user).addGroupProjectPermission(user, groupId, groupType, projectId, permission, endDate);
+		} catch (IllegalArgumentException e){
+			classLogger.error(Constants.STACKTRACE, e);
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e){
+			classLogger.error(Constants.STACKTRACE, e);
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
+			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		return WebUtility.getResponse(success, 200);
+	}
 	
 	
 	
