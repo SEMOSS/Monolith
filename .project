@@ -41,14 +41,20 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>Semosssrc</name>
+			<name>SemossSrc</name>
 			<type>2</type>
-			<location>C:/Development/workspace/SEMOSS-dev/src</location>
-		</link>
-		<link>
-			<name>srcSemoss</name>
-			<type>2</type>
-			<location>C:/Users/bisutton/workspace/Semoss/src</location>
+			<location>/Users/mahkhalil/development/workspace/Semoss_Dev/src</location>
 		</link>
 	</linkedResources>
+	<filteredResources>
+		<filter>
+			<id>1616950467833</id>
+			<name></name>
+			<type>10</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-name-matches-false-false-.svn</arguments>
+			</matcher>
+		</filter>
+	</filteredResources>
 </projectDescription>
