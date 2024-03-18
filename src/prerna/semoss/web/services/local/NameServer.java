@@ -33,12 +33,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URLEncoder;
+import java.time.ZoneId;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 import java.util.UUID;
 
 import javax.servlet.http.Cookie;
@@ -354,22 +354,22 @@ public class NameServer {
 		insight.setUser(user);
 		
 		// set the user timezone
-		TimeZone tz = null;
+		ZoneId zoneId = null;
 		String strTz = request.getParameter("tz");
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
-			tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
+			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 		} else {
 			try {
-				tz = TimeZone.getTimeZone(strTz);
+				zoneId = ZoneId.of(strTz);
 			} catch(Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
-				tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
+				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 			}
 		}
 		// need null check if security is off
 		if(user != null) {
-			user.setTimeZone(tz);
+			user.setZoneId(zoneId);
 		}
 		// set if we are scheduler mode
 		Boolean schedulerMode = ThreadStore.isSchedulerMode();
@@ -571,6 +571,25 @@ public class NameServer {
 			// }
 		}
 
+		// set the user timezone
+		ZoneId zoneId = null;
+		String strTz = request.getParameter("tz");
+		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
+			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
+		} else {
+			try {
+				zoneId = ZoneId.of(strTz);
+			} catch(Exception e) {
+				classLogger.warn("Error parsing out users timezone value: " + strTz);
+				classLogger.error(Constants.STACKTRACE, e);
+				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
+			}
+		}
+		// need null check if security is off
+		if(user != null) {
+			user.setZoneId(zoneId);
+		}
+		
 //		synchronized(insight) {
 		insight.setUser(user);
 		JobManager manager = JobManager.getManager();

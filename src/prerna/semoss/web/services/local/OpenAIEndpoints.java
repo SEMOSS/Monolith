@@ -4,12 +4,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -71,22 +71,22 @@ public class OpenAIEndpoints {
 		}
 		
 		// set the user timezone
-		TimeZone tz = null;
+		ZoneId zoneId = null;
 		String strTz = request.getParameter("tz");
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
-			tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
+			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 		} else {
 			try {
-				tz = TimeZone.getTimeZone(strTz);
+				zoneId = ZoneId.of(strTz);
 			} catch(Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
-				tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
+				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 			}
 		}
 		// need null check if security is off
 		if(user != null) {
-			user.setTimeZone(tz);
+			user.setZoneId(zoneId);
 		}
 	    
 	    // Retrieve raw data from the request
@@ -252,22 +252,22 @@ public class OpenAIEndpoints {
 		}
 		
 		// set the user timezone
-		TimeZone tz = null;
+		ZoneId zoneId = null;
 		String strTz = request.getParameter("tz");
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
-			tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
+			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 		} else {
 			try {
-				tz = TimeZone.getTimeZone(strTz);
+				zoneId = ZoneId.of(strTz);
 			} catch(Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
-				tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
+				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 			}
 		}
 		// need null check if security is off
 		if(user != null) {
-			user.setTimeZone(tz);
+			user.setZoneId(zoneId);
 		}
 	    
 	    // Retrieve raw data from the request
@@ -425,22 +425,22 @@ public class OpenAIEndpoints {
 		}
 		
 		// set the user timezone
-		TimeZone tz = null;
+		ZoneId zoneId = null;
 		String strTz = request.getParameter("tz");
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
-			tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
+			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 		} else {
 			try {
-				tz = TimeZone.getTimeZone(strTz);
+				zoneId = ZoneId.of(strTz);
 			} catch(Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
-				tz = TimeZone.getTimeZone(Utility.getApplicationTimeZoneId());
+				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 			}
 		}
 		// need null check if security is off
 		if(user != null) {
-			user.setTimeZone(tz);
+			user.setZoneId(zoneId);
 		}
 	    
 	    // Retrieve raw data from the request
