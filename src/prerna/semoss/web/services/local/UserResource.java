@@ -2234,6 +2234,17 @@ public class UserResource {
 			// make the call to get the groups
 			String groupsJson = AbstractHttpHelper.makeGetCall(group_url,  userObj.getAccessToken(providerEnum).getAccess_token());
 
+			// this is a check for sanitizing a response back from an IAM provider - not common and should be false
+			// examples would be unescaped special chars in the response that then can't be parsed into a json. 
+			boolean sanitizeGroupResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeGroupResponse"));
+
+			if(sanitizeGroupResponse) {
+				groupsJson = groupsJson.replace("\\", "\\\\");
+				// add more replacements as need be in the future
+			}
+			
+			
+			
 			Set<String> userGroups = new HashSet<String>();
 
 			// are groups returned as a single string or an array in a json. Usually it is an array in a json.
