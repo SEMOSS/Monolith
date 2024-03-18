@@ -279,7 +279,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		long numUsers = groupUtils.getNumMembersInGroup(groupId, searchTerm);
+		Long numUsers = groupUtils.getNumMembersInGroup(groupId, searchTerm);
 		return WebUtility.getResponse(numUsers, 200);
 	}
 	
@@ -336,7 +336,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		long numUsers = groupUtils.getNumNonMembersInGroup(groupId, searchTerm);
+		Long numUsers = groupUtils.getNumNonMembersInGroup(groupId, searchTerm);
 		return WebUtility.getResponse(numUsers, 200);
 	}
 	
@@ -646,7 +646,92 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	@GET
+	@Path("/getNumProjectsForGroup")
+	@Produces("application/json")
+	public Response getNumProjectsForGroup(@Context HttpServletRequest request, 
+			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, 
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
+		AdminSecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get projects assinged to a group"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(groupId == null || (groupId=groupId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		Long numProjects = groupUtils.getNumProjectsForGroup(groupId, groupType, searchTerm, onlyApps);
+		return WebUtility.getResponse(numProjects, 200);
+	}
 	
+	@GET
+	@Path("/getAvailableProjectsForGroup")
+	@Produces("application/json")
+	public Response getAvailableProjectsForGroup(@Context HttpServletRequest request, 
+			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
+		AdminSecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get projects assinged to a group"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(groupId == null || (groupId=groupId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		List<Map<String, Object>> ret = groupUtils.getAvailableProjectsForGroup(groupId, groupType, searchTerm, limit, offset, onlyApps);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	@GET
+	@Path("/getNumAvailableProjectsForGroup")
+	@Produces("application/json")
+	public Response getNumAvailableProjectsForGroup(@Context HttpServletRequest request, 
+			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, 
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
+		AdminSecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get projects assinged to a group"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(groupId == null || (groupId=groupId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		Long numProjects = groupUtils.getNumAvailableProjectsForGroup(groupId, groupType, searchTerm, onlyApps);
+		return WebUtility.getResponse(numProjects, 200);
+	}
 	
 	
 	
@@ -857,5 +942,90 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 
 		List<Map<String, Object>> ret = groupUtils.getEnginesForGroup(groupId, groupType, searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
+	}
+	
+	@GET
+	@Path("/getNumEnginesForGroup")
+	@Produces("application/json")
+	public Response getNumEnginesForGroup(@Context HttpServletRequest request, 
+			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
+		AdminSecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get engines assinged to a group"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(groupId == null || (groupId=groupId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		Long numEngines = groupUtils.getNumEnginesForGroup(groupId, groupType, searchTerm);
+		return WebUtility.getResponse(numEngines, 200);
+	}
+	
+	@GET
+	@Path("/getAvailableEnginesForGroup")
+	@Produces("application/json")
+	public Response getAvailableEnginesForGroup(@Context HttpServletRequest request, 
+			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		AdminSecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get engines assinged to a group"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(groupId == null || (groupId=groupId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		List<Map<String, Object>> ret = groupUtils.getAvailableEnginesForGroup(groupId, groupType, searchTerm, limit, offset);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	@GET
+	@Path("/getNumAvailableEnginesForGroup")
+	@Produces("application/json")
+	public Response getNumAvailableEnginesForGroup(@Context HttpServletRequest request, 
+			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
+		AdminSecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get engines assinged to a group"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(groupId == null || (groupId=groupId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		Long numEngines = groupUtils.getNumAvailableEnginesForGroup(groupId, groupType, searchTerm);
+		return WebUtility.getResponse(numEngines, 200);
 	}
 }
