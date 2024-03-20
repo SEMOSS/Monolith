@@ -232,6 +232,7 @@ public class ServerConfigurationResource {
 		myConfiguration.put("csrf", Boolean.parseBoolean(session.getAttribute("csrf") + ""));
 		// add metakey options
 		myConfiguration.put("databaseMetaKeys", SecurityEngineUtils.getMetakeyOptions(null));
+		myConfiguration.put("engineMetaKeys", SecurityEngineUtils.getMetakeyOptions(null));
 		myConfiguration.put("projectMetaKeys", SecurityProjectUtils.getMetakeyOptions(null));
 		myConfiguration.put("insightMetaKeys", SecurityInsightUtils.getMetakeyOptions(null));
 		// do not keep this session
