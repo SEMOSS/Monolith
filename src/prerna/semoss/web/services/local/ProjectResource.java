@@ -49,6 +49,7 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
+import prerna.engine.api.IEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
@@ -434,7 +435,12 @@ public class ProjectResource {
 			}
 		}
 		
-		File exportFile = getProjectImageFile(projectId);
+		File exportFile = null;
+		try {
+			exportFile = getProjectImageFile(projectId);
+		} catch (Exception e) {
+			logger.error(Constants.STACKTRACE, e);
+		}
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
@@ -466,10 +472,11 @@ public class ProjectResource {
 	 * Use to find the file for the image
 	 * @param projectId
 	 * @return
+	 * @throws Exception 
 	 */
-	protected File getProjectImageFile(String projectId) {
+	protected File getProjectImageFile(String projectId) throws Exception {
 		if(ClusterUtil.IS_CLUSTER) {
-			return ClusterUtil.getProjectImage(projectId);
+			return ClusterUtil.getEngineAndProjectImage(projectId, IEngine.CATALOG_TYPE.PROJECT);
 		}
 		String propFileLoc = (String) DIHelper.getInstance().getProjectProperty(projectId + "_" + Constants.STORE);
 		if(propFileLoc == null && !projectId.equals("NEWSEMOSSAPP")) {
