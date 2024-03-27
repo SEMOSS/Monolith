@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -33,6 +34,9 @@ import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.reactor.job.JobReactor;
+import prerna.sablecc2.om.PixelDataType;
+import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -74,14 +78,14 @@ public class OpenAIEndpoints {
 		ZoneId zoneId = null;
 		String strTz = request.getParameter("tz");
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
+			zoneId = ZoneId.of(Utility.getApplicationZoneId());
 		} else {
 			try {
 				zoneId = ZoneId.of(strTz);
 			} catch(Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
-				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
+				zoneId = ZoneId.of(Utility.getApplicationZoneId());
 			}
 		}
 		// need null check if security is off
@@ -115,13 +119,6 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
         
-        String insightId = (String) dataMap.remove("insight_id");
-        if (insightId == null || insightId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'insight_id' field.");
-			return WebUtility.getResponse(errorMap, 400);
-        }
-        
         String engineId = (String) dataMap.remove("model");
         if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -142,25 +139,44 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 403);
 		}  
         
-        dataMap.put("full_prompt", fullPrompt);
-
-		insight = InsightStore.getInstance().get(insightId);
+        String insightId = (String) dataMap.remove("insight_id");
+		if (insightId == null) {
+			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
+			if (sessionInsights == null || sessionInsights.isEmpty()) {
+				// need to make a new insight here
+				insight = new Insight();
+				InsightStore.getInstance().put(insight);
+				insightId = insight.getInsightId();
+				InsightStore.getInstance().addToSessionHash(sessionId, insightId);
+			} else {
+				// pull the insight id from the session set
+				insightId = sessionInsights.iterator().next();
+				insight = InsightStore.getInstance().get(insightId);
+			}		
+		} else {
+			insight = InsightStore.getInstance().get(insightId);
+			InsightStore.getInstance().addToSessionHash(sessionId, insightId); // maybe its an insight id from another session?
+		}
+		
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the Insight with an Insight ID of " + insightId);
 			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
-	
-		InsightStore.getInstance().addToSessionHash(sessionId, insightId);
+		
 		// set the user
-		insight.setUser(user);
+		insight.setUser(user);		
+		// need to set this for std out operations
+		insight.getVarStore().put(JobReactor.JOB_KEY, new NounMetadata(insightId, PixelDataType.CONST_STRING));
+		
+		dataMap.put("full_prompt", fullPrompt);
 		
 		IModelEngine engine = Utility.getModel(engineId);
         
 		AskModelEngineResponse llmResponse;
         try {
-        	llmResponse = engine.ask(engineId, null, insight, dataMap);
+        	llmResponse = engine.ask(null, null, insight, dataMap);
         } catch (Exception e){
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -255,14 +271,14 @@ public class OpenAIEndpoints {
 		ZoneId zoneId = null;
 		String strTz = request.getParameter("tz");
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
+			zoneId = ZoneId.of(Utility.getApplicationZoneId());
 		} else {
 			try {
 				zoneId = ZoneId.of(strTz);
 			} catch(Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
-				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
+				zoneId = ZoneId.of(Utility.getApplicationZoneId());
 			}
 		}
 		// need null check if security is off
@@ -296,13 +312,6 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
         
-        String insightId = (String) dataMap.remove("insight_id");
-        if (insightId == null || insightId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'insight_id' field.");
-			return WebUtility.getResponse(errorMap, 400);
-        }
-        
         String engineId = (String) dataMap.remove("model");
         if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -322,8 +331,26 @@ public class OpenAIEndpoints {
 			errorMap.put(Constants.ERROR_MESSAGE, "Model " + engineId + " does not exist or user does not have access to this model");
 			return WebUtility.getResponse(errorMap, 403);
 		}
-
-		insight = InsightStore.getInstance().get(insightId);
+        
+        String insightId = (String) dataMap.remove("insight_id");
+		if (insightId == null) {
+			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
+			if (sessionInsights == null || sessionInsights.isEmpty()) {
+				// need to make a new insight here
+				insight = new Insight();
+				InsightStore.getInstance().put(insight);
+				insightId = insight.getInsightId();
+				InsightStore.getInstance().addToSessionHash(sessionId, insightId);
+			} else {
+				// pull the insight id from the session set
+				insightId = sessionInsights.iterator().next();
+				insight = InsightStore.getInstance().get(insightId);
+			}		
+		} else {
+			insight = InsightStore.getInstance().get(insightId);
+			InsightStore.getInstance().addToSessionHash(sessionId, insightId); // maybe its an insight id from another session?
+		}
+		
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the Insight with an Insight ID of " + insightId);
@@ -331,10 +358,11 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	
-		InsightStore.getInstance().addToSessionHash(sessionId, insightId);
 		// set the user
-		insight.setUser(user);
-		
+		insight.setUser(user);		
+		// need to set this for std out operations
+		insight.getVarStore().put(JobReactor.JOB_KEY, new NounMetadata(insightId, PixelDataType.CONST_STRING));
+
 		IModelEngine engine = Utility.getModel(engineId);
         
         AskModelEngineResponse llmResponse;
@@ -428,14 +456,14 @@ public class OpenAIEndpoints {
 		ZoneId zoneId = null;
 		String strTz = request.getParameter("tz");
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
+			zoneId = ZoneId.of(Utility.getApplicationZoneId());
 		} else {
 			try {
 				zoneId = ZoneId.of(strTz);
 			} catch(Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
-				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
+				zoneId = ZoneId.of(Utility.getApplicationZoneId());
 			}
 		}
 		// need null check if security is off
@@ -469,13 +497,6 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
         
-        String insightId = (String) dataMap.remove("insight_id");
-        if (insightId == null || insightId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'insight_id' field.");
-			return WebUtility.getResponse(errorMap, 400);
-        }
-        
         String engineId = (String) dataMap.remove("model");
         if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -497,7 +518,25 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 403);
 		}
         
-		insight = InsightStore.getInstance().get(insightId);
+        String insightId = (String) dataMap.remove("insight_id");
+		if (insightId == null) {
+			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
+			if (sessionInsights == null || sessionInsights.isEmpty()) {
+				// need to make a new insight here
+				insight = new Insight();
+				InsightStore.getInstance().put(insight);
+				insightId = insight.getInsightId();
+				InsightStore.getInstance().addToSessionHash(sessionId, insightId);
+			} else {
+				// pull the insight id from the session set
+				insightId = sessionInsights.iterator().next();
+				insight = InsightStore.getInstance().get(insightId);
+			}		
+		} else {
+			insight = InsightStore.getInstance().get(insightId);
+			InsightStore.getInstance().addToSessionHash(sessionId, insightId); // maybe its an insight id from another session?
+		}
+		
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the Insight with an Insight ID of " + insightId);
@@ -505,10 +544,11 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	
-		InsightStore.getInstance().addToSessionHash(sessionId, insightId);
 		// set the user
-		insight.setUser(user);
-		
+		insight.setUser(user);		
+		// need to set this for std out operations
+		insight.getVarStore().put(JobReactor.JOB_KEY, new NounMetadata(insightId, PixelDataType.CONST_STRING));
+
 		IModelEngine engine = Utility.getModel(engineId);
 		
         EmbeddingsModelEngineResponse embeddingsResponse;
