@@ -2020,7 +2020,7 @@
 		<dependency>
 			<groupId>org.openidentityplatform.openam</groupId>
 			<artifactId>openam-federation-library</artifactId>
-			<version>14.8.3</version>
+			<version>14.6.1</version>
 			<exclusions>
 				<exclusion>
     				<groupId>javax.mail</groupId>
