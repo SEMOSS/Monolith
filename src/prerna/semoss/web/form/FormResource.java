@@ -27,7 +27,7 @@ import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.AbstractFormBuilder;
 import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
-import prerna.nameserver.utility.MasterDatabaseUtility;
+import prerna.masterdatabase.utility.MasterDatabaseUtility;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
