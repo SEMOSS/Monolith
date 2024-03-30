@@ -1,6 +1,5 @@
 package prerna.semoss.web.services.local.auth;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,18 +18,17 @@ import javax.ws.rs.core.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import net.snowflake.client.jdbc.internal.threeten.bp.temporal.ChronoUnit;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.om.Insight;
+import prerna.reactor.security.MyDatabasesReactor;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.solr.reactor.MyDatabasesReactor;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 

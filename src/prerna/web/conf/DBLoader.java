@@ -47,7 +47,7 @@ import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.r.RserveUtil;
 import prerna.forms.AbstractFormBuilder;
-import prerna.nameserver.utility.MasterDatabaseUtility;
+import prerna.masterdatabase.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.reactor.frame.py.PySingleton;
