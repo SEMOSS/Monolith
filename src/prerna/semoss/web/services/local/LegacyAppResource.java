@@ -41,7 +41,7 @@ import prerna.engine.api.IEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
-import prerna.nameserver.utility.MasterDatabaseUtility;
+import prerna.masterdatabase.utility.MasterDatabaseUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.DefaultImageGeneratorUtil;

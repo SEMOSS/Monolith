@@ -29,20 +29,15 @@ package prerna.semoss.web.services.local;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
-import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.ResourceContext;
 import javax.ws.rs.core.Context;
@@ -55,16 +50,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
-import prerna.auth.AccessToken;
-import prerna.auth.AuthProvider;
-import prerna.auth.User;
-import prerna.engine.api.IRDBMSEngine;
-import prerna.engine.api.IRawSelectWrapper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.rdf.engine.wrappers.WrapperManager;
-import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.requests.OverrideParametersServletRequest;
 import prerna.web.services.util.WebUtility;
 
