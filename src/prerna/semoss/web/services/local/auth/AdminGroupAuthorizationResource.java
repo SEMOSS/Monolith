@@ -609,6 +609,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			String endDate = request.getParameter("endDate");
 
 			AdminSecurityGroupUtils.getInstance(user).editGroupProjectPermission(user, groupId, groupType, projectId, permission, endDate);
+			success = true;
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -959,6 +960,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			String endDate = request.getParameter("endDate");
 
 			AdminSecurityGroupUtils.getInstance(user).editGroupEnginePermission(user, groupId, groupType, engineId, permission, endDate);
+			success = true;
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
