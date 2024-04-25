@@ -23,7 +23,6 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityShareSessionUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Utility;
 
 public class ShareSessionFilter implements Filter {
@@ -91,7 +90,7 @@ public class ShareSessionFilter implements Filter {
 					}
 					
 					// add route if it exists
-					String routeCookieName = DIHelper.getInstance().getProperty(Constants.MONOLITH_ROUTE);
+					String routeCookieName = Utility.getDIHelperProperty(Constants.MONOLITH_ROUTE);
 					if (routeCookieName != null && !routeCookieName.isEmpty()
 							&& routeId != null && !routeId.isEmpty()) {
 						Cookie c = new Cookie(routeCookieName, routeId);
