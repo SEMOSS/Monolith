@@ -16,7 +16,6 @@ import javax.servlet.http.HttpSession;
 import prerna.auth.User;
 import prerna.reactor.mgmt.MgmtUtil;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Settings;
 import prerna.util.Utility;
 
@@ -82,12 +81,12 @@ public class MemoryCheckFilter implements Filter {
 	 * Determine if we need to check memory
 	 */
 	private void isCheckMem() {
-		String checkMemSettings = DIHelper.getInstance().getProperty(Settings.CHECK_MEM);
+		String checkMemSettings = Utility.getDIHelperProperty(Settings.CHECK_MEM);
 		if(checkMemSettings != null && !(checkMemSettings=checkMemSettings.trim()).isEmpty()) {
 			boolean checkMem = Boolean.parseBoolean(checkMemSettings);
 			if(checkMem) {
-				String memLimitSettings = DIHelper.getInstance().getProperty(Settings.USER_MEM_LIMIT);
-				String memProfileSetting = DIHelper.getInstance().getProperty(Settings.MEM_PROFILE_SETTINGS);
+				String memLimitSettings = Utility.getDIHelperProperty(Settings.USER_MEM_LIMIT);
+				String memProfileSetting = Utility.getDIHelperProperty(Settings.MEM_PROFILE_SETTINGS);
 
 				if((memLimitSettings != null && !(memLimitSettings=memLimitSettings.trim()).isEmpty())
 					&& (memProfileSetting != null && !(memProfileSetting=memProfileSetting.trim()).isEmpty())

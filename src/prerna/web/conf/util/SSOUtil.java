@@ -24,7 +24,6 @@ import com.sun.identity.saml2.meta.SAML2MetaException;
 import com.sun.identity.saml2.meta.SAML2MetaManager;
 
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Utility;
 
 /**
@@ -70,7 +69,7 @@ public class SSOUtil {
 		System.setProperty("com.sun.identity.federation.fedCookieName", "fedCookie");
 		
 		// this is where we set the SAML home dir by getting the loc from RDF props.
-		String confLocation = ((String) DIHelper.getInstance().getCoreProp().get(Constants.SAML_PROP_LOC)).trim(); 
+		String confLocation = Utility.getDIHelperProperty(Constants.SAML_PROP_LOC).trim(); 
 		logger.info("Directory is set to.. " + confLocation);
 		System.getProperties().setProperty("com.sun.identity.fedlet.home", confLocation);
 		

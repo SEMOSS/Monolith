@@ -52,7 +52,6 @@ import prerna.rdf.engine.wrappers.SesameSelectCheater;
 import prerna.rdf.engine.wrappers.SesameSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.GraphStreamingOutput;
 import prerna.web.services.util.QueryResultHash;
@@ -72,11 +71,9 @@ public class EngineRemoteResource {
 	public void setEngine(IDatabaseEngine coreEngine)
 	{
 		this.coreEngine = coreEngine;
-		if(uriBase == null && DIHelper.getInstance().getCoreProp().containsKey(Constants.URI_BASE))
-			uriBase = (String)DIHelper.getInstance().getCoreProp().get(Constants.URI_BASE);
-		else
-			uriBase = uriBase;
-		
+		if(uriBase == null && Utility.getDIHelperProperty(Constants.URI_BASE)!=null) {
+			uriBase = Utility.getDIHelperProperty(Constants.URI_BASE);
+		}
 	}
 
 	@POST
