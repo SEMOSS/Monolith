@@ -41,8 +41,8 @@ import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.SocialPropertiesUtil;
+import prerna.util.Utility;
 import prerna.web.conf.AdminStartupFilter;
 import prerna.web.conf.util.SSOUtil;
 
@@ -74,7 +74,7 @@ public class SamlVerifierServlet extends HttpServlet {
 		// sample file path that we actually need to give. Make sure the Federation
 		// file is there inside the debug folder.
 		// "C:\\workspace\\Semoss_Dev\\saml\\mesoc\\conf\\debug\\Federation"
-		String federationLogPath = ((String) DIHelper.getInstance().getCoreProp().get(Constants.SAML_FEDERATION_LOG_PATH)).trim();
+		String federationLogPath = Utility.getDIHelperProperty(Constants.SAML_FEDERATION_LOG_PATH).trim();
 		SSOUtil util = SSOUtil.getInstance();
         if(!util.isConfigured()) {
                     util.setSSODeployURI((request).getRequestURI());

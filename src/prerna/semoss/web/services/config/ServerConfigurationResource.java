@@ -79,7 +79,7 @@ public class ServerConfigurationResource {
 
 		// r enabled
 		boolean useR = true;
-		String useRStr = DIHelper.getInstance().getProperty(Constants.USE_R);
+		String useRStr = Utility.getDIHelperProperty(Constants.USE_R);
 		if (useRStr != null) {
 			useR = Boolean.parseBoolean(useRStr);
 		}
@@ -126,7 +126,7 @@ public class ServerConfigurationResource {
 		loadConfig.put("useLogoutPage", DBLoader.useLogoutPage());
 
 		// max file transfer size
-		String fileTransferMax = DIHelper.getInstance().getProperty(Constants.FILE_TRANSFER_LIMIT);
+		String fileTransferMax = Utility.getDIHelperProperty(Constants.FILE_TRANSFER_LIMIT);
 		if (fileTransferMax != null) {
 			try {
 				loadConfig.put("file-limit", Integer.parseInt(fileTransferMax));
@@ -136,7 +136,7 @@ public class ServerConfigurationResource {
 		}
 		
 		// shared file path
-		String sharedFilePath = DIHelper.getInstance().getProperty(Constants.SHARED_FILE_PATH);
+		String sharedFilePath = Utility.getDIHelperProperty(Constants.SHARED_FILE_PATH);
 		if (sharedFilePath != null && !sharedFilePath.isEmpty()) {
 			try {
 				loadConfig.put("fileSharedPath", sharedFilePath);
@@ -154,14 +154,13 @@ public class ServerConfigurationResource {
 		}
 
 		// send the default frame type
-		String defaultFrameType = DIHelper.getInstance().getProperty(Constants.DEFAULT_FRAME_TYPE);
+		String defaultFrameType = Utility.getDIHelperProperty(Constants.DEFAULT_FRAME_TYPE);
 		if (defaultFrameType == null) {
 			defaultFrameType = "GRID";
 		}
 		loadConfig.put("defaultFrameType", defaultFrameType);
 
-		String defaultScriptingLanguage = DIHelper.getInstance()
-				.getProperty(Constants.DEFAULT_SCRIPTING_LANGUAGE);
+		String defaultScriptingLanguage = Utility.getDIHelperProperty(Constants.DEFAULT_SCRIPTING_LANGUAGE);
 		if (defaultScriptingLanguage == null) {
 			defaultScriptingLanguage = "R";
 		}
@@ -169,7 +168,7 @@ public class ServerConfigurationResource {
 
 		// local mode
 		boolean localMode = false;
-		String localModeStr = DIHelper.getInstance().getProperty(Constants.LOCAL_DEPLOYMENT);
+		String localModeStr = Utility.getDIHelperProperty(Constants.LOCAL_DEPLOYMENT);
 		if (localModeStr != null) {
 			localMode = Boolean.parseBoolean(localModeStr);
 		}

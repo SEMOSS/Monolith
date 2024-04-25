@@ -93,7 +93,6 @@ import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.semoss.web.services.remote.EngineRemoteResource;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.gson.GsonUtility;
@@ -296,7 +295,7 @@ public class NameServer {
 		}
 		
 		// add the route if this is server deployment
-		String routeCookieName = DIHelper.getInstance().getProperty(Constants.MONOLITH_ROUTE);
+		String routeCookieName = Utility.getDIHelperProperty(Constants.MONOLITH_ROUTE);
 		if (routeCookieName != null && !routeCookieName.isEmpty()) {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
