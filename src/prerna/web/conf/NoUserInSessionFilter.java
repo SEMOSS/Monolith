@@ -30,7 +30,6 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.reactor.mgmt.MgmtUtil;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.Settings;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
@@ -318,18 +317,17 @@ public class NoUserInSessionFilter implements Filter {
 
 	public boolean canLoadUser() {
 		boolean canLoad = true;
-		
-		String checkMemSettings = DIHelper.getInstance().getProperty(Settings.CHECK_MEM);
-		
+
+		String checkMemSettings = Utility.getDIHelperProperty(Settings.CHECK_MEM);
 		boolean checkMem = checkMemSettings != null && checkMemSettings.equalsIgnoreCase("true"); 
 		if(checkMem)
 		{
 			long freeMem = MgmtUtil.getFreeMemory();
-			String memProfileSettings = DIHelper.getInstance().getProperty(Settings.MEM_PROFILE_SETTINGS);
+			String memProfileSettings = Utility.getDIHelperProperty(Settings.MEM_PROFILE_SETTINGS);
 			
 			if(memProfileSettings.equalsIgnoreCase(Settings.CONSTANT_MEM))
 			{
-				String memLimitSettings = DIHelper.getInstance().getProperty(Settings.USER_MEM_LIMIT);
+				String memLimitSettings = Utility.getDIHelperProperty(Settings.USER_MEM_LIMIT);
 				int limit = Integer.parseInt(memLimitSettings);
 				canLoad = limit < freeMem;
 			}

@@ -59,6 +59,7 @@ import prerna.project.api.IProject;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.EngineUtility;
 import prerna.util.Utility;
 import prerna.util.insight.TextToGraphic;
 import prerna.web.requests.OverrideParametersServletRequest;
@@ -215,9 +216,8 @@ public class ProjectResource {
 		Properties prop = Utility.loadProperties(propFileLoc);
 		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
 		
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + Constants.PROJECT_FOLDER + DIR_SEPARATOR + SmssUtilities.getUniqueName(projectName, projectId) 
-			+ DIR_SEPARATOR + "app_root/version/assets/landing.html";
+		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId, projectName)
+								+ DIR_SEPARATOR + "app_root/version/assets/landing.html";
 		File file = new File(fileLocation);
 		if(file != null && file.exists()) {
 		    try {
@@ -276,9 +276,8 @@ public class ProjectResource {
 		Properties prop = Utility.loadProperties(propFileLoc);
 		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
 		
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
-		String fileLocation = baseFolder + DIR_SEPARATOR + Constants.PROJECT_FOLDER + DIR_SEPARATOR + SmssUtilities.getUniqueName(projectName, projectId) 
-			+ DIR_SEPARATOR + "app_root/version/assets/" + relPath;
+		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId, projectName) 
+								+ DIR_SEPARATOR + "app_root/version/assets/" + relPath;
 		File file = new File(Utility.normalizePath(fileLocation));
 		if(file != null && file.exists()) {
 		    try {
@@ -380,12 +379,12 @@ public class ProjectResource {
 	
 	private static String getEmbedLogo() {
 		if(ProjectResource.defaultEmbedLogo == null) {
-			String embedFileName = DIHelper.getInstance().getProperty(Constants.EMBED_URL_LOGO);
+			String embedFileName = Utility.getDIHelperProperty(Constants.EMBED_URL_LOGO);
 			if(embedFileName == null || embedFileName.equalsIgnoreCase("NONE")) {
 				ProjectResource.noLogo = true;
 				ProjectResource.defaultEmbedLogo = "NONE";
 			} else {
-				String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+				String baseFolder = Utility.getBaseFolder();
 				String embedFolder = baseFolder + DIR_SEPARATOR + "images" + DIR_SEPARATOR + "embed";
 				ProjectResource.defaultEmbedLogo = embedFolder + DIR_SEPARATOR + embedFileName;
 				ProjectResource.noLogo = false;
@@ -480,7 +479,7 @@ public class ProjectResource {
 		}
 		String propFileLoc = (String) DIHelper.getInstance().getProjectProperty(projectId + "_" + Constants.STORE);
 		if(propFileLoc == null && !projectId.equals("NEWSEMOSSAPP")) {
-			String imageDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "/images/stock/";
+			String imageDir = Utility.getBaseFolder() + "/images/stock/";
 			return new File(imageDir + "color-logo.png");
 		}
 		Properties prop = Utility.loadProperties(propFileLoc);
@@ -690,7 +689,14 @@ public class ProjectResource {
 	@Path("/projectWidget")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
 	public Response getAppWidget(@PathParam("projectId") String projectId, @QueryParam("widget") String widgetName, @QueryParam("file") String fileName) {
-		final String basePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
+
+		//TODO: this is wrong structure ... needs projectName as well...
+		//TODO: this is wrong structure ... needs projectName as well...
+		//TODO: this is wrong structure ... needs projectName as well...
+		//TODO: this is wrong structure ... needs projectName as well...
+		//TODO: this is wrong structure ... needs projectName as well...
+
+		final String basePath = Utility.getBaseFolder();
 		String appWidgetDirLoc = basePath + DIR_SEPARATOR + Constants.PROJECT_FOLDER + 
 				DIR_SEPARATOR + projectId +  
 				DIR_SEPARATOR + "app_root" +
