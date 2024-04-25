@@ -264,15 +264,16 @@ public class LegacyAppResource {
 		if(ClusterUtil.IS_CLUSTER){
 			return ClusterUtil.getEngineAndProjectImage(databaseId, IEngine.CATALOG_TYPE.DATABASE);
 		}
+		String baseFolder = Utility.getBaseFolder();
+
 		String propFileLoc = (String) DIHelper.getInstance().getEngineProperty(databaseId + "_" + Constants.STORE);
 		if(propFileLoc == null && !databaseId.equals("NEWSEMOSSAPP")) {
-			String imageDir = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + "/images/stock/";
+			String imageDir = baseFolder + "/images/stock/";
 			return new File(imageDir + "color-logo.png");
 		}
 		Properties prop = Utility.loadProperties(propFileLoc);
 		String databaseName = prop.getProperty(Constants.ENGINE_ALIAS);
 		
-		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
 		String fileLocation = baseFolder 
 				+ DIR_SEPARATOR + Constants.DATABASE_FOLDER 
 				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(databaseName, databaseId) 

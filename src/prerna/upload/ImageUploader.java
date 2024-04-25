@@ -37,7 +37,6 @@ import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.EngineUtility;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
@@ -389,9 +388,8 @@ public class ImageUploader extends Uploader {
 	public Response uploadProjectImage(@Context ServletContext context, @Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		// base path is the db folder
-		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + Constants.PROJECT_FOLDER;
-		filePath = Utility.normalizePath(filePath);
+		// base path is the project folder
+		String filePath = Utility.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
 		
 		HttpSession session = request.getSession(false);
 		User user = null;
@@ -520,9 +518,8 @@ public class ImageUploader extends Uploader {
 	public Response deleteProjectImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		// base path is the db folder
-		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + Constants.PROJECT;
-		filePath = Utility.normalizePath(filePath);
+		// base path is the project folder
+		String filePath = Utility.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
 
 		String projectId = request.getParameter("projectId");
 		String projectName = null;
@@ -633,9 +630,8 @@ public class ImageUploader extends Uploader {
 	public Response uploadInsightImage(@Context ServletContext context, @Context HttpServletRequest request) {
 		Map<String, String> returnMap = new HashMap<>();
 		
-		// base path is the db folder
-		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + Constants.PROJECT_FOLDER;
-		filePath = Utility.normalizePath(filePath);
+		// base path is the project folder
+		String filePath = Utility.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
 
 		HttpSession session = request.getSession(false);
 		User user = null;
@@ -769,10 +765,6 @@ public class ImageUploader extends Uploader {
 	@Path("/insightImage/delete")
 	public Response deleteInsightImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
-
-		// base path is the db folder
-		String filePath = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) + DIR_SEPARATOR + Constants.PROJECT_FOLDER;
-		filePath = Utility.normalizePath(filePath);
 
 		String projectId = request.getParameter("projectId");
 		String projectName = null;

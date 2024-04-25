@@ -30,7 +30,7 @@ package prerna.web.services.util;
 import java.util.Hashtable;
 
 import prerna.engine.api.IRemoteQueryable;
-import prerna.util.DIHelper;
+import prerna.util.Utility;
 
 public class QueryResultHash {
 
@@ -52,7 +52,7 @@ public class QueryResultHash {
 	
 	public String addObject(IRemoteQueryable maObject)
 	{
-		String prefix = DIHelper.getInstance().getProperty("ENGINE_GUID");
+		String prefix = Utility.getDIHelperProperty("ENGINE_GUID");
 		if(prefix == null)
 			prefix = "QueryNo";
 		String key = prefix + runner;
