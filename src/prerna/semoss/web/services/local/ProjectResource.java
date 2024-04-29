@@ -50,6 +50,7 @@ import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
+import prerna.engine.impl.CaseInsensitiveProperties;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
@@ -139,6 +140,21 @@ public class ProjectResource {
 		Properties currentSmssProperties = project.getSmssProp();
 		String newSmssContent = request.getParameter("smss");
 		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent, currentSmssProperties);
+		
+		// validate the new SMSS
+		// that the user is not doing something they cannot do
+		// like update the engine id / alias
+		{
+			Properties newProp = new CaseInsensitiveProperties(Utility.loadPropertiesString(newSmssContent));
+			if(!newProp.get(Constants.PROJECT).equals(currentSmssProperties.get(Constants.PROJECT))
+					|| !newProp.get(Constants.PROJECT_ALIAS).equals(currentSmssProperties.get(Constants.PROJECT_ALIAS))
+					|| !newProp.get(Constants.PROJECT_TYPE).equals(currentSmssProperties.get(Constants.PROJECT_TYPE))
+					) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "The project id, project name, and project type cannot be changed");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		}
 		
 		// read the current smss as text in case of an error
 		String currentSmssContent = null;
