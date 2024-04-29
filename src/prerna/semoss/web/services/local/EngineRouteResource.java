@@ -36,6 +36,7 @@ import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
+import prerna.engine.impl.CaseInsensitiveProperties;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
@@ -113,6 +114,21 @@ public class EngineRouteResource {
 		String newSmssContent = request.getParameter("smss");
 		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent, currentSmssProperties);
 		
+		// validate the new SMSS
+		// that the user is not doing something they cannot do
+		// like update the engine id / alias
+		{
+			Properties newProp = new CaseInsensitiveProperties(Utility.loadPropertiesString(newSmssContent));
+			if(!newProp.get(Constants.ENGINE).equals(currentSmssProperties.get(Constants.ENGINE))
+					|| !newProp.get(Constants.ENGINE_ALIAS).equals(currentSmssProperties.get(Constants.ENGINE_ALIAS))
+					|| !newProp.get(Constants.ENGINE_TYPE).equals(currentSmssProperties.get(Constants.ENGINE_TYPE))
+					) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "The engine id, engine name, and engine type cannot be changed");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		}
+		
 		// read the current smss as text in case of an error
 		String currentSmssContent = null;
 		try {
@@ -122,6 +138,7 @@ public class EngineRouteResource {
 			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred reading the current engine smss details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
+		
 		try {
 			engine.close();
 		} catch (Exception e) {
