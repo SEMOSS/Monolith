@@ -34,7 +34,7 @@ import prerna.web.conf.util.UserFileLogUtil;
  */
 public class SSOFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(SSOFilter.class);
+	private static final Logger classLogger = LogManager.getLogger(SSOFilter.class);
 
 	// filter init params
 	private static final String COUNT_USER_ENTRY = "countUserEntry";
@@ -76,15 +76,28 @@ public class SSOFilter implements Filter {
 		// User has not logged in - redirect to the base page to start the
 		// SAML workflow
 		if(user == null) {
-			logger.info("Starting saml transaction.");
+			classLogger.info("Starting saml transaction.");
 			if(session == null) {
 				session = ((HttpServletRequest) request).getSession(true);
 			}
+			
+			// this will be the full path of the request
+			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
+			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
+						
 			// we need to store information in the session
 			// so that we can properly come back to the referer once an admin has been added
 			String referer = ((HttpServletRequest) request).getHeader("referer");
+			if(referer != null) {
+				classLogger.info(Utility.cleanLogString("Setting session redirect value to referer = " + referer));
+			} else if(fullUrl.contains("/public_home/")){
+				classLogger.info(Utility.cleanLogString("Setting session redirect value to the request URL = " + fullUrl));
+				referer = fullUrl;
+			} else {
+				classLogger.info(Utility.cleanLogString("No session redirect value found..."));
+			}
+			// set the referer if we have it
 			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, referer);
-			logger.info(Utility.cleanLogString("Setting session redirect value to " + referer));
 			
 			// this will be the deployment name of the app
 			String contextPath = request.getServletContext().getContextPath();
@@ -115,15 +128,16 @@ public class SSOFilter implements Filter {
 			// we can allow a custom url or we go through our SAML routing via idp or sp initiated flow
 			if(loginUrl != null && !(loginUrl = loginUrl.trim()).isEmpty()) {
 				((HttpServletResponse) response).setHeader("redirect", loginUrl);
+				((HttpServletResponse) response).setHeader("location", loginUrl);
 				((HttpServletResponse) response).sendError(302, "Need to redirect to " + loginUrl);
 			} else {
-				// this will be the full path of the request
-				// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-				String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
-	
+				// if no login url defined
+				// use the full url to do this
+				
 				// we redirect to the index.html page specifically created for the SAML call.
 				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + loginPath;
 				((HttpServletResponse) response).setHeader("redirect", redirectUrl);
+				((HttpServletResponse) response).setHeader("location", redirectUrl);
 				((HttpServletResponse) response).sendError(302, "Need to redirect to " + redirectUrl);
 			}
 			
@@ -177,18 +191,18 @@ public class SSOFilter implements Filter {
 				String logInfoPath = SSOFilter.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
 				String logInfoSep = SSOFilter.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
 				if(logInfoPath == null) {
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 				}
 				try {
 					userLogger = UserFileLogUtil.getInstance(logInfoPath, logInfoSep);
 				} catch(Exception e) {
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
 				}
 			}
 
@@ -203,18 +217,18 @@ public class SSOFilter implements Filter {
 			if(countUsers) {
 				String countDatabaseId = SSOFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
 				if(countDatabaseId == null) {
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 				}
 				try {
 					tracker = CACTrackingUtil.getInstance(countDatabaseId);
 				} catch(Exception e) {
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
 				}
 			}
 			
