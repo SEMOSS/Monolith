@@ -87,10 +87,19 @@ public class SSOFilter implements Filter {
 						
 			// we need to store information in the session
 			// so that we can properly come back to the referer once an admin has been added
+			
+			// we add a location to the headers when we want the browser to auto move
+			// which is the case for portals as there is no FE and all managed by the BE
+			// however, if we do this for the base application, it will cause issues as it will redirect 
+			// and return the html as the response but doesn't seem like the FE knows what to do with that
+			// so only on portals do we add the location header...
+			boolean addLocation = false;
+			
 			String referer = ((HttpServletRequest) request).getHeader("referer");
 			if(referer != null) {
 				classLogger.info(Utility.cleanLogString("Setting session redirect value to referer = " + referer));
 			} else if(fullUrl.contains("/public_home/")){
+				addLocation = true;
 				classLogger.info(Utility.cleanLogString("Setting session redirect value to the request URL = " + fullUrl));
 				referer = fullUrl;
 			} else {
@@ -133,11 +142,12 @@ public class SSOFilter implements Filter {
 			} else {
 				// if no login url defined
 				// use the full url to do this
-				
 				// we redirect to the index.html page specifically created for the SAML call.
 				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + loginPath;
 				((HttpServletResponse) response).setHeader("redirect", redirectUrl);
-				((HttpServletResponse) response).setHeader("location", redirectUrl);
+				if(addLocation) {
+					((HttpServletResponse) response).setHeader("location", redirectUrl);
+				}
 				((HttpServletResponse) response).sendError(302, "Need to redirect to " + redirectUrl);
 			}
 			
