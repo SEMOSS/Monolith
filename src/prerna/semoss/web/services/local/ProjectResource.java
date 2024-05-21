@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -43,6 +44,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -56,7 +60,13 @@ import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.ThreadStore;
 import prerna.project.api.IProject;
+import prerna.reactor.IReactor;
+import prerna.sablecc2.PixelRunner;
+import prerna.sablecc2.PixelStreamUtility;
+import prerna.sablecc2.om.NounStore;
+import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -203,6 +213,83 @@ public class ProjectResource {
 		return WebUtility.getResponse(success, 200);
 	}
 	
+	@POST
+	@Path("/runReactor/{reactorName}")
+	@Produces("application/json;charset=utf-8")
+	public Response runReactor(@Context HttpServletRequest request, 
+			@PathParam("projectId") String projectId, 
+			@PathParam("reactorName") String reactorName) {
+		User user = null;
+		String sessionId = null;
+		try {
+			HttpSession session = request.getSession(false);
+			if(session == null){
+				throw new IllegalAccessException("User session is invalid");
+			}
+			sessionId = session.getId();
+			
+			user = (User) session.getAttribute(Constants.SESSION_USER);
+			if(user == null) {
+				throw new IllegalAccessException("User session is invalid");
+			}
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		try {
+			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
+			if(!isAdmin) {
+				boolean isOwner = SecurityProjectUtils.userIsOwner(user, projectId);
+				if(!isOwner) {
+					throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
+				}
+			}
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put("error", e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		IProject project = Utility.getProject(projectId);
+		String insightId = "TempInsight_" + UUID.randomUUID().toString();
+		Insight insight = new Insight();
+		insight.setInsightId(insightId);
+		insight.setUser(user);
+		// assume we have a json in the body being passed
+		try {
+			JsonObject jsonObject = JsonParser.parseReader(request.getReader()).getAsJsonObject();
+			NounStore nounStore = NounStore.flushJsonToNounStore(jsonObject);
+			IReactor reactor = project.getReactor(reactorName, null);
+			if(reactor == null) {
+				throw new IllegalArgumentException("Could not find custom reactor " + reactor + " in project " + projectId);
+			}
+			reactor.setNounStore(nounStore);
+			reactor.setInsight(insight);
+			
+			// set in thread
+			ThreadStore.setInsightId(insightId);
+			ThreadStore.setSessionId(sessionId);
+			ThreadStore.setUser(user);
+			
+			// run the reactor
+			NounMetadata retNoun = reactor.execute();
+			
+			// generate the pixel runner output structure
+			PixelRunner pixelRunner = new PixelRunner();
+			pixelRunner.setInsight(insight);
+			pixelRunner.addResult("", retNoun, false);
+			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, null))
+					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Pragma", "no-cache")
+					.build();
+		} catch (Exception e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+	}
 	
 	/*
 	* Code below is around retrieving app assets
