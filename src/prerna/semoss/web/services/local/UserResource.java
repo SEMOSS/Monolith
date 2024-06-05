@@ -101,7 +101,7 @@ import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.io.connector.twitter.TwitterSearcher;
 import prerna.om.NLPDocumentInput;
 import prerna.sablecc2.om.execptions.SemossPixelException;
-import prerna.security.AbstractHttpHelper;
+import prerna.security.HttpHelperUtility;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
@@ -386,7 +386,7 @@ public class UserResource {
 		params.put("access_token", accessString);
 		params.put("alt", "json");
 
-		String output = AbstractHttpHelper.makeGetCall(url, accessString, params, true);
+		String output = HttpHelperUtility.makeGetCall(url, accessString, params, true);
 		AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
 				new AccessToken());
 		try {
@@ -447,7 +447,7 @@ public class UserResource {
 			AccessToken msToken = semossUser.getAccessToken(AuthProvider.MS);
 			accessString = msToken.getAccess_token();
 			String url = "https://graph.microsoft.com/v1.0/me/";
-			String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
+			String output = HttpHelperUtility.makeGetCall(url, accessString, null, true);
 			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
 					new AccessToken());
 			String name = accessToken2.getName();
@@ -571,7 +571,7 @@ public class UserResource {
 		}
 		String url = "https://api.dropboxapi.com/2/users/get_current_account";
 
-		String output = AbstractHttpHelper.makePostCall(url, accessString, null, true);
+		String output = HttpHelperUtility.makePostCall(url, accessString, null, true);
 		AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
 				new AccessToken());
 		try {
@@ -641,7 +641,7 @@ public class UserResource {
 		String url = "https://api.github.com/user";
 
 
-		String output = AbstractHttpHelper.makeGetCall(url, accessString, null, true);
+		String output = HttpHelperUtility.makeGetCall(url, accessString, null, true);
 		AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
 				new AccessToken());
 		try {
@@ -704,7 +704,7 @@ public class UserResource {
 			AccessToken genericToken = semossUser.getAccessToken(providerEnum);
 			accessString = genericToken.getAccess_token();
 			//String url = "https://graph.microsoft.com/v1.0/me/";
-			String output = AbstractHttpHelper.makeGetCall(userInfoURL, accessString, null, true);
+			String output = HttpHelperUtility.makeGetCall(userInfoURL, accessString, null, true);
 			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr,
 					new AccessToken());
 			String name = accessToken2.getName();
@@ -756,7 +756,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				String prefix = "sf_";
 				String clientId = socialData.getProperty(prefix + "client_id");
@@ -777,7 +777,7 @@ public class UserResource {
 
 				String url = "https://login.salesforce.com/services/oauth2/token";
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -851,7 +851,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				String prefix = "surveymonkey_";
 				String clientId = socialData.getProperty(prefix + "client_id");
@@ -872,7 +872,7 @@ public class UserResource {
 
 				String url = "https://api.surveymonkey.com/oauth/token";
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -948,7 +948,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				String prefix = "github_";
 				String clientId = socialData.getProperty(prefix + "client_id");
@@ -969,7 +969,7 @@ public class UserResource {
 
 				String url = "https://github.com/login/oauth/access_token";
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, false, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -1060,7 +1060,7 @@ public class UserResource {
 
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
 				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
@@ -1080,7 +1080,7 @@ public class UserResource {
 				params.put("grant_type", "authorization_code");
 
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(token_url, params, true, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -1098,7 +1098,7 @@ public class UserResource {
 				String[] beanPropsArr = beanProps.split(",", -1);
 
 
-				String output = AbstractHttpHelper.makeGetCall(userinfo_url, accessToken.getAccess_token(), null, true);
+				String output = HttpHelperUtility.makeGetCall(userinfo_url, accessToken.getAccess_token(), null, true);
 				accessToken = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, accessToken);
 
 				addAccessToken(accessToken, request, autoAdd);
@@ -1124,7 +1124,7 @@ public class UserResource {
 		if(Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))){
 			//get groups
 			String group_url = socialData.getProperty(prefix + "group_url");
-			String groupsJson = AbstractHttpHelper.makeGetCall(group_url,  userObj.getAccessToken(AuthProvider.GITLAB).getAccess_token());
+			String groupsJson = HttpHelperUtility.makeGetCall(group_url,  userObj.getAccessToken(AuthProvider.GITLAB).getAccess_token());
 			System.out.println(groupsJson);
 			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
 			//String beanProps = socialData.getProperty(prefix + "groupBeanProps");
@@ -1200,7 +1200,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				String prefix = "ms_";
 				String clientId = socialData.getProperty(prefix + "client_id");
@@ -1229,7 +1229,7 @@ public class UserResource {
 					token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
 				}
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(token_url, params, true, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -1322,7 +1322,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.ADFS) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				String prefix = "adfs_";
 				String clientId = socialData.getProperty(prefix + "client_id");
@@ -1350,7 +1350,7 @@ public class UserResource {
 				}
 
 
-				AccessToken accessToken = AbstractHttpHelper.getIdToken(token_url, params, true, true);
+				AccessToken accessToken = HttpHelperUtility.getIdToken(token_url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -1456,7 +1456,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.SITEMINDER) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				String prefix = "siteminder_";
 				String clientId = socialData.getProperty(prefix + "client_id");
@@ -1482,7 +1482,7 @@ public class UserResource {
 				if(Strings.isNullOrEmpty(token_url)){
 					token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
 				}
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(token_url, params, true, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -1568,7 +1568,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				String prefix = "dropbox_";
 				String clientId = socialData.getProperty(prefix + "client_id");
@@ -1589,7 +1589,7 @@ public class UserResource {
 
 				String url = "https://www.dropbox.com/oauth2/token";
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -1667,7 +1667,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				String prefix = "google_";
 				String clientId = socialData.getProperty(prefix + "client_id");
@@ -1692,7 +1692,7 @@ public class UserResource {
 				String url = "https://www.googleapis.com/oauth2/v4/token";
 
 				// https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -1835,7 +1835,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				String prefix = "producthunt_";
 				String clientId = socialData.getProperty(prefix + "client_id");
@@ -1857,7 +1857,7 @@ public class UserResource {
 
 				String url = "https://api.producthunt.com/v1/oauth/token";
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -1934,7 +1934,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				String prefix = "in_";
 				String clientId = socialData.getProperty(prefix + "client_id");
@@ -1955,7 +1955,7 @@ public class UserResource {
 
 				String url = "https://www.linkedin.com/oauth/v2/accessToken";
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, true, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -2037,7 +2037,7 @@ public class UserResource {
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 				String prefix = "git_";
 				String clientId = socialData.getProperty(prefix + "client_id");
 				String clientSecret = socialData.getProperty(prefix + "secret_key");
@@ -2057,7 +2057,7 @@ public class UserResource {
 
 				String url = "https://github.com/login/oauth/access_token";
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(url, params, false, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, false, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -2156,7 +2156,7 @@ public class UserResource {
 		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(providerEnum) == null) {
-				String[] outputs = AbstractHttpHelper.getCodes(queryString);
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				String prefix = provider+"_";
 				String clientId = socialData.getProperty(prefix + "client_id");
@@ -2186,7 +2186,7 @@ public class UserResource {
 					throw new IllegalArgumentException("Token URL can not be null or empty");
 				}
 
-				AccessToken accessToken = AbstractHttpHelper.getAccessToken(token_url, params, true, true);
+				AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
 				if (accessToken == null) {
 					// not authenticated
 					response.setStatus(302);
@@ -2232,7 +2232,7 @@ public class UserResource {
 			String group_url = socialData.getProperty(prefix + "group_url");
 
 			// make the call to get the groups
-			String groupsJson = AbstractHttpHelper.makeGetCall(group_url,  userObj.getAccessToken(providerEnum).getAccess_token());
+			String groupsJson = HttpHelperUtility.makeGetCall(group_url,  userObj.getAccessToken(providerEnum).getAccess_token());
 
 			// this is a check for sanitizing a response back from an IAM provider - not common and should be false
 			// examples would be unescaped special chars in the response that then can't be parsed into a json. 
