@@ -79,11 +79,11 @@ import prerna.web.services.util.WebUtility;
 @Path("/project-{projectId}")
 public class ProjectResource {
 
+	private static final Logger classLogger = LogManager.getLogger(ProjectResource.class);
+
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 	private static String defaultEmbedLogo = null;
 	private static boolean noLogo = false;
-	
-	private static final Logger logger = LogManager.getLogger(ProjectResource.class);
 	
 	private boolean canAccessProject(User user, String projectId) throws IllegalAccessException {
 		projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
@@ -182,20 +182,20 @@ public class ProjectResource {
 			}
 			project.open(currentSmssFileLocation);
 		} catch(Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			// reset the values
 			try {
 				project.close();
 			} catch (IOException e1) {
 				// will ignore this and try to reopen the project
-				logger.error(Constants.STACKTRACE, e1);
+				classLogger.error(Constants.STACKTRACE, e1);
 			}
 			currentSmssFile.delete();
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
 				fw.write(currentSmssContent);
 				project.open(currentSmssFileLocation);
 			} catch(Exception e2) {
-				logger.error(Constants.STACKTRACE, e2);
+				classLogger.error(Constants.STACKTRACE, e2);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "A fatal error occurred and could not revert the project to an operational state. Detailed message = " + e2.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
@@ -533,7 +533,7 @@ public class ProjectResource {
 				selectors.put(CouchUtil.PROJECT, projectId);
 				return CouchUtil.download(CouchUtil.PROJECT, selectors);
 			} catch (CouchException e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
 		
@@ -541,7 +541,7 @@ public class ProjectResource {
 		try {
 			exportFile = getProjectImageFile(projectId);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
@@ -598,7 +598,7 @@ public class ProjectResource {
 			if(!f.exists()) {
 			Boolean success = f.mkdirs();
 			if(!success) {
-				logger.info("Unable to make direction at location: " + Utility.cleanLogString(fileLocation));
+				classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(fileLocation));
 			}
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
@@ -643,7 +643,7 @@ public class ProjectResource {
 				selectors.put(CouchUtil.PROJECT, projectId);
 				return CouchUtil.download(CouchUtil.INSIGHT, selectors);
 			} catch (CouchException e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
 		
@@ -773,7 +773,7 @@ public class ProjectResource {
 			try {
 				fis.close();
 			} catch (IOException e) {
-	    		logger.error(Constants.STACKTRACE, e);
+	    		classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
 	}
@@ -817,7 +817,7 @@ public class ProjectResource {
 				// return file
 				return Response.status(200).entity(byteArray).build();
 			} catch (IOException e) {
-	    		logger.error(Constants.STACKTRACE, e);
+	    		classLogger.error(Constants.STACKTRACE, e);
 			} finally {
 				closeStream(fis);
 			}
@@ -864,7 +864,7 @@ public class ProjectResource {
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
-	    		logger.error(Constants.STACKTRACE, e);
+	    		classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
 		
@@ -890,19 +890,19 @@ public class ProjectResource {
 			paramMap.put("insightId", "new");
 			paramMap.put("expression", pixel);
 			requestWrapper.setParameters(paramMap);
-			logger.info("Executing open insight - jdbc");
+			classLogger.info("Executing open insight - jdbc");
 			Response resp = server.runPixelSync(requestWrapper);
-			logger.info("Done executing open insight - jdbc");
+			classLogger.info("Done executing open insight - jdbc");
 
 			StreamingOutput utility = (StreamingOutput) resp.getEntity();
 			try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
 				utility.write(output);
 				String s = new String(output.toByteArray());
 				JSONObject obj = new JSONObject(s);
-				logger.info("Done flushing open insight data to JSON");
+				classLogger.info("Done flushing open insight data to JSON");
 				insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
 			} catch (WebApplicationException | IOException e) {
-	    		logger.error(Constants.STACKTRACE, e);
+	    		classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
 		// now we have the insight id.. execute
@@ -978,7 +978,7 @@ public class ProjectResource {
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
-	    		logger.error(Constants.STACKTRACE, e);
+	    		classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
 
@@ -991,19 +991,19 @@ public class ProjectResource {
 			paramMap.put("insightId", "new");
 			paramMap.put("expression", pixel);
 			requestWrapper.setParameters(paramMap);
-			logger.info("Executing open insight - jdbc_json");
+			classLogger.info("Executing open insight - jdbc_json");
 			Response resp = server.runPixelSync(requestWrapper);
-			logger.info("Done executing open insight - jdbc_json");
+			classLogger.info("Done executing open insight - jdbc_json");
 
 			StreamingOutput utility = (StreamingOutput) resp.getEntity();
 			try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
 				utility.write(output);
 				String s = new String(output.toByteArray());
 				JSONObject obj = new JSONObject(s);
-				logger.info("Done flushing open insight data to JSON");
+				classLogger.info("Done flushing open insight data to JSON");
 				insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
 			} catch (WebApplicationException | IOException e) {
-	    		logger.error(Constants.STACKTRACE, e);
+	    		classLogger.error(Constants.STACKTRACE, e);
 			}
 		}			
 		Insight insight = InsightStore.getInstance().get(insightId);
@@ -1077,7 +1077,7 @@ public class ProjectResource {
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
 
@@ -1091,19 +1091,19 @@ public class ProjectResource {
 			paramMap.put("insightId", "new");
 			paramMap.put("expression", pixel);
 			requestWrapper.setParameters(paramMap);
-			logger.info("Executing open insight - jdbc_csv");
+			classLogger.info("Executing open insight - jdbc_csv");
 			Response resp = server.runPixelSync(requestWrapper);
-			logger.info("Done executing open insight - jdbc_csv");
+			classLogger.info("Done executing open insight - jdbc_csv");
 
 			StreamingOutput utility = (StreamingOutput) resp.getEntity();
 			try (ByteArrayOutputStream output = new ByteArrayOutputStream()){
 				utility.write(output);
 				String s = new String(output.toByteArray());
 				JSONObject obj = new JSONObject(s);
-				logger.info("Done flushing open insight data to JSON");
+				classLogger.info("Done flushing open insight data to JSON");
 				insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output").getJSONObject("insightData").getString("insightID");
 			} catch (WebApplicationException | IOException e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
 
