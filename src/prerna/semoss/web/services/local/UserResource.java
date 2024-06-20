@@ -2203,7 +2203,7 @@ public class UserResource {
 				
 				// this is a check for sanitizing a response back from an IAM provider - not common and should be false
 				// examples would be unescaped special chars in the response that then can't be parsed into a json. 
-				// this is not very common
+				// this is not very common.
 				boolean sanitizeResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeUserResponse"));
 				
 				GenericProfile.fillAccessToken(accessToken,userInfoURL, beanProps, jsonPattern, null, sanitizeResponse);
