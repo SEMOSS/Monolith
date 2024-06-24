@@ -91,7 +91,7 @@ import prerna.sablecc2.comm.JobManager;
 import prerna.sablecc2.comm.JobStatus;
 import prerna.sablecc2.comm.JobThread;
 import prerna.semoss.web.services.remote.CentralNameServer;
-import prerna.semoss.web.services.remote.EngineRemoteResource;
+// import prerna.semoss.web.services.remote.EngineRemoteResource;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
@@ -859,17 +859,17 @@ public class NameServer {
 		return res;
 	}
 
-	@Path("s-{engine}")
-	public Object getEngineProxy(@PathParam("engine") String db, @Context HttpServletRequest request) {
-		// this is the name server
-		// this needs to return stuff
-		logger.debug(" Getting DB... " + db);
-		HttpSession session = request.getSession();
-		IEngine engine = (IEngine) session.getAttribute(db);
-		EngineRemoteResource res = new EngineRemoteResource();
-		res.setEngine(engine);
-		return res;
-	}
+	// @Path("s-{engine}")
+	// public Object getEngineProxy(@PathParam("engine") String db, @Context HttpServletRequest request) {
+	// 	// this is the name server
+	// 	// this needs to return stuff
+	// 	logger.debug(" Getting DB... " + db);
+	// 	HttpSession session = request.getSession();
+	// 	IEngine engine = (IEngine) session.getAttribute(db);
+	// 	EngineRemoteResource res = new EngineRemoteResource();
+	// 	res.setEngine(engine);
+	// 	return res;
+	// }
 
 	// Controls all calls controlling the central name server
 	@Path("centralNameServer")
