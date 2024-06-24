@@ -643,7 +643,7 @@
       <cookie-config>
          <name>monolith</name>
          <http-only>false</http-only>
-         <secure>false</secure>
+         <secure>true</secure>
 	  </cookie-config>
    </session-config>
 </web-app>
