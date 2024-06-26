@@ -107,7 +107,7 @@ public class WebUtility {
 		if(fileLocation != null)
 		{
 			try {
-				File daFile = new File(fileLocation);
+				File daFile = new File(Utility.normalizePath(fileLocation));
 				FileReader fr = new FileReader(daFile);
 				BufferedReader br = new BufferedReader(fr);
 				return new StreamingOutput() {
