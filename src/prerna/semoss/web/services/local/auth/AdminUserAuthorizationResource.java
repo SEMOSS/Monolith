@@ -328,14 +328,17 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> ret = adminUtils.getAllUsers(-1, -1);
+		List<Map<String, Object>> ret = adminUtils.getAllUsers(null, -1, -1);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
 	@GET
 	@Path("/getAllUsers")
 	@Produces("application/json")
-	public Response getAllUsers(@Context HttpServletRequest request, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response searchTerm(@Context HttpServletRequest request, 
+			@QueryParam("filterWord") String searchTerm,
+			@QueryParam("limit") long limit, 
+			@QueryParam("offset") long offset) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -348,7 +351,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> ret = adminUtils.getAllUsers(limit, offset);
+		List<Map<String, Object>> ret = adminUtils.getAllUsers(searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 }
