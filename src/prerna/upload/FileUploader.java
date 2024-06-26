@@ -374,7 +374,7 @@ public class FileUploader extends Uploader {
 //				}
 //				fileLocation = filePath + DIR_SEPARATOR + fileSuffix;
 				
-				String fileLocation = Utility.getUniqueFilePath(filePath, name);
+				String fileLocation = Utility.normalizePath(Utility.getUniqueFilePath(filePath, name));
 				File file = new File(fileLocation);
 				
 				// instead of adding unique
@@ -436,7 +436,7 @@ public class FileUploader extends Uploader {
 				Map<String, Collection<String>> viruses = VirusScannerUtils.getViruses(fi.getName(), fi.getInputStream());
 				
 				if (!viruses.isEmpty()) {
-					classLogger.warn("Virus scanner errors map for " + fi.getName() + " : " + viruses);
+					classLogger.warn(Utility.cleanLogString("Virus scanner errors map for " + fi.getName() + " : " + viruses));
 					String error = "Detected " + viruses.size() + " virus";
 					
 					if (viruses.size() > 1) {
