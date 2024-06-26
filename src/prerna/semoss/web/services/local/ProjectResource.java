@@ -321,7 +321,7 @@ public class ProjectResource {
 		
 		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId, projectName)
 								+ DIR_SEPARATOR + "app_root/version/assets/landing.html";
-		File file = new File(fileLocation);
+		File file = new File(Utility.normalizePath(fileLocation));
 		if(file != null && file.exists()) {
 		    try {
 		    	String html = FileUtils.readFileToString(file, "UTF-8");

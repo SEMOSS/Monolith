@@ -88,7 +88,7 @@ public abstract class Uploader extends HttpServlet {
 
 	public void writeFile(FileItem fi, File file){
 		try {
-			fi.write(file);
+			fi.write(new File(Utility.normalizePath(file.getAbsolutePath())));
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 		}
