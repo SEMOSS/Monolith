@@ -52,6 +52,7 @@ import org.json.JSONObject;
 
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.util.Constants;
 import prerna.web.requests.OverrideParametersServletRequest;
 import prerna.web.services.util.WebUtility;
 
@@ -90,7 +91,7 @@ public class APIResource {
 				}
 			} catch (IOException e1) {
 				// TODO Auto-generated catch block
-				e1.printStackTrace();
+				logger.error(Constants.STACKTRACE, e1);
 			}
 		}
 
@@ -128,7 +129,7 @@ public class APIResource {
 		} 
 		catch (WebApplicationException | IOException e) 
 		{
-			e.printStackTrace();
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		Insight insight = InsightStore.getInstance().get(insightId);
