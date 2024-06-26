@@ -450,7 +450,8 @@ public class FileUploader extends Uploader {
 			} catch(VirusScanningException e) {
 				throw e;
 			} catch (IOException e) {
-				throw new IllegalArgumentException("Could not read file item.", e);
+				classLogger.error(Constants.STACKTRACE, e);
+				throw new IllegalArgumentException("Could not read file item.");
 			}
 		}
 	}
