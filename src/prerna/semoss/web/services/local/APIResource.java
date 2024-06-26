@@ -53,6 +53,7 @@ import org.json.JSONObject;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.requests.OverrideParametersServletRequest;
 import prerna.web.services.util.WebUtility;
 
@@ -77,13 +78,13 @@ public class APIResource {
 			@Context HttpServletResponse response,
 			@Context ResourceContext resourceContext) 
 	{
-		String sql = request.getParameter("sql");
+		String sql = Utility.inputSanitizer(request.getParameter("sql"));
 
 		// get the insight from the session
 		if (sql == null) 
 		{
 			try {
-				sql = IOUtils.toString(request.getReader());
+				sql =Utility.inputSanitizer( IOUtils.toString(request.getReader()));
 				if (sql != null && sql.length() != 0) {
 					sql = sql.replace("'", "\\\'");
 					sql = sql.replace("\"", "\\\"");

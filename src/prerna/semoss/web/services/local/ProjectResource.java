@@ -860,7 +860,7 @@ public class ProjectResource {
 		
 		if(sql == null) {
 			try {
-				sql = IOUtils.toString(request.getReader());
+				sql = Utility.inputSanitizer( IOUtils.toString(request.getReader()));
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
@@ -974,7 +974,7 @@ public class ProjectResource {
 		
 		if(sql == null) {
 			try {
-				sql = IOUtils.toString(request.getReader());
+				sql = Utility.inputSanitizer( IOUtils.toString(request.getReader()));
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
@@ -1073,7 +1073,7 @@ public class ProjectResource {
 
 		if(sql == null) {
 			try {
-				sql = IOUtils.toString(request.getReader());
+				sql = Utility.inputSanitizer(IOUtils.toString(request.getReader()));
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
