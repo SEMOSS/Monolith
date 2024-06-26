@@ -40,9 +40,9 @@ public class FilespaceAccessFilter implements Filter {
 				int appRootIndex = appHome.indexOf("/");
 				if(appRootIndex >= 0) {
 					String appRoot = appHome.substring(0, appRootIndex);
-					//String [] appRootElements = appRoot.split("__");
+					String [] appRootElements = appRoot.split("__");
 					User user = (User) hsr.getSession().getAttribute(Constants.SESSION_USER);
-					if(SecurityProjectUtils.userCanViewProject(user, appRoot)) {
+					if(SecurityProjectUtils.userCanViewProject(user, appRootElements[1])) {
 						chain.doFilter(request, response);
 					} else {
 						((HttpServletResponse)response).sendError(HttpServletResponse.SC_FORBIDDEN, " You are not allowed to access that resource ");;
