@@ -312,7 +312,7 @@ public class EngineRouteResource {
 		extensions.add("image.gif");
 		extensions.add("image.svg");
 		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
-		File baseFolder = new File(folderDirectory);
+		File baseFolder = new File(Utility.normalizePath(folderDirectory));
 		File[] imageFiles = baseFolder.listFiles(imageExtensionFilter);
 		if(imageFiles != null && imageFiles.length > 0) {
 			return imageFiles[0];
