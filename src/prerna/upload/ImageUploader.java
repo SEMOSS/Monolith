@@ -147,7 +147,7 @@ public class ImageUploader extends Uploader {
 		{
 			// remove the old image files in the version folder
 			// and push new one to the version folder
-			File engineVersionF = new File(engineVersionPath);
+			File engineVersionF = new File(Utility.normalizePath(engineVersionPath));
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if(!success) {
@@ -303,7 +303,7 @@ public class ImageUploader extends Uploader {
 		{
 			// remove the old image files in the version folder
 			// and push new one to the version folder
-			File engineVersionF = new File(engineVersionPath);
+			File engineVersionF = new File(Utility.normalizePath(engineVersionPath));
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if(!success) {
@@ -342,7 +342,7 @@ public class ImageUploader extends Uploader {
 			}
 		} else if(ClusterUtil.IS_CLUSTER) {
 			// we need to push to the engine specific image folder
-			File localCloudImageF = new File(localEngineImageFolderPath);
+			File localCloudImageF = new File(Utility.normalizePath(localEngineImageFolderPath));
 			// find all the image files and delete them
 			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {
 				
@@ -469,7 +469,7 @@ public class ImageUploader extends Uploader {
 			String imageDir = getProjectImageDir(filePath, projectId, projectName);
 			String imageLoc = getProjectImageLoc(filePath, projectId, projectName, imageFile);
 			
-			File f = new File(imageDir);
+			File f = new File(Utility.normalizePath(imageDir));
 			if (!f.exists()) {
 				Boolean success = f.mkdirs();
 				if(!success) {
@@ -572,7 +572,7 @@ public class ImageUploader extends Uploader {
 		}
 		
 		String imageDir = getProjectImageDir(filePath, projectId, projectName);
-		File f = new File(imageDir);
+		File f = new File(Utility.normalizePath(imageDir));
 		File[] oldImages = null;
 		if (ClusterUtil.IS_CLUSTER) {
 			FilenameFilter appIdFilter = new WildcardFileFilter(projectId + "*");
@@ -984,7 +984,7 @@ public class ImageUploader extends Uploader {
 		{
 			// remove the old image files in the version folder
 			// and push new one to the version folder
-			File engineVersionF = new File(engineVersionPath);
+			File engineVersionF = new File( Utility.normalizePath(engineVersionPath));
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if(!success) {
@@ -1030,7 +1030,7 @@ public class ImageUploader extends Uploader {
 			}
 		} else if(ClusterUtil.IS_CLUSTER) {
 			// we need to push to the engine specific image folder
-			File localCloudImageF = new File(localEngineImageFolderPath);
+			File localCloudImageF = new File( Utility.normalizePath(localEngineImageFolderPath));
 			File newImageFileInCloudFolder = new File(Utility.normalizePath(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType));
 			
 			// find all the image files and delete them
@@ -1148,7 +1148,7 @@ public class ImageUploader extends Uploader {
 		{
 			// remove the old image files in the version folder
 			// and push new one to the version folder
-			File engineVersionF = new File(engineVersionPath);
+			File engineVersionF = new File(Utility.normalizePath(engineVersionPath));
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if(!success) {
@@ -1187,7 +1187,7 @@ public class ImageUploader extends Uploader {
 			}
 		} else if(ClusterUtil.IS_CLUSTER) {
 			// we need to push to the engine specific image folder
-			File localCloudImageF = new File(localEngineImageFolderPath);
+			File localCloudImageF = new File(Utility.normalizePath(localEngineImageFolderPath));
 			// find all the image files and delete them
 			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {
 				
