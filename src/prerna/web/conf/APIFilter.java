@@ -70,7 +70,7 @@ public class APIFilter implements Filter {
 				}
 			} catch (IOException e1) {
 				// TODO Auto-generated catch block
-				e1.printStackTrace();
+				classLogger.error(Constants.STACKTRACE, e1);
 			}
 		}
 
