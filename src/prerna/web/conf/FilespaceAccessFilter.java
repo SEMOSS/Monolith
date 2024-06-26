@@ -11,12 +11,17 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import prerna.auth.User;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.util.Constants;
 
 public class FilespaceAccessFilter implements Filter {
 	
+	private static final Logger classLogger = LogManager.getLogger(FilespaceAccessFilter.class);
+
 	@Override
 	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
 		try {
@@ -35,9 +40,9 @@ public class FilespaceAccessFilter implements Filter {
 				int appRootIndex = appHome.indexOf("/");
 				if(appRootIndex >= 0) {
 					String appRoot = appHome.substring(0, appRootIndex);
-					String [] appRootElements = appRoot.split("__");
+					//String [] appRootElements = appRoot.split("__");
 					User user = (User) hsr.getSession().getAttribute(Constants.SESSION_USER);
-					if(SecurityProjectUtils.userCanViewProject(user, appRootElements[1])) {
+					if(SecurityProjectUtils.userCanViewProject(user, appRoot)) {
 						chain.doFilter(request, response);
 					} else {
 						((HttpServletResponse)response).sendError(HttpServletResponse.SC_FORBIDDEN, " You are not allowed to access that resource ");;
@@ -45,7 +50,7 @@ public class FilespaceAccessFilter implements Filter {
 				}
 			}
 		} catch(Exception ex) {
-			ex.printStackTrace();
+			classLogger.error(Constants.STACKTRACE, ex);
 		}
 	}
 
