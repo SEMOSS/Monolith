@@ -193,8 +193,8 @@ public class ImageUploader extends Uploader {
 			}
 		} else if(ClusterUtil.IS_CLUSTER) {
 			// we need to push to the engine specific image folder
-			File localCloudImageF = new File(localEngineImageFolderPath);
-			File newImageFileInCloudFolder = new File(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType);
+			File localCloudImageF = new File(Utility.normalizePath( localEngineImageFolderPath));
+			File newImageFileInCloudFolder = new File(Utility.normalizePath(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType));
 			
 			// find all the image files and delete them
 			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {
@@ -1031,7 +1031,7 @@ public class ImageUploader extends Uploader {
 		} else if(ClusterUtil.IS_CLUSTER) {
 			// we need to push to the engine specific image folder
 			File localCloudImageF = new File(localEngineImageFolderPath);
-			File newImageFileInCloudFolder = new File(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType);
+			File newImageFileInCloudFolder = new File(Utility.normalizePath(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType));
 			
 			// find all the image files and delete them
 			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {

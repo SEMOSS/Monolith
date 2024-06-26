@@ -230,7 +230,7 @@ public class NameServer {
 
 		try {
 			String filePath = insight.getExportFileLocation(fileKey);
-			File exportFile = new File(filePath);
+			File exportFile = new File(Utility.normalizePath(filePath));
 			if (!exportFile.exists()) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Could not find the file for given file id");
