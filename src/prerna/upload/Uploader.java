@@ -47,6 +47,7 @@ import prerna.cache.ICache;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 /**
  * Servlet implementation class Uploader
@@ -69,7 +70,7 @@ public abstract class Uploader extends HttpServlet {
 	
 	public static String normalizeAndCreatePath(String filePath) {
 		// first, normalize path
-		String normalizedfilePath = Utility.normalizePath(filePath);
+		String normalizedfilePath = WebUtility.normalizePath(filePath);
 
 		// then set path
 		if(!normalizedfilePath.endsWith(DIR_SEPARATOR)) {
@@ -88,7 +89,7 @@ public abstract class Uploader extends HttpServlet {
 
 	public void writeFile(FileItem fi, File file){
 		try {
-			fi.write(new File(Utility.normalizePath(file.getAbsolutePath())));
+			fi.write(new File(WebUtility.normalizePath(file.getAbsolutePath())));
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 		}
@@ -97,7 +98,7 @@ public abstract class Uploader extends HttpServlet {
 	protected void deleteFilesFromServer(String[] files) {
 		for(String file : files) {
 			// first, normalize path
-			String normalizedFile = Utility.normalizePath(file);
+			String normalizedFile = WebUtility.normalizePath(file);
 
 			// then delete
 			File f = new File(normalizedFile);
