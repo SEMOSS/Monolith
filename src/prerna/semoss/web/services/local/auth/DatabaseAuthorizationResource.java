@@ -30,6 +30,7 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/app")
@@ -80,6 +81,7 @@ public class DatabaseAuthorizationResource {
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
+		searchTerm = Utility.inputSanitizer(searchTerm);
 		if(searchTerm != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
