@@ -384,11 +384,7 @@ public class NameServer {
 			}
 		}
 		
-		int secondsForExpiration = session.getMaxInactiveInterval();
-		long curTime = System.currentTimeMillis();
-		long lastTime = session.getLastAccessedTime();
-		long sessionTimeRemaining = (long) secondsForExpiration - (long) ( (curTime - lastTime) /1000 );
-		return runPixelJob(user, insight, expression, jobId, insightId, sessionId, routeId, dropLogging, sessionTimeRemaining);
+		return runPixelJob(user, insight, expression, jobId, insightId, sessionId, routeId, dropLogging);
 	}
 
 	@POST
@@ -441,7 +437,7 @@ public class NameServer {
 	 * @return
 	 */
 	public static Response runPixelJob(User user, Insight insight, String expression, String jobId, 
-			String insightId, String sessionId, String routeId, boolean dropLogging, long sessionTimeRemaining) {
+			String insightId, String sessionId, String routeId, boolean dropLogging) {
 		JobManager manager = JobManager.getManager();
 		JobThread jt = manager.makeJob(insightId);
 		jobId = jt.getJobId();
@@ -469,7 +465,7 @@ public class NameServer {
 		PixelRunner pixelRunner = jt.getRunner();
 		
 		try {
-			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, sessionTimeRemaining))
+			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
 					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 					.header("Pragma", "no-cache")
 					.build();
@@ -619,6 +615,20 @@ public class NameServer {
 			dataReturn = JobManager.getManager().getOutput(jobId);
 		}
 		return WebUtility.getSO(dataReturn);
+	}
+	
+	@POST
+	@Path("/result2")
+	@Produces("application/json")
+	public StreamingOutput result2(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		HttpSession session = request.getSession(true);
+		String jobId = form.getFirst("jobId");
+		if (session.getAttribute(jobId) == null) {
+			return WebUtility.getSO("NULL");
+		}
+
+		PixelRunner dataReturn = JobManager.getManager().getOutput(jobId);
+		return PixelStreamUtility.collectPixelData(dataReturn);
 	}
 
 	// is the status of the operation
