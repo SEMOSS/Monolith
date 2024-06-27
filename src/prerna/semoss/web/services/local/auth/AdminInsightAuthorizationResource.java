@@ -51,6 +51,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm, 
 			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    searchTerm=WebUtility.inputSanitizer(searchTerm);
+
+		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -85,6 +90,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@Path("getProjectInsights")
 	public Response getProjectInsights(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    searchTerm=WebUtility.inputSanitizer(searchTerm);
+
+	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -199,6 +209,12 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, 
 			@QueryParam("offset") long offset) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    userId=WebUtility.inputSanitizer(userId);
+	    insightId=WebUtility.inputSanitizer(insightId);
+	    permission=WebUtility.inputSanitizer(permission);
+		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -653,6 +669,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    insightId=WebUtility.inputSanitizer(insightId);
+	    searchTerm=WebUtility.inputSanitizer(searchTerm);
+	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {

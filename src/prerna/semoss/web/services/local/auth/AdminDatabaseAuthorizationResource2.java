@@ -211,6 +211,11 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
 
+		databaseId=WebUtility.inputSanitizer(databaseId);
+	    userId=WebUtility.inputSanitizer(userId);
+	    userInfo=WebUtility.inputSanitizer(userInfo);
+	    permission=WebUtility.inputSanitizer(permission);
+	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
