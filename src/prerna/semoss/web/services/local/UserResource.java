@@ -755,7 +755,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -850,7 +850,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -946,7 +946,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -1056,7 +1056,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -1198,7 +1198,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -1320,7 +1320,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -1454,7 +1454,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -1566,7 +1566,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -1665,7 +1665,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -1833,7 +1833,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -1932,7 +1932,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -2034,7 +2034,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -2156,7 +2156,7 @@ public class UserResource {
 		if(session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect != null && !customRedirect.isEmpty()) {
 			if(session == null) {
 				session = request.getSession();
@@ -2384,7 +2384,7 @@ public class UserResource {
 		try {
 			String username = WebUtility.inputSanitizer(request.getParameter("username"));
 			String password = request.getParameter("password");
-			String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+			String redirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
@@ -2601,7 +2601,7 @@ public class UserResource {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String redirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		// so that the default is to redirect
 		Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 		boolean autoAdd = Boolean.parseBoolean(socialData.getProperty("linotp_auto_add", "true"));
@@ -2907,7 +2907,7 @@ public class UserResource {
 	 * @param response
 	 */
 	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		String customRedirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if(customRedirect == null || customRedirect.isEmpty()) {
 			customRedirect = (String) request.getSession().getAttribute(CUSTOM_REDIRECT_SESSION_KEY);
 			// also remove the attribute so additional logins dont do the redirect as well
