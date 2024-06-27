@@ -93,7 +93,7 @@ public class ImageUploader extends Uploader {
 		
 		for (FileItem fi : fileItems) {
 			String fieldName = fi.getFieldName();
-			String value = fi.getString();
+			String value = WebUtility.inputSanitizer(fi.getString());
 			if (fieldName.equals("file")) {
 				imageFile = fi;
 			}
@@ -428,7 +428,7 @@ public class ImageUploader extends Uploader {
 
 		for (FileItem fi : fileItems) {
 			String fieldName = fi.getFieldName();
-			String value = fi.getString();
+			String value = WebUtility.inputSanitizer(fi.getString());
 			if (fieldName.equals("file")) {
 				imageFile = fi;
 			}
@@ -671,7 +671,7 @@ public class ImageUploader extends Uploader {
 
 		for (FileItem fi : fileItems) {
 			String fieldName = fi.getFieldName();
-			String value = fi.getString();
+			String value = WebUtility.inputSanitizer(fi.getString());
 			if (fieldName.equals("file")) {
 				imageFile = fi;
 			}
@@ -927,7 +927,7 @@ public class ImageUploader extends Uploader {
 		
 		for (FileItem fi : fileItems) {
 			String fieldName = fi.getFieldName();
-			String value = fi.getString();
+			String value = WebUtility.inputSanitizer(fi.getString());
 			if (fieldName.equals("file")) {
 				imageFile = fi;
 			}

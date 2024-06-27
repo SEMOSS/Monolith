@@ -173,6 +173,8 @@ public class UserResource {
 			@Context HttpServletResponse response) throws IOException {
 		boolean noUser = false;
 		boolean removed = false;
+	    
+		provider=WebUtility.inputSanitizer(provider);
 
 		HttpSession session = request.getSession();
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
@@ -661,6 +663,10 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/userinfo/{provider}")
 	public Response userinfoGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request) {
+		
+		provider=WebUtility.inputSanitizer(provider);
+
+	    
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
 		Map<String, String> ret = new Hashtable<>();
 		HttpSession session = request.getSession(false);
@@ -756,7 +762,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -851,7 +857,7 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -948,7 +954,7 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -1058,7 +1064,7 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		String prefix = "gitlab_";
 
 		if (queryString != null && queryString.contains("code=")) {
@@ -1200,7 +1206,7 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -1322,7 +1328,7 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.ADFS) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -1456,7 +1462,7 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.SITEMINDER) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -1568,7 +1574,7 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -1667,7 +1673,7 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -1835,7 +1841,7 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -1934,7 +1940,7 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -2036,7 +2042,7 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 
@@ -2141,6 +2147,8 @@ public class UserResource {
 		 * Redirect the FE
 		 */
 
+		provider=WebUtility.inputSanitizer(provider);
+		
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
 
 		HttpSession session = request.getSession(false);
@@ -2156,7 +2164,7 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = request.getQueryString();
+		String queryString = WebUtility.inputSanitizer(request.getQueryString());
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(providerEnum) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -2816,6 +2824,9 @@ public class UserResource {
 	@Path("/modifyLoginProperties/{provider}")
 	public synchronized Response modifyLoginProperties(@PathParam("provider") String provider,
 			MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		
+		provider=WebUtility.inputSanitizer(provider);
+		
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if (user == null) {
 			return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
