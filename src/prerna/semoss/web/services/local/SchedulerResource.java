@@ -3,6 +3,7 @@ package prerna.semoss.web.services.local;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -15,6 +16,7 @@ import prerna.rpa.config.JobConfigKeys;
 import prerna.web.requests.OverrideParametersServletRequest;
 
 @Path("/schedule")
+@PermitAll
 public class SchedulerResource {
 
 	@POST

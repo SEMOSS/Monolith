@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
@@ -73,6 +74,7 @@ import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
+@PermitAll
 @Deprecated
 public class OldEngineResource {
 

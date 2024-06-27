@@ -6,6 +6,7 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
@@ -35,6 +36,7 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/user")
+@PermitAll
 public class UserAuthorizationResource extends AbstractAdminResource {
 	
 	private static final Logger classLogger = LogManager.getLogger(UserAuthorizationResource.class);

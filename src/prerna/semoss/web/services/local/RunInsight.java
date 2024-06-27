@@ -3,6 +3,7 @@ package prerna.semoss.web.services.local;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -19,6 +20,7 @@ import prerna.sablecc2.PixelStreamUtility;
 import prerna.util.insight.InsightUtility;
 import prerna.web.requests.OverrideParametersServletRequest;
 
+@PermitAll
 public class RunInsight {
 
 	private static final Logger classLogger = LogManager.getLogger(RunInsight.class);

@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
@@ -51,6 +52,7 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/uploadFile")
+@PermitAll
 public class FileUploader extends Uploader {
 
 	private static final Logger classLogger = LogManager.getLogger(FileUploader.class);

@@ -6,6 +6,7 @@ import java.util.Hashtable;
 import java.util.Map;
 import java.util.TreeMap;
 
+import javax.annotation.security.PermitAll;
 import javax.naming.InvalidNameException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -35,6 +36,7 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/form")
+@PermitAll
 public class FormResource {
 
 	private static final Logger logger = LogManager.getLogger(FormResource.class);
