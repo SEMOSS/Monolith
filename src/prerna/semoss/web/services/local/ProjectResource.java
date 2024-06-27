@@ -963,6 +963,11 @@ public class ProjectResource {
 			@QueryParam("sql") String  sql, @Context HttpServletRequest request, 
 			@Context ResourceContext resourceContext) 
 	{
+		
+		projectId=Utility.inputSanitizer(projectId);
+		sql=Utility.inputSanitizer(sql);
+		insightId=Utility.inputSanitizer(insightId);
+		
 		if(projectId == null) {
 			projectId = "session";
 		}
@@ -1063,6 +1068,10 @@ public class ProjectResource {
 			@Context HttpServletRequest request, 
 			@Context ResourceContext resourceContext) 
 	{
+		projectId=Utility.inputSanitizer(projectId);
+		sql=Utility.inputSanitizer(sql);
+		insightId=Utility.inputSanitizer(insightId);
+		
 		if(projectId == null) {
 			projectId = "session";
 		}
@@ -1071,7 +1080,7 @@ public class ProjectResource {
 		if(session == null) {
 			return WebUtility.getSO("You are not authorized");
 		}
-		sql=Utility.inputSanitizer(sql);
+
 		if(sql == null) {
 			try {
 				sql = Utility.inputSanitizer(IOUtils.toString(request.getReader()));
