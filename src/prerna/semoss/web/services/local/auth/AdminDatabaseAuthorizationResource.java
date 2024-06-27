@@ -26,6 +26,7 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.engine.api.IEngine;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/app")
@@ -594,7 +595,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(appId, searchTerm, limit, offset);
+		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(appId, Utility.inputSanitizer(searchTerm), limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 	
