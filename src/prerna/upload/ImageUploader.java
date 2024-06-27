@@ -241,7 +241,7 @@ public class ImageUploader extends Uploader {
 	public Response deleteEngineImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 		
-		String engineId =  Utility.inputSanitizer(request.getParameter("engineId"));
+		String engineId =  WebUtility.inputSanitizer(request.getParameter("engineId"));
 		if(engineId == null) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
@@ -521,7 +521,7 @@ public class ImageUploader extends Uploader {
 		// base path is the project folder
 		String filePath = Utility.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
 
-		String projectId = Utility.inputSanitizer(request.getParameter("projectId"));
+		String projectId = WebUtility.inputSanitizer(request.getParameter("projectId"));
 		String projectName = null;
 		if(projectId == null) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper project id to remove the image");
@@ -766,9 +766,9 @@ public class ImageUploader extends Uploader {
 	public Response deleteInsightImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		String projectId = Utility.inputSanitizer(request.getParameter("projectId"));
+		String projectId = WebUtility.inputSanitizer(request.getParameter("projectId"));
 		String projectName = null;
-		String insightId = Utility.inputSanitizer(request.getParameter("insightId"));
+		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
 		if(projectId == null) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper project id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
@@ -1083,9 +1083,9 @@ public class ImageUploader extends Uploader {
 	public Response deleteDatabaseImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 		
-		String engineId = Utility.inputSanitizer(request.getParameter("engineId"));
+		String engineId = WebUtility.inputSanitizer(request.getParameter("engineId"));
 		if(engineId == null) {
-			engineId = Utility.inputSanitizer(request.getParameter("databaseId"));
+			engineId = WebUtility.inputSanitizer(request.getParameter("databaseId"));
 			if(engineId == null) {
 				returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
 				return WebUtility.getResponse(returnMap, 400);

@@ -141,9 +141,9 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public Response execute(@Context HttpServletRequest request) {
 
 		// Grab parameters
-		String appId = Utility.inputSanitizer(request.getParameter(APP_ID));
-		String wrapperId = Utility.inputSanitizer(request.getParameter(WRAPPER_ID));
-		String query = Utility.inputSanitizer(request.getParameter(QUERY));
+		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
+		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
+		String query = WebUtility.inputSanitizer(request.getParameter(QUERY));
 
 		Hashtable<String, Object> ret = new Hashtable<>();
 
@@ -188,9 +188,9 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public Response setQuery(@Context HttpServletRequest request) {
 
 		// Grab parameters
-		String appId = Utility.inputSanitizer(request.getParameter(APP_ID));
-		String wrapperId = Utility.inputSanitizer(request.getParameter(WRAPPER_ID));
-		String query = Utility.inputSanitizer(request.getParameter(QUERY));
+		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
+		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
+		String query = WebUtility.inputSanitizer(request.getParameter(QUERY));
 
 		// Perform action
 		IRawSelectWrapper wrapper;
@@ -227,8 +227,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public Response cleanUp(@Context HttpServletRequest request) {
 
 		// Grab parameters
-		String appId = Utility.inputSanitizer(request.getParameter(APP_ID));
-		String wrapperId = Utility.inputSanitizer(request.getParameter(WRAPPER_ID));
+		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
+		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
 
 		if (appId == null) {
 			throw new IllegalArgumentException("App id cannot be null here, must define app id");
@@ -282,8 +282,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public Response setEngine(@Context HttpServletRequest request) {
 
 		// Grab parameters
-		String appId = Utility.inputSanitizer(request.getParameter(APP_ID));
-		String wrapperId = Utility.inputSanitizer(request.getParameter(WRAPPER_ID));
+		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
+		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
 
 		// Perform action
 		IRawSelectWrapper wrapper;
@@ -320,8 +320,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public Response hasNext(@Context HttpServletRequest request) {
 
 		// Grab parameters
-		String appId = Utility.inputSanitizer(request.getParameter(APP_ID));
-		String wrapperId = Utility.inputSanitizer(request.getParameter(WRAPPER_ID));
+		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
+		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
 
 		// Perform action
 		boolean hasNext = false;
@@ -353,8 +353,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public Response next(@Context HttpServletRequest request) {
 
 		// Grab parameters
-		String appId = Utility.inputSanitizer(request.getParameter(APP_ID));
-		String wrapperId = Utility.inputSanitizer(request.getParameter(WRAPPER_ID));
+		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
+		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
 
 		// Perform action
 		IHeadersDataRow nextRow = null;
@@ -386,8 +386,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public Response getHeaders(@Context HttpServletRequest request) {
 
 		// Grab parameters
-		String appId = Utility.inputSanitizer(request.getParameter(APP_ID));
-		String wrapperId = Utility.inputSanitizer(request.getParameter(WRAPPER_ID));
+		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
+		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
 
 		// Perform action
 		String[] headers = null;
@@ -419,8 +419,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public Response getTypes(@Context HttpServletRequest request) {
 
 		// Grab parameters
-		String appId = Utility.inputSanitizer(request.getParameter(APP_ID));
-		String wrapperId = Utility.inputSanitizer(request.getParameter(WRAPPER_ID));
+		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
+		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
 
 		// Perform action
 		SemossDataType[] types = null;
@@ -452,8 +452,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public Response getNumRecords(@Context HttpServletRequest request) {
 
 		// Grab parameters
-		String appId = Utility.inputSanitizer(request.getParameter(APP_ID));
-		String wrapperId = Utility.inputSanitizer(request.getParameter(WRAPPER_ID));
+		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
+		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
 
 		// Perform action
 		long numRecords;
@@ -488,8 +488,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public Response getNumRows(@Context HttpServletRequest request) {
 
 		// Grab parameters
-		String appId = Utility.inputSanitizer(request.getParameter(APP_ID));
-		String wrapperId = Utility.inputSanitizer(request.getParameter(WRAPPER_ID));
+		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
+		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
 
 		// Perform action
 		long numRecords;
@@ -523,8 +523,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public Response reset(@Context HttpServletRequest request) {
 
 		// Grab parameters
-		String appId = Utility.inputSanitizer(request.getParameter(APP_ID));
-		String wrapperId = Utility.inputSanitizer(request.getParameter(WRAPPER_ID));
+		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
+		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
 
 		Hashtable<String, Object> ret = new Hashtable<>();
 

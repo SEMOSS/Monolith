@@ -81,7 +81,7 @@ public class DatabaseAuthorizationResource {
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
-		searchTerm = Utility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSanitizer(searchTerm);
 		if(searchTerm != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));

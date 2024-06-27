@@ -857,10 +857,10 @@ public class ProjectResource {
 		if(session == null) {
 			return WebUtility.getBinarySO("You are not authorized");
 		}
-		sql=Utility.inputSanitizer(sql);
+		sql=WebUtility.inputSanitizer(sql);
 		if(sql == null) {
 			try {
-				sql = Utility.inputSanitizer( IOUtils.toString(request.getReader()));
+				sql = WebUtility.inputSanitizer( IOUtils.toString(request.getReader()));
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
@@ -964,9 +964,9 @@ public class ProjectResource {
 			@Context ResourceContext resourceContext) 
 	{
 		
-		projectId=Utility.inputSanitizer(projectId);
-		sql=Utility.inputSanitizer(sql);
-		insightId=Utility.inputSanitizer(insightId);
+		projectId=WebUtility.inputSanitizer(projectId);
+		sql=WebUtility.inputSanitizer(sql);
+		insightId=WebUtility.inputSanitizer(insightId);
 		
 		if(projectId == null) {
 			projectId = "session";
@@ -977,10 +977,10 @@ public class ProjectResource {
 			return WebUtility.getSO("You are not authorized");
 		}
 		
-		sql=Utility.inputSanitizer(sql);
+		sql=WebUtility.inputSanitizer(sql);
 		if(sql == null) {
 			try {
-				sql = Utility.inputSanitizer( IOUtils.toString(request.getReader()));
+				sql = WebUtility.inputSanitizer( IOUtils.toString(request.getReader()));
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
@@ -1068,9 +1068,9 @@ public class ProjectResource {
 			@Context HttpServletRequest request, 
 			@Context ResourceContext resourceContext) 
 	{
-		projectId=Utility.inputSanitizer(projectId);
-		sql=Utility.inputSanitizer(sql);
-		insightId=Utility.inputSanitizer(insightId);
+		projectId=WebUtility.inputSanitizer(projectId);
+		sql=WebUtility.inputSanitizer(sql);
+		insightId=WebUtility.inputSanitizer(insightId);
 		
 		if(projectId == null) {
 			projectId = "session";
@@ -1083,7 +1083,7 @@ public class ProjectResource {
 
 		if(sql == null) {
 			try {
-				sql = Utility.inputSanitizer(IOUtils.toString(request.getReader()));
+				sql = WebUtility.inputSanitizer(IOUtils.toString(request.getReader()));
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {

@@ -78,13 +78,13 @@ public class APIResource {
 			@Context HttpServletResponse response,
 			@Context ResourceContext resourceContext) 
 	{
-		String sql = Utility.inputSanitizer(request.getParameter("sql"));
+		String sql = WebUtility.inputSanitizer(request.getParameter("sql"));
 
 		// get the insight from the session
 		if (sql == null) 
 		{
 			try {
-				sql =Utility.inputSanitizer( IOUtils.toString(request.getReader()));
+				sql =WebUtility.inputSanitizer( IOUtils.toString(request.getReader()));
 				if (sql != null && sql.length() != 0) {
 					sql = sql.replace("'", "\\\'");
 					sql = sql.replace("\"", "\\\"");
@@ -96,9 +96,9 @@ public class APIResource {
 			}
 		}
 
-		String projectId = Utility.inputSanitizer(request.getParameter("projectId"));
-		String insightId = Utility.inputSanitizer(request.getParameter("insightId"));
-		String outputFormat = Utility.inputSanitizer(request.getParameter("format"));
+		String projectId = WebUtility.inputSanitizer(request.getParameter("projectId"));
+		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
+		String outputFormat = WebUtility.inputSanitizer(request.getParameter("format"));
 		
 		if(outputFormat == null)
 			outputFormat = "json";
