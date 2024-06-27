@@ -335,7 +335,7 @@ public class FileUploader extends Uploader {
 			if (!fi.isFormField()) {
 				// Get the uploaded file parameters
 				String fieldName = fi.getFieldName();
-				String name = fi.getName();
+				String name = Utility.inputSanitizer(fi.getName());
 				String fileExtension = FilenameUtils.getExtension(name);
 				String contentType = fi.getContentType();
 				MimeType type = null;
