@@ -421,6 +421,10 @@ public class ProjectResource {
 	@Path("/embedLogo")
 	@Produces({MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM})
 	public Response getEmbedUrl(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    insightId=WebUtility.inputSanitizer(insightId);
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -619,6 +623,11 @@ public class ProjectResource {
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response downloadInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request, 
 			@PathParam("projectId") String projectId, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    id=WebUtility.inputSanitizer(id);
+	    params=WebUtility.inputSanitizer(params);
+
 		String sessionId = null;
 		User user = null;
 		try {
@@ -795,6 +804,11 @@ public class ProjectResource {
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
 	public Response getAppWidget(@PathParam("projectId") String projectId, @QueryParam("widget") String widgetName, @QueryParam("file") String fileName) {
 
+	    projectId=WebUtility.inputSanitizer(projectId);
+
+	    widgetName=WebUtility.inputSanitizer(widgetName);
+	    fileName=WebUtility.inputSanitizer(fileName);
+
 		//TODO: this is wrong structure ... needs projectName as well...
 		//TODO: this is wrong structure ... needs projectName as well...
 		//TODO: this is wrong structure ... needs projectName as well...
@@ -851,6 +865,12 @@ public class ProjectResource {
 			@Context HttpServletRequest request, 
 			@Context ResourceContext resourceContext)  
 	{
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    insightId=WebUtility.inputSanitizer(insightId);
+	    sql=WebUtility.inputSanitizer(sql);
+
+	    
 		if(projectId == null) {
 			projectId = "session";
 		}
@@ -859,10 +879,9 @@ public class ProjectResource {
 		if(session == null) {
 			return WebUtility.getBinarySO("You are not authorized");
 		}
-		sql=WebUtility.inputSanitizer(sql);
 		if(sql == null) {
 			try {
-				sql = WebUtility.inputSanitizer( IOUtils.toString(request.getReader()));
+				sql =  IOUtils.toString(request.getReader());
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {

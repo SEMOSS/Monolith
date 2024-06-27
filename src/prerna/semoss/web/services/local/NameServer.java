@@ -133,6 +133,10 @@ public class NameServer {
 			@QueryParam("dataFrameType") String dataFrameType, @Context HttpServletRequest request) {
 		// eventually I want to pick this from session
 		// but for now let us pick it from the insight store
+		dataFrameType=WebUtility.inputSanitizer(dataFrameType);
+		insightID=WebUtility.inputSanitizer(insightID);
+
+		
 		classLogger.debug("Came into this point.. " + insightID);
 
 		Insight existingInsight = null;
@@ -223,6 +227,10 @@ public class NameServer {
 		// require the person to have both the insight id
 		// and the file id
 		// in order to download the file
+		
+		insightId=WebUtility.inputSanitizer(insightId);
+		fileKey=WebUtility.inputSanitizer(fileKey);
+	    
 		Insight insight = InsightStore.getInstance().get(insightId);
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -754,6 +762,9 @@ public class NameServer {
 	@Produces("text/plain")
 	public String getJobOutput(@QueryParam("jobId") String jobId, @Context HttpServletRequest request) {
 
+		jobId=WebUtility.inputSanitizer(jobId);
+
+	    
 		String output = "Job Longer Available";
 		AsyncResponse myResponse = (AsyncResponse) ResponseHashSingleton.getResponseforJobId(jobId);
 		// if(ResponseHashSingleton.getThread(jobId) != null)
@@ -779,6 +790,10 @@ public class NameServer {
 	public void killJob(@QueryParam("jobId") String jobId, @Context HttpServletRequest request) {
 		// AsyncResponse myResponse =
 		// (AsyncResponse)ResponseHashSingleton.getResponseforJobId(jobId);
+		
+		jobId=WebUtility.inputSanitizer(jobId);
+
+	    
 		SemossThread thread = ResponseHashSingleton.getThread(jobId);
 		thread.setComplete(true);
 		ResponseHashSingleton.removeThread(jobId);
@@ -835,11 +850,13 @@ public class NameServer {
 	@Produces("application/json")
 	public StreamingOutput getMediaWikiTagsForSearchTerm(@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("numResults") int numResults) {
+		
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+
 		String MEDAWIKI_ENDPOINT = "https://en.wikipedia.org/w/api.php?action=query&srlimit=" + numResults
 				+ "&list=search&format=json&utf8=1&srprop=snippet&srsearch=";
 		String PRODUCT_ONTOLOGY_PREFIX = "http://www.productontology.org/id/";
 		LinkedTreeMap<String, String> ret = new LinkedTreeMap<>();
-		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		if (searchTerm != null && !searchTerm.isEmpty()) {
 			try {
 				CloseableHttpClient httpClient = null;
@@ -885,6 +902,10 @@ public class NameServer {
 	@Path("e-{engine}")
 	public Object getLocalDatabase(@Context HttpServletRequest request, @PathParam("engine") String engineId,
 			@QueryParam("api") String api) throws IOException {
+		
+		api=WebUtility.inputSanitizer(api);
+
+	    
 		HttpSession session = request.getSession(false);
 		if (session == null) {
 			return WebUtility.getSO("Not properly authenticated");
@@ -925,6 +946,10 @@ public class NameServer {
 			@Context HttpServletRequest request) {
 		// this is the name server
 		// this needs to return stuff
+		
+		url=WebUtility.inputSanitizer(url);
+
+	   
 		classLogger.debug(" Going to central name server ... " + url);
 		CentralNameServer cns = new CentralNameServer();
 		cns.setCentralApi(url);
@@ -1112,9 +1137,12 @@ public class NameServer {
 	@Produces("application/json")
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String searchString,
 			@Context HttpServletRequest request) {
+
+		searchString=WebUtility.inputSanitizer(searchString);
+
 		HttpSession session = request.getSession(false);
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
-		List<String> searchResults = SecurityInsightUtils.predictUserInsightSearch(user, WebUtility.inputSanitizer(searchString), "15", "0");
+		List<String> searchResults = SecurityInsightUtils.predictUserInsightSearch(user, searchString, "15", "0");
 		return WebUtility.getSO(searchResults);
 	}
 

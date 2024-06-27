@@ -45,6 +45,11 @@ public class GroupProjectAuthorizationResource {
 	@Path("getGroupProjectPermission")
 	public Response getGroupProjectPermission(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, 
 			@QueryParam("type") String type, @QueryParam("projectId") String projectId) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    type=WebUtility.inputSanitizer(type);
+	    groupId=WebUtility.inputSanitizer(groupId);
+		
 		Map<String, String> errorMap = new HashMap<String, String>();
 		User user = null;
 		try {
