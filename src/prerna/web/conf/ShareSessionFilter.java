@@ -24,6 +24,7 @@ import prerna.auth.utils.SecurityShareSessionUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class ShareSessionFilter implements Filter {
 	
@@ -36,7 +37,7 @@ public class ShareSessionFilter implements Filter {
 		// this will be the full path of the request
 		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 
-		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+		String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 		String contextPath = ((HttpServletRequest) arg0).getContextPath();
 
 		// due to FE being annoying
@@ -54,7 +55,7 @@ public class ShareSessionFilter implements Filter {
 		String currentQueryString = req.getQueryString();
 		Map<String, String> parsedQueryParams = parseQueryParameters(currentQueryString);
 		if (parsedQueryParams.get(SHARE_TOKEN_KEY) != null) {
-			String shareToken = Utility.cleanHttpResponse(parsedQueryParams.get(SHARE_TOKEN_KEY));
+			String shareToken = WebUtility.cleanHttpResponse(parsedQueryParams.get(SHARE_TOKEN_KEY));
 			
 			// user doesn't exist, lets try to validate
 			if (user == null || user.getLogins().isEmpty()) {
