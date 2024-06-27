@@ -81,7 +81,7 @@ public class SamlVerifierServlet extends HttpServlet {
                     util.configureSSO(request, response);
         }
 		try( BufferedWriter out = new BufferedWriter(
-				new FileWriter(new File(federationLogPath))) ) {
+				new FileWriter(new File(federationLogPath), true)) ) {
 			// invoke the SAML processing logic. this will do all the
 			// necessary processing conforming to SAMLv2 specifications,
 			// such as XML signature validation, Audience and Recipient
@@ -95,6 +95,7 @@ public class SamlVerifierServlet extends HttpServlet {
 				int stringPos = relayUrl.indexOf("sendRedirectForValidationNow=true");
 				if (stringPos != -1) {
 					response.sendRedirect(relayUrl);
+					return;
 				}
 			}
 

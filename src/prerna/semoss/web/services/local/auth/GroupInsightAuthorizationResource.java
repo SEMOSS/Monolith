@@ -3,6 +3,7 @@ package prerna.semoss.web.services.local.auth;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
@@ -25,6 +26,7 @@ import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/group/insight")
+@PermitAll
 public class GroupInsightAuthorizationResource {
 
 	private static final Logger classLogger = LogManager.getLogger(GroupInsightAuthorizationResource.class);
