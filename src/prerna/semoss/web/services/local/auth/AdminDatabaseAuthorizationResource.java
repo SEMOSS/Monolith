@@ -595,7 +595,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(appId, Utility.inputSanitizer(searchTerm), limit, offset);
+		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(appId, WebUtility.inputSanitizer(searchTerm), limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 	

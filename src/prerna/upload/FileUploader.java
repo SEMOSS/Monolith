@@ -201,10 +201,10 @@ public class FileUploader extends Uploader {
 			@QueryParam("projectId") String projectId,
 			@QueryParam("engineId") String engineId) {
 		
-		insightId=Utility.inputSanitizer(insightId);
-		relativePath=Utility.inputSanitizer(relativePath);
-		projectId=Utility.inputSanitizer(projectId);
-		engineId=Utility.inputSanitizer(engineId);
+		insightId=WebUtility.inputSanitizer(insightId);
+		relativePath=WebUtility.inputSanitizer(relativePath);
+		projectId=WebUtility.inputSanitizer(projectId);
+		engineId=WebUtility.inputSanitizer(engineId);
 
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
@@ -341,7 +341,7 @@ public class FileUploader extends Uploader {
 			if (!fi.isFormField()) {
 				// Get the uploaded file parameters
 				String fieldName = fi.getFieldName();
-				String name = Utility.inputSanitizer(fi.getName());
+				String name = WebUtility.inputSanitizer(fi.getName());
 				String fileExtension = FilenameUtils.getExtension(name);
 				String contentType = fi.getContentType();
 				MimeType type = null;
