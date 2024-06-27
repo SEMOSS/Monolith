@@ -341,6 +341,9 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("filterWord") String searchTerm,
 			@QueryParam("limit") long limit, 
 			@QueryParam("offset") long offset) {
+		
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {

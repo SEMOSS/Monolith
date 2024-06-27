@@ -181,6 +181,8 @@ public class OldEngineResource {
 	@Produces("application/json")
 	public Response getInsightParams(@QueryParam("insight") String insightId)
 	{
+		insightId=WebUtility.inputSanitizer(insightId);
+
 		// mocking inputs until FE makes full pixel call
 		GetPlaysheetParamsReactor paramR = new GetPlaysheetParamsReactor();
 		paramR.In();
