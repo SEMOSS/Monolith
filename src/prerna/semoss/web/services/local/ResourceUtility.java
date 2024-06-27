@@ -77,11 +77,11 @@ public class ResourceUtility {
         if (request != null) {
             remoteAddr = request.getHeader("X-FORWARDED-FOR");
             if (remoteAddr == null || "".equals(remoteAddr)) {
-                remoteAddr = request.getRemoteAddr();
+                remoteAddr =  request.getRemoteAddr();
             }
         }
 
-        return remoteAddr;
+        return Utility.inputSanitizer(remoteAddr);
     }
 	
 	/**
