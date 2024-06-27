@@ -95,7 +95,7 @@ public class InsightWebsocket {
 		in.setUser(user);
 				
 		PixelRunner runner = in.runPixel(pixelString);
-		StreamingOutput streamingOutput = PixelStreamUtility.collectPixelData(runner, null);
+		StreamingOutput streamingOutput = PixelStreamUtility.collectPixelData(runner);
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		try {
 			streamingOutput.write(baos);
