@@ -22,6 +22,7 @@ import prerna.auth.utils.AdminSecurityGroupUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/group")
@@ -876,15 +877,15 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = request.getParameter("groupId");
+			String groupId = Utility.inputSanitizer(request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
 			}
-			String engineId = request.getParameter("engineId");
+			String engineId =Utility.inputSanitizer( request.getParameter("engineId"));
 			if(engineId == null || (engineId = engineId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The engine id ('engineId') cannot be null or empty");
 			}
-			String permissionStr = request.getParameter("permission");
+			String permissionStr = Utility.inputSanitizer(request.getParameter("permission"));
 			if(permissionStr == null || (permissionStr = permissionStr.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The permission integer value ('permission') cannot be null or empty");
 			}
@@ -936,15 +937,15 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = request.getParameter("groupId");
+			String groupId = Utility.inputSanitizer(request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
 			}
-			String engineId = request.getParameter("engineId");
+			String engineId = Utility.inputSanitizer(request.getParameter("engineId"));
 			if(engineId == null || (engineId = engineId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The engine id ('engineId') cannot be null or empty");
 			}
-			String permissionStr = request.getParameter("permission");
+			String permissionStr = Utility.inputSanitizer(request.getParameter("permission"));
 			if(permissionStr == null || (permissionStr = permissionStr.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The permission integer value ('permission') cannot be null or empty");
 			}
@@ -997,15 +998,15 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = request.getParameter("groupId");
+			String groupId = Utility.inputSanitizer(request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
 			}
-			String engineId = request.getParameter("engineId");
+			String engineId = Utility.inputSanitizer(request.getParameter("engineId"));
 			if(engineId == null || (engineId = engineId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The project id ('projectId') cannot be null or empty");
 			}
-			String groupType = request.getParameter("type");
+			String groupType = Utility.inputSanitizer(request.getParameter("type"));
 
 			AdminSecurityGroupUtils.getInstance(user).removeGroupEnginePermission(user, groupId, groupType, engineId);
 		} catch (IllegalArgumentException e){
