@@ -677,6 +677,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getProjectsForGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
+		
+		groupType=Utility.inputSanitizer(groupType);
+		groupId=Utility.inputSanitizer(groupId);
+		searchTerm=Utility.inputSanitizer(searchTerm);
+		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -719,6 +724,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getNumProjectsForGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, 
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
+		
+		groupType=Utility.inputSanitizer(groupType);
+		groupId=Utility.inputSanitizer(groupId);
+		searchTerm=Utility.inputSanitizer(searchTerm);
+		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -761,6 +771,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getAvailableProjectsForGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
+		
+		groupType=Utility.inputSanitizer(groupType);
+		groupId=Utility.inputSanitizer(groupId);
+		searchTerm=Utility.inputSanitizer(searchTerm);
+		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -803,6 +818,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getNumAvailableProjectsForGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, 
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
+		
+		groupType=Utility.inputSanitizer(groupType);
+		groupId=Utility.inputSanitizer(groupId);
+		searchTerm=Utility.inputSanitizer(searchTerm);
+		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -1028,6 +1048,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getEnginesForGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		
+		groupType=Utility.inputSanitizer(groupType);
+		groupId=Utility.inputSanitizer(groupId);
+		searchTerm=Utility.inputSanitizer(searchTerm);
+		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -1069,6 +1094,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	public Response getNumEnginesForGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
+		
+		groupType=Utility.inputSanitizer(groupType);
+		groupId=Utility.inputSanitizer(groupId);
+		searchTerm=Utility.inputSanitizer(searchTerm);
+		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -1152,6 +1182,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	public Response getNumAvailableEnginesForGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
+		
+		groupType=Utility.inputSanitizer(groupType);
+		groupId=Utility.inputSanitizer(groupId);
+		searchTerm=Utility.inputSanitizer(searchTerm);
+		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
