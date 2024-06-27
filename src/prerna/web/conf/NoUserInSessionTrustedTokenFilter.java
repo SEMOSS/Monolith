@@ -29,7 +29,7 @@ import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.semoss.web.services.local.SessionResource;
 import prerna.util.Constants;
-import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class NoUserInSessionTrustedTokenFilter implements Filter {
 
@@ -52,7 +52,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 
 		// this will be the full path of the request
 		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+		String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 		String contextPath = ((HttpServletRequest) arg0).getContextPath();
 		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
 

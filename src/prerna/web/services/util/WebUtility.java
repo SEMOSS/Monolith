@@ -54,6 +54,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.owasp.encoder.Encode;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
 
@@ -285,6 +286,23 @@ public class WebUtility {
 		return null;
 	}
 	
+	// ensure no CRLF injection into responses for malicious attacks
+	public static String cleanHttpResponse(String message) {
+		if(message == null) {
+			return message;
+		}
+		message = message
+				.replace('\n', '_')
+				.replace("%0d", "_")
+				.replace('\r', '_')
+				.replace("%0a", "_")
+				.replace('\t', '_')
+				.replace("%09", "_");
+
+		message = Encode.forHtml(message);
+		return message;
+	}
+	
 	// this is to remove scripts from being passed
 	// ex. <script>alert('XSS');</script> is blocked
 	public static String inputSanitizer(String stringToNormalize) {
@@ -293,9 +311,11 @@ public class WebUtility {
 			return stringToNormalize;
 		}
 		
-		PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS);
+		PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS).and(Sanitizers.BLOCKS).and(Sanitizers.STYLES).and(Sanitizers.IMAGES).and(Sanitizers.TABLES);
 	    return policy.sanitize(stringToNormalize );
 	}
+	
+ 
 	
 	public static String normalizePath(String stringToNormalize) {
 		if(stringToNormalize == null ) {

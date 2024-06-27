@@ -23,6 +23,7 @@ import prerna.semoss.web.services.config.AdminConfigService;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class NoUserExistsFilter implements Filter {
 
@@ -38,7 +39,7 @@ public class NoUserExistsFilter implements Filter {
 		if(!NoUserExistsFilter.userDefined) {
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+			String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 			if (!ResourceUtility.allowAccessWithoutUsers(fullUrl)) {
 				IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
 				SelectQueryStruct qs = new SelectQueryStruct();

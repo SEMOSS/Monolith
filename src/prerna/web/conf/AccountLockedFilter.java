@@ -18,7 +18,7 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.util.Constants;
-import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class AccountLockedFilter implements Filter {
 
@@ -41,7 +41,7 @@ public class AccountLockedFilter implements Filter {
 				logger.info("User " + token.getId() + " is locked and being redirected");
 				// this will be the deployment name of the app
 				String contextPath = arg0.getServletContext().getContextPath();
-				String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+				String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 
 				// we redirect to the index.html page where we have pushed the admin page
 				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + SET_ACCOUNT_LOCKED_HTML;

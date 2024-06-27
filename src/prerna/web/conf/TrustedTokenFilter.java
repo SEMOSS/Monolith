@@ -23,7 +23,7 @@ import prerna.semoss.web.services.config.TrustedTokenService;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
-import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class TrustedTokenFilter implements Filter {
 
@@ -43,7 +43,7 @@ public class TrustedTokenFilter implements Filter {
 			return;
 		} 
 
-		String fullUrl = Utility.cleanHttpResponse(request.getRequestURL().toString());
+		String fullUrl = WebUtility.cleanHttpResponse(request.getRequestURL().toString());
 		if (!ResourceUtility.allowAccessWithoutUsers(fullUrl)) {
 			
 			SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
