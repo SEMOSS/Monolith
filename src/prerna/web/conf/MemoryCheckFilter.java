@@ -18,6 +18,7 @@ import prerna.reactor.mgmt.MgmtUtil;
 import prerna.util.Constants;
 import prerna.util.Settings;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class MemoryCheckFilter implements Filter {
 
@@ -55,7 +56,7 @@ public class MemoryCheckFilter implements Filter {
 		
 		ServletContext context = arg0.getServletContext();
 		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
-		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+		String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 		User user = null;
 		if (session != null) {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
