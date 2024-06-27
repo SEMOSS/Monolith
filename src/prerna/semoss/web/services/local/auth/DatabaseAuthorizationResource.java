@@ -67,6 +67,9 @@ public class DatabaseAuthorizationResource {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
 
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -148,6 +151,10 @@ public class DatabaseAuthorizationResource {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
 
+		
+		 appId=WebUtility.inputSanitizer( appId);
+		
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -186,6 +193,9 @@ public class DatabaseAuthorizationResource {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
 		
+		appId=WebUtility.inputSanitizer(appId);
+
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -625,6 +635,9 @@ public class DatabaseAuthorizationResource {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		
+		appId=WebUtility.inputSanitizer(appId);
+
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);

@@ -43,6 +43,9 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	public Response getAllGroups(@Context HttpServletRequest request, 
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+	    
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -235,6 +238,10 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getGroupMembers(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		
+		groupId=WebUtility.inputSanitizer(groupId);
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -276,6 +283,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	public Response getNumMembersInGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm) {
+		
+		groupId=WebUtility.inputSanitizer(groupId);
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+
+	    
+		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -318,6 +331,10 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getNonGroupMembers(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+		groupId=WebUtility.inputSanitizer(groupId);
+		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -359,6 +376,10 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	public Response getNumNonMembersInGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm) {
+		
+		groupId=WebUtility.inputSanitizer(groupId);
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+	    
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {
@@ -1143,6 +1164,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getAvailableEnginesForGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	    
+		
+		groupType=WebUtility.inputSanitizer(groupType);
+		groupId=WebUtility.inputSanitizer(groupId);
+		searchTerm=WebUtility.inputSanitizer(searchTerm);	    
+		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
 		try {

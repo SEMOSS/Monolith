@@ -65,6 +65,10 @@ public class EngineAuthorizationResource {
 			@QueryParam("noMeta") Boolean noMeta,
 			@QueryParam("userT") Boolean includeUserTracking
 			) {
+		
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -236,6 +240,11 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("getUserEnginePermission")
 	public Response getUserEnginePermission(@Context HttpServletRequest request, @QueryParam("engineId") String engineId) {
+		
+		
+		engineId=WebUtility.inputSanitizer(engineId);
+
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -275,6 +284,12 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("getEngineUsers")
 	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	    
+		engineId=WebUtility.inputSanitizer(engineId);
+	    userId=WebUtility.inputSanitizer(userId);
+	    userInfo=WebUtility.inputSanitizer(userInfo);
+	    permission=WebUtility.inputSanitizer(permission);
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -835,6 +850,10 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("getEngineUsersNoCredentials")
 	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("engineId") String engineId) {
+		
+		engineId=WebUtility.inputSanitizer(engineId);
+
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
