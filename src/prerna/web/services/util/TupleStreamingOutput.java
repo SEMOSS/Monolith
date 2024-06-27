@@ -39,35 +39,30 @@ import org.apache.logging.log4j.Logger;
 import org.openrdf.query.QueryEvaluationException;
 import org.openrdf.query.TupleQueryResult;
 
-public class TupleStreamingOutput implements StreamingOutput {
-	
-	private static final Logger logger = LogManager.getLogger(TupleStreamingOutput.class); 
+import prerna.util.Constants;
 
+public class TupleStreamingOutput implements StreamingOutput {
+
+	private static final Logger classLogger = LogManager.getLogger(TupleStreamingOutput.class); 
 
 	TupleQueryResult gqr = null;
-	
-	public TupleStreamingOutput(TupleQueryResult gqr)
-	{
+
+	public TupleStreamingOutput(TupleQueryResult gqr) {
 		this.gqr = gqr;
 	}
-	
+
 	@Override
-	public void write(OutputStream outputStream) throws IOException,
-			WebApplicationException {
-	            ObjectOutputStream os = new ObjectOutputStream(outputStream);
-	            try {
-	            	logger.info("Writing Objects ");
-					while(gqr.hasNext())
-					{
-						logger.info(".");
-						os.writeObject(gqr.next());	
-					}
-					os.writeObject("null");
-				} catch (QueryEvaluationException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+	public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+		ObjectOutputStream os = new ObjectOutputStream(outputStream);
+		try {
+			classLogger.info("Writing Objects ");
+			while(gqr.hasNext()) {
+				classLogger.info(".");
+				os.writeObject(gqr.next());	
+			}
+			os.writeObject("null");
+		} catch (QueryEvaluationException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+		}
 	}
-		// TODO Auto-generated method stub
-		
 }
