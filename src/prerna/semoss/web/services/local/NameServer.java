@@ -321,7 +321,7 @@ public class NameServer {
 
 		String jobId = "";
 		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
-		String expression = WebUtility.inputSanitizer(request.getParameter("expression"));
+		String expression = request.getParameter("expression");
 		if(expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
@@ -542,7 +542,7 @@ public class NameServer {
 		Map<String, String> dataReturn = new HashMap<>();
 
 		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
-		String expression = WebUtility.inputSanitizer(request.getParameter("expression"));
+		String expression = request.getParameter("expression");
 		Insight insight = null;
 
 		// figure out the type of insight
