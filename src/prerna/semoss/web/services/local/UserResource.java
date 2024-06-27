@@ -2382,8 +2382,8 @@ public class UserResource {
 		}
 
 		try {
-			String username = request.getParameter("username");
-			String password = request.getParameter("password");
+			String username = WebUtility.inputSanitizer(request.getParameter("username"));
+			String password = WebUtility.inputSanitizer(request.getParameter("password"));
 			String redirect = Utility.cleanHttpResponse(request.getParameter("redirect"));
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
@@ -2466,8 +2466,8 @@ public class UserResource {
 
 		ILdapAuthenticator authenticator = null;
 		try {
-			String username = request.getParameter("username");
-			String password = request.getParameter("password");
+			String username = WebUtility.inputSanitizer(request.getParameter("username"));
+			String password = WebUtility.inputSanitizer(request.getParameter("password"));
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
@@ -2545,9 +2545,9 @@ public class UserResource {
 
 		ILdapAuthenticator authenticator = null;
 		try {
-			String username = request.getParameter("username");
-			String curPassword = request.getParameter("curPassword");
-			String newPassword = request.getParameter("newPassword");
+			String username = WebUtility.inputSanitizer(request.getParameter("username"));
+			String curPassword = WebUtility.inputSanitizer(request.getParameter("curPassword"));
+			String newPassword = WebUtility.inputSanitizer(request.getParameter("newPassword"));
 
 			if(username == null || curPassword == null || newPassword == null
 					|| username.isEmpty() || curPassword.isEmpty() || newPassword.isEmpty()) {
@@ -2686,13 +2686,13 @@ public class UserResource {
 		try {
 			// Note - for native users
 			// the id and the username are always the same
-			String username = request.getParameter("username");
-			String name = request.getParameter("name");
-			String password = request.getParameter("password");
-			String email = request.getParameter("email");
-			String phone = request.getParameter("phone");
-			String phoneExtension = request.getParameter("phoneextension");
-			String countryCode = request.getParameter("countrycode");
+			String username = WebUtility.inputSanitizer(request.getParameter("username"));
+			String name = WebUtility.inputSanitizer(request.getParameter("name"));
+			String password = WebUtility.inputSanitizer(request.getParameter("password"));
+			String email = WebUtility.inputSanitizer(request.getParameter("email"));
+			String phone = WebUtility.inputSanitizer(request.getParameter("phone"));
+			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
+			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
 
 			AccessToken newUser = new AccessToken();
 			newUser.setProvider(AuthProvider.NATIVE);
@@ -2755,7 +2755,7 @@ public class UserResource {
 			}
 		}
 
-		String name = request.getParameter("name");
+		String name = WebUtility.inputSanitizer(request.getParameter("name"));
 		Map<String, String> oneTimeDetails = SecurityAPIUserUtils.createAPIUser(name);
 		return WebUtility.getResponse(oneTimeDetails, 200);
 	}
