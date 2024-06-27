@@ -35,18 +35,22 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.text.Normalizer;
+import java.text.Normalizer.Form;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.Vector;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -109,7 +113,7 @@ public class WebUtility {
 		if(fileLocation != null)
 		{
 			try {
-				File daFile = new File(Utility.normalizePath(fileLocation));
+				File daFile = new File(WebUtility.normalizePath(fileLocation));
 				FileReader fr = new FileReader(daFile);
 				BufferedReader br = new BufferedReader(fr);
 				return new StreamingOutput() {
@@ -291,6 +295,29 @@ public class WebUtility {
 		
 		PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS);
 	    return policy.sanitize(stringToNormalize );
+	}
+	
+	public static String normalizePath(String stringToNormalize) {
+		if(stringToNormalize == null ) {
+			return stringToNormalize;
+		}
+		//replacing \\ with /
+		stringToNormalize=stringToNormalize.replace("\\", "/");
+		//ensuring no double //
+		while(stringToNormalize.contains("//")){
+			stringToNormalize=stringToNormalize.replace("//", "/");
+		}
+		
+		String normalizedString = Normalizer.normalize(stringToNormalize,Form.NFKC);
+
+		 normalizedString = FilenameUtils.normalize(normalizedString);
+		if (normalizedString == null) {
+			logger.error("File path is null");
+			throw new IllegalArgumentException("The filepath passed in is invalid");
+		}
+		normalizedString = normalizedString.replace("\\", "/");
+
+		return normalizedString;
 	}
 
 }
