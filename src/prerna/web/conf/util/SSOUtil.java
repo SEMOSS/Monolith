@@ -25,6 +25,7 @@ import com.sun.identity.saml2.meta.SAML2MetaManager;
 
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 /**
  * 
@@ -107,8 +108,8 @@ public class SSOUtil {
 		String idpMetaAlias = null;
 		try {
 
-			File dir = new File(Utility.normalizePath( fedletHomeDir ));
-			File file = new File(Utility.normalizePath( fedletHomeDir + File.separator + "FederationConfig.properties"));
+			File dir = new File(WebUtility.normalizePath( fedletHomeDir ));
+			File file = new File(WebUtility.normalizePath( fedletHomeDir + File.separator + "FederationConfig.properties"));
 			logger.info("Fedlet config being used " + file);
 			if (!dir.exists() || !dir.isDirectory()) {
 				throw new FileNotFoundException("Configuration directory does not exist.");
