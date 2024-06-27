@@ -3,6 +3,7 @@ package prerna.semoss.web.services.local;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
@@ -24,6 +25,7 @@ import prerna.om.OldInsight;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
+@PermitAll
 public class DataframeResource {
 
 	private static final Logger logger = LogManager.getLogger(DataframeResource.class); 

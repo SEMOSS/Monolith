@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -27,6 +28,7 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/cluster")
+@PermitAll
 public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	private static final Logger logger = LogManager.getLogger(RawSelectWrapperService.class); 

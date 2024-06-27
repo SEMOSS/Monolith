@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -31,6 +32,7 @@ import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/insight")
+@PermitAll
 public class InsightAuthorizationResource {
 
 	private static final Logger classLogger = LogManager.getLogger(InsightAuthorizationResource.class);
@@ -49,6 +51,10 @@ public class InsightAuthorizationResource {
 			@QueryParam("searchTerm") String searchTerm, 
 			@QueryParam("limit") String limit,
 			@QueryParam("offset") String offset) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    searchTerm=WebUtility.inputSanitizer(searchTerm);	    
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -81,6 +87,10 @@ public class InsightAuthorizationResource {
 	@Path("getProjectInsights")
 	public Response getProjectInsights(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    searchTerm=WebUtility.inputSanitizer(searchTerm);
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -107,6 +117,10 @@ public class InsightAuthorizationResource {
 	@Path("getUserInsightPermission")
 	public Response getUserInsightPermission(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    insightId=WebUtility.inputSanitizer(insightId);
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -147,6 +161,12 @@ public class InsightAuthorizationResource {
 			@QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, 
 			@QueryParam("offset") long offset) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    userId=WebUtility.inputSanitizer(userId);
+	    insightId=WebUtility.inputSanitizer(insightId);
+	    permission=WebUtility.inputSanitizer(permission);
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);

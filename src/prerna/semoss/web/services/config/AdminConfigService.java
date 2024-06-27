@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -31,6 +32,7 @@ import prerna.web.conf.AdminStartupFilter;
 import prerna.web.services.util.WebUtility;
 
 @Path("/")
+@PermitAll
 public class AdminConfigService {
 	
 	private static final Logger logger = LogManager.getLogger(AdminConfigService.class);

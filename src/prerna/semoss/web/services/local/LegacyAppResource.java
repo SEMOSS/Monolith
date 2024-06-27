@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Vector;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -49,6 +50,7 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/app-{databaseId}")
+@PermitAll
 @Deprecated
 // replaced by DatabaseResource
 public class LegacyAppResource {
