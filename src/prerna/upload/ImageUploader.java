@@ -1083,9 +1083,9 @@ public class ImageUploader extends Uploader {
 	public Response deleteDatabaseImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 		
-		String engineId = request.getParameter("engineId");
+		String engineId = Utility.inputSanitizer(request.getParameter("engineId"));
 		if(engineId == null) {
-			engineId = request.getParameter("databaseId");
+			engineId = Utility.inputSanitizer(request.getParameter("databaseId"));
 			if(engineId == null) {
 				returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
 				return WebUtility.getResponse(returnMap, 400);
