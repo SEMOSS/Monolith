@@ -323,7 +323,7 @@ public class ProjectResource {
 		
 		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId, projectName)
 								+ DIR_SEPARATOR + "app_root/version/assets/landing.html";
-		File file = new File(Utility.normalizePath(fileLocation));
+		File file = new File(WebUtility.normalizePath(fileLocation));
 		if(file != null && file.exists()) {
 		    try {
 		    	String html = FileUtils.readFileToString(file, "UTF-8");
@@ -383,7 +383,7 @@ public class ProjectResource {
 		
 		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId, projectName) 
 								+ DIR_SEPARATOR + "app_root/version/assets/" + relPath;
-		File file = new File(Utility.normalizePath(fileLocation));
+		File file = new File(WebUtility.normalizePath(fileLocation));
 		if(file != null && file.exists()) {
 		    try {
 				String contents = FileUtils.readFileToString(file, "UTF-8");
@@ -767,7 +767,7 @@ public class ProjectResource {
 		extensions.add("image.gif");
 		extensions.add("image.svg");
 		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
-		File baseFolder = new File(Utility.normalizePath(baseDir));
+		File baseFolder = new File(WebUtility.normalizePath(baseDir));
 		File[] imageFiles = baseFolder.listFiles(imageExtensionFilter);
 		if(imageFiles != null && imageFiles.length > 0) {
 			return imageFiles[0];
@@ -824,7 +824,7 @@ public class ProjectResource {
 
 		// Get widget file
 		String widgetFile = appWidgetDirLoc + DIR_SEPARATOR + widgetName + DIR_SEPARATOR + fileName;
-		File f = new File(Utility.normalizePath(widgetFile));
+		File f = new File(WebUtility.normalizePath(widgetFile));
 		FileInputStream fis = null;
 		if (f.exists()) {
 			try {
