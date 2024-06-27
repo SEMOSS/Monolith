@@ -286,6 +286,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput next(@FormParam("id") String id)
 	{
+		id=WebUtility.inputSanitizer(id);
 		if(id != null)
 		{
 			// I can avoid the wrapper BS below by just putting through an interface
@@ -320,6 +321,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput bvnext(@FormParam("id") String id)
 	{
+		id=WebUtility.inputSanitizer(id);
 		// this is only applicable to select query
 		Object retValue = null;
 		if(id != null)

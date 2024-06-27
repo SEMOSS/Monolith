@@ -3035,7 +3035,7 @@ public class UserResource {
 				if (curCookies != null) {
 					for (Cookie c : curCookies) {
 						if (c.getName().equals(routeCookieName)) {
-							redir += "&" + c.getName() + "=" + c.getValue();
+							redir += "&" + WebUtility.inputSanitizer(c.getName()) + "=" + WebUtility.inputSanitizer(c.getValue());
 						}
 					}
 				}
