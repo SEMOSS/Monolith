@@ -857,7 +857,7 @@ public class ProjectResource {
 		if(session == null) {
 			return WebUtility.getBinarySO("You are not authorized");
 		}
-		
+		sql=Utility.inputSanitizer(sql);
 		if(sql == null) {
 			try {
 				sql = Utility.inputSanitizer( IOUtils.toString(request.getReader()));
@@ -972,6 +972,7 @@ public class ProjectResource {
 			return WebUtility.getSO("You are not authorized");
 		}
 		
+		sql=Utility.inputSanitizer(sql);
 		if(sql == null) {
 			try {
 				sql = Utility.inputSanitizer( IOUtils.toString(request.getReader()));
@@ -1070,7 +1071,7 @@ public class ProjectResource {
 		if(session == null) {
 			return WebUtility.getSO("You are not authorized");
 		}
-
+		sql=Utility.inputSanitizer(sql);
 		if(sql == null) {
 			try {
 				sql = Utility.inputSanitizer(IOUtils.toString(request.getReader()));
