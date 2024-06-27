@@ -96,9 +96,9 @@ public class APIResource {
 			}
 		}
 
-		String projectId = request.getParameter("projectId");
-		String insightId = request.getParameter("insightId");
-		String outputFormat = request.getParameter("format");
+		String projectId = Utility.inputSanitizer(request.getParameter("projectId"));
+		String insightId = Utility.inputSanitizer(request.getParameter("insightId"));
+		String outputFormat = Utility.inputSanitizer(request.getParameter("format"));
 		
 		if(outputFormat == null)
 			outputFormat = "json";
