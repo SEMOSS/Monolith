@@ -21,7 +21,7 @@ import prerna.web.requests.OverrideParametersServletRequest;
 
 public class RunInsight {
 
-	private static final Logger logger = LogManager.getLogger(RunInsight.class);
+	private static final Logger classLogger = LogManager.getLogger(RunInsight.class);
 	
 	private Insight in = null;
 	private boolean drop = false;
@@ -47,7 +47,7 @@ public class RunInsight {
 	@Produces("application/json")
 	public Response recreateInsightState(@Context HttpServletRequest request) {
 		PixelRunner pixelRunner = InsightUtility.recreateInsightState(in);
-		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, null))
+		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
 				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 				.header("Pragma", "no-cache")
 				.build();
