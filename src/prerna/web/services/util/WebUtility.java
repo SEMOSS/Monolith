@@ -50,6 +50,8 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.owasp.html.PolicyFactory;
+import org.owasp.html.Sanitizers;
 
 import com.google.gson.Gson;
 
@@ -277,6 +279,18 @@ public class WebUtility {
 			}
 		}
 		return null;
+	}
+	
+	// this is to remove scripts from being passed
+	// ex. <script>alert('XSS');</script> is blocked
+	public static String inputSanitizer(String stringToNormalize) {
+		if (stringToNormalize == null) {
+			logger.info("input to sanitzer is null, returning null");
+			return stringToNormalize;
+		}
+		
+		PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS);
+	    return policy.sanitize(stringToNormalize );
 	}
 
 }

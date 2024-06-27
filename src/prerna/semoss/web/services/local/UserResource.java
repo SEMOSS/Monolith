@@ -183,7 +183,7 @@ public class UserResource {
 
 		// log the user logout
 		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is logging out of provider " +  provider));
-		provider = Utility.inputSanitizer(provider);
+		provider = WebUtility.inputSanitizer(provider);
 		if (provider.equalsIgnoreCase("ALL")) {
 			removed = true;
 			noUser = true;
@@ -662,7 +662,7 @@ public class UserResource {
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
 		Map<String, String> ret = new Hashtable<>();
 		HttpSession session = request.getSession(false);
-		provider = Utility.inputSanitizer(provider);
+		provider = WebUtility.inputSanitizer(provider);
 		User semossUser = null;
 		if (session != null) {
 			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
@@ -2825,7 +2825,7 @@ public class UserResource {
 		Gson gson = new Gson();
 		String modStr = form.getFirst("modifications");
 		Map<String, String> mods = gson.fromJson(modStr, new TypeToken<Map<String, String>>() {}.getType());
-		provider=Utility.inputSanitizer(provider);
+		provider=WebUtility.inputSanitizer(provider);
 		try {
 			socialData.updateSocialProperties(provider, mods);
 		} catch (Exception e) {
@@ -2957,8 +2957,8 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/cookie")
 	public StreamingOutput manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		String insightId = Utility.inputSanitizer(request.getParameter("i"));
-		String secret = Utility.inputSanitizer(request.getParameter("s"));
+		String insightId = WebUtility.inputSanitizer(request.getParameter("i"));
+		String secret = WebUtility.inputSanitizer(request.getParameter("s"));
 
 		// https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
 		/*

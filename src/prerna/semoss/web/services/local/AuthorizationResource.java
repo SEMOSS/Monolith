@@ -57,7 +57,7 @@ public class AuthorizationResource {
 	@Produces("application/json")
 	@Path("searchForUser")
 	public StreamingOutput searchForUser(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm) {
-		List<Map<String, Object>> ret = SecurityQueryUtils.searchForUser(Utility.inputSanitizer(searchTerm.trim()));
+		List<Map<String, Object>> ret = SecurityQueryUtils.searchForUser(WebUtility.inputSanitizer(searchTerm.trim()));
 		return WebUtility.getSO(ret);
 	}
 

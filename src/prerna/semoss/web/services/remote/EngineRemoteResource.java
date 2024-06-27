@@ -80,7 +80,7 @@ public class EngineRemoteResource {
 	@Path("getFromNeighbors")
 	@Produces("application/json")
 	public StreamingOutput getFromNeighbors(@FormParam("nodeType") String nodeType, @FormParam("neighborHood") int neighborHood) {
-		nodeType=Utility.inputSanitizer(nodeType);
+		nodeType=WebUtility.inputSanitizer(nodeType);
 		return WebUtility.getSO(coreEngine.getFromNeighbors(nodeType, neighborHood));
 	}
 
@@ -88,7 +88,7 @@ public class EngineRemoteResource {
 	@Path("getToNeighbors")
 	@Produces("application/json")
 	public StreamingOutput getToNeighbors(@FormParam("nodeType") String nodeType, @FormParam("neighborHood") int neighborHood) {
-		nodeType=Utility.inputSanitizer(nodeType);
+		nodeType=WebUtility.inputSanitizer(nodeType);
 		return WebUtility.getSO(coreEngine.getToNeighbors(nodeType, neighborHood));
 	}
 
@@ -97,7 +97,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput getNeighbors(@FormParam("nodeType") String nodeType, @FormParam("neighborHood") int neighborHood) {
 		// TODO Auto-generated method stub
-		nodeType=Utility.inputSanitizer(nodeType);
+		nodeType=WebUtility.inputSanitizer(nodeType);
 		return WebUtility.getSO(coreEngine.getNeighbors(nodeType, neighborHood));
 	}
 
@@ -109,7 +109,7 @@ public class EngineRemoteResource {
 		// Create a wrapper object
 		// The wrapper consists of a unique number, the actual output object
 		// sets this wrapper in the memory
-		query=Utility.inputSanitizer(query);
+		query=WebUtility.inputSanitizer(query);
 		classLogger.info("Executing GRAPH Query " + Utility.cleanLogString(query));
 		
 		IConstructWrapper sjw = null;
@@ -135,7 +135,7 @@ public class EngineRemoteResource {
 	@Path("execSelectQuery")
 	@Produces("application/json")
 	public Object execSelectQuery(@FormParam("query") String query) {
-		query=Utility.inputSanitizer(query);
+		query=WebUtility.inputSanitizer(query);
 		classLogger.info("Executing Select Query  " + Utility.cleanLogString(query));
 		AbstractWrapper sjsw = null;
 		try {
@@ -156,7 +156,7 @@ public class EngineRemoteResource {
 	@Path("execCheaterQuery")
 	@Produces("application/json")
 	public Object execCheaterQuery(@FormParam("query") String query) {
-		query=Utility.inputSanitizer(query);
+		query=WebUtility.inputSanitizer(query);
 		classLogger.info("Executing Select Query  " + Utility.cleanLogString(query));
 		AbstractWrapper sjsw = null;
 		try {
@@ -176,7 +176,7 @@ public class EngineRemoteResource {
 	@Path("getEntityOfType")
 	@Produces("application/json")
 	public StreamingOutput getEntityOfType(@FormParam("sparqlQuery") String sparqlQuery) {
-		sparqlQuery=Utility.inputSanitizer(sparqlQuery);
+		sparqlQuery=WebUtility.inputSanitizer(sparqlQuery);
 		return WebUtility.getSO(coreEngine.getEntityOfType(sparqlQuery));
 	}
 
@@ -185,7 +185,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput execAskQuery(@FormParam("query") String query) {
 		try {
-			query=Utility.inputSanitizer(query);
+			query=WebUtility.inputSanitizer(query);
 			return WebUtility.getSO(coreEngine.execQuery(query));
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE,e);
@@ -227,7 +227,7 @@ public class EngineRemoteResource {
 	public StreamingOutput hasNext(@FormParam("id") String id)
 	{
 		boolean retValue = false;
-		id=Utility.inputSanitizer(id);
+		id=WebUtility.inputSanitizer(id);
 		classLogger.info("Got the id " + Utility.cleanLogString(id));
 		if(id != null)
 		{
@@ -256,7 +256,7 @@ public class EngineRemoteResource {
 	public StreamingOutput getDisplayVariables(@FormParam("id") String id)
 	{
 		String [] retValue = null;
-		id=Utility.inputSanitizer(id);
+		id=WebUtility.inputSanitizer(id);
 		classLogger.info("Got the id " + Utility.cleanLogString(id));
 		if(id != null)
 		{
