@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -47,6 +48,7 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/e-{engineId}")
+@PermitAll
 public class EngineRouteResource {
 
 	private static final Logger classLogger = LogManager.getLogger(ModelEngineResource.class);

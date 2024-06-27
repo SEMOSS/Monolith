@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
@@ -43,6 +44,7 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/project")
+@PermitAll
 public class ProjectAuthorizationResource {
 
 	private static final Logger classLogger = LogManager.getLogger(ProjectAuthorizationResource.class);
@@ -69,6 +71,10 @@ public class ProjectAuthorizationResource {
 			@QueryParam("noMeta") Boolean noMeta,
 			@QueryParam("userT") Boolean includeUserTracking
 			) {
+		
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -226,6 +232,10 @@ public class ProjectAuthorizationResource {
 	@Path("getUserProjectPermission")
 	public Response getUserProjectPermission(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
+		
+		projectId=WebUtility.inputSanitizer(projectId);
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+	
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -263,6 +273,12 @@ public class ProjectAuthorizationResource {
 			@QueryParam("projectId") String projectId,  @QueryParam("userId") String userId, 
 			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		
+		projectId=WebUtility.inputSanitizer(projectId);
+		userId=WebUtility.inputSanitizer(userId);
+		userInfo=WebUtility.inputSanitizer(userInfo);
+		permission=WebUtility.inputSanitizer(permission);
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -367,11 +383,11 @@ public class ProjectAuthorizationResource {
 
 		// Get form info
 				
-		String newUserId = form.getFirst("id");
-		String newUserType = form.getFirst("type");
-		String projectId = form.getFirst("projectId");
-		String requestedPermission = form.getFirst("permission");
-		String endDate = form.getFirst("endDate");
+		String newUserId =WebUtility.inputSanitizer(form.getFirst("id"));
+		String newUserType = WebUtility.inputSanitizer(form.getFirst("type"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String requestedPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 		// get the requested permission as a numeric -- it was passed as a string
 		Integer requestedPermissionNumeric = AccessPermissionEnum.getIdByPermission(requestedPermission);
 
@@ -473,10 +489,10 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String existingUserId = form.getFirst("id");
-		String projectId = form.getFirst("projectId");
-		String newPermission = form.getFirst("permission");
-		String endDate = form.getFirst("endDate");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate =WebUtility.inputSanitizer( form.getFirst("endDate"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for project " + projectId + " but is not an admin"));
@@ -529,8 +545,8 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String projectId = form.getFirst("projectId");
-		String endDate = form.getFirst("endDate");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for project " + projectId + " but is not an admin"));
@@ -583,8 +599,8 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String existingUserId = form.getFirst("id");
-		String projectId = form.getFirst("projectId");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to project " + projectId + " but is not an admin"));
@@ -644,7 +660,7 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
@@ -700,7 +716,7 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
@@ -755,7 +771,7 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean visible = Boolean.parseBoolean(form.getFirst("visibility"));
 		String logVisible = visible ? " visible " : " not visible";
 
@@ -801,7 +817,7 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
@@ -840,6 +856,11 @@ public class ProjectAuthorizationResource {
 			@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    searchTerm=WebUtility.inputSanitizer(searchTerm);
+
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -885,8 +906,8 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String projectId = form.getFirst("projectId");
-		String endDate = form.getFirst("endDate");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user access to project " + projectId + " but is not an admin"));
@@ -940,7 +961,7 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user access to project " + projectId + " but is not an admin"));
@@ -988,8 +1009,8 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String projectId = form.getFirst("projectId");
-		String endDate = form.getFirst("endDate");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permissions to project " + projectId + " but is not an admin"));
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -1038,7 +1059,7 @@ public class ProjectAuthorizationResource {
 
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to project " + projectId + " but is not an admin"));
@@ -1085,9 +1106,9 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean hasPortal = Boolean.parseBoolean(form.getFirst("hasPortal"));
-		String portalName = form.getFirst("portalName");
+		String portalName = WebUtility.inputSanitizer(form.getFirst("portalName"));
 		String logPortal = hasPortal ? " enable portal " : " disable portal";
 
 		IProject project = Utility.getProject(projectId);

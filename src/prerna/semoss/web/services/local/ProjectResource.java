@@ -17,6 +17,7 @@ import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
@@ -77,6 +78,7 @@ import prerna.web.requests.OverrideParametersServletRequest;
 import prerna.web.services.util.WebUtility;
 
 @Path("/project-{projectId}")
+@PermitAll
 public class ProjectResource {
 
 	private static final Logger classLogger = LogManager.getLogger(ProjectResource.class);
