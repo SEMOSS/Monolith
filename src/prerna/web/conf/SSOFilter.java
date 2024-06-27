@@ -28,6 +28,7 @@ import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
 import prerna.web.conf.util.SSOUtil;
 import prerna.web.conf.util.UserFileLogUtil;
+import prerna.web.services.util.WebUtility;
 
 /**
  * Servlet Filter implementation class SamlFilter
@@ -83,7 +84,7 @@ public class SSOFilter implements Filter {
 			
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
+			String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
 						
 			// we need to store information in the session
 			// so that we can properly come back to the referer once an admin has been added

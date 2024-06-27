@@ -30,6 +30,7 @@ import prerna.auth.utils.SecurityProjectUtils;
 import prerna.project.api.IProject;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class PublicHomeCheckFilter implements Filter {
 
@@ -49,7 +50,7 @@ public class PublicHomeCheckFilter implements Filter {
 		ServletContext context = arg0.getServletContext();
 
 		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
-		String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+		String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 
 		// default is public_home
 		String publicHomeFolder = Utility.getPublicHomeFolder();

@@ -78,6 +78,10 @@ public class EngineRouteResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
+
+		engineId=WebUtility.inputSanitizer(engineId);
+
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -200,6 +204,9 @@ public class EngineRouteResource {
 	@Path("/image/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("engineId") String engineId) {
+		
+		engineId=WebUtility.inputSanitizer(engineId);
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);

@@ -904,6 +904,7 @@ public class NameServer {
 			@QueryParam("api") String api) throws IOException {
 		
 		api=WebUtility.inputSanitizer(api);
+		engineId=WebUtility.inputSanitizer(engineId);
 
 	    
 		HttpSession session = request.getSession(false);
@@ -932,6 +933,8 @@ public class NameServer {
 	public Object getEngineProxy(@PathParam("engine") String db, @Context HttpServletRequest request) {
 		// this is the name server
 		// this needs to return stuff
+		db=WebUtility.inputSanitizer(db);
+		
 		classLogger.debug(" Getting DB... " + db);
 		HttpSession session = request.getSession();
 		IDatabaseEngine engine = (IDatabaseEngine) session.getAttribute(db);
