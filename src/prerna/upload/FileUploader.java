@@ -200,6 +200,12 @@ public class FileUploader extends Uploader {
 			@QueryParam("path") String relativePath, 
 			@QueryParam("projectId") String projectId,
 			@QueryParam("engineId") String engineId) {
+		
+		insightId=Utility.inputSanitizer(insightId);
+		relativePath=Utility.inputSanitizer(relativePath);
+		projectId=Utility.inputSanitizer(projectId);
+		engineId=Utility.inputSanitizer(engineId);
+
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
 			HashMap<String, String> errorMap = new HashMap<String, String>();
