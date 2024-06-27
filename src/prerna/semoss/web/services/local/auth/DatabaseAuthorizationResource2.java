@@ -69,6 +69,8 @@ public class DatabaseAuthorizationResource2 {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
 		
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -150,6 +152,9 @@ public class DatabaseAuthorizationResource2 {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
 
+		databaseId=WebUtility.inputSanitizer(databaseId);
+
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -189,6 +194,12 @@ public class DatabaseAuthorizationResource2 {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
 		
+		
+		databaseId=WebUtility.inputSanitizer(databaseId);
+	    userId=WebUtility.inputSanitizer(userId);
+	    userInfo=WebUtility.inputSanitizer(userInfo);
+	    permission=WebUtility.inputSanitizer(permission);
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -804,6 +815,9 @@ public class DatabaseAuthorizationResource2 {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		
+		databaseId=WebUtility.inputSanitizer(databaseId);
+
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);

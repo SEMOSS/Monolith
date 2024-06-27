@@ -45,6 +45,13 @@ public class GroupInsightAuthorizationResource {
 	@Path("getGroupInsightPermission")
 	public Response getGroupInsightPermission(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, 
 			@QueryParam("type") String type, @QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    type=WebUtility.inputSanitizer(type);
+	    insightId=WebUtility.inputSanitizer(insightId);
+	    groupId=WebUtility.inputSanitizer(groupId);
+	    
+		
 		Map<String, String> errorMap = new HashMap<String, String>();
 		User user = null;
 		try {
