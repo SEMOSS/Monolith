@@ -13,6 +13,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class ResourceUtility {
 
@@ -75,13 +76,13 @@ public class ResourceUtility {
 	public static String getClientIp(@Context HttpServletRequest request) {
         String remoteAddr = "";
         if (request != null) {
-            remoteAddr = request.getHeader("X-FORWARDED-FOR");
+            remoteAddr = WebUtility.inputSanitizer(request.getHeader("X-FORWARDED-FOR"));
             if (remoteAddr == null || "".equals(remoteAddr)) {
                 remoteAddr =  request.getRemoteAddr();
             }
         }
 
-        return Utility.inputSanitizer(remoteAddr);
+        return WebUtility.inputSanitizer(remoteAddr);
     }
 	
 	/**

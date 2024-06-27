@@ -121,7 +121,7 @@ public class NameServer {
 
 		List<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
 		for (int i = 0; i < sheetNames.size(); i++) {
-			hashTable.put(sheetNames.get(i), PlaySheetRDFMapBasedEnum.getClassFromName(sheetNames.get(i)));
+			hashTable.put(sheetNames.get(i), PlaySheetRDFMapBasedEnum.getClassFromName(WebUtility.inputSanitizer( sheetNames.get(i))));
 		}
 		return WebUtility.getSO(hashTable);
 	}
@@ -837,7 +837,7 @@ public class NameServer {
 				+ "&list=search&format=json&utf8=1&srprop=snippet&srsearch=";
 		String PRODUCT_ONTOLOGY_PREFIX = "http://www.productontology.org/id/";
 		LinkedTreeMap<String, String> ret = new LinkedTreeMap<>();
-
+		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		if (searchTerm != null && !searchTerm.isEmpty()) {
 			try {
 				CloseableHttpClient httpClient = null;
@@ -1112,7 +1112,7 @@ public class NameServer {
 			@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
-		List<String> searchResults = SecurityInsightUtils.predictUserInsightSearch(user, searchString, "15", "0");
+		List<String> searchResults = SecurityInsightUtils.predictUserInsightSearch(user, WebUtility.inputSanitizer(searchString), "15", "0");
 		return WebUtility.getSO(searchResults);
 	}
 
