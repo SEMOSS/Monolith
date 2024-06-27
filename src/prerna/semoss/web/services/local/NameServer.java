@@ -441,9 +441,11 @@ public class NameServer {
 	 * @param user			User object
 	 * @param insight		Insight object
 	 * @param expression	String containing the pixel
-	 * @param jobId			
+	 * @param jobId
 	 * @param insightId
 	 * @param sessionId
+	 * @param routeId
+	 * @param dropLogging
 	 * @return
 	 */
 	public static Response runPixelJob(User user, Insight insight, String expression, String jobId, 
@@ -543,8 +545,17 @@ public class NameServer {
 
 		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
 		String expression = request.getParameter("expression");
+		if(expression == null || (expression = expression.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
+			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		if(!expression.endsWith(";")) {
+			expression = expression + ";";
+		}
+		
 		Insight insight = null;
-
 		// figure out the type of insight
 		// first is temp
 		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
