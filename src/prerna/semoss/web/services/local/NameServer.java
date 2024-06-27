@@ -240,7 +240,7 @@ public class NameServer {
 
 		try {
 			String filePath = insight.getExportFileLocation(fileKey);
-			File exportFile = new File(Utility.normalizePath(filePath));
+			File exportFile = new File(WebUtility.normalizePath(filePath));
 			if (!exportFile.exists()) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Could not find the file for given file id");
@@ -1203,7 +1203,7 @@ public class NameServer {
 	private String createInsightTupleSpace(String baseFolder, String insightId) {
 		baseFolder = baseFolder.replace("\\","/");
 		String insightSpecificFolder = baseFolder + "/" + insightId;
-		String normalizedInsightSpecificFolder = Utility.normalizePath(insightSpecificFolder);
+		String normalizedInsightSpecificFolder = WebUtility.normalizePath(insightSpecificFolder);
 		File file = new File(normalizedInsightSpecificFolder);
 		if (!file.exists()) {			
 			Boolean success = file.mkdir();
@@ -1211,7 +1211,7 @@ public class NameServer {
 				classLogger.info("Unable to created insight tuple space at: " + Utility.cleanLogString(normalizedInsightSpecificFolder));
 			}
 			String command = "addFolder@@" + normalizedInsightSpecificFolder;
-			String normalizedCmdFilePath = Utility.normalizePath(baseFolder + "/" + insightId +".admin");
+			String normalizedCmdFilePath = WebUtility.normalizePath(baseFolder + "/" + insightId +".admin");
 			File cmdFile = new File(normalizedCmdFilePath);
 
 			try {

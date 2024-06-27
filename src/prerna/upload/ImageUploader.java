@@ -149,7 +149,7 @@ public class ImageUploader extends Uploader {
 		{
 			// remove the old image files in the version folder
 			// and push new one to the version folder
-			File engineVersionF = new File(Utility.normalizePath(engineVersionPath));
+			File engineVersionF = new File(WebUtility.normalizePath(engineVersionPath));
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if(!success) {
@@ -177,7 +177,7 @@ public class ImageUploader extends Uploader {
 			newImageFileType = imageFile.getContentType().split("/")[1];
 			String imageFileName = "image." + newImageFileType;
 			String imageLoc = engineVersionF.getAbsolutePath() + DIR_SEPARATOR + imageFileName;
-			newImageFileInVersionFolder = new File(Utility.normalizePath(imageLoc));
+			newImageFileInVersionFolder = new File(WebUtility.normalizePath(imageLoc));
 			writeFile(imageFile, newImageFileInVersionFolder);
 			ClusterUtil.copyLocalFileToEngineCloudFolder(engineId, engineType, imageLoc);
 		}
@@ -195,8 +195,8 @@ public class ImageUploader extends Uploader {
 			}
 		} else if(ClusterUtil.IS_CLUSTER) {
 			// we need to push to the engine specific image folder
-			File localCloudImageF = new File(Utility.normalizePath( localEngineImageFolderPath));
-			File newImageFileInCloudFolder = new File(Utility.normalizePath(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType));
+			File localCloudImageF = new File(WebUtility.normalizePath( localEngineImageFolderPath));
+			File newImageFileInCloudFolder = new File(WebUtility.normalizePath(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType));
 			
 			// find all the image files and delete them
 			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {
@@ -305,7 +305,7 @@ public class ImageUploader extends Uploader {
 		{
 			// remove the old image files in the version folder
 			// and push new one to the version folder
-			File engineVersionF = new File(Utility.normalizePath(engineVersionPath));
+			File engineVersionF = new File(WebUtility.normalizePath(engineVersionPath));
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if(!success) {
@@ -344,7 +344,7 @@ public class ImageUploader extends Uploader {
 			}
 		} else if(ClusterUtil.IS_CLUSTER) {
 			// we need to push to the engine specific image folder
-			File localCloudImageF = new File(Utility.normalizePath(localEngineImageFolderPath));
+			File localCloudImageF = new File(WebUtility.normalizePath(localEngineImageFolderPath));
 			// find all the image files and delete them
 			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {
 				
@@ -391,7 +391,7 @@ public class ImageUploader extends Uploader {
 		Map<String, String> returnMap = new HashMap<>();
 
 		// base path is the project folder
-		String filePath = Utility.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
+		String filePath = WebUtility.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
 		
 		HttpSession session = request.getSession(false);
 		User user = null;
@@ -471,14 +471,14 @@ public class ImageUploader extends Uploader {
 			String imageDir = getProjectImageDir(filePath, projectId, projectName);
 			String imageLoc = getProjectImageLoc(filePath, projectId, projectName, imageFile);
 			
-			File f = new File(Utility.normalizePath(imageDir));
+			File f = new File(WebUtility.normalizePath(imageDir));
 			if (!f.exists()) {
 				Boolean success = f.mkdirs();
 				if(!success) {
 					classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
 				}
 			}
-			f = new File(Utility.normalizePath(imageLoc));
+			f = new File(WebUtility.normalizePath(imageLoc));
 			// find all the existing image files
 			// and delete them
 			File[] oldImages = null;
@@ -521,7 +521,7 @@ public class ImageUploader extends Uploader {
 		Map<String, String> returnMap = new HashMap<>();
 
 		// base path is the project folder
-		String filePath = Utility.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
+		String filePath = WebUtility.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
 
 		String projectId = WebUtility.inputSanitizer(request.getParameter("projectId"));
 		String projectName = null;
@@ -574,7 +574,7 @@ public class ImageUploader extends Uploader {
 		}
 		
 		String imageDir = getProjectImageDir(filePath, projectId, projectName);
-		File f = new File(Utility.normalizePath(imageDir));
+		File f = new File(WebUtility.normalizePath(imageDir));
 		File[] oldImages = null;
 		if (ClusterUtil.IS_CLUSTER) {
 			FilenameFilter appIdFilter = new WildcardFileFilter(projectId + "*");
@@ -633,7 +633,7 @@ public class ImageUploader extends Uploader {
 		Map<String, String> returnMap = new HashMap<>();
 		
 		// base path is the project folder
-		String filePath = Utility.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
+		String filePath = WebUtility.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
 
 		HttpSession session = request.getSession(false);
 		User user = null;
@@ -719,7 +719,7 @@ public class ImageUploader extends Uploader {
 			// and the image file
 			// we want to write it into the project location
 			String imageDir = AssetUtility.getProjectVersionFolder(projectName, projectId) + DIR_SEPARATOR + insightId;
-			File f = new File(Utility.normalizePath(imageDir));
+			File f = new File(WebUtility.normalizePath(imageDir));
 			if (!f.exists()) {
 				Boolean success = f.mkdirs();
 				if(!success) {
@@ -744,7 +744,7 @@ public class ImageUploader extends Uploader {
 			
 			String imageFileName = "image." + imageFile.getContentType().split("/")[1];
 			String imageLoc = imageDir + DIR_SEPARATOR + imageFileName;
-			f = new File(Utility.normalizePath(imageLoc));
+			f = new File(WebUtility.normalizePath(imageLoc));
 			writeFile(imageFile, f);
 			
 			try {
@@ -828,7 +828,7 @@ public class ImageUploader extends Uploader {
 		// and the image file
 		// we want to write it into the app location
 		String imageDir = AssetUtility.getProjectVersionFolder(projectName, projectId) + DIR_SEPARATOR + insightId;
-		File f = new File(Utility.normalizePath(imageDir));
+		File f = new File(WebUtility.normalizePath(imageDir));
 		if (f.exists()) {
 			// find all the existing image files
 			// and delete them
@@ -986,7 +986,7 @@ public class ImageUploader extends Uploader {
 		{
 			// remove the old image files in the version folder
 			// and push new one to the version folder
-			File engineVersionF = new File( Utility.normalizePath(engineVersionPath));
+			File engineVersionF = new File( WebUtility.normalizePath(engineVersionPath));
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if(!success) {
@@ -1014,7 +1014,7 @@ public class ImageUploader extends Uploader {
 			newImageFileType = imageFile.getContentType().split("/")[1];
 			String imageFileName = "image." + newImageFileType;
 			String imageLoc = engineVersionF.getAbsolutePath() + DIR_SEPARATOR + imageFileName;
-			newImageFileInVersionFolder = new File(Utility.normalizePath(imageLoc));
+			newImageFileInVersionFolder = new File(WebUtility.normalizePath(imageLoc));
 			writeFile(imageFile, newImageFileInVersionFolder);
 			ClusterUtil.copyLocalFileToEngineCloudFolder(engineId, engineType, imageLoc);
 		}
@@ -1032,8 +1032,8 @@ public class ImageUploader extends Uploader {
 			}
 		} else if(ClusterUtil.IS_CLUSTER) {
 			// we need to push to the engine specific image folder
-			File localCloudImageF = new File( Utility.normalizePath(localEngineImageFolderPath));
-			File newImageFileInCloudFolder = new File(Utility.normalizePath(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType));
+			File localCloudImageF = new File( WebUtility.normalizePath(localEngineImageFolderPath));
+			File newImageFileInCloudFolder = new File(WebUtility.normalizePath(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType));
 			
 			// find all the image files and delete them
 			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {
@@ -1150,7 +1150,7 @@ public class ImageUploader extends Uploader {
 		{
 			// remove the old image files in the version folder
 			// and push new one to the version folder
-			File engineVersionF = new File(Utility.normalizePath(engineVersionPath));
+			File engineVersionF = new File(WebUtility.normalizePath(engineVersionPath));
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if(!success) {
@@ -1189,7 +1189,7 @@ public class ImageUploader extends Uploader {
 			}
 		} else if(ClusterUtil.IS_CLUSTER) {
 			// we need to push to the engine specific image folder
-			File localCloudImageF = new File(Utility.normalizePath(localEngineImageFolderPath));
+			File localCloudImageF = new File(WebUtility.normalizePath(localEngineImageFolderPath));
 			// find all the image files and delete them
 			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {
 				
