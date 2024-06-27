@@ -54,7 +54,9 @@ public class InsightAuthorizationResource {
 		
 	    projectId=WebUtility.inputSanitizer(projectId);
 	    searchTerm=WebUtility.inputSanitizer(searchTerm);	    
-	    
+	    offset=WebUtility.inputSanitizer(offset);	    
+	    limit=WebUtility.inputSanitizer(limit);	    
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -278,10 +280,10 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = form.getFirst("id");
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
-		String newPermission = form.getFirst("permission");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		try {
@@ -328,8 +330,8 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -384,9 +386,9 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = form.getFirst("id");
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 
 		try {
 			SecurityInsightUtils.removeInsightUser(user, existingUserId, projectId, insightId);
@@ -432,8 +434,8 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("isPublic"));
 		if(isPublic && AbstractSecurityUtils.adminOnlyInsightSetPublic()) {
 			if(!SecurityAdminUtils.userIsAdmin(user)) {
@@ -548,6 +550,11 @@ public class InsightAuthorizationResource {
 			@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
+		
+	    projectId=WebUtility.inputSanitizer(projectId);
+	    insightId=WebUtility.inputSanitizer(insightId);
+	    searchTerm=WebUtility.inputSanitizer(searchTerm);
+	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);

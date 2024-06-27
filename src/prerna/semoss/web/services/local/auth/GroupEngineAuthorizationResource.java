@@ -45,6 +45,12 @@ public class GroupEngineAuthorizationResource {
 	@Path("getGroupAppPermission")
 	public Response getGroupAppPermission(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, 
 			@QueryParam("type") String type, @QueryParam("appId") String appId) {
+		
+		type=WebUtility.inputSanitizer(type);
+		appId=WebUtility.inputSanitizer(appId);
+		groupId=WebUtility.inputSanitizer(groupId);
+
+	    
 		Map<String, String> errorMap = new HashMap<String, String>();
 		User user = null;
 		try {
