@@ -30,6 +30,7 @@ import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.requests.OverrideParametersServletRequest;
+import prerna.web.services.util.WebUtility;
 
 public class APIFilter implements Filter {
 
@@ -181,7 +182,7 @@ public class APIFilter implements Filter {
 	private void sendRedirect(HttpServletRequest request, HttpServletResponse response)
 	{
 		try {
-			String fullUrl = Utility.cleanHttpResponse(request.getRequestURL().toString());
+			String fullUrl = WebUtility.cleanHttpResponse(request.getRequestURL().toString());
 			String contextPath = request.getContextPath();
 			
 			String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_USER_HTML;

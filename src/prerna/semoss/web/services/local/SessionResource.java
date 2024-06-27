@@ -250,7 +250,7 @@ public class SessionResource {
 					redirectUrl += ":" + serverPort;
 				}
 				redirectUrl += contextPath + "/logout/";
-				redirectUrl = Utility.cleanHttpResponse(redirectUrl);
+				redirectUrl = WebUtility.cleanHttpResponse(redirectUrl);
 				response.setHeader("redirect", redirectUrl);
 				response.sendError(302, "Need to redirect to " + redirectUrl);
 			}

@@ -249,7 +249,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		if(resetEmailUrl == null || (resetEmailUrl=resetEmailUrl.trim()).isEmpty() ) {
-			String fullUrl = Utility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
+			String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
 			String contextPath = ((HttpServletRequest) request).getContextPath();
 			resetEmailUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) 
 					+ RESET_PASSWORD + "index.html?token=" + uniqueToken;
