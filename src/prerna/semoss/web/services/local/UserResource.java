@@ -47,6 +47,7 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -118,6 +119,7 @@ import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
 
 @Path("/auth")
+@PermitAll
 public class UserResource {
 
 	private static final Logger classLogger = LogManager.getLogger(UserResource.class);

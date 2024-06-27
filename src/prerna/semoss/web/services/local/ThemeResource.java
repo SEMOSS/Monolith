@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -20,6 +21,7 @@ import prerna.theme.AdminThemeUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/themes")
+@PermitAll
 public class ThemeResource {
 
 	/**
