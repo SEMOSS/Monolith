@@ -320,8 +320,8 @@ public class NameServer {
 		}
 
 		String jobId = "";
-		String insightId = request.getParameter("insightId");
-		String expression = request.getParameter("expression");
+		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
+		String expression = WebUtility.inputSanitizer(request.getParameter("expression"));
 		if(expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
@@ -417,7 +417,7 @@ public class NameServer {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String insightId = request.getParameter("insightId");
+		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
 		Insight insight = InsightStore.getInstance().get(insightId);
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -541,8 +541,8 @@ public class NameServer {
 		String jobId = "";
 		Map<String, String> dataReturn = new HashMap<>();
 
-		String insightId = request.getParameter("insightId");
-		String expression = request.getParameter("expression");
+		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
+		String expression = WebUtility.inputSanitizer(request.getParameter("expression"));
 		Insight insight = null;
 
 		// figure out the type of insight
