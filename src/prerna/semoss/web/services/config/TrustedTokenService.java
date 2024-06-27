@@ -55,7 +55,7 @@ public class TrustedTokenService {
 			ret.put(Constants.ERROR_MESSAGE, "Must use POST request to send client/secret keys");
 			return WebUtility.getResponse(ret, 401);
 		}
-		String clientId = request.getParameter("client_id");
+		String clientId =WebUtility.inputSanitizer( request.getParameter("client_id"));
 		String ip = ResourceUtility.getClientIp(request);
 		Object[] tokenDetails = null;
 		if(ClusterUtil.IS_CLUSTER) {
@@ -74,7 +74,7 @@ public class TrustedTokenService {
 	@POST
 	@Path("/getToken")
 	public Response getTokenPost(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		String clientId = request.getParameter("client_id");
+		String clientId = WebUtility.inputSanitizer(request.getParameter("client_id"));
 		if(SecurityAPIUserUtils.getApplicationAPIUserTokenCheck()) {
 			String secretKey = request.getParameter("secret_key");
 			
