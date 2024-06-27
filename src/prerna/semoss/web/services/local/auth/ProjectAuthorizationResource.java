@@ -85,6 +85,7 @@ public class ProjectAuthorizationResource {
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
+		searchTerm = Utility.inputSanitizer(searchTerm);
 		if(searchTerm != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
@@ -1112,10 +1113,10 @@ public class ProjectAuthorizationResource {
 			mods.put(Settings.PUBLIC_HOME_ENABLE, hasPortal+"");
 			Properties props = Utility.loadProperties(projectSmss);
 			if(props.get(Settings.PUBLIC_HOME_ENABLE) == null) {
-				classLogger.info("Updating project smss to include public home property to " + logPortal + " for project " + projectId);
+				classLogger.info(Utility.cleanLogString("Updating project smss to include public home property to " + logPortal + " for project " + projectId));
 				Utility.addKeysAtLocationIntoPropertiesFile(projectSmss, Constants.CONNECTION_URL, mods);
 			} else {
-				classLogger.info("Modifying project smss to " + logPortal + " for project " + projectId);
+				classLogger.info(Utility.cleanLogString("Modifying project smss to " + logPortal + " for project " + projectId));
 				Utility.changePropertiesFileValue(projectSmss, Settings.PUBLIC_HOME_ENABLE, hasPortal+"");
 			}
 
