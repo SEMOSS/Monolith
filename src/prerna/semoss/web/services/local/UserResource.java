@@ -2957,7 +2957,7 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/cookie")
 	public StreamingOutput manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		String insightId = request.getParameter("i");
+		String insightId = Utility.inputSanitizer(request.getParameter("i"));
 		String secret = request.getParameter("s");
 
 		// https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
