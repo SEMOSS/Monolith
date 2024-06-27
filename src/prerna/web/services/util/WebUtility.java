@@ -120,7 +120,7 @@ public class WebUtility {
 						{
 							String data = null;
 							while((data = br.readLine()) != null)
-								pw.println(data);
+								pw.println(WebUtility.inputSanitizer(data));
 							//ps.write(data, 0 , data.length);
 							fr.close();
 							br.close();
