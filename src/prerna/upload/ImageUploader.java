@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -43,6 +44,7 @@ import prerna.util.insight.InsightUtility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/images")
+@PermitAll
 public class ImageUploader extends Uploader {
 	
 	private static final Logger classLogger = LogManager.getLogger(ImageUploader.class);

@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -102,6 +103,7 @@ import prerna.web.services.util.SemossThread;
 import prerna.web.services.util.WebUtility;
 
 @Path("/engine")
+@PermitAll
 public class NameServer {
 
 	private static final Logger classLogger = LogManager.getLogger(NameServer.class);

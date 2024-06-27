@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -36,6 +37,7 @@ import prerna.web.conf.DBLoader;
 import prerna.web.services.util.WebUtility;
 
 @Path("/session")
+@PermitAll
 public class SessionResource {
 	
 	private static final Logger logger = LogManager.getLogger(SessionResource.class);

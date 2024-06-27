@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
 import javax.servlet.FilterChain;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -39,6 +40,7 @@ import prerna.web.conf.DBLoader;
 import prerna.web.services.util.WebUtility;
 
 @Path("/config")
+@PermitAll
 public class ServerConfigurationResource {
 	
 	private static final Logger logger = LogManager.getLogger(ServerConfigurationResource.class); 
