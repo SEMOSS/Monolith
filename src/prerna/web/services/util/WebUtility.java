@@ -65,18 +65,21 @@ import prerna.util.Utility;
 import prerna.util.gson.GsonUtility;
 
 /**
- * The Utility class contains a variety of miscellaneous functions implemented extensively throughout SEMOSS.
- * Some of these functionalities include getting concept names, printing messages, loading engines, and writing Excel workbooks.
+ * The Utility class contains a variety of miscellaneous functions implemented
+ * extensively throughout SEMOSS. Some of these functionalities include getting
+ * concept names, printing messages, loading engines, and writing Excel
+ * workbooks.
  */
 public class WebUtility {
 
 	private static final Logger classLogger = LogManager.getLogger(WebUtility.class);
 
-    private static final FastDateFormat expiresDateFormat = FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz", TimeZone.getTimeZone("GMT"));
+	private static final FastDateFormat expiresDateFormat = FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz",
+			TimeZone.getTimeZone("GMT"));
 
 	private static final List<String[]> noCacheHeaders = new ArrayList<String[]>();
 	static {
-		noCacheHeaders.add(new String[] {"Cache-Control", "private"});
+		noCacheHeaders.add(new String[] { "Cache-Control", "private" });
 //		noCacheHeaders.add(new String[] {"Cache-Control", "no-store, no-cache, must-revalidate, max-age=20, post-check=0, pre-check=0"});
 //		noCacheHeaders.add(new String[] {"Pragma", "no-cache"});
 	}
@@ -91,21 +94,24 @@ public class WebUtility {
 	 * @return
 	 */
 	public static StreamingOutput getSO(Object vec) {
-		if(vec != null) {
+		if (vec != null) {
 			Gson gson = getDefaultGson();
 			try {
 				final byte[] output = gson.toJson(vec).getBytes("UTF8");
 				return new StreamingOutput() {
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-						try(
-								PrintStream ps = new PrintStream(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
-								){
-							ps.write(output, 0 , output.length);
+						try (PrintStream ps = new PrintStream(outputStream); // using try with resources to
+																				// automatically close PrintStream
+																				// object since it implements
+																				// AutoCloseable
+						) {
+							ps.write(output, 0, output.length);
 						}
-					}};
+					}
+				};
 			} catch (UnsupportedEncodingException e) {
 				classLogger.error(Constants.STACKTRACE, e);
-			}      
+			}
 		}
 
 		return null;
@@ -116,30 +122,32 @@ public class WebUtility {
 	 * @param fileLocation
 	 * @return
 	 */
-	public static StreamingOutput getSOFile(String  fileLocation) {
-		if(fileLocation != null) {
+	public static StreamingOutput getSOFile(String fileLocation) {
+		if (fileLocation != null) {
 			try {
 				File daFile = new File(WebUtility.normalizePath(fileLocation));
 				FileReader fr = new FileReader(daFile);
 				BufferedReader br = new BufferedReader(fr);
 				return new StreamingOutput() {
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-						try(
-								PrintWriter pw = new PrintWriter(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
-								)
-						{
+						try (PrintWriter pw = new PrintWriter(outputStream); // using try with resources to
+																				// automatically close PrintStream
+																				// object since it implements
+																				// AutoCloseable
+						) {
 							String data = null;
-							while((data = br.readLine()) != null)
+							while ((data = br.readLine()) != null)
 								pw.println(data);
-							//ps.write(data, 0 , data.length);
+							// ps.write(data, 0 , data.length);
 							fr.close();
 							br.close();
 							daFile.delete();
 						}
-					}};
+					}
+				};
 			} catch (Exception e) {
 				classLogger.error(Constants.STACKTRACE, e);
-			}      
+			}
 		}
 
 		return null;
@@ -148,15 +156,15 @@ public class WebUtility {
 	public static Response getResponse(Object vec, int status) {
 		return getResponse(vec, status, null);
 	}
-	
+
 	public static Response getResponse(Object vec, int status, NewCookie[] cookies) {
 		return getResponse(vec, status, null, cookies);
 	}
-	
+
 	public static Response getResponseNoCache(Object vec, int status) {
 		return getResponse(vec, status, noCacheHeaders);
 	}
-	
+
 	public static Response getResponseNoCache(Object vec, int status, NewCookie[] cookies) {
 		return getResponse(vec, status, noCacheHeaders, cookies);
 	}
@@ -170,19 +178,20 @@ public class WebUtility {
 	 * @return
 	 */
 	public static Response getResponse(Object vec, int status, List<String[]> addHeaders, NewCookie... cookies) {
-		if(vec != null) {
+		if (vec != null) {
 			Gson gson = getDefaultGson();
 			try {
 				final byte[] output = gson.toJson(vec).getBytes("UTF8");
 				int length = output.length;
-				ResponseBuilder builder = Response.status(status).entity(WebUtility.getSO(output)).header("Content-Length", length);
-				if(addHeaders != null && !addHeaders.isEmpty()) {
-					for(int i = 0; i < addHeaders.size(); i++) {
+				ResponseBuilder builder = Response.status(status).entity(WebUtility.getSO(output))
+						.header("Content-Length", length);
+				if (addHeaders != null && !addHeaders.isEmpty()) {
+					for (int i = 0; i < addHeaders.size(); i++) {
 						String[] headerInfo = addHeaders.get(i);
 						builder.header(headerInfo[0], headerInfo[1]);
 					}
 				}
-				if(cookies != null && cookies.length > 0) {
+				if (cookies != null && cookies.length > 0) {
 					// due to chrome updates, we require to add cookies
 					// with samesite tags if they are not secure
 					// so will set the cookies via the header
@@ -201,9 +210,9 @@ public class WebUtility {
 
 		return null;
 	}
-	
+
 	public static String convertCookieToHeader(NewCookie cookie) {
-		StringBuilder c = new StringBuilder(64+cookie.getValue().length());
+		StringBuilder c = new StringBuilder(64 + cookie.getValue().length());
 		// add the cookie
 		c.append(cookie.getName());
 		c.append('=');
@@ -214,14 +223,14 @@ public class WebUtility {
 		c.append('=');
 		c.append(Utility.getSameSiteCookieValue());
 		// get the domain
-		if(cookie.getDomain() != null) {
+		if (cookie.getDomain() != null) {
 			c.append("; ");
 			c.append("domain");
 			c.append('=');
 			c.append(cookie.getDomain());
 		}
 		// the path
-		if(cookie.getPath() != null) {
+		if (cookie.getPath() != null) {
 			c.append("; ");
 			c.append("path");
 			c.append('=');
@@ -233,13 +242,13 @@ public class WebUtility {
 		if (cookie.isHttpOnly()) {
 			c.append("; HttpOnly");
 		}
-		if (cookie.getMaxAge()>=0) {
+		if (cookie.getMaxAge() >= 0) {
 			c.append("; ");
 			c.append("Expires");
 			c.append('=');
 			c.append(getExpires(cookie.getMaxAge()));
 		}
-		
+
 		return c.toString();
 	}
 
@@ -249,7 +258,7 @@ public class WebUtility {
 		}
 		Calendar expireDate = Calendar.getInstance();
 		expireDate.setTime(new Date());
-		expireDate.add(Calendar.SECOND,maxAge);
+		expireDate.add(Calendar.SECOND, maxAge);
 		return expiresDateFormat.format(expireDate);
 	}
 
@@ -262,73 +271,67 @@ public class WebUtility {
 		try {
 			return new StreamingOutput() {
 				public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-					try(
-							PrintStream ps = new PrintStream(outputStream); //using try with resources to automatically close PrintStream object since it implements AutoCloseable
-							){
-						ps.write(output, 0 , output.length);
+					try (PrintStream ps = new PrintStream(outputStream); // using try with resources to automatically
+																			// close PrintStream object since it
+																			// implements AutoCloseable
+					) {
+						ps.write(output, 0, output.length);
 					}
-				}};
+				}
+			};
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
-		}      
+		}
 
 		return null;
 	}
-	
+
 	/**
 	 * 
 	 * @param obj
 	 * @return
 	 */
 	public static StreamingOutput getBinarySO(Object obj) {
-		if(obj != null) {
+		if (obj != null) {
 			try {
 				final byte[] output = FstUtil.serialize(obj);
-				return new StreamingOutput() 
-				{
-					public void write(OutputStream outputStream) throws IOException, WebApplicationException 
-					{
-						try
-						{
-								outputStream.write(output);
-								outputStream.flush();
-						}catch(Exception ex)
-						{
-							classLogger.error(Constants.STACKTRACE, ex);							
+				return new StreamingOutput() {
+					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+						try {
+							outputStream.write(output);
+							outputStream.flush();
+						} catch (Exception ex) {
+							classLogger.error(Constants.STACKTRACE, ex);
+						}
 					}
-				}
 				};
-			} catch(Exception ex) {
-				classLogger.error(Constants.STACKTRACE, ex);											
+			} catch (Exception ex) {
+				classLogger.error(Constants.STACKTRACE, ex);
 			}
 		}
 		return null;
 	}
-	
+
 	/**
 	 * Ensure no CRLF injection into responses for malicious attacks
+	 * 
 	 * @param message
 	 * @return
 	 */
 	public static String cleanHttpResponse(String message) {
-		if(message == null) {
+		if (message == null) {
 			return message;
 		}
-		message = message
-				.replace('\n', '_')
-				.replace("%0d", "_")
-				.replace('\r', '_')
-				.replace("%0a", "_")
-				.replace('\t', '_')
-				.replace("%09", "_");
+		message = message.replace('\n', '_').replace("%0d", "_").replace('\r', '_').replace("%0a", "_")
+				.replace('\t', '_').replace("%09", "_");
 
 		message = Encode.forHtml(message);
 		return message;
 	}
-	
+
 	/**
 	 * This is to remove scripts from being passed
-	 * ex. <script>alert('XSS');</script> is blocked
+	 * 
 	 * @param stringToNormalize
 	 * @return
 	 */
@@ -338,8 +341,9 @@ public class WebUtility {
 			return stringToNormalize;
 		}
 
-		PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS).and(Sanitizers.BLOCKS).and(Sanitizers.STYLES).and(Sanitizers.IMAGES).and(Sanitizers.TABLES);
-		return policy.sanitize(stringToNormalize );
+		PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS).and(Sanitizers.BLOCKS).and(Sanitizers.STYLES)
+				.and(Sanitizers.IMAGES).and(Sanitizers.TABLES);
+		return policy.sanitize(stringToNormalize);
 	}
 
 	/**
@@ -348,14 +352,14 @@ public class WebUtility {
 	 * @return
 	 */
 	public static String normalizePath(String stringToNormalize) {
-		if(stringToNormalize == null ) {
+		if (stringToNormalize == null) {
 			return stringToNormalize;
 		}
-		//replacing \\ with /
-		stringToNormalize=stringToNormalize.replace("\\", "/");
-		//ensuring no double //
-		while(stringToNormalize.contains("//")){
-			stringToNormalize=stringToNormalize.replace("//", "/");
+		// replacing \\ with /
+		stringToNormalize = stringToNormalize.replace("\\", "/");
+		// ensuring no double //
+		while (stringToNormalize.contains("//")) {
+			stringToNormalize = stringToNormalize.replace("//", "/");
 		}
 
 		String normalizedString = Normalizer.normalize(stringToNormalize, Form.NFKC);
