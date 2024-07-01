@@ -22,6 +22,7 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.web.services.util.WebUtility;
 
 public class AnonymousUserFilter implements Filter, Serializable {
 
@@ -44,7 +45,7 @@ public class AnonymousUserFilter implements Filter, Serializable {
 					// loop through and see if we have a cookie for this user
 					for(Cookie c : cookies) {
 						if(c.getName().equals(cookieToFind)) {
-							String uId = c.getValue();
+							String uId = WebUtility.cleanHttpResponse(c.getValue());
 							user.setAnonymousId(uId);
 							// found the cookie
 							// no need to continue loop

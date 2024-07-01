@@ -66,6 +66,7 @@ import prerna.util.Constants;
 import prerna.util.FstUtil;
 import prerna.util.Utility;
 import prerna.util.gson.GsonUtility;
+import prerna.web.conf.DBLoader;
 
 /**
  * The Utility class contains a variety of miscellaneous functions implemented
@@ -401,10 +402,24 @@ public class WebUtility {
 		return normalizedString;
 	}
 
-	public static Cookie[] getCleanCookies(HttpServletRequest request) {
-		//Commenting this out until we can fix the regex logic
-		//SecurityWrapperRequest secReq = new SecurityWrapperRequest(request);
-		//return secReq.getCookies();
-		return request.getCookies();
+	public static void expireSessionCookies(HttpServletRequest request, List<NewCookie> newCookies) {
+		Cookie[] cookies = request.getCookies();
+		if (cookies != null) {
+			for (Cookie c : cookies) {
+				if (DBLoader.getSessionIdKey().equals(c.getName())) {
+					// we need to null this out
+					NewCookie nullC = new NewCookie(
+						c.getName(), 
+						cleanHttpResponse(c.getValue()), 
+						cleanHttpResponse(c.getPath()), 
+						cleanHttpResponse(c.getDomain()),
+						cleanHttpResponse(c.getComment()), 
+						0, 
+						c.getSecure()
+					);
+					newCookies.add(nullC);
+				}
+			}
+		}
 	}
 }
