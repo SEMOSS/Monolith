@@ -43,6 +43,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
@@ -54,10 +56,12 @@ import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
+import org.owasp.esapi.filters.SecurityWrapperRequest;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
 
 import com.google.gson.Gson;
+import com.google.json.JsonSanitizer;
 
 import prerna.util.Constants;
 import prerna.util.FstUtil;
@@ -344,6 +348,18 @@ public class WebUtility {
 		PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS).and(Sanitizers.BLOCKS).and(Sanitizers.STYLES)
 				.and(Sanitizers.IMAGES).and(Sanitizers.TABLES);
 		return policy.sanitize(stringToNormalize);
+	}
+	
+
+	/**
+	 * Given JSON-like content, produces a string of JSON that is safe to embed,
+	 * safe to pass to JavaScript's {@code eval} operator.
+	 * 
+	 * @param jsonStringToSanitize
+	 * @return
+	 */
+	public static String jsonSanitizer(String jsonStringToSanitize) {
+		return JsonSanitizer.sanitize(jsonStringToSanitize);
 	}
 
 	/**

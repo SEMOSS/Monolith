@@ -762,42 +762,47 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				String prefix = "sf_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				params.put("grant_type", "authorization_code");
-				params.put("redirect_uri", redirectUri);
-				params.put("code", URLDecoder.decode(outputs[0]));
-				params.put("client_secret", clientSecret);
-
-				String url = "https://login.salesforce.com/services/oauth2/token";
-
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getSFRedirect(request));
-					return null;
-				}
-				accessToken.setProvider(AuthProvider.SF);
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+				
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				if(code.matches("[ -~]+")) {
+					String prefix = "sf_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+					
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+					
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					params.put("grant_type", "authorization_code");
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("client_secret", clientSecret);
+					
+					String url = "https://login.salesforce.com/services/oauth2/token";
+					
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getSFRedirect(request));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.SF);
+					addAccessToken(accessToken, request, autoAdd);
+					
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}
@@ -857,43 +862,48 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString =  request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
-				String prefix = "surveymonkey_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				params.put("grant_type", "authorization_code");
-				params.put("redirect_uri", redirectUri);
-				params.put("code", URLDecoder.decode(outputs[0]));
-				params.put("client_secret", clientSecret);
-
-				String url = "https://api.surveymonkey.com/oauth/token";
-
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getSurveyMonkeyRedirect(request));
-					return null;
-				}
-				accessToken.setProvider(AuthProvider.SURVEYMONKEY);
-				MonkeyProfile.fillAccessToken(accessToken, null);
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				if(code.matches("[ -~]+")) {
+					String prefix = "surveymonkey_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+	
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					params.put("grant_type", "authorization_code");
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("client_secret", clientSecret);
+	
+					String url = "https://api.surveymonkey.com/oauth/token";
+	
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getSurveyMonkeyRedirect(request));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.SURVEYMONKEY);
+					MonkeyProfile.fillAccessToken(accessToken, null);
+					addAccessToken(accessToken, request, autoAdd);
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}
@@ -954,51 +964,58 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
-				String prefix = "github_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				params.put("redirect_uri", redirectUri);
-				params.put("code", outputs[0]);
-				params.put("state", outputs[1]);
-				params.put("client_secret", clientSecret);
-
-				String url = "https://github.com/login/oauth/access_token";
-
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, false, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getGithubRedirect(request));
-					return null;
-				}
-				accessToken.setProvider(AuthProvider.GITHUB);
-
-				GitRepoUtils.addCertForDomain(url);
-				// add specific Git values
-				GHMyself myGit = GitHub.connectUsingOAuth(accessToken.getAccess_token()).getMyself();
-				accessToken.setId(myGit.getId() + "");
-				accessToken.setEmail(myGit.getEmail());
-				accessToken.setName(myGit.getName());
-				accessToken.setLocale(myGit.getLocation());
-				accessToken.setUsername(myGit.getLogin());
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+				// oauth code and state should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.5
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				String state = URLDecoder.decode(outputs[1]);
+				if(code.matches("[ -~]+") && state.matches("[ -~]+")) {
+					String prefix = "github_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+	
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("state", state);
+					params.put("client_secret", clientSecret);
+	
+					String url = "https://github.com/login/oauth/access_token";
+	
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, false, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getGithubRedirect(request));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.GITHUB);
+	
+					GitRepoUtils.addCertForDomain(url);
+					// add specific Git values
+					GHMyself myGit = GitHub.connectUsingOAuth(accessToken.getAccess_token()).getMyself();
+					accessToken.setId(myGit.getId() + "");
+					accessToken.setEmail(myGit.getEmail());
+					accessToken.setName(myGit.getName());
+					accessToken.setLocale(myGit.getLocation());
+					accessToken.setUsername(myGit.getLogin());
+					addAccessToken(accessToken, request, autoAdd);
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}
@@ -1064,56 +1081,64 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		String prefix = "gitlab_";
 
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				String token_url = socialData.getProperty(prefix + "token_url");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				params.put("redirect_uri", redirectUri);
-				params.put("code", outputs[0]);
-				params.put("state", outputs[1]);
-				params.put("client_secret", clientSecret);
-				params.put("grant_type", "authorization_code");
-
-
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getGitlabRedirect(request));
-					return null;
-				}
-				accessToken.setProvider(AuthProvider.GITLAB);
-
-				//GitRepoUtils.addCertForDomain(url);
-				// add specific Git values
-
-				String beanProps = socialData.getProperty(prefix + "beanProps");
-				String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-				String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
-				String[] beanPropsArr = beanProps.split(",", -1);
-
-
-				String output = HttpHelperUtility.makeGetCall(userinfo_url, accessToken.getAccess_token(), null, true);
-				accessToken = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, accessToken);
-
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+				
+				// oauth code and state should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.5
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				String state = URLDecoder.decode(outputs[1]);
+				if(code.matches("[ -~]+") && state.matches("[ -~]+")) {
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					String token_url = socialData.getProperty(prefix + "token_url");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+	
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("state", state);
+					params.put("client_secret", clientSecret);
+					params.put("grant_type", "authorization_code");
+	
+	
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getGitlabRedirect(request));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.GITLAB);
+	
+					//GitRepoUtils.addCertForDomain(url);
+					// add specific Git values
+	
+					String beanProps = socialData.getProperty(prefix + "beanProps");
+					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+					String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
+					String[] beanPropsArr = beanProps.split(",", -1);
+	
+	
+					String output = HttpHelperUtility.makeGetCall(userinfo_url, accessToken.getAccess_token(), null, true);
+					accessToken = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, accessToken);
+	
+					addAccessToken(accessToken, request, autoAdd);
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}
@@ -1205,59 +1230,63 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
-				String prefix = "ms_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				String tenant = socialData.getProperty(prefix + "tenant");
-				String scope = socialData.getProperty(prefix + "scope");
-				String token_url = socialData.getProperty(prefix + "token_url");
-				boolean login_external_allowed = Boolean.parseBoolean(socialData.getProperty(prefix + "login_external"));
-
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				params.put("scope", scope);
-				params.put("redirect_uri", redirectUri);
-				params.put("code", outputs[0]);
-				params.put("grant_type", "authorization_code");
-				params.put("client_secret", clientSecret);
-
-				if(Strings.isNullOrEmpty(token_url)){
-					token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
-				}
-
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getMSRedirect(request));
-					return null;
-				}
-
-				accessToken.setProvider(AuthProvider.MS);
-				MSProfile.fillAccessToken(accessToken, null);
-				if(!login_external_allowed) {
-					if(accessToken.getName().contains("External")) {
-						accessToken = null;
-						throw new IllegalArgumentException("External users are not allowed");
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				if(code.matches("[ -~]+")) {
+					String prefix = "ms_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					String tenant = socialData.getProperty(prefix + "tenant");
+					String scope = socialData.getProperty(prefix + "scope");
+					String token_url = socialData.getProperty(prefix + "token_url");
+					boolean login_external_allowed = Boolean.parseBoolean(socialData.getProperty(prefix + "login_external"));
+	
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-				}
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+	
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					params.put("scope", scope);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("grant_type", "authorization_code");
+					params.put("client_secret", clientSecret);
+	
+					if(Strings.isNullOrEmpty(token_url)){
+						token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
+					}
+	
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getMSRedirect(request));
+						return null;
+					}
+	
+					accessToken.setProvider(AuthProvider.MS);
+					MSProfile.fillAccessToken(accessToken, null);
+					if(!login_external_allowed) {
+						if(accessToken.getName().contains("External")) {
+							accessToken = null;
+							throw new IllegalArgumentException("External users are not allowed");
+						}
+					}
+					addAccessToken(accessToken, request, autoAdd);
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}
@@ -1328,56 +1357,60 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.ADFS) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
-				String prefix = "adfs_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				String scope = socialData.getProperty(prefix + "scope");
-				String token_url = socialData.getProperty(prefix + "token_url");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				params.put("scope", scope);
-				params.put("redirect_uri", redirectUri);
-				params.put("code", outputs[0]);
-				params.put("grant_type", "authorization_code");
-				params.put("client_secret", clientSecret);
-
-
-				if(Strings.isNullOrEmpty(token_url)){
-					throw new IllegalArgumentException("Token URL can not be null or empty");
-				}
-
-
-				AccessToken accessToken = HttpHelperUtility.getIdToken(token_url, params, true, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getADFSRedirect(request));
-					return null;
-				}
-				String json = decodeTokenPayload(accessToken.getAccess_token());
-
-				accessToken.setProvider(AuthProvider.ADFS);
-				String beanProps = socialData.getProperty(prefix + "beanProps");
-				String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-				String[] beanPropsArr = beanProps.split(",", -1);
-				accessToken = (AccessToken)BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, accessToken);
-
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				if(code.matches("[ -~]+")) {
+					String prefix = "adfs_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					String scope = socialData.getProperty(prefix + "scope");
+					String token_url = socialData.getProperty(prefix + "token_url");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+					
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+					
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					params.put("scope", scope);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("grant_type", "authorization_code");
+					params.put("client_secret", clientSecret);
+					
+					
+					if(Strings.isNullOrEmpty(token_url)){
+						throw new IllegalArgumentException("Token URL can not be null or empty");
+					}
+					
+					AccessToken accessToken = HttpHelperUtility.getIdToken(token_url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getADFSRedirect(request));
+						return null;
+					}
+					String json = decodeTokenPayload(accessToken.getAccess_token());
+					
+					accessToken.setProvider(AuthProvider.ADFS);
+					String beanProps = socialData.getProperty(prefix + "beanProps");
+					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+					String[] beanPropsArr = beanProps.split(",", -1);
+					accessToken = (AccessToken)BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, accessToken);
+					
+					addAccessToken(accessToken, request, autoAdd);
+					
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}
@@ -1462,49 +1495,54 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.SITEMINDER) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
-				String prefix = "siteminder_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				String tenant = socialData.getProperty(prefix + "tenant");
-				String scope = socialData.getProperty(prefix + "scope");
-				String token_url = socialData.getProperty(prefix + "token_url");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				params.put("scope", scope);
-				params.put("redirect_uri", redirectUri);
-				params.put("code", outputs[0]);
-				params.put("grant_type", "authorization_code");
-				params.put("client_secret", clientSecret);
-
-				if(Strings.isNullOrEmpty(token_url)){
-					token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
-				}
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getSiteminderRedirect(request));
-					return null;
-				}
-
-				accessToken.setProvider(AuthProvider.SITEMINDER);
-				MSProfile.fillAccessToken(accessToken, null);
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				if(code.matches("[ -~]+")) {
+					String prefix = "siteminder_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					String tenant = socialData.getProperty(prefix + "tenant");
+					String scope = socialData.getProperty(prefix + "scope");
+					String token_url = socialData.getProperty(prefix + "token_url");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+	
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					params.put("scope", scope);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("grant_type", "authorization_code");
+					params.put("client_secret", clientSecret);
+	
+					if(Strings.isNullOrEmpty(token_url)){
+						token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
+					}
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getSiteminderRedirect(request));
+						return null;
+					}
+	
+					accessToken.setProvider(AuthProvider.SITEMINDER);
+					MSProfile.fillAccessToken(accessToken, null);
+					addAccessToken(accessToken, request, autoAdd);
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}
@@ -1574,42 +1612,47 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
-				String prefix = "dropbox_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				params.put("redirect_uri", redirectUri);
-				params.put("code", outputs[0]);
-				params.put("grant_type", "authorization_code");
-				params.put("client_secret", clientSecret);
-
-				String url = "https://www.dropbox.com/oauth2/token";
-
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getDBRedirect(request));
-					return null;
-				}
-				accessToken.setProvider(AuthProvider.DROPBOX);
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				if(code.matches("[ -~]+")) {
+					String prefix = "dropbox_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+	
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("grant_type", "authorization_code");
+					params.put("client_secret", clientSecret);
+	
+					String url = "https://www.dropbox.com/oauth2/token";
+	
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getDBRedirect(request));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.DROPBOX);
+					addAccessToken(accessToken, request, autoAdd);
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}
@@ -1673,57 +1716,61 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
-				String prefix = "google_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				if(code.matches("[ -~]+")) {
+					String prefix = "google_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+	
+					// I need to decode the return code from google since the default param's are
+					// encoded on the post of getAccessToken
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("grant_type", "authorization_code");
+					params.put("client_secret", clientSecret);
+	
+					String url = "https://www.googleapis.com/oauth2/v4/token";
+	
+					// https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getGoogleRedirect(request));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.GOOGLE);
+	
+					// fill the access token with the other properties so we can properly create the
+					// user
+					GoogleProfile.fillAccessToken(accessToken, null);
+					addAccessToken(accessToken, request, autoAdd);
+	
+					// Shows how to make a google credential from an access token
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
+	
+					// this is just for testing...
+					// but i will get yelled at if i remove it so here it is...
+					// TODO: adding this todo to easily locate it
+					//				performGoogleOps(request, ret);
 				}
-
-				// I need to decode the return code from google since the default param's are
-				// encoded on the post of getAccessToken
-				String codeDecode = URLDecoder.decode(outputs[0]);
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				params.put("redirect_uri", redirectUri);
-				params.put("code", codeDecode);
-				params.put("grant_type", "authorization_code");
-				params.put("client_secret", clientSecret);
-
-				String url = "https://www.googleapis.com/oauth2/v4/token";
-
-				// https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getGoogleRedirect(request));
-					return null;
-				}
-				accessToken.setProvider(AuthProvider.GOOGLE);
-
-				// fill the access token with the other properties so we can properly create the
-				// user
-				GoogleProfile.fillAccessToken(accessToken, null);
-				addAccessToken(accessToken, request, autoAdd);
-
-				// Shows how to make a google credential from an access token
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
-				}
-
-				// this is just for testing...
-				// but i will get yelled at if i remove it so here it is...
-				// TODO: adding this todo to easily locate it
-				//				performGoogleOps(request, ret);
 			}
 		}
 
@@ -1841,43 +1888,48 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
-				String prefix = "producthunt_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-
-				params.put("client_id", clientId);
-				params.put("redirect_uri", redirectUri);
-				params.put("code", outputs[0]);
-				params.put("grant_type", "authorization_code");
-				params.put("client_secret", clientSecret);
-
-				String url = "https://api.producthunt.com/v1/oauth/token";
-
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getProducthuntRedirect(request));
-					return null;
-				}
-				accessToken.setProvider(AuthProvider.PRODUCT_HUNT);
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				if(code.matches("[ -~]+")) {
+					String prefix = "producthunt_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+	
+					Hashtable params = new Hashtable();
+	
+					params.put("client_id", clientId);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("grant_type", "authorization_code");
+					params.put("client_secret", clientSecret);
+	
+					String url = "https://api.producthunt.com/v1/oauth/token";
+	
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getProducthuntRedirect(request));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.PRODUCT_HUNT);
+					addAccessToken(accessToken, request, autoAdd);
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}
@@ -1940,42 +1992,47 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
-				String prefix = "in_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				params.put("redirect_uri", redirectUri);
-				params.put("code", outputs[0]);
-				params.put("grant_type", "authorization_code");
-				params.put("client_secret", clientSecret);
-
-				String url = "https://www.linkedin.com/oauth/v2/accessToken";
-
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getInRedirect(request));
-					return null;
-				}
-				accessToken.setProvider(AuthProvider.IN);
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				if(code.matches("[ -~]+")) {
+					String prefix = "in_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+	
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("grant_type", "authorization_code");
+					params.put("client_secret", clientSecret);
+	
+					String url = "https://www.linkedin.com/oauth/v2/accessToken";
+	
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getInRedirect(request));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.IN);
+					addAccessToken(accessToken, request, autoAdd);
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}
@@ -2042,43 +2099,50 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
-				String prefix = "git_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				params.put("redirect_uri", redirectUri);
-				params.put("code", outputs[0]);
-				params.put("state", outputs[1]);
-				params.put("client_secret", clientSecret);
-
-				String url = "https://github.com/login/oauth/access_token";
-
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, false, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getTwitterRedirect(request));
-					return null;
-				}
-
-				accessToken.setProvider(AuthProvider.GITHUB);
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+				// oauth code and state should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.5
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				String state = URLDecoder.decode(outputs[1]);
+				if(code.matches("[ -~]+") && state.matches("[ -~]+")) {
+					String prefix = "git_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+	
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("state", state);
+					params.put("client_secret", clientSecret);
+	
+					String url = "https://github.com/login/oauth/access_token";
+	
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, false, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getTwitterRedirect(request));
+						return null;
+					}
+	
+					accessToken.setProvider(AuthProvider.GITHUB);
+					addAccessToken(accessToken, request, autoAdd);
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}
@@ -2164,64 +2228,69 @@ public class UserResource {
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 
-		String queryString = WebUtility.inputSanitizer(request.getQueryString());
+		String queryString = request.getQueryString();
 		if (queryString != null && queryString.contains("code=")) {
 			if (userObj == null || ((User) userObj).getAccessToken(providerEnum) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
-				String prefix = provider+"_";
-				String clientId = socialData.getProperty(prefix + "client_id");
-				String clientSecret = socialData.getProperty(prefix + "secret_key");
-				String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-				boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-				//String tenant = socialData.getProperty(prefix + "tenant");
-
-				//removing scope for now as it isn't needed in token call usually
-				//String scope = socialData.getProperty(prefix + "scope");
-				String token_url = socialData.getProperty(prefix + "token_url");
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
-				}
-
-				Hashtable params = new Hashtable();
-				params.put("client_id", clientId);
-				//	params.put("scope", scope);
-				params.put("redirect_uri", redirectUri);
-				params.put("code", outputs[0]);
-				params.put("grant_type", "authorization_code");
-				params.put("client_secret", clientSecret);
-
-
-				if(Strings.isNullOrEmpty(token_url)){
-					throw new IllegalArgumentException("Token URL can not be null or empty");
-				}
-
-				AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
-				if (accessToken == null) {
-					// not authenticated
-					response.setStatus(302);
-					response.sendRedirect(getGenericRedirect(provider, request));
-					return null;
-				}
-
-				String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
-				//"name","id","email"
-				String beanProps = socialData.getProperty(prefix + "beanProps");
-				String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-
-				accessToken.setProvider(providerEnum);
-				
-				// this is a check for sanitizing a response back from an IAM provider - not common and should be false
-				// examples would be unescaped special chars in the response that then can't be parsed into a json. 
-				// this is not very common.
-				boolean sanitizeResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeUserResponse"));
-				
-				GenericProfile.fillAccessToken(accessToken,userInfoURL, beanProps, jsonPattern, null, sanitizeResponse);
-				addAccessToken(accessToken, request, autoAdd);
-
-				if(classLogger.isDebugEnabled()) {
-					classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0]);
+				if(code.matches("[ -~]+")) {
+					String prefix = provider+"_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+					//String tenant = socialData.getProperty(prefix + "tenant");
+	
+					//removing scope for now as it isn't needed in token call usually
+					//String scope = socialData.getProperty(prefix + "scope");
+					String token_url = socialData.getProperty(prefix + "token_url");
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+	
+					Hashtable params = new Hashtable();
+					params.put("client_id", clientId);
+					//	params.put("scope", scope);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("grant_type", "authorization_code");
+					params.put("client_secret", clientSecret);
+	
+	
+					if(Strings.isNullOrEmpty(token_url)){
+						throw new IllegalArgumentException("Token URL can not be null or empty");
+					}
+	
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getGenericRedirect(provider, request));
+						return null;
+					}
+	
+					String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
+					//"name","id","email"
+					String beanProps = socialData.getProperty(prefix + "beanProps");
+					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+	
+					accessToken.setProvider(providerEnum);
+					
+					// this is a check for sanitizing a response back from an IAM provider - not common and should be false
+					// examples would be unescaped special chars in the response that then can't be parsed into a json. 
+					// this is not very common.
+					boolean sanitizeResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeUserResponse"));
+					
+					GenericProfile.fillAccessToken(accessToken,userInfoURL, beanProps, jsonPattern, null, sanitizeResponse);
+					addAccessToken(accessToken, request, autoAdd);
+	
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
 				}
 			}
 		}

@@ -210,7 +210,7 @@ public class EngineAuthorizationResource {
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
 		if(parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null && parameterMap.get("metaFilters").length > 0) {
-			Map<String, Object> metaFilters = new Gson().fromJson(parameterMap.get("metaFilters")[0], Map.class);
+			Map<String, Object> metaFilters = new Gson().fromJson(WebUtility.jsonSanitizer(parameterMap.get("metaFilters")[0]), Map.class);
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
