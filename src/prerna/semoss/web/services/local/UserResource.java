@@ -144,7 +144,7 @@ public class UserResource {
 		if (semossUser == null) {
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = request.getCookies();
+			Cookie[] cookies = WebUtility.getCleanCookies(request);
 			if (cookies != null) {
 				for (Cookie c : cookies) {
 					if (DBLoader.getSessionIdKey().equals(c.getName())) {
@@ -264,7 +264,7 @@ public class UserResource {
 			// remove the cookie from the browser
 			// for the session id
 			classLogger.info("Removing session token");
-			Cookie[] cookies = request.getCookies();
+			Cookie[] cookies = WebUtility.getCleanCookies(request);
 			nullCookies = new ArrayList<>();
 			if (cookies != null) {
 				for (Cookie c : cookies) {
@@ -354,7 +354,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = request.getCookies();
+			Cookie[] cookies = WebUtility.getCleanCookies(request);
 			if (cookies != null) {
 				for (Cookie c : cookies) {
 					if (DBLoader.getSessionIdKey().equals(c.getName())) {
@@ -423,7 +423,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = request.getCookies();
+			Cookie[] cookies = WebUtility.getCleanCookies(request);
 			if (cookies != null) {
 				for (Cookie c : cookies) {
 					if (DBLoader.getSessionIdKey().equals(c.getName())) {
@@ -483,7 +483,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = request.getCookies();
+			Cookie[] cookies = WebUtility.getCleanCookies(request);
 			if (cookies != null) {
 				for (Cookie c : cookies) {
 					if (DBLoader.getSessionIdKey().equals(c.getName())) {
@@ -543,7 +543,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = request.getCookies();
+			Cookie[] cookies = WebUtility.getCleanCookies(request);
 			if (cookies != null) {
 				for (Cookie c : cookies) {
 					if (DBLoader.getSessionIdKey().equals(c.getName())) {
@@ -610,7 +610,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = request.getCookies();
+			Cookie[] cookies = WebUtility.getCleanCookies(request);
 			if (cookies != null) {
 				for (Cookie c : cookies) {
 					if (DBLoader.getSessionIdKey().equals(c.getName())) {
@@ -680,7 +680,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = request.getCookies();
+			Cookie[] cookies = WebUtility.getCleanCookies(request);
 			if (cookies != null) {
 				for (Cookie c : cookies) {
 					if (DBLoader.getSessionIdKey().equals(c.getName())) {
@@ -3100,7 +3100,7 @@ public class UserResource {
 			// is for this specific box
 			if (envMap.containsKey(Constants.MONOLITH_ROUTE)) {
 				String routeCookieName = envMap.get(Constants.MONOLITH_ROUTE);
-				Cookie[] curCookies = request.getCookies();
+				Cookie[] curCookies = WebUtility.getCleanCookies(request);
 				if (curCookies != null) {
 					for (Cookie c : curCookies) {
 						if (c.getName().equals(routeCookieName)) {
