@@ -2043,6 +2043,10 @@
     				<groupId>com.sun.mail</groupId>
 					<artifactId>*</artifactId>
 				</exclusion>
+				<exclusion>
+    				<groupId>org.owasp.esapi</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/javax.activation/activation -->
