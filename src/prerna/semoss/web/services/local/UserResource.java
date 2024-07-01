@@ -144,17 +144,7 @@ public class UserResource {
 		if (semossUser == null) {
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = WebUtility.getCleanCookies(request);
-			if (cookies != null) {
-				for (Cookie c : cookies) {
-					if (DBLoader.getSessionIdKey().equals(c.getName())) {
-						// we need to null this out
-						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
-								c.getComment(), 0, c.getSecure());
-						newCookies.add(nullC);
-					}
-				}
-			}
+			WebUtility.expireSessionCookies(request, newCookies);
 
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
@@ -264,18 +254,8 @@ public class UserResource {
 			// remove the cookie from the browser
 			// for the session id
 			classLogger.info("Removing session token");
-			Cookie[] cookies = WebUtility.getCleanCookies(request);
 			nullCookies = new ArrayList<>();
-			if (cookies != null) {
-				for (Cookie c : cookies) {
-					if (DBLoader.getSessionIdKey().equals(c.getName())) {
-						// we need to null this out
-						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), 
-								c.getDomain(), c.getComment(), 0, c.getSecure());
-						nullCookies.add(nullC);
-					}
-				}
-			}
+			WebUtility.expireSessionCookies(request, nullCookies);
 			// invalidate the session
 			session.invalidate();
 		}
@@ -354,17 +334,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = WebUtility.getCleanCookies(request);
-			if (cookies != null) {
-				for (Cookie c : cookies) {
-					if (DBLoader.getSessionIdKey().equals(c.getName())) {
-						// we need to null this out
-						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
-								c.getComment(), 0, c.getSecure());
-						newCookies.add(nullC);
-					}
-				}
-			}
+			WebUtility.expireSessionCookies(request, newCookies);
 
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
@@ -423,17 +393,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = WebUtility.getCleanCookies(request);
-			if (cookies != null) {
-				for (Cookie c : cookies) {
-					if (DBLoader.getSessionIdKey().equals(c.getName())) {
-						// we need to null this out
-						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
-								c.getComment(), 0, c.getSecure());
-						newCookies.add(nullC);
-					}
-				}
-			}
+			WebUtility.expireSessionCookies(request, newCookies);
 
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
@@ -483,17 +443,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = WebUtility.getCleanCookies(request);
-			if (cookies != null) {
-				for (Cookie c : cookies) {
-					if (DBLoader.getSessionIdKey().equals(c.getName())) {
-						// we need to null this out
-						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
-								c.getComment(), 0, c.getSecure());
-						newCookies.add(nullC);
-					}
-				}
-			}
+			WebUtility.expireSessionCookies(request, newCookies);
 
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
@@ -543,17 +493,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = WebUtility.getCleanCookies(request);
-			if (cookies != null) {
-				for (Cookie c : cookies) {
-					if (DBLoader.getSessionIdKey().equals(c.getName())) {
-						// we need to null this out
-						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
-								c.getComment(), 0, c.getSecure());
-						newCookies.add(nullC);
-					}
-				}
-			}
+			WebUtility.expireSessionCookies(request, newCookies);
 
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
@@ -610,17 +550,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = WebUtility.getCleanCookies(request);
-			if (cookies != null) {
-				for (Cookie c : cookies) {
-					if (DBLoader.getSessionIdKey().equals(c.getName())) {
-						// we need to null this out
-						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
-								c.getComment(), 0, c.getSecure());
-						newCookies.add(nullC);
-					}
-				}
-			}
+			WebUtility.expireSessionCookies(request, newCookies);
 
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
@@ -680,17 +610,7 @@ public class UserResource {
 			List<NewCookie> newCookies = new ArrayList<>();
 			// not authenticated
 			// remove any cookies we shouldn't have
-			Cookie[] cookies = WebUtility.getCleanCookies(request);
-			if (cookies != null) {
-				for (Cookie c : cookies) {
-					if (DBLoader.getSessionIdKey().equals(c.getName())) {
-						// we need to null this out
-						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
-								c.getComment(), 0, c.getSecure());
-						newCookies.add(nullC);
-					}
-				}
-			}
+			WebUtility.expireSessionCookies(request, newCookies);
 
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
@@ -3100,7 +3020,7 @@ public class UserResource {
 			// is for this specific box
 			if (envMap.containsKey(Constants.MONOLITH_ROUTE)) {
 				String routeCookieName = envMap.get(Constants.MONOLITH_ROUTE);
-				Cookie[] curCookies = WebUtility.getCleanCookies(request);
+				Cookie[] curCookies = request.getCookies();
 				if (curCookies != null) {
 					for (Cookie c : curCookies) {
 						if (c.getName().equals(routeCookieName)) {
