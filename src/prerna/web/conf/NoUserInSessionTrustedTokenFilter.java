@@ -74,7 +74,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 			HttpServletRequest req = (HttpServletRequest) arg0;
 			// grab the token id
 			// if the token exists
-			String userId = req.getParameter(tokenName);
+			String userId = WebUtility.cleanHttpResponse(req.getParameter(tokenName));
 			if(userId != null) {
 				boolean redirectToExistingSession = false;
 				String redirectSessionId = sessionMapper.get(userId);

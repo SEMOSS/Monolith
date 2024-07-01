@@ -96,7 +96,7 @@ public class SSOFilter implements Filter {
 			// so only on portals do we add the location header...
 			boolean addLocation = false;
 			
-			String referer = ((HttpServletRequest) request).getHeader("referer");
+			String referer = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getHeader("referer"));
 			if(referer != null) {
 				classLogger.info(Utility.cleanLogString("Setting session redirect value to referer = " + referer));
 			} else if(fullUrl.contains("/public_home/")){
