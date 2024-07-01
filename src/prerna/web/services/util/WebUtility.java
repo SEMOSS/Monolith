@@ -56,7 +56,6 @@ import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
-import org.owasp.esapi.filters.SecurityWrapperRequest;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
 
@@ -403,7 +402,9 @@ public class WebUtility {
 	}
 
 	public static Cookie[] getCleanCookies(HttpServletRequest request) {
-		SecurityWrapperRequest secReq = new SecurityWrapperRequest(request);
-		return secReq.getCookies();
+		//Commenting this out until we can fix the regex logic
+		//SecurityWrapperRequest secReq = new SecurityWrapperRequest(request);
+		//return secReq.getCookies();
+		return request.getCookies();
 	}
 }
