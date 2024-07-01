@@ -389,4 +389,8 @@ public class WebUtility {
 		return normalizedString;
 	}
 
+	public static Cookie[] getCleanCookies(HttpServletRequest request) {
+		SecurityWrapperRequest secReq = new SecurityWrapperRequest(request);
+		return secReq.getCookies();
+	}
 }
