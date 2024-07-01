@@ -114,7 +114,7 @@ public class OpenAIEndpoints {
         TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = objectMapper.readValue(requestData.toString(), mapType);
+			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
 		} catch (JsonProcessingException e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
