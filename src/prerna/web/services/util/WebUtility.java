@@ -334,6 +334,19 @@ public class WebUtility {
 	}
 
 	/**
+	 * Encoding parameters to be safely parsed and then used
+	 * 
+	 * @param message
+	 * @return
+	 */
+	public static String encodeHTTPUri(String message) {
+		if (message == null) {
+			return message;
+		}
+		return Encode.forUriComponent(message);
+	}
+	
+	/**
 	 * This is to remove scripts from being passed
 	 * 
 	 * @param stringToNormalize
@@ -349,7 +362,7 @@ public class WebUtility {
 				.and(Sanitizers.IMAGES).and(Sanitizers.TABLES);
 		return policy.sanitize(stringToNormalize);
 	}
-	
+
 
 	/**
 	 * Given JSON-like content, produces a string of JSON that is safe to embed,
