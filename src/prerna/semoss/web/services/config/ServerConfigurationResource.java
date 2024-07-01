@@ -7,7 +7,6 @@ import java.util.Map;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.FilterChain;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -33,7 +32,6 @@ import prerna.reactor.cluster.VersionReactor;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.theme.AdminThemeUtils;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.web.conf.DBLoader;
@@ -258,17 +256,7 @@ public class ServerConfigurationResource {
 			// should happen every time this is called
 			// since FE only calls this method on browser startup
 			// clean up any invalid cookies on the browser
-			Cookie[] cookies = request.getCookies();
-			if (cookies != null) {
-				for (Cookie c : cookies) {
-					if (DBLoader.getSessionIdKey().equals(c.getName())) {
-						// we need to null this out
-						NewCookie nullC = new NewCookie(c.getName(), c.getValue(), c.getPath(), c.getDomain(),
-								c.getComment(), 0, c.getSecure());
-						newCookies.add(nullC);
-					}
-				}
-			}
+			WebUtility.expireSessionCookies(request, newCookies);
 		}
 		
 		return WebUtility.getResponseNoCache(getConfig(request), 200, newCookies.toArray(new NewCookie[] {}));
