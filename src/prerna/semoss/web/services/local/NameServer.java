@@ -629,13 +629,22 @@ public class NameServer {
 	@Path("/result")
 	@Produces("application/json")
 	public StreamingOutput result(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		Object dataReturn = "NULL";
+//		Object dataReturn = "NULL";
+//		HttpSession session = request.getSession(true);
+//		String jobId = form.getFirst("jobId");
+//		if (session.getAttribute(jobId) != null) {
+//			dataReturn = JobManager.getManager().getOutput(jobId);
+//		}
+//		return WebUtility.getSO(dataReturn);
+		
 		HttpSession session = request.getSession(true);
 		String jobId = form.getFirst("jobId");
-		if (session.getAttribute(jobId) != null) {
-			dataReturn = JobManager.getManager().getOutput(jobId);
+		if (session.getAttribute(jobId) == null) {
+			return WebUtility.getSO("NULL");
 		}
-		return WebUtility.getSO(dataReturn);
+
+		PixelRunner dataReturn = JobManager.getManager().getOutput(jobId);
+		return PixelStreamUtility.collectPixelData(dataReturn);
 	}
 	
 	@POST
