@@ -35,13 +35,17 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -59,6 +63,7 @@ import org.owasp.encoder.Encode;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
 
+import com.google.common.net.InternetDomainName;
 import com.google.gson.Gson;
 import com.google.json.JsonSanitizer;
 
@@ -420,6 +425,31 @@ public class WebUtility {
 					newCookies.add(nullC);
 				}
 			}
+		}
+	}
+
+	/**
+	 * 
+	 * @param urlString
+	 */
+	public static void checkIfValidDomain(String urlString) {
+		String whiteListDomains =  Utility.getDIHelperProperty(Constants.WHITE_LIST_DOMAINS);
+		if(whiteListDomains == null || (whiteListDomains=whiteListDomains.trim()).isEmpty()) {
+			return;
+		}
+		
+		List<String> domainList = Arrays.stream(whiteListDomains.split(",")).collect(Collectors.toList());
+		URL url = null;
+		try {
+			url = new URL(urlString);
+			final String host = url.getHost();
+			final InternetDomainName domainName = InternetDomainName.from(host).topPrivateDomain();
+			if(!domainList.contains(domainName.toString())) {
+				throw new IllegalArgumentException("You are not allowed to make requests to the URL: " + urlString);
+			}
+		} catch (MalformedURLException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			throw new IllegalArgumentException("Invalid URL: " + urlString + ". Detailed message: " + e.getMessage());
 		}
 	}
 }
