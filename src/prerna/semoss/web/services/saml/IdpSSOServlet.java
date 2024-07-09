@@ -18,6 +18,7 @@ import prerna.auth.User;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.conf.util.SSOUtil;
+import prerna.web.services.util.WebUtility;
 
 /**
  * Servlet implementation class for IDP Initiated SAML
@@ -38,24 +39,34 @@ public class IdpSSOServlet extends HttpServlet {
 	 * does a redirect to the IDP.
 	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		// if already logged in
-		// then nothing to do, redirect 
+		// if a redirect is given, validate it
 		String redirect = request.getParameter("redirect");
-		if(request.getSession(false) != null) {
-			HttpSession session = request.getSession();
-			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			if(user != null && user.getAccessToken(AuthProvider.SAML) != null) {
-				if(redirect != null && !(redirect = redirect.trim()).isEmpty()) {
-					response.setStatus(302);
-					response.sendRedirect(redirect);
-					return;
-				}
+		boolean hasRedirect = (redirect != null && !(redirect = redirect.trim()).isEmpty());
+		if(hasRedirect) {
+			try {
+				WebUtility.checkIfValidDomain(redirect);
+			} catch (IllegalArgumentException | IllegalStateException e) {
+				((HttpServletResponse)response).sendError(HttpServletResponse.SC_FORBIDDEN, " Provided redirect is unauthorized");
+				return;
 			}
 		}
 		
+		// if already logged in
+		// then nothing to do, redirect 
+		if(request.getSession(false) != null) {
+			HttpSession session = request.getSession();
+			User user = ((User) session.getAttribute(Constants.SESSION_USER));
+			if(user != null && user.getAccessToken(AuthProvider.SAML) != null && hasRedirect) {
+				response.setStatus(302);
+				response.sendRedirect(redirect);
+				return;
+			}
+		}
+		
+		// not already logged in
 		// if we are specifying the redirect
 		// set it here so after the login we redirect to the correct page
-		if(redirect != null && !(redirect = redirect.trim()).isEmpty()) {
+		if(hasRedirect) {
 			HttpSession session = request.getSession();
 			logger.info(Utility.cleanLogString("Setting new redirect value to " + redirect));
 			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, redirect);
