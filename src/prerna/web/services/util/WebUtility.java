@@ -359,7 +359,7 @@ public class WebUtility {
 	 */
 	public static String inputSanitizer(String stringToNormalize) {
 		if (stringToNormalize == null) {
-			classLogger.info("input to sanitzer is null, returning null");
+			classLogger.debug("input to sanitzer is null, returning null");
 			return stringToNormalize;
 		}
 
