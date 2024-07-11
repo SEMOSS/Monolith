@@ -61,8 +61,6 @@ public class AnonymousUserFilter implements Filter, Serializable {
 					user.setAnonymousId(uId);
 					
 					Cookie c = new Cookie(cookieToFind, uId);
-					// max age of 10years...
-					c.setMaxAge(60 * 60 * 24 * 365 * 10);
 					c.setPath(((HttpServletRequest) arg0).getContextPath());
 					c.setHttpOnly(true);
 					c.setSecure(((HttpServletRequest)arg0).isSecure());
