@@ -646,20 +646,6 @@ public class NameServer {
 		PixelRunner dataReturn = JobManager.getManager().getOutput(jobId);
 		return PixelStreamUtility.collectPixelData(dataReturn);
 	}
-	
-	@POST
-	@Path("/result2")
-	@Produces("application/json")
-	public StreamingOutput result2(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		HttpSession session = request.getSession(true);
-		String jobId = form.getFirst("jobId");
-		if (session.getAttribute(jobId) == null) {
-			return WebUtility.getSO("NULL");
-		}
-
-		PixelRunner dataReturn = JobManager.getManager().getOutput(jobId);
-		return PixelStreamUtility.collectPixelData(dataReturn);
-	}
 
 	// is the status of the operation
 	// get result of the operation
