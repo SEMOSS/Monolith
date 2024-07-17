@@ -27,12 +27,10 @@ jobs:
       - name: Get current timestamp
         id: timestamp
         run: echo "TIMESTAMP=$(date +%s)" >> $GITHUB_ENV
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.12"
-          architecture: "x64"
-          cache: "pip"
+      - name: Set up Python
+        run: |
+          apt-get update
+          apt-get install -y python3 python3-pip
       - name: Install requests library
         run: pip install requests
       - name: Trigger Semoss Workflow
