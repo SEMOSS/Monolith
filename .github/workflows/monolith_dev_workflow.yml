@@ -34,7 +34,9 @@ jobs:
       - name: Install requests library
         run: pip install requests
       - name: list workspace contents
-        run: ls -R ${{ github.workspace }}
+        run: |
+          ls -lah
+          pwd
       - name: Trigger Semoss Workflow
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
