@@ -1,12 +1,4 @@
 name: Build monolith
-
-# on:
-#     workflow_dispatch:
-#         inputs:
-#             VERSION:
-#                 description: 'VERSION'
-#                 required: true
-#                 default: '4.3.0'
 on:
   push:
     branches:
@@ -62,7 +54,7 @@ jobs:
       image: maven:3.8.6-jdk-8
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up JDK 8
         uses: actions/setup-java@v3
@@ -85,7 +77,7 @@ jobs:
         run: rm -rf .m2/repository/org/semoss
 
     #   - name: Upload artifact
-    #     uses: actions/upload-artifact@v3
+    #     uses: actions/upload-artifact@v4
     #     with:
     #       name: monolith-${{ vars.VERSION }}-SNAPSHOT.war
     #       path: target/monolith-${{ vars.VERSION }}-SNAPSHOT.war
@@ -97,7 +89,7 @@ jobs:
     if: ${{ vars.RELEASE != 'TRUE'  && github.event_name =='workflow_dispatch' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up JDK 8
         uses: actions/setup-java@v3
@@ -126,7 +118,7 @@ jobs:
         run: rm -rf .m2/repository/org/semoss
 
     #   - name: Upload artifacts
-    #     uses: actions/upload-artifact@v3
+    #     uses: actions/upload-artifact@v4
     #     with:
     #       name: monolith-${{ vars.VERSION }}-SNAPSHOT.war
     #       path: target/monolith-${{ vars.VERSION }}-SNAPSHOT.war
@@ -135,10 +127,10 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: maven:3.8.6-jdk-8
-    if: ${{ vars.RELEASE != 'TRUE' }}
+    if: ${{ vars.RELEASE == 'TRUE' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up JDK 8
         uses: actions/setup-java@v3
