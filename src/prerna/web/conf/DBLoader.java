@@ -50,7 +50,6 @@ import prerna.forms.AbstractFormBuilder;
 import prerna.masterdatabase.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.reactor.frame.py.PySingleton;
 import prerna.reactor.frame.r.util.RJavaTranslatorFactory;
 import prerna.reactor.scheduler.SchedulerDatabaseUtility;
 import prerna.reactor.scheduler.SchedulerFactorySingleton;
@@ -66,7 +65,7 @@ public class DBLoader implements ServletContextListener {
 	private final Level STARTUP = Level.forName("STARTUP", 0);
 	private final Level SHUTDOWN = Level.forName("SHUTDOWN", 0);
 	
-	private static final Logger logger = LogManager.getLogger(DBLoader.class);
+	private static final Logger classLogger = LogManager.getLogger(DBLoader.class);
 	private static final String RDFMAP = "RDF-MAP";
 	private static String SESSION_ID_KEY = "JSESSIONID";
 	private static boolean useLogoutPage = false;
@@ -151,22 +150,22 @@ public class DBLoader implements ServletContextListener {
 			}
 		}
 
-		logger.log(STARTUP, "Initializing application context..." + Utility.cleanLogString(contextPath));
+		classLogger.log(STARTUP, "Initializing application context..." + Utility.cleanLogString(contextPath));
 
 		// Set default file separator system variable
-		logger.log(STARTUP, "Changing file separator value to: '/'");
+		classLogger.log(STARTUP, "Changing file separator value to: '/'");
 		System.setProperty("file.separator", "/");
 
 		// Load RDF_Map.prop file
-		logger.log(STARTUP, "Loading RDF_Map.prop: " + Utility.cleanLogString(rdfPropFile));
+		classLogger.log(STARTUP, "Loading RDF_Map.prop: " + Utility.cleanLogString(rdfPropFile));
 		DIHelper.getInstance().loadCoreProp(rdfPropFile);
 
 		if(RserveUtil.R_KILL_ON_STARTUP) {
-			logger.log(STARTUP, "Killing existing RServes running on the machine");
+			classLogger.log(STARTUP, "Killing existing RServes running on the machine");
 			try {
 				RserveUtil.endR();
 			} catch (Exception e) {
-				logger.log(STARTUP, "Unable to kill existing RServes running on the machine");
+				classLogger.log(STARTUP, "Unable to kill existing RServes running on the machine");
 			}
 		}
 		
@@ -183,7 +182,7 @@ public class DBLoader implements ServletContextListener {
 		DIHelper.getInstance().setLocalProperty(Constants.CONTEXT_PATH_KEY, contextPath);
 
 		// Load empty engine list into DIHelper, then load engines from db folder
-		logger.log(STARTUP, "Loading engines...");
+		classLogger.log(STARTUP, "Loading engines...");
 		String engines = "";
 		DIHelper.getInstance().setEngineProperty(Constants.ENGINES, engines);
 		loadSmss(Constants.ENGINE_WEB_WATCHER);
@@ -245,18 +244,18 @@ public class DBLoader implements ServletContextListener {
 				}
 			}
 		} catch (Exception ex) {
-			logger.log(STARTUP, Constants.STACKTRACE, ex);
+			classLogger.log(STARTUP, Constants.STACKTRACE, ex);
 		}
 	}
 
 	@Override
 	public void contextDestroyed(ServletContextEvent arg0) {
-		logger.log(SHUTDOWN, "Start shutdown");
+		classLogger.log(SHUTDOWN, "Start shutdown");
 
 		Set<String> insights = new HashSet<>(InsightStore.getInstance().getAllInsights());
 		for (String id : insights) {
 			Insight in = InsightStore.getInstance().get(id);
-			logger.log(SHUTDOWN, "Closing insight " + id);
+			classLogger.log(SHUTDOWN, "Closing insight " + id);
 			InsightUtility.dropInsight(in);
 		}
 
@@ -272,11 +271,11 @@ public class DBLoader implements ServletContextListener {
 			IDatabaseEngine engine = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(id);
 			if (engine != null) {
 				// if it is loaded, close it
-				logger.log(SHUTDOWN, "Closing database " + id);
+				classLogger.log(SHUTDOWN, "Closing database " + id);
 				try {
 					engine.close();
 				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error(Constants.STACKTRACE, e);
 				}
 			}
 		}
@@ -291,42 +290,41 @@ public class DBLoader implements ServletContextListener {
 		for(String db : autoLoadedDbs) {
 			IDatabaseEngine engine = Utility.getDatabase(db, false);
 			if (engine != null) {
-				logger.log(SHUTDOWN, "Closing database " + db);
+				classLogger.log(SHUTDOWN, "Closing database " + db);
 				try {
 					engine.close();
 				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error(Constants.STACKTRACE, e);
 				}
 			} else {
-				logger.log(SHUTDOWN, "Couldn't find database " + db);
+				classLogger.log(SHUTDOWN, "Couldn't find database " + db);
 			}
 		}
 
 		if(SchedulerFactorySingleton.isInit()) {
-			logger.log(SHUTDOWN, "Closing scheduler");
+			classLogger.log(SHUTDOWN, "Closing scheduler");
 			SchedulerFactorySingleton.getInstance().shutdownScheduler(true);
 			IDatabaseEngine engine = Utility.getDatabase(Constants.SCHEDULER_DB, false);
 			if (engine != null) {
-				logger.log(SHUTDOWN, "Closing database " + Constants.SCHEDULER_DB);
+				classLogger.log(SHUTDOWN, "Closing database " + Constants.SCHEDULER_DB);
 				try {
 					engine.close();
 				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error(Constants.STACKTRACE, e);
 				}
 			} else {
-				logger.log(SHUTDOWN, "Couldn't find database " + Constants.SCHEDULER_DB);
+				classLogger.log(SHUTDOWN, "Couldn't find database " + Constants.SCHEDULER_DB);
 			}
 		}
 		
 		// close r
 		try {
 			RJavaTranslatorFactory.stopRConnection();
-			PySingleton.stopPy();
 		} catch (Exception e) {
-			logger.log(SHUTDOWN, Constants.STACKTRACE, e);
+			classLogger.log(SHUTDOWN, Constants.STACKTRACE, e);
 		}
 
-		logger.log(SHUTDOWN, "Finished shutdown");
+		classLogger.log(SHUTDOWN, "Finished shutdown");
 	}
 
 	/**
