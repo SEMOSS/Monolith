@@ -26,9 +26,15 @@ target/
 hs_err_pid*
 replay_pid*
 
-# local h2 databases
-*.mv.db
-
 # Eclipse
 .settings/
 .project
+
+# vscode
+.vscode/
+
+# mac OS
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
