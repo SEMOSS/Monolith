@@ -36,7 +36,7 @@ jobs:
       - name: Trigger Semoss Workflow
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 .github/workflows/trigger_workflow.py
+        run: python3 ${{ github.workspace }}/.github/workflows/trigger_workflow.py
 
   build_monolith_dev:
     needs: build_semoss
