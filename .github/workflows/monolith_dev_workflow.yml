@@ -20,7 +20,7 @@ env:
 
 jobs:
   build_semoss:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: ${{ vars.RELEASE != 'TRUE' }}
     container:
       image: maven:3.8.6-jdk-8
@@ -49,7 +49,7 @@ jobs:
 
   build_monolith_dev:
     needs: build_semoss
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: ${{ vars.RELEASE != 'TRUE'  && (github.event_name =='push' || github.event_name =='pull_request')  }}
     container:
       image: maven:3.8.6-jdk-8
@@ -86,7 +86,7 @@ jobs:
 
   build_monolith_deploy:
     needs: build_semoss
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: maven:3.8.6-jdk-8
     if: ${{ vars.RELEASE != 'TRUE'  && github.event_name =='workflow_dispatch' }}
@@ -127,7 +127,7 @@ jobs:
     #       path: target/monolith-${{ vars.VERSION }}-SNAPSHOT.war
 
   build_monolith_release:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: maven:3.8.6-jdk-8
     if: ${{ vars.RELEASE == 'TRUE' }}
