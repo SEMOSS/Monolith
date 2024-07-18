@@ -44,7 +44,7 @@ jobs:
           pwd
       - name: Trigger Semoss Workflow
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SEMOSS_GITHUB_TOKEN }}
         run: python3 .github/workflows/trigger_workflow.py
 
   build_monolith_dev:
