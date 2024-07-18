@@ -16,6 +16,7 @@ env:
   IMAGE: "registry.gitlab.com/finestructure/pipeline-trigger:2.9.0"
   MAVEN_REPO_TOKEN: ${{ vars.MAVEN_REPO_TOKEN }}
   MAVEN_REPO_TOKEN_PASS: ${{ vars.MAVEN_REPO_TOKEN_PASS }}
+  WORKSPACE_DIR: /home/ubuntu/actions-runner/_work/Monolith/
 
 jobs:
   build_semoss:
@@ -24,6 +25,8 @@ jobs:
     container:
       image: maven:3.8.6-jdk-8
     steps:
+      - name: Clean existing repo
+        run: rm -rf ${{ env.WORKSPACE_DIR }}
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Get current timestamp
@@ -42,7 +45,7 @@ jobs:
       - name: Trigger Semoss Workflow
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 ${{ github.workspace }}/.github/workflows/trigger_workflow.py
+        run: python3 .github/workflows/trigger_workflow.py
 
   build_monolith_dev:
     needs: build_semoss
