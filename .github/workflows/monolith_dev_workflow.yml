@@ -49,8 +49,8 @@ jobs:
           repo: Semoss
           github_token: ${{ secrets.SEMOSS_GITHUB_TOKEN }}
           workflow_file_name: dev_workflow.yml
+          ref: dev
           wait_interval: 15
-          client_payload: '{"ref":"dev"}'
           propagate_failure: true
           trigger_workflow: true
           wait_workflow: true
