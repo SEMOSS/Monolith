@@ -20,7 +20,7 @@ env:
 
 jobs:
   build_semoss:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: ${{ vars.RELEASE != 'TRUE' }}
     container:
       image: maven:3.8.6-jdk-8
@@ -42,14 +42,22 @@ jobs:
         run: |
           ls -lah
           pwd
-      - name: Trigger Semoss Workflow
-        env:
-          GITHUB_TOKEN: ${{ secrets.SEMOSS_GITHUB_TOKEN }}
-        run: python3 .github/workflows/trigger_workflow.py
+      - name: Build Semoss Workflow Dispatch
+        uses: convictional/trigger-workflow-and-wait@v1.6.5
+        with:
+          owner: SEMOSS
+          repo: Semoss
+          github_token: ${{ secrets.SEMOSS_GITHUB_TOKEN }}
+          workflow_file_name: dev_workflow.yml
+          ref: dev
+          wait_interval: 15
+          propagate_failure: true
+          trigger_workflow: true
+          wait_workflow: true
 
   build_monolith_dev:
     needs: build_semoss
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: ${{ vars.RELEASE != 'TRUE'  && (github.event_name =='push' || github.event_name =='pull_request')  }}
     container:
       image: maven:3.8.6-jdk-8
@@ -86,7 +94,7 @@ jobs:
 
   build_monolith_deploy:
     needs: build_semoss
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: maven:3.8.6-jdk-8
     if: ${{ vars.RELEASE != 'TRUE'  && github.event_name =='workflow_dispatch' }}
@@ -127,7 +135,7 @@ jobs:
     #       path: target/monolith-${{ vars.VERSION }}-SNAPSHOT.war
 
   build_monolith_release:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: maven:3.8.6-jdk-8
     if: ${{ vars.RELEASE == 'TRUE' }}
