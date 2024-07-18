@@ -24,6 +24,8 @@ jobs:
     container:
       image: maven:3.8.6-jdk-8
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Get current timestamp
         id: timestamp
         run: echo "TIMESTAMP=$(date +%s)" >> $GITHUB_ENV
