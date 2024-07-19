@@ -17,7 +17,9 @@ env:
   MAVEN_REPO_TOKEN: ${{ vars.MAVEN_REPO_TOKEN }}
   MAVEN_REPO_TOKEN_PASS: ${{ vars.MAVEN_REPO_TOKEN_PASS }}
   WORKSPACE_DIR: /home/ubuntu/actions-runner/_work/Monolith/
-
+  GPG_PASS_PHRASE: ${{ secrets.GPG_PASS_PHRASE }}
+  RELEASE: ${{ vars.RELEASE }}
+  
 jobs:
   build_semoss:
     runs-on: self-hosted
