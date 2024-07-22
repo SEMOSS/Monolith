@@ -22,6 +22,9 @@ A clear and concise description of any alternative solutions or features you've 
 ### Additional context
 Add any other context or screenshots about the feature request here.
 
-### Request By
+### Tasks
 
-Please include the team that you are on, any relevant information so that the team can make sure to include engineers who may have further context for your use case.
+A list of individual tasks / issues that need to be completed before the ticket is resolved
+
+- [ ]
+- [ ]
