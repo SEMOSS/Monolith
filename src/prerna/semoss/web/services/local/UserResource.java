@@ -38,7 +38,6 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -91,16 +90,9 @@ import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.io.connector.GenericProfile;
-import prerna.io.connector.IConnectorIOp;
-import prerna.io.connector.google.GoogleEntityResolver;
-import prerna.io.connector.google.GoogleFileRetriever;
-import prerna.io.connector.google.GoogleLatLongGetter;
-import prerna.io.connector.google.GoogleListFiles;
 import prerna.io.connector.google.GoogleProfile;
 import prerna.io.connector.ms.MSProfile;
 import prerna.io.connector.surveymonkey.MonkeyProfile;
-import prerna.io.connector.twitter.TwitterSearcher;
-import prerna.om.NLPDocumentInput;
 import prerna.sablecc2.om.execptions.SemossPixelException;
 import prerna.security.HttpHelperUtility;
 import prerna.usertracking.UserTrackingUtils;
@@ -356,7 +348,7 @@ public class UserResource {
 		}
 
 		String url = "https://www.googleapis.com/oauth2/v3/userinfo";
-		Hashtable<String, String> params = new Hashtable<>();
+		Map<String, Object> params = new HashMap<>();
 		params.put("access_token", accessString);
 		params.put("alt", "json");
 
@@ -660,7 +652,7 @@ public class UserResource {
 				session.invalidate();
 			}
 
-			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.toString() + " account");
+			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.name() + " account");
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
 
@@ -1834,8 +1826,7 @@ public class UserResource {
 					}
 					accessToken.setProvider(AuthProvider.GOOGLE);
 	
-					// fill the access token with the other properties so we can properly create the
-					// user
+					// fill the access token with the other properties so we can properly create the user
 					GoogleProfile.fillAccessToken(accessToken, null);
 					addAccessToken(accessToken, request, autoAdd);
 	
@@ -1843,11 +1834,6 @@ public class UserResource {
 					if(classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
-	
-					// this is just for testing...
-					// but i will get yelled at if i remove it so here it is...
-					// TODO: adding this todo to easily locate it
-					//				performGoogleOps(request, ret);
 				}
 			}
 		}
@@ -1885,63 +1871,63 @@ public class UserResource {
 		return redirectUrl;
 	}
 
-	/**
-	 * METHOD IS USED FOR TESTING
-	 * 
-	 * @param request
-	 * @param ret
-	 */
-	private void performGoogleOps(HttpServletRequest request, Map ret) {
-		// get the user details
-		IConnectorIOp prof = new GoogleProfile();
-		prof.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), null);
-
-		IConnectorIOp lister = new GoogleListFiles();
-		List fileList = (List) lister.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), null);
-
-		// get the file
-		IConnectorIOp getter = new GoogleFileRetriever();
-		Hashtable params2 = new Hashtable();
-		params2.put("exportFormat", "csv");
-		params2.put("id", "1it40jNFcRo1ur2dHIYUk18XmXdd37j4gmJm_Sg7KLjI");
-		params2.put("target", "c:\\users\\pkapaleeswaran\\workspacej3\\datasets\\googlefile.csv");
-
-		getter.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
-
-		IConnectorIOp ner = new GoogleEntityResolver();
-
-		NLPDocumentInput docInput = new NLPDocumentInput();
-		docInput.setContent("Obama is staying in the whitehouse !!");
-
-		params2 = new Hashtable();
-
-		// Hashtable docInputShell = new Hashtable();
-		params2.put("encodingType", "UTF8");
-		params2.put("document", docInput);
-
-		// params2.put("input", docInputShell);
-		ner.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
-
-		try {
-			ret.put("files", BeanFiller.getJson(fileList));
-		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
-		}
-
-		IConnectorIOp lat = new GoogleLatLongGetter();
-		params2 = new Hashtable();
-		params2.put("address", "1919 N Lynn Street, Arlington, VA");
-
-		lat.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
-
-		IConnectorIOp ts = new TwitterSearcher();
-		params2 = new Hashtable();
-		params2.put("q", "Anlaytics");
-		params2.put("lang", "en");
-		params2.put("count", "10");
-
-		Object vp = ts.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
-	}
+//	/**
+//	 * METHOD IS USED FOR TESTING
+//	 * 
+//	 * @param request
+//	 * @param ret
+//	 */
+//	private void performGoogleOps(HttpServletRequest request, Map<String, Object> ret) {
+//		// get the user details
+//		IConnectorIOp prof = new GoogleProfile();
+//		prof.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), null);
+//
+//		IConnectorIOp lister = new GoogleListFiles();
+//		List fileList = (List) lister.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), null);
+//
+//		// get the file
+//		IConnectorIOp getter = new GoogleFileRetriever();
+//		Map<String, Object> params2 = new HashMap<>();
+//		params2.put("exportFormat", "csv");
+//		params2.put("id", "1it40jNFcRo1ur2dHIYUk18XmXdd37j4gmJm_Sg7KLjI");
+//		params2.put("target", "c:\\users\\pkapaleeswaran\\workspacej3\\datasets\\googlefile.csv");
+//
+//		getter.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
+//
+//		IConnectorIOp ner = new GoogleEntityResolver();
+//
+//		NLPDocumentInput docInput = new NLPDocumentInput();
+//		docInput.setContent("Obama is staying in the whitehouse !!");
+//
+//		params2 = new HashMap<>();
+//
+//		// Hashtable docInputShell = new Hashtable();
+//		params2.put("encodingType", "UTF8");
+//		params2.put("document", docInput);
+//
+//		// params2.put("input", docInputShell);
+//		ner.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
+//
+//		try {
+//			ret.put("files", BeanFiller.getJson(fileList));
+//		} catch (Exception e) {
+//			classLogger.error(Constants.STACKTRACE, e);
+//		}
+//
+//		IConnectorIOp lat = new GoogleLatLongGetter();
+//		params2 = new HashMap<>();
+//		params2.put("address", "1919 N Lynn Street, Arlington, VA");
+//
+//		lat.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
+//
+//		IConnectorIOp ts = new TwitterSearcher();
+//		params2 = new HashMap<>();
+//		params2.put("q", "Anlaytics");
+//		params2.put("lang", "en");
+//		params2.put("count", "10");
+//
+//		Object vp = ts.execute((User) request.getSession().getAttribute(Constants.SESSION_USER), params2);
+//	}
 
 	@GET
 	@Produces("application/json")
