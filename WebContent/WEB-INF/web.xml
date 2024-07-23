@@ -667,7 +667,7 @@
    <context-param>
       <description>The place where the core RDF Map gets picked from</description>
       <param-name>RDF-MAP</param-name>
-      <param-value>C:/workspace/Semoss/RDF_Map.prop</param-value>
+      <param-value>C:\\workspace\\Semoss\\RDF_Map.prop</param-value>
    </context-param>  
    <!-- listeners -->
    <listener>
