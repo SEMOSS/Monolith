@@ -1003,6 +1003,13 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-1.2-api -->
+<dependency>
+    <groupId>org.apache.logging.log4j</groupId>
+    <artifactId>log4j-1.2-api</artifactId>
+    <version>2.17.1</version>
+</dependency>
+
 		<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-web -->
 		<dependency>
 		    <groupId>org.apache.logging.log4j</groupId>
@@ -1081,6 +1088,7 @@
 			<scope>compile</scope>
 		</dependency>
 		-->
+		<!--		
 		<dependency>
 			<groupId>com.oracle</groupId>
 			<artifactId>ojdbc6</artifactId>
@@ -1092,6 +1100,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		-->
 		<dependency>
 			<groupId>org.apache.poi</groupId>
 			<artifactId>poi</artifactId>
@@ -1569,6 +1578,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+<!--
 		<dependency>
 			<groupId>com.cloudera</groupId>
 			<artifactId>impala4</artifactId>
@@ -1580,6 +1590,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+-->
 		<dependency>
 			<groupId>org.apache.thrift</groupId>
 			<artifactId>thrift</artifactId>
@@ -1635,11 +1646,13 @@
 		    <version>2.16.1</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.amazon.redshift/redshift-jdbc42 -->
+		
 		<dependency>
 		    <groupId>com.amazon.redshift</groupId>
 		    <artifactId>redshift-jdbc42</artifactId>
-		    <version>1.2.43.1067</version>
+		    <version>2.1.0.29</version>
 		</dependency>
+		
 		<dependency>
 		    <groupId>io.trino</groupId>
 		    <artifactId>trino-jdbc</artifactId>
