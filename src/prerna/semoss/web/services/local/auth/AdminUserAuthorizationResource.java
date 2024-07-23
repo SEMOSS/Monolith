@@ -304,6 +304,9 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			}
 		}
 		
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has deleted user " + userIdToDelete + " with provider " + userTypeToDelete));
+		
 		boolean success = adminUtils.deleteUser(userIdToDelete, userTypeToDelete);
 		return WebUtility.getResponse(success, 200);
 	}
