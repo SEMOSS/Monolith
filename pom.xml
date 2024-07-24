@@ -1602,6 +1602,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!--
 		<dependency>
 			<groupId>org.apache.hive</groupId>
 			<artifactId>tcli_service</artifactId>
@@ -1613,6 +1614,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		-->
 		<!-- https://mvnrepository.com/artifact/org.json/json -->
 		<dependency>
 		    <groupId>org.json</groupId>
