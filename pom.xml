@@ -1994,6 +1994,12 @@
 			<groupId>org.xhtmlrenderer</groupId>
 			<artifactId>flying-saucer-pdf</artifactId>
 			<version>9.1.22</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcpkix-jdk14</artifactId>
+				</exclusion>	
+			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.graphstream/gs-core -->
 		<dependency>
@@ -2196,7 +2202,7 @@
 		<dependency>
 			<groupId>org.apache.parquet</groupId>
 			<artifactId>parquet-avro</artifactId>
-			<version>1.13.1</version>
+			<version>1.14.1</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-common -->
 	    <dependency>
