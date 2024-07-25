@@ -289,6 +289,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.semoss</groupId>
+			<artifactId>SEMOSS-CLIENT-SPECIFIC</artifactId>
+			<version>${ci.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.semoss</groupId>
 			<artifactId>semoss-jdbc</artifactId>
 			<version>0.0.1</version>
 		</dependency>
@@ -1001,6 +1006,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!--
 		<dependency>
 			<groupId>net.sf.jung</groupId>
 			<artifactId>jung-algorithms</artifactId>
@@ -1012,7 +1018,6 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!--
 		<dependency>
 			<groupId>net.sf.jung</groupId>
 			<artifactId>jung-api</artifactId>
