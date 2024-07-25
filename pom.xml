@@ -287,11 +287,14 @@
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
 		</dependency>
+		<!--
 		<dependency>
 			<groupId>org.semoss</groupId>
-			<artifactId>SEMOSS-CLIENT-SPECIFIC</artifactId>
+			<artifactId>semoss-custom-jar</artifactId>
 			<version>${ci.version}</version>
+			<optional>true</optional>
 		</dependency>
+		-->
 		<dependency>
 			<groupId>org.semoss</groupId>
 			<artifactId>semoss-jdbc</artifactId>
