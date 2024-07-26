@@ -287,6 +287,14 @@
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
 		</dependency>
+		<!--
+		<dependency>
+			<groupId>org.semoss</groupId>
+			<artifactId>semoss-custom-jar</artifactId>
+			<version>${ci.version}</version>
+			<optional>true</optional>
+		</dependency>
+		-->
 		<dependency>
 			<groupId>org.semoss</groupId>
 			<artifactId>semoss-jdbc</artifactId>
@@ -405,8 +413,77 @@
 					<groupId>log4j</groupId>
 					<artifactId>*</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.jetty</groupId>
+					<artifactId>jetty-http</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.jetty</groupId>
+					<artifactId>jetty-client</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.jetty</groupId>
+					<artifactId>jetty-server</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.jetty</groupId>
+					<artifactId>jetty-util</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.jetty</groupId>
+					<artifactId>jetty-io</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.eclipse.jetty</groupId>
+					<artifactId>jetty-webapp</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>ch.qos.logback</groupId>
+					<artifactId>logback-classic</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.jettison</groupId>
+					<artifactId>jettison</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
+		<!--
+		<dependency>
+			<groupId>org.eclipse.jetty</groupId>
+			<artifactId>jetty-http</artifactId>
+			<version>9.4.55.v20240627</version>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.jetty</groupId>
+			<artifactId>jetty-client</artifactId>
+			<version>9.4.55.v20240627</version>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.jetty</groupId>
+			<artifactId>jetty-server</artifactId>
+			<version>9.4.55.v20240627</version>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.jetty</groupId>
+			<artifactId>jetty-util</artifactId>
+			<version>9.4.55.v20240627</version>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.jetty</groupId>
+			<artifactId>jetty-io</artifactId>
+			<version>9.4.55.v20240627</version>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.jetty</groupId>
+			<artifactId>jetty-webapp</artifactId>
+			<version>9.4.55.v20240627</version>
+		</dependency>
+		<dependency>
+			<groupId>org.codehaus.jettison</groupId>
+			<artifactId>jettison</artifactId>
+			<version>1.5.4</version>
+		</dependency>
+		-->
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-collections4</artifactId>
@@ -418,6 +495,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!--
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-collections15</artifactId>
@@ -429,6 +507,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		-->
 		<!-- REMOVING - GPL -->
 		<!-- 
 		<dependency>
@@ -930,6 +1009,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!--
 		<dependency>
 			<groupId>net.sf.jung</groupId>
 			<artifactId>jung-algorithms</artifactId>
@@ -974,6 +1054,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		-->
 		<!-- https://mvnrepository.com/artifact/log4j/log4j>
 		<dependency>
 		    <groupId>log4j</groupId>
@@ -1026,17 +1107,6 @@
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-slf4j-impl</artifactId>
 			<version>2.17.1</version>
-		</dependency>
-		<dependency>
-			<groupId>com.datumbox</groupId>
-			<artifactId>lpsolve</artifactId>
-			<version>5.5.2.0</version>
-			<exclusions>
-				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.mapdb</groupId>
@@ -1286,6 +1356,7 @@
 			</exclusions>
 		</dependency>
 		-->
+		<!--
 		<dependency>
 			<groupId>aurelionribon.ui</groupId>
 			<artifactId>css-engine-swing-api</artifactId>
@@ -1297,6 +1368,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		-->
 		<!-- 
 		<dependency>
 			<groupId>com.teamdev.jxbrowser</groupId>
@@ -1432,11 +1504,13 @@
 			<version>1.7</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/us.fatehi/schemacrawler -->
+		<!--
 		<dependency>
 		    <groupId>us.fatehi</groupId>
 		    <artifactId>schemacrawler</artifactId>
 		    <version>16.21.2</version>
 		</dependency>
+		-->
 		<!-- required for JAWS Java API for WordNet Searching -->
 		<dependency>
 			<groupId>net.sf.extjwnl</groupId>
@@ -1591,10 +1665,11 @@
 			</exclusions>
 		</dependency>
 -->
+
 		<dependency>
 			<groupId>org.apache.thrift</groupId>
-			<artifactId>thrift</artifactId>
-			<version>0.9.0</version>
+			<artifactId>libthrift</artifactId>
+			<version>0.14.0</version>
 			<exclusions>
 				<exclusion>
 					<groupId>*</groupId>
@@ -1602,6 +1677,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		
 		<!--
 		<dependency>
 			<groupId>org.apache.hive</groupId>
@@ -1925,6 +2001,16 @@
 			<groupId>org.xhtmlrenderer</groupId>
 			<artifactId>flying-saucer-pdf</artifactId>
 			<version>9.1.22</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcpkix-jdk14</artifactId>
+				</exclusion>	
+				<exclusion>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcprov-jdk14</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.graphstream/gs-core -->
 		<dependency>
@@ -2020,7 +2106,7 @@
 		<dependency>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
-            <version>3.8.3</version>
+            <version>3.8.4</version>
             <exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -2127,7 +2213,7 @@
 		<dependency>
 			<groupId>org.apache.parquet</groupId>
 			<artifactId>parquet-avro</artifactId>
-			<version>1.13.1</version>
+			<version>1.14.1</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-common -->
 	    <dependency>
