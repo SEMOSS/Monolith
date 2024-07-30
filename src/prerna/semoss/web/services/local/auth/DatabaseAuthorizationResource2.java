@@ -255,9 +255,9 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String newUserId = form.getFirst("id");
-		String databaseId = form.getFirst("databaseId");
-		String permission = form.getFirst("permission");
+		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -310,7 +310,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -365,9 +365,9 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = form.getFirst("id");
-		String databaseId = form.getFirst("databaseId");
-		String newPermission = form.getFirst("permission");
+		String existingUserId =WebUtility.inputSanitizer(form.getFirst("id"));
+		String databaseId = WebUtility.inputSanitizer( form.getFirst("databaseId"));
+		String newPermission =WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -426,7 +426,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -485,8 +485,8 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = form.getFirst("id");
-		String databaseId = form.getFirst("databaseId");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + databaseId + " but is not an admin"));
@@ -545,7 +545,7 @@ public class DatabaseAuthorizationResource2 {
 		
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
-		String databaseId = form.getFirst("databaseId");
+		String databaseId =WebUtility.inputSanitizer( form.getFirst("databaseId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to database " + databaseId + " but is not an admin"));
@@ -603,7 +603,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(  form.getFirst("databaseId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
@@ -664,7 +664,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
@@ -724,7 +724,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer( form.getFirst("databaseId"));
 		boolean visible = Boolean.parseBoolean(form.getFirst("visibility"));
 		String logVisible = visible ? " visible " : " not visible";
 
@@ -775,7 +775,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
@@ -868,7 +868,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -928,7 +928,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user access to database " + databaseId + " but is not an admin"));
