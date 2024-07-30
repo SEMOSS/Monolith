@@ -340,9 +340,9 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String newUserId = form.getFirst("id");
-		String engineId = form.getFirst("engineId");
-		String permission = form.getFirst("permission");
+		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -390,7 +390,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -440,9 +440,9 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = form.getFirst("id");
-		String engineId = form.getFirst("engineId");
-		String newPermission = form.getFirst("permission");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -496,7 +496,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -550,8 +550,8 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = form.getFirst("id");
-		String engineId = form.getFirst("engineId");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to engine " + engineId + " but is not an admin"));
@@ -605,7 +605,7 @@ public class EngineAuthorizationResource {
 		
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to engine " + engineId + " but is not an admin"));
@@ -658,7 +658,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
@@ -714,7 +714,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
@@ -769,7 +769,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean visible = Boolean.parseBoolean(form.getFirst("visibility"));
 		String logVisible = visible ? " visible " : " not visible";
 
@@ -815,7 +815,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
@@ -899,7 +899,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -954,7 +954,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user access to engine " + engineId + " but is not an admin"));
