@@ -220,6 +220,7 @@ public class ProjectAuthorizationResource {
 		NounMetadata outputNoun = reactor.execute();
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
+	
 
 	/**
 	 * Get the user app permission level
@@ -329,10 +330,10 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String newUserId = form.getFirst("id");
-		String projectId = form.getFirst("projectId");
-		String permission = form.getFirst("permission");
-		String endDate = form.getFirst("endDate");
+		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a user for project " + projectId + " but is not an admin"));
