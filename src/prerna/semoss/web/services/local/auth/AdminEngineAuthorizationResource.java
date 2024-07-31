@@ -32,7 +32,6 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/engine")
@@ -65,7 +64,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			) {
 		
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
-	    
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -102,21 +101,21 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		if(engineFilter != null && !engineFilter.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
 			for(String engine : engineFilter) {
-				struct.add(new NounMetadata(engine, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer(engine), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE.getKey(), struct);
 		}
 		if(engineTypes != null && !engineTypes.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
 			for(String eType : engineTypes) {
-				struct.add(new NounMetadata(eType, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer(eType), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
 		}
 		if(metaKeys != null && !metaKeys.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
 			for(String metaK : metaKeys) {
-				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer(metaK), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
@@ -432,7 +431,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -565,7 +564,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Path("editEngineUserPermissions")
 	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
