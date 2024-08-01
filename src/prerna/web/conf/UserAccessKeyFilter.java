@@ -23,7 +23,10 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUserAccessKeyUtils;
+import prerna.security.HttpHelperUtility;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.UserResource;
+import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 
@@ -53,11 +56,20 @@ public class UserAccessKeyFilter implements Filter {
 		 * This will initiate a platform access/secret key pair being used
 		 */
 		
-		String bearerValue = request.getHeader("Bearer");
-		if(bearerValue == null) {
-			bearerValue = request.getHeader("bearer");
+		// see if there is an auth value
+		String authValue = request.getHeader("Authorization");
+		if(authValue == null) {
+			authValue = request.getHeader("authorization");
+			if(authValue == null) {
+				// no token? just go through and other filters will validate
+				arg2.doFilter(arg0, arg1);
+				return;
+			}
 		}
-		if(bearerValue != null) {
+
+		if(authValue.startsWith("Bearer") || authValue.startsWith("bearer")) {
+			String bearerToken = authValue.substring("Bearer".length()).trim();
+
 			// attempt to login using bearer token
 			String provider = request.getHeader("Bearer-Provider");
 			if(provider == null) {
@@ -88,26 +100,34 @@ public class UserAccessKeyFilter implements Filter {
 			}
 			
 			if(provider != null) {
+				SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
 				
 				// TODO: need to build out better objects instead of hard coding login urls/json parsing payloads
-				
-				
-			}
-		} else {
-			// see if there is an auth value
-			String authValue = request.getHeader("Authorization");
-			if(authValue == null) {
-				authValue = request.getHeader("authorization");
-				if(authValue == null) {
-					// no token? just go through and other filters will validate
-					arg2.doFilter(arg0, arg1);
-					return;
+				// TODO: need to build out better objects instead of hard coding login urls/json parsing payloads
+				// TODO: need to build out better objects instead of hard coding login urls/json parsing payloads
+
+				if(provider.equalsIgnoreCase("okta")) {
+					String prefix = "okta_";
+					// sub is the unique id for a user in okta
+					String jsonPattern = "[sub,name,email,phone_number]";
+					String[] beanProps = {"id","name","email","phone"};
+					String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+
+					AccessToken accessToken = new AccessToken();
+					accessToken.setProvider(AuthProvider.OKTA);
+
+					String output = HttpHelperUtility.makeGetCall(userinfo_url, bearerToken, null, true);
+					accessToken = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, accessToken);
+					
+					UserResource.addAccessToken(accessToken, request, autoAdd);
 				}
 			}
-
-			authValue = authValue.replace("Basic", "").trim();
+		} else if (authValue.startsWith("Basic") || authValue.startsWith("basic")){
+			String basicAuth = authValue.substring("basic".length()).trim();
+			
 			// this is a base64 encoded username:password
-			byte[] decodedBytes = Base64.getDecoder().decode(authValue);
+			byte[] decodedBytes = Base64.getDecoder().decode(basicAuth);
 			String userpass = new String(decodedBytes);
 			if(userpass != null && !userpass.isEmpty()) {
 				String[] split = userpass.split(":");
