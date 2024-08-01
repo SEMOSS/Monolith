@@ -267,7 +267,7 @@ public class UserResource {
 	 * @param token
 	 * @param request
 	 */
-	private void addAccessToken(AccessToken token, HttpServletRequest request, boolean autoAdd) {
+	public static void addAccessToken(AccessToken token, HttpServletRequest request, boolean autoAdd) {
 		HttpSession session = request.getSession();
 		User semossUser = (User) session.getAttribute(Constants.SESSION_USER);
 		// all of this is now in the user
