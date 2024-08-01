@@ -23,6 +23,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUserAccessKeyUtils;
+import prerna.io.connector.ms.MSProfile;
 import prerna.security.HttpHelperUtility;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
@@ -120,6 +121,14 @@ public class UserAccessKeyFilter implements Filter {
 					String output = HttpHelperUtility.makeGetCall(userinfo_url, bearerToken, null, true);
 					accessToken = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, accessToken);
 					
+					UserResource.addAccessToken(accessToken, request, autoAdd);
+				} else if(provider.equalsIgnoreCase("ms")) {
+					String prefix = "ms_";
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+
+					AccessToken accessToken = new AccessToken();
+					accessToken.setProvider(AuthProvider.OKTA);
+					MSProfile.fillAccessToken(accessToken, null);
 					UserResource.addAccessToken(accessToken, request, autoAdd);
 				}
 			}
