@@ -23,11 +23,9 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUserAccessKeyUtils;
-import prerna.io.connector.ms.MSProfile;
-import prerna.security.HttpHelperUtility;
+import prerna.io.connector.IAccessTokenFiller;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
-import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 
@@ -79,19 +77,13 @@ public class UserAccessKeyFilter implements Filter {
 				Set<String> allowedLogins = new HashSet<>();
 				for(String login : loginsMap.keySet()) {
 					if(loginsMap.get(login)) {
-						allowedLogins.add(login);
+						// check if this is OAuth
+						AuthProvider thisProvider = AuthProvider.valueOf(login.toUpperCase());
+						if(thisProvider.isOAuth()) {
+							allowedLogins.add(login);
+						}
 					}
 				}
-				
-				//TODO: add a property on AuthProvider to make this easier
-				// now remove all the non-sso logins
-				allowedLogins.remove(AuthProvider.GOOGLE_MAP.toString());
-				allowedLogins.remove(AuthProvider.NATIVE.toString());
-				allowedLogins.remove(AuthProvider.SAML.toString());
-				allowedLogins.remove(AuthProvider.LINOTP.toString());
-				allowedLogins.remove(AuthProvider.CAC.toString());
-				allowedLogins.remove(AuthProvider.WINDOWS_USER.toString());
-				allowedLogins.remove(AuthProvider.API_USER.toString());
 				
 				if(allowedLogins.size() == 1) {
 					provider = allowedLogins.iterator().next();
@@ -102,34 +94,40 @@ public class UserAccessKeyFilter implements Filter {
 			
 			if(provider != null) {
 				SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
+
+				AuthProvider thisProvider = AuthProvider.valueOf(provider.toUpperCase());
+				String tokenFillerClass = thisProvider.getTokenFillerClass();
+				if(tokenFillerClass == null) {
+					classLogger.warn("Attempting to login using access token but this functionality is not implemented for auth provider " + thisProvider.getLabel());
+					arg2.doFilter(arg0, arg1);
+					return;
+				} 
 				
-				// TODO: need to build out better objects instead of hard coding login urls/json parsing payloads
-				// TODO: need to build out better objects instead of hard coding login urls/json parsing payloads
-				// TODO: need to build out better objects instead of hard coding login urls/json parsing payloads
-
-				if(provider.equalsIgnoreCase("okta")) {
-					String prefix = "okta_";
-					// sub is the unique id for a user in okta
-					String jsonPattern = "[sub,name,email,phone_number]";
-					String[] beanProps = {"id","name","email","phone"};
-					String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
+				try {
+					IAccessTokenFiller thisTokenFiller = (IAccessTokenFiller) Class.forName(tokenFillerClass).newInstance();
+					String prefix = thisProvider.getLabel().toLowerCase()+"_";
+					String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
+					//"name","id","email"
+					String beanProps = socialData.getProperty(prefix + "beanProps");
+					String[] beanPropsArr = null;
+					if(beanProps != null) {
+						beanProps.split(",", -1);
+					}
+					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+					// this is a check for sanitizing a response back from an IAM provider - not common and should be false
+					// examples would be unescaped special chars in the response that then can't be parsed into a json. 
+					// this is not very common.
+					boolean sanitizeResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeUserResponse"));
 
 					AccessToken accessToken = new AccessToken();
-					accessToken.setProvider(AuthProvider.OKTA);
-
-					String output = HttpHelperUtility.makeGetCall(userinfo_url, bearerToken, null, true);
-					accessToken = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, accessToken);
-					
+					accessToken.setProvider(thisProvider);
+					accessToken.setAccess_token(bearerToken);
+					thisTokenFiller.fillAccessToken(accessToken, userInfoURL, jsonPattern, beanPropsArr, null, sanitizeResponse);
+					// now store in the session
 					UserResource.addAccessToken(accessToken, request, autoAdd);
-				} else if(provider.equalsIgnoreCase("ms")) {
-					String prefix = "ms_";
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					AccessToken accessToken = new AccessToken();
-					accessToken.setProvider(AuthProvider.OKTA);
-					MSProfile.fillAccessToken(accessToken, null);
-					UserResource.addAccessToken(accessToken, request, autoAdd);
+				} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+					classLogger.error(Constants.STACKTRACE,e );
 				}
 			}
 		} else if (authValue.startsWith("Basic") || authValue.startsWith("basic")){
@@ -159,7 +157,7 @@ public class UserAccessKeyFilter implements Filter {
 						// let us make sure this login type is still allowed to login via access/secret key
 						{
 							AuthProvider provider = token.getProvider();
-							String prefix = provider.toString().toLowerCase();
+							String prefix = provider.getLabel().toLowerCase();
 							boolean accessKeysAllowed = Boolean.parseBoolean(SocialPropertiesUtil.getInstance().getProperty(prefix + "_access_keys_allowed")+"");
 							if(!accessKeysAllowed) {
 								classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to login using access/secret key but administrator has disabeled for provider "+provider.name()));
