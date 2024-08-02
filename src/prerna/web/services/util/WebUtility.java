@@ -43,8 +43,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.Vector;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.Cookie;
@@ -367,6 +370,71 @@ public class WebUtility {
 				.and(Sanitizers.IMAGES).and(Sanitizers.TABLES);
 		return policy.sanitize(stringToNormalize);
 	}
+	
+	/**
+	 * 
+	 * @param listToSanitize
+	 * @return
+	 */
+	public static ArrayList<String> inputSanitizer(ArrayList<String> listToSanitize) {
+		if(listToSanitize == null) {
+			return null;
+		}
+		ArrayList<String> newList = new ArrayList<>(listToSanitize.size());
+		for(String s : listToSanitize) {
+			newList.add(inputSanitizer(s));
+		}
+		return newList;
+	}
+	
+	/**
+	 * 
+	 * @param listToSanitize
+	 * @return
+	 */
+	public static Vector<String> inputSanitizer(Vector<String> listToSanitize) {
+		if(listToSanitize == null) {
+			return null;
+		}
+		Vector<String> newList = new Vector<>(listToSanitize.size());
+		for(String s : listToSanitize) {
+			newList.add(inputSanitizer(s));
+		}
+		return newList;
+	}
+	
+	/**
+	 * 
+	 * @param listToSanitize
+	 * @return
+	 */
+	public static HashSet<String> inputSanitizer(HashSet<String> listToSanitize) {
+		if(listToSanitize == null) {
+			return null;
+		}
+		HashSet<String> newList = new HashSet<>(listToSanitize.size());
+		for(String s : listToSanitize) {
+			newList.add(inputSanitizer(s));
+		}
+		return newList;
+	}
+	
+	/**
+	 * 
+	 * @param listToSanitize
+	 * @return
+	 */
+	public static LinkedHashSet<String> inputSanitizer(LinkedHashSet<String> listToSanitize) {
+		if(listToSanitize == null) {
+			return null;
+		}
+		LinkedHashSet<String> newList = new LinkedHashSet<>(listToSanitize.size());
+		for(String s : listToSanitize) {
+			newList.add(inputSanitizer(s));
+		}
+		return newList;
+	}
+	
 
 
 	/**
