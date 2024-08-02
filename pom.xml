@@ -1258,6 +1258,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!--
 		<dependency>
 			<groupId>edu.stanford.nlp</groupId>
 			<artifactId>stanford-corenlp</artifactId>
@@ -1269,6 +1270,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		-->
 		<!-- 
 		<dependency>
 			<groupId>edu.stanford.nlp</groupId>
