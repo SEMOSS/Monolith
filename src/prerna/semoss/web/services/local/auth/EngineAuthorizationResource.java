@@ -33,7 +33,6 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/engine")
@@ -240,11 +239,8 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("getUserEnginePermission")
 	public Response getUserEnginePermission(@Context HttpServletRequest request, @QueryParam("engineId") String engineId) {
+		engineId = WebUtility.inputSanitizer(engineId);
 		
-		
-		engineId=WebUtility.inputSanitizer(engineId);
-
-	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -283,12 +279,16 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsers")
-	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-	    
-		engineId=WebUtility.inputSanitizer(engineId);
-	    userId=WebUtility.inputSanitizer(userId);
-	    userInfo=WebUtility.inputSanitizer(userInfo);
-	    permission=WebUtility.inputSanitizer(permission);
+	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId, 
+			@QueryParam("userId") String userId, 
+			@QueryParam("searchTerm") String searchTerm, 
+			@QueryParam("permission") String permission, 
+			@QueryParam("limit") long limit, 
+			@QueryParam("offset") long offset) {
+		engineId = WebUtility.inputSanitizer(engineId);
+	    userId = WebUtility.inputSanitizer(userId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
+	    permission = WebUtility.inputSanitizer(permission);
 		
 		User user = null;
 		try {
@@ -303,7 +303,7 @@ public class EngineAuthorizationResource {
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			String searchParam = userInfo != null ? userInfo : userId;
+			String searchParam = searchTerm != null ? searchTerm : userId;
 			List<Map<String, Object>> members = SecurityEngineUtils.getEngineUsers(user, engineId, searchParam, permission, limit, offset);
 			long totalMembers = SecurityEngineUtils.getEngineUsersCount(user, engineId, searchParam, permission);
 			ret.put("totalMembers", totalMembers);
@@ -849,11 +849,14 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsersNoCredentials")
-	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("engineId") String engineId) {
-		
-		engineId=WebUtility.inputSanitizer(engineId);
+	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request, 
+			@QueryParam("engineId") String engineId,
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, 
+			@QueryParam("offset") long offset) {
+		engineId = WebUtility.inputSanitizer(engineId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
 
-	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -867,7 +870,7 @@ public class EngineAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId);
+			ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId, searchTerm, limit, offset);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + engineId + " that do not have credentials without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);

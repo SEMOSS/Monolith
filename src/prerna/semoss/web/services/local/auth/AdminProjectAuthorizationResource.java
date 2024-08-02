@@ -326,11 +326,10 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("projectId") String projectId, @QueryParam("userId") String userId, 
 			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-		
-	    projectId=WebUtility.inputSanitizer(projectId);
-	    userId=WebUtility.inputSanitizer(userId);
-	    userInfo=WebUtility.inputSanitizer(userInfo);
-	    permission=WebUtility.inputSanitizer(permission);
+	    projectId = WebUtility.inputSanitizer(projectId);
+	    userId = WebUtility.inputSanitizer(userId);
+	    userInfo = WebUtility.inputSanitizer(userInfo);
+	    permission = WebUtility.inputSanitizer(permission);
 	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -714,9 +713,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		
-	    projectId=WebUtility.inputSanitizer(projectId);
-	    searchTerm=WebUtility.inputSanitizer(searchTerm);
+	    projectId = WebUtility.inputSanitizer(projectId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
 	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
