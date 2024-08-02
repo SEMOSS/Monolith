@@ -32,7 +32,6 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/engine")
@@ -345,14 +344,13 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("getEngineUsers")
 	public Response getEngineUsers(@Context HttpServletRequest request, 
-			@QueryParam("engineId") String engineId,  @QueryParam("userId") String userId, 
-			@QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, 
+			@QueryParam("engineId") String engineId, @QueryParam("userId") String userId, 
+			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-		
-		engineId=WebUtility.inputSanitizer(engineId);
-	    userId=WebUtility.inputSanitizer(userId);
-	    userInfo=WebUtility.inputSanitizer(userInfo);
-	    permission=WebUtility.inputSanitizer(permission);
+		engineId = WebUtility.inputSanitizer(engineId);
+	    userId = WebUtility.inputSanitizer(userId);
+	    userInfo = WebUtility.inputSanitizer(userInfo);
+	    permission = WebUtility.inputSanitizer(permission);
 	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -823,9 +821,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		
-		engineId=WebUtility.inputSanitizer(engineId);
-		searchTerm=WebUtility.inputSanitizer(searchTerm);
+		engineId = WebUtility.inputSanitizer(engineId);
+		searchTerm = WebUtility.inputSanitizer(searchTerm);
 	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
