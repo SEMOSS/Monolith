@@ -66,8 +66,6 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.kohsuke.github.GHMyself;
-import org.kohsuke.github.GitHub;
 import org.owasp.encoder.Encode;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -89,9 +87,11 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.io.connector.GenericProfile;
-import prerna.io.connector.google.GoogleProfile;
-import prerna.io.connector.ms.MSProfile;
+import prerna.io.connector.GenericTokenFiller;
+import prerna.io.connector.github.GithubTokenFiller;
+import prerna.io.connector.google.GoogleTokenFiller;
+import prerna.io.connector.ms.MicrosoftTokenFiller;
+import prerna.io.connector.okta.OktaTokenFiller;
 import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.sablecc2.om.execptions.SemossPixelException;
 import prerna.security.HttpHelperUtility;
@@ -698,8 +698,8 @@ public class UserResource {
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("/login/sf")
-	public Response loginSF(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	@Path("/login/salesforce")
+	public Response loginSalesforce(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -720,14 +720,14 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 				
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
 				if(code.matches("[ -~]+")) {
-					String prefix = "sf_";
+					String prefix = "salesforce_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
@@ -750,10 +750,10 @@ public class UserResource {
 					if (accessToken == null) {
 						// not authenticated
 						response.setStatus(302);
-						response.sendRedirect(getSFRedirect(request));
+						response.sendRedirect(getSalesforceRedirect(request));
 						return null;
 					}
-					accessToken.setProvider(AuthProvider.SF);
+					accessToken.setProvider(AuthProvider.SALESFORCE);
 					addAccessToken(accessToken, request, autoAdd);
 					
 					if(classLogger.isDebugEnabled()) {
@@ -767,10 +767,10 @@ public class UserResource {
 		if(session != null || (session=request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.SF) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(getSFRedirect(request));
+			response.sendRedirect(getSalesforceRedirect(request));
 			return null;
 		}
 
@@ -778,8 +778,8 @@ public class UserResource {
 		return null;
 	}
 
-	private String getSFRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "sf_";
+	private String getSalesforceRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
+		String prefix = "salesforce_";
 		String clientId = socialData.getProperty(prefix + "client_id");
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
@@ -961,14 +961,8 @@ public class UserResource {
 	
 					GitRepoUtils.addCertForDomain(url);
 					// add specific Git values
-					GHMyself myGit = GitHub.connectUsingOAuth(accessToken.getAccess_token()).getMyself();
-					accessToken.setId(myGit.getId() + "");
-					accessToken.setEmail(myGit.getEmail());
-					accessToken.setName(myGit.getName());
-					accessToken.setLocale(myGit.getLocation());
-					accessToken.setUsername(myGit.getLogin());
-					addAccessToken(accessToken, request, autoAdd);
-	
+					GithubTokenFiller profiler = new GithubTokenFiller();
+					profiler.fillAccessToken(accessToken, null, null, null, null);
 					if(classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
@@ -1076,9 +1070,6 @@ public class UserResource {
 						return null;
 					}
 					accessToken.setProvider(AuthProvider.GITLAB);
-	
-					//GitRepoUtils.addCertForDomain(url);
-					// add specific Git values
 	
 					String beanProps = socialData.getProperty(prefix + "beanProps");
 					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
@@ -1200,9 +1191,8 @@ public class UserResource {
 					String tenant = socialData.getProperty(prefix + "tenant");
 					String scope = socialData.getProperty(prefix + "scope");
 					String token_url = socialData.getProperty(prefix + "token_url");
-					boolean login_external_allowed = Boolean.parseBoolean(socialData.getProperty(prefix + "login_external"));
-	
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+					boolean login_external_allowed = Boolean.parseBoolean(socialData.getProperty(prefix + "login_external"));
 	
 					if(classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
@@ -1227,9 +1217,10 @@ public class UserResource {
 						response.sendRedirect(getMSRedirect(request));
 						return null;
 					}
-	
+					
 					accessToken.setProvider(AuthProvider.MS);
-					MSProfile.fillAccessToken(accessToken, null);
+					MicrosoftTokenFiller profiler = new MicrosoftTokenFiller();
+					profiler.fillAccessToken(accessToken, null, null, null, null);
 					if(!login_external_allowed) {
 						if(accessToken.getName().contains("External")) {
 							accessToken = null;
@@ -1489,14 +1480,10 @@ public class UserResource {
 					accessToken.setProvider(AuthProvider.OKTA);
 					
 					// sub is the unique id for a user in okta
-					String jsonPattern = "[sub,name,email,phone_number]";
-					String[] beanProps = {"id","name","email","phone"};
 					String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
-					
-					String output = HttpHelperUtility.makeGetCall(userinfo_url, accessToken.getAccess_token(), null, true);
-					accessToken = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanProps, accessToken);
+					OktaTokenFiller profiler = new OktaTokenFiller();
+					profiler.fillAccessToken(accessToken, userinfo_url, null, null, null);
 					addAccessToken(accessToken, request, autoAdd);
-
 					if(classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
@@ -1607,9 +1594,7 @@ public class UserResource {
 					}
 	
 					accessToken.setProvider(AuthProvider.SITEMINDER);
-					MSProfile.fillAccessToken(accessToken, null);
 					addAccessToken(accessToken, request, autoAdd);
-	
 					if(classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
@@ -1827,7 +1812,8 @@ public class UserResource {
 					accessToken.setProvider(AuthProvider.GOOGLE);
 	
 					// fill the access token with the other properties so we can properly create the user
-					GoogleProfile.fillAccessToken(accessToken, null);
+					GoogleTokenFiller profiler = new GoogleTokenFiller();
+					profiler.fillAccessToken(accessToken, null, null, null, null);
 					addAccessToken(accessToken, request, autoAdd);
 	
 					// Shows how to make a google credential from an access token
@@ -2338,6 +2324,7 @@ public class UserResource {
 					String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
 					//"name","id","email"
 					String beanProps = socialData.getProperty(prefix + "beanProps");
+					String[] beanPropsArr = beanProps.split(",", -1);
 					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
 	
 					accessToken.setProvider(providerEnum);
@@ -2347,7 +2334,8 @@ public class UserResource {
 					// this is not very common.
 					boolean sanitizeResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeUserResponse"));
 					
-					GenericProfile.fillAccessToken(accessToken,userInfoURL, beanProps, jsonPattern, null, sanitizeResponse);
+					GenericTokenFiller profiler = new GenericTokenFiller();
+					profiler.fillAccessToken(accessToken, userInfoURL, jsonPattern, beanPropsArr, null, sanitizeResponse);
 					addAccessToken(accessToken, request, autoAdd);
 	
 					if(classLogger.isDebugEnabled()) {
@@ -2373,23 +2361,17 @@ public class UserResource {
 		if(Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))){
 			//get groups
 			String group_url = socialData.getProperty(prefix + "group_url");
-
 			// make the call to get the groups
 			String groupsJson = HttpHelperUtility.makeGetCall(group_url,  userObj.getAccessToken(providerEnum).getAccess_token());
-
 			// this is a check for sanitizing a response back from an IAM provider - not common and should be false
 			// examples would be unescaped special chars in the response that then can't be parsed into a json. 
 			boolean sanitizeGroupResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeGroupResponse"));
-
 			if(sanitizeGroupResponse) {
 				groupsJson = groupsJson.replace("\\", "\\\\");
 				// add more replacements as need be in the future
 			}
 			
-			
-			
 			Set<String> userGroups = new HashSet<String>();
-
 			// are groups returned as a single string or an array in a json. Usually it is an array in a json.
 			boolean groupStringResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "group_string_return"));
 			if(groupStringResponse) {
@@ -2430,7 +2412,6 @@ public class UserResource {
 					userGroups.add(thisInput);
 				}	
 			}
-
 
 			userObj.getAccessToken(providerEnum).setUserGroups(userGroups);
 			userObj.getAccessToken(providerEnum).setUserGroupType(providerEnum.toString());			
