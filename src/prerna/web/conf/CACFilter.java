@@ -52,7 +52,7 @@ import prerna.web.conf.util.UserFileLogUtil;
 
 public class CACFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(CACFilter.class); 
+	private static final Logger classLogger = LogManager.getLogger(CACFilter.class);
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
@@ -98,7 +98,7 @@ public class CACFilter implements Filter {
 					X509Certificate cert = certs[i];
 
 					String fullName = cert.getSubjectX500Principal().getName();
-					logger.info("REQUEST COMING FROM " +  Utility.cleanLogString(fullName));
+					classLogger.info("REQUEST COMING FROM " +  Utility.cleanLogString(fullName));
 
 					LdapName ldapDN;
 
@@ -126,7 +126,7 @@ public class CACFilter implements Filter {
 								// now set the other properties
 								token.setToken_type(cert.getIssuerDN().getName());
 								token.setExpires_in((int) cert.getNotAfter().getTime());
-								logger.info("Request coming from TOPAZ");
+								classLogger.info("Request coming from TOPAZ");
 								break CERT_LOOP;
 							}
 
@@ -170,7 +170,7 @@ public class CACFilter implements Filter {
 									}
 								}
 							} catch (CertificateParsingException e) {
-								logger.error(Constants.STACKTRACE, e);
+								classLogger.error(Constants.STACKTRACE, e);
 							}
 
 							if(email != null) {
@@ -191,8 +191,8 @@ public class CACFilter implements Filter {
 							break CERT_LOOP;
 						} // end rdn loop
 					} catch (InvalidNameException e) {
-						logger.error("ERROR WITH PARSING CAC INFORMATION!");
-						logger.error(Constants.STACKTRACE, e);
+						classLogger.error("ERROR WITH PARSING CAC INFORMATION!");
+						classLogger.error(Constants.STACKTRACE, e);
 					}
 				}
 
@@ -200,7 +200,7 @@ public class CACFilter implements Filter {
 				// and it has values filled in
 				// we know we can populate the user
 				if(token.getName() != null) {
-					logger.info("Valid request coming from user " + token.getName());
+					classLogger.info("Valid request coming from user " + token.getName());
 					user.setAccessToken(token);
 					session.setAttribute(Constants.SESSION_USER, user);
 					session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
@@ -229,7 +229,7 @@ public class CACFilter implements Filter {
 					}
 
 					// log the user login
-					logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
+					classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
 
 					// store if db tracking
 					UserResource.userTrackingLogin((HttpServletRequest) arg0, user, token.getProvider());
@@ -246,7 +246,7 @@ public class CACFilter implements Filter {
 			sans = JcaX509ExtensionUtils.getSubjectAlternativeNames(cert);
 			//get all subject alt names
 			if (sans != null) {
-				logger.info("Subject Alternative Names: " + sans.toString());
+				classLogger.info("Subject Alternative Names: " + sans.toString());
 				for (List<?> l : sans) {
 					
 					//expected size is 2
@@ -323,18 +323,18 @@ public class CACFilter implements Filter {
 				String logInfoPath = CACFilter.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
 				String logInfoSep = CACFilter.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
 				if(logInfoPath == null) {
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 				}
 				try {
 					userLogger = UserFileLogUtil.getInstance(logInfoPath, logInfoSep);
 				} catch(Exception e) {
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
 				}
 			}
 
@@ -349,18 +349,18 @@ public class CACFilter implements Filter {
 			if(countUsers) {
 				String countDatabaseId = CACFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
 				if(countDatabaseId == null) {
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 				}
 				try {
 					tracker = CACTrackingUtil.getInstance(countDatabaseId);
 				} catch(Exception e) {
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
+					classLogger.info(e.getMessage());
 				}
 			}
 		}
@@ -391,7 +391,7 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-						logger.error(Constants.STACKTRACE, e);
+						classLogger.error(Constants.STACKTRACE, e);
 					}
 
 					// need to update all the places the user id is used
@@ -399,7 +399,7 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-						logger.error(Constants.STACKTRACE, e);
+						classLogger.error(Constants.STACKTRACE, e);
 					}
 
 					// need to update all the places the user id is used
@@ -407,17 +407,17 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-						logger.error(Constants.STACKTRACE, e);
+						classLogger.error(Constants.STACKTRACE, e);
 					}
 				}
 			} catch (Exception e1) {
-				logger.error(Constants.STACKTRACE, e1);
+				classLogger.error(Constants.STACKTRACE, e1);
 			} finally {
 				if(wrapper != null) {
 					try {
 						wrapper.close();
 					} catch (IOException e) {
-						logger.error(Constants.STACKTRACE, e);
+						classLogger.error(Constants.STACKTRACE, e);
 					}
 				}
 			}
@@ -446,13 +446,13 @@ public class CACFilter implements Filter {
 								formEngine.insertData("UPDATE FORMS_USER_ACCESS SET EMAIL = USER_ID;");
 							}
 						} catch (Exception e) {
-							logger.error(Constants.STACKTRACE, e);
+							classLogger.error(Constants.STACKTRACE, e);
 						} finally {
 							if(requireFormUpdateWrapper != null) {
 								try {
 									requireFormUpdateWrapper.close();
 								} catch(IOException e) {
-									logger.error(Constants.STACKTRACE, e);
+									classLogger.error(Constants.STACKTRACE, e);
 								}
 							}
 						}
@@ -462,18 +462,18 @@ public class CACFilter implements Filter {
 						try {
 							formEngine.insertData(updateQuery);
 						} catch (SQLException e) {
-							logger.error(Constants.STACKTRACE, e);
+							classLogger.error(Constants.STACKTRACE, e);
 						}
 
 					}
 				} catch (Exception e1) {
-					logger.error(Constants.STACKTRACE, e1);
+					classLogger.error(Constants.STACKTRACE, e1);
 				} finally {
 					if(wrapper != null) {
 						try {
 							wrapper.close();
 						} catch (IOException e) {
-							logger.error(Constants.STACKTRACE, e);
+							classLogger.error(Constants.STACKTRACE, e);
 						}
 					}
 				}
