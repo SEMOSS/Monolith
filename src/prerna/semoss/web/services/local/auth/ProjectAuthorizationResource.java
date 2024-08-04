@@ -262,7 +262,7 @@ public class ProjectAuthorizationResource {
 	}
 
 	/**
-	 * Get the app users and their permissions
+	 * Get the project users and their permissions
 	 * @param request
 	 * @param form
 	 * @return
@@ -271,14 +271,16 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("getProjectUsers")
 	public Response getProjectUsers(@Context HttpServletRequest request, 
-			@QueryParam("projectId") String projectId,  @QueryParam("userId") String userId, 
-			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-		
-		projectId=WebUtility.inputSanitizer(projectId);
-		userId=WebUtility.inputSanitizer(userId);
-		userInfo=WebUtility.inputSanitizer(userInfo);
-		permission=WebUtility.inputSanitizer(permission);
+			@QueryParam("projectId") String projectId, 
+			@QueryParam("userId") String userId, 
+			@QueryParam("userInfo") String userInfo, 
+			@QueryParam("permission") String permission, 
+			@QueryParam("limit") long limit, 
+			@QueryParam("offset") long offset) {
+		projectId = WebUtility.inputSanitizer(projectId);
+		userId = WebUtility.inputSanitizer(userId);
+		userInfo = WebUtility.inputSanitizer(userInfo);
+		permission = WebUtility.inputSanitizer(permission);
 
 		User user = null;
 		try {
@@ -857,10 +859,8 @@ public class ProjectAuthorizationResource {
 			@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		
-	    projectId=WebUtility.inputSanitizer(projectId);
-	    searchTerm=WebUtility.inputSanitizer(searchTerm);
-
+	    projectId = WebUtility.inputSanitizer(projectId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
 	    
 		User user = null;
 		try {

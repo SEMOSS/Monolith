@@ -31,7 +31,6 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/app")
@@ -629,15 +628,19 @@ public class DatabaseAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getAppUsersNoCredentials")
-	public Response getAppUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
+	public Response getAppUsersNoCredentials(@Context HttpServletRequest request, 
+			@QueryParam("appId") String appId,
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, 
+			@QueryParam("offset") long offset) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		
-		appId=WebUtility.inputSanitizer(appId);
+		appId = WebUtility.inputSanitizer(appId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
 
-	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -651,7 +654,7 @@ public class DatabaseAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, appId);
+			ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, appId, searchTerm, limit, offset);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + appId + " that do not have credentials without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
