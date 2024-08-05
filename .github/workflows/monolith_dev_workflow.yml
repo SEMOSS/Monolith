@@ -9,6 +9,11 @@ on:
       - dev
       - main
   workflow_dispatch:
+    inputs:
+      semossBranch:
+        description: "Specify the branch name"
+        required: true
+        default: dev
 
 env:
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
@@ -51,7 +56,7 @@ jobs:
           repo: Semoss
           github_token: ${{ secrets.SEMOSS_GITHUB_TOKEN }}
           workflow_file_name: dev_workflow.yml
-          ref: dev
+          ref: ${{ inputs.semossBranch }}
           wait_interval: 15
           propagate_failure: true
           trigger_workflow: true
