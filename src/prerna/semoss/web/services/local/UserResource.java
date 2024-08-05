@@ -2495,8 +2495,8 @@ public class UserResource {
 		}
 
 		try {
-			String username = WebUtility.inputSanitizer(request.getParameter("username"));
-			String password = WebUtility.inputSanitizer(request.getParameter("password"));
+			String username = WebUtility.inputSQLSanitizer(request.getParameter("username"));
+			String password = WebUtility.inputSQLSanitizer(request.getParameter("password"));
 			String redirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
@@ -2801,8 +2801,8 @@ public class UserResource {
 			// the id and the username are always the same
 			String username = WebUtility.inputSanitizer(request.getParameter("username"));
 			String name = WebUtility.inputSanitizer(request.getParameter("name"));
-			String password = WebUtility.inputSanitizer(request.getParameter("password"));
-			String email = WebUtility.inputSanitizer(request.getParameter("email"));
+			String password = WebUtility.inputSQLSanitizer(request.getParameter("password"));
+			String email = WebUtility.inputSQLSanitizer(request.getParameter("email"));
 			String phone = WebUtility.inputSanitizer(request.getParameter("phone"));
 			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
 			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
