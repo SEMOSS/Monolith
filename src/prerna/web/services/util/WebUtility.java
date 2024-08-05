@@ -63,6 +63,8 @@ import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
+import org.owasp.esapi.ESAPI;
+import org.owasp.esapi.codecs.MySQLCodec;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
 
@@ -368,7 +370,8 @@ public class WebUtility {
 
 		PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS).and(Sanitizers.BLOCKS).and(Sanitizers.STYLES)
 				.and(Sanitizers.IMAGES).and(Sanitizers.TABLES);
-		return policy.sanitize(stringToNormalize);
+		MySQLCodec mySQLCodec=new MySQLCodec(MySQLCodec.Mode.ANSI);
+		return ESAPI.encoder().encodeForSQL(mySQLCodec, policy.sanitize(stringToNormalize));
 	}
 	
 	/**
@@ -376,7 +379,7 @@ public class WebUtility {
 	 * @param listToSanitize
 	 * @return
 	 */
-	public static ArrayList<String> inputSanitizer(ArrayList<String> listToSanitize) {
+	public static List<String> inputSanitizer(List<String> listToSanitize) {
 		if(listToSanitize == null) {
 			return null;
 		}
