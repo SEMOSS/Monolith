@@ -23,7 +23,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.MediaType;
-
 import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
@@ -57,9 +56,7 @@ import prerna.web.services.util.WebUtility;
 public class LegacyAppResource {
 
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
-
 	private static final Logger logger = LogManager.getLogger(LegacyAppResource.class);
-
 	private boolean canViewDatabase(User user, String databaseId) throws IllegalAccessException {
 		databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseId);
 		if(!SecurityEngineUtils.userCanViewEngine(user, databaseId)
@@ -69,13 +66,13 @@ public class LegacyAppResource {
 
 		return true;
 	}
-
+		
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
-
+		
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
@@ -115,14 +112,13 @@ public class LegacyAppResource {
 			errorMap.put(Constants.ERROR_MESSAGE, "Could not find current database smss file");
 			return WebUtility.getResponse(errorMap, 400);
 		}
-
 		// using the current smss properties
 		// and the new file contents
 		// unconceal any hidden values that have not been altered
 		Properties currentSmssProperties = engine.getSmssProp();
 		String newSmssContent = WebUtility.inputSanitizer(request.getParameter("smss"));
 		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent, currentSmssProperties);
-
+		
 		// read the current smss as text in case of an error
 		String currentSmssContent = null;
 		try {
