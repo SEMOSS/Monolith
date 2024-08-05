@@ -130,6 +130,8 @@ jobs:
           fi
         env:
           GITHUB_REF: ${{ github.ref }}
+      - name: List all files in the target directory
+        run: ls -lah target
 
       - name: Clear Maven repository after deploy
         run: rm -rf .m2/repository/org/semoss
@@ -143,7 +145,7 @@ jobs:
         run: |
           REF_NAME=$( echo $GITHUB_REF | sed 's|refs/heads/||')
           JAR_FILE=$(ls target/*.jar | head -n 1)
-          WAR_FILE$(ls target/*.war | head -n 1)
+          # WAR_FILE$(ls target/*.war | head -n 1)
 
           if [-f "$JAR_FILE"]; then
             echo "Uploading JAR file: (basename $JAR_FILE)"
@@ -154,14 +156,14 @@ jobs:
             echo "No JAR file found in the target directory."
           fi
 
-          if [-f "$WAR_FILE"]; then
-            echo "Uploading WAR file: (basename $WAR_FILE)"
-            curl -v -u "$NEXUS_USERNAME:$NEUXS_PASSWORD" \
-            --upload-file "$WAR_FILE" \
-            "https://artifact.semoss.org/repository/monolith-hosted-repo/$REF_NAME/$(basename $WAR_FILE)"
-          else
-            echo "No WAR file found in the target directory."
-          fi
+          # if [-f "$WAR_FILE"]; then
+          #   echo "Uploading WAR file: (basename $WAR_FILE)"
+          #   curl -v -u "$NEXUS_USERNAME:$NEUXS_PASSWORD" \
+          #   --upload-file "$WAR_FILE" \
+          #   "https://artifact.semoss.org/repository/monolith-hosted-repo/$REF_NAME/$(basename $WAR_FILE)"
+          # else
+          #   echo "No WAR file found in the target directory."
+          # fi
 
   build_monolith_release:
     runs-on: self-hosted
