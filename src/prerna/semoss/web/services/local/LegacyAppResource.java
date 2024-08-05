@@ -112,6 +112,7 @@ public class LegacyAppResource {
 			errorMap.put(Constants.ERROR_MESSAGE, "Could not find current database smss file");
 			return WebUtility.getResponse(errorMap, 400);
 		}
+		
 		// using the current smss properties
 		// and the new file contents
 		// unconceal any hidden values that have not been altered
@@ -163,7 +164,7 @@ public class LegacyAppResource {
 			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred initializing the new database details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-
+		
 		// push to cloud
 		ClusterUtil.pushEngineSmss(WebUtility.inputSanitizer(databaseId), IEngine.CATALOG_TYPE.DATABASE);
 
@@ -171,8 +172,8 @@ public class LegacyAppResource {
 		success.put("success", true);
 		return WebUtility.getResponse(success, 200);
 	}
-
-
+	
+	
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -207,7 +208,7 @@ public class LegacyAppResource {
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-
+		
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
 				String actualDatabaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(WebUtility.inputSanitizer(databaseId));
@@ -218,7 +219,7 @@ public class LegacyAppResource {
 				logger.error(Constants.STACKTRACE, e);
 			}
 		}
-
+		
 		File exportFile = null;
 		try {
 			exportFile = getDatabaseImageFile(WebUtility.inputSanitizer(databaseId));
@@ -232,14 +233,14 @@ public class LegacyAppResource {
 //			cc.setMaxAge(86400);
 //			cc.setPrivate(true);
 //			cc.setMustRevalidate(true);
-			EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
-			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
+		EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
+		ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
-			// cached resource did not change
-			if(builder != null) {
-				return builder.build();
-			}
-
+		// cached resource did not change
+		if(builder != null) {
+			return builder.build();
+		}
+		
 			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
 //					.cacheControl(cc)
 					.tag(etag)
@@ -256,7 +257,7 @@ public class LegacyAppResource {
 	 * Use to find the file for the image
 	 * @param databaseId
 	 * @return
-	 * @throws Exception
+	 * @throws Exception 
 	 */
 	protected File getDatabaseImageFile(String databaseId) throws Exception {
 		databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(WebUtility.inputSanitizer(databaseId));
@@ -295,9 +296,9 @@ public class LegacyAppResource {
 			return DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
 		}
 	}
-
+	
 	/////////////////////////////////////////////////////////////////
-
+	
 	/*
 	 * Image utility methods
 	 */
@@ -322,7 +323,7 @@ public class LegacyAppResource {
 		}
 		return null;
 	}
-
+	
 	/**
 	 * Close a file stream
 	 * @param fis
@@ -330,9 +331,9 @@ public class LegacyAppResource {
 	protected void closeStream(FileInputStream fis) {
 		if(fis != null) {
 			try {
-				fis.close();
-				} catch (IOException e) {
-				logger.error(Constants.STACKTRACE, e);
+			fis.close();
+			} catch (IOException e) {
+			logger.error(Constants.STACKTRACE, e);
 			}
 		}
 	}
