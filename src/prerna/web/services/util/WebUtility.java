@@ -375,6 +375,22 @@ public class WebUtility {
 	}
 	
 	/**
+	 * This is to just escape for sql, not remove scripts.
+	 * 
+	 * @param stringToNormalize
+	 * @return
+	 */
+	public static String inputSQLSanitizer(String stringToNormalize) {
+		if (stringToNormalize == null) {
+			classLogger.debug("input to sql sanitzer is null, returning null");
+			return stringToNormalize;
+		}
+
+		MySQLCodec mySQLCodec=new MySQLCodec(MySQLCodec.Mode.ANSI);
+		return ESAPI.encoder().encodeForSQL(mySQLCodec, stringToNormalize);
+	}
+	
+	/**
 	 * 
 	 * @param listToSanitize
 	 * @return
