@@ -145,7 +145,7 @@ jobs:
         run: |
           REF_NAME=$( echo $GITHUB_REF | sed 's|refs/heads/||')
           JAR_FILE=$(ls target/*.jar | head -n 1)
-          WAR_FILE$(ls target/*.war | head -n 1)
+          WAR_FILE=$(ls target/*.war | head -n 1)
 
           if [[ -f "$JAR_FILE" ]]; then
             echo "Uploading JAR file: (basename $JAR_FILE)"
