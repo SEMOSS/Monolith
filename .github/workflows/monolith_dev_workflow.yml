@@ -147,7 +147,7 @@ jobs:
           JAR_FILE=$(ls target/*.jar | head -n 1)
           WAR_FILE=$(ls target/*.war | head -n 1)
 
-          if [[ -f "$JAR_FILE" ]]; then
+          if [ -f "$JAR_FILE" ]; then
             echo "Uploading JAR file: (basename $JAR_FILE)"
             curl -v -u "$NEXUS_USERNAME:$NEUXS_PASSWORD" \
             --upload-file "$JAR_FILE" \
@@ -156,7 +156,7 @@ jobs:
             echo "No JAR file found in the target directory."
           fi
 
-          if [[ -f "$WAR_FILE" ]]; then
+          if [ -f "$WAR_FILE" ]; then
             echo "Uploading WAR file: (basename $WAR_FILE)"
             curl -v -u "$NEXUS_USERNAME:$NEUXS_PASSWORD" \
             --upload-file "$WAR_FILE" \
