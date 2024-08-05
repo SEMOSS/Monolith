@@ -19,7 +19,7 @@ env:
   WORKSPACE_DIR: /home/ubuntu/actions-runner/_work/Monolith/
   GPG_PASS_PHRASE: ${{ secrets.GPG_PASS_PHRASE }}
   RELEASE: ${{ vars.RELEASE }}
-  
+
 jobs:
   build_semoss:
     runs-on: self-hosted
@@ -104,11 +104,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # - name: Set up JDK 8
-      #   uses: actions/setup-java@v3
-      #   with:
-      #     java-version: "8"
-
       - name: Update and install openjfx and gnupg2
         run: |
           rm -rf /var/lib/apt/lists/*
@@ -125,16 +120,48 @@ jobs:
         run: rm -rf .m2/repository/org/semoss
 
       - name: Deploy with Maven
-        run: /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${{ vars.VERSION }}-SNAPSHOT
+        shell: bash
+        run: |
+          REF_NAME=$( echo $GITHUB_REF | sed 's|refs/heads/||')
+          if [[ "$REF_NAME" != 'dev' && "$REF_NAME" != 'main' ]]; then
+            mvn clean install -Dci.version=${{ vars.VERSION }}-SNAPSHOT
+          elif [[ "$REF_NAME" == 'dev' || "$REF_NAME" == 'main' ]]; then
+            mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${{ vars.VERSION }}-SNAPSHOT
+          fi
+        env:
+          GITHUB_REF: ${{ github.ref }}
 
       - name: Clear Maven repository after deploy
         run: rm -rf .m2/repository/org/semoss
 
-    #   - name: Upload artifacts
-    #     uses: actions/upload-artifact@v4
-    #     with:
-    #       name: monolith-${{ vars.VERSION }}-SNAPSHOT.war
-    #       path: target/monolith-${{ vars.VERSION }}-SNAPSHOT.war
+      - name: Upload JAR to Nexus
+        if: github.ref_name != 'dev' && github.ref_name != 'main'
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEUXS_PASSWORD: ${{secrets.NEUXS_PASSWORD }}
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          REF_NAME=$( echo $GITHUB_REF | sed 's|refs/heads/||')
+          JAR_FILE=$(ls target/*.jar | head -n 1)
+          WAR_FILE$(ls target/*.war | head -n 1)
+
+          if [-f "$JAR_FILE"]; then
+            echo "Uploading JAR file: (basename $JAR_FILE)"
+            curl -v -u "$NEXUS_USERNAME:$NEUXS_PASSWORD" \
+            --upload-file "$JAR_FILE" \
+            "https://artifact.semoss.org/repository/monolith-hosted-repo/$REF_NAME/$(basename $JAR_FILE)"
+          else
+            echo "No JAR file found in the target directory."
+          fi
+
+          if [-f "$WAR_FILE"]; then
+            echo "Uploading WAR file: (basename $WAR_FILE)"
+            curl -v -u "$NEXUS_USERNAME:$NEUXS_PASSWORD" \
+            --upload-file "$WAR_FILE" \
+            "https://artifact.semoss.org/repository/monolith-hosted-repo/$REF_NAME/$(basename $WAR_FILE)"
+          else
+            echo "No WAR file found in the target directory."
+          fi
 
   build_monolith_release:
     runs-on: self-hosted
