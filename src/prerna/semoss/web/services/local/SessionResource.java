@@ -212,7 +212,7 @@ public class SessionResource {
 	@Produces("application/json;charset=utf-8")
 	public void invalidateSession(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		String redirectUrl = request.getHeader("referer");
+		String redirectUrl = WebUtility.inputSanitizer(request.getHeader("referer"));
 		response.setStatus(302);
 		
 		HttpSession session = request.getSession(false);
@@ -233,16 +233,16 @@ public class SessionResource {
 				response.setHeader("redirect", customUrl);
 				response.sendError(302, "Need to redirect to " + customUrl);
 			} else {
-				String scheme = request.getScheme(); // http
+				String scheme =  WebUtility.inputSanitizer(request.getScheme()); // http
 
 				if (!scheme.trim().equalsIgnoreCase("https") &&
 					!scheme.trim().equalsIgnoreCase("http")) {
 					throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
 				}
 
-				String serverName = request.getServerName(); // hostname.com
+				String serverName = WebUtility.inputSanitizer(request.getServerName()); // hostname.com
 				int serverPort = request.getServerPort(); // 8080
-				String contextPath = request.getContextPath(); // /Monolith
+				String contextPath = WebUtility.inputSanitizer(request.getContextPath()); // /Monolith
 
 				redirectUrl = "";
 				redirectUrl += scheme + "://" + serverName;
