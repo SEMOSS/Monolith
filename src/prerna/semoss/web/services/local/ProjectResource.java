@@ -126,7 +126,7 @@ public class ProjectResource {
 		try {
 			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
 			if(!isAdmin) {
-				boolean isOwner = SecurityProjectUtils.userIsOwner(user, projectId);
+				boolean isOwner = SecurityProjectUtils.userIsOwner(user, WebUtility.inputSanitizer((projectId)));
 				if(!isOwner) {
 					throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
 				}
@@ -137,7 +137,7 @@ public class ProjectResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		IProject project = Utility.getProject(projectId);
+		IProject project = Utility.getProject(WebUtility.inputSanitizer(projectId));
 		String currentSmssFileLocation = project.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {
@@ -150,7 +150,7 @@ public class ProjectResource {
 		// and the new file contents
 		// unconceal any hidden values that have not been altered
 		Properties currentSmssProperties = project.getSmssProp();
-		String newSmssContent = request.getParameter("smss");
+		String newSmssContent = WebUtility.inputSanitizer(request.getParameter("smss"));
 		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent, currentSmssProperties);
 		
 		// validate the new SMSS
@@ -208,7 +208,7 @@ public class ProjectResource {
 		}
 		
 		// push to cloud
-		ClusterUtil.pushProjectSmss(projectId);
+		ClusterUtil.pushProjectSmss(WebUtility.inputSanitizer((projectId)));
 		
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
@@ -243,7 +243,7 @@ public class ProjectResource {
 		try {
 			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
 			if(!isAdmin) {
-				boolean isOwner = SecurityProjectUtils.userIsOwner(user, projectId);
+				boolean isOwner = SecurityProjectUtils.userIsOwner(user,WebUtility.inputSanitizer(projectId));
 				if(!isOwner) {
 					throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
 				}
@@ -254,7 +254,7 @@ public class ProjectResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		IProject project = Utility.getProject(projectId);
+		IProject project = Utility.getProject(WebUtility.inputSanitizer(projectId));
 		String insightId = "TempInsight_" + UUID.randomUUID().toString();
 		Insight insight = new Insight();
 		insight.setInsightId(insightId);
@@ -263,7 +263,7 @@ public class ProjectResource {
 		try {
 			JsonObject jsonObject = JsonParser.parseReader(request.getReader()).getAsJsonObject();
 			NounStore nounStore = NounStore.flushJsonToNounStore(jsonObject);
-			IReactor reactor = project.getReactor(reactorName, null);
+			IReactor reactor = project.getReactor(WebUtility.inputSanitizer(reactorName), null);
 			if(reactor == null) {
 				throw new IllegalArgumentException("Could not find custom reactor " + reactor + " in project " + projectId);
 			}
@@ -310,7 +310,7 @@ public class ProjectResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		try {
-			canAccessProject(user, projectId);
+			canAccessProject(user, WebUtility.inputSanitizer(projectId));
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", e.getMessage());
@@ -321,7 +321,7 @@ public class ProjectResource {
 		Properties prop = Utility.loadProperties(propFileLoc);
 		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
 		
-		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId, projectName)
+		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, WebUtility.inputSanitizer(projectId), projectName)
 								+ DIR_SEPARATOR + "app_root/version/assets/landing.html";
 		File file = new File(WebUtility.normalizePath(fileLocation));
 		if(file != null && file.exists()) {
@@ -370,19 +370,19 @@ public class ProjectResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		try {
-			canAccessProject(user, projectId);
+			canAccessProject(user, WebUtility.inputSanitizer(projectId));
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String propFileLoc = (String) DIHelper.getInstance().getProjectProperty(projectId + "_" + Constants.STORE);
+		String propFileLoc = (String) DIHelper.getInstance().getProjectProperty(WebUtility.inputSanitizer(projectId) + "_" + Constants.STORE);
 		Properties prop = Utility.loadProperties(propFileLoc);
 		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
 		
-		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId, projectName) 
-								+ DIR_SEPARATOR + "app_root/version/assets/" + relPath;
+		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, WebUtility.inputSanitizer(projectId), projectName) 
+								+ DIR_SEPARATOR + "app_root/version/assets/" + WebUtility.inputSanitizer(relPath);
 		File file = new File(WebUtility.normalizePath(fileLocation));
 		if(file != null && file.exists()) {
 		    try {
@@ -526,7 +526,7 @@ public class ProjectResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		try {
-			canAccessProject(user, projectId);
+			canAccessProject(user, WebUtility.inputSanitizer(projectId));
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", e.getMessage());
@@ -536,7 +536,7 @@ public class ProjectResource {
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
 				Map<String, String> selectors = new HashMap<>();
-				selectors.put(CouchUtil.PROJECT, projectId);
+				selectors.put(CouchUtil.PROJECT, WebUtility.inputSanitizer(projectId));
 				return CouchUtil.download(CouchUtil.PROJECT, selectors);
 			} catch (CouchException e) {
 				classLogger.error(Constants.STACKTRACE, e);
@@ -550,7 +550,7 @@ public class ProjectResource {
 			classLogger.error(Constants.STACKTRACE, e);
 		}
 		if(exportFile != null && exportFile.exists()) {
-			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
+			String exportName = WebUtility.inputSanitizer(projectId) + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
 //			CacheControl cc = new CacheControl();
 //			cc.setMaxAge(86400);
@@ -586,7 +586,7 @@ public class ProjectResource {
 		if(ClusterUtil.IS_CLUSTER) {
 			return ClusterUtil.getEngineAndProjectImage(projectId, IEngine.CATALOG_TYPE.PROJECT);
 		}
-		String propFileLoc = (String) DIHelper.getInstance().getProjectProperty(projectId + "_" + Constants.STORE);
+		String propFileLoc = (String) DIHelper.getInstance().getProjectProperty(WebUtility.inputSanitizer(projectId) + "_" + Constants.STORE);
 		if(propFileLoc == null && !projectId.equals("NEWSEMOSSAPP")) {
 			String imageDir = Utility.getBaseFolder() + "/images/stock/";
 			return new File(imageDir + "color-logo.png");
@@ -594,7 +594,7 @@ public class ProjectResource {
 		Properties prop = Utility.loadProperties(propFileLoc);
 		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
 		
-		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
+		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, WebUtility.inputSanitizer(projectId));
 		File f = findImageFile(fileLocation);
 		if(f != null) {
 			return f;
@@ -611,7 +611,7 @@ public class ProjectResource {
 			if(projectName != null) {
 				TextToGraphic.makeImage(projectName, fileLocation);
 			} else {
-				TextToGraphic.makeImage(projectId, fileLocation);
+				TextToGraphic.makeImage(WebUtility.inputSanitizer(projectId), fileLocation);
 			}
 			f = new File(fileLocation);
 			return f;
@@ -658,7 +658,7 @@ public class ProjectResource {
 			}
 		}
 		
-		File exportFile = getInsightImageFile(projectId, id, request.getHeader("Referer"), params, sessionId);
+		File exportFile = getInsightImageFile(projectId, id, WebUtility.inputSanitizer(request.getHeader("Referer")), params, sessionId);
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
@@ -1104,7 +1104,7 @@ public class ProjectResource {
 
 		if(sql == null) {
 			try {
-				sql = WebUtility.inputSanitizer(IOUtils.toString(request.getReader()));
+				sql = WebUtility.inputSanitizer(WebUtility.inputSanitizer(IOUtils.toString(request.getReader())));
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {

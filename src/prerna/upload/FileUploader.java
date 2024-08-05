@@ -75,8 +75,8 @@ public class FileUploader extends Uploader {
 		// TODO: really should consider consolidating the formats it will make csv format look dumb 
 		// since its a useless additional key but then I wouldn't need to have the bifurcation in 
 		// formats here and bifurcation in formats in the ImportOptions object as well
-		String type = form.getFirst("uploadType").toUpperCase();
-		String headersToCheckString = form.getFirst("userHeaders");
+		String type = WebUtility.inputSanitizer(form.getFirst("uploadType").toUpperCase());
+		String headersToCheckString = WebUtility.inputSanitizer(form.getFirst("userHeaders"));
 		// grab the checker
 		HeadersException headerChecker = HeadersException.getInstance();
 		if(type.equalsIgnoreCase("EXCEL")) {

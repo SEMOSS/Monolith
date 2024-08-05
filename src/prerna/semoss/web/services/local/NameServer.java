@@ -123,7 +123,7 @@ public class NameServer {
 
 		List<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
 		for (int i = 0; i < sheetNames.size(); i++) {
-			hashTable.put(sheetNames.get(i), PlaySheetRDFMapBasedEnum.getClassFromName(WebUtility.inputSanitizer( sheetNames.get(i))));
+			hashTable.put(sheetNames.get(i), PlaySheetRDFMapBasedEnum.getClassFromName(WebUtility.inputSanitizer(sheetNames.get(i))));
 		}
 		return WebUtility.getSO(hashTable);
 	}
@@ -290,7 +290,7 @@ public class NameServer {
 		boolean dropLogging = true;
 		
 		if (session != null) {
-			sessionId = session.getId();
+			sessionId = WebUtility.inputSanitizer(session.getId());
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 		}
 		
@@ -305,14 +305,14 @@ public class NameServer {
 		}
 		
 		// add the route if this is server deployment
-		String routeCookieName = Utility.getDIHelperProperty(Constants.MONOLITH_ROUTE);
+		String routeCookieName = WebUtility.inputSanitizer(Utility.getDIHelperProperty(Constants.MONOLITH_ROUTE));
 		if (routeCookieName != null && !routeCookieName.isEmpty()) {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
 				for (Cookie c : curCookies) {
 					classLogger.debug(Utility.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
 					if (c.getName().equals(routeCookieName)) {
-						routeId = c.getValue();
+						routeId = WebUtility.inputSanitizer(c.getValue());
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());
 					}
 				}
@@ -321,7 +321,7 @@ public class NameServer {
 
 		String jobId = "";
 		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
-		String expression = request.getParameter("expression");
+		String expression = WebUtility.inputSanitizer(request.getParameter("expression"));
 		if(expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
@@ -364,7 +364,7 @@ public class NameServer {
 		
 		// set the user timezone
 		ZoneId zoneId = null;
-		String strTz = request.getParameter("tz");
+		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
 			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 		} else {
@@ -388,7 +388,7 @@ public class NameServer {
 		
 		// are we running runPixel in runPixel on the same insight?
 		{
-			String logStr = request.getParameter("dropLogging");
+			String logStr = WebUtility.inputSanitizer(request.getParameter("dropLogging"));
 			if(logStr != null) {
 				dropLogging = Boolean.parseBoolean(logStr);
 			}
@@ -406,7 +406,7 @@ public class NameServer {
 		User user = null;
 		
 		if (session != null) {
-			sessionId = session.getId();
+			sessionId = WebUtility.inputSanitizer(session.getId());
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 		}
 
@@ -451,13 +451,13 @@ public class NameServer {
 	public static Response runPixelJob(User user, Insight insight, String expression, String jobId, 
 			String insightId, String sessionId, String routeId, boolean dropLogging) {
 		JobManager manager = JobManager.getManager();
-		JobThread jt = manager.makeJob(insightId);
-		jobId = jt.getJobId();
+		JobThread jt = manager.makeJob(WebUtility.inputSanitizer(insightId));
+		jobId = WebUtility.inputSanitizer(jt.getJobId());
 
 		// set in thread
-		ThreadStore.setInsightId(insightId);
-		ThreadStore.setSessionId(sessionId);
-		ThreadStore.setRouteId(routeId);
+		ThreadStore.setInsightId(WebUtility.inputSanitizer(insightId));
+		ThreadStore.setSessionId(WebUtility.inputSanitizer(sessionId));
+		ThreadStore.setRouteId(WebUtility.inputSanitizer(routeId));
 		ThreadStore.setJobId(jobId);
 		ThreadStore.setUser(user);
 
@@ -471,7 +471,7 @@ public class NameServer {
 		// so we can do things like logging
 		jt.addPixel(job);
 		// then add the expression
-		jt.addPixel(expression);
+		jt.addPixel(WebUtility.inputSanitizer(expression));
 		jt.setInsight(insight);
 		jt.run();
 		PixelRunner pixelRunner = jt.getRunner();
@@ -493,7 +493,7 @@ public class NameServer {
 				manager.removeJob(jobId);
 				// remove temp insights from store
 				if(insight.isTemporaryInsight()) {
-					InsightStore.getInstance().removeFromSessionHash(sessionId, insightId);
+					InsightStore.getInstance().removeFromSessionHash(WebUtility.inputSanitizer(sessionId), WebUtility.inputSanitizer(insightId));
 				}
 			}
 		}
@@ -529,7 +529,7 @@ public class NameServer {
 		String sessionId = null;
 		
 		if (session != null) {
-			sessionId = session.getId();
+			sessionId = WebUtility.inputSanitizer(session.getId());
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 		}
 
@@ -544,7 +544,7 @@ public class NameServer {
 		Map<String, String> dataReturn = new HashMap<>();
 
 		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
-		String expression = request.getParameter("expression");
+		String expression = WebUtility.inputSanitizer(request.getParameter("expression"));
 		if(expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
@@ -589,7 +589,7 @@ public class NameServer {
 
 		// set the user timezone
 		ZoneId zoneId = null;
-		String strTz = request.getParameter("tz");
+		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
 			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 		} else {
@@ -638,7 +638,7 @@ public class NameServer {
 //		return WebUtility.getSO(dataReturn);
 		
 		HttpSession session = request.getSession(true);
-		String jobId = form.getFirst("jobId");
+		String jobId = WebUtility.inputSanitizer(form.getFirst("jobId"));
 		if (session.getAttribute(jobId) == null) {
 			return WebUtility.getSO("NULL");
 		}
@@ -655,7 +655,7 @@ public class NameServer {
 	public Response status(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Object dataReturn = "NULL";
 		HttpSession session = request.getSession(true);
-		String jobId = form.getFirst("jobId");
+		String jobId = WebUtility.inputSanitizer(form.getFirst("jobId"));
 		if (session.getAttribute(jobId) != null) {
 			JobThread jt = JobManager.getManager().getJob(jobId);
 			if(jt == null) {
@@ -672,7 +672,7 @@ public class NameServer {
 	@Path("/console")
 	@Produces("application/json")
 	public Response console(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String jobId = form.getFirst("jobId");
+		String jobId =WebUtility.inputSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		// if(jobId != null)
@@ -689,7 +689,7 @@ public class NameServer {
 	@Path("/partial")
 	@Produces("application/json")
 	public Response partial(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String jobId = form.getFirst("jobId");
+		String jobId = WebUtility.inputSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		// if(jobId != null)
@@ -706,7 +706,7 @@ public class NameServer {
 	@Path("/error")
 	@Produces("application/json")
 	public Response error(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String jobId = form.getFirst("jobId");
+		String jobId = WebUtility.inputSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		JobThread jt = JobManager.getManager().getJob(jobId);
@@ -723,7 +723,7 @@ public class NameServer {
 	@Path("/terminate")
 	@Produces("application/json")
 	public StreamingOutput terminate(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String jobId = form.getFirst("jobId");
+		String jobId = WebUtility.inputSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		JobManager.getManager().clearJob(jobId);
@@ -737,7 +737,7 @@ public class NameServer {
 	@Path("/reset")
 	@Produces("application/json")
 	public StreamingOutput reset(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String jobId = form.getFirst("jobId");
+		String jobId = WebUtility.inputSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		JobManager.getManager().resetJob(jobId);
@@ -825,7 +825,7 @@ public class NameServer {
 		if(NameServer.baseURL == null) {
 			//http://localhost:8080/appui/
 			if(request.getHeader("referer") != null) {
-				StringBuffer baseURL = new StringBuffer(request.getHeader("referer")).append("#!/");
+				StringBuffer baseURL = new StringBuffer(WebUtility.inputSanitizer(request.getHeader("referer"))).append("#!/");
 				NameServer.baseURL = baseURL.toString();
 			}
 		}
@@ -1175,16 +1175,16 @@ public class NameServer {
 		Gson gson = new Gson();
 
 		// text searched in search bar
-		String searchString = form.getFirst("searchString");
+		String searchString = WebUtility.inputSanitizer(form.getFirst("searchString"));
 		// offset for call
-		String offset = form.getFirst("offset");
+		String offset = WebUtility.inputSanitizer(form.getFirst("offset"));
 		// offset for call
-		String limit = form.getFirst("limit");
+		String limit = WebUtility.inputSanitizer(form.getFirst("limit"));
 
 		List<String> appIds = null;
 		List<String> tags = null;
 
-		String filterStr = form.getFirst("filterData");
+		String filterStr = WebUtility.inputSanitizer(form.getFirst("filterData"));
 		if (filterStr != null) {
 			try {
 				Map<String, List<String>> filterMap = gson.fromJson(filterStr, Map.class);
