@@ -116,7 +116,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(ret, 401);
 		}
 		
-		String tokenName = WebUtility.inputSanitizer(request.getParameter("tokenName"));
+		String tokenName = WebUtility.inputSQLSanitizer(request.getParameter("tokenName"));
 		if(tokenName != null) {
 			if(tokenName.length() > 255) {
 				Map<String, String> ret = new Hashtable<>();
@@ -124,7 +124,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
-		String tokenDescription = WebUtility.inputSanitizer(request.getParameter("tokenDescription"));
+		String tokenDescription = WebUtility.inputSQLSanitizer(request.getParameter("tokenDescription"));
 		if(tokenDescription != null) {
 			if(tokenDescription.length() > 500) {
 				Map<String, String> ret = new Hashtable<>();
@@ -166,7 +166,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		Map<String, Object> retMap = new HashMap<>();
 		
 		AccessToken token = user.getPrimaryLoginToken();
-		String accessKey = WebUtility.inputSanitizer(request.getParameter("accessKey"));
+		String accessKey = WebUtility.inputSQLSanitizer(request.getParameter("accessKey"));
 		if(accessKey == null || accessKey.isEmpty()) {
 			retMap.put(Constants.ERROR_MESSAGE, "accessKey parameter is not defined");
 			return WebUtility.getResponse(retMap, 400);
@@ -234,9 +234,9 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		String email = WebUtility.inputSQLSanitizer(request.getParameter("email"));
-		String type = WebUtility.inputSanitizer(request.getParameter("type"));
+		String type = WebUtility.inputSQLSanitizer(request.getParameter("type"));
 		String resetEmailUrl = WebUtility.inputSQLSanitizer(request.getParameter("url"));
-		String sender = WebUtility.inputSanitizer(request.getParameter("sender"));
+		String sender = WebUtility.inputSQLSanitizer(request.getParameter("sender"));
 		
 		String uniqueToken = null;
 		try {
@@ -306,9 +306,9 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String token = WebUtility.inputSanitizer(request.getParameter("token"));
+		String token = WebUtility.inputSQLSanitizer(request.getParameter("token"));
 		String password = WebUtility.inputSQLSanitizer(request.getParameter("password"));
-		String sender = WebUtility.inputSanitizer(request.getParameter("sender"));
+		String sender = WebUtility.inputSQLSanitizer(request.getParameter("sender"));
 
 		Map<String, Object> resetDetails = null;
 		try {
