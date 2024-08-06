@@ -43,7 +43,6 @@ public class SchedulerResource {
 //		} else {
 //			pixel = pixel + ";DropInsight();";
 //		}
-		pixel = WebUtility.inputSanitizer(pixel);
 		pixel = pixel.trim();
 		if(!pixel.endsWith(";")) {
 			pixel = pixel + ";";
