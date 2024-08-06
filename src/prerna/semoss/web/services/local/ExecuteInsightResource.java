@@ -35,6 +35,8 @@ public class ExecuteInsightResource {
 	public Object generateInsight(@Context HttpServletRequest request, 
 			@PathParam("appId") String projectId, 
 			@PathParam("insightId") String rdbmsId) {
+		projectId = WebUtility.inputSanitizer(projectId);
+		rdbmsId = WebUtility.inputSanitizer(rdbmsId);
 		User user = null;
 		HttpSession session = request.getSession(false);
 		if(session == null) {

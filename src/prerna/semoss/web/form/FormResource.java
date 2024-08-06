@@ -65,11 +65,11 @@ public class FormResource {
 			return WebUtility.getResponse(err, 400);
 		}
 		
-		String addOrRemove = form.getFirst("addOrRemove");
-		String userid = form.getFirst("userid");
-		String instancename = Utility.cleanString(form.getFirst("instanceName"), true);
+		String addOrRemove =WebUtility.inputSanitizer(form.getFirst("addOrRemove"));
+		String userid = WebUtility.inputSQLSanitizer(form.getFirst("userid"));
+		String instancename = Utility.cleanString(WebUtility.inputSanitizer(form.getFirst("instanceName")), true);
 		//  this is only present if we are adding a user
-		String owner = form.getFirst("ownerStatus");
+		String owner = WebUtility.inputSanitizer(form.getFirst("ownerStatus"));
 
 		String query = null;
 		if (addOrRemove.equals("Remove")) {
@@ -136,9 +136,9 @@ public class FormResource {
 			return WebUtility.getResponse(err, 400);
 		}
 
-		String dbName = form.getFirst("dbName");
-		String origUri = form.getFirst("originalUri");
-		String newUri = form.getFirst("newUri");
+		String dbName = WebUtility.inputSanitizer(form.getFirst("dbName"));
+		String origUri = WebUtility.inputSanitizer(form.getFirst("originalUri"));
+		String newUri = WebUtility.inputSanitizer(form.getFirst("newUri"));
 		boolean deleteInstanceBoolean = false;
 		if(form.getFirst("deleteInstanceBoolean") != null) {
 			deleteInstanceBoolean = Boolean.parseBoolean(form.getFirst("deleteInstanceBoolean"));
@@ -166,9 +166,9 @@ public class FormResource {
 			return WebUtility.getResponse(err, 400);
 		}
 
-		String dbName = form.getFirst("dbName");
-		String instanceType = form.getFirst("instanceType");
-		String instanceName = form.getFirst("instanceName");
+		String dbName = WebUtility.inputSanitizer(form.getFirst("dbName"));
+		String instanceType = WebUtility.inputSanitizer(form.getFirst("instanceType"));
+		String instanceName = WebUtility.inputSanitizer(form.getFirst("instanceName"));
 
 		try {
 			throwErrorIfNotSysAdmin(cacId, instanceName);
@@ -199,7 +199,7 @@ public class FormResource {
 
 		String cacId;
 		try {
-			cacId = getCacId(request);
+			cacId = WebUtility.inputSanitizer(getCacId(request));
 		} catch (IOException e) {
 			Map<String, String> err = new HashMap<String, String>();
 			err.put(Constants.ERROR_MESSAGE, e.getMessage());

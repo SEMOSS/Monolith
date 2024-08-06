@@ -115,12 +115,12 @@ public class GroupInsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String groupId = form.getFirst("groupId");
-		String type = form.getFirst("type");
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
-		String permission = form.getFirst("permission");
-		String endDate = form.getFirst("endDate");
+		String groupId = WebUtility.inputSanitizer(form.getFirst("groupId"));
+		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 		
 		try {
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
@@ -182,12 +182,12 @@ public class GroupInsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String groupId = form.getFirst("groupId");
-		String type = form.getFirst("type");
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
-		String newPermission = form.getFirst("permission");
-		String endDate = form.getFirst("endDate");
+		String groupId = WebUtility.inputSanitizer(form.getFirst("groupId"));
+		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String projectId =WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 		try {
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
@@ -246,10 +246,10 @@ public class GroupInsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String groupId = form.getFirst("groupId");
-		String type = form.getFirst("type");
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
+		String groupId = WebUtility.inputSanitizer(form.getFirst("groupId"));
+		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		try {
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
