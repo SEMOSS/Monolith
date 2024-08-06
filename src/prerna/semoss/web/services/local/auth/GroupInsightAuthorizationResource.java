@@ -49,7 +49,7 @@ public class GroupInsightAuthorizationResource {
 	    projectId=WebUtility.inputSanitizer(projectId);
 	    type=WebUtility.inputSanitizer(type);
 	    insightId=WebUtility.inputSanitizer(insightId);
-	    groupId=WebUtility.inputSanitizer(groupId);
+	    groupId=WebUtility.inputSQLSanitizer(groupId);
 	    
 		
 		Map<String, String> errorMap = new HashMap<String, String>();
@@ -115,7 +115,7 @@ public class GroupInsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String groupId = WebUtility.inputSanitizer(form.getFirst("groupId"));
+		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = WebUtility.inputSanitizer(form.getFirst("type"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
@@ -182,7 +182,7 @@ public class GroupInsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String groupId = WebUtility.inputSanitizer(form.getFirst("groupId"));
+		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = WebUtility.inputSanitizer(form.getFirst("type"));
 		String projectId =WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
@@ -246,7 +246,7 @@ public class GroupInsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String groupId = WebUtility.inputSanitizer(form.getFirst("groupId"));
+		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = WebUtility.inputSanitizer(form.getFirst("type"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
