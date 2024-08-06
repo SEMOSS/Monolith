@@ -509,7 +509,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, String>> requests = new Gson().fromJson(WebUtility.inputSanitizer(form.getFirst("userpermissions")), List.class);
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			SecurityEngineUtils.editEngineUserPermissions(user, engineId, requests, endDate);
 		} catch(IllegalAccessException e) {
@@ -916,7 +916,7 @@ public class EngineAuthorizationResource {
 		}
 		
 		// adding user permissions and updating user access requests in bulk
-		List<Map<String, String>> requests = new Gson().fromJson(WebUtility.inputSanitizer(form.getFirst("requests")), List.class);
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
 		try {
 			SecurityEngineUtils.approveEngineUserAccessRequests(user, engineId, requests, endDate);
 		} catch (IllegalAccessException e) {
@@ -970,7 +970,7 @@ public class EngineAuthorizationResource {
 		}
 		
 		// updating user access requests in bulk
-		List<String> requestIds = new Gson().fromJson(WebUtility.inputSanitizer(form.getFirst("requestIds")), List.class);
+		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
 		try {
 			SecurityEngineUtils.denyEngineUserAccessRequests(user, engineId, requestIds);
 		} catch (Exception e) {
