@@ -257,7 +257,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response grantAllEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		boolean isAddNew = Boolean.parseBoolean(form.getFirst("isAddNew") + "");
 		List<String> engineTypes = null;
@@ -390,7 +390,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response addEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
@@ -523,7 +523,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
@@ -654,7 +654,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		
 		try {
