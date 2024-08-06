@@ -73,7 +73,8 @@ public class ProjectAuthorizationResource {
 			) {
 		
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
-
+		projectFilter=WebUtility.inputSanitizer(projectFilter);
+		metaKeys=WebUtility.inputSanitizer(metaKeys);
 	    
 		User user = null;
 		try {
@@ -91,7 +92,6 @@ public class ProjectAuthorizationResource {
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
 		if(searchTerm != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));

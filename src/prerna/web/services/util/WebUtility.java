@@ -371,11 +371,24 @@ public class WebUtility {
 
 		PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS).and(Sanitizers.BLOCKS).and(Sanitizers.STYLES)
 				.and(Sanitizers.IMAGES).and(Sanitizers.TABLES);
-		
-        Codec MYSQL_CODE = new MySQLCodec(1);
+		MySQLCodec mySQLCodec=new MySQLCodec(MySQLCodec.Mode.ANSI);
+		return ESAPI.encoder().encodeForSQL(mySQLCodec, policy.sanitize(stringToNormalize));
+	}
+	
+	/**
+	 * This is to just escape for sql, not remove scripts.
+	 * 
+	 * @param stringToNormalize
+	 * @return
+	 */
+	public static String inputSQLSanitizer(String stringToNormalize) {
+		if (stringToNormalize == null) {
+			classLogger.debug("input to sql sanitzer is null, returning null");
+			return stringToNormalize;
+		}
 
-        
-		return ESAPI.encoder().encodeForSQL(MYSQL_CODE, policy.sanitize(stringToNormalize));
+		MySQLCodec mySQLCodec=new MySQLCodec(MySQLCodec.Mode.ANSI);
+		return ESAPI.encoder().encodeForSQL(mySQLCodec, stringToNormalize);
 	}
 	
 	/**
@@ -383,7 +396,7 @@ public class WebUtility {
 	 * @param listToSanitize
 	 * @return
 	 */
-	public static ArrayList<String> inputSanitizer(ArrayList<String> listToSanitize) {
+	public static List<String> inputSanitizer(List<String> listToSanitize) {
 		if(listToSanitize == null) {
 			return null;
 		}

@@ -110,8 +110,8 @@ public class ThemeResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String themeName = form.getFirst("name");
-		String themeMap = form.getFirst("json");
+		String themeName = WebUtility.inputSanitizer(form.getFirst("name"));
+		String themeMap = WebUtility.inputSQLSanitizer(form.getFirst("json"));
 		boolean isActive = Boolean.parseBoolean(form.getFirst("isActive"));
 		String themeId = instance.createAdminTheme(themeName, themeMap, isActive);
 		if (themeId != null) {
@@ -148,9 +148,9 @@ public class ThemeResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String themeId = form.getFirst("id");
-		String themeName = form.getFirst("name");
-		String themeMap = form.getFirst("json");
+		String themeId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String themeName = WebUtility.inputSanitizer(form.getFirst("name"));
+		String themeMap = WebUtility.inputSQLSanitizer(form.getFirst("json"));
 		boolean isActive = Boolean.parseBoolean(form.getFirst("isActive"));
 		boolean success = instance.editAdminTheme(themeId, themeName, themeMap, isActive);
 		if (success) {
@@ -187,7 +187,7 @@ public class ThemeResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String themeId = form.getFirst("id");
+		String themeId = WebUtility.inputSanitizer(form.getFirst("id"));
 		boolean success = instance.deleteAdminTheme(themeId);
 		if (success) {
 			return WebUtility.getResponse(success, 200);
@@ -223,7 +223,7 @@ public class ThemeResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String themeId = form.getFirst("id");
+		String themeId = WebUtility.inputSanitizer(form.getFirst("id"));
 		boolean success = instance.setActiveTheme(themeId);
 		if (success) {
 			return WebUtility.getResponse(success, 200);

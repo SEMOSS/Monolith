@@ -48,7 +48,7 @@ public class GroupEngineAuthorizationResource {
 		
 		type=WebUtility.inputSanitizer(type);
 		appId=WebUtility.inputSanitizer(appId);
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 
 	    
 		Map<String, String> errorMap = new HashMap<String, String>();
@@ -111,7 +111,7 @@ public class GroupEngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String groupId = WebUtility.inputSanitizer(form.getFirst("groupId"));
+		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = WebUtility.inputSanitizer(form.getFirst("type"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
@@ -174,10 +174,10 @@ public class GroupEngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String groupId = WebUtility.inputSanitizer(form.getFirst("groupId"));
+		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = WebUtility.inputSanitizer(form.getFirst("type"));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
-		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String newPermission =WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 		try {
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
@@ -234,7 +234,7 @@ public class GroupEngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String groupId = WebUtility.inputSanitizer(form.getFirst("groupId"));
+		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = WebUtility.inputSanitizer(form.getFirst("type"));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		try {

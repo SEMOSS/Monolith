@@ -215,16 +215,16 @@ public class UserResource {
 					response.setHeader("redirect", customUrl);
 					response.sendError(302, "Need to redirect to " + customUrl);
 				} else {
-					String redirectUrl = request.getHeader("referer");
+					String redirectUrl = WebUtility.inputSanitizer(request.getHeader("referer"));
 					if (DBLoader.useLogoutPage()) {
-						String scheme = request.getScheme();
+						String scheme = WebUtility.inputSanitizer(request.getScheme());
 						if (!scheme.trim().equalsIgnoreCase("https") &&
 								!scheme.trim().equalsIgnoreCase("http")) {
 							throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
 						}
-						String serverName = request.getServerName(); // hostname.com
+						String serverName = WebUtility.inputSanitizer(request.getServerName()); // hostname.com
 						int serverPort = request.getServerPort(); // 8080
-						String contextPath = request.getContextPath(); // /Monolith
+						String contextPath = WebUtility.inputSanitizer(request.getContextPath()); // /Monolith
 
 						redirectUrl = "";
 						redirectUrl += scheme + "://" + serverName;
@@ -291,7 +291,7 @@ public class UserResource {
 	}
 
 	public static void userTrackingLogin(HttpServletRequest request, User semossUser, AuthProvider ap) {
-		String ip = ResourceUtility.getClientIp(request);
+		String ip = WebUtility.inputSanitizer(ResourceUtility.getClientIp(request));
 		if (request.getSession() != null && request.getSession().getId() != null) {
 			UserTrackingUtils.registerLogin(request.getSession().getId(), ip, semossUser, ap);
 		} else {
@@ -636,7 +636,7 @@ public class UserResource {
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
 		Map<String, String> ret = new HashMap<>();
 		HttpSession session = request.getSession(false);
-		provider = WebUtility.inputSanitizer(provider);
+		
 		User semossUser = null;
 		if (session != null) {
 			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
@@ -2422,6 +2422,7 @@ public class UserResource {
 	}
 
 	private String getGenericRedirect(String provider, HttpServletRequest request) throws UnsupportedEncodingException {
+		provider=WebUtility.inputSanitizer(provider);
 		String prefix = provider+"_";
 		String clientId = socialData.getProperty(prefix + "client_id");
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
@@ -2494,8 +2495,8 @@ public class UserResource {
 		}
 
 		try {
-			String username = WebUtility.inputSanitizer(request.getParameter("username"));
-			String password = request.getParameter("password");
+			String username = WebUtility.inputSQLSanitizer(request.getParameter("username"));
+			String password = WebUtility.inputSQLSanitizer(request.getParameter("password"));
 			String redirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
@@ -2578,8 +2579,8 @@ public class UserResource {
 
 		ILdapAuthenticator authenticator = null;
 		try {
-			String username = WebUtility.inputSanitizer(request.getParameter("username"));
-			String password =request.getParameter("password");
+			String username = WebUtility.inputSQLSanitizer(request.getParameter("username"));
+			String password =WebUtility.inputSQLSanitizer(request.getParameter("password"));
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
@@ -2657,9 +2658,9 @@ public class UserResource {
 
 		ILdapAuthenticator authenticator = null;
 		try {
-			String username = WebUtility.inputSanitizer(request.getParameter("username"));
-			String curPassword = WebUtility.inputSanitizer(request.getParameter("curPassword"));
-			String newPassword = WebUtility.inputSanitizer(request.getParameter("newPassword"));
+			String username = WebUtility.inputSQLSanitizer(request.getParameter("username"));
+			String curPassword = WebUtility.inputSQLSanitizer(request.getParameter("curPassword"));
+			String newPassword = WebUtility.inputSQLSanitizer(request.getParameter("newPassword"));
 
 			if(username == null || curPassword == null || newPassword == null
 					|| username.isEmpty() || curPassword.isEmpty() || newPassword.isEmpty()) {
@@ -2798,13 +2799,13 @@ public class UserResource {
 		try {
 			// Note - for native users
 			// the id and the username are always the same
-			String username = WebUtility.inputSanitizer(request.getParameter("username"));
+			String username = WebUtility.inputSQLSanitizer(request.getParameter("username"));
 			String name = WebUtility.inputSanitizer(request.getParameter("name"));
-			String password = request.getParameter("password");
-			String email = request.getParameter("email");
-			String phone = request.getParameter("phone");
-			String phoneExtension = request.getParameter("phoneextension");
-			String countryCode = request.getParameter("countrycode");
+			String password = WebUtility.inputSQLSanitizer(request.getParameter("password"));
+			String email = WebUtility.inputSQLSanitizer(request.getParameter("email"));
+			String phone = WebUtility.inputSanitizer(request.getParameter("phone"));
+			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
+			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
 
 			AccessToken newUser = new AccessToken();
 			newUser.setProvider(AuthProvider.NATIVE);
@@ -2948,9 +2949,9 @@ public class UserResource {
 		}
 
 		Gson gson = new Gson();
-		String modStr = form.getFirst("modifications");
+		String modStr = WebUtility.inputSanitizer(form.getFirst("modifications"));
 		Map<String, String> mods = gson.fromJson(modStr, new TypeToken<Map<String, String>>() {}.getType());
-		provider=WebUtility.inputSanitizer(provider);
+		
 		try {
 			socialData.updateSocialProperties(provider, mods);
 		} catch (Exception e) {
@@ -3104,7 +3105,7 @@ public class UserResource {
 
 		// get the session
 		HttpSession session = request.getSession();
-		String sessionId = session.getId();
+		String sessionId = WebUtility.inputSanitizer(session.getId());
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
 
 		Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
