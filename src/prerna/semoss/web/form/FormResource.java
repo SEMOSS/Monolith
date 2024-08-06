@@ -65,11 +65,11 @@ public class FormResource {
 			return WebUtility.getResponse(err, 400);
 		}
 		
-		String addOrRemove =WebUtility.inputSanitizer(form.getFirst("addOrRemove"));
+		String addOrRemove =WebUtility.inputSQLSanitizer(form.getFirst("addOrRemove"));
 		String userid = WebUtility.inputSQLSanitizer(form.getFirst("userid"));
-		String instancename = Utility.cleanString(WebUtility.inputSanitizer(form.getFirst("instanceName")), true);
+		String instancename = Utility.cleanString(WebUtility.inputSQLSanitizer(form.getFirst("instanceName")), true);
 		//  this is only present if we are adding a user
-		String owner = WebUtility.inputSanitizer(form.getFirst("ownerStatus"));
+		String owner = WebUtility.inputSQLSanitizer(form.getFirst("ownerStatus"));
 
 		String query = null;
 		if (addOrRemove.equals("Remove")) {
@@ -136,9 +136,9 @@ public class FormResource {
 			return WebUtility.getResponse(err, 400);
 		}
 
-		String dbName = WebUtility.inputSanitizer(form.getFirst("dbName"));
-		String origUri = WebUtility.inputSanitizer(form.getFirst("originalUri"));
-		String newUri = WebUtility.inputSanitizer(form.getFirst("newUri"));
+		String dbName = WebUtility.inputSQLSanitizer(form.getFirst("dbName"));
+		String origUri = WebUtility.inputSQLSanitizer(form.getFirst("originalUri"));
+		String newUri = WebUtility.inputSQLSanitizer(form.getFirst("newUri"));
 		boolean deleteInstanceBoolean = false;
 		if(form.getFirst("deleteInstanceBoolean") != null) {
 			deleteInstanceBoolean = Boolean.parseBoolean(form.getFirst("deleteInstanceBoolean"));
@@ -166,9 +166,9 @@ public class FormResource {
 			return WebUtility.getResponse(err, 400);
 		}
 
-		String dbName = WebUtility.inputSanitizer(form.getFirst("dbName"));
-		String instanceType = WebUtility.inputSanitizer(form.getFirst("instanceType"));
-		String instanceName = WebUtility.inputSanitizer(form.getFirst("instanceName"));
+		String dbName = WebUtility.inputSQLSanitizer(form.getFirst("dbName"));
+		String instanceType = WebUtility.inputSQLSanitizer(form.getFirst("instanceType"));
+		String instanceName = WebUtility.inputSQLSanitizer(form.getFirst("instanceName"));
 
 		try {
 			throwErrorIfNotSysAdmin(cacId, instanceName);
@@ -199,7 +199,7 @@ public class FormResource {
 
 		String cacId;
 		try {
-			cacId = WebUtility.inputSanitizer(getCacId(request));
+			cacId = WebUtility.inputSQLSanitizer(getCacId(request));
 		} catch (IOException e) {
 			Map<String, String> err = new HashMap<String, String>();
 			err.put(Constants.ERROR_MESSAGE, e.getMessage());
