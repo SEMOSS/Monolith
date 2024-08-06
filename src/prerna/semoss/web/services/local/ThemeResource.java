@@ -111,7 +111,7 @@ public class ThemeResource {
 		}
 		
 		String themeName = WebUtility.inputSanitizer(form.getFirst("name"));
-		String themeMap = WebUtility.inputSanitizer(form.getFirst("json"));
+		String themeMap = WebUtility.inputSQLSanitizer(form.getFirst("json"));
 		boolean isActive = Boolean.parseBoolean(form.getFirst("isActive"));
 		String themeId = instance.createAdminTheme(themeName, themeMap, isActive);
 		if (themeId != null) {
@@ -150,7 +150,7 @@ public class ThemeResource {
 		
 		String themeId = WebUtility.inputSanitizer(form.getFirst("id"));
 		String themeName = WebUtility.inputSanitizer(form.getFirst("name"));
-		String themeMap = WebUtility.inputSanitizer(form.getFirst("json"));
+		String themeMap = WebUtility.inputSQLSanitizer(form.getFirst("json"));
 		boolean isActive = Boolean.parseBoolean(form.getFirst("isActive"));
 		boolean success = instance.editAdminTheme(themeId, themeName, themeMap, isActive);
 		if (success) {
