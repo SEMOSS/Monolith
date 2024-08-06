@@ -63,8 +63,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			if(newUserId == null || newUserId.isEmpty()) {
 				throw new IllegalArgumentException("The user id cannot be null or empty");
 			}
-			String name = WebUtility.inputSanitizer(form.getFirst("name"));
-			String email = WebUtility.inputSanitizer(form.getFirst("email"));
+			String name = WebUtility.inputSQLSanitizer(form.getFirst("name"));
+			String email = WebUtility.inputSQLSanitizer(form.getFirst("email"));
 			String phone = WebUtility.inputSanitizer(request.getParameter("phone"));
 			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
 			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
@@ -72,7 +72,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
 			Boolean publisher = Boolean.parseBoolean(form.getFirst("publisher"));
 			Boolean exporter = Boolean.parseBoolean(form.getFirst("exporter"));
-			String password = WebUtility.inputSanitizer(form.getFirst("password"));
+			String password = WebUtility.inputSQLSanitizer(form.getFirst("password"));
 			// validate email & password
 			if (email != null && !email.isEmpty()) {
 				try {
