@@ -53,12 +53,8 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngines WITH PARAM engineTypes");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngines WITH PARAM engineTypes");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngines WITH PARAM engineTypes");
-		databaseId=WebUtility.inputSanitizer(databaseId);
-        for (int i = 0; i < databaseId.size(); i++) {
-            String sanitized = databaseId.get(i);
-            databaseId.set(i, sanitized);
-        }
-        
+		
+		databaseId= WebUtility.inputSanitizer(databaseId); 
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -90,7 +86,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
 		List<String> engineTypes = null;
 		if(form.getFirst("engineTypes") != null) {
-			engineTypes = new Gson().fromJson(WebUtility.inputSanitizer(form.getFirst("engineTypes")), List.class);
+			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
 			engineTypes = WebUtility.inputSanitizer(engineTypes);
 		}
 		try {
