@@ -69,7 +69,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			) {
 		
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
-
+		projectFilter=WebUtility.inputSanitizer(projectFilter);
+		metaKeys=WebUtility.inputSanitizer(metaKeys);
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -88,7 +89,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		
 		if(searchTerm != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
@@ -892,6 +893,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		ids=WebUtility.inputSanitizer(ids);
 		try {
 			adminUtils.removeProjectUsers(ids, projectId);
 		} catch (Exception e) {

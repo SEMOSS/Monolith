@@ -26,7 +26,7 @@ public class ShareInsightResource {
 			errorHash.put(Constants.ERROR_MESSAGE, "Invalid session to retrieve insight data");
 			return WebUtility.getResponse(errorHash, 400);
 		}
-		
+		insightId = WebUtility.inputSanitizer(insightId);
 		Insight in = InsightStore.getInstance().get(insightId);
 		if(in == null) {
 			Map<String, String> errorHash = new HashMap<String, String>();
