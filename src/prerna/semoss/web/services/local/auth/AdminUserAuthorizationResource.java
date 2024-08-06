@@ -63,16 +63,16 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			if(newUserId == null || newUserId.isEmpty()) {
 				throw new IllegalArgumentException("The user id cannot be null or empty");
 			}
-			String name = form.getFirst("name");
-			String email = form.getFirst("email");
-			String phone = request.getParameter("phone");
-			String phoneExtension = request.getParameter("phoneextension");
-			String countryCode = request.getParameter("countrycode");
-			String type = form.getFirst("type");
+			String name = WebUtility.inputSanitizer(form.getFirst("name"));
+			String email = WebUtility.inputSanitizer(form.getFirst("email"));
+			String phone = WebUtility.inputSanitizer(request.getParameter("phone"));
+			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
+			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
+			String type = WebUtility.inputSanitizer(form.getFirst("type"));
 			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
 			Boolean publisher = Boolean.parseBoolean(form.getFirst("publisher"));
 			Boolean exporter = Boolean.parseBoolean(form.getFirst("exporter"));
-			String password = form.getFirst("password");
+			String password = WebUtility.inputSanitizer(form.getFirst("password"));
 			// validate email & password
 			if (email != null && !email.isEmpty()) {
 				try {
@@ -153,7 +153,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String userId = form.getFirst("userId");
+		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
 		boolean isPublisher = Boolean.parseBoolean(form.getFirst("isPublisher"));
 		
 		try {
@@ -192,8 +192,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String userId = form.getFirst("userId");
-		String type = form.getFirst("type");
+		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String type = WebUtility.inputSanitizer(form.getFirst("type"));
 		boolean isLocked = Boolean.parseBoolean(form.getFirst("isLocked"));
 		
 		try {
@@ -291,8 +291,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String userIdToDelete = form.getFirst("userId");
-		String userTypeToDelete = form.getFirst("type");
+		String userIdToDelete = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userTypeToDelete = WebUtility.inputSanitizer(form.getFirst("type"));
 
 		boolean isDeletedUserAdmin = adminUtils.userIsAdmin(userIdToDelete, userTypeToDelete);
 		if(isDeletedUserAdmin) {
