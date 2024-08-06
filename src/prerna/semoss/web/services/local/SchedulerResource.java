@@ -42,7 +42,6 @@ public class SchedulerResource {
 //		} else {
 //			pixel = pixel + ";DropInsight();";
 //		}
-//		
 		pixel = pixel.trim();
 		if(!pixel.endsWith(";")) {
 			pixel = pixel + ";";
