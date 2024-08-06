@@ -404,7 +404,7 @@ public class EngineAuthorizationResource {
 		}
 		
 		// adding user permissions in bulk
-		List<Map<String, String>> permission = WebUtility.inputSanitizer( new Gson().fromJson(form.getFirst("userpermissions"), List.class));
+		List<Map<String, String>> permission =  new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			SecurityEngineUtils.addEngineUserPermissions(user, engineId, permission, endDate);
 		} catch (Exception e) {
