@@ -86,12 +86,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String newGroupId = request.getParameter("groupId");
+			String newGroupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 			if(newGroupId == null || (newGroupId = newGroupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
 			}
-			String newGroupType = request.getParameter("type");
-			String description = request.getParameter("description");
+			String newGroupType = WebUtility.inputSanitizer(request.getParameter("type"));
+			String description = WebUtility.inputSanitizer(request.getParameter("description"));
 			if(description == null) {
 				description = "";
 			}
@@ -143,7 +143,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = WebUtility.inputSanitizer(request.getParameter("groupId"));
+			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
 			}
@@ -186,14 +186,14 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = WebUtility.inputSanitizer( request.getParameter("groupId"));
+			String groupId = WebUtility.inputSQLSanitizer( request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
 			}
 			String groupType =WebUtility.inputSanitizer(  request.getParameter("type"));
 			boolean isCustomGroup = Boolean.parseBoolean(request.getParameter("isCustomGroup")+"");
 
-			String newGroupId =WebUtility.inputSanitizer(request.getParameter("newGroupId"));
+			String newGroupId =WebUtility.inputSQLSanitizer(request.getParameter("newGroupId"));
 			if(newGroupId == null || (newGroupId = newGroupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The new group id cannot be null or empty");
 			}
@@ -239,7 +239,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -284,7 +284,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getNumMembersInGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm) {
 		
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 
 	    
@@ -333,7 +333,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
@@ -377,7 +377,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getNumNonMembersInGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm) {
 		
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 	    
 		AdminSecurityGroupUtils groupUtils = null;
@@ -439,11 +439,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = WebUtility.inputSanitizer( request.getParameter("groupId"));
+			String groupId = WebUtility.inputSQLSanitizer( request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
 			}
-			String userId = WebUtility.inputSanitizer(request.getParameter("userId"));
+			String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
 			if(userId == null || (userId = userId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The user id ('userId') cannot be null or empty");
 			}
@@ -490,11 +490,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = WebUtility.inputSanitizer(request.getParameter("groupId"));
+			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
 			}
-			String userId = WebUtility.inputSanitizer(request.getParameter("userId"));
+			String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
 			if(userId == null || (userId = userId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The user id ('userId') cannot be null or empty");
 			}
@@ -549,7 +549,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = WebUtility.inputSanitizer(request.getParameter("groupId"));
+			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
 			}
@@ -609,7 +609,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = WebUtility.inputSanitizer(request.getParameter("groupId"));
+			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
 			}
@@ -670,7 +670,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = WebUtility.inputSanitizer(request.getParameter("groupId"));
+			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
 			}
@@ -702,7 +702,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -749,7 +749,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -796,7 +796,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -843,7 +843,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -920,7 +920,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = WebUtility.inputSanitizer(request.getParameter("groupId"));
+			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
 			}
@@ -980,7 +980,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = WebUtility.inputSanitizer(request.getParameter("groupId"));
+			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
 			}
@@ -1041,7 +1041,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		
 		boolean success = false;
 		try {
-			String groupId = WebUtility.inputSanitizer(request.getParameter("groupId"));
+			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
 			}
@@ -1073,7 +1073,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -1119,7 +1119,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -1167,7 +1167,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	    
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);	    
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -1213,7 +1213,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSanitizer(groupId);
+		groupId=WebUtility.inputSQLSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
