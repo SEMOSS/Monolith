@@ -192,6 +192,8 @@ public class LegacyAppResource {
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
+		
+		databaseId=WebUtility.inputSanitizer(databaseId);
 
 		User user = null;
 		try {
@@ -202,7 +204,7 @@ public class LegacyAppResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		try {
-			canViewDatabase(user, WebUtility.inputSanitizer(databaseId));
+			canViewDatabase(user, databaseId);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", e.getMessage());
@@ -211,7 +213,7 @@ public class LegacyAppResource {
 		
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
-				String actualDatabaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(WebUtility.inputSanitizer(databaseId));
+				String actualDatabaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
 				Map<String, String> selectors = new HashMap<>();
 				selectors.put(CouchUtil.DATABASE, actualDatabaseId);
 				return CouchUtil.download(CouchUtil.DATABASE, selectors);
@@ -222,7 +224,7 @@ public class LegacyAppResource {
 		
 		File exportFile = null;
 		try {
-			exportFile = getDatabaseImageFile(WebUtility.inputSanitizer(databaseId));
+			exportFile = getDatabaseImageFile(databaseId);
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 		}
@@ -260,7 +262,8 @@ public class LegacyAppResource {
 	 * @throws Exception 
 	 */
 	protected File getDatabaseImageFile(String databaseId) throws Exception {
-		databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(WebUtility.inputSanitizer(databaseId));
+		databaseId=WebUtility.inputSanitizer(databaseId);
+		databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
 		if(ClusterUtil.IS_CLUSTER){
 			return ClusterUtil.getEngineAndProjectImage(databaseId, IEngine.CATALOG_TYPE.DATABASE);
 		}
@@ -276,7 +279,7 @@ public class LegacyAppResource {
 
 		String fileLocation = baseFolder
 				+ DIR_SEPARATOR + Constants.DATABASE_FOLDER
-				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(databaseName, WebUtility.inputSanitizer(databaseId))
+				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(databaseName, databaseId)
 				+ DIR_SEPARATOR + "app_root"
 				+ DIR_SEPARATOR + "version";
 
