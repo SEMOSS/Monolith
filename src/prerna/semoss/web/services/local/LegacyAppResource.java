@@ -56,25 +56,23 @@ import prerna.web.services.util.WebUtility;
 public class LegacyAppResource {
 
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
-	
 	private static final Logger logger = LogManager.getLogger(LegacyAppResource.class);
-	
 	private boolean canViewDatabase(User user, String databaseId) throws IllegalAccessException {
 		databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseId);
 		if(!SecurityEngineUtils.userCanViewEngine(user, databaseId)
 				&& !SecurityEngineUtils.engineIsDiscoverable(databaseId)) {
 			throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have access to the database");
 		}
-		
+
 		return true;
 	}
-	
+		
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	
+		
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
@@ -83,7 +81,7 @@ public class LegacyAppResource {
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
-		
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -95,7 +93,7 @@ public class LegacyAppResource {
 		try {
 			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
 			if(!isAdmin) {
-				boolean isOwner = SecurityEngineUtils.userIsOwner(user, databaseId);
+				boolean isOwner = SecurityEngineUtils.userIsOwner(user, WebUtility.inputSanitizer(databaseId));
 				if(!isOwner) {
 					throw new IllegalAccessException("Database " + databaseId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
 				}
@@ -106,7 +104,7 @@ public class LegacyAppResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		IDatabaseEngine engine = Utility.getDatabase(databaseId);
+		IDatabaseEngine engine = Utility.getDatabase(WebUtility.inputSanitizer(databaseId));
 		String currentSmssFileLocation = engine.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {
@@ -119,7 +117,7 @@ public class LegacyAppResource {
 		// and the new file contents
 		// unconceal any hidden values that have not been altered
 		Properties currentSmssProperties = engine.getSmssProp();
-		String newSmssContent = request.getParameter("smss");
+		String newSmssContent = WebUtility.inputSanitizer(request.getParameter("smss"));
 		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent, currentSmssProperties);
 		
 		// read the current smss as text in case of an error
@@ -168,8 +166,8 @@ public class LegacyAppResource {
 		}
 		
 		// push to cloud
-		ClusterUtil.pushEngineSmss(databaseId, IEngine.CATALOG_TYPE.DATABASE);
-		
+		ClusterUtil.pushEngineSmss(WebUtility.inputSanitizer(databaseId), IEngine.CATALOG_TYPE.DATABASE);
+
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
 		return WebUtility.getResponse(success, 200);
@@ -185,7 +183,7 @@ public class LegacyAppResource {
 	/*
 	 * Code below is around database images
 	 */
-	
+
 	@GET
 	@Path("/appImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
@@ -204,7 +202,7 @@ public class LegacyAppResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		try {
-			canViewDatabase(user, databaseId);
+			canViewDatabase(user, WebUtility.inputSanitizer(databaseId));
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", e.getMessage());
@@ -213,7 +211,7 @@ public class LegacyAppResource {
 		
 		if(CouchUtil.COUCH_ENABLED) {
 			try {
-				String actualDatabaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
+				String actualDatabaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(WebUtility.inputSanitizer(databaseId));
 				Map<String, String> selectors = new HashMap<>();
 				selectors.put(CouchUtil.DATABASE, actualDatabaseId);
 				return CouchUtil.download(CouchUtil.DATABASE, selectors);
@@ -224,7 +222,7 @@ public class LegacyAppResource {
 		
 		File exportFile = null;
 		try {
-			exportFile = getDatabaseImageFile(databaseId);
+			exportFile = getDatabaseImageFile(WebUtility.inputSanitizer(databaseId));
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 		}
@@ -235,14 +233,14 @@ public class LegacyAppResource {
 //			cc.setMaxAge(86400);
 //			cc.setPrivate(true);
 //			cc.setMustRevalidate(true);
-		    EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
-		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
+		EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
+		ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
-		    // cached resource did not change
-		    if(builder != null) {
-		        return builder.build();
-		    }
-		    
+		// cached resource did not change
+		if(builder != null) {
+			return builder.build();
+		}
+		
 			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
 //					.cacheControl(cc)
 					.tag(etag)
@@ -254,7 +252,7 @@ public class LegacyAppResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
-	
+
 	/**
 	 * Use to find the file for the image
 	 * @param databaseId
@@ -262,7 +260,7 @@ public class LegacyAppResource {
 	 * @throws Exception 
 	 */
 	protected File getDatabaseImageFile(String databaseId) throws Exception {
-		databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
+		databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(WebUtility.inputSanitizer(databaseId));
 		if(ClusterUtil.IS_CLUSTER){
 			return ClusterUtil.getEngineAndProjectImage(databaseId, IEngine.CATALOG_TYPE.DATABASE);
 		}
@@ -275,11 +273,11 @@ public class LegacyAppResource {
 		}
 		Properties prop = Utility.loadProperties(propFileLoc);
 		String databaseName = prop.getProperty(Constants.ENGINE_ALIAS);
-		
-		String fileLocation = baseFolder 
-				+ DIR_SEPARATOR + Constants.DATABASE_FOLDER 
-				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(databaseName, databaseId) 
-				+ DIR_SEPARATOR + "app_root" 
+
+		String fileLocation = baseFolder
+				+ DIR_SEPARATOR + Constants.DATABASE_FOLDER
+				+ DIR_SEPARATOR + SmssUtilities.getUniqueName(databaseName, WebUtility.inputSanitizer(databaseId))
+				+ DIR_SEPARATOR + "app_root"
 				+ DIR_SEPARATOR + "version";
 
 		File f = findImageFile(fileLocation);
@@ -304,7 +302,7 @@ public class LegacyAppResource {
 	/*
 	 * Image utility methods
 	 */
-	
+
 	/**
 	 * Find an image in the directory
 	 * @param baseDir
@@ -333,9 +331,9 @@ public class LegacyAppResource {
 	protected void closeStream(FileInputStream fis) {
 		if(fis != null) {
 			try {
-				fis.close();
+			fis.close();
 			} catch (IOException e) {
-	    		logger.error(Constants.STACKTRACE, e);
+			logger.error(Constants.STACKTRACE, e);
 			}
 		}
 	}

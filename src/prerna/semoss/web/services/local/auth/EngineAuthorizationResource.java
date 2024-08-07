@@ -66,7 +66,10 @@ public class EngineAuthorizationResource {
 			) {
 		
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
-
+		engineFilter = WebUtility.inputSanitizer(engineFilter);
+		engineTypes = WebUtility.inputSanitizer(engineTypes);
+		metaKeys = WebUtility.inputSanitizer(metaKeys);
+		
 	    
 		User user = null;
 		try {
@@ -401,7 +404,7 @@ public class EngineAuthorizationResource {
 		}
 		
 		// adding user permissions in bulk
-		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		List<Map<String, String>> permission =  new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			SecurityEngineUtils.addEngineUserPermissions(user, engineId, permission, endDate);
 		} catch (Exception e) {
@@ -440,7 +443,8 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+
+		String existingUserId =WebUtility.inputSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
@@ -605,6 +609,7 @@ public class EngineAuthorizationResource {
 		
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		ids = WebUtility.inputSanitizer(ids);
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
