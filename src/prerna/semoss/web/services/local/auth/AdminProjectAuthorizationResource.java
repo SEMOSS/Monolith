@@ -69,7 +69,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			) {
 		
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
-
+		projectFilter=WebUtility.inputSanitizer(projectFilter);
+		metaKeys=WebUtility.inputSanitizer(metaKeys);
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -88,7 +89,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		
 		if(searchTerm != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
@@ -220,7 +221,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response getAllUserProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = form.getFirst("userId");
+		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -241,8 +242,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response grantAllProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = form.getFirst("userId");
-		String permission = form.getFirst("permission");
+		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		boolean isAddNew = Boolean.parseBoolean(form.getFirst("isAddNew") + "");
 
 		try {
@@ -281,8 +282,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response grantNewUsersProjectAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String permission = form.getFirst("permission");
-		String projectId = form.getFirst("projectId");
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -364,9 +365,9 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response addProjectUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String newUserId = form.getFirst("id");
-		String projectId = form.getFirst("projectId");
-		String permission = form.getFirst("permission");
+		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -408,8 +409,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String projectId = form.getFirst("projectId");
-		String permission = form.getFirst("permission");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		try {
@@ -453,9 +454,9 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 
-		String existingUserId = form.getFirst("id");
-		String projectId = form.getFirst("projectId");
-		String newPermission = form.getFirst("permission");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		try {
@@ -497,7 +498,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@Path("editProjectUserPermissions")
 	public Response editProjectUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -540,8 +541,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response updateProjectUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String projectId = form.getFirst("projectId");
-		String newPermission = form.getFirst("permission");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -584,8 +585,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String existingUserId = form.getFirst("id");
-		String projectId = form.getFirst("projectId");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		
 		try {
 			user = ResourceUtility.getUser(request);
@@ -622,7 +623,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
@@ -667,7 +668,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
@@ -743,7 +744,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@Path("approveProjectUserAccessRequest")
 	public Response approveProjectUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -789,7 +790,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@Path("denyProjectUserAccessRequest")
 	public Response denyProjectUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
@@ -835,7 +836,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response addProjectUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -879,7 +880,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response removeProjectUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -892,6 +893,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		ids=WebUtility.inputSanitizer(ids);
 		try {
 			adminUtils.removeProjectUsers(ids, projectId);
 		} catch (Exception e) {
@@ -916,9 +918,9 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String projectId = form.getFirst("projectId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean hasPortal = Boolean.parseBoolean(form.getFirst("hasPortal"));
-		String portalName = form.getFirst("portalName");
+		String portalName = WebUtility.inputSanitizer(form.getFirst("portalName"));
 		String logPortal = hasPortal ? " enable portal " : " disable portal";
 		
 		try {

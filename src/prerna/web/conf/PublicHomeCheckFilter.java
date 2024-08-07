@@ -66,6 +66,8 @@ public class PublicHomeCheckFilter implements Filter {
 		projectId = projectId.substring(0, projectId.indexOf("/"));
 
 		if(!Strings.isNullOrEmpty(projectId)) {
+			projectId = WebUtility.inputSanitizer(projectId);
+
 			// check if user can access
 			// first, need security on
 			// second, if public, allow them to go - rest runPixel endpoint still have security enabled 
