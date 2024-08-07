@@ -1906,7 +1906,18 @@
 					<groupId>net.java.dev.jna</groupId>
 					<artifactId>jna-platform</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.squareup.okio</groupId>
+					<artifactId>okio</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+		<!-- including updated okio from exclusion above -->
+		<!-- https://mvnrepository.com/artifact/com.squareup.okio/okio -->
+		<dependency>
+		    <groupId>com.squareup.okio</groupId>
+		    <artifactId>okio</artifactId>
+		    <version>1.17.6</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/net.lingala.zip4j/zip4j -->
 		<!--
@@ -2207,9 +2218,20 @@
     				<groupId>org.owasp.esapi</groupId>
 					<artifactId>*</artifactId>
 				</exclusion>
+				<exclusion>
+    				<groupId>com.fasterxml.woodstox</groupId>
+					<artifactId>woodstox-core</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/javax.activation/activation -->
+		<!-- adding updated jar to deal with exclusion w/ vulnerability -->
+		<!-- https://mvnrepository.com/artifact/com.fasterxml.woodstox/woodstox-core -->
+		<dependency>
+		    <groupId>com.fasterxml.woodstox</groupId>
+		    <artifactId>woodstox-core</artifactId>
+		    <version>5.4.0</version>
+		</dependency>
+				<!-- https://mvnrepository.com/artifact/javax.activation/activation -->
 		<!-- required for openam compilation without com.sum.mail -->
 		<dependency>
 		    <groupId>javax.activation</groupId>
