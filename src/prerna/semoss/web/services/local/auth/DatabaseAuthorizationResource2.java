@@ -547,8 +547,7 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		Gson gson = new Gson();
-		List<String> ids = gson.fromJson(WebUtility.inputSanitizer(form.getFirst("ids")), List.class);
-		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
+		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);		ids=WebUtility.inputSanitizer(ids);		String databaseId =WebUtility.inputSanitizer( form.getFirst("databaseId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to database " + databaseId + " but is not an admin"));

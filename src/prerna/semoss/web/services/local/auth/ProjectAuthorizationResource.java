@@ -220,6 +220,7 @@ public class ProjectAuthorizationResource {
 		NounMetadata outputNoun = reactor.execute();
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
+	
 
 	/**
 	 * Get the user app permission level

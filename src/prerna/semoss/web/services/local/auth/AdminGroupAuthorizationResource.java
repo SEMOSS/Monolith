@@ -451,7 +451,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			if(userLoginType == null || (userLoginType = userLoginType.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The user login type ('type') cannot be null or empty");
 			}
-			String endDate = request.getParameter("endDate");
+			String endDate = WebUtility.inputSanitizer(request.getParameter("endDate"));
 			
 			AdminSecurityGroupUtils.getInstance(user).addUserToGroup(user, groupId, userId, userLoginType, endDate);
 		} catch (IllegalArgumentException e){
