@@ -26,7 +26,7 @@ public class SchedulerResource {
 	public Response executePixel(@Context HttpServletRequest request) {
 		// we will flush the user object inside
 		// and make sure the 
-		String pixel = WebUtility.inputSanitizer(request.getParameter(JobConfigKeys.PIXEL));
+		String pixel = WebUtility.inputSQLSanitizer(request.getParameter(JobConfigKeys.PIXEL));
 		return runPixel(request, pixel);
 	}
 	
