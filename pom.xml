@@ -378,12 +378,15 @@
 			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.blazegraph/bigdata-runtime -->
+		<!-- 
 		<dependency>
 			<groupId>com.blazegraph</groupId>
 			<artifactId>bigdata-runtime</artifactId>
 			<version>2.1.4</version>
 		</dependency>
+		-->
 		<!-- https://mvnrepository.com/artifact/com.blazegraph/bigdata-core -->
+		<!--
 		<dependency>
 			<groupId>com.blazegraph</groupId>
 			<artifactId>bigdata-core</artifactId>
@@ -445,8 +448,17 @@
 					<groupId>org.codehaus.jettison</groupId>
 					<artifactId>jettison</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.openrdf.sesame</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.servlet</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
+		-->
 		<!--
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
@@ -484,6 +496,24 @@
 			<version>1.5.4</version>
 		</dependency>
 		-->
+		<!-- https://mvnrepository.com/artifact/org.openrdf.sesame/sesame-runtime -->
+		<dependency>
+		    <groupId>org.openrdf.sesame</groupId>
+		    <artifactId>sesame-runtime</artifactId>
+		    <version>2.7.12</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.openrdf.sesame/sesame-rio-rdfxml -->
+		<dependency>
+		    <groupId>org.openrdf.sesame</groupId>
+		    <artifactId>sesame-rio-rdfxml</artifactId>
+		    <version>2.7.12</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.openrdf.sesame/sesame-queryresultio-sparqljson -->
+		<dependency>
+		    <groupId>org.openrdf.sesame</groupId>
+		    <artifactId>sesame-queryresultio-sparqljson</artifactId>
+		    <version>2.7.12</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-collections4</artifactId>
