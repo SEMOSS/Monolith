@@ -85,7 +85,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
 		List<String> engineTypes = null;
-		if(form.getFirst("engineTypes") != null) {
+		if(WebUtility.inputSanitizer(form.getFirst("engineTypes")) != null) {
 			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
 			engineTypes = WebUtility.inputSanitizer(engineTypes);
 		}

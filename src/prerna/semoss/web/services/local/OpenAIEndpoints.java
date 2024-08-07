@@ -78,7 +78,7 @@ public class OpenAIEndpoints {
 		
 		// set the user timezone
 		ZoneId zoneId = null;
-		String strTz = request.getParameter("tz");
+		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
 			zoneId = ZoneId.of(Utility.getApplicationZoneId());
 		} else {
@@ -121,7 +121,7 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
         
-        String engineId = (String) dataMap.remove("model");
+        String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
         if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'model' field.");
@@ -141,7 +141,7 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 403);
 		}  
         
-        String insightId = (String) dataMap.remove("insight_id");
+        String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		if (insightId == null) {
 			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
 			if (sessionInsights == null || sessionInsights.isEmpty()) {
@@ -314,7 +314,7 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
         
-        String engineId = (String) dataMap.remove("model");
+        String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
         if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'model' field.");
@@ -334,7 +334,7 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 403);
 		}
         
-        String insightId = (String) dataMap.remove("insight_id");
+        String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		if (insightId == null) {
 			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
 			if (sessionInsights == null || sessionInsights.isEmpty()) {
@@ -499,7 +499,7 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
         
-        String engineId = (String) dataMap.remove("model");
+        String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
         if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'model' field.");
@@ -520,7 +520,7 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 403);
 		}
         
-        String insightId = (String) dataMap.remove("insight_id");
+        String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		if (insightId == null) {
 			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
 			if (sessionInsights == null || sessionInsights.isEmpty()) {

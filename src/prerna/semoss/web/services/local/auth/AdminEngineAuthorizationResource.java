@@ -103,21 +103,21 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		if(engineFilter != null && !engineFilter.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
 			for(String engine : engineFilter) {
-				struct.add(new NounMetadata(engine, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer(engine), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE.getKey(), struct);
 		}
 		if(engineTypes != null && !engineTypes.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
 			for(String eType : engineTypes) {
-				struct.add(new NounMetadata(eType, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer(eType), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
 		}
 		if(metaKeys != null && !metaKeys.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
 			for(String metaK : metaKeys) {
-				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer(metaK), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
@@ -231,9 +231,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response getAllUserEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = form.getFirst("userId");
+		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
 		List<String> engineTypes = null;
-		if(form.getFirst("engineTypes") != null) {
+		if(WebUtility.inputSanitizer(form.getFirst("engineTypes")) != null) {
 			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
 			engineTypes = WebUtility.inputSanitizer(engineTypes);  
 		}
