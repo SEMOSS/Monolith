@@ -212,7 +212,7 @@ public class SessionResource {
 	@Produces("application/json;charset=utf-8")
 	public void invalidateSession(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		String redirectUrl = WebUtility.inputSanitizer(request.getHeader("referer"));
+		String redirectUrl = request.getHeader("referer");
 		response.setStatus(302);
 		
 		HttpSession session = request.getSession(false);

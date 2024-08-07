@@ -120,10 +120,10 @@ public class NameServer {
 	@Produces("application/json")
 	public StreamingOutput getPlaySheets(@Context HttpServletRequest request) {
 		Hashtable<String, String> hashTable = new Hashtable<>();
-
 		List<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
+		sheetNames = WebUtility.inputSanitizer(sheetNames);
 		for (int i = 0; i < sheetNames.size(); i++) {
-			hashTable.put(sheetNames.get(i), PlaySheetRDFMapBasedEnum.getClassFromName(WebUtility.inputSanitizer(sheetNames.get(i))));
+			hashTable.put(sheetNames.get(i), PlaySheetRDFMapBasedEnum.getClassFromName(sheetNames.get(i)));
 		}
 		return WebUtility.getSO(hashTable);
 	}
@@ -312,7 +312,7 @@ public class NameServer {
 				for (Cookie c : curCookies) {
 					classLogger.debug(Utility.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
 					if (c.getName().equals(routeCookieName)) {
-						routeId = WebUtility.inputSanitizer(c.getValue());
+						routeId = WebUtility.inputSQLSanitizer(c.getValue());
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());
 					}
 				}
@@ -471,7 +471,7 @@ public class NameServer {
 		// so we can do things like logging
 		jt.addPixel(job);
 		// then add the expression
-		jt.addPixel(WebUtility.inputSanitizer(expression));
+		jt.addPixel(expression);
 		jt.setInsight(insight);
 		jt.run();
 		PixelRunner pixelRunner = jt.getRunner();
@@ -544,7 +544,7 @@ public class NameServer {
 		Map<String, String> dataReturn = new HashMap<>();
 
 		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
-		String expression = WebUtility.inputSanitizer(request.getParameter("expression"));
+		String expression = request.getParameter("expression");
 		if(expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");

@@ -266,7 +266,7 @@ public class LegacyAppResource {
 		}
 		String baseFolder = Utility.getBaseFolder();
 
-		String propFileLoc = (String) DIHelper.getInstance().getEngineProperty(WebUtility.inputSanitizer(databaseId) + "_" + Constants.STORE);
+		String propFileLoc = (String) DIHelper.getInstance().getEngineProperty(databaseId + "_" + Constants.STORE);
 		if(propFileLoc == null && !databaseId.equals("NEWSEMOSSAPP")) {
 			String imageDir = baseFolder + "/images/stock/";
 			return new File(imageDir + "color-logo.png");
