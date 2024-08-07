@@ -191,7 +191,7 @@ public class EngineAuthorizationResource {
 			GenRowStruct struct = new GenRowStruct();
 			String[] engineFilter = parameterMap.get("engineId");
 			for(String engine : engineFilter) {
-				struct.add(new NounMetadata(engine, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer( engine), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE.getKey(), struct);
 		}
@@ -199,7 +199,7 @@ public class EngineAuthorizationResource {
 			GenRowStruct struct = new GenRowStruct();
 			String[] engineTypes = parameterMap.get("engineTypes");
 			for(String eType : engineTypes) {
-				struct.add(new NounMetadata(eType, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer( eType), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
 		}
@@ -207,7 +207,7 @@ public class EngineAuthorizationResource {
 			GenRowStruct struct = new GenRowStruct();
 			String[] metaKeys = parameterMap.get("metaKeys");
 			for(String metaK : metaKeys) {
-				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer( metaK), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
@@ -443,6 +443,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
+
 		String existingUserId =WebUtility.inputSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
