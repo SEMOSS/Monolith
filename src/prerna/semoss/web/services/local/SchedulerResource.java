@@ -14,6 +14,7 @@ import javax.ws.rs.core.Response;
 import prerna.om.ThreadStore;
 import prerna.rpa.config.JobConfigKeys;
 import prerna.web.requests.OverrideParametersServletRequest;
+import prerna.web.services.util.WebUtility;
 
 @Path("/schedule")
 @PermitAll
@@ -25,7 +26,7 @@ public class SchedulerResource {
 	public Response executePixel(@Context HttpServletRequest request) {
 		// we will flush the user object inside
 		// and make sure the 
-		String pixel = request.getParameter(JobConfigKeys.PIXEL);
+		String pixel = WebUtility.inputSanitizer(request.getParameter(JobConfigKeys.PIXEL));
 		return runPixel(request, pixel);
 	}
 	
