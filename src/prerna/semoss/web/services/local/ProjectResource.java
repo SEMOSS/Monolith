@@ -263,7 +263,7 @@ public class ProjectResource {
 		try {
 			JsonObject jsonObject = JsonParser.parseReader(request.getReader()).getAsJsonObject();
 			NounStore nounStore = NounStore.flushJsonToNounStore(jsonObject);
-			IReactor reactor = project.getReactor(WebUtility.inputSanitizer(reactorName), null);
+			IReactor reactor = project.getReactor(reactorName, null);
 			if(reactor == null) {
 				throw new IllegalArgumentException("Could not find custom reactor " + reactor + " in project " + projectId);
 			}
@@ -1104,7 +1104,7 @@ public class ProjectResource {
 
 		if(sql == null) {
 			try {
-				sql = WebUtility.inputSanitizer(WebUtility.inputSanitizer(IOUtils.toString(request.getReader())));
+				sql = IOUtils.toString(request.getReader());
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
