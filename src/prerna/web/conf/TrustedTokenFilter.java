@@ -79,7 +79,7 @@ public class TrustedTokenFilter implements Filter {
 			if(usingBasic && !requireDynamic) {
 				authValue = authValue.replace("Basic", "").trim();
 				// this is a base64 encoded username:password
-				byte[] decodedBytes = Base64.getDecoder().decode(WebUtility.inputSanitizer(authValue));
+				byte[] decodedBytes = Base64.getDecoder().decode(WebUtility.inputSQLSanitizer(authValue));
 				String userpass = new String(decodedBytes);
 				if(userpass != null && !userpass.isEmpty()) {
 					String[] split = userpass.split(":");
@@ -88,7 +88,7 @@ public class TrustedTokenFilter implements Filter {
 						String secretKey = split[1];
 						
 						// can you login?
-						if(SecurityAPIUserUtils.validCredentials(WebUtility.inputSanitizer(clientId), WebUtility.inputSanitizer(secretKey))) {
+						if(SecurityAPIUserUtils.validCredentials(WebUtility.inputSQLSanitizer(clientId), WebUtility.inputSQLSanitizer(secretKey))) {
 							AccessToken token = new AccessToken();
 							token.setId(clientId);
 							token.setProvider(AuthProvider.API_USER);
@@ -106,7 +106,7 @@ public class TrustedTokenFilter implements Filter {
 				}
 				
 			} else if(usingDynamic || requireDynamic){
-				authValue = WebUtility.inputSanitizer(authValue.replace("Bearer", "").trim());
+				authValue = WebUtility.inputSQLSanitizer(authValue.replace("Bearer", "").trim());
 
 				// okay, we have a token
 				// and no current user
