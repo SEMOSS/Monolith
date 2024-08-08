@@ -614,6 +614,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		ids =  WebUtility.inputSanitizer(ids);
 		try {
 			adminUtils.removeEngineUsers(ids, databaseId);
 		} catch (Exception e) {

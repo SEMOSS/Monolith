@@ -650,6 +650,7 @@ public class InsightAuthorizationResource {
 		}
 		
 		List<String> ids = new Gson().fromJson(form.getFirst("ids"), List.class);
+		ids = WebUtility.inputSanitizer(ids);
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 
@@ -771,6 +772,7 @@ public class InsightAuthorizationResource {
 		
 		// updating user access requests in bulk
 		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
+		requestIds = WebUtility.inputSanitizer(requestIds);
 		try {
 			SecurityInsightUtils.denyInsightUserAccessRequests(user, projectId, insightId, requestIds);
 		} catch (Exception e) {
