@@ -43,8 +43,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.Vector;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.Cookie;
@@ -60,6 +63,9 @@ import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
+import org.owasp.esapi.ESAPI;
+import org.owasp.esapi.codecs.Codec;
+import org.owasp.esapi.codecs.MySQLCodec;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
 
@@ -353,7 +359,7 @@ public class WebUtility {
 	
 	/**
 	 * This is to remove scripts from being passed
-	 * 
+	 *  also removed sql injection
 	 * @param stringToNormalize
 	 * @return
 	 */
@@ -365,8 +371,90 @@ public class WebUtility {
 
 		PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS).and(Sanitizers.BLOCKS).and(Sanitizers.STYLES)
 				.and(Sanitizers.IMAGES).and(Sanitizers.TABLES);
-		return policy.sanitize(stringToNormalize);
+		MySQLCodec mySQLCodec=new MySQLCodec(MySQLCodec.Mode.ANSI);
+		return ESAPI.encoder().encodeForSQL(mySQLCodec, policy.sanitize(stringToNormalize));
 	}
+	
+	/**
+	 * This is to just escape for sql, not remove scripts.
+	 * 
+	 * @param stringToNormalize
+	 * @return
+	 */
+	public static String inputSQLSanitizer(String stringToNormalize) {
+		if (stringToNormalize == null) {
+			classLogger.debug("input to sql sanitzer is null, returning null");
+			return stringToNormalize;
+		}
+
+		MySQLCodec mySQLCodec=new MySQLCodec(MySQLCodec.Mode.ANSI);
+		return ESAPI.encoder().encodeForSQL(mySQLCodec, stringToNormalize);
+	}
+	
+	/**
+	 * 
+	 * @param listToSanitize
+	 * @return
+	 */
+	public static List<String> inputSanitizer(List<String> listToSanitize) {
+		if(listToSanitize == null) {
+			return null;
+		}
+		ArrayList<String> newList = new ArrayList<>(listToSanitize.size());
+		for(String s : listToSanitize) {
+			newList.add(inputSanitizer(s));
+		}
+		return newList;
+	}
+	
+	/**
+	 * 
+	 * @param listToSanitize
+	 * @return
+	 */
+	public static Vector<String> inputSanitizer(Vector<String> listToSanitize) {
+		if(listToSanitize == null) {
+			return null;
+		}
+		Vector<String> newList = new Vector<>(listToSanitize.size());
+		for(String s : listToSanitize) {
+			newList.add(inputSanitizer(s));
+		}
+		return newList;
+	}
+	
+	/**
+	 * 
+	 * @param listToSanitize
+	 * @return
+	 */
+	public static HashSet<String> inputSanitizer(HashSet<String> listToSanitize) {
+		if(listToSanitize == null) {
+			return null;
+		}
+		HashSet<String> newList = new HashSet<>(listToSanitize.size());
+		for(String s : listToSanitize) {
+			newList.add(inputSanitizer(s));
+		}
+		return newList;
+	}
+	
+	/**
+	 * 
+	 * @param listToSanitize
+	 * @return
+	 */
+	public static LinkedHashSet<String> inputSanitizer(LinkedHashSet<String> listToSanitize) {
+		if(listToSanitize == null) {
+			return null;
+		}
+		LinkedHashSet<String> newList = new LinkedHashSet<>(listToSanitize.size());
+		for(String s : listToSanitize) {
+			newList.add(inputSanitizer(s));
+		}
+		return newList;
+	}
+	
 
 
 	/**
