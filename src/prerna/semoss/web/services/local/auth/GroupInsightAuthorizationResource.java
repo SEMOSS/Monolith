@@ -49,7 +49,7 @@ public class GroupInsightAuthorizationResource {
 	    projectId=WebUtility.inputSanitizer(projectId);
 	    type=WebUtility.inputSanitizer(type);
 	    insightId=WebUtility.inputSanitizer(insightId);
-	    groupId=WebUtility.inputSQLSanitizer(groupId);
+	    groupId=WebUtility.inputSanitizer(groupId);
 	    
 		
 		Map<String, String> errorMap = new HashMap<String, String>();

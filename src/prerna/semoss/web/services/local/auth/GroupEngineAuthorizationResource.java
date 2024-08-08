@@ -48,7 +48,7 @@ public class GroupEngineAuthorizationResource {
 		
 		type=WebUtility.inputSanitizer(type);
 		appId=WebUtility.inputSanitizer(appId);
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 
 	    
 		Map<String, String> errorMap = new HashMap<String, String>();
