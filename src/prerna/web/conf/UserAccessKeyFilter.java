@@ -28,6 +28,7 @@ import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
+import prerna.web.services.util.WebUtility;
 
 public class UserAccessKeyFilter implements Filter {
 
@@ -70,7 +71,7 @@ public class UserAccessKeyFilter implements Filter {
 			String bearerToken = authValue.substring("Bearer".length()).trim();
 
 			// attempt to login using bearer token
-			String provider = request.getHeader("Bearer-Provider");
+			String provider = WebUtility.inputSanitizer(request.getHeader("Bearer-Provider"));
 			if(provider == null) {
 				// try to guess
 				Map<String, Boolean> loginsMap = SocialPropertiesUtil.getInstance().getLoginsAllowed();
