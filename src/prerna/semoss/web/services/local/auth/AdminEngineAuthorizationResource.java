@@ -205,7 +205,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
 		if(parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null && parameterMap.get("metaFilters").length > 0) {
-			Map<String, Object> metaFilters = new Gson().fromJson(WebUtility.jsonSanitizer(parameterMap.get("metaFilters")[0]), Map.class);
+			Map<String, Object> metaFilters = new Gson().fromJson(parameterMap.get("metaFilters")[0], Map.class);
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
@@ -709,7 +709,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		Gson gson = new Gson();
-		List<String> ids = gson.fromJson(WebUtility.inputSanitizer(form.getFirst("ids")), List.class);
+		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
 		ids = WebUtility.inputSanitizer(ids);
 		try {
 			adminUtils.removeEngineUsers(ids, engineId);
