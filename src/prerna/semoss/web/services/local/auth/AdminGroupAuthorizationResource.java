@@ -239,7 +239,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -284,7 +284,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getNumMembersInGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm) {
 		
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 
 	    
@@ -333,7 +333,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		
 		AdminSecurityGroupUtils groupUtils = null;
 		User user = null;
@@ -377,7 +377,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getNumNonMembersInGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm) {
 		
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 	    
 		AdminSecurityGroupUtils groupUtils = null;
@@ -702,7 +702,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -749,7 +749,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -796,7 +796,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -843,7 +843,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -1073,7 +1073,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -1119,7 +1119,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -1167,7 +1167,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	    
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);	    
 		
 		AdminSecurityGroupUtils groupUtils = null;
@@ -1213,7 +1213,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
 		
 		groupType=WebUtility.inputSanitizer(groupType);
-		groupId=WebUtility.inputSQLSanitizer(groupId);
+		groupId=WebUtility.inputSanitizer(groupId);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
 		
 		AdminSecurityGroupUtils groupUtils = null;

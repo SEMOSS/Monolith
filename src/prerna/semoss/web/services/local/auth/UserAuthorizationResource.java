@@ -116,7 +116,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(ret, 401);
 		}
 		
-		String tokenName = WebUtility.inputSQLSanitizer(request.getParameter("tokenName"));
+		String tokenName = WebUtility.inputSanitizer(request.getParameter("tokenName"));
 		if(tokenName != null) {
 			if(tokenName.length() > 255) {
 				Map<String, String> ret = new Hashtable<>();
@@ -124,7 +124,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
-		String tokenDescription = WebUtility.inputSQLSanitizer(request.getParameter("tokenDescription"));
+		String tokenDescription = WebUtility.inputSanitizer(request.getParameter("tokenDescription"));
 		if(tokenDescription != null) {
 			if(tokenDescription.length() > 500) {
 				Map<String, String> ret = new Hashtable<>();
