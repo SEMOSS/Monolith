@@ -973,6 +973,7 @@ public class ProjectAuthorizationResource {
 
 		// updating user access requests in bulk
 		List<String> requestids = new Gson().fromJson(form.getFirst("requestids"), List.class);
+		requestids = WebUtility.inputSanitizer(requestids);
 		try {
 			SecurityProjectUtils.denyProjectUserAccessRequests(user, projectId, requestids);
 		} catch (Exception e) {
