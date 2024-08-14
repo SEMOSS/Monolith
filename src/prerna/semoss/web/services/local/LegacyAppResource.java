@@ -117,7 +117,7 @@ public class LegacyAppResource {
 		// and the new file contents
 		// unconceal any hidden values that have not been altered
 		Properties currentSmssProperties = engine.getSmssProp();
-		String newSmssContent = WebUtility.inputSanitizer(request.getParameter("smss"));
+		String newSmssContent = request.getParameter("smss");
 		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent, currentSmssProperties);
 		
 		// read the current smss as text in case of an error
