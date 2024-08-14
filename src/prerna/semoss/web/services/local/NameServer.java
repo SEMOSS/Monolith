@@ -910,7 +910,7 @@ public class NameServer {
 			@QueryParam("api") String api) throws IOException {
 		
 		api=WebUtility.inputSQLSanitizer(api);
-		engineId=WebUtility.inputSQLSanitizer(engineId);
+		engineId=WebUtility.inputSanitizer(engineId);
 
 	    
 		HttpSession session = request.getSession(false);
@@ -1147,7 +1147,7 @@ public class NameServer {
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String searchString,
 			@Context HttpServletRequest request) {
 
-		searchString=WebUtility.inputSQLSanitizer(searchString);
+		searchString=WebUtility.inputSanitizer(searchString);
 
 		HttpSession session = request.getSession(false);
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
