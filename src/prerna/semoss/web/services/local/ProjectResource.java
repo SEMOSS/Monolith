@@ -151,7 +151,7 @@ public class ProjectResource {
 		// and the new file contents
 		// unconceal any hidden values that have not been altered
 		Properties currentSmssProperties = project.getSmssProp();
-		String newSmssContent = WebUtility.inputSanitizer(request.getParameter("smss"));
+		String newSmssContent = request.getParameter("smss");
 		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent, currentSmssProperties);
 		
 		// validate the new SMSS
