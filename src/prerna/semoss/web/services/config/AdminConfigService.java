@@ -39,7 +39,8 @@ public class AdminConfigService {
 	
 	private static final Gson GSON = new Gson();
 	public static final String ADMIN_REDIRECT_KEY = "ADMIN_REDIRECT_KEY";
-
+	
+	
 	@POST
 	@Path("/setInitialAdmins")
 	public Response setInitialAdmins(@Context HttpServletRequest request, @Context HttpServletResponse response) 
@@ -82,11 +83,13 @@ public class AdminConfigService {
 			errorMessage.put(Constants.ERROR_MESSAGE, "Need to send valid ids");
 			return WebUtility.getResponse(errorMessage, 200);
 		}
-		List<String> ids = GSON.fromJson(idString, List.class);
 
+		List<String> ids = GSON.fromJson(idString, List.class);
+		
 		for (String id : ids) {
-			SecurityUpdateUtils.registerUser(id, null, null, null, null, null, null, null, true, true, true);
+			SecurityUpdateUtils.registerUser(id, null, null,null, null, null, null, null, true, true, true); 
 		}
+		
 
 		if (session != null && session.getAttribute(ADMIN_REDIRECT_KEY) != null) {
 			String originalRedirect = session.getAttribute(ADMIN_REDIRECT_KEY) + "";
@@ -97,6 +100,11 @@ public class AdminConfigService {
 		}
 
 		return WebUtility.getResponse("success", 200);
+	}
+	
+	//NEW method for env var userid which registers id to db
+	public static synchronized void setInitialAdminViaENV(String id) {
+			SecurityUpdateUtils.registerUser(id, null, null,null, null, null, null, null, true, true, true);
 	}
 
 }
