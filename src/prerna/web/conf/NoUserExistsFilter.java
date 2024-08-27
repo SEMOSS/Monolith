@@ -14,6 +14,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.query.querystruct.SelectQueryStruct;
@@ -27,8 +28,10 @@ import prerna.web.services.util.WebUtility;
 
 public class NoUserExistsFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(NoUserExistsFilter.class);
+	private static final Logger classLogger = LogManager.getLogger(NoUserExistsFilter.class);
 
+	private static final String SMSS_INITIAL_ADMIN = "SMSS_INITIAL_ADMIN";
+	
 	private static final String SET_ADMIN_HTML = "/setAdmin/";
 	private static boolean userDefined = false;
 
@@ -52,45 +55,43 @@ public class NoUserExistsFilter implements Filter {
 
 					// no users at all registered, we need to send to the admin page
 					if(!hasUser) {
-						
-						
-						//Is there a env var for initial admin
-						if (System.getenv("SMSS_INITIAL_ADMIN") != null) {
-							String id = System.getenv("SMSS_INITIAL_ADMIN");
-							AdminConfigService.setInitialAdminViaENV(id);
-						}
-						
-						if (System.getenv("SMSS_INITIAL_ADMIN") == null) {
-						//else redirect
+						if (System.getenv() != null) {
+							// if there a env var for initial admin
+							// set the admin so we are done
+							String id = System.getenv(SMSS_INITIAL_ADMIN);
+							SecurityUpdateUtils.registerUser(id, null, null,null, null, null, null, null, true, true, true);
+							// set boolean so we dont keep querying all the time
+							NoUserExistsFilter.userDefined = true;
+						} else {
+							// normal redirect for page to set admin
 							
 							// we need to store information in the session
 							// so that we can properly come back to the referer once an admin has been added
 							String referer = ((HttpServletRequest) arg0).getHeader("referer");
 							referer = referer + "#!/login";
 							((HttpServletRequest) arg0).getSession(true).setAttribute(AdminConfigService.ADMIN_REDIRECT_KEY, referer);
-	
+
 							// this will be the deployment name of the app
 							String contextPath = arg0.getServletContext().getContextPath();
-	
+
 							// we redirect to the index.html page where we have pushed the admin page
 							String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + SET_ADMIN_HTML;
 							((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
 							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
 							return;
 						}
-						
-						} else {
-							// set boolean so we dont keep querying all the time
-							NoUserExistsFilter.userDefined = true;
-						}
+					} else {
+						// set boolean so we dont keep querying all the time
+						NoUserExistsFilter.userDefined = true;
+					}
 				} catch (Exception e) {
-					logger.error(Constants.STACKTRACE,e);
+					classLogger.error(Constants.STACKTRACE,e);
 				} finally {
 					if(wrapper != null) {
 						try {
 							wrapper.close();
 						} catch(IOException e) {
-							logger.error(Constants.STACKTRACE, e);
+							classLogger.error(Constants.STACKTRACE, e);
 						}
 					}
 				}
