@@ -42,8 +42,7 @@ public class AdminConfigService {
 
 	@POST
 	@Path("/setInitialAdmins")
-	public Response setInitialAdmins(@Context HttpServletRequest request, @Context HttpServletResponse response) 
-			throws IOException {
+	public Response setInitialAdmins(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		HttpSession session = request.getSession(false);
 
 		IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
