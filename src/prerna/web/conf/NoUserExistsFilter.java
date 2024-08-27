@@ -31,7 +31,7 @@ public class NoUserExistsFilter implements Filter {
 	private static final Logger classLogger = LogManager.getLogger(NoUserExistsFilter.class);
 
 	private static final String SMSS_INITIAL_ADMIN = "SMSS_INITIAL_ADMIN";
-	
+
 	private static final String SET_ADMIN_HTML = "/setAdmin/";
 	private static boolean userDefined = false;
 
@@ -44,61 +44,86 @@ public class NoUserExistsFilter implements Filter {
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 			String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 			if (!ResourceUtility.allowAccessWithoutUsers(fullUrl)) {
-				IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
-				SelectQueryStruct qs = new SelectQueryStruct();
-				qs.addSelector(new QueryColumnSelector("SMSS_USER__ID"));
-				qs.setLimit(1);
-				IRawSelectWrapper wrapper = null;
-				try {
-					wrapper = WrapperManager.getInstance().getRawWrapper(engine, qs);
-					boolean hasUser = wrapper.hasNext();
-
-					// no users at all registered, we need to send to the admin page
-					if(!hasUser) {
-						if (System.getenv() != null) {
-							// if there a env var for initial admin
-							// set the admin so we are done
-							String id = System.getenv(SMSS_INITIAL_ADMIN);
-							SecurityUpdateUtils.registerUser(id, null, null,null, null, null, null, null, true, true, true);
-							// set boolean so we dont keep querying all the time
-							NoUserExistsFilter.userDefined = true;
-						} else {
-							// normal redirect for page to set admin
-							
-							// we need to store information in the session
-							// so that we can properly come back to the referer once an admin has been added
-							String referer = ((HttpServletRequest) arg0).getHeader("referer");
-							referer = referer + "#!/login";
-							((HttpServletRequest) arg0).getSession(true).setAttribute(AdminConfigService.ADMIN_REDIRECT_KEY, referer);
-
-							// this will be the deployment name of the app
-							String contextPath = arg0.getServletContext().getContextPath();
-
-							// we redirect to the index.html page where we have pushed the admin page
-							String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + SET_ADMIN_HTML;
-							((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-							((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
-							return;
-						}
+				boolean hasUser = hasUser();
+				// no users at all registered, we need to send to the admin page
+				if(!hasUser) {
+					if (System.getenv(SMSS_INITIAL_ADMIN) != null) {
+						// set initial admin id via env
+						setInitialAdminViaEnv(((HttpServletRequest) arg0));
+						
 					} else {
-						// set boolean so we dont keep querying all the time
-						NoUserExistsFilter.userDefined = true;
+						// normal redirect for page to set admin
+
+						// we need to store information in the session
+						// so that we can properly come back to the referer once an admin has been added
+						String referer = ((HttpServletRequest) arg0).getHeader("referer");
+						referer = referer + "#!/login";
+						((HttpServletRequest) arg0).getSession(true).setAttribute(AdminConfigService.ADMIN_REDIRECT_KEY, referer);
+
+						// this will be the deployment name of the app
+						String contextPath = arg0.getServletContext().getContextPath();
+
+						// we redirect to the index.html page where we have pushed the admin page
+						String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + SET_ADMIN_HTML;
+						((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
+						((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+						return;
 					}
-				} catch (Exception e) {
-					classLogger.error(Constants.STACKTRACE,e);
-				} finally {
-					if(wrapper != null) {
-						try {
-							wrapper.close();
-						} catch(IOException e) {
-							classLogger.error(Constants.STACKTRACE, e);
-						}
-					}
+				} else {
+					// set boolean so we dont keep querying all the time
+					NoUserExistsFilter.userDefined = true;
 				}
 			}
 		}
 
 		arg2.doFilter(arg0, arg1);
+	}
+
+	/**
+	 * Check again that initial user does not exist and create from env
+	 */
+	private synchronized void setInitialAdminViaEnv(HttpServletRequest request) {
+		boolean hasUser = hasUser();
+		if(!hasUser) {
+			// if there a env var for initial admin
+			// set the admin so we are done
+			String id = System.getenv(SMSS_INITIAL_ADMIN);
+			SecurityUpdateUtils.registerUser(id, null, null,null, null, null, null, null, true, true, true);
+			classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), "SYSTEM OPERATION", "has defined the initial admin via env variable"));
+			// set boolean so we dont keep querying all the time
+			NoUserExistsFilter.userDefined = true;
+		}
+	}
+
+	/**
+	 * 
+	 * @return
+	 */
+	private static boolean hasUser() {
+		boolean hasUser = true;
+
+		IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
+		SelectQueryStruct qs = new SelectQueryStruct();
+		qs.addSelector(new QueryColumnSelector("SMSS_USER__ID"));
+		qs.setLimit(1);
+		IRawSelectWrapper wrapper = null;
+		try {
+			wrapper = WrapperManager.getInstance().getRawWrapper(engine, qs);
+			hasUser = wrapper.hasNext();
+		} catch (Exception e) {
+			classLogger.warn("An error occurred querying against the security db to determine if an initial user has been set");
+			classLogger.error(Constants.STACKTRACE,e);
+		} finally {
+			if(wrapper != null) {
+				try {
+					wrapper.close();
+				} catch(IOException e) {
+					classLogger.error(Constants.STACKTRACE, e);
+				}
+			}
+		}
+
+		return hasUser;
 	}
 
 	@Override
