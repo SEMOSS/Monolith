@@ -130,25 +130,20 @@ public class UserSessionLoader implements HttpSessionListener {
 		}
 
 		try {
-			// stop python if not netty
-			if (PyUtils.pyEnabled()) {
-				if(thisUser != null) {
-					PyTranslator pyt = thisUser.getPyTranslator(false);
-					if (pyt instanceof prerna.ds.py.PyTranslator) {
-						PyUtils.getInstance().killPyThread(pyt.getPy());
-					}
-				}
-			}
-		} catch(Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
-		}
-		
-		try {
-			// stop the netty thread if used for either r or python
 			if(thisUser != null) {
+				// stop the netty thread if used for either r or python
 				ClientProcessWrapper cpw = thisUser.getClientProcessWrapper();
 				if(cpw != null) {
 					cpw.shutdown(true);
+				}
+				// stop python if not netty
+				else if (PyUtils.pyEnabled()) {
+					if(thisUser != null) {
+						PyTranslator pyt = thisUser.getPyTranslator(false);
+						if (pyt instanceof prerna.ds.py.PyTranslator) {
+							PyUtils.getInstance().killPyThread(pyt.getPy());
+						}
+					}
 				}
 			}
 		} catch(Exception e) {

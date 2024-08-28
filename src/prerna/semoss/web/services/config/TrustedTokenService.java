@@ -1,7 +1,6 @@
 package prerna.semoss.web.services.config;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
@@ -131,7 +130,7 @@ public class TrustedTokenService {
 			logger.info(Utility.cleanLogString("IP = " + ip + ", requesting existing token id"));
 		} else {
 			String token = UUID.randomUUID().toString();
-			tokenDetails = new Object[] {token, new SemossDate(LocalDateTime.now()), clientId};
+			tokenDetails = new Object[] {token, new SemossDate(Utility.getCurrentZonedDateTimeUTC()), clientId};
 			tokenStorage.put(ip, tokenDetails);
 			logger.info(Utility.cleanLogString("IP = " + ip + ", generating new token id"));
 		}

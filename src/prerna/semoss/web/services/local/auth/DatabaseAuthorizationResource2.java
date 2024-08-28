@@ -33,7 +33,6 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/database")
@@ -68,8 +67,9 @@ public class DatabaseAuthorizationResource2 {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
-		
+		databaseFilter=WebUtility.inputSanitizer(databaseFilter);
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
+		metaKeys=WebUtility.inputSanitizer(metaKeys);
 
 		User user = null;
 		try {
@@ -188,7 +188,10 @@ public class DatabaseAuthorizationResource2 {
 	@GET
 	@Produces("application/json")
 	@Path("getDatabaseUsers")
-	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId,  @QueryParam("userId") String userId,  @QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId,
+			@QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo,
+			@QueryParam("permission") String permission, @QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
@@ -255,9 +258,9 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String newUserId = form.getFirst("id");
-		String databaseId = form.getFirst("databaseId");
-		String permission = form.getFirst("permission");
+		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -310,7 +313,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -365,9 +368,9 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = form.getFirst("id");
-		String databaseId = form.getFirst("databaseId");
-		String newPermission = form.getFirst("permission");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -426,7 +429,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -485,8 +488,8 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = form.getFirst("id");
-		String databaseId = form.getFirst("databaseId");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + databaseId + " but is not an admin"));
@@ -544,8 +547,7 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		Gson gson = new Gson();
-		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
-		String databaseId = form.getFirst("databaseId");
+		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);		ids=WebUtility.inputSanitizer(ids);		String databaseId =WebUtility.inputSanitizer( form.getFirst("databaseId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to database " + databaseId + " but is not an admin"));
@@ -603,7 +605,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
@@ -664,7 +666,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
@@ -724,7 +726,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		boolean visible = Boolean.parseBoolean(form.getFirst("visibility"));
 		String logVisible = visible ? " visible " : " not visible";
 
@@ -775,7 +777,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
@@ -809,15 +811,19 @@ public class DatabaseAuthorizationResource2 {
 	@GET
 	@Produces("application/json")
 	@Path("getDatabaseUsersNoCredentials")
-	public Response getDatabaseUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId) {
+	public Response getDatabaseUsersNoCredentials(@Context HttpServletRequest request, 
+			@QueryParam("databaseId") String databaseId,
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, 
+			@QueryParam("offset") long offset) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 		
-		databaseId=WebUtility.inputSanitizer(databaseId);
+		databaseId = WebUtility.inputSanitizer(databaseId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
 
-	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -831,7 +837,7 @@ public class DatabaseAuthorizationResource2 {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, databaseId);
+			ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, databaseId, searchTerm, limit, offset);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + databaseId + " that do not have credentials without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -868,7 +874,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -928,7 +934,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String databaseId = form.getFirst("databaseId");
+		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user access to database " + databaseId + " but is not an admin"));
@@ -939,8 +945,11 @@ public class DatabaseAuthorizationResource2 {
 		
 		// updating user access requests in bulk
 		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
+		requestIds = WebUtility.inputSanitizer(requestIds);
 		try {
+
 			SecurityEngineUtils.denyEngineUserAccessRequests(user, databaseId, requestIds);
+
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

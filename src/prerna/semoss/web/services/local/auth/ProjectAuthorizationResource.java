@@ -73,7 +73,8 @@ public class ProjectAuthorizationResource {
 			) {
 		
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
-
+		projectFilter=WebUtility.inputSanitizer(projectFilter);
+		metaKeys=WebUtility.inputSanitizer(metaKeys);
 	    
 		User user = null;
 		try {
@@ -91,7 +92,6 @@ public class ProjectAuthorizationResource {
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
 		if(searchTerm != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
@@ -220,6 +220,7 @@ public class ProjectAuthorizationResource {
 		NounMetadata outputNoun = reactor.execute();
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
+	
 
 	/**
 	 * Get the user app permission level
@@ -261,7 +262,7 @@ public class ProjectAuthorizationResource {
 	}
 
 	/**
-	 * Get the app users and their permissions
+	 * Get the project users and their permissions
 	 * @param request
 	 * @param form
 	 * @return
@@ -270,14 +271,16 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("getProjectUsers")
 	public Response getProjectUsers(@Context HttpServletRequest request, 
-			@QueryParam("projectId") String projectId,  @QueryParam("userId") String userId, 
-			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-		
-		projectId=WebUtility.inputSanitizer(projectId);
-		userId=WebUtility.inputSanitizer(userId);
-		userInfo=WebUtility.inputSanitizer(userInfo);
-		permission=WebUtility.inputSanitizer(permission);
+			@QueryParam("projectId") String projectId, 
+			@QueryParam("userId") String userId, 
+			@QueryParam("userInfo") String userInfo, 
+			@QueryParam("permission") String permission, 
+			@QueryParam("limit") long limit, 
+			@QueryParam("offset") long offset) {
+		projectId = WebUtility.inputSanitizer(projectId);
+		userId = WebUtility.inputSanitizer(userId);
+		userInfo = WebUtility.inputSanitizer(userInfo);
+		permission = WebUtility.inputSanitizer(permission);
 
 		User user = null;
 		try {
@@ -329,10 +332,10 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String newUserId = form.getFirst("id");
-		String projectId = form.getFirst("projectId");
-		String permission = form.getFirst("permission");
-		String endDate = form.getFirst("endDate");
+		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add a user for project " + projectId + " but is not an admin"));
@@ -856,10 +859,8 @@ public class ProjectAuthorizationResource {
 			@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		
-	    projectId=WebUtility.inputSanitizer(projectId);
-	    searchTerm=WebUtility.inputSanitizer(searchTerm);
-
+	    projectId = WebUtility.inputSanitizer(projectId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
 	    
 		User user = null;
 		try {
@@ -972,6 +973,7 @@ public class ProjectAuthorizationResource {
 
 		// updating user access requests in bulk
 		List<String> requestids = new Gson().fromJson(form.getFirst("requestids"), List.class);
+		requestids = WebUtility.inputSanitizer(requestids);
 		try {
 			SecurityProjectUtils.denyProjectUserAccessRequests(user, projectId, requestids);
 		} catch (Exception e) {
