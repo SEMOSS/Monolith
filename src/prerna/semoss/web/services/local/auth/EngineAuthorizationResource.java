@@ -33,7 +33,6 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/engine")
@@ -67,7 +66,10 @@ public class EngineAuthorizationResource {
 			) {
 		
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
-
+		engineFilter = WebUtility.inputSanitizer(engineFilter);
+		engineTypes = WebUtility.inputSanitizer(engineTypes);
+		metaKeys = WebUtility.inputSanitizer(metaKeys);
+		
 	    
 		User user = null;
 		try {
@@ -189,7 +191,7 @@ public class EngineAuthorizationResource {
 			GenRowStruct struct = new GenRowStruct();
 			String[] engineFilter = parameterMap.get("engineId");
 			for(String engine : engineFilter) {
-				struct.add(new NounMetadata(engine, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer( engine), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE.getKey(), struct);
 		}
@@ -197,7 +199,7 @@ public class EngineAuthorizationResource {
 			GenRowStruct struct = new GenRowStruct();
 			String[] engineTypes = parameterMap.get("engineTypes");
 			for(String eType : engineTypes) {
-				struct.add(new NounMetadata(eType, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer( eType), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
 		}
@@ -205,7 +207,7 @@ public class EngineAuthorizationResource {
 			GenRowStruct struct = new GenRowStruct();
 			String[] metaKeys = parameterMap.get("metaKeys");
 			for(String metaK : metaKeys) {
-				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer( metaK), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
@@ -240,11 +242,8 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("getUserEnginePermission")
 	public Response getUserEnginePermission(@Context HttpServletRequest request, @QueryParam("engineId") String engineId) {
+		engineId = WebUtility.inputSanitizer(engineId);
 		
-		
-		engineId=WebUtility.inputSanitizer(engineId);
-
-	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -283,12 +282,16 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsers")
-	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,  @QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-	    
-		engineId=WebUtility.inputSanitizer(engineId);
-	    userId=WebUtility.inputSanitizer(userId);
-	    userInfo=WebUtility.inputSanitizer(userInfo);
-	    permission=WebUtility.inputSanitizer(permission);
+	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId, 
+			@QueryParam("userId") String userId, 
+			@QueryParam("searchTerm") String searchTerm, 
+			@QueryParam("permission") String permission, 
+			@QueryParam("limit") long limit, 
+			@QueryParam("offset") long offset) {
+		engineId = WebUtility.inputSanitizer(engineId);
+	    userId = WebUtility.inputSanitizer(userId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
+	    permission = WebUtility.inputSanitizer(permission);
 		
 		User user = null;
 		try {
@@ -303,7 +306,7 @@ public class EngineAuthorizationResource {
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			String searchParam = userInfo != null ? userInfo : userId;
+			String searchParam = searchTerm != null ? searchTerm : userId;
 			List<Map<String, Object>> members = SecurityEngineUtils.getEngineUsers(user, engineId, searchParam, permission, limit, offset);
 			long totalMembers = SecurityEngineUtils.getEngineUsersCount(user, engineId, searchParam, permission);
 			ret.put("totalMembers", totalMembers);
@@ -340,9 +343,9 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String newUserId = form.getFirst("id");
-		String engineId = form.getFirst("engineId");
-		String permission = form.getFirst("permission");
+		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -390,7 +393,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -401,7 +404,7 @@ public class EngineAuthorizationResource {
 		}
 		
 		// adding user permissions in bulk
-		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		List<Map<String, String>> permission =  new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			SecurityEngineUtils.addEngineUserPermissions(user, engineId, permission, endDate);
 		} catch (Exception e) {
@@ -440,9 +443,10 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = form.getFirst("id");
-		String engineId = form.getFirst("engineId");
-		String newPermission = form.getFirst("permission");
+
+		String existingUserId =WebUtility.inputSanitizer(form.getFirst("id"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -496,7 +500,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -550,8 +554,8 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = form.getFirst("id");
-		String engineId = form.getFirst("engineId");
+		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to engine " + engineId + " but is not an admin"));
@@ -605,7 +609,8 @@ public class EngineAuthorizationResource {
 		
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
-		String engineId = form.getFirst("engineId");
+		ids = WebUtility.inputSanitizer(ids);
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to engine " + engineId + " but is not an admin"));
@@ -658,7 +663,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
@@ -714,7 +719,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
@@ -769,7 +774,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean visible = Boolean.parseBoolean(form.getFirst("visibility"));
 		String logVisible = visible ? " visible " : " not visible";
 
@@ -815,7 +820,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
@@ -849,11 +854,14 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsersNoCredentials")
-	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("engineId") String engineId) {
-		
-		engineId=WebUtility.inputSanitizer(engineId);
+	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request, 
+			@QueryParam("engineId") String engineId,
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, 
+			@QueryParam("offset") long offset) {
+		engineId = WebUtility.inputSanitizer(engineId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
 
-	    
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -867,7 +875,7 @@ public class EngineAuthorizationResource {
 		
 		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId);
+			ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId, searchTerm, limit, offset);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + engineId + " that do not have credentials without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -899,7 +907,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -954,7 +962,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user access to engine " + engineId + " but is not an admin"));
@@ -965,6 +973,7 @@ public class EngineAuthorizationResource {
 		
 		// updating user access requests in bulk
 		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
+		requestIds = WebUtility.inputSanitizer(requestIds);
 		try {
 			SecurityEngineUtils.denyEngineUserAccessRequests(user, engineId, requestIds);
 		} catch (Exception e) {

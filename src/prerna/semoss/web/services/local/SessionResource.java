@@ -233,16 +233,16 @@ public class SessionResource {
 				response.setHeader("redirect", customUrl);
 				response.sendError(302, "Need to redirect to " + customUrl);
 			} else {
-				String scheme = request.getScheme(); // http
+				String scheme =  WebUtility.inputSQLSanitizer(request.getScheme()); // http
 
 				if (!scheme.trim().equalsIgnoreCase("https") &&
 					!scheme.trim().equalsIgnoreCase("http")) {
 					throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
 				}
 
-				String serverName = request.getServerName(); // hostname.com
+				String serverName = WebUtility.inputSQLSanitizer(request.getServerName()); // hostname.com
 				int serverPort = request.getServerPort(); // 8080
-				String contextPath = request.getContextPath(); // /Monolith
+				String contextPath = WebUtility.inputSQLSanitizer(request.getContextPath()); // /Monolith
 
 				redirectUrl = "";
 				redirectUrl += scheme + "://" + serverName;

@@ -32,7 +32,6 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/engine")
@@ -63,8 +62,10 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("noMeta") Boolean noMeta,
 			@QueryParam("userT") Boolean includeUserTracking
 			) {
-		
-		searchTerm=WebUtility.inputSanitizer(searchTerm);
+		engineFilter = WebUtility.inputSanitizer(engineFilter);
+		engineTypes =WebUtility.inputSanitizer(engineTypes);
+		metaKeys =   WebUtility.inputSanitizer(metaKeys);
+		searchTerm= WebUtility.inputSanitizer(searchTerm);
 	    
 		User user = null;
 		try {
@@ -102,21 +103,21 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		if(engineFilter != null && !engineFilter.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
 			for(String engine : engineFilter) {
-				struct.add(new NounMetadata(engine, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer(engine), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE.getKey(), struct);
 		}
 		if(engineTypes != null && !engineTypes.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
 			for(String eType : engineTypes) {
-				struct.add(new NounMetadata(eType, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer(eType), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
 		}
 		if(metaKeys != null && !metaKeys.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
 			for(String metaK : metaKeys) {
-				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+				struct.add(new NounMetadata(WebUtility.inputSanitizer(metaK), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
@@ -204,7 +205,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
 		if(parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null && parameterMap.get("metaFilters").length > 0) {
-			Map<String, Object> metaFilters = new Gson().fromJson(WebUtility.jsonSanitizer(parameterMap.get("metaFilters")[0]), Map.class);
+			Map<String, Object> metaFilters = new Gson().fromJson(parameterMap.get("metaFilters")[0], Map.class);
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
@@ -230,10 +231,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response getAllUserEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = form.getFirst("userId");
+		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
 		List<String> engineTypes = null;
-		if(form.getFirst("engineTypes") != null) {
+		if(WebUtility.inputSanitizer(form.getFirst("engineTypes")) != null) {
 			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
+			engineTypes = WebUtility.inputSanitizer(engineTypes);  
 		}
 		try {
 			user = ResourceUtility.getUser(request);
@@ -255,12 +257,13 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response grantAllEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = form.getFirst("userId");
-		String permission = form.getFirst("permission");
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		boolean isAddNew = Boolean.parseBoolean(form.getFirst("isAddNew") + "");
 		List<String> engineTypes = null;
 		if(form.getFirst("engineTypes") != null) {
 			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
+			engineTypes = WebUtility.inputSanitizer(engineTypes);
 		}
 
 		String logETypes = (engineTypes == null || engineTypes.isEmpty()) ? "[ALL]" : ("[" + String.join(", ", engineTypes) + "]");
@@ -300,8 +303,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response grantNewUsersEngineAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String permission = form.getFirst("permission");
-		String engineId = form.getFirst("engineId");
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -345,14 +348,13 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("getEngineUsers")
 	public Response getEngineUsers(@Context HttpServletRequest request, 
-			@QueryParam("engineId") String engineId,  @QueryParam("userId") String userId, 
-			@QueryParam("userInfo") String userInfo,  @QueryParam("permission") String permission, 
+			@QueryParam("engineId") String engineId, @QueryParam("userId") String userId, 
+			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-		
-		engineId=WebUtility.inputSanitizer(engineId);
-	    userId=WebUtility.inputSanitizer(userId);
-	    userInfo=WebUtility.inputSanitizer(userInfo);
-	    permission=WebUtility.inputSanitizer(permission);
+		engineId = WebUtility.inputSanitizer(engineId);
+	    userId = WebUtility.inputSanitizer(userId);
+	    userInfo = WebUtility.inputSanitizer(userInfo);
+	    permission = WebUtility.inputSanitizer(permission);
 	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -388,9 +390,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response addEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String newUserId = form.getFirst("id");
-		String engineId = form.getFirst("engineId");
-		String permission = form.getFirst("permission");
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -432,7 +434,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String engineId = form.getFirst("engineId");
+		String engineId =WebUtility.inputSanitizer( form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -476,8 +478,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String engineId = form.getFirst("engineId");
-		String permission = form.getFirst("permission");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		try {
@@ -521,9 +523,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 
-		String existingUserId = form.getFirst("id");
-		String engineId = form.getFirst("engineId");
-		String newPermission = form.getFirst("permission");
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		try {
@@ -565,7 +567,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Path("editEngineUserPermissions")
 	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -608,8 +610,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response updateEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String engineId = form.getFirst("engineId");
-		String newPermission = form.getFirst("permission");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -652,8 +654,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String existingUserId = form.getFirst("id");
-		String engineId = form.getFirst("engineId");
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		
 		try {
 			user = ResourceUtility.getUser(request);
@@ -695,7 +697,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response removeEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -708,6 +710,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		ids = WebUtility.inputSanitizer(ids);
 		try {
 			adminUtils.removeEngineUsers(ids, engineId);
 		} catch (Exception e) {
@@ -732,7 +735,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
@@ -777,7 +780,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
@@ -823,9 +826,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		
-		engineId=WebUtility.inputSanitizer(engineId);
-		searchTerm=WebUtility.inputSanitizer(searchTerm);
+		engineId = WebUtility.inputSanitizer(engineId);
+		searchTerm = WebUtility.inputSanitizer(searchTerm);
 	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -854,7 +856,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Path("approveEngineUserAccessRequest")
 	public Response approveEngineUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -900,7 +902,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Path("denyEngineUserAccessRequest")
 	public Response denyEngineUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
-		String engineId = form.getFirst("engineId");
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
@@ -914,6 +916,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		
 		// updating user access requests in bulk
 		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
+		requestIds = WebUtility.inputSanitizer(requestIds);
 		try {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();

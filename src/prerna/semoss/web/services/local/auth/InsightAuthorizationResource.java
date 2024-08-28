@@ -218,10 +218,10 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String newUserId = form.getFirst("id");
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
-		String permission = form.getFirst("permission");
+		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
 		// add the person with read only access if they do not have access to the app
@@ -507,8 +507,8 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
@@ -599,8 +599,8 @@ public class InsightAuthorizationResource {
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -650,8 +650,9 @@ public class InsightAuthorizationResource {
 		}
 		
 		List<String> ids = new Gson().fromJson(form.getFirst("ids"), List.class);
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
+		ids = WebUtility.inputSanitizer(ids);
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to insight " + insightId + " but is not an admin"));
@@ -703,8 +704,8 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -759,8 +760,8 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String projectId = form.getFirst("projectId");
-		String insightId = form.getFirst("insightId");
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 
 		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user access to insight " + insightId + " but is not an admin"));
@@ -771,6 +772,7 @@ public class InsightAuthorizationResource {
 		
 		// updating user access requests in bulk
 		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
+		requestIds = WebUtility.inputSanitizer(requestIds);
 		try {
 			SecurityInsightUtils.denyInsightUserAccessRequests(user, projectId, insightId, requestIds);
 		} catch (Exception e) {

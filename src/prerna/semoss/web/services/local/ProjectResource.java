@@ -115,6 +115,7 @@ public class ProjectResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("projectId") String projectId) {
+		projectId = WebUtility.inputSanitizer(projectId);
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -221,6 +222,9 @@ public class ProjectResource {
 	public Response runReactor(@Context HttpServletRequest request, 
 			@PathParam("projectId") String projectId, 
 			@PathParam("reactorName") String reactorName) {
+		projectId = WebUtility.inputSanitizer(projectId);
+		reactorName = WebUtility.inputSanitizer(reactorName);
+
 		User user = null;
 		String sessionId = null;
 		try {
@@ -243,7 +247,7 @@ public class ProjectResource {
 		try {
 			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
 			if(!isAdmin) {
-				boolean isOwner = SecurityProjectUtils.userIsOwner(user, projectId);
+				boolean isOwner = SecurityProjectUtils.userIsOwner(user,projectId);
 				if(!isOwner) {
 					throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
 				}
@@ -302,6 +306,7 @@ public class ProjectResource {
 	@Produces(MediaType.TEXT_HTML)
 	public Response getProjectLandingPage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("projectId") String projectId) {
 		User user = null;
+		projectId= WebUtility.inputSanitizer(projectId);
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
@@ -321,7 +326,7 @@ public class ProjectResource {
 		Properties prop = Utility.loadProperties(propFileLoc);
 		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
 		
-		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId, projectName)
+		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT,projectId, projectName)
 								+ DIR_SEPARATOR + "app_root/version/assets/landing.html";
 		File file = new File(WebUtility.normalizePath(fileLocation));
 		if(file != null && file.exists()) {
@@ -361,6 +366,8 @@ public class ProjectResource {
 	@Path("/downloadProjectAsset/{relPath}")
 	@Produces({MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM})
 	public Response downloadProjectAsset(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("projectId") String projectId, @PathParam("relPath") String relPath) {
+		projectId= WebUtility.inputSanitizer(projectId);
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -382,7 +389,7 @@ public class ProjectResource {
 		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
 		
 		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId, projectName) 
-								+ DIR_SEPARATOR + "app_root/version/assets/" + relPath;
+								+ DIR_SEPARATOR + "app_root/version/assets/" + WebUtility.inputSanitizer(relPath);
 		File file = new File(WebUtility.normalizePath(fileLocation));
 		if(file != null && file.exists()) {
 		    try {
@@ -517,6 +524,7 @@ public class ProjectResource {
 	@Path("/projectImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response downloadProjectImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("projectId") String projectId) {
+		projectId= WebUtility.inputSanitizer(projectId);
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -586,7 +594,7 @@ public class ProjectResource {
 		if(ClusterUtil.IS_CLUSTER) {
 			return ClusterUtil.getEngineAndProjectImage(projectId, IEngine.CATALOG_TYPE.PROJECT);
 		}
-		String propFileLoc = (String) DIHelper.getInstance().getProjectProperty(projectId + "_" + Constants.STORE);
+		String propFileLoc = (String) DIHelper.getInstance().getProjectProperty(WebUtility.inputSanitizer(projectId) + "_" + Constants.STORE);
 		if(propFileLoc == null && !projectId.equals("NEWSEMOSSAPP")) {
 			String imageDir = Utility.getBaseFolder() + "/images/stock/";
 			return new File(imageDir + "color-logo.png");
@@ -594,7 +602,7 @@ public class ProjectResource {
 		Properties prop = Utility.loadProperties(propFileLoc);
 		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
 		
-		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
+		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, WebUtility.inputSanitizer(projectId));
 		File f = findImageFile(fileLocation);
 		if(f != null) {
 			return f;
@@ -611,7 +619,7 @@ public class ProjectResource {
 			if(projectName != null) {
 				TextToGraphic.makeImage(projectName, fileLocation);
 			} else {
-				TextToGraphic.makeImage(projectId, fileLocation);
+				TextToGraphic.makeImage(WebUtility.inputSanitizer(projectId), fileLocation);
 			}
 			f = new File(fileLocation);
 			return f;
@@ -658,7 +666,7 @@ public class ProjectResource {
 			}
 		}
 		
-		File exportFile = getInsightImageFile(projectId, id, request.getHeader("Referer"), params, sessionId);
+		File exportFile = getInsightImageFile(projectId, id, WebUtility.inputSanitizer(request.getHeader("Referer")), params, sessionId);
 		if(exportFile != null && exportFile.exists()) {
 			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
@@ -868,7 +876,6 @@ public class ProjectResource {
 		
 	    projectId=WebUtility.inputSanitizer(projectId);
 	    insightId=WebUtility.inputSanitizer(insightId);
-	    sql=WebUtility.inputSanitizer(sql);
 
 	    
 		if(projectId == null) {
@@ -986,7 +993,6 @@ public class ProjectResource {
 	{
 		
 		projectId=WebUtility.inputSanitizer(projectId);
-		sql=WebUtility.inputSanitizer(sql);
 		insightId=WebUtility.inputSanitizer(insightId);
 		
 		if(projectId == null) {
@@ -1090,7 +1096,6 @@ public class ProjectResource {
 			@Context ResourceContext resourceContext) 
 	{
 		projectId=WebUtility.inputSanitizer(projectId);
-		sql=WebUtility.inputSanitizer(sql);
 		insightId=WebUtility.inputSanitizer(insightId);
 		
 		if(projectId == null) {
@@ -1104,7 +1109,7 @@ public class ProjectResource {
 
 		if(sql == null) {
 			try {
-				sql = WebUtility.inputSanitizer(IOUtils.toString(request.getReader()));
+				sql = IOUtils.toString(request.getReader());
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
