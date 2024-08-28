@@ -34,16 +34,15 @@ import prerna.web.services.util.WebUtility;
 @Path("/")
 @PermitAll
 public class AdminConfigService {
-	
-	private static final Logger logger = LogManager.getLogger(AdminConfigService.class);
-	
+
+	private static final Logger classLogger = LogManager.getLogger(AdminConfigService.class);
+
 	private static final Gson GSON = new Gson();
 	public static final String ADMIN_REDIRECT_KEY = "ADMIN_REDIRECT_KEY";
 
 	@POST
 	@Path("/setInitialAdmins")
-	public Response setInitialAdmins(@Context HttpServletRequest request, @Context HttpServletResponse response) 
-			throws IOException {
+	public Response setInitialAdmins(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		HttpSession session = request.getSession(false);
 
 		IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
@@ -62,7 +61,7 @@ public class AdminConfigService {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error occurred attempting to determine if the initial admin is set. Please check the system logs for assistance");
 			return WebUtility.getResponse(errorMap, 400);
@@ -71,21 +70,21 @@ public class AdminConfigService {
 				try {
 					wrapper.close();
 				} catch(IOException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error(Constants.STACKTRACE, e);
 				}
 			}
 		}
-		
+
 		String idString = request.getParameter("ids");
 		if (idString == null || idString.isEmpty()) {
 			Map<String, String> errorMessage = new HashMap<>();
 			errorMessage.put(Constants.ERROR_MESSAGE, "Need to send valid ids");
 			return WebUtility.getResponse(errorMessage, 200);
 		}
-		List<String> ids = GSON.fromJson(idString, List.class);
 
+		List<String> ids = GSON.fromJson(idString, List.class);
 		for (String id : ids) {
-			SecurityUpdateUtils.registerUser(id, null, null, null, null, null, null, null, true, true, true);
+			SecurityUpdateUtils.registerUser(id, null, null,null, null, null, null, null, true, true, true); 
 		}
 
 		if (session != null && session.getAttribute(ADMIN_REDIRECT_KEY) != null) {
