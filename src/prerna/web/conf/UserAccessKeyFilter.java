@@ -90,12 +90,22 @@ public class UserAccessKeyFilter implements Filter {
 					provider = allowedLogins.iterator().next();
 				} else {
 					classLogger.warn("Bearer token passed but unknown provider to use");
+					arg2.doFilter(arg0, arg1);
+					return;
 				}
 			}
 			
 			if(provider != null) {
 				SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
 
+				Map<String, Boolean> loginsMap = socialData.getLoginsAllowed();
+				Boolean providerLogin = loginsMap.get(provider.toLowerCase());
+				if(providerLogin == null || !providerLogin) {
+					classLogger.warn("User is attempting to login using bearer token for provider '" + provider + "' but provider either does not exist or login is not allowed");
+					arg2.doFilter(arg0, arg1);
+					return;
+				}
+				
 				AuthProvider thisProvider = AuthProvider.valueOf(provider.toUpperCase());
 				String tokenFillerClass = thisProvider.getTokenFillerClass();
 				if(tokenFillerClass == null) {
@@ -127,7 +137,7 @@ public class UserAccessKeyFilter implements Filter {
 					thisTokenFiller.fillAccessToken(accessToken, userInfoURL, jsonPattern, beanPropsArr, null, sanitizeResponse);
 					// now store in the session
 					UserResource.addAccessToken(accessToken, request, autoAdd);
-				} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+				} catch (Exception e) {
 					classLogger.error(Constants.STACKTRACE,e );
 				}
 			}
