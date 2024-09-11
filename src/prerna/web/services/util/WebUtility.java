@@ -64,7 +64,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
 import org.owasp.esapi.ESAPI;
-import org.owasp.esapi.codecs.Codec;
 import org.owasp.esapi.codecs.MySQLCodec;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
