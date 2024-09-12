@@ -153,7 +153,6 @@ public class DatabaseAuthorizationResource2 {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
 
 		databaseId=WebUtility.inputSanitizer(databaseId);
-
 	    
 		User user = null;
 		try {
@@ -197,10 +196,9 @@ public class DatabaseAuthorizationResource2 {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
 		
-		
 		databaseId=WebUtility.inputSanitizer(databaseId);
-	    userId=WebUtility.inputSanitizer(userId);
-	    userInfo=WebUtility.inputSanitizer(userInfo);
+	    userId=WebUtility.inputSQLSanitizer(userId);
+	    userInfo=WebUtility.inputSQLSanitizer(userInfo);
 	    permission=WebUtility.inputSanitizer(permission);
 	    
 		User user = null;
@@ -258,7 +256,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
@@ -368,7 +366,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
@@ -488,7 +486,7 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -947,9 +945,7 @@ public class DatabaseAuthorizationResource2 {
 		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
 		requestIds = WebUtility.inputSanitizer(requestIds);
 		try {
-
 			SecurityEngineUtils.denyEngineUserAccessRequests(user, databaseId, requestIds);
-
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

@@ -221,7 +221,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response getAllUserProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -242,7 +242,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response grantAllProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		boolean isAddNew = Boolean.parseBoolean(form.getFirst("isAddNew") + "");
 
@@ -328,8 +328,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 	    projectId = WebUtility.inputSanitizer(projectId);
-	    userId = WebUtility.inputSanitizer(userId);
-	    userInfo = WebUtility.inputSanitizer(userInfo);
+	    userId = WebUtility.inputSQLSanitizer(userId);
+	    userInfo = WebUtility.inputSQLSanitizer(userInfo);
 	    permission = WebUtility.inputSanitizer(permission);
 	    
 		SecurityAdminUtils adminUtils = null;

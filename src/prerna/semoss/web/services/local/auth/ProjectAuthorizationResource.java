@@ -278,7 +278,7 @@ public class ProjectAuthorizationResource {
 			@QueryParam("limit") long limit, 
 			@QueryParam("offset") long offset) {
 		projectId = WebUtility.inputSanitizer(projectId);
-		userId = WebUtility.inputSanitizer(userId);
+		userId = WebUtility.inputSQLSanitizer(userId);
 		userInfo = WebUtility.inputSanitizer(userInfo);
 		permission = WebUtility.inputSanitizer(permission);
 
@@ -332,7 +332,7 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
@@ -386,7 +386,7 @@ public class ProjectAuthorizationResource {
 
 		// Get form info
 				
-		String newUserId =WebUtility.inputSanitizer(form.getFirst("id"));
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String newUserType = WebUtility.inputSanitizer(form.getFirst("type"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String requestedPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
@@ -492,7 +492,7 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate =WebUtility.inputSanitizer( form.getFirst("endDate"));
@@ -602,7 +602,7 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
