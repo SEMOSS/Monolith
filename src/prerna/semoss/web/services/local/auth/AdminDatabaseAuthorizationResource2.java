@@ -85,7 +85,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		List<String> engineTypes = null;
 		
 		if(form.getFirst("engineTypes") != null) {
@@ -118,7 +118,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		boolean isAddNew = Boolean.parseBoolean(form.getFirst("isAddNew") + "");
 
@@ -216,8 +216,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
 
 		databaseId=WebUtility.inputSanitizer(databaseId);
-	    userId=WebUtility.inputSanitizer(userId);
-	    userInfo=WebUtility.inputSanitizer(userInfo);
+	    userId=WebUtility.inputSQLSanitizer(userId);
+	    userInfo=WebUtility.inputSQLSanitizer(userInfo);
 	    permission=WebUtility.inputSanitizer(permission);
 	    
 		SecurityAdminUtils adminUtils = null;
@@ -259,7 +259,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
@@ -407,7 +407,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
@@ -553,7 +553,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		
 		try {
