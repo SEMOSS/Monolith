@@ -11,6 +11,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -56,7 +57,9 @@ public class ThemeResource {
 	@GET
 	@Path("/getAdminThemes")
 	@Produces("application/json")
-	public Response getAdminThemes(@Context HttpServletRequest request) {
+	public Response getAdminThemes(@Context HttpServletRequest request,
+			@QueryParam("limit") Integer limit,
+			@QueryParam("offset") Integer offset) {
 		try {
 			checkInit();
 		} catch (IllegalAccessException e) {
@@ -79,7 +82,7 @@ public class ThemeResource {
 			errorMap.put("error", "User is not an admin");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> themes = instance.getAdminThemes();
+		List<Map<String, Object>> themes = instance.getAdminThemes(limit, offset);
 		return WebUtility.getResponse(themes, 200);
 	}
 	
