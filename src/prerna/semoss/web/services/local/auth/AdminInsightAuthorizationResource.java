@@ -123,7 +123,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@Path("getAllProjectInsightUsers")
 	public Response getAllProjectInsightUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -212,7 +212,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("offset") long offset) {
 		
 	    projectId=WebUtility.inputSanitizer(projectId);
-	    userId=WebUtility.inputSanitizer(userId);
+	    userId=WebUtility.inputSQLSanitizer(userId);
 	    insightId=WebUtility.inputSanitizer(insightId);
 	    permission=WebUtility.inputSanitizer(permission);
 		
@@ -299,7 +299,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		try {
 			user = ResourceUtility.getUser(request);
