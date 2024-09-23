@@ -743,12 +743,14 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("approveProjectUserAccessRequest")
 	public Response approveProjectUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+
 		User user = null;
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user request for permission to project " + projectId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -763,7 +765,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.approveProjectUserAccessRequests(userId, userType, projectId, requests, endDate);
+			adminUtils.approveProjectUserAccessRequests(userId, userType, projectId, requests, endDate);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -789,11 +791,13 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("denyProjectUserAccessRequest")
 	public Response denyProjectUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+
 		User user = null;
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user request for permission to project " + projectId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -808,7 +812,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.denyProjectUserAccessRequests(userId, userType, projectId, requestids);
+			adminUtils.denyProjectUserAccessRequests(userId, userType, projectId, requestids);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

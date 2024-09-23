@@ -788,13 +788,15 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("approveInsightUserAccessRequest")
 	public Response approveInsightUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+
 		User user = null;
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user request for permission to insight " + insightId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -809,7 +811,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.approveInsightUserAccessRequests(userId, userType, projectId, insightId, requests, endDate);
+			adminUtils.approveInsightUserAccessRequests(userId, userType, projectId, insightId, requests, endDate);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -835,12 +837,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("denyInsightUserAccessRequest")
 	public Response denyInsightUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+
 		User user = null;
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user request for permission to insight " + insightId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -855,7 +859,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.denyInsightUserAccessRequests(userId, userType, projectId, insightId, requestids);
+			adminUtils.denyInsightUserAccessRequests(userId, userType, projectId, insightId, requestids);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
