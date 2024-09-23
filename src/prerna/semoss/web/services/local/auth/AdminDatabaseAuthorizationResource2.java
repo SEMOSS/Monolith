@@ -746,9 +746,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
 
 		databaseId=WebUtility.inputSanitizer(databaseId);
-
 		searchTerm=WebUtility.inputSanitizer(searchTerm);
-
 	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -781,12 +779,14 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/approveEngineUserAccessRequest with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/approveEngineUserAccessRequest with PARAM engineId");
 
+		SecurityAdminUtils adminUtils = null;
+
 		User user = null;
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user request for permission to database " + databaseId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -801,7 +801,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.approveEngineUserAccessRequests(userId, userType, databaseId, requests, endDate);
+			adminUtils.approveEngineUserAccessRequests(userId, userType, databaseId, requests, endDate);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -832,11 +832,13 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/denyEngineUserAccessRequest with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/denyEngineUserAccessRequest with PARAM engineId");
 
+		SecurityAdminUtils adminUtils = null;
+
 		User user = null;
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user request for permission to database " + databaseId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -851,7 +853,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.denyEngineUserAccessRequests(userId, userType, databaseId, requestIds);
+			adminUtils.denyEngineUserAccessRequests(userId, userType, databaseId, requestIds);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
