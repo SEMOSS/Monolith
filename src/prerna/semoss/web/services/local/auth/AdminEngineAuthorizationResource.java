@@ -860,7 +860,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to get all users when not an admin"));
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
+					User.getSingleLogginName(user), " is trying to get all users when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -872,29 +873,27 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		if (user.getAccessToken(AuthProvider.MS) != null && searchTerm != null) {
 			MSGraphAPICall msGraphApi = new MSGraphAPICall();
 			List<Map<String, Object>> msGraphUsers = new ArrayList<>();
-			
+
 			try {
 				String nextLink = null;
 				do {
-					String uri = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), searchTerm, nextLink);
-				
-				JSONObject jsonObject = new JSONObject(uri);
-				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-				Gson gson = new Gson();
-				List<Map<String, Object>> currentUsers = gson.fromJson(jsonArray.toString(), List.class);
-				msGraphUsers.addAll(currentUsers);//Append the current page users
-				//update next link for iteration
-				nextLink =jsonObject.optString("@odata.nextLink", null);
-				} 
-				while (nextLink != null);
-				
+					String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), searchTerm, nextLink);
+
+					JSONObject jsonObject = new JSONObject(msUsers);
+					JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
+					Gson gson = new Gson();
+					List<Map<String, Object>> currentUsers = gson.fromJson(jsonArray.toString(), List.class);
+					msGraphUsers.addAll(currentUsers);// Append the current page users
+					// update next link for iteration
+					nextLink = jsonObject.optString("@odata.nextLink", null);
+				} while (nextLink != null);
+
 				// filter out users from the Microsoft Graph based on their displayName and
 				// mail, compare them with the existing users in the SMSS_USER table using the
 				// name and email fields.
-				filteredUsers = msGraphUsers.stream().filter(msUser -> ret.stream().noneMatch(
-						dbUser -> dbUser.get(Constants.SMSS_USER_EMAIL).equals(msUser.get(Constants.MS_GRAPH_EMAIL))
-								|| dbUser.get(Constants.SMSS_USER_NAME)
-										.equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
+				filteredUsers = msGraphUsers.stream().filter(msUser -> ret.stream().noneMatch(dbUser -> dbUser
+						.get(Constants.SMSS_USER_EMAIL).equals(msUser.get(Constants.MS_GRAPH_EMAIL))
+						|| dbUser.get(Constants.SMSS_USER_NAME).equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
 						.map(msUser -> {
 							Map<String, Object> userMap = new HashMap<>();
 							userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
@@ -913,8 +912,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			}
 		}
 		return WebUtility.getResponse(new ArrayList<>(), 200);
-		
-		
+
 	}
 	
 	
