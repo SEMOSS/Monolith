@@ -1,8 +1,10 @@
 package prerna.semoss.web.services.local.auth;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
@@ -18,13 +20,20 @@ import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import com.google.gson.Gson;
 
+import prerna.auth.AccessToken;
+import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
+import prerna.auth.utils.SecurityQueryUtils;
+import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.graph.MSGraphAPICall;
 import prerna.om.Insight;
 import prerna.reactor.security.MyEnginesReactor;
 import prerna.sablecc2.om.GenRowStruct;
@@ -406,6 +415,22 @@ public class EngineAuthorizationResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission =  new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
+			// Filter out users that already exist
+			List<Map<String, String>> filteredUsers = permission.stream()
+					.filter(map -> !SecurityQueryUtils.checkUserExist(map.get(Constants.MAP_USERID))).collect(Collectors.toList());
+			if (filteredUsers != null && !filteredUsers.isEmpty()) {
+				AccessToken token = null;
+				  // Add new users to OAuth if they don't exist
+				for (Map map : filteredUsers) {
+					token = new AccessToken();
+					token.setId((String) map.get(Constants.MAP_USERID));
+					token.setEmail((String) map.get(Constants.MAP_EMAIL));
+					token.setName((String) map.get(Constants.MAP_NAME));
+					token.setProvider(AuthProvider.getProviderFromString((String) map.get(AuthProvider.MS)));
+					token.setUsername((String) map.get(Constants.MAP_USERNAME));
+					SecurityUpdateUtils.addOAuthUser(token);
+				}
+			}
 			SecurityEngineUtils.addEngineUserPermissions(user, engineId, permission, endDate);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
@@ -873,18 +898,65 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<Map<String, Object>> ret = null;
 		try {
-			ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId, searchTerm, limit, offset);
+			List<Map<String, Object>> ret = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", 0, 0);
+			// Fetch MS Graph users if the session user has an access token
+			List<Map<String, Object>> filteredUsers = new ArrayList<>();
+			if (user.getAccessToken(AuthProvider.MS) != null && searchTerm != null) {
+				MSGraphAPICall msGraphApi = new MSGraphAPICall();
+				List<Map<String, Object>> msGraphUsers = new ArrayList<>();
+				
+				try {
+					String nextLink = null;
+					do {
+						String uri = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), searchTerm, nextLink);
+					
+					JSONObject jsonObject = new JSONObject(uri);
+					JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
+					Gson gson = new Gson();
+					List<Map<String, Object>> currentUsers = gson.fromJson(jsonArray.toString(), List.class);
+					msGraphUsers.addAll(currentUsers);//Append the current page users
+					//update next link for iteration
+					nextLink =jsonObject.optString("@odata.nextLink", null);
+					} 
+					while (nextLink != null);
+					
+					// filter out users from the Microsoft Graph based on their displayName and
+					// mail, compare them with the existing users in the SMSS_USER table using the
+					// name and email fields.
+					filteredUsers = msGraphUsers.stream().filter(msUser -> ret.stream().noneMatch(
+							dbUser -> dbUser.get(Constants.SMSS_USER_EMAIL).equals(msUser.get(Constants.MS_GRAPH_EMAIL))
+									|| dbUser.get(Constants.SMSS_USER_NAME)
+											.equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
+							.map(msUser -> {
+								Map<String, Object> userMap = new HashMap<>();
+								userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
+								userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
+								userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MS);
+								userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
+								userMap.put(Constants.USER_MAP_USERNAME,
+										msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
+								return userMap;
+							}).collect(Collectors.toList());
+
+					// Return either filtered users from MS Graph or existing users
+					return WebUtility.getResponse(filteredUsers, 200);
+				} catch (Exception e) {
+					classLogger.error(Constants.STACKTRACE, e);
+				}
+			}
+			return WebUtility.getResponse(new ArrayList<>(), 200);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + engineId + " that do not have credentials without having proper access"));
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
+					User.getSingleLogginName(user), " is trying to pull users for " + engineId
+							+ " that do not have credentials without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		return WebUtility.getResponse(ret, 200);
+		
 	}
 	
 	/**
