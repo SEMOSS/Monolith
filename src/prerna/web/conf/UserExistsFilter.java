@@ -1,6 +1,7 @@
 package prerna.web.conf;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Set;
 
 import javax.servlet.FilterChain;
@@ -108,7 +109,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 				|| Boolean.parseBoolean(filterConfig.getInitParameter("useSAMLGroupWhitelist")); // just in case this key is used - should update and only use useGroupWhitelist
 		if (checkGroups) {
 			groupsAreValid = false;
-			Set<String> groups = token.getUserGroups();
+			Collection<String> groups = token.getUserGroups();
 			String groupType = token.getUserGroupType();
 			if(groups != null && !groups.isEmpty() && groupType != null) {
 				Set<String> validGroups = null;

@@ -53,7 +53,7 @@ public class InsightAuthorizationResource {
 			@QueryParam("offset") String offset) {
 		
 	    projectId=WebUtility.inputSanitizer(projectId);
-	    searchTerm=WebUtility.inputSanitizer(searchTerm);	    
+	    searchTerm=WebUtility.inputSQLSanitizer(searchTerm);	    
 	    offset=WebUtility.inputSanitizer(offset);	    
 	    limit=WebUtility.inputSanitizer(limit);	    
 
@@ -165,7 +165,7 @@ public class InsightAuthorizationResource {
 			@QueryParam("offset") long offset) {
 		
 	    projectId=WebUtility.inputSanitizer(projectId);
-	    userId=WebUtility.inputSanitizer(userId);
+	    userId=WebUtility.inputSQLSanitizer(userId);
 	    insightId=WebUtility.inputSanitizer(insightId);
 	    permission=WebUtility.inputSanitizer(permission);
 	    
@@ -218,7 +218,7 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
@@ -280,7 +280,7 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
@@ -386,7 +386,7 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 
