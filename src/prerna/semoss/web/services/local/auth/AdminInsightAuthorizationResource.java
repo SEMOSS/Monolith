@@ -123,7 +123,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@Path("getAllProjectInsightUsers")
 	public Response getAllProjectInsightUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -212,7 +212,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("offset") long offset) {
 		
 	    projectId=WebUtility.inputSanitizer(projectId);
-	    userId=WebUtility.inputSanitizer(userId);
+	    userId=WebUtility.inputSQLSanitizer(userId);
 	    insightId=WebUtility.inputSanitizer(insightId);
 	    permission=WebUtility.inputSanitizer(permission);
 		
@@ -299,7 +299,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		try {
 			user = ResourceUtility.getUser(request);
@@ -788,13 +788,15 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("approveInsightUserAccessRequest")
 	public Response approveInsightUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+
 		User user = null;
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user request for permission to insight " + insightId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -809,7 +811,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.approveInsightUserAccessRequests(userId, userType, projectId, insightId, requests, endDate);
+			adminUtils.approveInsightUserAccessRequests(userId, userType, projectId, insightId, requests, endDate);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -835,12 +837,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("denyInsightUserAccessRequest")
 	public Response denyInsightUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+
 		User user = null;
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user request for permission to insight " + insightId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -855,7 +859,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.denyInsightUserAccessRequests(userId, userType, projectId, insightId, requestids);
+			adminUtils.denyInsightUserAccessRequests(userId, userType, projectId, insightId, requestids);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

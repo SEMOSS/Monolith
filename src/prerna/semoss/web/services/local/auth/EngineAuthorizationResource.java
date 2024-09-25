@@ -298,8 +298,8 @@ public class EngineAuthorizationResource {
 			@QueryParam("limit") long limit, 
 			@QueryParam("offset") long offset) {
 		engineId = WebUtility.inputSanitizer(engineId);
-	    userId = WebUtility.inputSanitizer(userId);
-	    searchTerm = WebUtility.inputSanitizer(searchTerm);
+	    userId = WebUtility.inputSQLSanitizer(userId);
+	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 	    permission = WebUtility.inputSanitizer(permission);
 		
 		User user = null;
@@ -352,7 +352,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
@@ -469,7 +469,7 @@ public class EngineAuthorizationResource {
 		}
 		
 
-		String existingUserId =WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
@@ -579,7 +579,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {

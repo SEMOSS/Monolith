@@ -221,7 +221,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response getAllUserProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -242,7 +242,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response grantAllProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		boolean isAddNew = Boolean.parseBoolean(form.getFirst("isAddNew") + "");
 
@@ -328,8 +328,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 	    projectId = WebUtility.inputSanitizer(projectId);
-	    userId = WebUtility.inputSanitizer(userId);
-	    userInfo = WebUtility.inputSanitizer(userInfo);
+	    userId = WebUtility.inputSQLSanitizer(userId);
+	    userInfo = WebUtility.inputSQLSanitizer(userInfo);
 	    permission = WebUtility.inputSanitizer(permission);
 	    
 		SecurityAdminUtils adminUtils = null;
@@ -743,12 +743,14 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("approveProjectUserAccessRequest")
 	public Response approveProjectUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+
 		User user = null;
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user request for permission to project " + projectId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -763,7 +765,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.approveProjectUserAccessRequests(userId, userType, projectId, requests, endDate);
+			adminUtils.approveProjectUserAccessRequests(userId, userType, projectId, requests, endDate);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -789,11 +791,13 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("denyProjectUserAccessRequest")
 	public Response denyProjectUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+
 		User user = null;
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user request for permission to project " + projectId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -808,7 +812,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
-			SecurityAdminUtils.denyProjectUserAccessRequests(userId, userType, projectId, requestids);
+			adminUtils.denyProjectUserAccessRequests(userId, userType, projectId, requestids);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
