@@ -905,22 +905,21 @@ public class EngineAuthorizationResource {
 			if (user.getAccessToken(AuthProvider.MS) != null && searchTerm != null) {
 				MSGraphAPICall msGraphApi = new MSGraphAPICall();
 				List<Map<String, Object>> msGraphUsers = new ArrayList<>();
-				
+
 				try {
 					String nextLink = null;
 					do {
-						String uri = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), searchTerm, nextLink);
-					
-					JSONObject jsonObject = new JSONObject(uri);
-					JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-					Gson gson = new Gson();
-					List<Map<String, Object>> currentUsers = gson.fromJson(jsonArray.toString(), List.class);
-					msGraphUsers.addAll(currentUsers);//Append the current page users
-					//update next link for iteration
-					nextLink =jsonObject.optString("@odata.nextLink", null);
-					} 
-					while (nextLink != null);
-					
+						String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), searchTerm, nextLink);
+
+						JSONObject jsonObject = new JSONObject(msUsers);
+						JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
+						Gson gson = new Gson();
+						List<Map<String, Object>> currentUsers = gson.fromJson(jsonArray.toString(), List.class);
+						msGraphUsers.addAll(currentUsers);// Append the current page users
+						// update next link for iteration
+						nextLink = jsonObject.optString("@odata.nextLink", null);
+					} while (nextLink != null);
+
 					// filter out users from the Microsoft Graph based on their displayName and
 					// mail, compare them with the existing users in the SMSS_USER table using the
 					// name and email fields.
@@ -955,8 +954,7 @@ public class EngineAuthorizationResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
-		
+
 	}
 	
 	/**
