@@ -988,7 +988,6 @@ public class EngineAuthorizationResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-
 	}
 	
 	/**
