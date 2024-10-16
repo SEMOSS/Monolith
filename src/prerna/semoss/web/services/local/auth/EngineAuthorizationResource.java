@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -42,6 +43,7 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.SocialPropertiesUtil;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/engine")
@@ -412,25 +414,33 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
+		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
+		
 		// adding user permissions in bulk
-		List<Map<String, String>> permission =  new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			// Filter out users that already exist
-			List<Map<String, String>> filteredUsers = permission.stream()
-					.filter(map -> !SecurityQueryUtils.checkUserExist(map.get(Constants.MAP_USERID))).collect(Collectors.toList());
-			if (filteredUsers != null && !filteredUsers.isEmpty()) {
-				AccessToken token = null;
-				  // Add new users to OAuth if they don't exist
-				for (Map map : filteredUsers) {
-					token = new AccessToken();
-					token.setId((String) map.get(Constants.MAP_USERID));
-					token.setEmail((String) map.get(Constants.MAP_EMAIL));
-					token.setName((String) map.get(Constants.MAP_NAME));
-					token.setProvider(AuthProvider.getProviderFromString((String) map.get(AuthProvider.MS)));
-					token.setUsername((String) map.get(Constants.MAP_USERNAME));
-					SecurityUpdateUtils.addOAuthUser(token);
+			// if we are doing the grpah api
+			// then the users might not already exist in the security db
+			if(graphApi) {
+				// filter out users that already exist
+				List<Map<String, String>> filteredUsers = permission.stream()
+						.filter(map -> !SecurityQueryUtils.checkUserExist(map.get(Constants.MAP_USERID))).collect(Collectors.toList());
+				if (filteredUsers != null && !filteredUsers.isEmpty()) {
+					AccessToken token = null;
+					  // Add new users to OAuth if they don't exist
+					for (Map<String, String> map : filteredUsers) {
+						token = new AccessToken();
+						token.setId(map.get(Constants.MAP_USERID));
+						token.setEmail(map.get(Constants.MAP_EMAIL));
+						token.setName(map.get(Constants.MAP_NAME));
+						token.setUsername((String) map.get(Constants.MAP_USERNAME));
+						token.setProvider(AuthProvider.MS);
+						SecurityUpdateUtils.addOAuthUser(token);
+					}
 				}
 			}
+			
+			// now add the permission
 			SecurityEngineUtils.addEngineUserPermissions(user, engineId, permission, endDate);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
@@ -879,14 +889,14 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsersNoCredentials")
-	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request, 
+	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request,
 			@QueryParam("engineId") String engineId,
 			@QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, 
+			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
 		engineId = WebUtility.inputSanitizer(engineId);
 	    searchTerm = WebUtility.inputSanitizer(searchTerm);
-
+ 
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -898,64 +908,187 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		try {
-			List<Map<String, Object>> ret = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", 0, 0);
-			// Fetch MS Graph users if the session user has an access token
-			List<Map<String, Object>> filteredUsers = new ArrayList<>();
-			if (user.getAccessToken(AuthProvider.MS) != null && searchTerm != null) {
-				MSGraphAPICall msGraphApi = new MSGraphAPICall();
-				List<Map<String, Object>> msGraphUsers = new ArrayList<>();
-
-				try {
-					String nextLink = null;
-					do {
-						String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), searchTerm, nextLink);
-
-						JSONObject jsonObject = new JSONObject(msUsers);
-						JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-						Gson gson = new Gson();
-						List<Map<String, Object>> currentUsers = gson.fromJson(jsonArray.toString(), List.class);
-						msGraphUsers.addAll(currentUsers);// Append the current page users
-						// update next link for iteration
-						nextLink = jsonObject.optString("@odata.nextLink", null);
-					} while (nextLink != null);
-
-					// filter out users from the Microsoft Graph based on their displayName and
-					// mail, compare them with the existing users in the SMSS_USER table using the
-					// name and email fields.
-					filteredUsers = msGraphUsers.stream().filter(msUser -> ret.stream().noneMatch(
-							dbUser -> dbUser.get(Constants.SMSS_USER_EMAIL).equals(msUser.get(Constants.MS_GRAPH_EMAIL))
-									|| dbUser.get(Constants.SMSS_USER_NAME)
-											.equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
-							.map(msUser -> {
-								Map<String, Object> userMap = new HashMap<>();
-								userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
-								userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
-								userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MS);
-								userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
-								userMap.put(Constants.USER_MAP_USERNAME,
-										msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
-								return userMap;
-							}).collect(Collectors.toList());
-
-					// Return either filtered users from MS Graph or existing users
-					return WebUtility.getResponse(filteredUsers, 200);
-				} catch (Exception e) {
-					classLogger.error(Constants.STACKTRACE, e);
-				}
-			}
-			return WebUtility.getResponse(new ArrayList<>(), 200);
-		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
-					User.getSingleLogginName(user), " is trying to pull users for " + engineId
-							+ " that do not have credentials without having proper access"));
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
+		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
+		  // if not graph api
+	    if (!graphApi) {
+	        try {
+	            List<Map<String, Object>> ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId, searchTerm, limit, offset);
+	            return WebUtility.getResponse(ret, 200);
+	        } catch (IllegalAccessException e) {
+	            classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
+	                    User.getSingleLogginName(user), " is trying to pull users for " + engineId + " that do not have credentials without having proper access"));
+	            classLogger.error(Constants.STACKTRACE, e);
+	            Map<String, String> errorMap = new HashMap<>();
+	            errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+	            return WebUtility.getResponse(errorMap, 401);
+	        }
+	    }
+	    if(searchTerm != null) {
+ 
+		// Create a session and define a single session key to store everything
+	    HttpSession session = request.getSession(false);
+	    String sessionKey = "nextLinkData_" + engineId + "_" + searchTerm;
+ 
+	    // Initialize or retrieve session data
+	    Map<String, Object> sessionData = (Map<String, Object>) session.getAttribute(sessionKey);
+	    if (sessionData == null) {
+	        sessionData = new HashMap<>(); // Create new session data map if not already in session
+	        session.setAttribute(sessionKey, sessionData);
+	    }
+ 
+	    // Step 1: Retrieve database users from session or load from DB if not available
+	    List<Map<String, Object>> dbUsers = (List<Map<String, Object>>) sessionData.get("dbUsers");
+	    if (dbUsers == null) {
+	        try {
+	            dbUsers = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", 0, 0);
+	            sessionData.put("dbUsers", dbUsers); // Store DB users in the same session attribute
+	        } catch (IllegalAccessException e) {
+	            classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
+	                                                           User.getSingleLogginName(user),
+	                                                           "Unable to retrieve database users"));
+	            classLogger.error(Constants.STACKTRACE, e);
+	            Map<String, String> errorMap = new HashMap<>();
+	            errorMap.put(Constants.ERROR_MESSAGE, "Unable to retrieve users from the database");
+	            return WebUtility.getResponse(errorMap, 403); // Return forbidden status
+	        }
+	    }
+ 
+	  
+ 
+	    // if graph api
+	    if (user.getAccessToken(AuthProvider.MS) == null) {
+	        Map<String, String> errorMap = new HashMap<>();
+	        errorMap.put(Constants.ERROR_MESSAGE, "Must be logged into your microsoft login to search for users");
+	        return WebUtility.getResponse(errorMap, 401);
+	    }
+ 
+	  
+	    final List<Map<String, Object>> finalDbUsers = dbUsers;
+ 
+	    // Step 2: Fetch data from GraphAPI if searchTerm and nextLink are not available in session
+	    String nextLink = (String) sessionData.get("nextLink");
+	    List<Map<String, Object>> msGraphUsers = new ArrayList<>();
+	    List<Map<String, Object>> filteredUsers = new ArrayList<>();
+	    
+	    try {
+	        MSGraphAPICall msGraphApi = new MSGraphAPICall();
+	        Gson gson = new Gson();
+ 
+	        // Step 3: Fetch more data if nextLink is in the session, else make a fresh call to Graph API
+	        if (nextLink == null || offset == 0) {
+	            // Make a new API call to GraphAPI if nextLink is not in the session
+	            String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), searchTerm, null);
+	            JSONObject jsonObject = new JSONObject(msUsers);
+	            JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
+	            msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
+ 
+	            // Store new nextLink for pagination if available
+	            nextLink = jsonObject.optString("@odata.nextLink", null);
+	            if (nextLink != null) {
+	                sessionData.put("nextLinkData", nextLink); // Store the nextLink in the same session attribute
+	            }
+	        } else {
+	            // Fetch data from GraphAPI using nextLink
+	            String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), searchTerm, nextLink);
+	            JSONObject jsonObject = new JSONObject(msUsers);
+	            JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
+	            msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
+ 
+	            // Update or clear nextLink based on the response
+	            nextLink = jsonObject.optString("@odata.nextLink", null);
+	            if (nextLink != null) {
+	                sessionData.put("nextLinkData", nextLink); // Update nextLink in the same session attribute
+	            } else {
+	                sessionData.remove("nextLinkData"); // Remove nextLink from session if no more data
+	            }    
+	        }
+	        do {
+	        // Step 4: Compare database users with GraphAPI users and apply necessary filters
+	        filteredUsers = msGraphUsers.stream()
+	            .filter(msUser -> finalDbUsers.stream().noneMatch(dbUser ->
+	                dbUser.get(Constants.SMSS_USER_EMAIL).equals(msUser.get(Constants.MS_GRAPH_EMAIL)) ||
+	                dbUser.get(Constants.SMSS_USER_NAME).equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME)))
+	            )
+	            .map(msUser -> {
+	                Map<String, Object> userMap = new HashMap<>();
+	                userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
+	                userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
+	                userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MS);
+	                userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
+	                userMap.put(Constants.USER_MAP_USERNAME, msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
+	                return userMap;
+	            }).collect(Collectors.toList());
+ 
+	     
+	       
+	            // step 5: If nextLink was used and limitCount > 0, append the specified limitCount data
+	            long currentCount = filteredUsers.size();
+	            if (currentCount < limit && nextLink != null) {
+	                long limitCount = limit - currentCount;
+	                List<Map<String, Object>> moreUsers = fetchMsGraphUsers(user, searchTerm, sessionData);
+	                filteredUsers.addAll(moreUsers);
+	            }
+ 
+	            // Step 6: Return the data if the limit is reached or no more nextLink data
+	            if (filteredUsers.size() >= limit || nextLink == null) {
+	                return WebUtility.getResponse(filteredUsers.subList(0, (int) Math.min(limit, filteredUsers.size())), 200);
+	            }
+ 
+	            // Step 7: If the limit is not reached, calculate difference and use nextLink to get more data
+	            if (filteredUsers.size() < limit && nextLink != null) {
+	                long limitCount = limit - filteredUsers.size();
+	                List<Map<String, Object>> moreUsers = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", limitCount, offset);
+	                filteredUsers.addAll(moreUsers);
+	            }
+ 
+	        } while (filteredUsers.size() < limit && nextLink != null);
+ 
+	    } catch (Exception e) {
+	        classLogger.error(Constants.STACKTRACE, e);
+	        Map<String, String> errorMap = new HashMap<>();
+	        errorMap.put(Constants.ERROR_MESSAGE, "An error occurred while fetching users.");
+	        return WebUtility.getResponse(errorMap, 500); // Return server error
+	    }
+	    
+	    // Step 8: Final return if all data is retrieved
+	    return WebUtility.getResponse(filteredUsers, 200);
+	
+	    }
+	    return null;}
+ 
+public List<Map<String, Object>> fetchMsGraphUsers(User user, String searchTerm, Map<String, Object> sessionData) throws Exception {
+	    String nextLink = (String) sessionData.get("nextLinkData");
+	    List<Map<String, Object>> msGraphUsers = new ArrayList<>();
+	    MSGraphAPICall msGraphApi = new MSGraphAPICall();
+	    Gson gson = new Gson();
+	    
+	    // Make API call to GraphAPI
+	    String msUsers;
+	    if (nextLink == null) {
+	        // First call to fetch users
+	        msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), searchTerm, null);
+	    } else {
+	        // Subsequent call using nextLink
+	        msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), searchTerm, nextLink);
+	    }
+ 
+	    // Parse the response
+	    JSONObject jsonObject = new JSONObject(msUsers);
+	    JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
+	    msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
+ 
+	    // Update nextLink for pagination
+	    nextLink = jsonObject.optString("@odata.nextLink", null);
+	    if (nextLink != null) {
+	        sessionData.put("nextLinkData", nextLink);
+	    } else {
+	        sessionData.remove("nextLinkData"); // Remove nextLink if no more data
+	    }
+ 
+	    return msGraphUsers;
 	}
+ 
+ 
 	
 	/**
 	 * approval of user access requests
