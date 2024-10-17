@@ -2950,11 +2950,15 @@ public class UserResource {
 		}
 
 		Gson gson = new Gson();
-		String modStr = WebUtility.inputSanitizer(form.getFirst("modifications"));
-		Map<String, String> mods = gson.fromJson(modStr, new TypeToken<Map<String, String>>() {}.getType());
+		Map<String, String> mods = gson.fromJson(form.getFirst("modifications"), new TypeToken<Map<String, String>>() {}.getType());
+		Map<String, String> sanitizedMods = new HashMap<>();
+
+		for(String key : mods.keySet()) {
+			sanitizedMods.put(WebUtility.inputSanitizer(key), WebUtility.inputSanitizer(mods.get(key)));
+		}
 		
 		try {
-			socialData.updateSocialProperties(provider, mods);
+			socialData.updateSocialProperties(provider, sanitizedMods);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<>();
