@@ -909,88 +909,7 @@ public class EngineAuthorizationResource {
 		}
 		
 		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
-<<<<<<< HEAD
 
-		// if not graph api
-		// then we will look at our security db
-		if(!graphApi) {
-			try {
-				List<Map<String, Object>> ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId, searchTerm, limit, offset);
-				return WebUtility.getResponse(ret, 200);
-			} catch (IllegalAccessException e) {
-				classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
-						User.getSingleLogginName(user), " is trying to pull users for " + engineId + " that do not have credentials without having proper access"));
-				classLogger.error(Constants.STACKTRACE, e);
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
-			}
-		}
-		
-		// if graph api
-		// note, if you allow multiple logins
-		// you are only going to see graph api users
-		
-		if(user.getAccessToken(AuthProvider.MS) == null) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged into your microsoft login to search for users");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-		
-		try {
-			List<Map<String, Object>> ret = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", 0, 0);
-			// Fetch MS Graph users if the session user has an access token
-			List<Map<String, Object>> filteredUsers = new ArrayList<>();
-			MSGraphAPICall msGraphApi = new MSGraphAPICall();
-			List<Map<String, Object>> msGraphUsers = new ArrayList<>();
-
-			try {
-				String nextLink = null;
-				do {
-					String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), searchTerm, nextLink);
-
-					JSONObject jsonObject = new JSONObject(msUsers);
-					JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-					Gson gson = new Gson();
-					List<Map<String, Object>> currentUsers = gson.fromJson(jsonArray.toString(), List.class);
-					msGraphUsers.addAll(currentUsers);// Append the current page users
-					// update next link for iteration
-					nextLink = jsonObject.optString("@odata.nextLink", null);
-				} while (nextLink != null);
-
-				// filter out users from the Microsoft Graph based on their displayName and
-				// mail, compare them with the existing users in the SMSS_USER table using the
-				// name and email fields.
-				filteredUsers = msGraphUsers.stream().filter(msUser -> ret.stream().noneMatch(
-						dbUser -> dbUser.get(Constants.SMSS_USER_EMAIL).equals(msUser.get(Constants.MS_GRAPH_EMAIL))
-								|| dbUser.get(Constants.SMSS_USER_NAME)
-										.equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
-						.map(msUser -> {
-							Map<String, Object> userMap = new HashMap<>();
-							userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
-							userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
-							userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MS);
-							userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
-							userMap.put(Constants.USER_MAP_USERNAME,
-									msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
-							return userMap;
-						}).collect(Collectors.toList());
-
-				// Return either filtered users from MS Graph or existing users
-				return WebUtility.getResponse(filteredUsers, 200);
-			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
-			}
-			return WebUtility.getResponse(new ArrayList<>(), 200);
-		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
-					User.getSingleLogginName(user), " is trying to pull users for " + engineId + " that do not have credentials without having proper access"));
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-=======
 		  // if not graph api
 	    if (!graphApi) {
 	        try {
@@ -1168,7 +1087,7 @@ public List<Map<String, Object>> fetchMsGraphUsers(User user, String searchTerm,
 	    }
  
 	    return msGraphUsers;
->>>>>>> origin/graphapi_130
+
 	}
  
  
