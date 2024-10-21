@@ -2336,6 +2336,67 @@ public class UserResource {
 					
 					GenericTokenFiller profiler = new GenericTokenFiller();
 					profiler.fillAccessToken(accessToken, userInfoURL, jsonPattern, beanPropsArr, null, sanitizeResponse);
+					
+					if(Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))){
+						//get groups
+						String group_url = socialData.getProperty(prefix + "group_url");
+						// make the call to get the groups
+						String groupsJson = HttpHelperUtility.makeGetCall(group_url,  accessToken.getAccess_token());
+						// this is a check for sanitizing a response back from an IAM provider - not common and should be false
+						// examples would be unescaped special chars in the response that then can't be parsed into a json. 
+						boolean sanitizeGroupResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeGroupResponse"));
+						if(sanitizeGroupResponse) {
+							groupsJson = groupsJson.replace("\\", "\\\\");
+							// add more replacements as need be in the future
+						}
+						
+						Set<String> userGroups = new HashSet<String>();
+						// are groups returned as a single string or an array in a json. Usually it is an array in a json.
+						boolean groupStringResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "group_string_return"));
+						if(groupStringResponse) {
+							//this json pattern should return a single string with groups concat
+							// ""fakeGroups":"CN=group1, CN=group2, CN=group3"
+							String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
+							JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
+							try {
+								//get the single string and the regex pattern. validate the pattern
+								String groupText = result.asText();
+								String regexPattern = socialData.getProperty(prefix + "group_string_regex");
+								try {
+									Pattern pattern = Pattern.compile(regexPattern);
+								} catch (PatternSyntaxException e) {
+									classLogger.error(Constants.STACKTRACE, e);
+									throw new SemossPixelException("Pattern input is not a valid regex");
+								}
+
+								// split the groups
+								String[] groups = groupText.split(regexPattern);
+								for (String group : groups) {
+									userGroups.add(group);
+								}
+							} catch (Exception e) {
+								classLogger.error(Constants.STACKTRACE, e);
+								throw new SemossPixelException("Could not parse response as string");
+							}
+
+						} else {
+							//this json pattern should return an array
+							String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
+							JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
+							if((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
+								throw new SemossPixelException("Group result must return flat array. Please check groupJsonPatter");
+							}
+							for(int inputIndex = 0;result != null && inputIndex < result.size();inputIndex++) {
+								String thisInput = result.get(inputIndex).asText();
+								userGroups.add(thisInput);
+							}	
+						}
+
+						accessToken.setUserGroups(userGroups);
+						accessToken.setUserGroupType(providerEnum.toString());			
+					}
+
+					
 					addAccessToken(accessToken, request, autoAdd);
 	
 					if(classLogger.isDebugEnabled()) {
@@ -2356,67 +2417,7 @@ public class UserResource {
 			return null;
 		}
 
-		String prefix = provider+"_";
-
-		if(Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))){
-			//get groups
-			String group_url = socialData.getProperty(prefix + "group_url");
-			// make the call to get the groups
-			String groupsJson = HttpHelperUtility.makeGetCall(group_url,  userObj.getAccessToken(providerEnum).getAccess_token());
-			// this is a check for sanitizing a response back from an IAM provider - not common and should be false
-			// examples would be unescaped special chars in the response that then can't be parsed into a json. 
-			boolean sanitizeGroupResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeGroupResponse"));
-			if(sanitizeGroupResponse) {
-				groupsJson = groupsJson.replace("\\", "\\\\");
-				// add more replacements as need be in the future
-			}
-			
-			Set<String> userGroups = new HashSet<String>();
-			// are groups returned as a single string or an array in a json. Usually it is an array in a json.
-			boolean groupStringResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "group_string_return"));
-			if(groupStringResponse) {
-				//this json pattern should return a single string with groups concat
-				// ""fakeGroups":"CN=group1, CN=group2, CN=group3"
-				String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
-				JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
-				try {
-					//get the single string and the regex pattern. validate the pattern
-					String groupText = result.asText();
-					String regexPattern = socialData.getProperty(prefix + "group_string_regex");
-					try {
-						Pattern pattern = Pattern.compile(regexPattern);
-					} catch (PatternSyntaxException e) {
-						classLogger.error(Constants.STACKTRACE, e);
-						throw new SemossPixelException("Pattern input is not a valid regex");
-					}
-
-					// split the groups
-					String[] groups = groupText.split(regexPattern);
-					for (String group : groups) {
-						userGroups.add(group);
-					}
-				} catch (Exception e) {
-					classLogger.error(Constants.STACKTRACE, e);
-					throw new SemossPixelException("Could not parse response as string");
-				}
-
-			} else {
-				//this json pattern should return an array
-				String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
-				JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
-				if((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
-					throw new SemossPixelException("Group result must return flat array. Please check groupJsonPatter");
-				}
-				for(int inputIndex = 0;result != null && inputIndex < result.size();inputIndex++) {
-					String thisInput = result.get(inputIndex).asText();
-					userGroups.add(thisInput);
-				}	
-			}
-
-			userObj.getAccessToken(providerEnum).setUserGroups(userGroups);
-			userObj.getAccessToken(providerEnum).setUserGroupType(providerEnum.toString());			
-		}
-
+		
 		setMainPageRedirect(request, response);
 		return null;
 	}
