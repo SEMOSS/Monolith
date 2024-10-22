@@ -18,21 +18,44 @@ import com.google.gson.Gson;
 
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
-import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.graph.MSGraphAPICall;
 import prerna.util.Constants;
-import prerna.web.services.util.WebUtility;
 
 public class MsGraphUtility {
 	
 	private static final Logger classLogger = LogManager.getLogger(MsGraphUtility.class);
 	
-	public static List<Map<String, Object>> getProjectUsers(HttpServletRequest request, User user, String projectId,
-			String searchTerm, long limit, long offset) {
+	private static String prefix = "nld_"; // for next link data
+	private static String projectPrefix = prefix + "p_";
+	private static String enginePrefix = prefix + "e_";
+	
+	/**
+	 * 
+	 * @param request
+	 * @param user
+	 * @param projectId
+	 * @param searchTerm
+	 * @param limit
+	 * @param offset
+	 * @return
+	 * @throws IllegalAccessException
+	 */
+	public static List<Map<String, Object>> getProjectUsers(
+			HttpServletRequest request, 
+			User user, 
+			String projectId,
+			String searchTerm, 
+			long limit, 
+			long offset) throws IllegalAccessException {
+		
+		if (user.getAccessToken(AuthProvider.MS) == null) {
+			throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
+		}
+		
 		HttpSession session = request.getSession(false);
-		String sessionKey = "nextLinkData_" + projectId + "_" + searchTerm;
+		String sessionKey = MsGraphUtility.projectPrefix + projectId + "_" + searchTerm;
 
 		// Initialize or retrieve session data
 		Map<String, Object> sessionData = (Map<String, Object>) session.getAttribute(sessionKey);
@@ -41,30 +64,10 @@ public class MsGraphUtility {
 			session.setAttribute(sessionKey, sessionData);
 		}
 
-		// Step 1: Retrieve database users from session or load from DB if not available
-		List<Map<String, Object>> dbUsers = (List<Map<String, Object>>) sessionData.get("dbUsers");
-		if (dbUsers == null) {
-			try {
+		// Step 1: get the list of current users
+		List<Map<String, Object>> currentUsers = SecurityProjectUtils.getProjectUsers(user, projectId, searchTerm, "", -1, -1);
 
-				dbUsers = (user != null) ? SecurityProjectUtils.getProjectUsers(user, projectId, searchTerm, "", 0, 0)
-						: SecurityAdminUtils.getProjectUsers(projectId, searchTerm, "", -1, -1);
-				sessionData.put("dbUsers", dbUsers); // Store DB users in the same session attribute
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Unable to retrieve database users");
-				return (List<Map<String, Object>>) WebUtility.getResponse(errorMap, 401);
-				
-			}
-		}
-
-		if (user.getAccessToken(AuthProvider.MS) == null) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged into your microsoft login to search for users");
-			return (List<Map<String, Object>>) WebUtility.getResponse(errorMap, 401);
-			
-		}
-
-		final List<Map<String, Object>> finalDbUsers = dbUsers;
+		final List<Map<String, Object>> finalDbUsers = currentUsers;
 		String nextLink = (String) sessionData.get("nextLinkData");
 		List<Map<String, Object>> msGraphUsers = new ArrayList<>();
 		List<Map<String, Object>> filteredUsers = new ArrayList<>();
@@ -108,7 +111,7 @@ public class MsGraphUtility {
 				// filters
 				filteredUsers = msGraphUsers.stream().filter(msUser -> finalDbUsers.stream().noneMatch(dbUser -> dbUser
 						.get(Constants.SMSS_USER_EMAIL).equals(msUser.get(Constants.MS_GRAPH_EMAIL))
-						|| dbUser.get(Constants.SMSS_USER_NAME).equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
+							|| dbUser.get(Constants.SMSS_USER_NAME).equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
 						.map(msUser -> {
 							Map<String, Object> userMap = new HashMap<>();
 							userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
@@ -133,30 +136,45 @@ public class MsGraphUtility {
 
 				if (filteredUsers.size() < limit && nextLink != null) {
 					long limitCount = limit - filteredUsers.size();
-					List<Map<String, Object>> moreUsers = (user != null)
-							? SecurityProjectUtils.getProjectUsers(user, projectId, searchTerm, "", limitCount, offset)
-							: SecurityAdminUtils.getProjectUsers(projectId, searchTerm, "", limit, offset);
-
+					List<Map<String, Object>> moreUsers = SecurityProjectUtils.getProjectUsers(user, projectId, searchTerm, "", limitCount, offset);
 					filteredUsers.addAll(moreUsers);
 				}
 
 			} while (filteredUsers.size() < limit && nextLink != null);
 
 		} catch (Exception e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred while fetching users");
-			return (List<Map<String, Object>>) WebUtility.getResponse(errorMap, 401);
-			
+			throw new IllegalArgumentException("An error occurred while fetching users");
 		}
 
 		return filteredUsers;
 	}
 
-	public static List<Map<String, Object>> getEngineUsers(HttpServletRequest request, User user, String engineId,
-			String searchTerm, long limit, long offset) {
+	/**
+	 * 
+	 * @param request
+	 * @param user
+	 * @param engineId
+	 * @param searchTerm
+	 * @param limit
+	 * @param offset
+	 * @return
+	 * @throws IllegalAccessException 
+	 */
+	public static List<Map<String, Object>> getEngineUsers(
+			HttpServletRequest request, 
+			User user, 
+			String engineId,
+			String searchTerm, 
+			long limit, 
+			long offset) throws IllegalAccessException {
+		
+		if (user.getAccessToken(AuthProvider.MS) == null) {
+			throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
+		}
+		
 		// Create a session and define a single session key to store everything
 		HttpSession session = request.getSession(false);
-		String sessionKey = "nextLinkData_" + engineId + "_" + searchTerm;
+		String sessionKey = enginePrefix + engineId + "_" + searchTerm;
 
 		// Initialize or retrieve session data
 		Map<String, Object> sessionData = (Map<String, Object>) session.getAttribute(sessionKey);
@@ -166,28 +184,9 @@ public class MsGraphUtility {
 		}
 
 		// Step 1: Retrieve database users from session or load from DB if not available
-		List<Map<String, Object>> dbUsers = (List<Map<String, Object>>) sessionData.get("dbUsers");
-		if (dbUsers == null) {
-			try {
+		List<Map<String, Object>> currentUsers = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", -1, -1);
 
-				dbUsers = (user != null)
-						? SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", limit, offset)
-						: SecurityAdminUtils.getEngineUsers(engineId, searchTerm, "", limit, offset);
-				sessionData.put("dbUsers", dbUsers); // Store DB users in the same session attribute
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Unable to retrieve database users");
-				return (List<Map<String, Object>>) WebUtility.getResponse(errorMap, 401);
-			}
-		}
-
-		if (user.getAccessToken(AuthProvider.MS) == null) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged into your microsoft login to search for users");
-			return (List<Map<String, Object>>) WebUtility.getResponse(errorMap, 401);
-		}
-
-		final List<Map<String, Object>> finalDbUsers = dbUsers;
+		final List<Map<String, Object>> finalDbUsers = currentUsers;
 		String nextLink = (String) sessionData.get("nextLinkData");
 		List<Map<String, Object>> msGraphUsers = new ArrayList<>();
 		List<Map<String, Object>> filteredUsers = new ArrayList<>();
@@ -256,26 +255,27 @@ public class MsGraphUtility {
 				// Step 7: If the limit is not reached, calculate difference and use nextLink to get more data
 				if (filteredUsers.size() < limit && nextLink != null) {
 					long limitCount = limit - filteredUsers.size();
-					List<Map<String, Object>> moreUsers = (user != null)
-							? SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", limitCount, offset)
-							: SecurityAdminUtils.getEngineUsers(engineId, searchTerm, "", limitCount, offset);
-
+					List<Map<String, Object>> moreUsers = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", limitCount, offset);
 					filteredUsers.addAll(moreUsers);
 				}
 
 			} while (filteredUsers.size() < limit && nextLink != null);
 
 		} catch (Exception e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred while fetching users");
-			return (List<Map<String, Object>>) WebUtility.getResponse(errorMap, 401);
+			throw new IllegalArgumentException("An error occurred while fetching users");
 		}
 
 		return filteredUsers;
 	}
 
-	
-
+	/**
+	 * 
+	 * @param user
+	 * @param searchTerm
+	 * @param sessionData
+	 * @return
+	 * @throws Exception
+	 */
 	public static List<Map<String, Object>> fetchMsGraphUsers(User user, String searchTerm,
 			Map<String, Object> sessionData) throws Exception {
 		String nextLink = (String) sessionData.get("nextLinkData");
@@ -307,22 +307,6 @@ public class MsGraphUtility {
 		}
 
 		return msGraphUsers;
-
 	}
 	
 }
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-
