@@ -2245,6 +2245,10 @@
     				<groupId>com.fasterxml.woodstox</groupId>
 					<artifactId>woodstox-core</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.openjdk.nashorn</groupId>
+					<artifactId>nashorn-core</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 		<!-- adding updated jar to deal with exclusion w/ vulnerability -->
