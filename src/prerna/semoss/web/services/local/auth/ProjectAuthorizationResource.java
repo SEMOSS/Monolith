@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -22,8 +21,6 @@ import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import com.google.gson.Gson;
 
@@ -38,7 +35,6 @@ import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.graph.MSGraphAPICall;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.om.Insight;
 import prerna.project.api.IProject;
@@ -902,19 +898,16 @@ public class ProjectAuthorizationResource {
 			}
 		}
 		
-		    if (searchTerm != null) {
-		        try {
-		            List<Map<String, Object>> filteredUsers =MsGraphUtility.getProjectUsers(request, user,  projectId, searchTerm, limit, offset);
-		            return WebUtility.getResponse(filteredUsers, 200);
-		        } catch (IllegalStateException e) {
-		            Map<String, String> errorMap = new HashMap<>();
-		            errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-		            return WebUtility.getResponse(errorMap, 500);
-		        }
-		    }
-		    
-		    return null;
-		    }
+        try {
+            List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user,  projectId, searchTerm, limit, offset);
+            return WebUtility.getResponse(filteredUsers, 200);
+        } catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+            Map<String, String> errorMap = new HashMap<>();
+            errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+            return WebUtility.getResponse(errorMap, 500);
+        }
+	}
 
 	/**
 	 * approval of user access requests
