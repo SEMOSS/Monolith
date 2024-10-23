@@ -744,16 +744,16 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			List<Map<String, Object>> ret = adminUtils.getProjectUsersNoCredentials(projectId, searchTerm, limit, offset);
 			return WebUtility.getResponse(ret, 200);
 		}
-		
-        try {
-            List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user, projectId, searchTerm, limit, offset);
-            return WebUtility.getResponse(filteredUsers, 200);
-        } catch (Exception e) {
+
+		try {
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user, projectId, searchTerm, limit, offset);
+			return WebUtility.getResponse(filteredUsers, 200);
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
-            Map<String, String> errorMap = new HashMap<>();
-            errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-            return WebUtility.getResponse(errorMap, 500); 
-        }
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500); 
+		}
 	}
 	
 	/**

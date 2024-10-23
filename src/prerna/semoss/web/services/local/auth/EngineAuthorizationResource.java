@@ -906,30 +906,31 @@ public class EngineAuthorizationResource {
 		
 		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
 
-		  // if not graph api
-	    if (!graphApi) {
-	        try {
-	            List<Map<String, Object>> ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId, searchTerm, limit, offset);
-	            return WebUtility.getResponse(ret, 200);
-	        } catch (IllegalAccessException e) {
-	            classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
-	                    User.getSingleLogginName(user), " is trying to pull users for " + engineId + " that do not have credentials without having proper access"));
-	            classLogger.error(Constants.STACKTRACE, e);
-	            Map<String, String> errorMap = new HashMap<>();
-	            errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-	            return WebUtility.getResponse(errorMap, 401);
-	        }
-	    }
+		// if not graph api
+		// then we will look at our security db
+		if (!graphApi) {
+			try {
+				List<Map<String, Object>> ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId, searchTerm, limit, offset);
+				return WebUtility.getResponse(ret, 200);
+			} catch (IllegalAccessException e) {
+				classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
+						User.getSingleLogginName(user), " is trying to pull users for " + engineId + " that do not have credentials without having proper access"));
+				classLogger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		}
 
-	    try {
-	    	List<Map<String, Object>> filteredUsers = MsGraphUtility.getEngineUsers(request, user, engineId, searchTerm, limit, offset);
-	    	return WebUtility.getResponse(filteredUsers, 200);
-	    } catch (Exception e) {
+		try {
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getEngineUsers(request, user, engineId, searchTerm, limit, offset);
+			return WebUtility.getResponse(filteredUsers, 200);
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
-	    	Map<String, String> errorMap = new HashMap<>();
-	    	errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-	    	return WebUtility.getResponse(errorMap, 500); 
-	    }
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500); 
+		}
 	}
  
 	

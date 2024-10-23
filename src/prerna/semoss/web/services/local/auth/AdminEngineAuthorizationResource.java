@@ -879,16 +879,16 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(engineId, searchTerm, limit, offset);
 			return WebUtility.getResponse(ret, 200);
 		}
-		
-        try {
-            List<Map<String, Object>> filteredUsers = MsGraphUtility.getEngineUsers(request, user, engineId, searchTerm, limit, offset);
-            return WebUtility.getResponse(filteredUsers, 200);
-        } catch (Exception e) {
+
+		try {
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getEngineUsers(request, user, engineId, searchTerm, limit, offset);
+			return WebUtility.getResponse(filteredUsers, 200);
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
-            Map<String, String> errorMap = new HashMap<>();
-            errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-            return WebUtility.getResponse(errorMap, 500); 
-        }
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500); 
+		}
 	}
 	
 	
