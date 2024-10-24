@@ -2807,6 +2807,9 @@ public class UserResource {
 			String phone = WebUtility.inputSanitizer(request.getParameter("phone"));
 			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
 			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
+			String maxTokens = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
+			String maxResponseTime = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
+			String frequency = WebUtility.inputSanitizer(request.getParameter("frequency"));
 
 			AccessToken newUser = new AccessToken();
 			newUser.setProvider(AuthProvider.NATIVE);
@@ -2817,6 +2820,9 @@ public class UserResource {
 			newUser.setPhone(phone);
 			newUser.setPhoneExtension(phoneExtension);
 			newUser.setCountryCode(countryCode);
+			newUser.setMaxTokens(maxTokens!=null ? Integer.valueOf(maxTokens) : 0);
+			newUser.setMaxResponseTime(maxResponseTime!=null ? Double.valueOf(maxResponseTime) : 0);
+		    newUser.setFrequency(frequency);
 			boolean userCreated = SecurityNativeUserUtils.addNativeUser(newUser, password);
 			if (userCreated) {
 				ret.put("success", "true");
