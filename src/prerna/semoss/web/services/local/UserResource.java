@@ -29,6 +29,7 @@ package prerna.semoss.web.services.local;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Type;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -45,6 +46,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.http.Cookie;
@@ -107,6 +109,7 @@ import prerna.util.linotp.LinOTPResponse;
 import prerna.util.linotp.LinOTPUtil;
 import prerna.web.conf.DBLoader;
 import prerna.web.conf.UserSessionLoader;
+import prerna.web.services.util.ConfigPageProps;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
 
@@ -2949,23 +2952,42 @@ public class UserResource {
 			return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);
 		}
 
+		String jsonString = form.getFirst("modifications");
 		Gson gson = new Gson();
-		Map<String, String> mods = gson.fromJson(form.getFirst("modifications"), new TypeToken<Map<String, String>>() {}.getType());
-		Map<String, String> sanitizedMods = new HashMap<>();
+		List<ConfigPageProps> configPagePropsList = null;
+	     try {
+	            // Try to parse as an array
+	            Type listType = new TypeToken<List<ConfigPageProps>>() {}.getType();
+	            configPagePropsList = gson.fromJson(jsonString, listType);
+	            System.out.println("Parsed as array: " + configPagePropsList);
+	           
+	        } catch (Exception e) {
+	        	classLogger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorRet = new HashMap<>();
+				errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
+				return WebUtility.getResponse(errorRet, 500);
+	        }
+	     
+		//Map<String, String> mods = gson.fromJson(form.getFirst("modifications"), new TypeToken<Map<String, String>>() {}.getType());
+	     Map<String, String> configPagePropsMap = configPagePropsList.stream()
+                 .collect(Collectors.toMap(ConfigPageProps::getLabel, ConfigPageProps::getValue));
+         System.out.println("Converted to Map: " + configPagePropsMap);
+         Map<String, String> sanitizedMods = new HashMap<>();
 
-		for(String key : mods.keySet()) {
-			sanitizedMods.put(WebUtility.inputSanitizer(key), WebUtility.inputSanitizer(mods.get(key)));
-		}
-		
-		try {
-			socialData.updateSocialProperties(provider, sanitizedMods);
-		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorRet = new HashMap<>();
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
+ 		for(String key : configPagePropsMap.keySet()) {
+ 			sanitizedMods.put(WebUtility.inputSanitizer(key), WebUtility.inputSanitizer(configPagePropsMap.get(key)));
+ 		}
+ 		
+ 		System.out.println("Converted to sanitizedMods: " + sanitizedMods);
+ 		
+ 		try {
+ 			socialData.updateSocialProperties(provider, sanitizedMods);
+ 		} catch (Exception e) {
+ 			classLogger.error(Constants.STACKTRACE, e);
+ 			Map<String, String> errorRet = new HashMap<>();
+ 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
+ 			return WebUtility.getResponse(errorRet, 500);
+ 		}
 		return WebUtility.getResponse(true, 200);
 	}
 
