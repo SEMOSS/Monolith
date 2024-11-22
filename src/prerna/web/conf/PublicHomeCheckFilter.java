@@ -62,8 +62,16 @@ public class PublicHomeCheckFilter implements Filter {
 		String realPath = context.getRealPath(File.separator);
 
 		// try to get the project id
-		String projectId = fullUrl.substring(fullUrl.indexOf(contextPathPublicHome) + contextPathPublicHome.length() + 1);
-		projectId = projectId.substring(0, projectId.indexOf("/"));
+		String projectId = null;
+		try {
+			projectId = fullUrl.substring(fullUrl.indexOf(contextPathPublicHome) + contextPathPublicHome.length() + 1);
+			int endIndex = projectId.indexOf("/");
+			if(endIndex != -1) {
+				projectId = projectId.substring(0, endIndex); // Take substring until the first '/'
+			}
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+		}
 
 		if(!Strings.isNullOrEmpty(projectId)) {
 			projectId = WebUtility.inputSanitizer(projectId);

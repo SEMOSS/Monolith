@@ -94,7 +94,7 @@ public class WebUtility {
 
 	private static final List<String[]> noCacheHeaders = new ArrayList<String[]>();
 	static {
-		noCacheHeaders.add(new String[] { "Cache-Control", "private" });
+		noCacheHeaders.add(new String[] { "Cache-Control", "private, no-store" }); 
 //		noCacheHeaders.add(new String[] {"Cache-Control", "no-store, no-cache, must-revalidate, max-age=20, post-check=0, pre-check=0"});
 //		noCacheHeaders.add(new String[] {"Pragma", "no-cache"});
 	}
