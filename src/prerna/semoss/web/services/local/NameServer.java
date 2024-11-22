@@ -478,7 +478,7 @@ public class NameServer {
 		
 		try {
 			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
-					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Cache-Control", "private, no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 					.header("Pragma", "no-cache")
 					.build();
 		} finally {
