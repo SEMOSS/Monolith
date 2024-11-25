@@ -14,7 +14,6 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.apache.logging.log4j.LogManager;
@@ -29,7 +28,6 @@ import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class UserAccessKeyFilter implements Filter {
@@ -175,17 +173,6 @@ public class UserAccessKeyFilter implements Filter {
 						session = request.getSession(true);
 						session.setAttribute(Constants.SESSION_USER, user);
 						session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-
-						// Set the SameSite attribute for the Set-Cookie header
-						HttpServletResponse httpResponse = (HttpServletResponse) arg1;
-						String existingCookieHeader = httpResponse.getHeader("Set-Cookie");
-
-						// Ensure the header is not null before appending
-						if(existingCookieHeader != null) {
-							existingCookieHeader += "; SameSite=" + Utility.getSameSiteCookieValue();
-							httpResponse.setHeader("Set-Cookie", existingCookieHeader);
-						}
-						// Set the updated Set-Cookie header
 						classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider() + " with user access key"));
 					}
 				}
