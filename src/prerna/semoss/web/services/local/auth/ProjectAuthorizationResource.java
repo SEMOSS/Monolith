@@ -257,10 +257,15 @@ public class ProjectAuthorizationResource {
 
 		String permission = SecurityProjectUtils.getActualUserProjectPermission(user, projectId);
 		if(permission == null) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull permission details for project " + projectId + " without having proper access"));
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project");
-			return WebUtility.getResponse(errorMap, 401);
+			// are you discoverable?
+			if(SecurityProjectUtils.projectIsDiscoverable(projectId)) {
+				permission = "DISCOVERABLE";
+			} else {
+				classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull permission details for project " + projectId + " without having proper access"));
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project");
+				return WebUtility.getResponse(errorMap, 401);
+			}
 		}
 
 		Map<String, String> ret = new HashMap<String, String>();
@@ -897,16 +902,16 @@ public class ProjectAuthorizationResource {
 				return WebUtility.getResponse(errorMap, 401);
 			}
 		}
-		
-        try {
-            List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user,  projectId, searchTerm, limit, offset);
-            return WebUtility.getResponse(filteredUsers, 200);
-        } catch (Exception e) {
+
+		try {
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user,  projectId, searchTerm, limit, offset);
+			return WebUtility.getResponse(filteredUsers, 200);
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
-            Map<String, String> errorMap = new HashMap<>();
-            errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-            return WebUtility.getResponse(errorMap, 500);
-        }
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
 	}
 
 	/**
