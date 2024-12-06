@@ -339,6 +339,11 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("addEngineUserPermission")
 	public Response addEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -390,6 +395,11 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("addEngineUserPermissions")
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -463,6 +473,11 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("editEngineUserPermission")
 	public Response editEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -520,6 +535,11 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("editEngineUserPermissions")
 	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		//TODO: need to update for usage restriction
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
