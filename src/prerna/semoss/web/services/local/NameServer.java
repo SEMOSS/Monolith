@@ -423,6 +423,7 @@ public class NameServer {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
 			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+			classLogger.error("Insight not found for insightId" + insightId);
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		
