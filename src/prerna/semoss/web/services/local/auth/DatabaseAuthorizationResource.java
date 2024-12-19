@@ -257,7 +257,12 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.addEngineUser(user, newUserId, appId, permission, endDate);
+			int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			
+			SecurityEngineUtils.addEngineUser(user, newUserId, appId, permission, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + appId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -313,7 +318,12 @@ public class DatabaseAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, appId, newPermission, endDate);
+
+	        int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, appId, newPermission, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch(IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + appId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);

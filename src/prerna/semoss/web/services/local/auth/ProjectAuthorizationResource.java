@@ -403,6 +403,10 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String requestedPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+	    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+	    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
 		// get the requested permission as a numeric -- it was passed as a string
 		Integer requestedPermissionNumeric = AccessPermissionEnum.getIdByPermission(requestedPermission);
 
@@ -449,7 +453,7 @@ public class ProjectAuthorizationResource {
 			// if the newUser has permissions on the engine but not to the level requested, edit the existing record 
 			} else if (requesterEnginePermission < 3 && currentNewUserPermission != null && currentNewUserPermission > requestedPermissionNumeric) {
 				try {
-					SecurityEngineUtils.editEngineUserPermission(requester, newUserId, engineId, requestedPermission, endDate);
+					SecurityEngineUtils.editEngineUserPermission(requester, newUserId, engineId, requestedPermission, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 					accessGranted.add(engineId);
 					classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(requester), "has updated permission for " + newUserId + " to " + engineId));
 				} catch (IllegalAccessException e) {
@@ -460,7 +464,7 @@ public class ProjectAuthorizationResource {
 			} else if (requesterEnginePermission < 3 && currentNewUserPermission == null) {
 				try {
 					accessGranted.add(engineId);
-					SecurityEngineUtils.addEngineUser(requester,newUserId, engineId, requestedPermission, endDate);
+					SecurityEngineUtils.addEngineUser(requester,newUserId, engineId, requestedPermission, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 					classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(requester), "has added " + newUserId + " to " + engineId));
 				} catch (IllegalAccessException e) {
 					couldNotAddRequest.add(engineId);
