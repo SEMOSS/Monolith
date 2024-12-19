@@ -275,7 +275,11 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addEngineUser(newUserId, databaseId, permission, user, endDate);
+			int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			adminUtils.addEngineUser(newUserId, databaseId, permission, user, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -324,7 +328,11 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			adminUtils.addEngineUserPermissions(databaseId, permission, user, endDate);
+			int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			adminUtils.addEngineUserPermissions(databaseId, permission, user, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -424,7 +432,11 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, databaseId, newPermission, user, endDate);
+			int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			adminUtils.editEngineUserPermission(existingUserId, databaseId, newPermission, user, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -471,7 +483,11 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editEngineUserPermissions(databaseId, requests, user, endDate);
+			int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			SecurityAdminUtils.editEngineUserPermissions(databaseId, requests, user, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

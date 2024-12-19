@@ -394,11 +394,6 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("addEngineUserPermission")
 	public Response addEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
@@ -417,7 +412,13 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate);
+
+	        int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			
+			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -443,10 +444,6 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("addEngineUserPermissions")
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
 		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -465,6 +462,10 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		
 		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
 
+        int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+	    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+	    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
@@ -488,7 +489,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 					}
 				}
 			}
-			adminUtils.addEngineUserPermissions(engineId, permission, user, endDate);
+			adminUtils.addEngineUserPermissions(engineId, permission, user, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -558,10 +559,6 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("editEngineUserPermission")
 	public Response editEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
 		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -583,7 +580,12 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate);
+
+	        int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -609,10 +611,6 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("editEngineUserPermissions")
 	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
 		
 		User user = null;
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
@@ -630,7 +628,12 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editEngineUserPermissions(engineId, requests, user, endDate);
+
+	        int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			SecurityAdminUtils.editEngineUserPermissions(engineId, requests, user, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

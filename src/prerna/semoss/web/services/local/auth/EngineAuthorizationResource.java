@@ -339,10 +339,6 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("addEngineUserPermission")
 	public Response addEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
 		
 		User user = null;
 		try {
@@ -368,7 +364,12 @@ public class EngineAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission, endDate);
+			int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			
+			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for engine " + engineId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -395,10 +396,6 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("addEngineUserPermissions")
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
 		
 		User user = null;
 		try {
@@ -421,7 +418,10 @@ public class EngineAuthorizationResource {
 		}
 		
 		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
-		
+        int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+	    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+	    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
@@ -447,7 +447,7 @@ public class EngineAuthorizationResource {
 			}
 			
 			// now add the permission
-			SecurityEngineUtils.addEngineUserPermissions(user, engineId, permission, endDate);
+			SecurityEngineUtils.addEngineUserPermissions(user, engineId, permission, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -473,10 +473,6 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("editEngineUserPermission")
 	public Response editEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
 		
 		User user = null;
 		try {
@@ -503,7 +499,12 @@ public class EngineAuthorizationResource {
 		}
 		
 		try {
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, engineId, newPermission, endDate);
+
+	        int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, engineId, newPermission, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch(IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for engine " + engineId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -535,10 +536,6 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("editEngineUserPermissions")
 	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
-		//TODO: need to update for usage restriction
 		
 		User user = null;
 		try {
@@ -563,7 +560,12 @@ public class EngineAuthorizationResource {
 
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityEngineUtils.editEngineUserPermissions(user, engineId, requests, endDate);
+
+	        int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			SecurityEngineUtils.editEngineUserPermissions(user, engineId, requests, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch(IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for engine " + engineId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);

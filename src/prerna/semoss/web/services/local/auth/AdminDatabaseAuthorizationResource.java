@@ -264,7 +264,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.addEngineUser(newUserId, appId, permission, user, endDate);
+			int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			adminUtils.addEngineUser(newUserId, appId, permission, user, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -364,7 +368,11 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user, endDate);
+			int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
+		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
+		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

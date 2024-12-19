@@ -98,6 +98,7 @@ import prerna.security.HttpHelperUtility;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.util.git.GitRepoUtils;
@@ -2785,6 +2786,7 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("createUser")
 	public Response createNativeUser(@Context HttpServletRequest request) {
+		
 		Map<String, String> ret = new HashMap<>();
 
 		if(socialData.getLoginsAllowed().get("native")==null || !socialData.getLoginsAllowed().get("native")) {
@@ -2796,7 +2798,9 @@ public class UserResource {
 			ret.put(Constants.ERROR_MESSAGE, "Native registration is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
-
+		
+	    //get the connection to RDF_MAP.prop file to get the user default set values
+	    DIHelper prop  = DIHelper.getInstance();
 		try {
 			// Note - for native users
 			// the id and the username are always the same
@@ -2808,15 +2812,24 @@ public class UserResource {
 			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
 			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
 			
-			//TODO: need to update for usage restriction
-			//TODO: need to update for usage restriction
-			//TODO: need to update for usage restriction
-			//TODO: need to update for usage restriction
-			String maxTokens = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
-			String maxResponseTime = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
-			String frequency = WebUtility.inputSanitizer(request.getParameter("frequency"));
+			String modelUsageRestriction = WebUtility.inputSanitizer(request.getParameter("modelUsageRestriction"));
+			String modelUsageFrequency = WebUtility.inputSanitizer(request.getParameter("modelUsageFrequency"));
+			String modelMaxTokens = WebUtility.inputSanitizer(request.getParameter("modelMaxTokens"));
+			String modelMaxResponseTime = WebUtility.inputSanitizer(request.getParameter("modelMaxResponseTime"));
+//			String username = "rrr";
+//		    String name = "rr2";
+//		    String password = "DDddd@12345";
+//		    String email = "ert@gmail.com";
+//		    String phone = "145627877";
+//		    String phoneExtension = "001";
+//		    String countryCode = "US";
+//		    String modelUsageRestriction = "token";
+//		    String modelUsageFrequency = "WEEK";
+//		    String modelMaxTokens = "200";
+//		    String modelMaxResponseTime = "300";
 
 			AccessToken newUser = new AccessToken();
+			
 			newUser.setProvider(AuthProvider.NATIVE);
 			newUser.setId(username);
 			newUser.setUsername(username);
@@ -2825,16 +2838,21 @@ public class UserResource {
 			newUser.setPhone(phone);
 			newUser.setPhoneExtension(phoneExtension);
 			newUser.setCountryCode(countryCode);
-			
-			//TODO: need to update for usage restriction
-			//TODO: need to update for usage restriction
-			//TODO: need to update for usage restriction
-			//TODO: need to update for usage restriction
-			newUser.setMaxTokens(maxTokens!=null ? Integer.valueOf(maxTokens) : 0);
-			newUser.setMaxResponseTime(maxResponseTime!=null ? Double.valueOf(maxResponseTime) : 0);
-		    newUser.setFrequency(frequency);
-		    
-		    
+			newUser.setModelMaxTokens(modelMaxTokens!=null && !modelMaxTokens.isEmpty()? Integer.valueOf(modelMaxTokens) 
+					: (!prop.getProperty(Constants.USER_MODEL_MAX_TOKEN_KEY).trim().isEmpty()
+	    	        ? Integer.parseInt(prop.getProperty(Constants.USER_MODEL_MAX_TOKEN_KEY).trim())
+	    	        : 0));
+			newUser.setModelMaxResponseTime(modelMaxResponseTime!=null && !modelMaxResponseTime.isEmpty() ? Double.valueOf(modelMaxResponseTime) 
+					:(!prop.getProperty(Constants.USER_MODEL_MAX_RESPONSE_TIME_KEY).trim().isEmpty()
+	    	        ? Double.parseDouble(prop.getProperty(Constants.USER_MODEL_MAX_RESPONSE_TIME_KEY).trim())
+	    	        : 0.0));
+		    newUser.setModelUsageFrequency(modelUsageFrequency!=null && !modelUsageFrequency.isEmpty() ? String.valueOf(modelUsageFrequency) :(!prop.getProperty(Constants.USER_MODEL_USAGE_FREQUENCY_KEY).trim().isEmpty()
+	    	        ? prop.getProperty(Constants.USER_MODEL_USAGE_FREQUENCY_KEY).trim()
+	    	        : null));
+		    newUser.setModelUsageRestriction(modelUsageRestriction!=null && !modelUsageRestriction.isEmpty() ? String.valueOf(modelUsageRestriction) :(!prop.getProperty(Constants.USER_USAGE_RESTRICTION_KEY).trim().isEmpty()
+	    	        ? prop.getProperty(Constants.USER_USAGE_RESTRICTION_KEY).trim()
+	    	        : null));
+		   
 			boolean userCreated = SecurityNativeUserUtils.addNativeUser(newUser, password);
 			if (userCreated) {
 				ret.put("success", "true");
