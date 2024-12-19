@@ -2816,17 +2816,6 @@ public class UserResource {
 			String modelUsageFrequency = WebUtility.inputSanitizer(request.getParameter("modelUsageFrequency"));
 			String modelMaxTokens = WebUtility.inputSanitizer(request.getParameter("modelMaxTokens"));
 			String modelMaxResponseTime = WebUtility.inputSanitizer(request.getParameter("modelMaxResponseTime"));
-//			String username = "rrr";
-//		    String name = "rr2";
-//		    String password = "DDddd@12345";
-//		    String email = "ert@gmail.com";
-//		    String phone = "145627877";
-//		    String phoneExtension = "001";
-//		    String countryCode = "US";
-//		    String modelUsageRestriction = "token";
-//		    String modelUsageFrequency = "WEEK";
-//		    String modelMaxTokens = "200";
-//		    String modelMaxResponseTime = "300";
 
 			AccessToken newUser = new AccessToken();
 			
