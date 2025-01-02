@@ -864,7 +864,6 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -901,7 +900,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 					}
 				}
 			}
-			adminUtils.addProjectUserPermissions(projectId, permission, user, endDate);
+			adminUtils.addProjectUserPermissions(projectId, permission, user);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
