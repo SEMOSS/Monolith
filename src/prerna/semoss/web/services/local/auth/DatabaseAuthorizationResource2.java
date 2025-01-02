@@ -240,6 +240,8 @@ public class DatabaseAuthorizationResource2 {
 	@Produces("application/json")
 	@Path("addDatabaseUserPermission")
 	public Response addDatabaseUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Map<String, Object> ret = new HashMap<String, Object>();
+
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission with PARAM engineId");
@@ -251,15 +253,13 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
 			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(ret, 401);
 		}
 		
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
-		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + databaseId + " but is not an admin"));
@@ -269,24 +269,16 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		try {
-			int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
-		    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
-		    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
-		    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
-			
-			SecurityEngineUtils.addEngineUser(user, newUserId, databaseId, permission, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
+			SecurityEngineUtils.addEngineUser(user, newUserId, databaseId, permission, null, null, null, 0, 0.0);
 		} catch (Exception e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + databaseId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 400);
 		}
 		
 		// log the operation
 		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to database " + databaseId + " with permission " + permission));
-		
-		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -317,12 +309,6 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
-		String endDate = null; // form.getFirst("endDate");
-
-        int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
-	    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
-	    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
-	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permissions to database " + databaseId + " but is not an admin"));
@@ -332,9 +318,9 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		// adding user permissions in bulk
-		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityEngineUtils.addEngineUserPermissions(user, databaseId, permission, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
+			SecurityEngineUtils.addEngineUserPermissions(user, databaseId, permission);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -379,12 +365,6 @@ public class DatabaseAuthorizationResource2 {
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
-		String endDate = null; // form.getFirst("endDate");
-
-        int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
-	    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
-	    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
-	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + databaseId + " but is not an admin"));
@@ -394,7 +374,7 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		try {
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, databaseId, newPermission, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, databaseId, newPermission, null, null, null, 0, 0.0);
 		} catch(IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + databaseId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -443,12 +423,6 @@ public class DatabaseAuthorizationResource2 {
 		}
 
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
-		String endDate = null; // form.getFirst("endDate");
-
-        int maxTokens = form.containsKey("maxTokens") ? Integer.parseInt(WebUtility.inputSQLSanitizer(form.getFirst("maxTokens"))) : 0;
-	    double maxResponseTime = form.containsKey("maxResponseTime") ? Double.parseDouble(WebUtility.inputSQLSanitizer(form.getFirst("maxResponseTime"))) : 0.0;
-	    String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
-	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for database " + databaseId + " but is not an admin"));
@@ -457,9 +431,9 @@ public class DatabaseAuthorizationResource2 {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityEngineUtils.editEngineUserPermissions(user, databaseId, requests, endDate, maxTokens, maxResponseTime, usageRestriction, usageFrequency);
+			SecurityEngineUtils.editEngineUserPermissions(user, databaseId, requests);
 		} catch(IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for database " + databaseId + " without having proper access"));
 			classLogger.error(Constants.STACKTRACE, e);

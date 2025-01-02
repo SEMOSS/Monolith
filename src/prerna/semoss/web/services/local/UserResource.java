@@ -2786,7 +2786,6 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("createUser")
 	public Response createNativeUser(@Context HttpServletRequest request) {
-		
 		Map<String, String> ret = new HashMap<>();
 
 		if(socialData.getLoginsAllowed().get("native")==null || !socialData.getLoginsAllowed().get("native")) {
@@ -2813,10 +2812,37 @@ public class UserResource {
 			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
 			
 			String modelUsageRestriction = WebUtility.inputSanitizer(request.getParameter("modelUsageRestriction"));
+			if(modelUsageRestriction != null) {
+				modelUsageRestriction=modelUsageRestriction.trim();
+			}
 			String modelUsageFrequency = WebUtility.inputSanitizer(request.getParameter("modelUsageFrequency"));
-			String modelMaxTokens = WebUtility.inputSanitizer(request.getParameter("modelMaxTokens"));
-			String modelMaxResponseTime = WebUtility.inputSanitizer(request.getParameter("modelMaxResponseTime"));
-
+			if(modelUsageFrequency != null) {
+				modelUsageFrequency=modelUsageFrequency.trim();
+			}
+			int modelMaxTokens = 0;
+			String modelMaxTokensStr = WebUtility.inputSanitizer(request.getParameter("modelMaxTokens"));
+			if(modelMaxTokensStr != null && !(modelMaxTokensStr=modelMaxTokensStr.trim()).isEmpty()) {
+				// must be a valid integer
+				try {
+					modelMaxTokens = Integer.parseInt(modelMaxTokensStr);
+				} catch(NumberFormatException e) {
+					classLogger.error(Constants.STACKTRACE, e);
+					ret.put(Constants.ERROR_MESSAGE, "modelMaxTokens must be a valid integer value");
+					return WebUtility.getResponse(ret, 400);
+				}
+			}
+			double modelMaxResponseTime = 0.0;
+			String modelMaxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("modelMaxResponseTime"));
+			if(modelMaxResponseTimeStr != null && !(modelMaxResponseTimeStr=modelMaxResponseTimeStr.trim()).isEmpty()) {
+				// must be a valid double
+				try {
+					modelMaxResponseTime = Double.parseDouble(modelMaxResponseTimeStr);
+				} catch(NumberFormatException e) {
+					classLogger.error(Constants.STACKTRACE, e);
+					ret.put(Constants.ERROR_MESSAGE, "modelMaxResponseTime must be a valid double value");
+					return WebUtility.getResponse(ret, 400);
+				}
+			}
 			AccessToken newUser = new AccessToken();
 			
 			newUser.setProvider(AuthProvider.NATIVE);
@@ -2827,20 +2853,11 @@ public class UserResource {
 			newUser.setPhone(phone);
 			newUser.setPhoneExtension(phoneExtension);
 			newUser.setCountryCode(countryCode);
-			newUser.setModelMaxTokens(modelMaxTokens!=null && !modelMaxTokens.isEmpty()? Integer.valueOf(modelMaxTokens) 
-					: (!prop.getProperty(Constants.USER_MODEL_MAX_TOKEN_KEY).trim().isEmpty()
-	    	        ? Integer.parseInt(prop.getProperty(Constants.USER_MODEL_MAX_TOKEN_KEY).trim())
-	    	        : 0));
-			newUser.setModelMaxResponseTime(modelMaxResponseTime!=null && !modelMaxResponseTime.isEmpty() ? Double.valueOf(modelMaxResponseTime) 
-					:(!prop.getProperty(Constants.USER_MODEL_MAX_RESPONSE_TIME_KEY).trim().isEmpty()
-	    	        ? Double.parseDouble(prop.getProperty(Constants.USER_MODEL_MAX_RESPONSE_TIME_KEY).trim())
-	    	        : 0.0));
-		    newUser.setModelUsageFrequency(modelUsageFrequency!=null && !modelUsageFrequency.isEmpty() ? String.valueOf(modelUsageFrequency) :(!prop.getProperty(Constants.USER_MODEL_USAGE_FREQUENCY_KEY).trim().isEmpty()
-	    	        ? prop.getProperty(Constants.USER_MODEL_USAGE_FREQUENCY_KEY).trim()
-	    	        : null));
-		    newUser.setModelUsageRestriction(modelUsageRestriction!=null && !modelUsageRestriction.isEmpty() ? String.valueOf(modelUsageRestriction) :(!prop.getProperty(Constants.USER_USAGE_RESTRICTION_KEY).trim().isEmpty()
-	    	        ? prop.getProperty(Constants.USER_USAGE_RESTRICTION_KEY).trim()
-	    	        : null));
+			// model restriction values
+		    newUser.setModelUsageRestriction(modelUsageRestriction);
+		    newUser.setModelUsageFrequency(modelUsageFrequency);
+			newUser.setModelMaxTokens(modelMaxTokens);
+			newUser.setModelMaxResponseTime(modelMaxResponseTime);
 		   
 			boolean userCreated = SecurityNativeUserUtils.addNativeUser(newUser, password);
 			if (userCreated) {
