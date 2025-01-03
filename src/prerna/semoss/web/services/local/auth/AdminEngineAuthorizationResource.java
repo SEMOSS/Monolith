@@ -394,36 +394,62 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("addEngineUserPermission")
 	public Response addEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Map<String, Object> ret = new HashMap<String, Object>();
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
-		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
-		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to engine " + engineId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 401);
+		}
+		
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = null; // form.getFirst("endDate");
+		
+		String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+	    int maxTokens = 0;
+		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
+		if(maxTokensStr != null && !(maxTokensStr=maxTokensStr.trim()).isEmpty()) {
+			// must be a valid integer
+			try {
+				maxTokens = Integer.parseInt(maxTokensStr);
+			} catch(NumberFormatException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		double maxResponseTime = 0.0;
+		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
+		if(maxResponseTimeStr != null && !(maxResponseTimeStr=maxResponseTimeStr.trim()).isEmpty()) {
+			// must be a valid double
+			try {
+				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
+			} catch(NumberFormatException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		
 		try {
-			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate);
+			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 400);
 		}
 
 		// log the operation
 		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to engine " + engineId + " with permission " + permission));
-		
-		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -438,10 +464,10 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("addEngineUserPermissions")
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String engineId =WebUtility.inputSanitizer( form.getFirst("engineId"));
-		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -456,29 +482,29 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
 
 		// adding user permissions in bulk
-		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			// if we are doing the grpah api
 			// then the users might not already exist in the security db
 			if(graphApi) {
 				// filter out users that already exist
-				List<Map<String, String>> filteredUsers = permission.stream()
-						.filter(map -> !SecurityQueryUtils.checkUserExist(map.get(Constants.MAP_USERID))).collect(Collectors.toList());
+				List<Map<String, Object>> filteredUsers = permission.stream()
+						.filter(map -> !SecurityQueryUtils.checkUserExist((String) map.get(Constants.MAP_USERID))).collect(Collectors.toList());
 				if (filteredUsers != null && !filteredUsers.isEmpty()) {
 					AccessToken token = null;
 					  // Add new users to OAuth if they don't exist
-					for (Map<String, String> map : filteredUsers) {
+					for (Map<String, Object> map : filteredUsers) {
 						token = new AccessToken();
-						token.setId(map.get(Constants.MAP_USERID));
-						token.setEmail(map.get(Constants.MAP_EMAIL));
-						token.setName(map.get(Constants.MAP_NAME));
-						token.setProvider(AuthProvider.getProviderFromString(map.get(AuthProvider.MS.name())));
-						token.setUsername(map.get(Constants.MAP_USERNAME));
+						token.setId((String) map.get(Constants.MAP_USERID));
+						token.setEmail((String) map.get(Constants.MAP_EMAIL));
+						token.setName((String) map.get(Constants.MAP_NAME));
+						token.setProvider(AuthProvider.getProviderFromString((String) map.get(AuthProvider.MS.name())));
+						token.setUsername((String) map.get(Constants.MAP_USERNAME));
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
 				}
 			}
-			adminUtils.addEngineUserPermissions(engineId, permission, user, endDate);
+			adminUtils.addEngineUserPermissions(engineId, permission, user);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -548,38 +574,62 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("editEngineUserPermission")
 	public Response editEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Map<String, Object> ret = new HashMap<String, Object>();
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
-		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
-		String endDate = null; // form.getFirst("endDate");
-
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for engine " + engineId + " when not an admin"));
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 401);
+		}
+		
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = null; // form.getFirst("endDate");
+
+		String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+	    int maxTokens = 0;
+		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
+		if(maxTokensStr != null && !(maxTokensStr=maxTokensStr.trim()).isEmpty()) {
+			// must be a valid integer
+			try {
+				maxTokens = Integer.parseInt(maxTokensStr);
+			} catch(NumberFormatException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		double maxResponseTime = 0.0;
+		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
+		if(maxResponseTimeStr != null && !(maxResponseTimeStr=maxResponseTimeStr.trim()).isEmpty()) {
+			// must be a valid double
+			try {
+				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
+			} catch(NumberFormatException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate);
+			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 400);
 		}
 		
 		// log the operation
 		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to engine " + engineId + " with level " + newPermission));
-		
-		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -594,9 +644,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("editEngineUserPermissions")
 	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		
 		User user = null;
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
-		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
@@ -608,9 +658,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editEngineUserPermissions(engineId, requests, user, endDate);
+			SecurityAdminUtils.editEngineUserPermissions(engineId, requests, user);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

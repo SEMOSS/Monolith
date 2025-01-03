@@ -27,7 +27,6 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.engine.api.IEngine;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/app")
@@ -240,6 +239,8 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("addAppUserPermission")
 	public Response addAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Map<String, Object> ret = new HashMap<String, Object>();
+
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addEngineUserPermission with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addEngineUserPermission with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addEngineUserPermission with PARAM engineId");
@@ -250,7 +251,6 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		String newUserId =WebUtility.inputSanitizer(form.getFirst("id"));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
-		String endDate = null; // form.getFirst("endDate");
 		
 		try {
 			user = ResourceUtility.getUser(request);
@@ -258,13 +258,12 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to database " + appId + " when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 401);
 		}
 		
-		try {
-			adminUtils.addEngineUser(newUserId, appId, permission, user, endDate);
+	    try {
+			adminUtils.addEngineUser(newUserId, appId, permission, user, null, null, null, 0, 0.0);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -274,8 +273,6 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 
 		// log the operation
 		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to database " + appId + " with permission " + permission));
-		
-		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -339,6 +336,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("editAppUserPermission")
 	public Response editAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Map<String, Object> ret = new HashMap<String, Object>();
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/editEngineUserPermission with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/editEngineUserPermission with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/editEngineUserPermission with PARAM engineId");
@@ -350,7 +348,6 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
-		String endDate = null; // form.getFirst("endDate");
 		
 		try {
 			user = ResourceUtility.getUser(request);
@@ -358,24 +355,20 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + appId + " when not an admin"));
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 401);
 		}
 		
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user, endDate);
+			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user, null, null, null, 0, 0.0);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 400);
 		}
 		
 		// log the operation
 		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to database " + appId + " with level " + newPermission));
-		
-		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
