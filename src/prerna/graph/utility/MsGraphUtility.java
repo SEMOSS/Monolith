@@ -143,6 +143,7 @@ public class MsGraphUtility {
 			} while (filteredUsers.size() < limit && nextLink != null);
 
 		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			throw new IllegalArgumentException("An error occurred while fetching users");
 		}
 
@@ -262,6 +263,7 @@ public class MsGraphUtility {
 			} while (filteredUsers.size() < limit && nextLink != null);
 
 		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			throw new IllegalArgumentException("An error occurred while fetching users");
 		}
 
