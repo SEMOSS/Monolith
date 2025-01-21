@@ -384,6 +384,8 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("propagateProjectDependencyPermission")
 	public Response propagateProjectDependencyPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Map<String, Object> ret = new HashMap<String, Object>();
+
 		User requester = null;
 		try {
 			requester = ResourceUtility.getUser(request);
@@ -391,9 +393,8 @@ public class ProjectAuthorizationResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(requester), "invalid user session trying to access authorization resources"));
 			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(ret, 401);
 		}
 
 		// Get form info
@@ -403,6 +404,34 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String requestedPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		
+		String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+	    int maxTokens = 0;
+		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
+		if(maxTokensStr != null && !(maxTokensStr=maxTokensStr.trim()).isEmpty()) {
+			// must be a valid integer
+			try {
+				maxTokens = Integer.parseInt(maxTokensStr);
+			} catch(NumberFormatException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		double maxResponseTime = 0.0;
+		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
+		if(maxResponseTimeStr != null && !(maxResponseTimeStr=maxResponseTimeStr.trim()).isEmpty()) {
+			// must be a valid double
+			try {
+				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
+			} catch(NumberFormatException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		
 		// get the requested permission as a numeric -- it was passed as a string
 		Integer requestedPermissionNumeric = AccessPermissionEnum.getIdByPermission(requestedPermission);
 
@@ -449,7 +478,7 @@ public class ProjectAuthorizationResource {
 			// if the newUser has permissions on the engine but not to the level requested, edit the existing record 
 			} else if (requesterEnginePermission < 3 && currentNewUserPermission != null && currentNewUserPermission > requestedPermissionNumeric) {
 				try {
-					SecurityEngineUtils.editEngineUserPermission(requester, newUserId, engineId, requestedPermission, endDate);
+					SecurityEngineUtils.editEngineUserPermission(requester, newUserId, engineId, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 					accessGranted.add(engineId);
 					classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(requester), "has updated permission for " + newUserId + " to " + engineId));
 				} catch (IllegalAccessException e) {
@@ -460,7 +489,7 @@ public class ProjectAuthorizationResource {
 			} else if (requesterEnginePermission < 3 && currentNewUserPermission == null) {
 				try {
 					accessGranted.add(engineId);
-					SecurityEngineUtils.addEngineUser(requester,newUserId, engineId, requestedPermission, endDate);
+					SecurityEngineUtils.addEngineUser(requester,newUserId, engineId, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 					classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(requester), "has added " + newUserId + " to " + engineId));
 				} catch (IllegalAccessException e) {
 					couldNotAddRequest.add(engineId);
@@ -473,7 +502,6 @@ public class ProjectAuthorizationResource {
 			}
 		}
 
-		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("Successfully processed permission propagation", true);
 		ret.put("alreadyHaveAccess", alreadyHaveAccess);
 		ret.put("requestAlreadyExists", requestAlreadyExists);

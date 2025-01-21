@@ -25,7 +25,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
-import prerna.util.MountHelper;
+import prerna.util.SymlinkHelper;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
 
@@ -154,9 +154,9 @@ public class UserSessionLoader implements HttpSessionListener {
 		try {
 			if (Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
 				if(thisUser != null) {
-					MountHelper mh = thisUser.getUserMountHelper();
-					if(mh != null) {
-						mh.unmountTargetProc();
+					SymlinkHelper sh = thisUser.getUserSymlinkHelper();
+					if(sh != null) {
+						sh.removeChrootFolder();
 					}
 				}
 			}
