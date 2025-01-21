@@ -903,8 +903,10 @@ public class ProjectAuthorizationResource {
 			}
 		}
 
+		String graphApiGroupId = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_groupId");
+
 		try {
-			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user,  projectId, searchTerm, limit, offset);
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user,  projectId, searchTerm, graphApiGroupId, limit, offset);
 			return WebUtility.getResponse(filteredUsers, 200);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
