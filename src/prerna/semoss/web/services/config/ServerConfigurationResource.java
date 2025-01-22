@@ -99,23 +99,31 @@ public class ServerConfigurationResource {
 		loadConfig.put("adminOnlyProjectSetPublic", AbstractSecurityUtils.adminOnlyProjectSetPublic());
 		loadConfig.put("adminOnlyProjectSetDiscoverable", AbstractSecurityUtils.adminOnlyProjectSetDiscoverable());
 		// admin only for engine actions
-		{
-			//TODO: old values to delete after FE update
-			//TODO: old values to delete after FE update
-			//TODO: old values to delete after FE update
-			//TODO: old values to delete after FE update
-			loadConfig.put("adminOnlyDbAdd", AbstractSecurityUtils.adminOnlyEngineAdd());
-			loadConfig.put("adminOnlyDbDelete", AbstractSecurityUtils.adminOnlyEngineDelete());
-			loadConfig.put("adminOnlyDbAddAccess", AbstractSecurityUtils.adminOnlyEngineAddAccess());
-			loadConfig.put("adminOnlyDbSetPublic", AbstractSecurityUtils.adminOnlyEngineSetPublic());
-			loadConfig.put("adminOnlyDbSetDiscoverable", AbstractSecurityUtils.adminOnlyEngineSetDiscoverable());
-		}
-		// new values 
-		loadConfig.put("adminOnlyEngineAdd", AbstractSecurityUtils.adminOnlyEngineAdd());
-		loadConfig.put("adminOnlyEngineDelete", AbstractSecurityUtils.adminOnlyEngineDelete());
-		loadConfig.put("adminOnlyEngineAddAccess", AbstractSecurityUtils.adminOnlyEngineAddAccess());
-		loadConfig.put("adminOnlyEngineSetPublic", AbstractSecurityUtils.adminOnlyEngineSetPublic());
-		loadConfig.put("adminOnlyEngineSetDiscoverable", AbstractSecurityUtils.adminOnlyEngineSetDiscoverable());
+		loadConfig.put("adminOnlyDbAdd", AbstractSecurityUtils.adminOnlyDatabaseAdd());
+		loadConfig.put("adminOnlyDbDelete", AbstractSecurityUtils.adminOnlyDatabaseDelete());
+		loadConfig.put("adminOnlyDbAddAccess", AbstractSecurityUtils.adminOnlyDatabaseAddAccess());
+		loadConfig.put("adminOnlyDbSetPublic", AbstractSecurityUtils.adminOnlyDatabaseSetPublic());
+		loadConfig.put("adminOnlyDbSetDiscoverable", AbstractSecurityUtils.adminOnlyDatabaseSetDiscoverable());
+		loadConfig.put("adminOnlyModelAdd", AbstractSecurityUtils.adminOnlyModelAdd());
+		loadConfig.put("adminOnlyModelDelete", AbstractSecurityUtils.adminOnlyModelDelete());
+		loadConfig.put("adminOnlyModelAddAccess", AbstractSecurityUtils.adminOnlyModelAddAccess());
+		loadConfig.put("adminOnlyModelSetPublic", AbstractSecurityUtils.adminOnlyModelSetPublic());
+		loadConfig.put("adminOnlyModelSetDiscoverable", AbstractSecurityUtils.adminOnlyModelSetDiscoverable());
+		loadConfig.put("adminOnlyStorageAdd", AbstractSecurityUtils.adminOnlyStorageAdd());
+		loadConfig.put("adminOnlyStorageDelete", AbstractSecurityUtils.adminOnlyStorageDelete());
+		loadConfig.put("adminOnlyStorageAddAccess", AbstractSecurityUtils.adminOnlyStorageAddAccess());
+		loadConfig.put("adminOnlyStorageSetPublic", AbstractSecurityUtils.adminOnlyStorageSetPublic());
+		loadConfig.put("adminOnlyStorageSetDiscoverable", AbstractSecurityUtils.adminOnlyStorageSetDiscoverable());
+		loadConfig.put("adminOnlyVectorAdd", AbstractSecurityUtils.adminOnlyVectorAdd());
+		loadConfig.put("adminOnlyVectorDelete", AbstractSecurityUtils.adminOnlyVectorDelete());
+		loadConfig.put("adminOnlyVectorAddAccess", AbstractSecurityUtils.adminOnlyVectorAddAccess());
+		loadConfig.put("adminOnlyVectorSetPublic", AbstractSecurityUtils.adminOnlyVectorSetPublic());
+		loadConfig.put("adminOnlyVectorSetDiscoverable", AbstractSecurityUtils.adminOnlyVectorSetDiscoverable());
+		loadConfig.put("adminOnlyFunctionAdd", AbstractSecurityUtils.adminOnlyFunctionAdd());
+		loadConfig.put("adminOnlyFunctionDelete", AbstractSecurityUtils.adminOnlyFunctionDelete());
+		loadConfig.put("adminOnlyFunctionAddAccess", AbstractSecurityUtils.adminOnlyFunctionAddAccess());
+		loadConfig.put("adminOnlyFunctionSetPublic", AbstractSecurityUtils.adminOnlyFunctionSetPublic());
+		loadConfig.put("adminOnlyFunctionSetDiscoverable", AbstractSecurityUtils.adminOnlyFunctionSetDiscoverable());
 		// admin only for insight actions
 		loadConfig.put("adminOnlyInsightAddAccess", AbstractSecurityUtils.adminOnlyInsightAddAccess());
 		loadConfig.put("adminOnlyInsightSetPublic", AbstractSecurityUtils.adminOnlyInsightSetPublic());
