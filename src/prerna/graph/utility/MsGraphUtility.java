@@ -19,6 +19,7 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.graph.MSGraphAPICall;
@@ -198,7 +199,8 @@ public class MsGraphUtility {
 			String searchTerm,
 			String groupId,
 			long limit, 
-			long offset) throws IllegalAccessException {
+			long offset,
+			boolean isAdmin) throws IllegalAccessException {
 		
 		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup_application_credentials"));
 
@@ -220,7 +222,12 @@ public class MsGraphUtility {
 		}
 
 		// Step 1: Retrieve database users from session or load from DB if not available
-		List<Map<String, Object>> currentUsers = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", -1, -1);
+		List<Map<String, Object>> currentUsers = null;
+		if(isAdmin) {
+			currentUsers = SecurityAdminUtils.getInstance(user).getEngineUsers(engineId, searchTerm, "", -1, -1);
+		} else {
+			currentUsers = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", -1, -1);
+		}
 
 		final List<Map<String, Object>> finalDbUsers = currentUsers;
 		String nextLink = (String) sessionData.get("nextLinkData");
