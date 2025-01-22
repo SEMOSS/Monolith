@@ -221,6 +221,8 @@ public class ServerConfigurationResource {
 		// append values that can change without restarting the server
 		// logins allowed
 		myConfiguration.put("loginsAllowed", SocialPropertiesUtil.getInstance().getLoginsAllowed());
+		// set alias for each login method display names
+		myConfiguration.put("loginMethodDisplayNames", SocialPropertiesUtil.getInstance().getLoginDisplayName());
 		// password requirements
 		try {
 			myConfiguration.put("passwordRequirements", PasswordRequirements.getInstance().getAllPasswordRequirements());
