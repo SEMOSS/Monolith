@@ -222,7 +222,9 @@ public class ServerConfigurationResource {
 		// logins allowed
 		myConfiguration.put("loginsAllowed", SocialPropertiesUtil.getInstance().getLoginsAllowed());
 		// set alias for each login method display names
-		myConfiguration.put("loginMethodDisplayNames", SocialPropertiesUtil.getInstance().getLoginDisplayName());
+		myConfiguration.put("loginMethodDisplayNames", SocialPropertiesUtil.getInstance().getLoginDisplayNames());
+		// is native registration allowed
+		myConfiguration.put("nativeRegistration", SocialPropertiesUtil.getInstance().isNativeRegistrationAllowed());
 		// password requirements
 		try {
 			myConfiguration.put("passwordRequirements", PasswordRequirements.getInstance().getAllPasswordRequirements());
