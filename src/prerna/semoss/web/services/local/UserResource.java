@@ -2022,7 +2022,7 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/linkedin")
-	public Response loginIn(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginLinkedin(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -2044,7 +2044,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.LINKEDIN) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -2077,7 +2077,7 @@ public class UserResource {
 						response.sendRedirect(getInRedirect(request));
 						return null;
 					}
-					accessToken.setProvider(AuthProvider.IN);
+					accessToken.setProvider(AuthProvider.LINKEDIN);
 					addAccessToken(accessToken, request, autoAdd);
 	
 					if(classLogger.isDebugEnabled()) {
@@ -2091,7 +2091,7 @@ public class UserResource {
 		if(session != null || (session=request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.LINKEDIN) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getInRedirect(request));
 			return null;
