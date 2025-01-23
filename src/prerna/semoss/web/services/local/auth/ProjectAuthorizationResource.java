@@ -685,13 +685,6 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("setProjectGlobal")
 	public Response setProjectGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		boolean onlyAdmin = Boolean.parseBoolean(context.getInitParameter(Constants.ADMIN_SET_PUBLIC));
-		if(onlyAdmin) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "For this instance, only admins are allowed to set specific apps global");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -931,8 +924,10 @@ public class ProjectAuthorizationResource {
 			}
 		}
 
+		String graphApiGroupId = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_groupId");
+
 		try {
-			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user,  projectId, searchTerm, limit, offset);
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user,  projectId, searchTerm, graphApiGroupId, limit, offset);
 			return WebUtility.getResponse(filteredUsers, 200);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
