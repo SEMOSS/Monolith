@@ -331,11 +331,11 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@Path("getProjectUsers")
 	public Response getProjectUsers(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, @QueryParam("userId") String userId, 
-			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 	    projectId = WebUtility.inputSanitizer(projectId);
 	    userId = WebUtility.inputSQLSanitizer(userId);
-	    userInfo = WebUtility.inputSQLSanitizer(userInfo);
+	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 	    permission = WebUtility.inputSanitizer(permission);
 	    
 		SecurityAdminUtils adminUtils = null;
@@ -350,7 +350,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		String searchParam = userInfo != null ? userInfo : userId;
+		String searchParam = searchTerm != null ? searchTerm : userId;
 		List<Map<String, Object>> members = adminUtils.getProjectUsers(projectId, searchParam, permission, limit, offset);
 		long totalMembers = SecurityAdminUtils.getProjectUsersCount(projectId, searchParam, permission);
 		Map<String, Object> ret = new HashMap<String, Object>();
