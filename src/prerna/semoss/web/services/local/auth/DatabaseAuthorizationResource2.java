@@ -188,7 +188,7 @@ public class DatabaseAuthorizationResource2 {
 	@Produces("application/json")
 	@Path("getDatabaseUsers")
 	public Response getDatabaseUsers(@Context HttpServletRequest request, @QueryParam("databaseId") String databaseId,
-			@QueryParam("userId") String userId, @QueryParam("userInfo") String userInfo,
+			@QueryParam("userId") String userId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("permission") String permission, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
@@ -198,7 +198,7 @@ public class DatabaseAuthorizationResource2 {
 		
 		databaseId=WebUtility.inputSanitizer(databaseId);
 	    userId=WebUtility.inputSQLSanitizer(userId);
-	    userInfo=WebUtility.inputSQLSanitizer(userInfo);
+	    searchTerm=WebUtility.inputSQLSanitizer(searchTerm);
 	    permission=WebUtility.inputSanitizer(permission);
 	    
 		User user = null;
@@ -214,7 +214,7 @@ public class DatabaseAuthorizationResource2 {
 		
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			String searchParam = userInfo != null ? userInfo : userId;
+			String searchParam = searchTerm != null ? searchTerm : userId;
 			List<Map<String, Object>> members = SecurityEngineUtils.getEngineUsers(user, databaseId, searchParam, permission, limit, offset);
 			long totalMembers = SecurityEngineUtils.getEngineUsersCount(user, databaseId, searchParam, permission);
 			ret.put("totalMembers", totalMembers);
