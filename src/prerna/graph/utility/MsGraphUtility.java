@@ -54,7 +54,7 @@ public class MsGraphUtility {
 			long limit, 
 			long offset) throws IllegalAccessException {
 		
-		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup_application_credentials"));
+		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
 
 		if(!graphApiUsingSystemCredentials) {
 			if (user.getAccessToken(AuthProvider.MS) == null ) {
@@ -202,7 +202,7 @@ public class MsGraphUtility {
 			long offset,
 			boolean isAdmin) throws IllegalAccessException {
 		
-		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup_application_credentials"));
+		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
 
 		if(!graphApiUsingSystemCredentials) {
 			if (user.getAccessToken(AuthProvider.MS) == null ) {
