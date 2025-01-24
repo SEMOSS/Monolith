@@ -239,7 +239,7 @@ public class UserResource {
 						redirectUrl = redirectUrl + "#!/login";
 						String encodedRedirectUrl = Encode.forHtml(redirectUrl);
 						response.setHeader("redirect", encodedRedirectUrl);
-						response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
+						response.sendRedirect(redirectUrl);
 					}
 				}
 			}
