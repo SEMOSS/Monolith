@@ -491,7 +491,7 @@ public class ProjectAuthorizationResource {
 					accessGranted.add(engineId);
 					SecurityEngineUtils.addEngineUser(requester,newUserId, engineId, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 					classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(requester), "has added " + newUserId + " to " + engineId));
-				} catch (IllegalAccessException e) {
+				} catch (IllegalAccessException | IllegalArgumentException e) {
 					couldNotAddRequest.add(engineId);
 					classLogger.error(Constants.STACKTRACE, e);
 				}
