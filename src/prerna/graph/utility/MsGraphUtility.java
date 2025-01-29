@@ -242,7 +242,7 @@ public class MsGraphUtility {
 			// to Graph API
 			if (nextLink == null || offset == 0) {
 				// Make a new API call to GraphAPI if nextLink is not in the session
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS),groupId, searchTerm, null);
+				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), groupId, searchTerm, null);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
 				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
