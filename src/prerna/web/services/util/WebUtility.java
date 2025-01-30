@@ -382,7 +382,7 @@ public class WebUtility {
 	 */
 	public static String inputSQLSanitizer(String stringToNormalize) {
 		if (stringToNormalize == null) {
-			classLogger.debug("input to sql sanitzer is null, returning null");
+			classLogger.debug("Input to sql sanitzer is null, returning null");
 			return stringToNormalize;
 		}
 
