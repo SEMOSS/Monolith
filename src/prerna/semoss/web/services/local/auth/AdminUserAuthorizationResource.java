@@ -73,6 +73,31 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			Boolean publisher = Boolean.parseBoolean(form.getFirst("publisher"));
 			Boolean exporter = Boolean.parseBoolean(form.getFirst("exporter"));
 			String password = WebUtility.inputSQLSanitizer(form.getFirst("password"));
+			
+			// model restrictions
+			String modelUsageRestriction = WebUtility.inputSQLSanitizer(form.getFirst("modelUsageRestriction"));
+			String modelUsageFrequency = WebUtility.inputSQLSanitizer(form.getFirst("modelUsageFrequency"));
+			Integer modelMaxTokens = null;
+			String modelMaxTokensStr = form.getFirst("modelMaxTokens");
+			if(modelMaxTokensStr != null && !(modelMaxTokensStr=modelMaxTokensStr.trim()).isEmpty()) {
+				try {
+					modelMaxTokens = Integer.parseInt(modelMaxTokensStr);
+				} catch(NumberFormatException e) {
+					classLogger.error(Constants.STACKTRACE, e);
+					throw new IllegalArgumentException("modelMaxTokens must be a valid Integer value");
+				}
+			}
+			Double modelMaxResponseTime = null;
+			String modelMaxResponseTimeStr = form.getFirst("modelMaxResponseTime");
+			if(modelMaxResponseTimeStr != null && !(modelMaxResponseTimeStr=modelMaxResponseTimeStr.trim()).isEmpty()) {
+				try {
+					modelMaxResponseTime = Double.parseDouble(modelMaxResponseTimeStr);
+				} catch(NumberFormatException e) {
+					classLogger.error(Constants.STACKTRACE, e);
+					throw new IllegalArgumentException("modelMaxResponseTime must be a valid Number value");
+				}
+			}
+			
 			// validate email & password
 			if (email != null && !email.isEmpty()) {
 				try {
@@ -114,7 +139,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			
 			if(SecurityAdminUtils.userIsAdmin(user)){
 				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, 
-						phone, phoneExtension, countryCode, newUserAdmin, publisher, exporter);
+						phone, phoneExtension, countryCode, newUserAdmin, publisher, exporter,
+						modelUsageRestriction, modelUsageFrequency, modelMaxTokens, modelMaxResponseTime);
 			} else {
 				errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
 				return WebUtility.getResponse(errorRet, 400);
@@ -251,10 +277,15 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			// need to make sure they are not the last admin for the instance
 			synchronized (AdminUserAuthorizationResource.class) {
 				int numAdmins = adminUtils.getNumAdmins();
-				if(numAdmins <= 1) {
-					Map<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put(Constants.ERROR_MESSAGE, "You cannot remove the last admin from having admin level permissions. Please assign a new admin before removing admin access.");
-					return WebUtility.getResponse(errorMap, 400);
+				if(numAdmins == 1) {
+					Object[] adminUser = adminUtils.getAdminUserIdAndType();
+					String thisUserId = userInfo.get("id")+"";
+					String thisUserType = userInfo.get("type")+"";
+					if(thisUserId.equals(adminUser[0]) && thisUserType.equals(adminUser[1])) {
+						Map<String, String> errorMap = new HashMap<String, String>();
+						errorMap.put(Constants.ERROR_MESSAGE, "You cannot remove the last admin from having admin level permissions. Please assign a new admin before removing admin access.");
+						return WebUtility.getResponse(errorMap, 400);
+					}
 				}
 			}
 		}
