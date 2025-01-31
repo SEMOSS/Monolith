@@ -54,7 +54,7 @@ public class MsGraphUtility {
 			long limit, 
 			long offset) throws IllegalAccessException {
 		
-		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup_application_credentials"));
+		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
 
 		if(!graphApiUsingSystemCredentials) {
 			if (user.getAccessToken(AuthProvider.MS) == null ) {
@@ -202,7 +202,7 @@ public class MsGraphUtility {
 			long offset,
 			boolean isAdmin) throws IllegalAccessException {
 		
-		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup_application_credentials"));
+		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
 
 		if(!graphApiUsingSystemCredentials) {
 			if (user.getAccessToken(AuthProvider.MS) == null ) {
@@ -242,7 +242,7 @@ public class MsGraphUtility {
 			// to Graph API
 			if (nextLink == null || offset == 0) {
 				// Make a new API call to GraphAPI if nextLink is not in the session
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS),groupId, searchTerm, null);
+				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), groupId, searchTerm, null);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
 				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);

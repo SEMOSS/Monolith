@@ -285,13 +285,13 @@ public class ProjectAuthorizationResource {
 	public Response getProjectUsers(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, 
 			@QueryParam("userId") String userId, 
-			@QueryParam("userInfo") String userInfo, 
+			@QueryParam("searchTerm") String searchTerm, 
 			@QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, 
 			@QueryParam("offset") long offset) {
 		projectId = WebUtility.inputSanitizer(projectId);
 		userId = WebUtility.inputSQLSanitizer(userId);
-		userInfo = WebUtility.inputSanitizer(userInfo);
+		searchTerm = WebUtility.inputSanitizer(searchTerm);
 		permission = WebUtility.inputSanitizer(permission);
 
 		User user = null;
@@ -307,7 +307,7 @@ public class ProjectAuthorizationResource {
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			String searchParam = userInfo != null ? userInfo : userId;
+			String searchParam = searchTerm != null ? searchTerm : userId;
 			List<Map<String, Object>> members = SecurityProjectUtils.getProjectUsers(user, projectId, searchParam, permission, limit, offset);
 			long totalMembers = SecurityProjectUtils.getProjectUsersCount(user, projectId, searchParam, permission);
 			ret.put("totalMembers", totalMembers);
@@ -491,7 +491,7 @@ public class ProjectAuthorizationResource {
 					accessGranted.add(engineId);
 					SecurityEngineUtils.addEngineUser(requester,newUserId, engineId, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 					classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(requester), "has added " + newUserId + " to " + engineId));
-				} catch (IllegalAccessException e) {
+				} catch (IllegalAccessException | IllegalArgumentException e) {
 					couldNotAddRequest.add(engineId);
 					classLogger.error(Constants.STACKTRACE, e);
 				}
