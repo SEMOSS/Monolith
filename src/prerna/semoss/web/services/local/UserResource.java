@@ -237,7 +237,7 @@ public class UserResource {
 						response.setHeader("redirect", redirectUrl);
 						response.sendError(302, "Need to redirect to " + redirectUrl);
 					} else {
-						redirectUrl = redirectUrl + "#!/login";
+						redirectUrl = redirectUrl + WebUtility.determineLoginExtension(request);
 						String encodedRedirectUrl = Encode.forHtml(redirectUrl);
 						response.setHeader("redirect", encodedRedirectUrl);
 						response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
