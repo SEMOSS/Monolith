@@ -82,6 +82,7 @@ import prerna.auth.InsightToken;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.ExternalAuthorizationHelper;
 import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityNativeUserUtils;
@@ -272,7 +273,8 @@ public class UserResource {
 		HttpSession session = request.getSession();
 		User semossUser = (User) session.getAttribute(Constants.SESSION_USER);
 		// all of this is now in the user
-		if (semossUser == null) {
+		boolean firstLogin = semossUser == null;
+		if (firstLogin) {
 			semossUser = new User();
 			session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 		}
@@ -288,6 +290,13 @@ public class UserResource {
 		// add new users into the database
 		if(autoAdd) {
 			SecurityUpdateUtils.addOAuthUser(token);
+		}
+		
+		// only for first login
+		// lets see if there is an external auth
+		// that we should be loading
+		if(firstLogin && Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.EXTERNAL_PERMISSION_MANAGEMENT_ENABLED)+"")) {
+			ExternalAuthorizationHelper.updateEnginePermissionsBasedOnApiCall(semossUser);
 		}
 	}
 
