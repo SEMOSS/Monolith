@@ -225,6 +225,8 @@ public class ServerConfigurationResource {
 		myConfiguration.put("loginMethodDisplayNames", SocialPropertiesUtil.getInstance().getLoginDisplayNames());
 		// is native registration allowed
 		myConfiguration.put("nativeRegistration", SocialPropertiesUtil.getInstance().isNativeRegistrationAllowed());
+		myConfiguration.put("availableProviders", SocialPropertiesUtil.getInstance().getAvailableProviders());
+
 		// password requirements
 		try {
 			myConfiguration.put("passwordRequirements", PasswordRequirements.getInstance().getAllPasswordRequirements());
