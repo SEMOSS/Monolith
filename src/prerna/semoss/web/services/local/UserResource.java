@@ -295,7 +295,7 @@ public class UserResource {
 		// only for first login
 		// lets see if there is an external auth
 		// that we should be loading
-		if(firstLogin && Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.EXTERNAL_PERMISSION_MANAGEMENT_ENABLED))) {
+		if(firstLogin && Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.EXTERNAL_PERMISSION_MANAGEMENT_ENABLED)+"")) {
 			ExternalAuthorizationHelper.updateEnginePermissionsBasedOnApiCall(semossUser);
 		}
 	}
