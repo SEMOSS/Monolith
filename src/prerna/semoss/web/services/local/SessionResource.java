@@ -31,7 +31,6 @@ import prerna.auth.User;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
 import prerna.web.conf.DBLoader;
 import prerna.web.services.util.WebUtility;
@@ -257,7 +256,7 @@ public class SessionResource {
 		} else {
 			logger.info("Session ended. Redirect to login page");
 
-			redirectUrl = redirectUrl + "#/login";
+			redirectUrl = redirectUrl + WebUtility.determineLoginExtension(request);
 			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
 			response.setHeader("redirect", encodedRedirectUrl);
 			response.sendError(302, "Need to redirect to " + encodedRedirectUrl);

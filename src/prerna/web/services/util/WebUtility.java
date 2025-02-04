@@ -539,4 +539,22 @@ public class WebUtility {
 			throw new IllegalArgumentException("Invalid URL: " + urlString + ". Detailed message: " + e.getMessage());
 		}
 	}
+	
+	/**
+	 * 
+	 * @param request
+	 * @return
+	 */
+	public static String determineLoginExtension(HttpServletRequest request) {
+		String referer = request.getHeader("referer");
+		String login = "#/login";
+		if(referer != null && !referer.contains("/public_home/") && 
+				(referer.endsWith("SemossWeb") || referer.endsWith("semoss-ui")
+				|| referer.endsWith("SemossWeb/") || referer.endsWith("semoss-ui/")
+				)
+			) {
+			login = "#!/login";
+		}
+		return login;
+	}
 }
