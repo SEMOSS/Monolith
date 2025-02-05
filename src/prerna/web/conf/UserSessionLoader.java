@@ -17,8 +17,6 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.cache.ICache;
-import prerna.ds.py.PyTranslator;
-import prerna.ds.py.PyUtils;
 import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.ClientProcessWrapper;
 import prerna.om.Insight;
@@ -135,15 +133,6 @@ public class UserSessionLoader implements HttpSessionListener {
 				ClientProcessWrapper cpw = thisUser.getClientProcessWrapper();
 				if(cpw != null) {
 					cpw.shutdown(true);
-				}
-				// stop python if not netty
-				else if (PyUtils.pyEnabled()) {
-					if(thisUser != null) {
-						PyTranslator pyt = thisUser.getPyTranslator(false);
-						if (pyt instanceof prerna.ds.py.PyTranslator) {
-							PyUtils.getInstance().killPyThread(pyt.getPy());
-						}
-					}
 				}
 			}
 		} catch(Exception e) {
