@@ -221,10 +221,11 @@ public class ServerConfigurationResource {
 		// append values that can change without restarting the server
 		// logins allowed
 		myConfiguration.put("loginsAllowed", SocialPropertiesUtil.getInstance().getLoginsAllowed());
-		// set alias for each login method display names
-		myConfiguration.put("loginMethodDisplayNames", SocialPropertiesUtil.getInstance().getLoginDisplayNames());
+		// get a list of all the logins and the display name and if it is oauth
+		myConfiguration.put("availableProviders", SocialPropertiesUtil.getInstance().getAvailableProviders());
 		// is native registration allowed
 		myConfiguration.put("nativeRegistration", SocialPropertiesUtil.getInstance().isNativeRegistrationAllowed());
+
 		// password requirements
 		try {
 			myConfiguration.put("passwordRequirements", PasswordRequirements.getInstance().getAllPasswordRequirements());
