@@ -28,6 +28,15 @@
 package prerna.upload;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.Writer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import javax.servlet.ServletContext;
@@ -46,6 +55,7 @@ import org.apache.logging.log4j.Logger;
 import prerna.cache.ICache;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
+import prerna.util.FileAnalyzer;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -68,6 +78,11 @@ public abstract class Uploader extends HttpServlet {
 	protected static int maxFileSize = 10_000_000 * 1024;
 	protected static int maxMemSize = 8 * 1024;
 	
+	/**
+	 * 
+	 * @param filePath
+	 * @return
+	 */
 	public static String normalizeAndCreatePath(String filePath) {
 		// first, normalize path
 		String normalizedfilePath = WebUtility.normalizePath(filePath);
@@ -87,14 +102,42 @@ public abstract class Uploader extends HttpServlet {
 		return normalizedfilePath;
 	}
 
+	/**
+	 * 
+	 * @param fi
+	 * @param file
+	 */
 	public void writeFile(FileItem fi, File file){
 		try {
-			fi.write(new File(WebUtility.normalizePath(file.getAbsolutePath())));
+			FileAnalyzer analyzer = new FileAnalyzer(fi);
+			if(analyzer.isTextContent()) {
+				Charset detectedCharset = analyzer.getCharset();
+				try (InputStream is = fi.getInputStream();
+						OutputStream os = new FileOutputStream(file);
+						Reader reader = new InputStreamReader(is, detectedCharset);
+						Writer writer = new OutputStreamWriter(os, StandardCharsets.UTF_8)) {
+					char[] buffer = new char[1024];
+					int bytesRead;
+					while ((bytesRead = reader.read(buffer)) != -1) {
+						writer.write(buffer, 0, bytesRead);
+					}
+				}
+			} else {
+				try {
+					fi.write(new File(WebUtility.normalizePath(file.getAbsolutePath())));
+				} catch (Exception e) {
+					logger.error(Constants.STACKTRACE, e);
+				}
+			}
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 		}
 	}
 
+	/**
+	 * 
+	 * @param files
+	 */
 	protected void deleteFilesFromServer(String[] files) {
 		for(String file : files) {
 			// first, normalize path
@@ -106,6 +149,14 @@ public abstract class Uploader extends HttpServlet {
 		}
 	}
 
+	/**
+	 * 
+	 * @param context
+	 * @param request
+	 * @param insightId
+	 * @return
+	 * @throws FileUploadException
+	 */
 	protected List<FileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request, String insightId) throws FileUploadException {
 		String tempFilePath = context.getInitParameter(TEMP_FILE_UPLOAD_KEY);
 		tempFilePath = normalizeAndCreatePath(tempFilePath);
