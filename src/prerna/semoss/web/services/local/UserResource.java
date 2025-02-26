@@ -619,16 +619,26 @@ public class UserResource {
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
 
+		String[] beanPropsArr = {"id","name","email","phone"};
+		String jsonPattern = "[sub,name,email,phone_number]";
 
 		String accessString = null;
 		try {
 			AccessToken accessToken = semossUser.getAccessToken(AuthProvider.OKTA);
 			accessString = accessToken.getAccess_token();
 			String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
-			String beanProps = socialData.getProperty(prefix + "beanProps");
-			String[] beanPropsArr = beanProps.split(",", -1);
-			String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+			String socialBeanProps = socialData.getProperty(prefix + "beanProps");
+			
+			if(socialBeanProps != null && !socialBeanProps.trim().isEmpty())
+				beanPropsArr = socialBeanProps.split(",", -1);
+			String socialJsonPattern = socialData.getProperty(prefix + "jsonPattern");
+			if(socialJsonPattern != null && !socialJsonPattern.trim().isEmpty())
+				jsonPattern = socialJsonPattern;
 			String output = HttpHelperUtility.makeGetCall(userInfoURL, accessString, null, true);
+			
+			if(jsonPattern == null || jsonPattern.trim().isEmpty())
+				jsonPattern = "[sub,name,email,phone_number]";
+			
 			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, new AccessToken());
 			String name = accessToken2.getName();
 			ret.put("name", name);
