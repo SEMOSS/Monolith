@@ -393,4 +393,24 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		List<Map<String, Object>> ret = adminUtils.getAllUsers(searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
+	
+	@GET
+	@Path("/getNumUsers")
+	public Response getNumUsers(@Context HttpServletRequest request) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		Long ret = adminUtils.getNumUsers();
+		return WebUtility.getResponse(ret, 200);
+	}
+	
 }
