@@ -69,9 +69,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("userT") Boolean includeUserTracking
 			) {
 		engineFilter = WebUtility.inputSanitizer(engineFilter);
-		engineTypes =WebUtility.inputSanitizer(engineTypes);
-		metaKeys =   WebUtility.inputSanitizer(metaKeys);
-		searchTerm= WebUtility.inputSanitizer(searchTerm);
+		engineTypes = WebUtility.inputSanitizer(engineTypes);
+		metaKeys = WebUtility.inputSanitizer(metaKeys);
+		searchTerm = WebUtility.inputSanitizer(searchTerm);
 	    
 		User user = null;
 		try {
@@ -237,9 +237,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response getAllUserEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		List<String> engineTypes = null;
-		if(WebUtility.inputSanitizer(form.getFirst("engineTypes")) != null) {
+		if(WebUtility.inputSQLSanitizer(form.getFirst("engineTypes")) != null) {
 			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
 			engineTypes = WebUtility.inputSanitizer(engineTypes);  
 		}
@@ -464,10 +464,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("addEngineUserPermissions")
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String engineId =WebUtility.inputSanitizer( form.getFirst("engineId"));
+		String engineId = WebUtility.inputSanitizer( form.getFirst("engineId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -644,7 +643,6 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("editEngineUserPermissions")
 	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		
 		User user = null;
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		try {

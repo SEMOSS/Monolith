@@ -179,7 +179,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		boolean isPublisher = Boolean.parseBoolean(form.getFirst("isPublisher"));
 		
 		try {
@@ -218,8 +218,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
-		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
+		String type = WebUtility.inputSQLSanitizer(form.getFirst("type"));
 		boolean isLocked = Boolean.parseBoolean(form.getFirst("isLocked"));
 		
 		try {
@@ -322,8 +322,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String userIdToDelete = WebUtility.inputSanitizer(form.getFirst("userId"));
-		String userTypeToDelete = WebUtility.inputSanitizer(form.getFirst("type"));
+		String userIdToDelete = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
+		String userTypeToDelete = WebUtility.inputSQLSanitizer(form.getFirst("type"));
 
 		boolean isDeletedUserAdmin = adminUtils.userIsAdmin(userIdToDelete, userTypeToDelete);
 		if(isDeletedUserAdmin) {
@@ -375,9 +375,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("filterWord") String searchTerm,
 			@QueryParam("limit") long limit, 
 			@QueryParam("offset") long offset) {
-		
-		searchTerm=WebUtility.inputSanitizer(searchTerm);
-
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
