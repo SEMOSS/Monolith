@@ -278,6 +278,18 @@ public class UserResource {
 			semossUser = new User();
 			session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 		}
+		// add new users into the database
+		if(autoAdd) {
+			SecurityUpdateUtils.addOAuthUser(token);
+		}
+		// validate the user's login 
+		// that they are not locked 
+		// and to update the last login date
+		try {
+			SecurityUpdateUtils.validateUserLogin(token);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+		}
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
 		session.setAttribute(Constants.SESSION_USER, semossUser);
@@ -287,11 +299,6 @@ public class UserResource {
 		// log the user login
 		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser), "is logging in with provider " +  token.getProvider()));
 
-		// add new users into the database
-		if(autoAdd) {
-			SecurityUpdateUtils.addOAuthUser(token);
-		}
-		
 		// only for first login
 		// lets see if there is an external auth
 		// that we should be loading
@@ -619,16 +626,26 @@ public class UserResource {
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
 
+		String[] beanPropsArr = {"id","name","email","phone"};
 		String jsonPattern = "[sub,name,email,phone_number]";
-		String[] beanProps = {"id","name","email","phone"};
 
 		String accessString = null;
 		try {
 			AccessToken accessToken = semossUser.getAccessToken(AuthProvider.OKTA);
 			accessString = accessToken.getAccess_token();
 			String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
+			String socialBeanProps = socialData.getProperty(prefix + "beanProps");
+			
+			if(socialBeanProps != null && !socialBeanProps.trim().isEmpty())
+				beanPropsArr = socialBeanProps.split(",", -1);
+			
+			String socialJsonPattern = socialData.getProperty(prefix + "jsonPattern");
+			
+			if(socialJsonPattern != null && !socialJsonPattern.trim().isEmpty())
+				jsonPattern = socialJsonPattern;
+			
 			String output = HttpHelperUtility.makeGetCall(userInfoURL, accessString, null, true);
-			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
+			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, new AccessToken());
 			String name = accessToken2.getName();
 			ret.put("name", name);
 			return WebUtility.getResponse(ret, 200);
@@ -1495,8 +1512,12 @@ public class UserResource {
 					
 					// sub is the unique id for a user in okta
 					String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
+					String beanProps = socialData.getProperty(prefix + "beanProps");
+					String[] beanPropsArr = beanProps.split(",", -1);
+					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+					
 					OktaTokenFiller profiler = new OktaTokenFiller();
-					profiler.fillAccessToken(accessToken, userinfo_url, null, null, null);
+					profiler.fillAccessToken(accessToken, userinfo_url, jsonPattern, beanPropsArr, null);
 					addAccessToken(accessToken, request, autoAdd);
 					if(classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -2536,7 +2557,6 @@ public class UserResource {
 				authToken.setEmail(email);
 				// no need to auto-add since to login native you must already exist
 				addAccessToken(authToken, request, false);
-				SecurityUpdateUtils.validateUserLogin(authToken);
 
 				// add these to the return 
 				ret.put("success", "true");
@@ -2611,7 +2631,6 @@ public class UserResource {
 			}
 			boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(ILdapAuthenticator.LDAP + "auto_add", "true"));
 			addAccessToken(authToken, request, autoAdd);
-			SecurityUpdateUtils.validateUserLogin(authToken);
 			ret.put("success", "true");
 			ret.put("username", username);
 			// log the log in
