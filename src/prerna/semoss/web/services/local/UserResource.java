@@ -278,6 +278,18 @@ public class UserResource {
 			semossUser = new User();
 			session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 		}
+		// add new users into the database
+		if(autoAdd) {
+			SecurityUpdateUtils.addOAuthUser(token);
+		}
+		// validate the user's login 
+		// that they are not locked 
+		// and to update the last login date
+		try {
+			SecurityUpdateUtils.validateUserLogin(token);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+		}
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
 		session.setAttribute(Constants.SESSION_USER, semossUser);
@@ -287,11 +299,6 @@ public class UserResource {
 		// log the user login
 		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser), "is logging in with provider " +  token.getProvider()));
 
-		// add new users into the database
-		if(autoAdd) {
-			SecurityUpdateUtils.addOAuthUser(token);
-		}
-		
 		// only for first login
 		// lets see if there is an external auth
 		// that we should be loading
@@ -2550,7 +2557,6 @@ public class UserResource {
 				authToken.setEmail(email);
 				// no need to auto-add since to login native you must already exist
 				addAccessToken(authToken, request, false);
-				SecurityUpdateUtils.validateUserLogin(authToken);
 
 				// add these to the return 
 				ret.put("success", "true");
@@ -2625,7 +2631,6 @@ public class UserResource {
 			}
 			boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(ILdapAuthenticator.LDAP + "auto_add", "true"));
 			addAccessToken(authToken, request, autoAdd);
-			SecurityUpdateUtils.validateUserLogin(authToken);
 			ret.put("success", "true");
 			ret.put("username", username);
 			// log the log in

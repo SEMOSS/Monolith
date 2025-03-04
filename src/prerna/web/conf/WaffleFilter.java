@@ -21,8 +21,7 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
-import prerna.auth.utils.SecurityUpdateUtils;
-import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.web.conf.util.CACTrackingUtil;
 import prerna.web.conf.util.UserFileLogUtil;
@@ -53,8 +52,6 @@ public class WaffleFilter implements Filter {
 		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
 		if(user == null) {
-			user = new User();
-
 			// grab the waffle elements
 			Principal principal = ((HttpServletRequest) arg0).getUserPrincipal();
 			String id = principal.getName();
@@ -65,11 +62,8 @@ public class WaffleFilter implements Filter {
 			token.setId(id);
 			token.setName(name);
 			logger.info("Valid request coming from user " + token.getName());
-			// add the user if they do not exist
-			if(WaffleFilter.autoAdd) {
-				SecurityUpdateUtils.addOAuthUser(token);
-			}
-
+			// store in session, log in user tracking db, and add the user to security db if autoadd
+			UserResource.addAccessToken(token, ((HttpServletRequest)arg0), WaffleFilter.autoAdd);
 			// do we need to count?
 			if(tracker != null) {
 				tracker.addToQueue(LocalDate.now());
@@ -79,13 +73,6 @@ public class WaffleFilter implements Filter {
 			if(userLogger != null) {
 				userLogger.addToQueue(new String[] {id, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))});
 			}
-
-			user.setAccessToken(token);
-			session.setAttribute(Constants.SESSION_USER, user);
-			session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-
-			// log the user login
-			logger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
 		}
 
 		arg2.doFilter(arg0, arg1);
