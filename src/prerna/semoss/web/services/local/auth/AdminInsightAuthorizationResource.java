@@ -51,11 +51,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm, 
 			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		
-	    projectId=WebUtility.inputSanitizer(projectId);
-	    searchTerm=WebUtility.inputSanitizer(searchTerm);
+	    projectId = WebUtility.inputSQLSanitizer(projectId);
+	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
-		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -90,10 +88,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@Path("getProjectInsights")
 	public Response getProjectInsights(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
-		
-	    projectId=WebUtility.inputSanitizer(projectId);
-	    searchTerm=WebUtility.inputSanitizer(searchTerm);
-
+	    projectId = WebUtility.inputSQLSanitizer(projectId);
+	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -122,7 +118,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("getAllProjectInsightUsers")
 	public Response getAllProjectInsightUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		
 		SecurityAdminUtils adminUtils = null;
@@ -155,10 +151,10 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 		Gson gson = new Gson();
 		List<String> insightIds = gson.fromJson(form.getFirst("insightId"), List.class);
-		insightIds=WebUtility.inputSanitizer(insightIds);
+		insightIds = WebUtility.inputSQLSanitizer(insightIds);
 
 		try {
 			user = ResourceUtility.getUser(request);
@@ -172,11 +168,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		try {
-//			ClusterUtil.reactorPullInsightsDB(projectId);
 			adminUtils.deleteProjectInsights(projectId, insightIds);
-			// since modifying insight list
-			// need to push to cloud storage
-//			ClusterUtil.reactorPushInsightDB(projectId);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -210,11 +202,10 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, 
 			@QueryParam("offset") long offset) {
-		
-	    projectId=WebUtility.inputSanitizer(projectId);
-	    userId=WebUtility.inputSQLSanitizer(userId);
-	    insightId=WebUtility.inputSanitizer(insightId);
-	    permission=WebUtility.inputSanitizer(permission);
+	    projectId = WebUtility.inputSQLSanitizer(projectId);
+	    userId = WebUtility.inputSQLSanitizer(userId);
+	    insightId = WebUtility.inputSQLSanitizer(insightId);
+	    permission = WebUtility.inputSQLSanitizer(permission);
 		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -252,10 +243,10 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String newUserId = WebUtility.inputSanitizer(form.getFirst("id"));
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
-		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
+		String permission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 		
 		try {
@@ -298,9 +289,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	public Response grantAllProjectInsights(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
-		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String permission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -342,9 +333,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	public Response grantNewUsersInsightAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
-		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
+		String permission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -387,9 +378,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
-		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
+		String permission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 		
 		try {
@@ -434,10 +425,10 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
-		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
+		String newPermission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 		
 		try {
@@ -479,8 +470,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@Path("editInsightUserPermissions")
 	public Response editInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -523,9 +514,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	public Response updateAppUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String newPermission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -568,9 +559,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		
 		try {
 			user = ResourceUtility.getUser(request);
@@ -613,8 +604,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		boolean isGlobal = Boolean.parseBoolean(form.getFirst("isPublic"));
 		String logPublic = isGlobal ? " public " : " private";
 		
@@ -631,15 +622,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		
 		try {
 			adminUtils.setInsightGlobalWithinProject(projectId, insightId, isGlobal);
-			
-			// also update in the app itself
-			// so it is properly synchronized with the security db
-//			ClusterUtil.reactorPullInsightsDB(projectId);
 			IProject project = Utility.getProject(projectId);
 			InsightAdministrator admin = new InsightAdministrator(project.getInsightDatabase());
 			admin.updateInsightGlobal(insightId, isGlobal);
-//			ClusterUtil.reactorPushInsightDB(projectId);
-
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -670,10 +655,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		
-	    projectId=WebUtility.inputSanitizer(projectId);
-	    insightId=WebUtility.inputSanitizer(insightId);
-	    searchTerm=WebUtility.inputSanitizer(searchTerm);
+	    projectId = WebUtility.inputSQLSanitizer(projectId);
+	    insightId = WebUtility.inputSQLSanitizer(insightId);
+	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 	    
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -703,8 +687,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	public Response addInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -747,8 +731,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	public Response removeInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -789,10 +773,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@Path("approveInsightUserAccessRequest")
 	public Response approveInsightUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
-
 		User user = null;
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
@@ -840,8 +823,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 
 		User user = null;
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
