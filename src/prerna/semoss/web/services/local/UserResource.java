@@ -990,10 +990,17 @@ public class UserResource {
 					}
 					accessToken.setProvider(AuthProvider.GITHUB);
 	
-					GitRepoUtils.addCertForDomain(url);
+					try {
+						GitRepoUtils.addCertForDomain(url);
+					} catch(Exception e) {
+						classLogger.error(Constants.STACKTRACE, e);
+					}
 					// add specific Git values
 					GithubTokenFiller profiler = new GithubTokenFiller();
 					profiler.fillAccessToken(accessToken, null, null, null, null);
+					
+					addAccessToken(accessToken, request, autoAdd);
+					
 					if(classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
@@ -1007,7 +1014,11 @@ public class UserResource {
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
-			GitRepoUtils.addCertForDomain("https://github.com");
+			try {
+				GitRepoUtils.addCertForDomain("https://github.com");
+			} catch(Exception e) {
+				classLogger.error(Constants.STACKTRACE, e);
+			}
 			response.setStatus(302);
 			response.sendRedirect(getGithubRedirect(request));
 			return null;
@@ -1125,7 +1136,6 @@ public class UserResource {
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
 			// not authenticated
-			//			GitRepoUtils.addCertForDomain("https://github.com");
 			response.setStatus(302);
 			response.sendRedirect(getGitlabRedirect(request));
 			return null;
