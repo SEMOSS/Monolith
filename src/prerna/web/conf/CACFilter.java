@@ -84,7 +84,6 @@ public class CACFilter implements Filter {
 		if(certs != null) {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 			if(user == null) {
-				user = new User();
 				token = new AccessToken();
 				token.setProvider(AuthProvider.CAC);
 
@@ -201,14 +200,8 @@ public class CACFilter implements Filter {
 				// we know we can populate the user
 				if(token.getName() != null) {
 					classLogger.info("Valid request coming from user " + token.getName());
-					user.setAccessToken(token);
-					session.setAttribute(Constants.SESSION_USER, user);
-					session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-
-					// add the user if they do not exist
-					if(CACFilter.autoAdd) {
-						SecurityUpdateUtils.addOAuthUser(token);
-					}
+					// store in session, log in user tracking db, and add the user to security db if autoadd
+					UserResource.addAccessToken(token, ((HttpServletRequest)arg0), CACFilter.autoAdd);
 					// do we need to update credentials?
 					// might be useful for when we add users 
 					// but the cert has different values we want to use
@@ -227,12 +220,6 @@ public class CACFilter implements Filter {
 						// grab the ip address
 						userLogger.addToQueue(new String[] {cacId, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), ResourceUtility.getClientIp((HttpServletRequest)arg0)});
 					}
-
-					// log the user login
-					classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
-
-					// store if db tracking
-					UserResource.userTrackingLogin((HttpServletRequest) arg0, user, token.getProvider());
 				}
 			}
 		}

@@ -248,9 +248,9 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String newUserId =WebUtility.inputSanitizer(form.getFirst("id"));
-		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
-		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String newUserId =WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String appId = WebUtility.inputSQLSanitizer(form.getFirst("appId"));
+		String permission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
 		
 		try {
 			user = ResourceUtility.getUser(request);
@@ -345,9 +345,9 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
-		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
-		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String appId = WebUtility.inputSQLSanitizer(form.getFirst("appId"));
+		String newPermission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
 		
 		try {
 			user = ResourceUtility.getUser(request);
@@ -439,8 +439,8 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		
-		String existingUserId = WebUtility.inputSanitizer(form.getFirst("id"));
-		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String appId = WebUtility.inputSQLSanitizer(form.getFirst("appId"));
 		
 		try {
 			user = ResourceUtility.getUser(request);
