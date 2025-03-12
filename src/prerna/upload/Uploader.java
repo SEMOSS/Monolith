@@ -55,7 +55,7 @@ import org.apache.logging.log4j.Logger;
 import prerna.cache.ICache;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
-import prerna.util.FileAnalyzer;
+import prerna.util.FileEncoderDetector;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -109,7 +109,7 @@ public abstract class Uploader extends HttpServlet {
 	 */
 	public void writeFile(FileItem fi, File file){
 		try {
-			FileAnalyzer analyzer = new FileAnalyzer(fi);
+			FileEncoderDetector analyzer = new FileEncoderDetector(fi);
 			if(analyzer.isTextContent()) {
 				Charset detectedCharset = analyzer.getCharset();
 				try (InputStream is = fi.getInputStream();
