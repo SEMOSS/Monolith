@@ -421,7 +421,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken msToken = semossUser.getAccessToken(AuthProvider.MS);
+			AccessToken msToken = semossUser.getAccessToken(AuthProvider.MICROSOFT);
 			accessString = msToken.getAccess_token();
 			String url = "https://graph.microsoft.com/v1.0/me/";
 			String output = HttpHelperUtility.makeGetCall(url, accessString, null, true);
@@ -1218,7 +1218,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
+			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MICROSOFT) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1259,7 +1259,7 @@ public class UserResource {
 						return null;
 					}
 					
-					accessToken.setProvider(AuthProvider.MS);
+					accessToken.setProvider(AuthProvider.MICROSOFT);
 					MicrosoftTokenFiller profiler = new MicrosoftTokenFiller();
 					profiler.fillAccessToken(accessToken, null, null, null, null);
 					if(!login_external_allowed) {
@@ -1281,7 +1281,7 @@ public class UserResource {
 		if(session != null || (session=request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getMSRedirect(request));
@@ -1483,7 +1483,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
+			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MICROSOFT) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)

@@ -497,7 +497,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 						token.setId((String) map.get(Constants.MAP_USERID));
 						token.setEmail((String) map.get(Constants.MAP_EMAIL));
 						token.setName((String) map.get(Constants.MAP_NAME));
-						token.setProvider(AuthProvider.getProviderFromString((String) map.get(AuthProvider.MS.name())));
+						token.setProvider(AuthProvider.getProviderFromString((String) map.get(AuthProvider.MICROSOFT.name())));
 						token.setUsername((String) map.get(Constants.MAP_USERNAME));
 						SecurityUpdateUtils.addOAuthUser(token);
 					}

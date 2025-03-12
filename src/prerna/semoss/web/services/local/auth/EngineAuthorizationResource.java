@@ -456,7 +456,7 @@ public class EngineAuthorizationResource {
 						token.setEmail((String) map.get(Constants.MAP_EMAIL));
 						token.setName((String) map.get(Constants.MAP_NAME));
 						token.setUsername((String) map.get(Constants.MAP_USERNAME));
-						token.setProvider(AuthProvider.MS);
+						token.setProvider(AuthProvider.MICROSOFT);
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
 				}
