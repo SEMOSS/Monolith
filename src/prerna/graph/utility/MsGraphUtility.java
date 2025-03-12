@@ -57,7 +57,7 @@ public class MsGraphUtility {
 		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
 
 		if(!graphApiUsingSystemCredentials) {
-			if (user.getAccessToken(AuthProvider.MS) == null ) {
+			if (user.getAccessToken(AuthProvider.MICROSOFT) == null ) {
 				throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
 			}
 		}
@@ -88,7 +88,7 @@ public class MsGraphUtility {
 			// to Graph API
 			if (nextLink == null || offset == 0) {
 				// Make a new API call to GraphAPI if nextLink is not in the session
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), groupId, searchTerm, null);
+				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId, searchTerm, null);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
 				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
@@ -100,7 +100,7 @@ public class MsGraphUtility {
 				}
 			} else {
 				// Fetch data from GraphAPI using nextLink
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS),groupId, searchTerm, nextLink);
+				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT),groupId, searchTerm, nextLink);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
 				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
@@ -138,13 +138,13 @@ public class MsGraphUtility {
 	                            if (mapping != null && !mapping.isEmpty()) {
 	                                mapping.forEach((userMapKey, msGraphKey) -> {
 	                                    userMap.put(userMapKey, msUser.get(msGraphKey));
-	                                    userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MS);
+	                                    userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
 	                                });
 	                            } else {
 	                                // Default mapping if no pattern exists
 	                                userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
 	                                userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
-	                                userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MS);
+	                                userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
 	                                userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
 	                                userMap.put(Constants.USER_MAP_USERNAME, msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
 	                            }
@@ -205,7 +205,7 @@ public class MsGraphUtility {
 		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
 
 		if(!graphApiUsingSystemCredentials) {
-			if (user.getAccessToken(AuthProvider.MS) == null ) {
+			if (user.getAccessToken(AuthProvider.MICROSOFT) == null ) {
 				throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
 			}
 		}
@@ -242,7 +242,7 @@ public class MsGraphUtility {
 			// to Graph API
 			if (nextLink == null || offset == 0) {
 				// Make a new API call to GraphAPI if nextLink is not in the session
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), groupId, searchTerm, null);
+				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId, searchTerm, null);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
 				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
@@ -254,7 +254,7 @@ public class MsGraphUtility {
 				}
 			} else {
 				// Fetch data from GraphAPI using nextLink
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), groupId, searchTerm, nextLink);
+				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId, searchTerm, nextLink);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
 				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
@@ -294,12 +294,12 @@ public class MsGraphUtility {
                                 mapping.forEach((userMapKey, msGraphKey) -> {
                                     userMap.put(userMapKey, msUser.get(msGraphKey));
                                 });
-                                userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MS);
+                                userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
                             } else {
                                 // Default mapping if no pattern exists
                                 userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
                                 userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
-                                userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MS);
+                                userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
                                 userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
                                 userMap.put(Constants.USER_MAP_USERNAME, msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
                             }
@@ -353,10 +353,10 @@ public class MsGraphUtility {
 		String msUsers;
 		if (nextLink == null) {
 			// First call to fetch users
-			msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS), groupId, searchTerm, null);
+			msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId, searchTerm, null);
 		} else {
 			// Subsequent call using nextLink
-			msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MS),groupId, searchTerm, nextLink);
+			msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT),groupId, searchTerm, nextLink);
 		}
 
 		// Parse the response
