@@ -99,7 +99,6 @@ import prerna.security.HttpHelperUtility;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.util.git.GitRepoUtils;
@@ -2841,7 +2840,6 @@ public class UserResource {
 		}
 		
 	    //get the connection to RDF_MAP.prop file to get the user default set values
-	    DIHelper prop  = DIHelper.getInstance();
 		try {
 			// Note - for native users
 			// the id and the username are always the same
