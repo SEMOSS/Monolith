@@ -899,7 +899,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 						token.setId(map.get(Constants.MAP_USERID));
 						token.setEmail(map.get(Constants.MAP_EMAIL));
 						token.setName(map.get(Constants.MAP_NAME));
-						token.setProvider(AuthProvider.getProviderFromString(map.get(AuthProvider.MS.name())));
+						token.setProvider(AuthProvider.getProviderFromString(map.get(AuthProvider.MICROSOFT.name())));
 						token.setUsername(map.get(Constants.MAP_USERNAME));
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
