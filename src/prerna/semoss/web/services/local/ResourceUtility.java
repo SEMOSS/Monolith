@@ -49,6 +49,9 @@ public class ResourceUtility {
 			allowAccessWithoutLogin.add("auth/userinfo/" + v.toString().toLowerCase());
 			allowAccessWithoutLogin.add("auth/login/" + v.toString().toLowerCase());
 		}
+		// legacy ms login
+		allowAccessWithoutLogin.add("auth/userinfo/ms");
+		allowAccessWithoutLogin.add("auth/login/ms");
 	}
 	
 	
