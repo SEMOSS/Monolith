@@ -23,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 
 import prerna.auth.AccessToken;
-import prerna.auth.AuthProvider;
 import prerna.auth.PasswordRequirements;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityPasswordResetUtils;
@@ -107,14 +106,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(ret, 401);
 		}
 		AccessToken token = user.getPrimaryLoginToken();
-		
-		String prefix = token.getProvider().toString().toLowerCase();
-		boolean accessKeysAllowed = Boolean.parseBoolean(SocialPropertiesUtil.getInstance().getProperty(prefix + "_access_keys_allowed")+"");
-		// LEGACY 
-		if(!accessKeysAllowed && token.getProvider() == AuthProvider.MICROSOFT) {
-			accessKeysAllowed = Boolean.parseBoolean(SocialPropertiesUtil.getInstance().getProperty("ms_access_keys_allowed")+"");
-		}
-		
+		boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(token.getProvider());
 		if(!accessKeysAllowed) {
 			Map<String, String> ret = new Hashtable<>();
 			ret.put(Constants.ERROR_MESSAGE, "Creating access keys is not allowed. Please reach out to an administrator if you require this functionality");

@@ -393,7 +393,15 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/userinfo/ms")
+	@Deprecated
 	public Response userinfoMs(@Context HttpServletRequest request) {
+		return userinfoMicrosoft(request);
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/microsoft")
+	public Response userinfoMicrosoft(@Context HttpServletRequest request) {
 		Map<String, String> ret = new HashMap<>();
 		HttpSession session = request.getSession(false);
 		User semossUser = null;
@@ -435,7 +443,6 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 200);
 		}
 	}
-
 
 	/**
 	 * Gets user info for ADFS
@@ -1196,7 +1203,15 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/ms")
+	@Deprecated
 	public Response loginMS(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		return loginMicrosoft(request, response);
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("/login/microsoft")
+	public Response loginMicrosoft(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1254,7 +1269,7 @@ public class UserResource {
 					if (accessToken == null) {
 						// not authenticated
 						response.setStatus(302);
-						response.sendRedirect(getMSRedirect(request));
+						response.sendRedirect(getMicrosoftRedirect(request));
 						return null;
 					}
 					
@@ -1283,15 +1298,15 @@ public class UserResource {
 		if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(getMSRedirect(request));
+			response.sendRedirect(getMicrosoftRedirect(request));
 			return null;
 		}
 
 		setMainPageRedirect(request, response);
 		return null;
 	}
-
-	private String getMSRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
+	
+	private String getMicrosoftRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "ms_";
 		String clientId = socialData.getProperty(prefix + "client_id");
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
@@ -2439,7 +2454,6 @@ public class UserResource {
 						accessToken.setUserGroups(userGroups);
 						accessToken.setUserGroupType(providerEnum.toString());			
 					}
-
 					
 					addAccessToken(accessToken, request, autoAdd);
 	
@@ -2460,7 +2474,6 @@ public class UserResource {
 			response.sendRedirect(getGenericRedirect(provider, request));
 			return null;
 		}
-
 		
 		setMainPageRedirect(request, response);
 		return null;
