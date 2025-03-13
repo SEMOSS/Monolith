@@ -686,7 +686,7 @@ public class EngineAuthorizationResource {
 		
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
-		ids = WebUtility.inputSanitizer(ids);
+		ids = WebUtility.inputSQLSanitizer(ids);
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -1067,7 +1067,7 @@ public class EngineAuthorizationResource {
 		
 		// updating user access requests in bulk
 		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
-		requestIds = WebUtility.inputSanitizer(requestIds);
+		requestIds = WebUtility.inputSQLSanitizer(requestIds);
 		try {
 			SecurityEngineUtils.denyEngineUserAccessRequests(user, engineId, requestIds);
 		} catch (Exception e) {
