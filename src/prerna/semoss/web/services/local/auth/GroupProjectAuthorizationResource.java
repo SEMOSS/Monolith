@@ -48,7 +48,7 @@ public class GroupProjectAuthorizationResource {
 		
 	    projectId=WebUtility.inputSanitizer(projectId);
 	    type=WebUtility.inputSanitizer(type);
-	    groupId=WebUtility.inputSanitizer(groupId);
+	    groupId=WebUtility.inputSQLSanitizer(groupId);
 		
 		Map<String, String> errorMap = new HashMap<String, String>();
 		User user = null;
