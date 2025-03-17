@@ -1023,7 +1023,7 @@ public class ProjectAuthorizationResource {
 
 		// updating user access requests in bulk
 		List<String> requestids = new Gson().fromJson(form.getFirst("requestids"), List.class);
-		requestids = WebUtility.inputSanitizer(requestids);
+		requestids = WebUtility.inputSQLSanitizer(requestids);
 		try {
 			SecurityProjectUtils.denyProjectUserAccessRequests(user, projectId, requestids);
 		} catch (Exception e) {
@@ -1090,7 +1090,7 @@ public class ProjectAuthorizationResource {
 						token.setEmail(map.get(Constants.MAP_EMAIL));
 						token.setName(map.get(Constants.MAP_NAME));
 						token.setUsername((String) map.get(Constants.MAP_USERNAME));
-						token.setProvider(AuthProvider.MS);
+						token.setProvider(AuthProvider.MICROSOFT);
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
 				}

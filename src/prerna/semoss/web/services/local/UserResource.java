@@ -101,7 +101,6 @@ import prerna.security.HttpHelperUtility;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.util.git.GitRepoUtils;
@@ -397,7 +396,15 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/userinfo/ms")
+	@Deprecated
 	public Response userinfoMs(@Context HttpServletRequest request) {
+		return userinfoMicrosoft(request);
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/microsoft")
+	public Response userinfoMicrosoft(@Context HttpServletRequest request) {
 		Map<String, String> ret = new HashMap<>();
 		HttpSession session = request.getSession(false);
 		User semossUser = null;
@@ -424,7 +431,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken msToken = semossUser.getAccessToken(AuthProvider.MS);
+			AccessToken msToken = semossUser.getAccessToken(AuthProvider.MICROSOFT);
 			accessString = msToken.getAccess_token();
 			String url = "https://graph.microsoft.com/v1.0/me/";
 			String output = HttpHelperUtility.makeGetCall(url, accessString, null, true);
@@ -439,7 +446,6 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 200);
 		}
 	}
-
 
 	/**
 	 * Gets user info for ADFS
@@ -1200,7 +1206,15 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/ms")
+	@Deprecated
 	public Response loginMS(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		return loginMicrosoft(request, response);
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("/login/microsoft")
+	public Response loginMicrosoft(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1221,7 +1235,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
+			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MICROSOFT) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1258,11 +1272,11 @@ public class UserResource {
 					if (accessToken == null) {
 						// not authenticated
 						response.setStatus(302);
-						response.sendRedirect(getMSRedirect(request));
+						response.sendRedirect(getMicrosoftRedirect(request));
 						return null;
 					}
 					
-					accessToken.setProvider(AuthProvider.MS);
+					accessToken.setProvider(AuthProvider.MICROSOFT);
 					MicrosoftTokenFiller profiler = new MicrosoftTokenFiller();
 					profiler.fillAccessToken(accessToken, null, null, null, null);
 					if(!login_external_allowed) {
@@ -1284,18 +1298,18 @@ public class UserResource {
 		if(session != null || (session=request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(getMSRedirect(request));
+			response.sendRedirect(getMicrosoftRedirect(request));
 			return null;
 		}
 
 		setMainPageRedirect(request, response);
 		return null;
 	}
-
-	private String getMSRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
+	
+	private String getMicrosoftRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "ms_";
 		String clientId = socialData.getProperty(prefix + "client_id");
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
@@ -1486,7 +1500,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
+			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MICROSOFT) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -2443,7 +2457,6 @@ public class UserResource {
 						accessToken.setUserGroups(userGroups);
 						accessToken.setUserGroupType(providerEnum.toString());			
 					}
-
 					
 					addAccessToken(accessToken, request, autoAdd);
 	
@@ -2464,7 +2477,6 @@ public class UserResource {
 			response.sendRedirect(getGenericRedirect(provider, request));
 			return null;
 		}
-
 		
 		setMainPageRedirect(request, response);
 		return null;
@@ -2844,7 +2856,6 @@ public class UserResource {
 		}
 		
 	    //get the connection to RDF_MAP.prop file to get the user default set values
-	    DIHelper prop  = DIHelper.getInstance();
 		try {
 			// Note - for native users
 			// the id and the username are always the same

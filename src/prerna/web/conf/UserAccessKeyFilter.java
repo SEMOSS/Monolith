@@ -168,8 +168,7 @@ public class UserAccessKeyFilter implements Filter {
 						// let us make sure this login type is still allowed to login via access/secret key
 						{
 							AuthProvider provider = token.getProvider();
-							String prefix = provider.getLabel().toLowerCase();
-							boolean accessKeysAllowed = Boolean.parseBoolean(SocialPropertiesUtil.getInstance().getProperty(prefix + "_access_keys_allowed")+"");
+							boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(provider);
 							if(!accessKeysAllowed) {
 								classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to login using access/secret key but administrator has disabeled for provider "+provider.name()));
 								user = null;

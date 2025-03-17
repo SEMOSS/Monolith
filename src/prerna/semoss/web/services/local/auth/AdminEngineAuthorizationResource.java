@@ -358,7 +358,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		engineId = WebUtility.inputSanitizer(engineId);
-	    userId = WebUtility.inputSanitizer(userId);
+	    userId = WebUtility.inputSQLSanitizer(userId);
 	    searchTerm = WebUtility.inputSanitizer(searchTerm);
 	    permission = WebUtility.inputSanitizer(permission);
 	    
@@ -497,7 +497,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 						token.setId((String) map.get(Constants.MAP_USERID));
 						token.setEmail((String) map.get(Constants.MAP_EMAIL));
 						token.setName((String) map.get(Constants.MAP_NAME));
-						token.setProvider(AuthProvider.getProviderFromString((String) map.get(AuthProvider.MS.name())));
+						token.setProvider(AuthProvider.getProviderFromString((String) map.get(AuthProvider.MICROSOFT.name())));
 						token.setUsername((String) map.get(Constants.MAP_USERNAME));
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
@@ -786,7 +786,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
-		ids = WebUtility.inputSanitizer(ids);
+		ids = WebUtility.inputSQLSanitizer(ids);
 		try {
 			adminUtils.removeEngineUsers(ids, engineId);
 		} catch (Exception e) {
@@ -1017,7 +1017,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		
 		// updating user access requests in bulk
 		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
-		requestIds = WebUtility.inputSanitizer(requestIds);
+		requestIds = WebUtility.inputSQLSanitizer(requestIds);
 		try {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();

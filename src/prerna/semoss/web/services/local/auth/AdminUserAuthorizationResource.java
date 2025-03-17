@@ -56,19 +56,32 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/registerUser")
 	public Response registerUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		Hashtable<String, String> errorRet = new Hashtable<>();
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		Map<String, String> errorRet = new HashMap<>();
+		if(!SecurityAdminUtils.userIsAdmin(user)){
+			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
+			return WebUtility.getResponse(errorRet, 400);
+		}
+		
 		boolean success = false;
 		try {
 			String newUserId = form.getFirst("userId");
 			if(newUserId == null || newUserId.isEmpty()) {
 				throw new IllegalArgumentException("The user id cannot be null or empty");
 			}
+			String type = WebUtility.inputSanitizer(form.getFirst("type"));
 			String name = WebUtility.inputSQLSanitizer(form.getFirst("name"));
 			String email = WebUtility.inputSQLSanitizer(form.getFirst("email"));
 			String phone = WebUtility.inputSanitizer(request.getParameter("phone"));
 			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
 			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
-			String type = WebUtility.inputSanitizer(form.getFirst("type"));
 			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
 			Boolean publisher = Boolean.parseBoolean(form.getFirst("publisher"));
 			Boolean exporter = Boolean.parseBoolean(form.getFirst("exporter"));
@@ -128,23 +141,9 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 				}
 			}
 			
-			User user = null;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			
-			if(SecurityAdminUtils.userIsAdmin(user)){
-				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, 
-						phone, phoneExtension, countryCode, newUserAdmin, publisher, exporter,
-						modelUsageRestriction, modelUsageFrequency, modelMaxTokens, modelMaxResponseTime);
-			} else {
-				errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-				return WebUtility.getResponse(errorRet, 400);
-			}
+			success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, 
+					phone, phoneExtension, countryCode, newUserAdmin, publisher, exporter,
+					modelUsageRestriction, modelUsageFrequency, modelMaxTokens, modelMaxResponseTime);
 		} catch (IllegalArgumentException e){
     		classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());

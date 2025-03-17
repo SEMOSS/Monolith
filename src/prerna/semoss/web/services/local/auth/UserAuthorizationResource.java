@@ -32,7 +32,6 @@ import prerna.date.SemossDate;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/user")
@@ -107,9 +106,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(ret, 401);
 		}
 		AccessToken token = user.getPrimaryLoginToken();
-		
-		String prefix = token.getProvider().toString().toLowerCase();
-		boolean accessKeysAllowed = Boolean.parseBoolean(SocialPropertiesUtil.getInstance().getProperty(prefix + "_access_keys_allowed")+"");
+		boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(token.getProvider());
 		if(!accessKeysAllowed) {
 			Map<String, String> ret = new Hashtable<>();
 			ret.put(Constants.ERROR_MESSAGE, "Creating access keys is not allowed. Please reach out to an administrator if you require this functionality");
