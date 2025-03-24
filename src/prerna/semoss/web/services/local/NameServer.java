@@ -305,7 +305,7 @@ public class NameServer {
 		}
 		
 		// add the route if this is server deployment
-		String routeCookieName = Utility.getDIHelperProperty(Constants.MONOLITH_ROUTE);
+		String routeCookieName = Utility.getDIHelperProperty(Constants.LOAD_BALANCER_COOKIE_NAME);
 		if (routeCookieName != null && !routeCookieName.isEmpty()) {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
