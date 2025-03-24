@@ -311,25 +311,6 @@
 			<artifactId>resteasy-jaxb-provider</artifactId>
 			<version>4.7.10.Final</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-multipart-provider -->
-		<dependency>
-			<groupId>org.jboss.resteasy</groupId>
-			<artifactId>resteasy-multipart-provider</artifactId>
-			<version>4.7.10.Final</version>
-			<exclusions>
-				<exclusion>
-					<groupId>*</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<!-- This is actually needed for reasteasy - do not remove it -->
-		<!-- https://mvnrepository.com/artifact/com.sun.mail/javax.mail -->
-		<dependency>
-			<groupId>com.sun.mail</groupId>
-			<artifactId>javax.mail</artifactId>
-			<version>1.6.2</version>
-		</dependency>
 		<!-- SAML ONE JAR -->
 		<!-- https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
 		<dependency>
