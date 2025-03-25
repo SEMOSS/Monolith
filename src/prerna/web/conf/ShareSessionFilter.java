@@ -91,7 +91,7 @@ public class ShareSessionFilter implements Filter {
 					}
 					
 					// add route if it exists
-					String routeCookieName = Utility.getDIHelperProperty(Constants.MONOLITH_ROUTE);
+					String routeCookieName = Utility.getDIHelperProperty(Constants.LOAD_BALANCER_COOKIE_NAME);
 					if (routeCookieName != null && !routeCookieName.isEmpty()
 							&& routeId != null && !routeId.isEmpty()) {
 						Cookie c = new Cookie(routeCookieName, routeId);
