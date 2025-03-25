@@ -187,7 +187,7 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		String response = llmResponse.getResponse();
+		String response = llmResponse.getStringResponse();
 		String messageId = llmResponse.getMessageId();
 		Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
 		Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
@@ -378,7 +378,7 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		String response = llmResponse.getResponse();
+		String response = llmResponse.getStringResponse();
 		String messageId = llmResponse.getMessageId();
 		Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
 		Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
