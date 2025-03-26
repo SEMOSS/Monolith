@@ -3242,8 +3242,8 @@ public class UserResource {
 			Map<String, String> envMap = System.getenv();
 			// the environment variable for this box will tell me which route variable
 			// is for this specific box
-			if (envMap.containsKey(Constants.MONOLITH_ROUTE)) {
-				String routeCookieName = envMap.get(Constants.MONOLITH_ROUTE);
+			if (envMap.containsKey(Constants.LOAD_BALANCER_COOKIE_NAME)) {
+				String routeCookieName = envMap.get(Constants.LOAD_BALANCER_COOKIE_NAME);
 				Cookie[] curCookies = request.getCookies();
 				if (curCookies != null) {
 					for (Cookie c : curCookies) {
