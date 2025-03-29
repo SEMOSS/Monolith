@@ -340,6 +340,7 @@ public class NameServer {
 			insight.setBaseURL(getServerURL(request));
 			insight.setInsightId(insightId);
 			insight.setTemporaryInsight(true);
+			InsightStore.getInstance().put(insight);
 		} else if (insightId.equals("new")) { 
 			// need to make a new insight here
 			insight = new Insight();
@@ -493,10 +494,13 @@ public class NameServer {
 				jt.setStatus(JobStatus.COMPLETE);
 				manager.clearJob(jobId);
 				manager.removeJob(jobId);
-				// remove temp insights from store
-				if(insight.isTemporaryInsight()) {
-					InsightStore.getInstance().removeFromSessionHash(WebUtility.inputSQLSanitizer(sessionId), WebUtility.inputSQLSanitizer(insightId));
-				}
+				
+				// dont do this
+				// let the clearing happen from the UserSessionLoader 
+				// so that we also close any user processes that exist
+//				if(insight.isTemporaryInsight()) {
+//					InsightStore.getInstance().removeFromSessionHash(WebUtility.inputSQLSanitizer(sessionId), WebUtility.inputSQLSanitizer(insightId));
+//				}
 			}
 		}
 	}
