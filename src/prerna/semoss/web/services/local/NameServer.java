@@ -87,9 +87,9 @@ import prerna.om.ThreadStore;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.PixelUtility;
-import prerna.sablecc2.comm.JobManager;
-import prerna.sablecc2.comm.JobStatus;
-import prerna.sablecc2.comm.JobThread;
+import prerna.sablecc2.comm.PixelJobManager;
+import prerna.sablecc2.comm.PixelJobStatus;
+import prerna.sablecc2.comm.PixelJobThread;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.semoss.web.services.remote.EngineRemoteResource;
 import prerna.util.ChromeDriverUtility;
@@ -453,8 +453,8 @@ public class NameServer {
 	 */
 	public static Response runPixelJob(User user, Insight insight, String expression, String jobId, 
 			String insightId, String sessionId, String routeId, boolean dropLogging) {
-		JobManager manager = JobManager.getManager();
-		JobThread jt = manager.makeJob(WebUtility.inputSanitizer(insightId));
+		PixelJobManager manager = PixelJobManager.getManager();
+		PixelJobThread jt = manager.makeJob(WebUtility.inputSanitizer(insightId));
 		jobId = jt.getJobId();
 
 		// set in thread
@@ -480,7 +480,7 @@ public class NameServer {
 		PixelRunner pixelRunner = jt.getRunner();
 		
 		try {
-			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
+			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, jt))
 					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 					.header("Pragma", "no-cache")
 					.build();
@@ -491,7 +491,7 @@ public class NameServer {
 			// console logging
 			// example is ExportToExcel grids 
 			if(dropLogging) {
-				jt.setStatus(JobStatus.COMPLETE);
+				jt.setStatus(PixelJobStatus.COMPLETE);
 				manager.clearJob(jobId);
 				manager.removeJob(jobId);
 				
@@ -565,13 +565,20 @@ public class NameServer {
 		// figure out the type of insight
 		// first is temp
 		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
+			insightId = "TempInsight_" + UUID.randomUUID().toString();
 			insight = new Insight();
-			insight.setInsightId("TempInsightNotStored");
-		} else if (insightId.equals("new")) { // need to make a new insight here
-			insight = new Insight();
+			insight.setBaseURL(getServerURL(request));
+			insight.setInsightId(insightId);
+			insight.setTemporaryInsight(true);
 			InsightStore.getInstance().put(insight);
-			InsightStore.getInstance().addToSessionHash(sessionId, insight.getInsightId());
-		} else {// or just get it from the store
+		} else if (insightId.equals("new")) { 
+			// need to make a new insight here
+			insight = new Insight();
+			insight.setBaseURL(getServerURL(request));
+			InsightStore.getInstance().put(insight);
+			insightId = insight.getInsightId();
+		} else {
+			// or just get it from the store
 			// the session id needs to be checked
 			// you better have a valid id... or else... O_O
 			insight = InsightStore.getInstance().get(insightId);
@@ -582,17 +589,8 @@ public class NameServer {
 				classLogger.error("Insight not found for insightId " + insightId);
 				return WebUtility.getResponse(errorMap, 400);
 			}
-			// make sure we have the correct session trying to get this id
-			// #soMuchSecurity
-			// Set<String> sessionStore =
-			// InsightStore.getInstance().getInsightIDsForSession(sessionId);
-			// if(sessionStore == null || !sessionStore.contains(insightId)) {
-			// Map<String, String> errorMap = new HashMap<String, String>();
-			// errorMap.put(ERROR_MESSAGE, "Trying to access insight id from incorrect
-			// session");
-			// return WebUtility.getResponse(errorMap, 400);
-			// }
 		}
+		InsightStore.getInstance().addToSessionHash(sessionId, insightId);
 
 		// set the user timezone
 		ZoneId zoneId = null;
@@ -613,10 +611,9 @@ public class NameServer {
 			user.setZoneId(zoneId);
 		}
 		
-//		synchronized(insight) {
 		insight.setUser(user);
-		JobManager manager = JobManager.getManager();
-		JobThread jt = manager.makeJob();
+		PixelJobManager manager = PixelJobManager.getManager();
+		PixelJobThread jt = manager.makeJob();
 		jobId = jt.getJobId();
 		session.setAttribute(jobId + "", "TRUE");
 		
@@ -627,7 +624,6 @@ public class NameServer {
 		jt.setInsight(insight);
 		jt.start();
 		dataReturn.put("jobId", jobId);
-//		}
 		return WebUtility.getResponse(dataReturn, 200);
 	}
 
@@ -650,8 +646,14 @@ public class NameServer {
 			return WebUtility.getSO("NULL");
 		}
 
-		PixelRunner dataReturn = JobManager.getManager().getOutput(jobId);
-		return PixelStreamUtility.collectPixelData(dataReturn);
+		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+		PixelRunner dataReturn = PixelJobManager.getManager().getOutput(jobId);
+		try {
+			return PixelStreamUtility.collectPixelData(dataReturn, jt);
+		} finally {
+			PixelJobManager.getManager().clearJob(jobId);
+			PixelJobManager.getManager().removeJob(jobId);
+		}
 	}
 
 	// is the status of the operation
@@ -664,9 +666,9 @@ public class NameServer {
 		HttpSession session = request.getSession(true);
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		if (session.getAttribute(jobId) != null) {
-			JobThread jt = JobManager.getManager().getJob(jobId);
+			PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
 			if(jt == null) {
-				dataReturn = JobStatus.UNKNOWN_JOB.getValue();
+				dataReturn = PixelJobStatus.UNKNOWN_JOB.getValue();
 			} else {
 				dataReturn = jt.getStatus();
 			}
@@ -683,10 +685,10 @@ public class NameServer {
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		// if(jobId != null)
-		JobThread jt = JobManager.getManager().getJob(jobId);
-		List<String> console = JobManager.getManager().getStdOut(jobId);
+		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+		List<String> console = PixelJobManager.getManager().getStdOut(jobId);
 		Map<String, Object> dataReturn = new HashMap<>();
-		dataReturn.put("status", jt == null ? JobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
+		dataReturn.put("status", jt == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
 		dataReturn.put("message", console);
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
@@ -700,10 +702,10 @@ public class NameServer {
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		// if(jobId != null)
-		JobThread jt = JobManager.getManager().getJob(jobId);
-		Map<String, String> console = JobManager.getManager().getPartial(jobId);
+		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+		Map<String, String> console = PixelJobManager.getManager().getPartial(jobId);
 		Map<String, Object> dataReturn = new HashMap<>();
-		dataReturn.put("status", jt == null ? JobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
+		dataReturn.put("status", jt == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
 		dataReturn.put("message", console);
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
@@ -716,10 +718,10 @@ public class NameServer {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
-		JobThread jt = JobManager.getManager().getJob(jobId);
-		List<String> console = JobManager.getManager().getError(jobId);
+		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+		List<String> console = PixelJobManager.getManager().getError(jobId);
 		Map<String, Object> dataReturn = new HashMap<>();
-		dataReturn.put("status", jt == null ? JobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
+		dataReturn.put("status", jt == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
 		dataReturn.put("message", console);
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
@@ -733,7 +735,7 @@ public class NameServer {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
-		JobManager.getManager().clearJob(jobId);
+		PixelJobManager.getManager().clearJob(jobId);
 		// }
 		// session.removeAttribute(jobId);
 		return WebUtility.getSO("success");
@@ -747,7 +749,7 @@ public class NameServer {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
-		JobManager.getManager().resetJob(jobId);
+		PixelJobManager.getManager().resetJob(jobId);
 		// }
 		return WebUtility.getSO("success");
 	}
