@@ -461,7 +461,8 @@ public class OpenAIEndpoints {
 
 			Gson gson = new GsonBuilder().disableHtmlEscaping().create();
 			String modelPixel = "LLM(engine='"+engine.getEngineId()+"', command='<encode>ignore</encode>'"
-					+ ",paramValues=[{'full_prompt':"+gson.toJson(dataMap.get("full_prompt"))+"}]);";
+					// this should have the full_prompt
+					+ ",paramValues=["+gson.toJson(dataMap)+"]);";
 			jt.addPixel(modelPixel);
 			jt.setInsight(insight);
 			jt.start();
