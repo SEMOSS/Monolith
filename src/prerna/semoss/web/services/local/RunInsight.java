@@ -49,7 +49,7 @@ public class RunInsight {
 	@Produces("application/json")
 	public Response recreateInsightState(@Context HttpServletRequest request) {
 		PixelRunner pixelRunner = InsightUtility.recreateInsightState(in);
-		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner))
+		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, null))
 				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 				.header("Pragma", "no-cache")
 				.build();
