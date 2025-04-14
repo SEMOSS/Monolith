@@ -41,7 +41,13 @@ public class TrustedTokenFilter implements Filter {
 		if(user != null) {
 			arg2.doFilter(arg0, arg1);
 			return;
-		} 
+		}
+		
+		String path = request.getRequestURI();
+		if (path.contains("api/model/openai")) {
+			arg2.doFilter(arg0, arg1);
+		    return;
+		}
 
 		String fullUrl = WebUtility.cleanHttpResponse(request.getRequestURL().toString());
 		if (!ResourceUtility.allowAccessWithoutUsers(fullUrl)) {

@@ -143,9 +143,9 @@ public class UserSessionLoader implements HttpSessionListener {
 		try {
 			if (Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
 				if(thisUser != null) {
-					SymlinkHelper sh = thisUser.getUserSymlinkHelper();
-					if(sh != null) {
-						sh.removeChrootFolder();
+					SymlinkHelper chrootHelper = thisUser.getUserSymlinkHelper();
+					if(chrootHelper != null) {
+						chrootHelper.removeChrootFolder();
 					}
 				}
 			}
