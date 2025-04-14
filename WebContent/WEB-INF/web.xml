@@ -196,6 +196,16 @@
       <filter-name>UserAccessKeyFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
+
+   <!-- OpenAI Filer -->
+   <filter>
+      <filter-name>OpenAIFilter</filter-name>
+      <filter-class>prerna.web.conf.OpenAIFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>OpenAIFilter</filter-name>
+      <url-pattern>/api/model/openai/*</url-pattern>
+   </filter-mapping>
    
    <!-- scheduler filter -->
    <filter>
