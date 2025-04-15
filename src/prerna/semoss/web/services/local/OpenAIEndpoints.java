@@ -20,8 +20,10 @@ import java.util.UUID;
 import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
@@ -39,6 +41,8 @@ import com.google.gson.GsonBuilder;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
+import prerna.date.SemossDate;
+import prerna.engine.api.IEngine;
 import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
@@ -46,10 +50,13 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
 import prerna.reactor.job.JobReactor;
+import prerna.reactor.security.MyEnginesReactor;
 import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.comm.PixelJobThread;
+import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
+import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 import prerna.util.Utility;
@@ -827,4 +834,138 @@ public class OpenAIEndpoints {
 		embeddingsResponseMap.put("usage", usage);
 		return WebUtility.getResponse(embeddingsResponseMap, 200);
 	}
+	
+	@GET
+	@Path("/models")
+	@Produces("application/json;charset=utf-8")
+	public Response listModels(@Context HttpServletRequest request) {
+		// https://platform.openai.com/docs/api-reference/models/list
+		HttpSession session = request.getSession(false);
+		User user = null;
+		if (session != null) {
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+		}
+		// how did you even get past the no user in session filter?
+		if (user == null) {
+			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		MyEnginesReactor reactor = new MyEnginesReactor();
+		reactor.In();
+		Insight temp = new Insight();
+		temp.setUser(user);
+		reactor.setInsight(temp);
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(IEngine.CATALOG_TYPE.MODEL.name(), PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
+		}
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(true, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
+		}
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(false, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
+		}
+		
+		NounMetadata outputNoun = reactor.execute();
+		List<Map<String, Object>> openAiResponse = processModelList(outputNoun);
+		Map<String, Object> returnObject = new HashMap<>();
+		returnObject.put("object", "list");
+		returnObject.put("data", openAiResponse);
+		return WebUtility.getResponse(returnObject, 200);
+	}
+
+	@GET
+	@Path("/models/{modelId}")
+	@Produces("application/json;charset=utf-8")
+	public Response retrieveModel(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
+		// https://platform.openai.com/docs/api-reference/models/retrieve
+		HttpSession session = request.getSession(false);
+		User user = null;
+		if (session != null) {
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+		}
+		// how did you even get past the no user in session filter?
+		if (user == null) {
+			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		MyEnginesReactor reactor = new MyEnginesReactor();
+		reactor.In();
+		Insight temp = new Insight();
+		temp.setUser(user);
+		reactor.setInsight(temp);
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(modelId, PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE.getKey(), struct);
+		}
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(IEngine.CATALOG_TYPE.MODEL.name(), PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
+		}
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(true, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
+		}
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(false, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
+		}
+		
+		NounMetadata outputNoun = reactor.execute();
+		List<Map<String, Object>> openAiResponse = processModelList(outputNoun);
+		if(openAiResponse == null || openAiResponse.isEmpty()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not find model = '" + modelId + "'");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		return WebUtility.getResponse(openAiResponse.get(0), 200);
+	}
+	
+	/**
+	 * Process the MyEngines output format to OpenAi format
+	 * @param outputNoun
+	 * @return
+	 */
+	private List<Map<String, Object>> processModelList(NounMetadata outputNoun) {
+		List<Map<String, Object>> enginesList = (List<Map<String, Object>>) outputNoun.getValue();
+		// we will convert our object to the openai spec
+		List<Map<String, Object>> openAiResponse = new ArrayList<>(enginesList.size());
+		for(Map<String, Object> engines : enginesList) {
+			Map<String, Object> newMap = new HashMap<>();
+			newMap.put("object", "model");
+			newMap.put("id", engines.get("database_id"));
+			newMap.put("alias", engines.get("database_name"));
+			newMap.put("owned_by", engines.get("database_created_by"));
+			SemossDate dateCreated = (SemossDate) engines.get("database_date_created");
+			if(dateCreated != null) {
+				ZonedDateTime zdt = dateCreated.getZonedDateTime();
+				if(zdt != null) {
+					newMap.put("created", zdt.toEpochSecond());
+				}
+			}
+			openAiResponse.add(newMap);
+		}
+		return openAiResponse;
+	}
+	
+	
 }
