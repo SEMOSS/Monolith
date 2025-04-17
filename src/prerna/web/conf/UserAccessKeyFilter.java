@@ -48,6 +48,12 @@ public class UserAccessKeyFilter implements Filter {
 			return;
 		} 
 		
+		String path = request.getRequestURI();
+		if (path.contains("api/model/openai")) {
+			arg2.doFilter(arg0, arg1);
+		    return;
+		}
+		
 		/*
 		 * Check if bearer token is passed
 		 * Which will initiate a lookup against some SSO provider
@@ -66,7 +72,7 @@ public class UserAccessKeyFilter implements Filter {
 				return;
 			}
 		}
-
+		
 		if(authValue.startsWith("Bearer") || authValue.startsWith("bearer")) {
 			String bearerToken = authValue.substring("Bearer".length()).trim();
 

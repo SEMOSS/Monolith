@@ -1,8 +1,12 @@
 package prerna.semoss.web.services.local;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -11,15 +15,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,16 +36,27 @@ import org.apache.logging.log4j.Logger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
+import prerna.date.SemossDate;
+import prerna.engine.api.IEngine;
 import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.ThreadStore;
 import prerna.reactor.job.JobReactor;
+import prerna.reactor.security.MyEnginesReactor;
+import prerna.sablecc2.comm.PixelJobManager;
+import prerna.sablecc2.comm.PixelJobStatus;
+import prerna.sablecc2.comm.PixelJobThread;
+import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
+import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 import prerna.util.Utility;
@@ -111,6 +131,8 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
+		classLogger.info("Chat completion request data: " + requestData.toString());
+
 		// Convert the JSON string to a Map
 		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {};
 		Map<String, Object> dataMap;
@@ -121,6 +143,12 @@ public class OpenAIEndpoints {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		boolean isStreamingRequest = false;
+		if (dataMap.containsKey("stream")) {
+			isStreamingRequest = Boolean.parseBoolean(dataMap.get("stream").toString());
+			dataMap.remove("stream");
 		}
 
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
@@ -169,6 +197,8 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
+		final Insight finalInsight = insight;
+
 		// set the user
 		insight.setUser(user);		
 		// need to set this for std out operations
@@ -177,71 +207,278 @@ public class OpenAIEndpoints {
 		dataMap.put("full_prompt", fullPrompt);
 
 		IModelEngine engine = Utility.getModel(engineId);
-		AskModelEngineResponse llmResponse;
-		try {
-			llmResponse = engine.ask(null, null, insight, dataMap);
-		} catch (Exception e){
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		String response = llmResponse.getStringResponse();
-		String messageId = llmResponse.getMessageId();
-		Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
-		Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
-
-		Map<String, Object> llmResponseMap = new HashMap<>();
-
-		// "choices" array
-		List<Map<String, Object>> choicesList = new ArrayList<>();
-		Map<String, Object> choice = new HashMap<>();
-		choice.put("finish_reason", "stop");
-		choice.put("index", 0);
-
-		// "message" object within "choices"
-		Map<String, Object> message = new HashMap<>();
-		message.put("content", response);
-		message.put("role", "assistant");
-
-		choice.put("message", message);
-
-		choicesList.add(choice);
-
-		llmResponseMap.put("choices", choicesList);
-
-		// Get the current UTC time
-		ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeForUser(user);
-		// Convert ZonedDateTime to Instant
-		Instant instant = currentDateTime.toInstant();
-		// Get the number of seconds since the epoch
-		long unixTimestamp = instant.getEpochSecond();
-
-		llmResponseMap.put("created", unixTimestamp);
-		llmResponseMap.put("id", messageId);
-		llmResponseMap.put("model", engineId);
-		llmResponseMap.put("object", "chat.completion");
-
-		// "usage" object
-		Map<String, Object> usage = new HashMap<>();
-
-		if (promptTokens!= null && responseTokens != null) {
-			usage.put("completion_tokens", responseTokens);
-			usage.put("prompt_tokens", promptTokens);
-			usage.put("total_tokens", promptTokens + responseTokens);
-		} else {
-			if (responseTokens != null) {
-				usage.put("completion_tokens", responseTokens);
-			} 
-
-			if (promptTokens != null) {
-				usage.put("prompt_tokens", promptTokens);
+		if (!isStreamingRequest) {
+			AskModelEngineResponse llmResponse;
+			try {
+				llmResponse = engine.ask(null, null, insight, dataMap);
+			} catch (Exception e){
+				classLogger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+				return WebUtility.getResponse(errorMap, 400);
 			}
-		}
-		llmResponseMap.put("usage", usage);
 
-		return WebUtility.getResponse(llmResponseMap, 200);
+			String response = llmResponse.getStringResponse();
+			String messageId = llmResponse.getMessageId();
+			Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
+			Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
+
+			Map<String, Object> llmResponseMap = new HashMap<>();
+
+			// "choices" array
+			List<Map<String, Object>> choicesList = new ArrayList<>();
+			Map<String, Object> choice = new HashMap<>();
+			choice.put("finish_reason", "stop");
+			choice.put("index", 0);
+
+			// "message" object within "choices"
+			Map<String, Object> message = new HashMap<>();
+			message.put("content", response);
+			message.put("role", "assistant");
+
+			choice.put("message", message);
+
+			choicesList.add(choice);
+
+			llmResponseMap.put("choices", choicesList);
+
+			// Get the current UTC time
+			ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeForUser(user);
+			// Convert ZonedDateTime to Instant
+			Instant instant = currentDateTime.toInstant();
+			// Get the number of seconds since the epoch
+			long unixTimestamp = instant.getEpochSecond();
+
+			llmResponseMap.put("created", unixTimestamp);
+			llmResponseMap.put("id", messageId);
+			llmResponseMap.put("model", engineId);
+			llmResponseMap.put("object", "chat.completion");
+
+			// "usage" object
+			Map<String, Object> usage = new HashMap<>();
+
+			if (promptTokens!= null && responseTokens != null) {
+				usage.put("completion_tokens", responseTokens);
+				usage.put("prompt_tokens", promptTokens);
+				usage.put("total_tokens", promptTokens + responseTokens);
+			} else {
+				if (responseTokens != null) {
+					usage.put("completion_tokens", responseTokens);
+				} 
+
+				if (promptTokens != null) {
+					usage.put("prompt_tokens", promptTokens);
+				}
+			}
+			llmResponseMap.put("usage", usage);
+
+			return WebUtility.getResponse(llmResponseMap, 200);
+		} else {
+			// Streaming implementation!!
+			final String messageId = "chatcmpl-" + UUID.randomUUID().toString();
+			final long creationTimestamp = Instant.now().getEpochSecond();
+
+			classLogger.info("Starting streaming response for model: " + engineId);
+
+			return Response
+					.ok()
+					.header("Content-Type", "text/event-stream")
+					.header("Cache-Control", "no-cache")
+					.header("Connection", "keep-alive")
+					.entity(new StreamingOutput() {
+						@Override
+						public void write(OutputStream output) throws IOException, WebApplicationException {
+							Writer writer = new BufferedWriter(new OutputStreamWriter(output));
+							ObjectMapper mapper = new ObjectMapper();
+							String jobId = null;
+							try {
+								// Execute model request but get job ID so can poll for partial responses
+								jobId = startAsyncModelRequest(engine, finalInsight, dataMap);
+
+								boolean started = false;
+								boolean completionSent = false;
+								String previousContent = "";
+
+								// polling partial endpoint until response complete
+								while (true) {
+									Map<String, Object> responseData = new HashMap<>();
+									PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+									Map<String, String> partialResponseContent = PixelJobManager.getManager().getPartial(jobId);
+									PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
+									responseData.put("status", jobStatus);
+									responseData.put("message", partialResponseContent);
+
+									Map<String, Object> message = (Map<String, Object>) responseData.get("message");
+
+									if (message != null && message.size() > 0) {
+										String newContent = (String) message.get("new");
+
+										if (newContent != null && !newContent.isEmpty()) {
+											// formatting as OpenAI streaming chunk
+											Map<String, Object> chunk = new HashMap<>();
+											chunk.put("id", messageId);
+											chunk.put("object", "chat.completion.chunk");
+											chunk.put("created", creationTimestamp);
+											chunk.put("model", engineId);
+
+											List<Map<String, Object>> choices = new ArrayList<>();
+											Map<String, Object> choice = new HashMap<>();
+											choice.put("index", 0);
+
+											Map<String, Object> delta = new HashMap<>();
+
+											// if first chunk include role
+											if (!started) {
+												delta.put("role", "assistant");
+												started = true;
+											}
+
+											delta.put("content", newContent);
+											choice.put("delta", delta);
+											choice.put("finish_reason", null);
+
+											choices.add(choice);
+											chunk.put("choices", choices);
+
+											// sending chunk as SSE event
+											writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
+											writer.flush();
+
+											previousContent = newContent;
+										}
+									}
+
+									// Check job complete to send completion
+									if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started && !completionSent) {
+										// send final chumk with empty delta && finish_reason="stop"
+										Map<String, Object> finalChunk = new HashMap<>();
+										finalChunk.put("id", messageId);
+										finalChunk.put("object", "chat.completion.chunk");
+										finalChunk.put("created", creationTimestamp);
+										finalChunk.put("model", engineId);
+
+										List<Map<String, Object>> choices = new ArrayList<>();
+										Map<String, Object> choice = new HashMap<>();
+										choice.put("index", 0);
+
+										Map<String, Object> delta = new HashMap<>();
+
+										choice.put("delta", delta);
+										choice.put("finish_reason", "stop");
+
+										choices.add(choice);
+										finalChunk.put("choices", choices);
+
+										writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
+
+										writer.write("data: [DONE]\n\n");
+										writer.flush();
+
+										completionSent = true;
+										break;
+									} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
+										Map<String, Object> chunk = new HashMap<>();
+										chunk.put("id", messageId);
+										chunk.put("object", "chat.completion.chunk");
+										chunk.put("created", creationTimestamp);
+										chunk.put("model", engineId);
+
+										List<Map<String, Object>> choices = new ArrayList<>();
+										Map<String, Object> choice = new HashMap<>();
+										choice.put("index", 0);
+
+										Map<String, Object> delta = new HashMap<>();
+										delta.put("role", "assistant");
+										delta.put("content", "");
+										choice.put("delta", delta);
+										choice.put("finish_reason", null);
+
+										choices.add(choice);
+										chunk.put("choices", choices);
+
+										writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
+
+										Map<String, Object> finalChunk = new HashMap<>();
+										finalChunk.put("id", messageId);
+										finalChunk.put("object", "chat.completion.chunk");
+										finalChunk.put("created", creationTimestamp);
+										finalChunk.put("model", engineId);
+
+										List<Map<String, Object>> finalChoices = new ArrayList<>();
+										Map<String, Object> finalChoice = new HashMap<>();
+										finalChoice.put("index", 0);
+										finalChoice.put("delta", new HashMap<>());
+										finalChoice.put("finish_reason", "stop");
+
+										finalChoices.add(finalChoice);
+										finalChunk.put("choices", finalChoices);
+
+										writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
+										writer.write("data: [DONE]\n\n");
+										writer.flush();
+										break;
+									}
+
+									// small delay
+									try {
+										Thread.sleep(100);
+									} catch (InterruptedException e) {
+										Thread.currentThread().interrupt();
+										break;
+									}
+								}
+							} catch (Exception e) {
+								classLogger.error("Error in streaming response", e);
+								throw new WebApplicationException(e, 500);
+							} finally {
+								try {
+									writer.close();
+								} catch (IOException e) {
+									classLogger.error("Error closing writer", e);
+								}
+								if(jobId != null) {
+									PixelJobManager.getManager().clearJob(jobId);
+									PixelJobManager.getManager().removeJob(jobId);
+								}
+							}
+						}
+					})
+					.build();
+		}
+	}
+
+	/**
+	 * Start an asynchronous model request and return the job ID
+	 * @param engine
+	 * @param insight
+	 * @param dataMap
+	 * @return
+	 */
+	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Map<String, Object> dataMap) {
+		try {
+			// start async job
+			PixelJobManager manager = PixelJobManager.getManager();
+			PixelJobThread jt = manager.makeJob(insight.getInsightId());
+			String jobId = jt.getJobId();
+
+			// add to JobManager
+			String job = "META | Job(\"" + jobId + "\", \"" + insight.getInsightId() + "\", \"" + 
+					ThreadStore.getSessionId() + "\");";
+			jt.addPixel(job);
+
+			Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+			String modelPixel = "LLM(engine='"+engine.getEngineId()+"', command='<encode>ignore</encode>'"
+					// this should have the full_prompt
+					+ ",paramValues=["+gson.toJson(dataMap)+"]);";
+			jt.addPixel(modelPixel);
+			jt.setInsight(insight);
+			jt.start();
+			return jobId;
+		} catch (Exception e) {
+			classLogger.warn("Failed to start async job");
+			classLogger.error(Constants.STACKTRACE, e);
+			throw new IllegalArgumentException(e.getMessage());
+		}
 	}
 
 	@POST
@@ -597,4 +834,138 @@ public class OpenAIEndpoints {
 		embeddingsResponseMap.put("usage", usage);
 		return WebUtility.getResponse(embeddingsResponseMap, 200);
 	}
+	
+	@GET
+	@Path("/models")
+	@Produces("application/json;charset=utf-8")
+	public Response listModels(@Context HttpServletRequest request) {
+		// https://platform.openai.com/docs/api-reference/models/list
+		HttpSession session = request.getSession(false);
+		User user = null;
+		if (session != null) {
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+		}
+		// how did you even get past the no user in session filter?
+		if (user == null) {
+			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		MyEnginesReactor reactor = new MyEnginesReactor();
+		reactor.In();
+		Insight temp = new Insight();
+		temp.setUser(user);
+		reactor.setInsight(temp);
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(IEngine.CATALOG_TYPE.MODEL.name(), PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
+		}
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(true, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
+		}
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(false, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
+		}
+		
+		NounMetadata outputNoun = reactor.execute();
+		List<Map<String, Object>> openAiResponse = processModelList(outputNoun);
+		Map<String, Object> returnObject = new HashMap<>();
+		returnObject.put("object", "list");
+		returnObject.put("data", openAiResponse);
+		return WebUtility.getResponse(returnObject, 200);
+	}
+
+	@GET
+	@Path("/models/{modelId}")
+	@Produces("application/json;charset=utf-8")
+	public Response retrieveModel(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
+		// https://platform.openai.com/docs/api-reference/models/retrieve
+		HttpSession session = request.getSession(false);
+		User user = null;
+		if (session != null) {
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+		}
+		// how did you even get past the no user in session filter?
+		if (user == null) {
+			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		MyEnginesReactor reactor = new MyEnginesReactor();
+		reactor.In();
+		Insight temp = new Insight();
+		temp.setUser(user);
+		reactor.setInsight(temp);
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(modelId, PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE.getKey(), struct);
+		}
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(IEngine.CATALOG_TYPE.MODEL.name(), PixelDataType.CONST_STRING));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
+		}
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(true, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
+		}
+		{
+			GenRowStruct struct = new GenRowStruct();
+			struct.add(new NounMetadata(false, PixelDataType.BOOLEAN));
+			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
+		}
+		
+		NounMetadata outputNoun = reactor.execute();
+		List<Map<String, Object>> openAiResponse = processModelList(outputNoun);
+		if(openAiResponse == null || openAiResponse.isEmpty()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not find model = '" + modelId + "'");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		return WebUtility.getResponse(openAiResponse.get(0), 200);
+	}
+	
+	/**
+	 * Process the MyEngines output format to OpenAi format
+	 * @param outputNoun
+	 * @return
+	 */
+	private List<Map<String, Object>> processModelList(NounMetadata outputNoun) {
+		List<Map<String, Object>> enginesList = (List<Map<String, Object>>) outputNoun.getValue();
+		// we will convert our object to the openai spec
+		List<Map<String, Object>> openAiResponse = new ArrayList<>(enginesList.size());
+		for(Map<String, Object> engines : enginesList) {
+			Map<String, Object> newMap = new HashMap<>();
+			newMap.put("object", "model");
+			newMap.put("id", engines.get("database_id"));
+			newMap.put("alias", engines.get("database_name"));
+			newMap.put("owned_by", engines.get("database_created_by"));
+			SemossDate dateCreated = (SemossDate) engines.get("database_date_created");
+			if(dateCreated != null) {
+				ZonedDateTime zdt = dateCreated.getZonedDateTime();
+				if(zdt != null) {
+					newMap.put("created", zdt.toEpochSecond());
+				}
+			}
+			openAiResponse.add(newMap);
+		}
+		return openAiResponse;
+	}
+	
+	
 }
