@@ -35,10 +35,7 @@ import com.sun.identity.saml2.protocol.Response;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
-import prerna.auth.User;
 import prerna.auth.utils.AdminSecurityGroupUtils;
-import prerna.auth.utils.SecurityUpdateUtils;
-import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
@@ -209,10 +206,7 @@ public class SamlVerifierServlet extends HttpServlet {
 	 * @param HttpSession session
 	 */
 	private void establishUserInSession(SamlDataObjectMapper mapper, HttpServletRequest request, HttpSession session) {
-		AccessToken token = null;
-		User user = new User();
-		token = new AccessToken();
-		
+		AccessToken token = new AccessToken();
 		if(mapper.getId() == null) {
 			token.setId(mapper.getNameId());
 		} else {
@@ -235,18 +229,8 @@ public class SamlVerifierServlet extends HttpServlet {
 		
 		// Set SAML provider type in token.
 		token.setProvider(AuthProvider.SAML);
-		// Set token in user object
-		user.setAccessToken(token);
-		// Add user to security database and session. Call it a day, phew!
-		SecurityUpdateUtils.addOAuthUser(token);
-		session.setAttribute(Constants.SESSION_USER, user);
-		session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-		
-		// log the user login
-		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is logging in with provider " +  token.getProvider()));
-
-		// store if db tracking
-		UserResource.userTrackingLogin(request, user, token.getProvider());
+		// store in session, log in user tracking db, and add the user to security db
+		UserResource.addAccessToken(token, request, true);
 	}
 
 }

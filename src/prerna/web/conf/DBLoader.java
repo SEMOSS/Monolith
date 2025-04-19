@@ -91,13 +91,6 @@ public class DBLoader implements ServletContextListener {
 		
 		String rdfPropFile = context.getInitParameter(RDFMAP);
 
-		// see if only admins can set an engine as public
-		String adminSetPublicOnly = context.getInitParameter(Constants.ADMIN_SET_PUBLIC);
-		if (adminSetPublicOnly == null) {
-			adminSetPublicOnly = "false";
-		}
-		context.setInitParameter(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
-
 		// see if admin can determine who can publish
 		String adminSetPublisher = context.getInitParameter(Constants.ADMIN_SET_PUBLISHER);
 		if (adminSetPublisher == null) {
@@ -172,7 +165,6 @@ public class DBLoader implements ServletContextListener {
 		// set security enabled within DIHelper first
 		// this is because security database, on init, will
 		// load it as a boolean instead of us searching within DIHelper
-		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLIC, adminSetPublicOnly);
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_EXPORTER, adminSetExporter);
 		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);

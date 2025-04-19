@@ -40,12 +40,6 @@ public class NoUserInSessionFilter implements Filter {
 	
 	private static final Logger logger = LogManager.getLogger(NoUserInSessionFilter.class);
 
-	// this is so if you are making a direct BE request
-	// after you sign in
-	// we can redirect you back to the original call
-	// instead of taking you to the base SemossWeb URL
-	private static final String LOGIN = "login";
-	
 	private static final String NO_USER_HTML = "/noUserFail/";
 
 	@Override
@@ -154,7 +148,7 @@ public class NoUserInSessionFilter implements Filter {
 					} else {
 						// don't know what i am redirecting
 						// send back an error and have the client remake the request
-						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+						setInvalidEntryRedirect(context, arg0, arg1);
 					}
 
 					return;
@@ -162,7 +156,7 @@ public class NoUserInSessionFilter implements Filter {
 				// no jsession id as a param
 				// just a normal redirect
 				else {
-					setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+					setInvalidEntryRedirect(context, arg0, arg1);
 					return;
 				}
 			}
@@ -204,7 +198,7 @@ public class NoUserInSessionFilter implements Filter {
 					// tricky tricky
 					// if you have a hash id but not shared
 					// you are trying to get in when you shouldn't
-					setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+					setInvalidEntryRedirect(context, arg0, arg1);
 					return;
 				}
 
@@ -217,7 +211,7 @@ public class NoUserInSessionFilter implements Filter {
 
 				// not enough input
 				if (insightId == null || secret == null) {
-					setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+					setInvalidEntryRedirect(context, arg0, arg1);
 					return;
 				}
 
@@ -233,7 +227,7 @@ public class NoUserInSessionFilter implements Filter {
 					}
 					if (hashId == null || !hashId.equals(sb + "")) {
 						// bad input
-						setInvalidEntryRedirect(context, arg0, arg1, LOGIN);
+						setInvalidEntryRedirect(context, arg0, arg1);
 						return;
 					}
 
@@ -269,7 +263,7 @@ public class NoUserInSessionFilter implements Filter {
 	 * @param arg1
 	 * @throws IOException
 	 */
-	private void setInvalidEntryRedirect(ServletContext context, ServletRequest arg0, ServletResponse arg1, String endpoint) throws IOException {
+	private void setInvalidEntryRedirect(ServletContext context, ServletRequest arg0, ServletResponse arg1) throws IOException {
 		String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 		((HttpServletResponse) arg1).setStatus(302);
 		String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
@@ -289,11 +283,7 @@ public class NoUserInSessionFilter implements Filter {
 			}
 		} else {
 			// are we in public home - if no, we dont include ! in the redirect
-			if(redirectUrl.contains("/public_home/")) {
-				redirectUrl = redirectUrl + "#/" + endpoint;
-			} else {
-				redirectUrl = redirectUrl + "#!/" + endpoint;
-			}
+			redirectUrl = redirectUrl + WebUtility.determineLoginExtension((HttpServletRequest) arg0);
 			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
 			((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
 			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);

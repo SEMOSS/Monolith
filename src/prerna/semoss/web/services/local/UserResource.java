@@ -81,6 +81,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.InsightToken;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
+import prerna.auth.external.ExternalAuthorizationHelper;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -98,7 +99,6 @@ import prerna.security.HttpHelperUtility;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.BeanFiller;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.util.git.GitRepoUtils;
@@ -236,7 +236,7 @@ public class UserResource {
 						response.setHeader("redirect", redirectUrl);
 						response.sendError(302, "Need to redirect to " + redirectUrl);
 					} else {
-						redirectUrl = redirectUrl + "#!/login";
+						redirectUrl = redirectUrl + WebUtility.determineLoginExtension(request);
 						String encodedRedirectUrl = Encode.forHtml(redirectUrl);
 						response.setHeader("redirect", encodedRedirectUrl);
 						response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
@@ -272,9 +272,22 @@ public class UserResource {
 		HttpSession session = request.getSession();
 		User semossUser = (User) session.getAttribute(Constants.SESSION_USER);
 		// all of this is now in the user
-		if (semossUser == null) {
+		boolean firstLogin = semossUser == null;
+		if (firstLogin) {
 			semossUser = new User();
 			session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
+		}
+		// add new users into the database
+		if(autoAdd) {
+			SecurityUpdateUtils.addOAuthUser(token);
+		}
+		// validate the user's login 
+		// that they are not locked 
+		// and to update the last login date
+		try {
+			SecurityUpdateUtils.validateUserLogin(token);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
@@ -285,9 +298,15 @@ public class UserResource {
 		// log the user login
 		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser), "is logging in with provider " +  token.getProvider()));
 
-		// add new users into the database
-		if(autoAdd) {
-			SecurityUpdateUtils.addOAuthUser(token);
+		// only for first login
+		// lets see if there is an external auth
+		// that we should be loading
+		if(firstLogin && Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.EXTERNAL_PERMISSION_MANAGEMENT_ENABLED)+"")) {
+			try {
+				ExternalAuthorizationHelper.updateEnginePermissionsBasedOnApiCall(semossUser);
+			} catch (Exception e) {
+				classLogger.error(Constants.STACKTRACE, e);
+			}
 		}
 	}
 
@@ -374,7 +393,15 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/userinfo/ms")
+	@Deprecated
 	public Response userinfoMs(@Context HttpServletRequest request) {
+		return userinfoMicrosoft(request);
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/microsoft")
+	public Response userinfoMicrosoft(@Context HttpServletRequest request) {
 		Map<String, String> ret = new HashMap<>();
 		HttpSession session = request.getSession(false);
 		User semossUser = null;
@@ -401,7 +428,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken msToken = semossUser.getAccessToken(AuthProvider.MS);
+			AccessToken msToken = semossUser.getAccessToken(AuthProvider.MICROSOFT);
 			accessString = msToken.getAccess_token();
 			String url = "https://graph.microsoft.com/v1.0/me/";
 			String output = HttpHelperUtility.makeGetCall(url, accessString, null, true);
@@ -416,7 +443,6 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 200);
 		}
 	}
-
 
 	/**
 	 * Gets user info for ADFS
@@ -606,16 +632,26 @@ public class UserResource {
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
 
+		String[] beanPropsArr = {"id","name","email","phone"};
 		String jsonPattern = "[sub,name,email,phone_number]";
-		String[] beanProps = {"id","name","email","phone"};
 
 		String accessString = null;
 		try {
 			AccessToken accessToken = semossUser.getAccessToken(AuthProvider.OKTA);
 			accessString = accessToken.getAccess_token();
 			String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
+			String socialBeanProps = socialData.getProperty(prefix + "beanProps");
+			
+			if(socialBeanProps != null && !socialBeanProps.trim().isEmpty())
+				beanPropsArr = socialBeanProps.split(",", -1);
+			
+			String socialJsonPattern = socialData.getProperty(prefix + "jsonPattern");
+			
+			if(socialJsonPattern != null && !socialJsonPattern.trim().isEmpty())
+				jsonPattern = socialJsonPattern;
+			
 			String output = HttpHelperUtility.makeGetCall(userInfoURL, accessString, null, true);
-			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps, new AccessToken());
+			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, new AccessToken());
 			String name = accessToken2.getName();
 			ret.put("name", name);
 			return WebUtility.getResponse(ret, 200);
@@ -960,10 +996,17 @@ public class UserResource {
 					}
 					accessToken.setProvider(AuthProvider.GITHUB);
 	
-					GitRepoUtils.addCertForDomain(url);
+					try {
+						GitRepoUtils.addCertForDomain(url);
+					} catch(Exception e) {
+						classLogger.error(Constants.STACKTRACE, e);
+					}
 					// add specific Git values
 					GithubTokenFiller profiler = new GithubTokenFiller();
 					profiler.fillAccessToken(accessToken, null, null, null, null);
+					
+					addAccessToken(accessToken, request, autoAdd);
+					
 					if(classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
@@ -977,7 +1020,11 @@ public class UserResource {
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
-			GitRepoUtils.addCertForDomain("https://github.com");
+			try {
+				GitRepoUtils.addCertForDomain("https://github.com");
+			} catch(Exception e) {
+				classLogger.error(Constants.STACKTRACE, e);
+			}
 			response.setStatus(302);
 			response.sendRedirect(getGithubRedirect(request));
 			return null;
@@ -1095,7 +1142,6 @@ public class UserResource {
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
 			// not authenticated
-			//			GitRepoUtils.addCertForDomain("https://github.com");
 			response.setStatus(302);
 			response.sendRedirect(getGitlabRedirect(request));
 			return null;
@@ -1157,7 +1203,15 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/ms")
+	@Deprecated
 	public Response loginMS(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		return loginMicrosoft(request, response);
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("/login/microsoft")
+	public Response loginMicrosoft(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1178,7 +1232,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
+			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MICROSOFT) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1215,11 +1269,11 @@ public class UserResource {
 					if (accessToken == null) {
 						// not authenticated
 						response.setStatus(302);
-						response.sendRedirect(getMSRedirect(request));
+						response.sendRedirect(getMicrosoftRedirect(request));
 						return null;
 					}
 					
-					accessToken.setProvider(AuthProvider.MS);
+					accessToken.setProvider(AuthProvider.MICROSOFT);
 					MicrosoftTokenFiller profiler = new MicrosoftTokenFiller();
 					profiler.fillAccessToken(accessToken, null, null, null, null);
 					if(!login_external_allowed) {
@@ -1241,18 +1295,18 @@ public class UserResource {
 		if(session != null || (session=request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.MS) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(getMSRedirect(request));
+			response.sendRedirect(getMicrosoftRedirect(request));
 			return null;
 		}
 
 		setMainPageRedirect(request, response);
 		return null;
 	}
-
-	private String getMSRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
+	
+	private String getMicrosoftRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "ms_";
 		String clientId = socialData.getProperty(prefix + "client_id");
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
@@ -1443,7 +1497,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MS) == null) {
+			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MICROSOFT) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1482,8 +1536,12 @@ public class UserResource {
 					
 					// sub is the unique id for a user in okta
 					String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
+					String beanProps = socialData.getProperty(prefix + "beanProps");
+					String[] beanPropsArr = beanProps.split(",", -1);
+					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+					
 					OktaTokenFiller profiler = new OktaTokenFiller();
-					profiler.fillAccessToken(accessToken, userinfo_url, null, null, null);
+					profiler.fillAccessToken(accessToken, userinfo_url, jsonPattern, beanPropsArr, null);
 					addAccessToken(accessToken, request, autoAdd);
 					if(classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -2022,7 +2080,7 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/linkedin")
-	public Response loginIn(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginLinkedin(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -2044,7 +2102,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.LINKEDIN) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -2077,7 +2135,7 @@ public class UserResource {
 						response.sendRedirect(getInRedirect(request));
 						return null;
 					}
-					accessToken.setProvider(AuthProvider.IN);
+					accessToken.setProvider(AuthProvider.LINKEDIN);
 					addAccessToken(accessToken, request, autoAdd);
 	
 					if(classLogger.isDebugEnabled()) {
@@ -2091,7 +2149,7 @@ public class UserResource {
 		if(session != null || (session=request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.IN) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.LINKEDIN) == null) {
 			response.setStatus(302);
 			response.sendRedirect(getInRedirect(request));
 			return null;
@@ -2396,7 +2454,6 @@ public class UserResource {
 						accessToken.setUserGroups(userGroups);
 						accessToken.setUserGroupType(providerEnum.toString());			
 					}
-
 					
 					addAccessToken(accessToken, request, autoAdd);
 	
@@ -2417,7 +2474,6 @@ public class UserResource {
 			response.sendRedirect(getGenericRedirect(provider, request));
 			return null;
 		}
-
 		
 		setMainPageRedirect(request, response);
 		return null;
@@ -2523,7 +2579,6 @@ public class UserResource {
 				authToken.setEmail(email);
 				// no need to auto-add since to login native you must already exist
 				addAccessToken(authToken, request, false);
-				SecurityUpdateUtils.validateUserLogin(authToken);
 
 				// add these to the return 
 				ret.put("success", "true");
@@ -2598,7 +2653,6 @@ public class UserResource {
 			}
 			boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(ILdapAuthenticator.LDAP + "auto_add", "true"));
 			addAccessToken(authToken, request, autoAdd);
-			SecurityUpdateUtils.validateUserLogin(authToken);
 			ret.put("success", "true");
 			ret.put("username", username);
 			// log the log in
@@ -2799,7 +2853,6 @@ public class UserResource {
 		}
 		
 	    //get the connection to RDF_MAP.prop file to get the user default set values
-	    DIHelper prop  = DIHelper.getInstance();
 		try {
 			// Note - for native users
 			// the id and the username are always the same
@@ -3189,8 +3242,8 @@ public class UserResource {
 			Map<String, String> envMap = System.getenv();
 			// the environment variable for this box will tell me which route variable
 			// is for this specific box
-			if (envMap.containsKey(Constants.MONOLITH_ROUTE)) {
-				String routeCookieName = envMap.get(Constants.MONOLITH_ROUTE);
+			if (envMap.containsKey(Constants.LOAD_BALANCER_COOKIE_NAME)) {
+				String routeCookieName = envMap.get(Constants.LOAD_BALANCER_COOKIE_NAME);
 				Cookie[] curCookies = request.getCookies();
 				if (curCookies != null) {
 					for (Cookie c : curCookies) {

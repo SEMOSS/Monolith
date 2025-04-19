@@ -285,13 +285,13 @@ public class ProjectAuthorizationResource {
 	public Response getProjectUsers(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, 
 			@QueryParam("userId") String userId, 
-			@QueryParam("userInfo") String userInfo, 
+			@QueryParam("searchTerm") String searchTerm, 
 			@QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, 
 			@QueryParam("offset") long offset) {
 		projectId = WebUtility.inputSanitizer(projectId);
 		userId = WebUtility.inputSQLSanitizer(userId);
-		userInfo = WebUtility.inputSanitizer(userInfo);
+		searchTerm = WebUtility.inputSanitizer(searchTerm);
 		permission = WebUtility.inputSanitizer(permission);
 
 		User user = null;
@@ -307,7 +307,7 @@ public class ProjectAuthorizationResource {
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			String searchParam = userInfo != null ? userInfo : userId;
+			String searchParam = searchTerm != null ? searchTerm : userId;
 			List<Map<String, Object>> members = SecurityProjectUtils.getProjectUsers(user, projectId, searchParam, permission, limit, offset);
 			long totalMembers = SecurityProjectUtils.getProjectUsersCount(user, projectId, searchParam, permission);
 			ret.put("totalMembers", totalMembers);
@@ -491,7 +491,7 @@ public class ProjectAuthorizationResource {
 					accessGranted.add(engineId);
 					SecurityEngineUtils.addEngineUser(requester,newUserId, engineId, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 					classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(requester), "has added " + newUserId + " to " + engineId));
-				} catch (IllegalAccessException e) {
+				} catch (IllegalAccessException | IllegalArgumentException e) {
 					couldNotAddRequest.add(engineId);
 					classLogger.error(Constants.STACKTRACE, e);
 				}
@@ -685,13 +685,6 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("setProjectGlobal")
 	public Response setProjectGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		boolean onlyAdmin = Boolean.parseBoolean(context.getInitParameter(Constants.ADMIN_SET_PUBLIC));
-		if(onlyAdmin) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "For this instance, only admins are allowed to set specific apps global");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -931,8 +924,10 @@ public class ProjectAuthorizationResource {
 			}
 		}
 
+		String graphApiGroupId = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_groupId");
+
 		try {
-			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user,  projectId, searchTerm, limit, offset);
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user,  projectId, searchTerm, graphApiGroupId, limit, offset);
 			return WebUtility.getResponse(filteredUsers, 200);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
@@ -1028,7 +1023,7 @@ public class ProjectAuthorizationResource {
 
 		// updating user access requests in bulk
 		List<String> requestids = new Gson().fromJson(form.getFirst("requestids"), List.class);
-		requestids = WebUtility.inputSanitizer(requestids);
+		requestids = WebUtility.inputSQLSanitizer(requestids);
 		try {
 			SecurityProjectUtils.denyProjectUserAccessRequests(user, projectId, requestids);
 		} catch (Exception e) {
@@ -1095,7 +1090,7 @@ public class ProjectAuthorizationResource {
 						token.setEmail(map.get(Constants.MAP_EMAIL));
 						token.setName(map.get(Constants.MAP_NAME));
 						token.setUsername((String) map.get(Constants.MAP_USERNAME));
-						token.setProvider(AuthProvider.MS);
+						token.setProvider(AuthProvider.MICROSOFT);
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
 				}

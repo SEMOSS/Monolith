@@ -56,23 +56,61 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/registerUser")
 	public Response registerUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		Hashtable<String, String> errorRet = new Hashtable<>();
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		Map<String, String> errorRet = new HashMap<>();
+		if(!SecurityAdminUtils.userIsAdmin(user)){
+			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
+			return WebUtility.getResponse(errorRet, 400);
+		}
+		
 		boolean success = false;
 		try {
 			String newUserId = form.getFirst("userId");
 			if(newUserId == null || newUserId.isEmpty()) {
 				throw new IllegalArgumentException("The user id cannot be null or empty");
 			}
+			String type = WebUtility.inputSanitizer(form.getFirst("type"));
 			String name = WebUtility.inputSQLSanitizer(form.getFirst("name"));
 			String email = WebUtility.inputSQLSanitizer(form.getFirst("email"));
 			String phone = WebUtility.inputSanitizer(request.getParameter("phone"));
 			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
 			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
-			String type = WebUtility.inputSanitizer(form.getFirst("type"));
 			Boolean newUserAdmin = Boolean.parseBoolean(form.getFirst("admin"));
 			Boolean publisher = Boolean.parseBoolean(form.getFirst("publisher"));
 			Boolean exporter = Boolean.parseBoolean(form.getFirst("exporter"));
 			String password = WebUtility.inputSQLSanitizer(form.getFirst("password"));
+			
+			// model restrictions
+			String modelUsageRestriction = WebUtility.inputSQLSanitizer(form.getFirst("modelUsageRestriction"));
+			String modelUsageFrequency = WebUtility.inputSQLSanitizer(form.getFirst("modelUsageFrequency"));
+			Integer modelMaxTokens = null;
+			String modelMaxTokensStr = form.getFirst("modelMaxTokens");
+			if(modelMaxTokensStr != null && !(modelMaxTokensStr=modelMaxTokensStr.trim()).isEmpty()) {
+				try {
+					modelMaxTokens = Integer.parseInt(modelMaxTokensStr);
+				} catch(NumberFormatException e) {
+					classLogger.error(Constants.STACKTRACE, e);
+					throw new IllegalArgumentException("modelMaxTokens must be a valid Integer value");
+				}
+			}
+			Double modelMaxResponseTime = null;
+			String modelMaxResponseTimeStr = form.getFirst("modelMaxResponseTime");
+			if(modelMaxResponseTimeStr != null && !(modelMaxResponseTimeStr=modelMaxResponseTimeStr.trim()).isEmpty()) {
+				try {
+					modelMaxResponseTime = Double.parseDouble(modelMaxResponseTimeStr);
+				} catch(NumberFormatException e) {
+					classLogger.error(Constants.STACKTRACE, e);
+					throw new IllegalArgumentException("modelMaxResponseTime must be a valid Number value");
+				}
+			}
+			
 			// validate email & password
 			if (email != null && !email.isEmpty()) {
 				try {
@@ -103,22 +141,9 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 				}
 			}
 			
-			User user = null;
-			try {
-				user = ResourceUtility.getUser(request);
-			} catch (IllegalAccessException e) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-				return WebUtility.getResponse(errorMap, 401);
-			}
-			
-			if(SecurityAdminUtils.userIsAdmin(user)){
-				success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, 
-						phone, phoneExtension, countryCode, newUserAdmin, publisher, exporter);
-			} else {
-				errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-				return WebUtility.getResponse(errorRet, 400);
-			}
+			success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, 
+					phone, phoneExtension, countryCode, newUserAdmin, publisher, exporter,
+					modelUsageRestriction, modelUsageFrequency, modelMaxTokens, modelMaxResponseTime);
 		} catch (IllegalArgumentException e){
     		classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -153,7 +178,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		boolean isPublisher = Boolean.parseBoolean(form.getFirst("isPublisher"));
 		
 		try {
@@ -192,8 +217,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
-		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
+		String type = WebUtility.inputSQLSanitizer(form.getFirst("type"));
 		boolean isLocked = Boolean.parseBoolean(form.getFirst("isLocked"));
 		
 		try {
@@ -251,10 +276,15 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			// need to make sure they are not the last admin for the instance
 			synchronized (AdminUserAuthorizationResource.class) {
 				int numAdmins = adminUtils.getNumAdmins();
-				if(numAdmins <= 1) {
-					Map<String, String> errorMap = new HashMap<String, String>();
-					errorMap.put(Constants.ERROR_MESSAGE, "You cannot remove the last admin from having admin level permissions. Please assign a new admin before removing admin access.");
-					return WebUtility.getResponse(errorMap, 400);
+				if(numAdmins == 1) {
+					Object[] adminUser = adminUtils.getAdminUserIdAndType();
+					String thisUserId = userInfo.get("id")+"";
+					String thisUserType = userInfo.get("type")+"";
+					if(thisUserId.equals(adminUser[0]) && thisUserType.equals(adminUser[1])) {
+						Map<String, String> errorMap = new HashMap<String, String>();
+						errorMap.put(Constants.ERROR_MESSAGE, "You cannot remove the last admin from having admin level permissions. Please assign a new admin before removing admin access.");
+						return WebUtility.getResponse(errorMap, 400);
+					}
 				}
 			}
 		}
@@ -291,8 +321,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String userIdToDelete = WebUtility.inputSanitizer(form.getFirst("userId"));
-		String userTypeToDelete = WebUtility.inputSanitizer(form.getFirst("type"));
+		String userIdToDelete = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
+		String userTypeToDelete = WebUtility.inputSQLSanitizer(form.getFirst("type"));
 
 		boolean isDeletedUserAdmin = adminUtils.userIsAdmin(userIdToDelete, userTypeToDelete);
 		if(isDeletedUserAdmin) {
@@ -344,9 +374,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("filterWord") String searchTerm,
 			@QueryParam("limit") long limit, 
 			@QueryParam("offset") long offset) {
-		
-		searchTerm=WebUtility.inputSanitizer(searchTerm);
-
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -362,4 +390,24 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		List<Map<String, Object>> ret = adminUtils.getAllUsers(searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
+	
+	@GET
+	@Path("/getNumUsers")
+	public Response getNumUsers(@Context HttpServletRequest request) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		Long ret = adminUtils.getNumUsers();
+		return WebUtility.getResponse(ret, 200);
+	}
+	
 }

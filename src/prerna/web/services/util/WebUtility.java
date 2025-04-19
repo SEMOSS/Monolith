@@ -47,7 +47,6 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.TimeZone;
-import java.util.Vector;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.Cookie;
@@ -359,19 +358,35 @@ public class WebUtility {
 	/**
 	 * This is to remove scripts from being passed
 	 *  also removed sql injection
-	 * @param stringToNormalize
+	 * @param stringToSanitize
 	 * @return
 	 */
-	public static String inputSanitizer(String stringToNormalize) {
-		if (stringToNormalize == null) {
+	public static String inputSanitizer(String stringToSanitize) {
+		if (stringToSanitize == null) {
 			classLogger.debug("input to sanitzer is null, returning null");
-			return stringToNormalize;
+			return stringToSanitize;
 		}
 
 		PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS).and(Sanitizers.BLOCKS).and(Sanitizers.STYLES)
 				.and(Sanitizers.IMAGES).and(Sanitizers.TABLES);
 		MySQLCodec mySQLCodec = new MySQLCodec(MySQLCodec.Mode.ANSI);
-		return ESAPI.encoder().encodeForSQL(mySQLCodec, policy.sanitize(stringToNormalize));
+		return ESAPI.encoder().encodeForSQL(mySQLCodec, policy.sanitize(stringToSanitize));
+	}
+	
+	/**
+	 * This is to just escape for sql, not remove scripts.
+	 * 
+	 * @param stringToSanitize
+	 * @return
+	 */
+	public static String inputSQLSanitizer(String stringToSanitize) {
+		if (stringToSanitize == null) {
+			classLogger.debug("Input to sql sanitzer is null, returning null");
+			return stringToSanitize;
+		}
+
+		MySQLCodec mySQLCodec = new MySQLCodec(MySQLCodec.Mode.ANSI);
+		return ESAPI.encoder().encodeForSQL(mySQLCodec, stringToSanitize);
 	}
 	
 	/**
@@ -380,14 +395,16 @@ public class WebUtility {
 	 * @param stringToNormalize
 	 * @return
 	 */
-	public static String inputSQLSanitizer(String stringToNormalize) {
-		if (stringToNormalize == null) {
-			classLogger.debug("input to sql sanitzer is null, returning null");
-			return stringToNormalize;
+	public static List<String> inputSQLSanitizer(List<String> listToSanitize) {
+		if (listToSanitize == null) {
+			return null;
 		}
 
-		MySQLCodec mySQLCodec = new MySQLCodec(MySQLCodec.Mode.ANSI);
-		return ESAPI.encoder().encodeForSQL(mySQLCodec, stringToNormalize);
+		ArrayList<String> newList = new ArrayList<>(listToSanitize.size());
+		for(String s : listToSanitize) {
+			newList.add(inputSQLSanitizer(s));
+		}
+		return newList;
 	}
 	
 	/**
@@ -400,22 +417,6 @@ public class WebUtility {
 			return null;
 		}
 		ArrayList<String> newList = new ArrayList<>(listToSanitize.size());
-		for(String s : listToSanitize) {
-			newList.add(inputSanitizer(s));
-		}
-		return newList;
-	}
-	
-	/**
-	 * 
-	 * @param listToSanitize
-	 * @return
-	 */
-	public static Vector<String> inputSanitizer(Vector<String> listToSanitize) {
-		if(listToSanitize == null) {
-			return null;
-		}
-		Vector<String> newList = new Vector<>(listToSanitize.size());
 		for(String s : listToSanitize) {
 			newList.add(inputSanitizer(s));
 		}
@@ -538,5 +539,23 @@ public class WebUtility {
 			classLogger.error(Constants.STACKTRACE, e);
 			throw new IllegalArgumentException("Invalid URL: " + urlString + ". Detailed message: " + e.getMessage());
 		}
+	}
+	
+	/**
+	 * 
+	 * @param request
+	 * @return
+	 */
+	public static String determineLoginExtension(HttpServletRequest request) {
+		String referer = request.getHeader("referer");
+		String login = "#/login";
+		if(referer != null && !referer.contains("/public_home/") && 
+				(referer.endsWith("SemossWeb") || referer.endsWith("semoss-ui")
+				|| referer.endsWith("SemossWeb/") || referer.endsWith("semoss-ui/")
+				)
+			) {
+			login = "#!/login";
+		}
+		return login;
 	}
 }

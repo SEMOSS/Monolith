@@ -171,8 +171,8 @@ jobs:
       - name: Clear Maven repository after release
         run: rm -rf .m2/repository/org/semoss
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: monolith-${{ vars.VERSION }}.war
-          path: target/monolith-${{ vars.VERSION }}.war
+      # - name: Upload artifacts
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: monolith-${{ vars.VERSION }}.war
+      #     path: target/monolith-${{ vars.VERSION }}.war

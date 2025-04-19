@@ -88,7 +88,10 @@ public class NoUserExistsFilter implements Filter {
 			// if there a env var for initial admin
 			// set the admin so we are done
 			String id = System.getenv(SMSS_INITIAL_ADMIN);
-			SecurityUpdateUtils.registerUser(id, null, null,null, null, null, null, null, true, true, true);
+			SecurityUpdateUtils.registerUser(id,
+					null, null, null, null, null, null, null, 
+					true, true, true,
+					null, null, null, null);
 			classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), "SYSTEM OPERATION", "has defined the initial admin via env variable"));
 			// set boolean so we dont keep querying all the time
 			NoUserExistsFilter.userDefined = true;

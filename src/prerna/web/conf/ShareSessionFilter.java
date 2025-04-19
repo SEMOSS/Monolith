@@ -19,9 +19,11 @@ import javax.servlet.http.HttpSession;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityShareSessionUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -62,47 +64,66 @@ public class ShareSessionFilter implements Filter {
 				try {
 					Object[] shareDetails = SecurityShareSessionUtils.getShareSessionDetails(shareToken);
 					if(shareDetails == null) {
-						classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
+						classLogger.info(ResourceUtility.getLogMessage(req, session, 
 								User.getSingleLogginName(user), "is trying to login through a share token but the token '"+shareToken+"' doesn't exist"));
 					}
+					
+					boolean shareSession = (boolean) shareDetails[6];
+					boolean shareAuth = (boolean) shareDetails[7];
 					// this either returns true or throws an error
 					SecurityShareSessionUtils.validateShareSessionDetails(shareDetails);
-					classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
-							User.getSingleLogginName(user), "successfully used a share token '" + shareToken + "' to attempt to redirect to the session and login"));
-
-					String sessionId = (String) shareDetails[1];
-					String routeId = (String) shareDetails[2];
-					// create the cookie add it and sent it back
-					Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
-					k.setHttpOnly(true);
-					k.setSecure(req.isSecure());
-					k.setPath(contextPath);
-					((HttpServletResponse) arg1).addCookie(k);
-					// in case there are other JSESSIONID
-					// cookies, reset the value to the correct sessionId
-					Cookie[] cookies = req.getCookies();
-					if (cookies != null) {
-						for (Cookie c : cookies) {
-							if (c.getName().equals(DBLoader.getSessionIdKey())) {
-								c.setValue(sessionId);
-								((HttpServletResponse) arg1).addCookie(c);
+					if(shareSession) {
+						classLogger.info(ResourceUtility.getLogMessage(req, session, 
+								User.getSingleLogginName(user), "successfully used a share token '" + shareToken + "' to attempt to redirect to the session and login"));
+	
+						String sessionId = (String) shareDetails[1];
+						String routeId = (String) shareDetails[2];
+						// create the cookie add it and sent it back
+						Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
+						k.setHttpOnly(true);
+						k.setSecure(req.isSecure());
+						k.setPath(contextPath);
+						((HttpServletResponse) arg1).addCookie(k);
+						// in case there are other JSESSIONID
+						// cookies, reset the value to the correct sessionId
+						Cookie[] cookies = req.getCookies();
+						if (cookies != null) {
+							for (Cookie c : cookies) {
+								if (c.getName().equals(DBLoader.getSessionIdKey())) {
+									c.setValue(sessionId);
+									((HttpServletResponse) arg1).addCookie(c);
+								}
 							}
 						}
-					}
-					
-					// add route if it exists
-					String routeCookieName = Utility.getDIHelperProperty(Constants.MONOLITH_ROUTE);
-					if (routeCookieName != null && !routeCookieName.isEmpty()
-							&& routeId != null && !routeId.isEmpty()) {
-						Cookie c = new Cookie(routeCookieName, routeId);
-						c.setHttpOnly(true);
-						c.setSecure(req.isSecure());
-						c.setPath(contextPath);
-						((HttpServletResponse) arg1).addCookie(c);
+						
+						// add route if it exists
+						String routeCookieName = Utility.getDIHelperProperty(Constants.LOAD_BALANCER_COOKIE_NAME);
+						if (routeCookieName != null && !routeCookieName.isEmpty()
+								&& routeId != null && !routeId.isEmpty()) {
+							Cookie c = new Cookie(routeCookieName, routeId);
+							c.setHttpOnly(true);
+							c.setSecure(req.isSecure());
+							c.setPath(contextPath);
+							((HttpServletResponse) arg1).addCookie(c);
+						}
+					} else if(shareAuth) {
+						classLogger.info(ResourceUtility.getLogMessage(req, session, 
+								User.getSingleLogginName(user), "successfully used a share token '" + shareToken + "' to for authentication"));
+
+						AccessToken token = SecurityShareSessionUtils.generateAccessTokenForShareAuth(shareDetails);
+						UserResource.addAccessToken(token, req, false);
+						 // continue with the filter chain
+				        // wrap the request to allow subsequent reading
+				        HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(req);
+				        // continue with the filter chain
+						arg2.doFilter(requestWrapper, arg1);
+						return;
+					} else {
+						classLogger.warn("ShareSessionFilter token is not properly set for sharing a session or authorization");
 					}
 				} catch (Exception e) {
 					classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
-							User.getSingleLogginName(user), "is trying to login through a share token but the token '"+shareToken+"' resulted in the error: " + e.getMessage()));
+							User.getSingleLogginName(user), "is trying to login through a auth/share token but the token '"+shareToken+"' resulted in the error: " + e.getMessage()));
 					classLogger.error(Constants.STACKTRACE, e);
 					arg2.doFilter(arg0, arg1);
 					return;
@@ -113,7 +134,7 @@ public class ShareSessionFilter implements Filter {
 				// i'm going to remove it
 				// and redirect you back
 				classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
-						User.getSingleLogginName(user), "is already logged in but trying to login again using a share token '" + shareToken + "'"));
+						User.getSingleLogginName(user), "is already logged in but trying to login again using a auth/share token '" + shareToken + "'"));
 				arg2.doFilter(arg0, arg1);
 				return;
 			}

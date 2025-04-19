@@ -69,9 +69,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("userT") Boolean includeUserTracking
 			) {
 		engineFilter = WebUtility.inputSanitizer(engineFilter);
-		engineTypes =WebUtility.inputSanitizer(engineTypes);
-		metaKeys =   WebUtility.inputSanitizer(metaKeys);
-		searchTerm= WebUtility.inputSanitizer(searchTerm);
+		engineTypes = WebUtility.inputSanitizer(engineTypes);
+		metaKeys = WebUtility.inputSanitizer(metaKeys);
+		searchTerm = WebUtility.inputSanitizer(searchTerm);
 	    
 		User user = null;
 		try {
@@ -237,9 +237,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response getAllUserEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSanitizer(form.getFirst("userId"));
+		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		List<String> engineTypes = null;
-		if(WebUtility.inputSanitizer(form.getFirst("engineTypes")) != null) {
+		if(WebUtility.inputSQLSanitizer(form.getFirst("engineTypes")) != null) {
 			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
 			engineTypes = WebUtility.inputSanitizer(engineTypes);  
 		}
@@ -355,11 +355,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Path("getEngineUsers")
 	public Response getEngineUsers(@Context HttpServletRequest request, 
 			@QueryParam("engineId") String engineId, @QueryParam("userId") String userId, 
-			@QueryParam("userInfo") String userInfo, @QueryParam("permission") String permission, 
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("permission") String permission, 
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		engineId = WebUtility.inputSanitizer(engineId);
-	    userId = WebUtility.inputSanitizer(userId);
-	    userInfo = WebUtility.inputSanitizer(userInfo);
+	    userId = WebUtility.inputSQLSanitizer(userId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
 	    permission = WebUtility.inputSanitizer(permission);
 	    
 		SecurityAdminUtils adminUtils = null;
@@ -375,7 +375,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		Map<String, Object> ret = new HashMap<String, Object>();
-		String searchParam = userInfo != null ? userInfo : userId;
+		String searchParam = searchTerm != null ? searchTerm : userId;
 		List<Map<String, Object>> members = adminUtils.getEngineUsers(engineId, searchParam, permission, limit, offset);
 		long totalMembers = SecurityAdminUtils.getEngineUsersCount(engineId, searchParam, permission);
 		ret.put("totalMembers", totalMembers);
@@ -464,10 +464,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("addEngineUserPermissions")
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String engineId =WebUtility.inputSanitizer( form.getFirst("engineId"));
+		String engineId = WebUtility.inputSanitizer( form.getFirst("engineId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -498,7 +497,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 						token.setId((String) map.get(Constants.MAP_USERID));
 						token.setEmail((String) map.get(Constants.MAP_EMAIL));
 						token.setName((String) map.get(Constants.MAP_NAME));
-						token.setProvider(AuthProvider.getProviderFromString((String) map.get(AuthProvider.MS.name())));
+						token.setProvider(AuthProvider.getProviderFromString((String) map.get(AuthProvider.MICROSOFT.name())));
 						token.setUsername((String) map.get(Constants.MAP_USERNAME));
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
@@ -644,7 +643,6 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("editEngineUserPermissions")
 	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		
 		User user = null;
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		try {
@@ -788,7 +786,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		Gson gson = new Gson();
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
-		ids = WebUtility.inputSanitizer(ids);
+		ids = WebUtility.inputSQLSanitizer(ids);
 		try {
 			adminUtils.removeEngineUsers(ids, engineId);
 		} catch (Exception e) {
@@ -930,8 +928,10 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(ret, 200);
 		}
 
+		String graphApiGroupId = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_groupId");
+
 		try {
-			List<Map<String, Object>> filteredUsers = MsGraphUtility.getEngineUsers(request, user, engineId, searchTerm, limit, offset);
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getEngineUsers(request, user, engineId, searchTerm, graphApiGroupId , limit, offset, true);
 			return WebUtility.getResponse(filteredUsers, 200);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
@@ -1017,7 +1017,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		
 		// updating user access requests in bulk
 		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
-		requestIds = WebUtility.inputSanitizer(requestIds);
+		requestIds = WebUtility.inputSQLSanitizer(requestIds);
 		try {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
