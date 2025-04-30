@@ -81,6 +81,7 @@
 							<warSourceIncludes>
 								accountLocked/**,
 								error/**,
+								login/**,
 								logout/**,
 								noUserFail/**,
 								saml2/**,
@@ -137,6 +138,7 @@
 							<warSourceIncludes>
 								accountLocked/**,
 								error/**,
+								login/**,
 								logout/**,
 								noUserFail/**,
 								saml2/**,
