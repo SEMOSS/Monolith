@@ -457,7 +457,9 @@ public class ImageUploader extends Uploader {
 		}
 		projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
 
-		if(CouchUtil.COUCH_ENABLED) {
+		boolean isprojectUpload = false;
+		
+		if(CouchUtil.COUCH_ENABLED && !isprojectUpload) {
 			try {
 				Map<String, String> selectors = new HashMap<>();
 				selectors.put(CouchUtil.PROJECT, projectId);
