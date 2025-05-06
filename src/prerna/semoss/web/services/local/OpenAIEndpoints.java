@@ -45,6 +45,8 @@ import prerna.date.SemossDate;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
+import prerna.engine.impl.model.responses.AskToolModelEngineResponse;
+import prerna.engine.impl.model.responses.AskToolModelEngineResponse.ToolResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -218,7 +220,7 @@ public class OpenAIEndpoints {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
-			String response = llmResponse.getStringResponse();
+			Object response = llmResponse.getResponse();
 			String messageId = llmResponse.getMessageId();
 			Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
 			Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
@@ -233,7 +235,27 @@ public class OpenAIEndpoints {
 
 			// "message" object within "choices"
 			Map<String, Object> message = new HashMap<>();
-			message.put("content", response);
+			if(llmResponse instanceof AskToolModelEngineResponse) {
+				choice.put("finish_reason", "tool_calls");
+				
+                // TODO: if we keep tools in same format, we dont need to do this
+				List<Map<String, Object>> tool_calls = new ArrayList<>();
+				List<ToolResponse> toolResponses = ((AskToolModelEngineResponse) llmResponse).getTools();
+				for(ToolResponse tool : toolResponses) {
+					Map<String, Object> openaiTool = new HashMap<>();
+					openaiTool.put("id", tool.getId());
+					openaiTool.put("type", tool.getType());
+					Map<String, Object> tool_function = new HashMap<>();
+					tool_function.put("name", tool.getName());
+					tool_function.put("arguments", new Gson().toJson(tool.getArguments()));
+					openaiTool.put("function", tool_function);
+					tool_calls.add(openaiTool);
+				}
+				message.put("tool_calls", tool_calls);
+			} else {
+				choice.put("finish_reason", "stop");
+				message.put("content", response);
+			}
 			message.put("role", "assistant");
 
 			choice.put("message", message);
