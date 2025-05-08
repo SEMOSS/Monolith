@@ -425,6 +425,7 @@ public class ImageUploader extends Uploader {
 		FileItem imageFile = null;
 		String projectId = null;
 		String projectName = null;
+		boolean isprojectUpload = false;
 
 		for (FileItem fi : fileItems) {
 			String fieldName = fi.getFieldName();
@@ -434,6 +435,9 @@ public class ImageUploader extends Uploader {
 			}
 			if (fieldName.equals("projectId")) {
 				projectId = value;
+			}
+			if (fieldName.equals("isProjectUpload")) {
+				isprojectUpload = (value=="true"?true:false);
 			}
 		}
 
@@ -457,7 +461,6 @@ public class ImageUploader extends Uploader {
 		}
 		projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
 
-		boolean isprojectUpload = false;
 		
 		if(CouchUtil.COUCH_ENABLED && !isprojectUpload) {
 			try {
