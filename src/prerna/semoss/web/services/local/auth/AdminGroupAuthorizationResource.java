@@ -220,9 +220,66 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	}
 	
 	
-	
-	
-	///////////////////////////////////////////////////////////////
+	@POST
+	@Produces("application/json")
+	@Path("/editGroupDetails")
+	public Response editGroupDetails(@Context HttpServletRequest request) {
+		Map<String, String> errorRet = new Hashtable<>();
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
+					User.getSingleLogginName(user), "is trying to edit a group but couldn't find user session"));
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		if (!SecurityAdminUtils.userIsAdmin(user)) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
+					User.getSingleLogginName(user), "is trying to edit a group but is not an admin"));
+			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
+			return WebUtility.getResponse(errorRet, 400);
+		}
+
+		boolean success = false;
+		try {
+			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group id cannot be null or empty");
+			}
+			String newGroupId = WebUtility.inputSQLSanitizer(request.getParameter("newGroupId"));
+			if (newGroupId == null || (newGroupId = newGroupId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The new group id cannot be null or empty");
+			}
+			String groupType = WebUtility.inputSanitizer(request.getParameter("type"));
+			String newType = WebUtility.inputSanitizer(request.getParameter("newType"));
+			boolean newCustomGroup = Boolean.parseBoolean(request.getParameter("newIsCustomGroup") + "");
+			String newDescription = WebUtility.inputSanitizer(request.getParameter("newDescription"));
+
+			// you can have a type or be a custom group
+			// cannot be both
+			if (!newCustomGroup && (newType == null || (newType = newType.trim()).isEmpty())) {
+				throw new IllegalArgumentException(
+						"The group type cannot be null or empty if this is not a custom group");
+			} else if (newCustomGroup && (newType != null && !(newType = newType.trim()).isEmpty())) {
+				throw new IllegalArgumentException("A custom group cannot have a login type passed in");
+			}
+			AdminSecurityGroupUtils.getInstance(user).editGroupDetailsAndPropagate(user, groupId, groupType, newGroupId,
+					newType, newDescription, newCustomGroup);
+		} catch (IllegalArgumentException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorRet, 400);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
+			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorRet, 500);
+		}
+		return WebUtility.getResponse(success, 200);
+	}
 
 	/*
 	 * Group Members For Custom Groups
