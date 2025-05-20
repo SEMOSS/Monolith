@@ -266,8 +266,9 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			} else if (newCustomGroup && (newType != null && !(newType = newType.trim()).isEmpty())) {
 				throw new IllegalArgumentException("A custom group cannot have a login type passed in");
 			}
-			AdminSecurityGroupUtils.getInstance(user).editGroupDetailsAndPropagate(user, groupId, groupType, newGroupId,
-					newType, newDescription, newCustomGroup);
+			AdminSecurityGroupUtils.getInstance(user).editGroupDetailsAndPropagate(user, groupId, groupType,
+						newGroupId, newType, newDescription, newCustomGroup);
+			success = true;
 		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
