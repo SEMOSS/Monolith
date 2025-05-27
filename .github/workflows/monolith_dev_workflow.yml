@@ -117,9 +117,9 @@ jobs:
 
       - name: Import GPG key
         run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg2 --batch --import
+          echo "${{ secrets.GPG_PRIVATE_KEY_2 }}" | gpg2 --batch --import
           echo "keyserver keyserver.ubuntu.com" > ~/.gnupg/gpg.conf
-          gpg2 --refresh-key
+          #gpg2 --refresh-key
 
       - name: Clear Maven repository
         run: rm -rf .m2/repository/org/semoss
