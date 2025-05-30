@@ -207,6 +207,15 @@ public class ServerConfigurationResource {
 //		loadConfig.put("widgetTabExportDashboard", Utility.getApplicationWidgetTabExportDashboard());
 		loadConfig.put("adminOnlyViewMenuBarFlag", Utility.getAdminOnlyViewMenuBarFlag());
 		loadConfig.put("adminOnlyNonAprrovedFlag", Utility.getAdminOnlyNonApprovedFlag());
+			loadConfig.put("nonApprovedFunctionList", Utility.getNonApprovedProdList(Constants.NON_APPROVED_FUNCTION_LIST));		
+		loadConfig.put("nonApprovedConnectionList", Utility.getNonApprovedProdList(Constants.NON_APPROVED_CONNECTION_LIST));		
+		
+		loadConfig.put("nonApprovedFunctionList", Utility.getNonApprovedProdList(Constants.NON_APPROVED_FUNCTION_LIST));		
+	    loadConfig.put("nonApprovedConnectionList", Utility.getNonApprovedProdList(Constants.NON_APPROVED_CONNECTION_LIST));		
+	    loadConfig.put("nonApprovedStorageList", Utility.getNonApprovedProdList(Constants.NON_APPROVED_STROAGE_LIST));			
+	    loadConfig.put("nonApprovedDatabaseFilesList", Utility.getNonApprovedProdList(Constants.NNON_APPROVED_DATABASE_FILE_LIST));		
+		loadConfig.put("nonApprovedDatabaseList", Utility.getNonApprovedProdList(Constants.NON_APPROVED_DATABSE_LIST));		
+	
 		ServerConfigurationResource.config = loadConfig;
 	}
 
