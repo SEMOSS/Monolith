@@ -425,20 +425,18 @@ public class ImageUploader extends Uploader {
 		FileItem imageFile = null;
 		String projectId = null;
 		String projectName = null;
-		boolean isprojectUpload = false;
-
+		boolean isProjectUpload = false;
+		
 		for (FileItem fi : fileItems) {
-			String fieldName = fi.getFieldName();
-			String value = WebUtility.inputSanitizer(fi.getString());
-			if (fieldName.equals("file")) {
-				imageFile = fi;
-			}
-			if (fieldName.equals("projectId")) {
-				projectId = value;
-			}
-			if (fieldName.equals("isProjectUpload")) {
-				isprojectUpload = (value=="true"?true:false);
-			}
+		    String fieldName = fi.getFieldName();
+		    String value = WebUtility.inputSanitizer(fi.getString());
+		    if (fieldName.equals("file")) {
+		        imageFile = fi;
+		    } else if (fieldName.equals("projectId")) {
+		        projectId = value;
+		    } else if (fieldName.equals("isProjectUpload")) {
+		        isProjectUpload = "true".equalsIgnoreCase(value);
+		    }
 		}
 
 		if (imageFile == null) {
@@ -462,7 +460,7 @@ public class ImageUploader extends Uploader {
 		projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
 
 		
-		if(CouchUtil.COUCH_ENABLED && !isprojectUpload) {
+		if(CouchUtil.COUCH_ENABLED && !isProjectUpload) {
 			try {
 				Map<String, String> selectors = new HashMap<>();
 				selectors.put(CouchUtil.PROJECT, projectId);
