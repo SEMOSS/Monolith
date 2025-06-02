@@ -59,6 +59,7 @@ public class StartUpSuccessFilter implements Filter {
 		}
 		
 		arg2.doFilter(arg0, arg1);
+		ThreadContext.clearAll();
 	}
 
 	private void loggingContext(ServletRequest servletRequest){

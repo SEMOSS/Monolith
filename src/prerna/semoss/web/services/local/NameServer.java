@@ -81,6 +81,8 @@ import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.engine.api.IDatabaseEngine;
+import prerna.logger.ContextKey;
+import prerna.logger.ThreadContextLogger;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
@@ -395,7 +397,7 @@ public class NameServer {
 				dropLogging = Boolean.parseBoolean(logStr);
 			}
 		}
-		
+		setProjectLoggingContext(insightId);
 		return runPixelJob(user, insight, expression, jobId, insightId, sessionId, routeId, dropLogging);
 	}
 
@@ -437,6 +439,13 @@ public class NameServer {
 		ThreadStore.setUser(user);
 					
 		return getInsightPipeline(insight);
+	}
+
+	private void setProjectLoggingContext(String insightId) {
+		ThreadContextLogger.setContext(ContextKey.INSIGHT_ID, insightId);
+		Insight insight = InsightStore.getInstance().get(insightId);
+		ThreadContextLogger.setContext(ContextKey.PROJECT_ID, insight.getContextProjectId());
+		ThreadContextLogger.setContext(ContextKey.PROJECT_NAME, insight.getContextProjectName());
 	}
 	
 	/**
@@ -610,7 +619,7 @@ public class NameServer {
 		if(user != null) {
 			user.setZoneId(zoneId);
 		}
-		
+		setProjectLoggingContext(insightId);
 		insight.setUser(user);
 		PixelJobManager manager = PixelJobManager.getManager();
 		PixelJobThread jt = manager.makeJob();
