@@ -42,9 +42,10 @@ import javax.servlet.SessionCookieConfig;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
+import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IEngine;
+import prerna.engine.api.IEngine.CATALOG_TYPE;
 import prerna.engine.impl.r.RserveUtil;
 import prerna.forms.AbstractFormBuilder;
 import prerna.masterdatabase.utility.MasterDatabaseUtility;
@@ -206,6 +207,18 @@ public class DBLoader implements ServletContextListener {
 				}
 			}
 		}
+		
+		// this will likely need to be broken out into another service in the future
+		// but for now
+		// start one time thread to pull all the images for the engines
+		CATALOG_TYPE[] types = IEngine.CATALOG_TYPE.values();
+		for(CATALOG_TYPE eType : types) {
+		    new Thread() {
+		        public void run() {
+		            ClusterUtil.pullEngineAndProjectImageFolder(eType);
+		        }
+		    }.start();
+	    }
 	}
 
 	private void loadSmss(String pathKey) {
