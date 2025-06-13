@@ -207,6 +207,7 @@ public class ServerConfigurationResource {
 //		loadConfig.put("widgetTabExportDashboard", Utility.getApplicationWidgetTabExportDashboard());
 		loadConfig.put("adminOnlyViewMenuBarFlag", Utility.getAdminOnlyViewMenuBarFlag());
 		loadConfig.put("adminOnlyNonAprrovedFlag", Utility.getAdminOnlyNonApprovedFlag());
+	    loadConfig.put("adminOnlyWelcomeContent", Utility.getAdminOnlyWelcomeContent());
 		ServerConfigurationResource.config = loadConfig;
 	}
 
