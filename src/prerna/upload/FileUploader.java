@@ -305,10 +305,10 @@ public class FileUploader extends Uploader {
 				AuthProvider provider = user.getPrimaryLogin();
 				projectId = user.getAssetProjectId(provider);
 				String projectName = "Asset";
-				assetFolder = AssetUtility.getUserAssetAndWorkspaceBaseFolder(projectName, projectId);
+				assetFolder = AssetUtility.getUserAssetAndWorkspaceAppRootFolder(projectName, projectId);
 			} else {
 				IProject project = Utility.getProject(projectId);
-				assetFolder = AssetUtility.getProjectBaseFolder(project.getProjectName(), projectId);
+				assetFolder = AssetUtility.getProjectAppRootFolder(project.getProjectName(), projectId);
 			}
 		} else if (engineId != null) {
 			//TODO: build out
