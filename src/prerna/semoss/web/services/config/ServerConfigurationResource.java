@@ -248,6 +248,19 @@ public class ServerConfigurationResource {
 		myConfiguration.put("engineMetaKeys", SecurityEngineUtils.getMetakeyOptions(null));
 		myConfiguration.put("projectMetaKeys", SecurityProjectUtils.getMetakeyOptions(null));
 		myConfiguration.put("insightMetaKeys", SecurityInsightUtils.getMetakeyOptions(null));
+
+		//Added or Non Approved product List from DB 
+		Map<String, List<String>> nonApprovedList = new HashMap<String, List<String>>();
+		try {
+			nonApprovedList = SecurityEngineUtils.getNonApprovedProduct();
+			if (logger.isInfoEnabled()	) {
+				logger.info("nonApprovedListFromServerConfig",nonApprovedList.size());
+			}
+			myConfiguration.put("nonApprovedList", nonApprovedList);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		// do not keep this session
 		// if no user and it is new
 		if (user == null && (session.isNew() || request.isRequestedSessionIdValid())) {
