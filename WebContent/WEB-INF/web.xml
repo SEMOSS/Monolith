@@ -637,7 +637,7 @@
    </context-param>
    <context-param>
 	   <param-name>log4jConfiguration</param-name>
-	   <param-value>file:///C:/workspace/Semoss/log4j2.properties</param-value>
+	   <param-value>file:///C:/workspace/Semoss/log4j2.xml</param-value>
    </context-param>
    <context-param>
       <param-name>admin-set-publisher</param-name>
@@ -663,7 +663,7 @@
    <context-param>
       <description>Location to store uploaded file</description>
       <param-name>file-upload</param-name>
-      <param-value>C:\\workspace\\Semoss\\</param-value>
+      <param-value>D:\\Users\\rpaulraj\\workspace\\Semoss</param-value>
    </context-param>
    <context-param>
       <description>Temporary - Location to store uploaded file</description>
@@ -673,7 +673,7 @@
    <context-param>
       <description>The place where the core RDF Map gets picked from</description>
       <param-name>RDF-MAP</param-name>
-      <param-value>C:/workspace/Semoss/RDF_Map.prop</param-value>
+      <param-value>D:/Users/rpaulraj/workspace/Semoss/RDF_Map.prop</param-value>
    </context-param>  
    <!-- listeners -->
    <listener>
