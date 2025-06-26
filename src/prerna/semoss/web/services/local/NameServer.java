@@ -681,16 +681,21 @@ public class NameServer {
 	@Path("/console")
 	@Produces("application/json")
 	public Response console(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String jobId =WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
-		// HttpSession session = request.getSession(true);
-		// if(session.getAttribute(jobId) != null) {
-		// if(jobId != null)
+		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
+
 		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+		
+		if (jt == null) {
+			Map<String, Object> dataReturn = new HashMap<>();
+			dataReturn.put("status", PixelJobStatus.CANCELED);
+			dataReturn.put("message", "The operation was stopped.");
+			return WebUtility.getResponseNoCache(dataReturn, 500);
+		}
+		
 		List<String> console = PixelJobManager.getManager().getStdOut(jobId);
 		Map<String, Object> dataReturn = new HashMap<>();
 		dataReturn.put("status", jt == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
 		dataReturn.put("message", console);
-		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
 	
