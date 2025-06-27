@@ -1,11 +1,13 @@
 package prerna.semoss.web.services.saml;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.exec.util.StringUtils;
+import com.google.common.collect.Lists;
 
 /**
  *  This class aligns the flushed out SAML attributes to the generated format
@@ -23,6 +25,7 @@ public class SamlDataObjectMapper {
 	private String nameId = null;
 	private String issuer = null;
 	private Set<String> validUserGroups = null;
+	private Map<String, Collection<String>> extendedUserAttributes = null;
 	
 	// attributes
 	// id = [dod_edi_pn_id]
@@ -86,6 +89,21 @@ public class SamlDataObjectMapper {
 		return null;
 	}
 	
+	public Map<String, Collection<String>> getValuesForAttributes(Map<String, Boolean> attributesWithMultiplicity) {
+		Map<String, Collection<String>> result = new HashMap<>();
+		for(String attributeKey : attributesWithMultiplicity.keySet()) {
+			if(!attributeMapper.containsKey(attributeKey)) {
+				continue;
+			}
+			if(attributesWithMultiplicity.get(attributeKey)) {
+				result.put(attributeKey, generateInputSet(attributeKey));
+			} else {
+				result.put(attributeKey, Lists.newArrayList(generateInput(attributeKey)));
+			}
+		}
+		return result;
+	}
+	
 	public String getIssuer() {
 		return issuer;
 	}
@@ -100,6 +118,14 @@ public class SamlDataObjectMapper {
 
 	public void setValidUserGroups(Set<String> validUserGroups) {
 		this.validUserGroups = validUserGroups;
+	}
+
+	public Map<String, Collection<String>> getExtendedUserAttributes() {
+		return extendedUserAttributes;
+	}
+
+	public void setExtendedUserAttributes(Map<String, Collection<String>> extendedUserAttributes) {
+		this.extendedUserAttributes = extendedUserAttributes;
 	}
 
 	public String getNameId() {
@@ -121,7 +147,7 @@ public class SamlDataObjectMapper {
 					buffer.append(defaultSep);
 				}
 				
-				buffer.append(StringUtils.toString(sdoInputMap.get(input), defaultSep));
+				buffer.append(String.join(defaultSep, sdoInputMap.get(input)));
 				counter++;
 			}
 		}

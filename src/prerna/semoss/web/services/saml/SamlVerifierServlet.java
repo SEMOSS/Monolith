@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +38,7 @@ import com.sun.identity.saml2.protocol.Response;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.utils.AdminSecurityGroupUtils;
+import prerna.auth.utils.SecurityUserUtils;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
@@ -149,6 +152,9 @@ public class SamlVerifierServlet extends HttpServlet {
 			}
 			mapper.setValidUserGroups(validUserGroups);
 			
+			Map<String, Collection<String>> extendedUserAttributes = getExtendedUserAttributes(mapper);
+			mapper.setExtendedUserAttributes(extendedUserAttributes);
+			
 			classLogger.info("User details looks good. Creating User/Token and setting it to session.");
 			HttpSession session = request.getSession(true);
 			// Get all details from SamlDataObject and populate into user and token object.
@@ -199,6 +205,24 @@ public class SamlVerifierServlet extends HttpServlet {
 	}
 	
 	/**
+	 * Checks if we are configured to load additional attributes, and returns the attribute-value mappings, if so
+	 * 
+	 * @param mapper
+	 * @return Map of the valid attributes to their values in the SAML response, or <code>null</code> if whitelist isn't enabled
+	 */
+	private Map<String, Collection<String>> getExtendedUserAttributes(SamlDataObjectMapper mapper) {
+		if(Boolean.parseBoolean(getInitParameter("useSAMLAttributeWhitelist"))) {
+			Map<String, Boolean> args = new HashMap<>();
+			List<Map<String, Object>> possibleAttributes = SecurityUserUtils.getMetakeyOptions(null);
+			for(Map<String, Object> possibleAttribute : possibleAttributes) {
+				args.put(possibleAttribute.get("metakey")+"", "multi".equals(possibleAttribute.get("single_multi")+""));
+			}
+			return mapper.getValuesForAttributes(args);
+		}
+		return null;
+	}
+	
+	/**
 	 * Creates the user/token based on the application requirements from the SamlDataObject.
 	 * Puts the user object in the session.
 	 * 
@@ -225,6 +249,12 @@ public class SamlVerifierServlet extends HttpServlet {
 		if(groupType != null && groups != null && !groups.isEmpty()) {
 			token.setUserGroupType(groupType);
 			token.setUserGroups(mapper.getValidUserGroups());
+		}
+		
+		// set other valid attributes
+		Map<String, Collection<String>> attribs = mapper.getExtendedUserAttributes();
+		if(attribs != null && !attribs.isEmpty()) {
+			token.setMeta(attribs);
 		}
 		
 		// Set SAML provider type in token.
