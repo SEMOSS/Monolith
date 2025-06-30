@@ -25,7 +25,7 @@ jobs:
     runs-on: self-hosted
     if: ${{ vars.RELEASE != 'TRUE' }}
     container:
-      image: maven:3.8.6-jdk-8
+      image: maven:3.9.9-amazoncorretto-21-debian
     steps:
       - name: Clean existing repo
         run: rm -rf ${{ env.WORKSPACE_DIR }}
@@ -39,7 +39,7 @@ jobs:
           apt-get update
           apt-get install -y python3 python3-pip
       - name: Install requests library
-        run: pip install requests
+        run: apt install python3-requests -y
       - name: list workspace contents
         run: |
           ls -lah
@@ -62,7 +62,7 @@ jobs:
     runs-on: self-hosted
     if: ${{ vars.RELEASE != 'TRUE'  && (github.event_name =='push' || github.event_name =='pull_request')  }}
     container:
-      image: maven:3.8.6-jdk-8
+      image: maven:3.9.9-amazoncorretto-21-debian
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -98,7 +98,7 @@ jobs:
     needs: build_semoss
     runs-on: self-hosted
     container:
-      image: maven:3.8.6-jdk-8
+      image: maven:3.9.9-amazoncorretto-21-debian
     if: ${{ vars.RELEASE != 'TRUE'  && github.event_name =='workflow_dispatch' }}
     steps:
       - name: Checkout code
@@ -139,7 +139,7 @@ jobs:
   build_monolith_release:
     runs-on: self-hosted
     container:
-      image: maven:3.8.6-jdk-8
+      image: maven:3.9.9-amazoncorretto-21-debian
     if: ${{ vars.RELEASE == 'TRUE' }}
     steps:
       - name: Checkout code
