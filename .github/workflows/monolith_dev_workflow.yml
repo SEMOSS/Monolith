@@ -16,6 +16,8 @@ env:
   IMAGE: "registry.gitlab.com/finestructure/pipeline-trigger:2.9.0"
   MAVEN_REPO_TOKEN: ${{ vars.MAVEN_REPO_TOKEN }}
   MAVEN_REPO_TOKEN_PASS: ${{ vars.MAVEN_REPO_TOKEN_PASS }}
+  MAVEN_CENTRAL_PORTAL_REPO_USERNAME: ${{ vars.MAVEN_CENTRAL_PORTAL_REPO_USERNAME }}
+  MAVEN_CENTRAL_PORTAL_REPO_PASSWORD: ${{ vars.MAVEN_CENTRAL_PORTAL_REPO_PASSWORD }}
   WORKSPACE_DIR: /home/ubuntu/actions-runner/_work/Monolith/
   GPG_PASS_PHRASE: ${{ secrets.GPG_PASS_PHRASE }}
   RELEASE: ${{ vars.RELEASE }}
@@ -109,11 +111,11 @@ jobs:
           apt-get update -y
           apt-get install -y openjfx gnupg2
 
-      - name: Import GPG key
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY_2 }}" | gpg2 --batch --import
-          echo "keyserver keyserver.ubuntu.com" > ~/.gnupg/gpg.conf
-          #gpg2 --refresh-key
+      # - name: Import GPG key
+      #   run: |
+      #     echo "${{ secrets.GPG_PRIVATE_KEY_2 }}" | gpg2 --batch --import
+      #     echo "keyserver keyserver.ubuntu.com" > ~/.gnupg/gpg.conf
+      #     #gpg2 --refresh-key
 
       - name: Clear Maven repository
         run: rm -rf .m2/repository/org/semoss
@@ -150,11 +152,11 @@ jobs:
           apt-get update -y
           apt-get install -y openjfx gnupg2
 
-      - name: Import GPG key
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY_2 }}" | gpg2 --batch --import
-          echo "keyserver keyserver.ubuntu.com" > ~/.gnupg/gpg.conf
-          #gpg2 --refresh-key
+      # - name: Import GPG key
+      #   run: |
+      #     echo "${{ secrets.GPG_PRIVATE_KEY_2 }}" | gpg2 --batch --import
+      #     echo "keyserver keyserver.ubuntu.com" > ~/.gnupg/gpg.conf
+      #     #gpg2 --refresh-key
 
       - name: Clear Maven repository
         run: rm -rf .m2/repository/org/semoss
