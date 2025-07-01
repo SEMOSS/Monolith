@@ -15,10 +15,6 @@
 			<name>The Apache License, Version 2.0</name>
 			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
 		</license>
-		<license>
-			<name>The GNU General Public License, Version 3.0</name>
-			<url>https://www.gnu.org/licenses/gpl-3.0.en.html</url>
-		</license>
 	</licenses>
 	<developers>
 		<developer>
@@ -29,9 +25,9 @@
 		</developer>
 	</developers>
 	<scm>
-		<connection>scm:git:git://repo.semoss.org/semoss/Monolith.git</connection>
-		<developerConnection>scm:git:ssh://repo.semoss.org:semoss/Monolith.git</developerConnection>
-		<url>https://repo.semoss.org/semoss/Monolith</url>
+		<connection>scm:git:git://github.com/SEMOSS/Monolith.git</connection>
+		<developerConnection>scm:git:ssh://github.com:SEMOSS/Monolith.git</developerConnection>
+		<url>https://github.com/SEMOSS/Monolith</url>
 	</scm>
 	<properties>
 		<ci.version>0.0.1-SNAPSHOT</ci.version>
@@ -39,6 +35,7 @@
 		<project.reporting.outputEncoding>cp1252</project.reporting.outputEncoding>
 		<openhtml.version>1.0.1</openhtml.version>
 	</properties>
+	<!-- LEGACY
 	<distributionManagement>
 		<snapshotRepository>
 			<id>ossrh</id>
@@ -49,6 +46,7 @@
 			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
 		</repository>
 	</distributionManagement>
+	-->
 	<build>
 		<sourceDirectory>src</sourceDirectory>
 	</build>
@@ -170,6 +168,7 @@
 							</execution>
 						</executions>
 					</plugin>
+					<!-- LEGACY
 					<plugin>
 						<groupId>org.sonatype.plugins</groupId>
 						<artifactId>nexus-staging-maven-plugin</artifactId>
@@ -178,10 +177,11 @@
 						<configuration>
 							<serverId>ossrh</serverId>
 							<nexusUrl>https://oss.sonatype.org/</nexusUrl>
-							<!-- set to true to disable manual review of release -->
 							<autoReleaseAfterClose>false</autoReleaseAfterClose>
 						</configuration>
 					</plugin>
+					-->
+					<!-- LEGACY
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
@@ -195,13 +195,13 @@
 								</goals>
 								<configuration>
 									<gpgArguments>
-										<arg>--pinentry-mode</arg>
 										<arg>loopback</arg>
 									</gpgArguments>
 								</configuration>
 							</execution>
 						</executions>
 					</plugin>
+					-->
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-source-plugin</artifactId>
@@ -232,6 +232,15 @@
 							</execution>
 						</executions>
 					</plugin>
+		          <plugin>
+		            <groupId>org.sonatype.central</groupId>
+		            <artifactId>central-publishing-maven-plugin</artifactId>
+		            <version>0.8.0</version>
+		            <extensions>true</extensions>
+		            <configuration>
+		              <publishingServerId>central</publishingServerId>
+		            </configuration>
+		          </plugin>
 				</plugins>
 			</build>
 		</profile>
@@ -249,23 +258,23 @@
 			</snapshots>
 		</repository>
 		<repository>
-			<id>central</id>
+			<id>repo1</id>
 			<name>Maven Repository Switchboard</name>
 			<layout>default</layout>
-			<url>https://repo1.maven.org/maven2</url>
+			<url>https://repo.maven.apache.org/maven2</url>
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
 		</repository>
 		<repository>
-			<id>snapshot</id>
-			<name>Sonatype's Maven repository - SNAPSHOT</name>
-			<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+			<name>Central Portal Snapshots</name>
+			<id>central-portal-snapshots</id>
+			<url>https://central.sonatype.com/repository/maven-snapshots/</url>
 			<releases>
-				<enabled>false</enabled>
+			<enabled>false</enabled>
 			</releases>
 			<snapshots>
-				<enabled>true</enabled>
+			<enabled>true</enabled>
 			</snapshots>
 		</repository>
 		<repository>
