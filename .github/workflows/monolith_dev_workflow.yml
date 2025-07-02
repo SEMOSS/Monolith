@@ -16,6 +16,8 @@ env:
   IMAGE: "registry.gitlab.com/finestructure/pipeline-trigger:2.9.0"
   MAVEN_REPO_TOKEN: ${{ vars.MAVEN_REPO_TOKEN }}
   MAVEN_REPO_TOKEN_PASS: ${{ vars.MAVEN_REPO_TOKEN_PASS }}
+  MAVEN_CENTRAL_PORTAL_REPO_USERNAME: ${{ vars.MAVEN_CENTRAL_PORTAL_REPO_USERNAME }}
+  MAVEN_CENTRAL_PORTAL_REPO_PASSWORD: ${{ vars.MAVEN_CENTRAL_PORTAL_REPO_PASSWORD }}
   WORKSPACE_DIR: /home/ubuntu/actions-runner/_work/Monolith/
   GPG_PASS_PHRASE: ${{ secrets.GPG_PASS_PHRASE }}
   RELEASE: ${{ vars.RELEASE }}
@@ -25,7 +27,7 @@ jobs:
     runs-on: self-hosted
     if: ${{ vars.RELEASE != 'TRUE' }}
     container:
-      image: maven:3.8.6-jdk-8
+      image: maven:3.9.9-amazoncorretto-21-debian
     steps:
       - name: Clean existing repo
         run: rm -rf ${{ env.WORKSPACE_DIR }}
@@ -34,12 +36,6 @@ jobs:
       - name: Get current timestamp
         id: timestamp
         run: echo "TIMESTAMP=$(date +%s)" >> $GITHUB_ENV
-      - name: Set up Python
-        run: |
-          apt-get update
-          apt-get install -y python3 python3-pip
-      - name: Install requests library
-        run: pip install requests
       - name: list workspace contents
         run: |
           ls -lah
@@ -62,7 +58,7 @@ jobs:
     runs-on: self-hosted
     if: ${{ vars.RELEASE != 'TRUE'  && (github.event_name =='push' || github.event_name =='pull_request')  }}
     container:
-      image: maven:3.8.6-jdk-8
+      image: maven:3.9.9-amazoncorretto-21-debian
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -98,7 +94,7 @@ jobs:
     needs: build_semoss
     runs-on: self-hosted
     container:
-      image: maven:3.8.6-jdk-8
+      image: maven:3.9.9-amazoncorretto-21-debian
     if: ${{ vars.RELEASE != 'TRUE'  && github.event_name =='workflow_dispatch' }}
     steps:
       - name: Checkout code
@@ -115,11 +111,11 @@ jobs:
           apt-get update -y
           apt-get install -y openjfx gnupg2
 
-      - name: Import GPG key
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY_2 }}" | gpg2 --batch --import
-          echo "keyserver keyserver.ubuntu.com" > ~/.gnupg/gpg.conf
-          #gpg2 --refresh-key
+      # - name: Import GPG key
+      #   run: |
+      #     echo "${{ secrets.GPG_PRIVATE_KEY_2 }}" | gpg2 --batch --import
+      #     echo "keyserver keyserver.ubuntu.com" > ~/.gnupg/gpg.conf
+      #     #gpg2 --refresh-key
 
       - name: Clear Maven repository
         run: rm -rf .m2/repository/org/semoss
@@ -139,7 +135,7 @@ jobs:
   build_monolith_release:
     runs-on: self-hosted
     container:
-      image: maven:3.8.6-jdk-8
+      image: maven:3.9.9-amazoncorretto-21-debian
     if: ${{ vars.RELEASE == 'TRUE' }}
     steps:
       - name: Checkout code
@@ -156,11 +152,11 @@ jobs:
           apt-get update -y
           apt-get install -y openjfx gnupg2
 
-      - name: Import GPG key
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY_2 }}" | gpg2 --batch --import
-          echo "keyserver keyserver.ubuntu.com" > ~/.gnupg/gpg.conf
-          #gpg2 --refresh-key
+      # - name: Import GPG key
+      #   run: |
+      #     echo "${{ secrets.GPG_PRIVATE_KEY_2 }}" | gpg2 --batch --import
+      #     echo "keyserver keyserver.ubuntu.com" > ~/.gnupg/gpg.conf
+      #     #gpg2 --refresh-key
 
       - name: Clear Maven repository
         run: rm -rf .m2/repository/org/semoss
