@@ -130,7 +130,7 @@ public class UserSessionLoader implements HttpSessionListener {
 		try {
 			if(thisUser != null) {
 				// stop the netty thread if used for either r or python
-				ClientProcessWrapper cpw = thisUser.getClientProcessWrapper();
+				ClientProcessWrapper cpw = thisUser.getPythonClientProcessWrapper();
 				if(cpw != null) {
 					cpw.shutdown(true);
 				}
