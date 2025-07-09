@@ -48,8 +48,6 @@ import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.om.ThreadStore;
-import prerna.reactor.job.JobReactor;
 import prerna.reactor.security.MyEnginesReactor;
 import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobStatus;
@@ -76,16 +74,11 @@ public class OpenAIEndpoints {
 	@Produces("application/json;charset=utf-8")
 	public Response runModelChatCompletion(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		String sessionId = null;
 		User user = null;
-		Insight insight = null;
-		ObjectMapper objectMapper = new ObjectMapper();
 
 		if (session != null) {
-			sessionId = session.getId();
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 		}
-
 		// how did you even get past the no user in session filter?
 		if (user == null) {
 			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
@@ -96,6 +89,11 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
+		final String SESSION_ID = session.getId();
+		Insight insight = null;
+		ObjectMapper objectMapper = new ObjectMapper();
+
+		
 		// set the user timezone
 		ZoneId zoneId = null;
 		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
@@ -173,13 +171,13 @@ public class OpenAIEndpoints {
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		if (insightId == null) {
-			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
+			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(SESSION_ID);
 			if (sessionInsights == null || sessionInsights.isEmpty()) {
 				// need to make a new insight here
 				insight = new Insight();
 				InsightStore.getInstance().put(insight);
 				insightId = insight.getInsightId();
-				InsightStore.getInstance().addToSessionHash(sessionId, insightId);
+				InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId);
 			} else {
 				// pull the insight id from the session set
 				insightId = sessionInsights.iterator().next();
@@ -187,7 +185,7 @@ public class OpenAIEndpoints {
 			}		
 		} else {
 			insight = InsightStore.getInstance().get(insightId);
-			InsightStore.getInstance().addToSessionHash(sessionId, insightId); // maybe its an insight id from another session?
+			InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId); // maybe its an insight id from another session?
 		}
 
 		if (insight == null) {
@@ -201,8 +199,6 @@ public class OpenAIEndpoints {
 
 		// set the user
 		insight.setUser(user);		
-		// need to set this for std out operations
-		insight.getVarStore().put(JobReactor.JOB_KEY, new NounMetadata(insightId, PixelDataType.CONST_STRING));
 
 		dataMap.put("full_prompt", fullPrompt);
 
@@ -293,7 +289,7 @@ public class OpenAIEndpoints {
 							String jobId = null;
 							try {
 								// Execute model request but get job ID so can poll for partial responses
-								jobId = startAsyncModelRequest(engine, finalInsight, dataMap);
+								jobId = startAsyncModelRequest(engine, finalInsight, dataMap, SESSION_ID);
 
 								boolean started = false;
 								boolean completionSent = false;
@@ -442,8 +438,7 @@ public class OpenAIEndpoints {
 								}
 							}
 						}
-					})
-					.build();
+					}).build();
 		}
 	}
 
@@ -454,24 +449,18 @@ public class OpenAIEndpoints {
 	 * @param dataMap
 	 * @return
 	 */
-	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Map<String, Object> dataMap) {
+	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Map<String, Object> dataMap, String sessionId) {
 		try {
 			// start async job
 			PixelJobManager manager = PixelJobManager.getManager();
-			PixelJobThread jt = manager.makeJob(insight.getInsightId());
+			PixelJobThread jt = manager.makeJob(insight, sessionId, null);
 			String jobId = jt.getJobId();
-
-			// add to JobManager
-			String job = "META | Job(\"" + jobId + "\", \"" + insight.getInsightId() + "\", \"" + 
-					ThreadStore.getSessionId() + "\");";
-			jt.addPixel(job);
 
 			Gson gson = new GsonBuilder().disableHtmlEscaping().create();
 			String modelPixel = "LLM(engine='"+engine.getEngineId()+"', command='<encode>ignore</encode>'"
 					// this should have the full_prompt
 					+ ",paramValues=["+gson.toJson(dataMap)+"]);";
 			jt.addPixel(modelPixel);
-			jt.setInsight(insight);
 			jt.start();
 			return jobId;
 		} catch (Exception e) {
@@ -601,8 +590,6 @@ public class OpenAIEndpoints {
 
 		// set the user
 		insight.setUser(user);		
-		// need to set this for std out operations
-		insight.getVarStore().put(JobReactor.JOB_KEY, new NounMetadata(insightId, PixelDataType.CONST_STRING));
 
 		IModelEngine engine = Utility.getModel(engineId);
 		AskModelEngineResponse llmResponse;
@@ -786,8 +773,6 @@ public class OpenAIEndpoints {
 
 		// set the user
 		insight.setUser(user);		
-		// need to set this for std out operations
-		insight.getVarStore().put(JobReactor.JOB_KEY, new NounMetadata(insightId, PixelDataType.CONST_STRING));
 
 		IModelEngine engine = Utility.getModel(engineId);
 		EmbeddingsModelEngineResponse embeddingsResponse;
