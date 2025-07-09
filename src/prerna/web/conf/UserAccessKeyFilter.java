@@ -3,6 +3,7 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -80,15 +81,12 @@ public class UserAccessKeyFilter implements Filter {
 			String provider = WebUtility.inputSanitizer(request.getHeader("Bearer-Provider"));
 			if(provider == null) {
 				// try to guess
-				Map<String, Boolean> loginsMap = SocialPropertiesUtil.getInstance().getLoginsAllowed();
+				List<Map<String, Object>> loginsMap = SocialPropertiesUtil.getInstance().getAvailableProviders();
 				Set<String> allowedLogins = new HashSet<>();
-				for(String login : loginsMap.keySet()) {
-					if(loginsMap.get(login)) {
-						// check if this is OAuth
-						AuthProvider thisProvider = AuthProvider.valueOf(login.toUpperCase());
-						if(thisProvider.isOAuth()) {
-							allowedLogins.add(login);
-						}
+				for(Map<String, Object> loginInfo : loginsMap) {
+					// check if this is OAuth
+					if((boolean) loginInfo.get("isOauth")) {
+						allowedLogins.add((String) loginInfo.get("label"));
 					}
 				}
 				
