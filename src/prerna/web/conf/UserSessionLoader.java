@@ -90,6 +90,8 @@ public class UserSessionLoader implements HttpSessionListener {
 			// clear the current session store
 			insightIDs.removeAll(copy);
 		}
+		// remove the key as well
+		inStore.clearSession(sessionId);
 
 		try {
 			String sessionStorage = Utility.getInsightCacheDir() + DIR_SEPARATOR + sessionId;
