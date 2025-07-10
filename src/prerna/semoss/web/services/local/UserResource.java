@@ -31,8 +31,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -47,7 +45,6 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import javax.annotation.security.PermitAll;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -61,7 +58,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.http.client.ClientProtocolException;
 import org.apache.logging.log4j.LogManager;
@@ -78,7 +74,6 @@ import com.google.gson.reflect.TypeToken;
 import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
-import prerna.auth.InsightToken;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.auth.external.ExternalAuthorizationHelper;
@@ -3178,97 +3173,6 @@ public class UserResource {
 	/**
 	 * Sharing session
 	 */
-
-	@POST
-	@Produces("application/json")
-	@Path("/cookie")
-	public StreamingOutput manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		String insightId = WebUtility.inputSanitizer(request.getParameter("i"));
-		String secret = WebUtility.inputSanitizer(request.getParameter("s"));
-
-		// https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
-		/*
-		 * When the user clicks on connect to tableau.. I need to give the user a link
-		 * to that insight primarily
-		 * the question is do I land on the same insight or a different one
-		 * that link should have insight id and session id
-		 * 
-		 * a. Launches a new browser with this redirect along with pseudo session id, session id hashed with insight id
-		 * b. Redirects the user to a URL with the insight id and the pseudo session id / or something that sits in the user object. some random number
-		 * c. We pick the session.. go to the user object to see if the secret can be verified. Basically you take the session id which came in hash it with the insight id to see if it is allowable
-		 * d. We redirect the user to the embedded URL for the insight >>
-		 * e. We need someway to repull the recipe 
-		 * 
-		 * I need first something that will take me to http and then from there on take me into my insight
-		 * 
-		 */
-
-		// get the session
-		HttpSession session = request.getSession();
-		String sessionId = WebUtility.inputSanitizer(session.getId());
-		User user = (User) session.getAttribute(Constants.SESSION_USER);
-
-		Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
-		k.setSecure(request.isSecure());
-		k.setHttpOnly(true);
-		k.setPath(request.getContextPath());
-		response.addCookie(k);
-
-		if(classLogger.isDebugEnabled()) {
-			classLogger.debug("Session id set to " + sessionId);
-		}
-
-		InsightToken token = new InsightToken();
-		Map outputHash = new HashMap();
-		try {
-			MessageDigest md = MessageDigest.getInstance("SHA-256");
-			// create the insight token and add to the user
-			// the user has secret and salt
-			token.setSecret(secret);
-			user.addInsight(insightId, token);
-
-			String finalData = token.getSalt() + token.getSecret();
-
-			byte[] digest = md.digest(finalData.getBytes()); // .toString().getBytes();
-			StringBuffer sb = new StringBuffer();
-			for (int i = 0; i < digest.length; i++) {
-				sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
-			}
-			// String redir = "http://localhost:9090/Monolith/api/engine/all?JSESSIONID=" +
-			// sessionId;
-			String redir = "?" + DBLoader.getSessionIdKey() + "=" + sessionId + "&hash=" + sb + "&i=" + insightId;
-
-			// add the route if this is server deployment
-			Map<String, String> envMap = System.getenv();
-			// the environment variable for this box will tell me which route variable
-			// is for this specific box
-			if (envMap.containsKey(Constants.LOAD_BALANCER_COOKIE_NAME)) {
-				String routeCookieName = envMap.get(Constants.LOAD_BALANCER_COOKIE_NAME);
-				Cookie[] curCookies = request.getCookies();
-				if (curCookies != null) {
-					for (Cookie c : curCookies) {
-						if (c.getName().equals(routeCookieName)) {
-							redir += "&" + WebUtility.inputSanitizer(c.getName()) + "=" + WebUtility.inputSanitizer(c.getValue());
-						}
-					}
-				}
-			}
-
-			if(classLogger.isDebugEnabled()) {
-				classLogger.debug("Redirect URL " + Utility.cleanLogString(redir));
-			}
-
-			outputHash.put("PARAM", redir);
-			// also tell the system that this session is not fully validated so if someone
-			// comes without secret on this session
-			// dont allow
-			user.addShare(sessionId);
-		} catch (NoSuchAlgorithmException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-		}
-
-		return WebUtility.getSO(outputHash);
-	}
 
 	@GET
 	@Produces("application/json")
