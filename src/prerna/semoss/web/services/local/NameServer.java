@@ -607,6 +607,9 @@ public class NameServer {
 		PixelJobManager manager = PixelJobManager.getManager();
 		PixelJobThread jt = manager.makeJob(insight, sessionId, routeId);
 		jt.addPixel(expression);
+		// set the job id in the session
+		// this is required so you can call /result only within the same session
+		session.setAttribute(jt.getJobId(), "TRUE");
 		jt.start();
 		
 		Map<String, String> dataReturn = new HashMap<>();
@@ -630,8 +633,10 @@ public class NameServer {
 		HttpSession session = request.getSession(true);
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		if (session.getAttribute(jobId) == null) {
+			classLogger.warn("Calling result but the jobId " + jobId + " does not exist within the session");
 			return WebUtility.getSO("NULL");
 		}
+		session.removeAttribute(jobId);
 
 		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
 		PixelRunner dataReturn = PixelJobManager.getManager().getOutput(jobId);
