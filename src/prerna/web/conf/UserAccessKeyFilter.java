@@ -54,6 +54,11 @@ public class UserAccessKeyFilter implements Filter {
 			arg2.doFilter(arg0, arg1);
 		    return;
 		}
+		if (path.contains("api/ext/")) {
+			arg2.doFilter(arg0, arg1);
+		    return;
+		}
+
 		
 		/*
 		 * Check if bearer token is passed
