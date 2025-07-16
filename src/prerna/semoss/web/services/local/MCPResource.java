@@ -226,7 +226,7 @@ public class MCPResource {
 			manager.removeJob(jobId);			
 		}
 		if(output != null && output.size() > 0) {
-			return output.get(1).getValue();
+			return output.get(0).getValue();
 		}
 
 		return null;
