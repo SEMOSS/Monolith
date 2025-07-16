@@ -174,7 +174,7 @@ public class MCPReaper implements Runnable {
 				resultMap.put("capabilities", capabilitiesMap);
 				*/
 				String expression = "InitMCP(project='" + projectId + "');";
-				Map resultMap = (Map)runPixel(insight.getUser()	,insight, expression, sessionId);
+				JSONObject resultMap = (JSONObject)runPixel(insight.getUser()	,insight, expression, sessionId);
 				
 				response.put("result", resultMap);
 				
