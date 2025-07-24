@@ -31,8 +31,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -47,7 +45,6 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import javax.annotation.security.PermitAll;
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -61,7 +58,6 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.http.client.ClientProtocolException;
 import org.apache.logging.log4j.LogManager;
@@ -78,7 +74,6 @@ import com.google.gson.reflect.TypeToken;
 import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
-import prerna.auth.InsightToken;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.auth.external.ExternalAuthorizationHelper;
@@ -737,6 +732,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/salesforce")
 	public Response loginSalesforce(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("salesforce") == null || !socialData.getLoginsAllowed().get("salesforce")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Salesforce login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -837,6 +837,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/surveymonkey")
 	public Response loginSurveyMonkey(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("surveymonkey") == null || !socialData.getLoginsAllowed().get("surveymonkey")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Surveymonkey login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -938,6 +943,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/github")
 	public Response loginGithub(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("github") == null || !socialData.getLoginsAllowed().get("github")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "GitHub login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1060,6 +1070,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/gitlab")
 	public Response loginGitlab(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("gitlab") == null || !socialData.getLoginsAllowed().get("gitlab")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "GitLab login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1212,6 +1227,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/microsoft")
 	public Response loginMicrosoft(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("ms") == null || !socialData.getLoginsAllowed().get("ms")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Microsoft login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1338,6 +1358,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/adfs")
 	public Response loginADFS(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("adfs") == null || !socialData.getLoginsAllowed().get("adfs")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "ADFS login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1477,6 +1502,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/okta")
 	public Response loginOkta(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("okta") == null || !socialData.getLoginsAllowed().get("okta")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Okta login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1592,6 +1622,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/siteminder")
 	public Response loginSiteminder(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("siteminder") == null || !socialData.getLoginsAllowed().get("siteminder")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Siteminder login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1707,6 +1742,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/dropbox")
 	public Response loginDropBox(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("dropbox") == null || !socialData.getLoginsAllowed().get("dropbox")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Dropbox login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1811,6 +1851,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/google")
 	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("google") == null || !socialData.getLoginsAllowed().get("google")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Google login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -1978,6 +2023,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/producthunt")
 	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("producthunt") == null || !socialData.getLoginsAllowed().get("producthunt")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Producthunt login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -2081,6 +2131,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/linkedin")
 	public Response loginLinkedin(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("linkedin") == null || !socialData.getLoginsAllowed().get("linkedin")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "LinkedIn login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		/*
 		 * Try to log in the user
 		 * If they are not logged in
@@ -2109,7 +2164,7 @@ public class UserResource {
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
 				if(code.matches("[ -~]+")) {
-					String prefix = "in_";
+					String prefix = "linkedin_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
@@ -2132,7 +2187,7 @@ public class UserResource {
 					if (accessToken == null) {
 						// not authenticated
 						response.setStatus(302);
-						response.sendRedirect(getInRedirect(request));
+						response.sendRedirect(getLinkedinRedirect(request));
 						return null;
 					}
 					accessToken.setProvider(AuthProvider.LINKEDIN);
@@ -2151,7 +2206,7 @@ public class UserResource {
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.LINKEDIN) == null) {
 			response.setStatus(302);
-			response.sendRedirect(getInRedirect(request));
+			response.sendRedirect(getLinkedinRedirect(request));
 			return null;
 		}
 
@@ -2159,8 +2214,8 @@ public class UserResource {
 		return null;
 	}
 
-	private String getInRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "in_";
+	private String getLinkedinRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
+		String prefix = "linkedin_";
 		String clientId = socialData.getProperty(prefix + "client_id");
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 		String scope = socialData.getProperty(prefix + "scope");
@@ -2188,6 +2243,11 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/twitter")
 	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		if(socialData.getLoginsAllowed().get("twitter") == null || !socialData.getLoginsAllowed().get("twitter")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Twitter login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		// getting the bearer token on twitter for app authentication is a lot simpler
 		// need to just combine the id and secret
 		// base 64 and send as authorization
@@ -2218,7 +2278,7 @@ public class UserResource {
 				String code = URLDecoder.decode(outputs[0]);
 				String state = URLDecoder.decode(outputs[1]);
 				if(code.matches("[ -~]+") && state.matches("[ -~]+")) {
-					String prefix = "git_";
+					String prefix = "twitter_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
@@ -2235,7 +2295,7 @@ public class UserResource {
 					params.put("state", state);
 					params.put("client_secret", clientSecret);
 	
-					String url = "https://github.com/login/oauth/access_token";
+					String url = "https://api.twitter.com/oauth/access_token";
 	
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, false, true);
 					if (accessToken == null) {
@@ -2245,7 +2305,7 @@ public class UserResource {
 						return null;
 					}
 	
-					accessToken.setProvider(AuthProvider.GITHUB);
+					accessToken.setProvider(AuthProvider.TWITTER);
 					addAccessToken(accessToken, request, autoAdd);
 	
 					if(classLogger.isDebugEnabled()) {
@@ -2259,7 +2319,7 @@ public class UserResource {
 		if(session != null || (session=request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
+		if (userObj == null || userObj.getAccessToken(AuthProvider.TWITTER) == null) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getTwitterRedirect(request));
@@ -2320,6 +2380,11 @@ public class UserResource {
 		 */
 
 		provider=WebUtility.inputSanitizer(provider);
+		if(socialData.getLoginsAllowed().get("provider") == null || !socialData.getLoginsAllowed().get("provider")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, provider + " login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
 		
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
 
@@ -3178,97 +3243,6 @@ public class UserResource {
 	/**
 	 * Sharing session
 	 */
-
-	@POST
-	@Produces("application/json")
-	@Path("/cookie")
-	public StreamingOutput manCookie(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		String insightId = WebUtility.inputSanitizer(request.getParameter("i"));
-		String secret = WebUtility.inputSanitizer(request.getParameter("s"));
-
-		// https://nuwanbando.com/2010/05/07/sharing-https-http-sessions-in-tomcat/
-		/*
-		 * When the user clicks on connect to tableau.. I need to give the user a link
-		 * to that insight primarily
-		 * the question is do I land on the same insight or a different one
-		 * that link should have insight id and session id
-		 * 
-		 * a. Launches a new browser with this redirect along with pseudo session id, session id hashed with insight id
-		 * b. Redirects the user to a URL with the insight id and the pseudo session id / or something that sits in the user object. some random number
-		 * c. We pick the session.. go to the user object to see if the secret can be verified. Basically you take the session id which came in hash it with the insight id to see if it is allowable
-		 * d. We redirect the user to the embedded URL for the insight >>
-		 * e. We need someway to repull the recipe 
-		 * 
-		 * I need first something that will take me to http and then from there on take me into my insight
-		 * 
-		 */
-
-		// get the session
-		HttpSession session = request.getSession();
-		String sessionId = WebUtility.inputSanitizer(session.getId());
-		User user = (User) session.getAttribute(Constants.SESSION_USER);
-
-		Cookie k = new Cookie(DBLoader.getSessionIdKey(), sessionId);
-		k.setSecure(request.isSecure());
-		k.setHttpOnly(true);
-		k.setPath(request.getContextPath());
-		response.addCookie(k);
-
-		if(classLogger.isDebugEnabled()) {
-			classLogger.debug("Session id set to " + sessionId);
-		}
-
-		InsightToken token = new InsightToken();
-		Map outputHash = new HashMap();
-		try {
-			MessageDigest md = MessageDigest.getInstance("SHA-256");
-			// create the insight token and add to the user
-			// the user has secret and salt
-			token.setSecret(secret);
-			user.addInsight(insightId, token);
-
-			String finalData = token.getSalt() + token.getSecret();
-
-			byte[] digest = md.digest(finalData.getBytes()); // .toString().getBytes();
-			StringBuffer sb = new StringBuffer();
-			for (int i = 0; i < digest.length; i++) {
-				sb.append(Integer.toString((digest[i] & 0xff) + 0x100, 16).substring(1));
-			}
-			// String redir = "http://localhost:9090/Monolith/api/engine/all?JSESSIONID=" +
-			// sessionId;
-			String redir = "?" + DBLoader.getSessionIdKey() + "=" + sessionId + "&hash=" + sb + "&i=" + insightId;
-
-			// add the route if this is server deployment
-			Map<String, String> envMap = System.getenv();
-			// the environment variable for this box will tell me which route variable
-			// is for this specific box
-			if (envMap.containsKey(Constants.LOAD_BALANCER_COOKIE_NAME)) {
-				String routeCookieName = envMap.get(Constants.LOAD_BALANCER_COOKIE_NAME);
-				Cookie[] curCookies = request.getCookies();
-				if (curCookies != null) {
-					for (Cookie c : curCookies) {
-						if (c.getName().equals(routeCookieName)) {
-							redir += "&" + WebUtility.inputSanitizer(c.getName()) + "=" + WebUtility.inputSanitizer(c.getValue());
-						}
-					}
-				}
-			}
-
-			if(classLogger.isDebugEnabled()) {
-				classLogger.debug("Redirect URL " + Utility.cleanLogString(redir));
-			}
-
-			outputHash.put("PARAM", redir);
-			// also tell the system that this session is not fully validated so if someone
-			// comes without secret on this session
-			// dont allow
-			user.addShare(sessionId);
-		} catch (NoSuchAlgorithmException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-		}
-
-		return WebUtility.getSO(outputHash);
-	}
 
 	@GET
 	@Produces("application/json")

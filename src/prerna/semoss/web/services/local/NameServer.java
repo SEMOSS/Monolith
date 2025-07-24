@@ -319,7 +319,6 @@ public class NameServer {
 			}
 		}
 
-		String jobId = "";
 		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
 		String expression = request.getParameter("expression");
 		if(expression == null || (expression = expression.trim()).isEmpty()) {
@@ -396,7 +395,7 @@ public class NameServer {
 			}
 		}
 		
-		return runPixelJob(user, insight, expression, jobId, insightId, sessionId, routeId, dropLogging);
+		return runPixelJob(user, insight, expression, insightId, sessionId, routeId, dropLogging);
 	}
 
 	@POST
@@ -441,41 +440,21 @@ public class NameServer {
 	
 	/**
 	 * 
-	 * @param user			User object
-	 * @param insight		Insight object
-	 * @param expression	String containing the pixel
-	 * @param jobId
+	 * @param user
+	 * @param insight
+	 * @param expression
 	 * @param insightId
 	 * @param sessionId
 	 * @param routeId
 	 * @param dropLogging
 	 * @return
 	 */
-	public static Response runPixelJob(User user, Insight insight, String expression, String jobId, 
+	public static Response runPixelJob(User user, Insight insight, String expression, 
 			String insightId, String sessionId, String routeId, boolean dropLogging) {
 		PixelJobManager manager = PixelJobManager.getManager();
-		PixelJobThread jt = manager.makeJob(WebUtility.inputSanitizer(insightId));
-		jobId = jt.getJobId();
-
-		// set in thread
-		ThreadStore.setInsightId(WebUtility.inputSanitizer(insightId));
-		ThreadStore.setSessionId(sessionId);
-		ThreadStore.setRouteId(routeId);
-		ThreadStore.setJobId(jobId);
-		ThreadStore.setUser(user);
-
-		String job = null;
-		if(routeId == null || routeId.isEmpty()) {
-			job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\", \"" + routeId + "\");";
-		} else {
-			job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
-		}
-		// add the job first
-		// so we can do things like logging
-		jt.addPixel(job);
-		// then add the expression
+		PixelJobThread jt = manager.makeJob(WebUtility.inputSanitizer(insightId), insight, sessionId, routeId);
+		String jobId = jt.getJobId();
 		jt.addPixel(expression);
-		jt.setInsight(insight);
 		jt.run();
 		PixelRunner pixelRunner = jt.getRunner();
 		
@@ -531,8 +510,10 @@ public class NameServer {
 	@Produces("application/json;charset=utf-8")
 	public Response runPixelAsync(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		User user = null;
 		String sessionId = null;
+		String routeId = null;
+		User user = null;
+		Insight insight = null;
 		
 		if (session != null) {
 			sessionId = WebUtility.inputSQLSanitizer(session.getId());
@@ -546,9 +527,6 @@ public class NameServer {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String jobId = "";
-		Map<String, String> dataReturn = new HashMap<>();
-
 		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
 		String expression = request.getParameter("expression");
 		if(expression == null || (expression = expression.trim()).isEmpty()) {
@@ -561,7 +539,21 @@ public class NameServer {
 			expression = expression + ";";
 		}
 		
-		Insight insight = null;
+		// add the route if this is server deployment
+		String routeCookieName = Utility.getDIHelperProperty(Constants.LOAD_BALANCER_COOKIE_NAME);
+		if (routeCookieName != null && !routeCookieName.isEmpty()) {
+			Cookie[] curCookies = request.getCookies();
+			if (curCookies != null) {
+				for (Cookie c : curCookies) {
+					classLogger.debug(Utility.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
+					if (c.getName().equals(routeCookieName)) {
+						routeId = WebUtility.inputSQLSanitizer(c.getValue());
+						ChromeDriverUtility.setRouteCookieValue(c.getValue());
+					}
+				}
+			}
+		}
+		
 		// figure out the type of insight
 		// first is temp
 		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
@@ -613,17 +605,15 @@ public class NameServer {
 		
 		insight.setUser(user);
 		PixelJobManager manager = PixelJobManager.getManager();
-		PixelJobThread jt = manager.makeJob();
-		jobId = jt.getJobId();
-		session.setAttribute(jobId + "", "TRUE");
-		
-		// so we can do things like logging
-		String job = "META | Job(\"" + jobId + "\", \"" + insightId + "\", \"" + sessionId + "\");";
-		jt.addPixel(job); 				// use the JobReactor to set the jobId for logs
-		jt.addPixel(expression);  		// then add the expression
-		jt.setInsight(insight);
+		PixelJobThread jt = manager.makeJob(insight, sessionId, routeId);
+		jt.addPixel(expression);
+		// set the job id in the session
+		// this is required so you can call /result only within the same session
+		session.setAttribute(jt.getJobId(), "TRUE");
 		jt.start();
-		dataReturn.put("jobId", jobId);
+		
+		Map<String, String> dataReturn = new HashMap<>();
+		dataReturn.put("jobId", jt.getJobId());
 		return WebUtility.getResponse(dataReturn, 200);
 	}
 
@@ -643,8 +633,10 @@ public class NameServer {
 		HttpSession session = request.getSession(true);
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		if (session.getAttribute(jobId) == null) {
+			classLogger.warn("Calling result but the jobId " + jobId + " does not exist within the session");
 			return WebUtility.getSO("NULL");
 		}
+		session.removeAttribute(jobId);
 
 		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
 		PixelRunner dataReturn = PixelJobManager.getManager().getOutput(jobId);
