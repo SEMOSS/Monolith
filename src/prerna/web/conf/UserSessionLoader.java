@@ -90,6 +90,8 @@ public class UserSessionLoader implements HttpSessionListener {
 			// clear the current session store
 			insightIDs.removeAll(copy);
 		}
+		// remove the key as well
+		inStore.clearSession(sessionId);
 
 		try {
 			String sessionStorage = Utility.getInsightCacheDir() + DIR_SEPARATOR + sessionId;
@@ -130,7 +132,7 @@ public class UserSessionLoader implements HttpSessionListener {
 		try {
 			if(thisUser != null) {
 				// stop the netty thread if used for either r or python
-				ClientProcessWrapper cpw = thisUser.getClientProcessWrapper();
+				ClientProcessWrapper cpw = thisUser.getPythonClientProcessWrapper();
 				if(cpw != null) {
 					cpw.shutdown(true);
 				}

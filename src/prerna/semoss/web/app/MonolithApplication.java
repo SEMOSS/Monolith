@@ -41,6 +41,7 @@ import prerna.semoss.web.services.local.DatabaseEngineResource;
 import prerna.semoss.web.services.local.EngineRouteResource;
 import prerna.semoss.web.services.local.ExecuteInsightResource;
 import prerna.semoss.web.services.local.LegacyAppResource;
+import prerna.semoss.web.services.local.MCPResource;
 import prerna.semoss.web.services.local.ModelEngineResource;
 import prerna.semoss.web.services.local.NameServer;
 import prerna.semoss.web.services.local.OpenAIEndpoints;
@@ -120,8 +121,10 @@ public class MonolithApplication extends Application {
       // legacy forms - still used in production - RDF specific
       singletons.add(new FormResource());
       
-      //openai endpoints for CFG AI Model Inference
+      // openai endpoints for CFG AI Model Inference
       singletons.add(new OpenAIEndpoints());
+      // MCP
+      singletons.add(new MCPResource());
    }
 
    @Override

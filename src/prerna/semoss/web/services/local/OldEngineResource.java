@@ -61,9 +61,9 @@ import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.ThreadStore;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.reactor.PixelPlanner;
-import prerna.reactor.job.JobReactor;
 import prerna.reactor.legacy.playsheets.GetPlaysheetParamsReactor;
 import prerna.reactor.legacy.playsheets.RunPlaysheetReactor;
 import prerna.sablecc2.om.GenRowStruct;
@@ -230,7 +230,6 @@ public class OldEngineResource {
 		Insight dummyIn = new Insight();
 		InsightStore.getInstance().put(dummyIn);
 		InsightStore.getInstance().addToSessionHash(session.getId(), dummyIn.getInsightId());
-		dummyIn.getVarStore().put(JobReactor.SESSION_KEY, new NounMetadata(session.getId(), PixelDataType.CONST_STRING));
 		dummyIn.setUser(user);
 		playsheetRunReactor.setInsight(dummyIn);
 		PixelPlanner planner = new PixelPlanner();
@@ -248,6 +247,12 @@ public class OldEngineResource {
 			grs3.add(new NounMetadata(params, PixelDataType.MAP));
 			playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.PARAM_KEY.getKey(), grs3);
 		}
+		
+		// set in thread
+		ThreadStore.setInsightId(dummyIn.getInsightId());
+		ThreadStore.setSessionId(session.getId());
+		ThreadStore.setJobId(dummyIn.getInsightId());
+		ThreadStore.setUser(user);
 		
 		NounMetadata retNoun = playsheetRunReactor.execute();
 		return WebUtility.getResponse(retNoun.getValue(), 200);
