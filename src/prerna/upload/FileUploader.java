@@ -48,6 +48,7 @@ import prerna.om.ThreadStore;
 import prerna.project.api.IProject;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
+import prerna.util.EngineUtility;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -262,6 +263,12 @@ public class FileUploader extends Uploader {
 			}
 		}
 		
+		if(projectId != null && engineId != null) {
+			HashMap<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Cannot provide both a projectId and engineId in the same request");
+			return WebUtility.getResponse(errorMap, 422);
+		}
+		
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
 			List<FileItem> fileItems = processRequest(context, request, insightId);
@@ -311,11 +318,7 @@ public class FileUploader extends Uploader {
 				assetFolder = AssetUtility.getProjectAppRootFolder(project.getProjectName(), projectId);
 			}
 		} else if (engineId != null) {
-			//TODO: build out
-			//TODO: build out
-			//TODO: build out
-			//TODO: build out
-
+			assetFolder = EngineUtility.getSpecificEngineBaseFolder(engineId);
 		} else {
 			assetFolder = in.getInsightFolder();
 		}
