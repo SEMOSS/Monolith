@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,6 +47,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -74,6 +76,10 @@ import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.ToNumberPolicy;
 import com.google.gson.internal.LinkedTreeMap;
 
 import prerna.auth.User;
@@ -263,6 +269,7 @@ public class NameServer {
 
 	@POST
 	@Path("/runPixel")
+	@Consumes({"application/x-www-form-urlencoded", "application/json"})
 	@Produces("application/json;charset=utf-8")
 	public Response runPixelSync(@Context HttpServletRequest request) {
 		// I need to do a couple of things here
@@ -318,9 +325,70 @@ public class NameServer {
 				}
 			}
 		}
+		
+		// Extract parameters based on content type
+		String insightId = null;
+		String expression = null;
+		String strTz = null;
+		String logStr = null;
+		
+		String contentType = request.getContentType();
+		if (contentType != null && contentType.toLowerCase().contains("application/json")) {
+			// Handle JSON content
+			try {
+				StringBuilder jsonBuffer = new StringBuilder();
+				String line;
+				BufferedReader reader = request.getReader();
+				while ((line = reader.readLine()) != null) {
+					jsonBuffer.append(line);
+				}
+				
+				String jsonString = jsonBuffer.toString();
+				Gson gson = new GsonBuilder()
+					.disableHtmlEscaping()
+					.setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+					.create();
+				JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
+				
+				// Extract values from JSON object
+				insightId = jsonObject.has("insightId") && !jsonObject.get("insightId").isJsonNull() 
+					? jsonObject.get("insightId").getAsString() : null;
+				expression = jsonObject.has("expression") && !jsonObject.get("expression").isJsonNull() 
+					? jsonObject.get("expression").getAsString() : null;
+				strTz = jsonObject.has("tz") && !jsonObject.get("tz").isJsonNull() 
+					? jsonObject.get("tz").getAsString() : null;
+				logStr = jsonObject.has("dropLogging") && !jsonObject.get("dropLogging").isJsonNull() 
+					? jsonObject.get("dropLogging").getAsString() : null;
+				
+				// Sanitize the extracted values
+				if (insightId != null) {
+					insightId = WebUtility.inputSanitizer(insightId);
+				}
+				if (strTz != null) {
+					strTz = WebUtility.inputSQLSanitizer(strTz);
+				}
+				if (logStr != null) {
+					logStr = WebUtility.inputSQLSanitizer(logStr);
+				}
+			} catch (IOException e) {
+				classLogger.error("Error reading JSON request body", e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Invalid JSON request body");
+				return WebUtility.getResponse(errorMap, 400);
+			} catch (JsonSyntaxException e) {
+				classLogger.error("Error parsing JSON request body", e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Invalid JSON syntax in request body");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		} else {
+			// Handle form-urlencoded content (original approach)
+			insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
+			expression = request.getParameter("expression");
+			strTz = WebUtility.inputSQLSanitizer(request.getParameter("tz"));
+			logStr = WebUtility.inputSQLSanitizer(request.getParameter("dropLogging"));
+		}
 
-		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
-		String expression = request.getParameter("expression");
 		if(expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
@@ -365,7 +433,6 @@ public class NameServer {
 		
 		// set the user timezone
 		ZoneId zoneId = null;
-		String strTz = WebUtility.inputSQLSanitizer(request.getParameter("tz"));
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
 			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 		} else {
@@ -388,13 +455,10 @@ public class NameServer {
 		}
 		
 		// are we running runPixel in runPixel on the same insight?
-		{
-			String logStr = WebUtility.inputSQLSanitizer(request.getParameter("dropLogging"));
-			if(logStr != null) {
-				dropLogging = Boolean.parseBoolean(logStr);
-			}
+		if(logStr != null) {
+			dropLogging = Boolean.parseBoolean(logStr);
 		}
-		
+	
 		return runPixelJob(user, insight, expression, insightId, sessionId, routeId, dropLogging);
 	}
 
@@ -507,6 +571,7 @@ public class NameServer {
 	
 	@POST
 	@Path("runPixelAsync")
+	@Consumes({"application/x-www-form-urlencoded", "application/json"})
 	@Produces("application/json;charset=utf-8")
 	public Response runPixelAsync(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
@@ -527,18 +592,6 @@ public class NameServer {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
-		String expression = request.getParameter("expression");
-		if(expression == null || (expression = expression.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
-			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
-			return WebUtility.getResponse(errorMap, 400);
-		}
-		if(!expression.endsWith(";")) {
-			expression = expression + ";";
-		}
-		
 		// add the route if this is server deployment
 		String routeCookieName = Utility.getDIHelperProperty(Constants.LOAD_BALANCER_COOKIE_NAME);
 		if (routeCookieName != null && !routeCookieName.isEmpty()) {
@@ -552,6 +605,79 @@ public class NameServer {
 					}
 				}
 			}
+		}
+		
+		// Extract parameters based on content type
+		String insightId = null;
+		String expression = null;
+		String strTz = null;
+		String logStr = null;
+		
+		String contentType = request.getContentType();
+		if (contentType != null && contentType.toLowerCase().contains("application/json")) {
+			// Handle JSON content
+			try {
+				StringBuilder jsonBuffer = new StringBuilder();
+				String line;
+				BufferedReader reader = request.getReader();
+				while ((line = reader.readLine()) != null) {
+					jsonBuffer.append(line);
+				}
+				
+				String jsonString = jsonBuffer.toString();
+				Gson gson = new GsonBuilder()
+					.disableHtmlEscaping()
+					.setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+					.create();
+				JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
+				
+				// Extract values from JSON object
+				insightId = jsonObject.has("insightId") && !jsonObject.get("insightId").isJsonNull() 
+					? jsonObject.get("insightId").getAsString() : null;
+				expression = jsonObject.has("expression") && !jsonObject.get("expression").isJsonNull() 
+					? jsonObject.get("expression").getAsString() : null;
+				strTz = jsonObject.has("tz") && !jsonObject.get("tz").isJsonNull() 
+					? jsonObject.get("tz").getAsString() : null;
+				logStr = jsonObject.has("dropLogging") && !jsonObject.get("dropLogging").isJsonNull() 
+					? jsonObject.get("dropLogging").getAsString() : null;
+				
+				// Sanitize the extracted values
+				if (insightId != null) {
+					insightId = WebUtility.inputSanitizer(insightId);
+				}
+				if (strTz != null) {
+					strTz = WebUtility.inputSQLSanitizer(strTz);
+				}
+				if (logStr != null) {
+					logStr = WebUtility.inputSQLSanitizer(logStr);
+				}
+			} catch (IOException e) {
+				classLogger.error("Error reading JSON request body", e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Invalid JSON request body");
+				return WebUtility.getResponse(errorMap, 400);
+			} catch (JsonSyntaxException e) {
+				classLogger.error("Error parsing JSON request body", e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Invalid JSON syntax in request body");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		} else {
+			// Handle form-urlencoded content (original approach)
+			insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
+			expression = request.getParameter("expression");
+			strTz = WebUtility.inputSQLSanitizer(request.getParameter("tz"));
+			logStr = WebUtility.inputSQLSanitizer(request.getParameter("dropLogging"));
+		}
+		
+		if(expression == null || (expression = expression.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
+			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		if(!expression.endsWith(";")) {
+			expression = expression + ";";
 		}
 		
 		// figure out the type of insight
@@ -586,7 +712,6 @@ public class NameServer {
 
 		// set the user timezone
 		ZoneId zoneId = null;
-		String strTz = WebUtility.inputSQLSanitizer(request.getParameter("tz"));
 		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
 			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 		} else {
