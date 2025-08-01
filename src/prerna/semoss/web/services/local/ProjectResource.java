@@ -96,6 +96,16 @@ public class ProjectResource {
 		return true;
 	}
 	
+	private boolean canAccessOrDiscoverableProject(User user, String projectId) throws IllegalAccessException {
+		projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
+		if(!SecurityProjectUtils.userCanViewProject(user, projectId) && 
+				!SecurityProjectUtils.projectIsDiscoverable(projectId)) {
+			throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have access");
+		}
+		
+		return true;
+	}
+	
 	private boolean canAccessInsight(User user, String projectId, String insightId) throws IllegalAccessException {
 		projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
 		if(!SecurityInsightUtils.userCanViewInsight(user, projectId, insightId)) {
@@ -525,6 +535,7 @@ public class ProjectResource {
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
 	public Response downloadProjectImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("projectId") String projectId) {
 		projectId= WebUtility.inputSanitizer(projectId);
+		
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -534,7 +545,7 @@ public class ProjectResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		try {
-			canAccessProject(user, projectId);
+			canAccessOrDiscoverableProject(user, projectId);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", e.getMessage());
