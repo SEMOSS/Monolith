@@ -308,7 +308,7 @@ public class ProjectAuthorizationResource {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
 			String searchParam = searchTerm != null ? searchTerm : userId;
-			List<Map<String, Object>> members = SecurityProjectUtils.getProjectUsers(user, projectId, searchParam, permission, limit, offset);
+			List<Map<String, Object>> members = SecurityProjectUtils.getUsersForApp(user, projectId, searchParam, permission, limit, offset);
 			long totalMembers = SecurityProjectUtils.getProjectUsersCount(user, projectId, searchParam, permission);
 			ret.put("totalMembers", totalMembers);
 			ret.put("members", members);

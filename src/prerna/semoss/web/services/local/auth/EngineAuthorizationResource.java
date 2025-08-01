@@ -314,7 +314,7 @@ public class EngineAuthorizationResource {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
 			String searchParam = searchTerm != null ? searchTerm : userId;
-			List<Map<String, Object>> members = SecurityEngineUtils.getEngineUsers(user, engineId, searchParam, permission, limit, offset);
+			List<Map<String, Object>> members = SecurityEngineUtils.getUsersForEngine(user, engineId, searchParam, permission, limit, offset);
 			long totalMembers = SecurityEngineUtils.getEngineUsersCount(user, engineId, searchParam, permission);
 			ret.put("totalMembers", totalMembers);
 			ret.put("members", members);
