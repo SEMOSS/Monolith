@@ -2380,7 +2380,7 @@ public class UserResource {
 		 */
 
 		provider=WebUtility.inputSanitizer(provider);
-		if(socialData.getLoginsAllowed().get("provider") == null || !socialData.getLoginsAllowed().get("provider")) {
+		if(socialData.getLoginsAllowed().get(provider) == null || !socialData.getLoginsAllowed().get(provider)) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, provider + " login is not allowed");
 			return WebUtility.getResponse(ret, 400);
