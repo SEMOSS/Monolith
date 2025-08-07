@@ -1042,4 +1042,337 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(true, 200);
 	}
 	
+	/**
+	 * Get the project users and their permissions
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getUsersForApp")
+	public Response getUsersForApp(@Context HttpServletRequest request, 
+			@QueryParam("appId") String appId, @QueryParam("userId") String userId, 
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("permission") String permission, 
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		appId = WebUtility.inputSQLSanitizer(appId);
+	    userId = WebUtility.inputSQLSanitizer(userId);
+	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+	    permission = WebUtility.inputSQLSanitizer(permission);
+	    
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull all the users who use project " + appId + " when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		String searchParam = searchTerm != null ? searchTerm : userId;
+		List<Map<String, Object>> members = adminUtils.getProjectUsers(appId, searchParam, permission, limit, offset);
+		long totalMembers = SecurityAdminUtils.getProjectUsersCount(appId, searchParam, permission);
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("totalMembers", totalMembers);
+		ret.put("members", members);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Get users with no access to a given project
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getUsersForAppNoCredentials")
+	public Response getUsersForAppNoCredentials(@Context HttpServletRequest request, 
+			@QueryParam("appId") String appId, 
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
+		appId = WebUtility.inputSQLSanitizer(appId);
+	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+	   
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to get all users when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
+
+		// if not graph api
+		// then we will look at our security db
+		if(!graphApi) {
+			List<Map<String, Object>> ret = adminUtils.getProjectUsersNoCredentials(appId, searchTerm, limit, offset);
+			return WebUtility.getResponse(ret, 200);
+		}
+
+		
+		String graphApiGroupId = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_groupId");
+
+		try {
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user, appId, searchTerm, graphApiGroupId, limit , offset);
+			return WebUtility.getResponse(filteredUsers, 200);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500); 
+		}
+	}
+	
+	/**
+	 * Add a user to an project
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("addUserAppPermission")
+	public Response addUserAppPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String appId = WebUtility.inputSQLSanitizer(form.getFirst("appId"));
+		String permission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
+		String endDate = null; // form.getFirst("endDate");
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to project " + appId + " when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		try {
+			adminUtils.addProjectUser(newUserId, appId, permission, user, endDate);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to project " + appId + " with permission " + permission));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Add user permissions in bulk to a project
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("addUserAppPermissions")
+	public Response addUserAppPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String appId = WebUtility.inputSQLSanitizer(form.getFirst("appId"));
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permission to project " + appId + " when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
+		
+		// adding user permissions in bulk
+		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		try {
+			// if we are doing the grpah api
+			// then the users might not already exist in the security db
+			if(graphApi) {
+				// filter out users that already exist
+				List<Map<String, String>> filteredUsers = permission.stream()
+						.filter(map -> !SecurityQueryUtils.checkUserExist(map.get(Constants.MAP_USERID))).collect(Collectors.toList());
+				if (filteredUsers != null && !filteredUsers.isEmpty()) {
+					AccessToken token = null;
+					  // Add new users to OAuth if they don't exist
+					for (Map<String, String> map : filteredUsers) {
+						token = new AccessToken();
+						token.setId(map.get(Constants.MAP_USERID));
+						token.setEmail(map.get(Constants.MAP_EMAIL));
+						token.setName(map.get(Constants.MAP_NAME));
+						token.setProvider(AuthProvider.getProviderFromString(map.get(AuthProvider.MICROSOFT.name())));
+						token.setUsername(map.get(Constants.MAP_USERNAME));
+						SecurityUpdateUtils.addOAuthUser(token);
+					}
+				}
+			}
+			adminUtils.addProjectUserPermissions(appId, permission, user);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user permissions to project " + appId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	
+	/**
+	 * update all user's permission level to new permission level for an project
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("updateUserAppPermissions")
+	public Response updateUserAppPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String appId = WebUtility.inputSQLSanitizer(form.getFirst("appId"));
+		String newPermission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
+		String endDate = null; // form.getFirst("endDate");
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for project " + appId + " when not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		try {
+			adminUtils.updateProjectUserPermissions(appId, newPermission, user, endDate);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user permissions to project " + appId + " with level " + newPermission));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Remove user permission for an project
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("deleteUserAppPermission")
+	public Response deleteUserAppPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String appId = WebUtility.inputSQLSanitizer(form.getFirst("appId"));
+		
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to project " + appId + " when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		try {
+			adminUtils.removeProjectUser(existingUserId, appId);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to project " + appId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	
+	/**
+	 * Remove user permissions for a project, in bulk
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("deleteUserAppPermissions")
+	public Response deleteUserAppPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String appId = WebUtility.inputSQLSanitizer(form.getFirst("appId"));
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove usersfrom having access to project " + appId + " when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		Gson gson = new Gson();
+		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		ids = WebUtility.inputSQLSanitizer(ids);
+		try {
+			adminUtils.removeProjectUsers(ids, appId);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed users from having access to project " + appId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
 }

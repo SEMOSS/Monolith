@@ -26,6 +26,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.auth.utils.reactors.admin.AdminMyEnginesReactor;
@@ -1038,4 +1039,360 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+	
+	/**
+	 * Get the engine users and their permissions
+	 * @param request
+	 * @param engineId
+	 * @param userId
+	 * @param permission
+	 * @param limit
+	 * @param offset
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getUsersForEngine")
+	public Response getUsersForEngine(@Context HttpServletRequest request, 
+			@QueryParam("engineId") String engineId, @QueryParam("userId") String userId, 
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("permission") String permission, 
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		engineId = WebUtility.inputSanitizer(engineId);
+	    userId = WebUtility.inputSQLSanitizer(userId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
+	    permission = WebUtility.inputSanitizer(permission);
+	    
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull all the users who use engine " + engineId + " when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		Map<String, Object> ret = new HashMap<String, Object>();
+		String searchParam = searchTerm != null ? searchTerm : userId;
+		List<Map<String, Object>> members = adminUtils.getEngineUsers(engineId, searchParam, permission, limit, offset);
+		long totalMembers = SecurityAdminUtils.getEngineUsersCount(engineId, searchParam, permission);
+		ret.put("totalMembers", totalMembers);
+		ret.put("members", members);
+
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("getUsersForEngineNoCredentials")
+	public Response getUsersForEngineNoCredentials(@Context HttpServletRequest request,
+			@QueryParam("engineId") String engineId, 
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
+		engineId = WebUtility.inputSanitizer(engineId);
+		searchTerm = WebUtility.inputSanitizer(searchTerm);
+	    
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
+					User.getSingleLogginName(user), " is trying to get all users when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
+		
+		// if not graph api
+		// then we will look at our security db
+		if(!graphApi) {
+			List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(engineId, searchTerm, limit, offset);
+			return WebUtility.getResponse(ret, 200);
+		}
+
+		String graphApiGroupId = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_groupId");
+
+		try {
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getEngineUsers(request, user, engineId, searchTerm, graphApiGroupId , limit, offset, true);
+			return WebUtility.getResponse(filteredUsers, 200);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500); 
+		}
+	}
+	
+	/**
+	 * Add a user to a engine
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("addUserEnginePermission")
+	public Response addUserEnginePermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Map<String, Object> ret = new HashMap<String, Object>();
+
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to engine " + engineId + " when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 401);
+		}
+		
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = null; // form.getFirst("endDate");
+		
+		String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+	    int maxTokens = 0;
+		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
+		if(maxTokensStr != null && !(maxTokensStr=maxTokensStr.trim()).isEmpty()) {
+			// must be a valid integer
+			try {
+				maxTokens = Integer.parseInt(maxTokensStr);
+			} catch(NumberFormatException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		double maxResponseTime = 0.0;
+		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
+		if(maxResponseTimeStr != null && !(maxResponseTimeStr=maxResponseTimeStr.trim()).isEmpty()) {
+			// must be a valid double
+			try {
+				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
+			} catch(NumberFormatException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		
+		try {
+			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(ret, 400);
+		}
+
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to engine " + engineId + " with permission " + permission));
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Add user permissions in bulk to a engine
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("addUserEnginePermissions")
+	public Response addUserEnginePermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String engineId = WebUtility.inputSanitizer( form.getFirst("engineId"));
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permission to engine " + engineId + " when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
+
+		// adding user permissions in bulk
+		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		try {
+			// if we are doing the grpah api
+			// then the users might not already exist in the security db
+			if(graphApi) {
+				// filter out users that already exist
+				List<Map<String, Object>> filteredUsers = permission.stream()
+						.filter(map -> !SecurityQueryUtils.checkUserExist((String) map.get(Constants.MAP_USERID))).collect(Collectors.toList());
+				if (filteredUsers != null && !filteredUsers.isEmpty()) {
+					AccessToken token = null;
+					  // Add new users to OAuth if they don't exist
+					for (Map<String, Object> map : filteredUsers) {
+						token = new AccessToken();
+						token.setId((String) map.get(Constants.MAP_USERID));
+						token.setEmail((String) map.get(Constants.MAP_EMAIL));
+						token.setName((String) map.get(Constants.MAP_NAME));
+						token.setProvider(AuthProvider.getProviderFromString((String) map.get(AuthProvider.MICROSOFT.name())));
+						token.setUsername((String) map.get(Constants.MAP_USERNAME));
+						SecurityUpdateUtils.addOAuthUser(token);
+					}
+				}
+			}
+			adminUtils.addEngineUserPermissions(engineId, permission, user);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user permissions to engine " + engineId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * update all user's permission level to new permission level for a engine
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("updateUserEnginePermissions")
+	public Response updateUserEnginePermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = null; // form.getFirst("endDate");
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for engine " + engineId + " when not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		try {
+			adminUtils.updateEngineUserPermissions(engineId, newPermission, user, endDate);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user permissions to engine " + engineId + " with level " + newPermission));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Remove user permission for a engine
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("deleteUserEnginePermission")
+	public Response deleteUserEnginePermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		
+		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to engine " + engineId + " when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		try {
+			adminUtils.removeEngineUser(existingUserId, engineId);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to engine " + engineId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Remove user permissions for a engine, in bulk
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("deleteUserEnginePermissions")
+	public Response deleteUserEnginePermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove usersfrom having access to engine " + engineId + " when not an admin"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		Gson gson = new Gson();
+		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		ids = WebUtility.inputSQLSanitizer(ids);
+		try {
+			adminUtils.removeEngineUsers(ids, engineId);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed users from having access to engine " + engineId));
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
 }

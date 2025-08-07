@@ -1084,5 +1084,191 @@ public class EngineAuthorizationResource {
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
+	
+	/**
+	 * Get the engine users and their permissions
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getUsersForEngine")
+	public Response getUsersForEngine(@Context HttpServletRequest request, @QueryParam("engineId") String engineId, 
+			@QueryParam("userId") String userId, 
+			@QueryParam("searchTerm") String searchTerm, 
+			@QueryParam("permission") String permission, 
+			@QueryParam("limit") long limit, 
+			@QueryParam("offset") long offset) {
+		engineId = WebUtility.inputSanitizer(engineId);
+	    userId = WebUtility.inputSQLSanitizer(userId);
+	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+	    permission = WebUtility.inputSanitizer(permission);
+		
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		Map<String, Object> ret = new HashMap<String, Object>();
+		try {
+			String searchParam = searchTerm != null ? searchTerm : userId;
+			List<Map<String, Object>> members = SecurityEngineUtils.getUsersForEngine(user, engineId, searchParam, permission, limit, offset);
+			long totalMembers = SecurityEngineUtils.getEngineUsersCount(user, engineId, searchParam, permission);
+			ret.put("totalMembers", totalMembers);
+			ret.put("members", members);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for engine " + engineId + " without having proper access"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		return WebUtility.getResponse(ret, 200);
+	}
+	
+	/**
+	 * Get users with no access to a given engine
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getUsersForEngineNoCredentials")
+	public Response getUsersForEngineNoCredentials(@Context HttpServletRequest request,
+			@QueryParam("engineId") String engineId,
+			@QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
+		engineId = WebUtility.inputSanitizer(engineId);
+	    searchTerm = WebUtility.inputSanitizer(searchTerm);
+ 
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " invalid user session trying to access authorization resources"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
+
+		// if not graph api
+		// then we will look at our security db
+		if (!graphApi) {
+			try {
+				List<Map<String, Object>> ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId, searchTerm, limit, offset);
+				return WebUtility.getResponse(ret, 200);
+			} catch (IllegalAccessException e) {
+				classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
+						User.getSingleLogginName(user), " is trying to pull users for " + engineId + " that do not have credentials without having proper access"));
+				classLogger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		}
+
+		String graphApiGroupId = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_groupId");
+
+		try {
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getEngineUsers(request, user, engineId, searchTerm, graphApiGroupId, limit, offset, false);
+			return WebUtility.getResponse(filteredUsers, 200);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500); 
+		}
+	}
+	
+	/**
+	 * Add a user to an engine
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("addUserEnginePermission")
+	public Response addUserEnginePermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		Map<String, Object> ret = new HashMap<String, Object>();
+
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for engine " + engineId + " but is not an admin"));
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = null; // form.getFirst("endDate");
+		
+		String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
+	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
+	    int maxTokens = 0;
+		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
+		if(maxTokensStr != null && !(maxTokensStr=maxTokensStr.trim()).isEmpty()) {
+			// must be a valid integer
+			try {
+				maxTokens = Integer.parseInt(maxTokensStr);
+			} catch(NumberFormatException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		double maxResponseTime = 0.0;
+		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
+		if(maxResponseTimeStr != null && !(maxResponseTimeStr=maxResponseTimeStr.trim()).isEmpty()) {
+			// must be a valid double
+			try {
+				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
+			} catch(NumberFormatException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		
+		try {
+			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+		} catch (Exception e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for engine " + engineId + " without having proper access"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		// log the operation
+		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to engine " + engineId + " with permission " + permission));
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
 		
 }
