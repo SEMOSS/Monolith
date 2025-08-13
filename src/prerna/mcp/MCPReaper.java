@@ -214,6 +214,14 @@ public class MCPReaper implements Runnable {
 			return response.toString();
 		}
 		
+	    String method = root.getString("method");
+	    
+	    // Handle notifications (no response required)
+	    if (isNotification(method)) {
+	        handleNotification(method, root);
+	        return null; // No response for notifications
+	    }
+		
 		if(!root.has("id")) {
 			/*
 				{
@@ -237,7 +245,6 @@ public class MCPReaper implements Runnable {
 		int id = root.getInt("id");
 		response.put("id", id);
 		response.put("jsonrpc","2.0");
-		String method = root.getString("method");
 		
 		if(method.equals("initialize"))
 		{
@@ -279,11 +286,18 @@ public class MCPReaper implements Runnable {
 			JSONObject toolMap = (JSONObject)runPixel(insight.getUser()	,insight, expression, sessionId);
 			response.put("result", toolMap);
 		}
+		else if(method.equalsIgnoreCase("resources/templates/list"))
+		{
+			//{"jsonrpc":"2.0","id":3,"result":{"resources":[]}}
+			String expression = "GetMCPResourcesTemplates(project='" + projectId + "');";
+			JSONObject toolMap = (JSONObject)runPixel(insight.getUser()	,insight, expression, sessionId);
+			response.put("result", toolMap);
+		}
 		//{"method":"resources/list","params":{},"jsonrpc":"2.0","id":3}
 		else if(method.equalsIgnoreCase("prompts/list"))
 		{
 			// {"jsonrpc":"2.0","id":4,"result":{"prompts":[]}}
-			String expression = "GetMCPTools(project='" + projectId + "');";
+			String expression = "GetMCPPrompts(project='" + projectId + "');";
 			JSONObject toolMap = (JSONObject)runPixel(insight.getUser()	,insight, expression, sessionId);
 			response.put("result", toolMap);
 		}
@@ -344,8 +358,70 @@ public class MCPReaper implements Runnable {
 		}
 		
 		//{"method":"tools/call","params":{"name":"get_stock_price","arguments":{"symbol":"GOOGL"}},"jsonrpc":"2.0","id":5}
-		classLogger.info(response.toString());		
 		return response.toString();
+	}
+
+	/**
+	 * 
+	 * @param method
+	 * @return
+	 */
+	private boolean isNotification(String method) {
+	    return method.startsWith("notifications/") ||
+	           method.equals("notifications/initialized") ||
+	           method.equals("notifications/cancelled") ||
+	           method.equals("notifications/progress") ||
+	           method.equals("notifications/message") ||
+	           method.equals("notifications/resources/updated") ||
+	           method.equals("notifications/tools/list_changed") ||
+	           method.equals("notifications/prompts/list_changed");
+	}
+
+	/**
+	 * 
+	 * @param method
+	 * @param root
+	 */
+	private void handleNotification(String method, JSONObject root) {
+		if (method.equalsIgnoreCase("notifications/initialized")) {
+			classLogger.info("Client initialization complete");
+			// Perform any post-initialization setup here
+			// Don't think we have any at this time
+			
+		} else if (method.equalsIgnoreCase("notifications/cancelled")) {
+			if (root.has("params") && root.getJSONObject("params").has("requestId")) {
+				Object requestId = root.getJSONObject("params").get("requestId");
+				classLogger.info("Request cancelled: " + requestId);
+				// Don't have a way to cancel at this time ...
+			}
+		} else if (method.equalsIgnoreCase("notifications/progress")) {
+			if (root.has("params")) {
+				JSONObject params = root.getJSONObject("params");
+				classLogger.info("Progress update: " + params.toString());
+			}
+		} else if (method.equalsIgnoreCase("notifications/message")) {
+			if (root.has("params")) {
+				JSONObject params = root.getJSONObject("params");
+				classLogger.info("Message notification: " + params.toString());
+			}
+		} else if (method.equalsIgnoreCase("notifications/resources/updated")) {
+			classLogger.info("Resources updated notification received");
+			// Handle resource updates
+			// Don't think we have any at this time
+
+		} else if (method.equalsIgnoreCase("notifications/tools/list_changed")) {
+			classLogger.info("Tools list changed notification received");
+			// Handle tools list changes
+			// Don't think we have any at this time
+
+		} else if (method.equalsIgnoreCase("notifications/prompts/list_changed")) {
+			classLogger.info("Prompts list changed notification received");
+			// Handle prompts list changes
+			// Don't think we have any at this time
+
+		} else {
+			classLogger.warn("Unknown notification method: " + method);
+		}
 	}
 
 }
