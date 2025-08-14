@@ -53,11 +53,7 @@ public class EngineRouteResource {
 
 	private static final Logger classLogger = LogManager.getLogger(ModelEngineResource.class);
 	
-	private boolean canViewEngine(User user, String engineId) throws IllegalAccessException {
-		if(SecurityAdminUtils.userIsAdmin(user)) {
-			return true;
-		}
-		
+	private boolean canAccessOrDiscoverableEngine(User user, String engineId) throws IllegalAccessException {
 		engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
 		if(!SecurityEngineUtils.userCanViewEngine(user, engineId)
 				&& !SecurityEngineUtils.engineIsDiscoverable(engineId)) {
@@ -224,7 +220,7 @@ public class EngineRouteResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		try {
-			canViewEngine(user, engineId);
+			canAccessOrDiscoverableEngine(user, engineId);
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", e.getMessage());
