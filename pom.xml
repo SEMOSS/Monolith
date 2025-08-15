@@ -126,6 +126,46 @@
 						<artifactId>maven-dependency-plugin</artifactId>
 						<version>2.10</version>
 					</plugin>
+					<plugin>
+						<groupId>com.github.kongchen</groupId>
+						<artifactId>swagger-maven-plugin</artifactId>
+						<version>3.1.8</version>
+						<configuration>
+							<apiSources>
+								<apiSource>
+									<springmvc>false</springmvc>
+									<locations>
+										<location>prerna.semoss.web.services.local*</location>
+									</locations>
+									<schemes>
+										<scheme>http</scheme>
+										<scheme>https</scheme>
+									</schemes>
+									<host>localhost:8080</host>
+									<basePath>/api</basePath>
+									<info>
+										<title>semoss API</title>
+										<version>${project.version}</version>
+										<description> SEMOSS (Semantic Modeling and Service Support) API providing access to data analytics, 
+						machine learning, and visualization capabilities. This API supports authentication, 
+						data engine management, project management, and pixel execution for analytical workflows.
+						</description>
+									</info>
+									<swaggerDirectory>${project.build.directory}/swagger-ui</swaggerDirectory>
+									<outputFormats>JSON,YAML</outputFormats>
+								</apiSource>
+							</apiSources>
+						</configuration>
+						<executions>
+							<execution>
+								<phase>compile</phase>
+								<goals>
+									<goal>generate</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+
 				</plugins>
 			</build>
 		</profile>
