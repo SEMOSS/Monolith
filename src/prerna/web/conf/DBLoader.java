@@ -42,6 +42,7 @@ import javax.servlet.SessionCookieConfig;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IEngine;
@@ -63,6 +64,12 @@ import prerna.util.insight.InsightUtility;
 
 public class DBLoader implements ServletContextListener {
 
+	static {
+		// Set headless mode explicitly
+    	// otherwise TextToGraphic breaks in a container
+        System.setProperty("java.awt.headless", "true");
+    }
+	
 	private final Level STARTUP = Level.forName("STARTUP", 0);
 	private final Level SHUTDOWN = Level.forName("SHUTDOWN", 0);
 	
