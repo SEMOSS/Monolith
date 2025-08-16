@@ -50,15 +50,10 @@ public class UserAccessKeyFilter implements Filter {
 		} 
 		
 		String path = request.getRequestURI();
-		if (path.contains("api/model/openai")) {
+		if (path.contains("api/model/openai") || path.contains("api/ext/")) {
 			arg2.doFilter(arg0, arg1);
 		    return;
 		}
-		if (path.contains("api/ext/")) {
-			arg2.doFilter(arg0, arg1);
-		    return;
-		}
-
 		
 		/*
 		 * Check if bearer token is passed
@@ -219,3 +214,4 @@ public class UserAccessKeyFilter implements Filter {
 	}
 
 }
+
