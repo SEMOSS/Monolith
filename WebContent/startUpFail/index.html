@@ -30,12 +30,17 @@
     </style>
 </head>
 <body>
-<div class="center-content">
-    <h1>
-        Error Occurred
-    </h1>
-    <p>There was an issue with starting up the required SEMOSS databases.</p>
-    <p>Please contact your system administrator for assistance.</p>
-</div>
+<div id="placeholder" class="center-content"></div>
+<script>
+//get query param
+const params = new URLSearchParams(window.location.search);
+//Extract msg
+const msg = params.get("msg");
+if(msg){
+	document.getElementById("placeholder").innerText = msg;
+}else{
+	document.getElementById("placeholder").innerHTML = "<h1> Error Occurred </h1><br> <p>There was an issue with starting up the required SEMOSS databases.</p><br><p>Please contact your system administrator for assistance.</p>";       
+}
+</script>
 </body>
 </html>

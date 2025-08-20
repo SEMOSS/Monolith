@@ -645,7 +645,7 @@
    </context-param>
    <context-param>
 	   <param-name>log4jConfiguration</param-name>
-	   <param-value>file:///C:/workspace/Semoss/log4j2.properties</param-value>
+	   <param-value>file:///C:/workspace/Semoss/log4j2.xml</param-value>
    </context-param>
    <context-param>
       <param-name>admin-set-publisher</param-name>

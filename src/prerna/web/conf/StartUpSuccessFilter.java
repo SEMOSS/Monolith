@@ -1,6 +1,8 @@
 package prerna.web.conf;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.util.Properties;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -12,17 +14,23 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.ListTopicsOptions;
+
+import prerna.util.Constants;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class StartUpSuccessFilter implements Filter {
 
 	private static boolean startUpSuccess = true;
+	private static String msg = null;
 	private static final String FAIL_HTML = "/startUpFail/";
 	
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
 		ServletContext context = arg0.getServletContext();
-		
+		isKafkaUp();
 		if(!startUpSuccess) {
 			// this will be the deployment name of the app
 			String contextPath = context.getContextPath();
@@ -33,7 +41,7 @@ public class StartUpSuccessFilter implements Filter {
 
 			if(!fullUrl.endsWith(FAIL_HTML)) {
 				// we redirect to the index.html page where we have pushed the admin page
-				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + FAIL_HTML;
+				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + FAIL_HTML+(msg != null && !msg.equalsIgnoreCase("") ?"?msg="+URLEncoder.encode(msg,"UTF-8"):"");
 				((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
 				((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
 				return;
@@ -43,9 +51,15 @@ public class StartUpSuccessFilter implements Filter {
 		arg2.doFilter(arg0, arg1);
 	}
 	
+	
+	public static void setMsg(String msg) {
+		StartUpSuccessFilter.msg = msg;
+	}
+
 	static void setStartUpSuccess(boolean startUpSuccess) {
 		StartUpSuccessFilter.startUpSuccess = startUpSuccess;
 	}
+	
 	
 	@Override
 	public void destroy() {
@@ -59,4 +73,21 @@ public class StartUpSuccessFilter implements Filter {
 		// TODO Auto-generated method stub
 		
 	}
+	public static void isKafkaUp() {
+		String bootStrapServers = Utility.getDIHelperProperty(Constants.KAFKA_BOOTSTRAP_SERVERS_CONFIG);
+		try (AdminClient adminClient = AdminClient.create(kafkaProperties(bootStrapServers))) {
+			adminClient.listTopics(new ListTopicsOptions().timeoutMs(2000)).names().get();
+			StartUpSuccessFilter.startUpSuccess = true;
+		} catch (Exception e) {
+			StartUpSuccessFilter.startUpSuccess = false;
+			StartUpSuccessFilter.msg = "Kafka is down. Kindly start the zookeeper and kafka server and restart the server.";
+		}
+	}
+	
+	public static Properties kafkaProperties(String bootStrapServers) {
+		Properties props = new Properties();
+		props.put("bootstrap.servers", bootStrapServers);
+		return props;
+	}
+	
 }
