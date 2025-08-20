@@ -214,6 +214,14 @@ public class MCPReaper implements Runnable {
 			return response.toString();
 		}
 		
+	    String method = root.getString("method");
+	    
+	    // Handle notifications (no response required)
+	    if (isNotification(method)) {
+	        handleNotification(method, root);
+	        return null; // No response for notifications
+	    }
+		
 		if(!root.has("id")) {
 			/*
 				{
@@ -237,7 +245,6 @@ public class MCPReaper implements Runnable {
 		int id = root.getInt("id");
 		response.put("id", id);
 		response.put("jsonrpc","2.0");
-		String method = root.getString("method");
 		
 		if(method.equals("initialize"))
 		{
@@ -246,8 +253,25 @@ public class MCPReaper implements Runnable {
 			//"resources":{"subscribe":false,"listChanged":false},
 			//"tools":{"listChanged":false}},
 			//"serverInfo":{"name":"Stock Price Server","version":"1.8.0"}}}
-			String expression = "InitMCP(project='" + projectId + "');";
-			JSONObject resultMap = (JSONObject)runPixel(insight.getUser()	,insight, expression, sessionId);
+			
+			if(!root.has("params")) {
+				JSONObject error = new JSONObject();
+				error.put("code", MCPErrorCode.INVALID_REQUEST.getCode());
+				error.put("message", "Invalid Request - Missing required 'params.protocolVersion' field");
+				response.put("error", error);
+				return response.toString();
+			}
+			JSONObject params = root.getJSONObject("params");
+			if(!params.has("protocolVersion")) {
+				JSONObject error = new JSONObject();
+				error.put("code", MCPErrorCode.INVALID_REQUEST.getCode());
+				error.put("message", "Invalid Request - Missing required 'protocolVersion' field");
+				response.put("error", error);
+				return response.toString();
+			}
+			String protocolVersion = params.getString("protocolVersion");
+			String expression = "InitMCP(project='" + projectId + "', protocolVersion='"+protocolVersion+"');";
+			JSONObject resultMap = (JSONObject)runPixel(insight.getUser(), insight, expression, sessionId);
 			response.put("result", resultMap);
 		}
 		//{"method":"tools/list","params":{},"jsonrpc":"2.0","id":1}
@@ -258,7 +282,7 @@ public class MCPReaper implements Runnable {
 			//"tools":[{"name":"get_stock_price","description":"\n    Retrieve the current stock price for the given ticker symbol.\n    Returns the latest closing price as a float.\n    ",
 			//	"inputSchema":{"properties":{"symbol":{"title":"Symbol","type":"string"}},"required":["symbol"], "title":"get_stock_priceArguments","type":"object"}
 			//}
-			//	,{"name":"get_stock_history","description":"\n    Retrieve historical data for a stock given a ticker symbol and a period.\n    Returns the historical data as a CSV formatted string.\n    \n    Parameters:\n        symbol: The stock ticker symbol.\n        period: The period over which to retrieve historical data (e.g., '1mo', '3mo', '1y').\n    ",
+			//, {"name":"get_stock_history","description":"\n    Retrieve historical data for a stock given a ticker symbol and a period.\n    Returns the historical data as a CSV formatted string.\n    \n    Parameters:\n        symbol: The stock ticker symbol.\n        period: The period over which to retrieve historical data (e.g., '1mo', '3mo', '1y').\n    ",
 			// "inputSchema":{"properties":{"symbol":{"title":"Symbol","type":"string"},"period":{"default":"1mo","title":"Period","type":"string"}},"required":["symbol"],"title":"get_stock_historyArguments","type":"object"}},{"name":"compare_stocks","description":"\n    Compare the current stock prices of two ticker symbols.\n    Returns a formatted message comparing the two stock prices.\n    \n    Parameters:\n        symbol1: The first stock ticker symbol.\n        symbol2: The second stock ticker symbol.\n    ","inputSchema":{"properties":{"symbol1":{"title":"Symbol1","type":"string"},"symbol2":{"title":"Symbol2","type":"string"}},"required":["symbol1","symbol2"],"title":"compare_stocksArguments","type":"object"}}]}}
 			
 			//{"jsonrpc":"2.0",
@@ -268,7 +292,7 @@ public class MCPReaper implements Runnable {
 			//"id":1}
 				
 			String expression = "GetMCPTools(project='" + projectId + "');";
-			JSONObject toolMap = (JSONObject)runPixel(insight.getUser()	,insight, expression, sessionId);
+			JSONObject toolMap = (JSONObject)runPixel(insight.getUser(), insight, expression, sessionId);
 			response.put("result", toolMap);
 		}
 		//{"method":"tools/list","params":{},"jsonrpc":"2.0","id":2}
@@ -276,15 +300,22 @@ public class MCPReaper implements Runnable {
 		{
 			//{"jsonrpc":"2.0","id":3,"result":{"resources":[]}}
 			String expression = "GetMCPResources(project='" + projectId + "');";
-			JSONObject toolMap = (JSONObject)runPixel(insight.getUser()	,insight, expression, sessionId);
+			JSONObject toolMap = (JSONObject)runPixel(insight.getUser(), insight, expression, sessionId);
+			response.put("result", toolMap);
+		}
+		else if(method.equalsIgnoreCase("resources/templates/list"))
+		{
+			//{"jsonrpc":"2.0","id":3,"result":{"resources":[]}}
+			String expression = "GetMCPResourcesTemplates(project='" + projectId + "');";
+			JSONObject toolMap = (JSONObject)runPixel(insight.getUser(), insight, expression, sessionId);
 			response.put("result", toolMap);
 		}
 		//{"method":"resources/list","params":{},"jsonrpc":"2.0","id":3}
 		else if(method.equalsIgnoreCase("prompts/list"))
 		{
 			// {"jsonrpc":"2.0","id":4,"result":{"prompts":[]}}
-			String expression = "GetMCPTools(project='" + projectId + "');";
-			JSONObject toolMap = (JSONObject)runPixel(insight.getUser()	,insight, expression, sessionId);
+			String expression = "GetMCPPrompts(project='" + projectId + "');";
+			JSONObject toolMap = (JSONObject)runPixel(insight.getUser(), insight, expression, sessionId);
 			response.put("result", toolMap);
 		}
 		//{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_stock_price","arguments":{"symbol":"GOOG"}}}
@@ -301,7 +332,7 @@ public class MCPReaper implements Runnable {
 			classLogger.info("Making call to " + callName);
 			Object retObject = pixel;
 			try {
-				retObject = runPixel(insight.getUser()	,insight, pixel, sessionId);
+				retObject = runPixel(insight.getUser(), insight, pixel, sessionId);
 				Map<String, Object> resultMap = new HashMap<>();
 				List<Map<String, Object>> contentList = new ArrayList<>();
 				Map<String, Object> contentMap = new HashMap<>();
@@ -344,8 +375,70 @@ public class MCPReaper implements Runnable {
 		}
 		
 		//{"method":"tools/call","params":{"name":"get_stock_price","arguments":{"symbol":"GOOGL"}},"jsonrpc":"2.0","id":5}
-		classLogger.info(response.toString());		
 		return response.toString();
+	}
+
+	/**
+	 * 
+	 * @param method
+	 * @return
+	 */
+	private boolean isNotification(String method) {
+	    return method.startsWith("notifications/") ||
+	           method.equals("notifications/initialized") ||
+	           method.equals("notifications/cancelled") ||
+	           method.equals("notifications/progress") ||
+	           method.equals("notifications/message") ||
+	           method.equals("notifications/resources/updated") ||
+	           method.equals("notifications/tools/list_changed") ||
+	           method.equals("notifications/prompts/list_changed");
+	}
+
+	/**
+	 * 
+	 * @param method
+	 * @param root
+	 */
+	private void handleNotification(String method, JSONObject root) {
+		if (method.equalsIgnoreCase("notifications/initialized")) {
+			classLogger.info("Client initialization complete");
+			// Perform any post-initialization setup here
+			// Don't think we have any at this time
+			
+		} else if (method.equalsIgnoreCase("notifications/cancelled")) {
+			if (root.has("params") && root.getJSONObject("params").has("requestId")) {
+				Object requestId = root.getJSONObject("params").get("requestId");
+				classLogger.info("Request cancelled: " + requestId);
+				// Don't have a way to cancel at this time ...
+			}
+		} else if (method.equalsIgnoreCase("notifications/progress")) {
+			if (root.has("params")) {
+				JSONObject params = root.getJSONObject("params");
+				classLogger.info("Progress update: " + params.toString());
+			}
+		} else if (method.equalsIgnoreCase("notifications/message")) {
+			if (root.has("params")) {
+				JSONObject params = root.getJSONObject("params");
+				classLogger.info("Message notification: " + params.toString());
+			}
+		} else if (method.equalsIgnoreCase("notifications/resources/updated")) {
+			classLogger.info("Resources updated notification received");
+			// Handle resource updates
+			// Don't think we have any at this time
+
+		} else if (method.equalsIgnoreCase("notifications/tools/list_changed")) {
+			classLogger.info("Tools list changed notification received");
+			// Handle tools list changes
+			// Don't think we have any at this time
+
+		} else if (method.equalsIgnoreCase("notifications/prompts/list_changed")) {
+			classLogger.info("Prompts list changed notification received");
+			// Handle prompts list changes
+			// Don't think we have any at this time
+
+		} else {
+			classLogger.warn("Unknown notification method: " + method);
+		}
 	}
 
 }

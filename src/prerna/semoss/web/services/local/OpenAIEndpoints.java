@@ -49,6 +49,7 @@ import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.reactor.security.MyEnginesReactor;
+import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.comm.PixelJobThread;
@@ -291,21 +292,15 @@ public class OpenAIEndpoints {
 
 								boolean started = false;
 								boolean completionSent = false;
-								String previousContent = "";
 
 								// polling partial endpoint until response complete
 								while (true) {
-									Map<String, Object> responseData = new HashMap<>();
 									PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
 									Map<String, String> partialResponseContent = PixelJobManager.getManager().getPartial(jobId);
 									PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
-									responseData.put("status", jobStatus);
-									responseData.put("message", partialResponseContent);
 
-									Map<String, Object> message = (Map<String, Object>) responseData.get("message");
-
-									if (message != null && message.size() > 0) {
-										String newContent = (String) message.get("new");
+									if (partialResponseContent != null && partialResponseContent.size() > 0) {
+										String newContent = partialResponseContent.get("new");
 
 										if (newContent != null && !newContent.isEmpty()) {
 											// formatting as OpenAI streaming chunk
@@ -337,8 +332,6 @@ public class OpenAIEndpoints {
 											// sending chunk as SSE event
 											writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
 											writer.flush();
-
-											previousContent = newContent;
 										}
 									}
 
@@ -371,45 +364,136 @@ public class OpenAIEndpoints {
 										completionSent = true;
 										break;
 									} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
-										Map<String, Object> chunk = new HashMap<>();
-										chunk.put("id", messageId);
-										chunk.put("object", "chat.completion.chunk");
-										chunk.put("created", creationTimestamp);
-										chunk.put("model", engineId);
+										// we didn't start
+										// and there is no output
+										// lets check the result
+										// ... most likely this is a tool output
+										PixelRunner finalOutput = PixelJobManager.getManager().getOutput(jobId);
+										NounMetadata finalNoun = finalOutput.getResults().get(0);
+										Object finalObject = finalNoun.getValue();
+										String messageType = null;
+										Map<String, Object> resultOutput = null;
+										if(finalObject instanceof Map) {
+											resultOutput = (Map<String, Object>) finalObject;
+											messageType = (String) resultOutput.get("messageType");
+										}
 
-										List<Map<String, Object>> choices = new ArrayList<>();
-										Map<String, Object> choice = new HashMap<>();
-										choice.put("index", 0);
-
-										Map<String, Object> delta = new HashMap<>();
-										delta.put("role", "assistant");
-										delta.put("content", "");
-										choice.put("delta", delta);
-										choice.put("finish_reason", null);
-
-										choices.add(choice);
-										chunk.put("choices", choices);
-
-										writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
-
-										Map<String, Object> finalChunk = new HashMap<>();
-										finalChunk.put("id", messageId);
-										finalChunk.put("object", "chat.completion.chunk");
-										finalChunk.put("created", creationTimestamp);
-										finalChunk.put("model", engineId);
-
-										List<Map<String, Object>> finalChoices = new ArrayList<>();
-										Map<String, Object> finalChoice = new HashMap<>();
-										finalChoice.put("index", 0);
-										finalChoice.put("delta", new HashMap<>());
-										finalChoice.put("finish_reason", "stop");
-
-										finalChoices.add(finalChoice);
-										finalChunk.put("choices", finalChoices);
-
-										writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
-										writer.write("data: [DONE]\n\n");
-										writer.flush();
+										if ("TOOL".equals(messageType)) {
+										    // this is a function call request
+										    List<Map<String, Object>> response = (List<Map<String, Object>>) resultOutput.get("response");
+										    
+										    if (response != null && !response.isEmpty()) {
+										        Map<String, Object> toolCall = response.get(0);
+										        
+										        // first chunk - start the assistant response with tool calls
+										        Map<String, Object> chunk = new HashMap<>();
+										        chunk.put("id", messageId);
+										        chunk.put("object", "chat.completion.chunk");
+										        chunk.put("created", creationTimestamp);
+										        chunk.put("model", engineId);
+										        
+										        List<Map<String, Object>> choices = new ArrayList<>();
+										        Map<String, Object> choice = new HashMap<>();
+										        choice.put("index", 0);
+										        
+										        Map<String, Object> delta = new HashMap<>();
+										        delta.put("role", "assistant");
+										        delta.put("content", null);
+										        
+										        // add tool calls to delta
+										        List<Map<String, Object>> toolCalls = new ArrayList<>();
+										        Map<String, Object> toolCallDelta = new HashMap<>();
+										        toolCallDelta.put("index", 0);
+										        toolCallDelta.put("id", toolCall.get("id"));
+										        toolCallDelta.put("type", toolCall.get("type"));
+										        
+										        Map<String, Object> function = new HashMap<>();
+										        function.put("name", toolCall.get("name"));
+										        function.put("arguments", toolCall.get("arguments"));
+										        toolCallDelta.put("function", function);
+										        
+										        toolCalls.add(toolCallDelta);
+										        delta.put("tool_calls", toolCalls);
+										        
+										        choice.put("delta", delta);
+										        choice.put("finish_reason", null);
+										        
+										        choices.add(choice);
+										        chunk.put("choices", choices);
+										        
+										        writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
+										        
+										        // final chunk for function call
+										        Map<String, Object> finalChunk = new HashMap<>();
+										        finalChunk.put("id", messageId);
+										        finalChunk.put("object", "chat.completion.chunk");
+										        finalChunk.put("created", creationTimestamp);
+										        finalChunk.put("model", engineId);
+										        
+										        List<Map<String, Object>> finalChoices = new ArrayList<>();
+										        Map<String, Object> finalChoice = new HashMap<>();
+										        finalChoice.put("index", 0);
+										        finalChoice.put("delta", new HashMap<>());
+										        finalChoice.put("finish_reason", "tool_calls");
+										        
+										        finalChoices.add(finalChoice);
+										        finalChunk.put("choices", finalChoices);
+										        
+										        writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
+										        writer.write("data: [DONE]\n\n");
+										        writer.flush();
+										    }
+										} else {
+										    // Handle regular text response
+										    String content = null;
+										    if(resultOutput != null) {
+										    	content = (String) resultOutput.get("response"); 
+										    }
+										    
+										    if (content != null && !content.isEmpty()) {
+										        // stream content in chunks (optional - can send all at once)
+										        Map<String, Object> chunk = new HashMap<>();
+										        chunk.put("id", messageId);
+										        chunk.put("object", "chat.completion.chunk");
+										        chunk.put("created", creationTimestamp);
+										        chunk.put("model", engineId);
+										        
+										        List<Map<String, Object>> choices = new ArrayList<>();
+										        Map<String, Object> choice = new HashMap<>();
+										        choice.put("index", 0);
+										        
+										        Map<String, Object> delta = new HashMap<>();
+										        delta.put("role", "assistant");
+										        delta.put("content", content);
+										        choice.put("delta", delta);
+										        choice.put("finish_reason", null);
+										        
+										        choices.add(choice);
+										        chunk.put("choices", choices);
+										        
+										        writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
+										    }
+										    
+										    // final chunk for regular response
+										    Map<String, Object> finalChunk = new HashMap<>();
+										    finalChunk.put("id", messageId);
+										    finalChunk.put("object", "chat.completion.chunk");
+										    finalChunk.put("created", creationTimestamp);
+										    finalChunk.put("model", engineId);
+										    
+										    List<Map<String, Object>> finalChoices = new ArrayList<>();
+										    Map<String, Object> finalChoice = new HashMap<>();
+										    finalChoice.put("index", 0);
+										    finalChoice.put("delta", new HashMap<>());
+										    finalChoice.put("finish_reason", "stop");
+										    
+										    finalChoices.add(finalChoice);
+										    finalChunk.put("choices", finalChoices);
+										    
+										    writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
+										    writer.write("data: [DONE]\n\n");
+										    writer.flush();
+										}
 										break;
 									}
 
