@@ -97,10 +97,11 @@
 							</execution>
 						</executions>
 					</plugin>
+					<!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-war-plugin -->
 					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-war-plugin</artifactId>
-						<version>3.3.2</version>
+					    <groupId>org.apache.maven.plugins</groupId>
+					    <artifactId>maven-war-plugin</artifactId>
+					    <version>3.4.0</version>
 						<configuration>
 							<webXml>WebContent/WEB-INF/web.xml</webXml>
 							<failOnMissingWebXml>true</failOnMissingWebXml>
