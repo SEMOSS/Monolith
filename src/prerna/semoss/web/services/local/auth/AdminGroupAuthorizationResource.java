@@ -96,6 +96,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				throw new IllegalArgumentException("The group type cannot be null");
 			} 
 			AdminSecurityGroupUtils.getInstance(user).addGroup(user, newGroupId, newGroupType, description);
+			success = true;
 		} catch (IllegalArgumentException e){
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -421,6 +422,47 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		try {
 			Long numUsers = groupUtils.getNumNonMembersInGroup(groupId, searchTerm);
 			return WebUtility.getResponse(numUsers, 200);
+		} catch(IllegalArgumentException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} catch(Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
+			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+	}
+	
+	@GET
+	@Path("/getGroupType")
+	@Produces("application/json")
+	public Response getGroupType(@Context HttpServletRequest request, @QueryParam("groupId") String groupId) {
+		groupId = WebUtility.inputSanitizer(groupId);
+		AdminSecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to the number of users assinged to a group"));
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		if(groupId == null || (groupId=groupId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		
+		try {
+			String groupType = groupUtils.getGroupType(groupId);
+			return WebUtility.getResponse(groupType, 200);
 		} catch(IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
