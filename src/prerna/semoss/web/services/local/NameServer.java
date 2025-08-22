@@ -35,6 +35,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URLEncoder;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -73,6 +74,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.JSONObject;
 import org.jsoup.Jsoup;
 
 import com.google.gson.Gson;
@@ -90,12 +92,17 @@ import prerna.engine.api.IDatabaseEngine;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
+import prerna.reactor.IReactor;
+import prerna.reactor.ReactorFactory;
+import prerna.reactor.agent.mcp.MCPErrorCode;
+import prerna.reactor.agent.mcp.MCPUtility;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.PixelUtility;
 import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.comm.PixelJobThread;
+import prerna.sablecc2.om.execptions.SemossMCPException;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.semoss.web.services.remote.EngineRemoteResource;
 import prerna.util.ChromeDriverUtility;
@@ -461,6 +468,255 @@ public class NameServer {
 	
 		return runPixelJob(user, insight, expression, insightId, sessionId, routeId, dropLogging);
 	}
+	
+	@POST
+	@Path("/runReactorMCP")
+	@Consumes({"application/json"})
+	@Produces("application/json;charset=utf-8")
+	public Response runReactorMCP(@Context HttpServletRequest request) {
+		/*
+		 * Simpler way of running pixel reactor
+		 	{
+			  "jsonrpc": "2.0",
+			  "id": "unique-request-id",
+			  "method": "tools/call",
+			  "params": {
+			    "name": "reactorName",
+			    "arguments": {
+			      "param1": "value1",
+			      "param2": "value2"
+			    }
+			  },
+			  "_meta":{
+			  	"insightId":"insightId",
+			  	"tz":"timezone",
+			  	"dropLogging":"dropLogging",
+			  	"contextProjectId":"projectId"
+			  }
+			}
+		 */
+		
+		JSONObject response = new JSONObject();
+		JSONObject root = null;
+
+		HttpSession session = request.getSession(false);
+		String sessionId = null;
+		String routeId = null;
+		User user = null;
+		Insight insight = null;
+		
+		if (session != null) {
+			sessionId = session.getId();
+			user = ((User) session.getAttribute(Constants.SESSION_USER));
+		}
+		
+		// how did you even get past the no user in session filter?
+		if (user == null) {
+			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+			response.put("id", "null");
+			response.put("jsonrpc","2.0");
+			JSONObject error = new JSONObject();
+			error.put("code", MCPErrorCode.RESOURCE_ACCESS_DENIED.getCode());
+		    error.put("message", "User session is invalid or expired");
+			response.put("error", error);
+			
+			return Response.status(401).entity(response.toString())
+					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Pragma", "no-cache")
+					.build();
+		}
+		
+		// add the route if this is server deployment
+		String routeCookieName = Utility.getDIHelperProperty(Constants.LOAD_BALANCER_COOKIE_NAME);
+		if (routeCookieName != null && !routeCookieName.isEmpty()) {
+			Cookie[] curCookies = request.getCookies();
+			if (curCookies != null) {
+				for (Cookie c : curCookies) {
+					classLogger.debug(Utility.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
+					if (c.getName().equals(routeCookieName)) {
+						routeId = WebUtility.inputSQLSanitizer(c.getValue());
+						ChromeDriverUtility.setRouteCookieValue(c.getValue());
+					}
+				}
+			}
+		}
+
+		// Extract parameters from meta
+		String insightId = null;
+		String strTz = null;
+		
+		try {
+			// Handle JSON content
+			StringBuilder jsonBuffer = new StringBuilder();
+			String line;
+			BufferedReader reader = request.getReader();
+			while ((line = reader.readLine()) != null) {
+				jsonBuffer.append(line);
+			}
+			
+			root = new JSONObject(jsonBuffer.toString());
+		} catch(IOException | org.json.JSONException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			/*
+				{
+				  "jsonrpc": "2.0",
+				  "id": null,
+				  "error": {
+				    "code": -32700,
+				    "message": "Parse error - Invalid JSON was received by the server"
+				  }
+				}
+			*/
+			response.put("id", "null");
+			response.put("jsonrpc","2.0");
+			JSONObject error = new JSONObject();
+			error.put("code", MCPErrorCode.PARSE_ERROR.getCode());
+			error.put("message", MCPErrorCode.PARSE_ERROR.getDescription());
+			response.put("error", error);
+			
+			return Response.status(400).entity(response.toString())
+					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Pragma", "no-cache")
+					.build();
+		}
+		
+		JSONObject meta = null;
+		if(root.has("_meta")) {
+			meta = root.getJSONObject("_meta");
+		}
+		
+		// Sanitize the extracted values
+		if(meta != null && meta.has("insightId")) {
+			insightId = WebUtility.inputSanitizer(meta.getString("insightId"));
+		}
+		if(meta != null && meta.has("tz")) {
+			strTz = WebUtility.inputSQLSanitizer(meta.getString("tz"));
+		}
+
+		// figure out the type of insight
+		// first is temp
+		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
+			insightId = "TempInsight_" + UUID.randomUUID().toString();
+			insight = new Insight();
+			insight.setBaseURL(getServerURL(request));
+			insight.setInsightId(insightId);
+			insight.setTemporaryInsight(true);
+			InsightStore.getInstance().put(insight);
+		} else if (insightId.equals("new")) { 
+			// need to make a new insight here
+			insight = new Insight();
+			insight.setBaseURL(getServerURL(request));
+			InsightStore.getInstance().put(insight);
+			insightId = insight.getInsightId();
+		} else {
+			// or just get it from the store
+			// the session id needs to be checked
+			// you better have a valid id... or else... O_O
+			insight = InsightStore.getInstance().get(insightId);
+			if (insight == null) {
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
+				errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+				classLogger.error("Insight not found for insightId " + insightId);
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		}
+		InsightStore.getInstance().addToSessionHash(sessionId, insightId);
+		// set the user
+		insight.setUser(user);
+		
+		// set the user timezone
+		ZoneId zoneId = null;
+		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
+			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
+		} else {
+			try {
+				zoneId = ZoneId.of(strTz);
+			} catch(Exception e) {
+				classLogger.warn("Error parsing out users timezone value: " + strTz);
+				classLogger.error(Constants.STACKTRACE, e);
+				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
+			}
+		}
+		// need null check if security is off
+		if(user != null) {
+			user.setZoneId(zoneId);
+		}
+		// set if we are scheduler mode
+		Boolean schedulerMode = ThreadStore.isSchedulerMode();
+		if(schedulerMode != null) {
+			insight.setSchedulerMode(schedulerMode);
+		}
+		
+		// set in thread
+		ThreadStore.setInsightId(insight.getInsightId());
+		ThreadStore.setSessionId(sessionId);
+		ThreadStore.setRouteId(routeId);
+		ThreadStore.setJobId(UUID.randomUUID().toString());
+		ThreadStore.setUser(insight.getUser());
+		
+		String reactorName = root.getJSONObject("params").getString("name");
+		JSONObject arguments = root.getJSONObject("params").getJSONObject("arguments");
+		
+		int statusCode = 200;
+		IReactor thisReactor = ReactorFactory.getReactor(insight, reactorName, null, insight.getCurFrame());
+		JSONObject reactorToolMCP = thisReactor.asMcpTool();
+		// get everything else
+		JSONObject reactorProperties = ((JSONObject)reactorToolMCP.get("inputSchema")).getJSONObject("properties");
+		try {
+			String retObject = MCPUtility.runPixelTool(null, insight, reactorName, reactorProperties, arguments.toMap());
+			Map<String, Object> resultMap = new HashMap<>();
+			List<Map<String, Object>> contentList = new ArrayList<>();
+			Map<String, Object> contentMap = new HashMap<>();
+			contentMap.put("type", "text");
+			contentMap.put("text", retObject);
+			
+			contentList.add(contentMap);
+			resultMap.put("content", contentList);
+			resultMap.put("isError", false);
+			response.put("result", resultMap);
+		} catch(SemossMCPException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			statusCode = 400;
+			/*
+			    {
+				  "jsonrpc": "2.0",
+				  "id": 3,
+				  "error": {
+				    "code": <example code>,
+				    "message": <example message>
+				  }
+				}
+			 */
+			JSONObject error = new JSONObject();
+			error.put("code", e.getError().getCode());
+			if(e.getMessage() != null) {
+				error.put("message", e.getMessage());
+			} else {
+				error.put("message", e.getError().getDescription());
+			}
+			response.put("error", error);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			statusCode = 400;
+			JSONObject error = new JSONObject();
+			error.put("code", MCPErrorCode.TOOL_EXECUTION_FAILED.getCode());
+			if(e.getMessage() != null) {
+				error.put("message", e.getMessage());
+			} else {
+				error.put("message", MCPErrorCode.TOOL_EXECUTION_FAILED.getDescription());
+			}
+			response.put("error", error);
+		}
+		
+		return Response.status(statusCode).entity(response.toString())
+				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+				.header("Pragma", "no-cache")
+				.build();
+	}
+	
 
 	@POST
 	@Path("/getPipeline")

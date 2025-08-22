@@ -330,7 +330,7 @@ public class MCPReaper implements Runnable {
 						   + ", paramValues=" + arguments + ");";
 			
 			classLogger.info("Making call to " + callName);
-			Object retObject = pixel;
+			Object retObject = null;
 			try {
 				retObject = runPixel(insight.getUser(), insight, pixel, sessionId);
 				Map<String, Object> resultMap = new HashMap<>();
