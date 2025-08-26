@@ -17,6 +17,6 @@ mvn clean install -U -DskipTests=true
 
 # Build Docker image from parent directory to access target folder
 echo "Building Docker image..."
-docker build -f local_docker_testing/Dockerfile -t local-monolith .
+docker build --no-cache -f local_docker_testing/Dockerfile -t local-monolith .
 
 echo "Build process completed successfully!"
