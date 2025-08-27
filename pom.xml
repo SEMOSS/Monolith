@@ -146,12 +146,32 @@
 									<info>
 										<title>semoss API</title>
 										<version>${project.version}</version>
-										<description> SEMOSS (Semantic Modeling and Service Support) API providing access to data analytics, 
-						machine learning, and visualization capabilities. This API supports authentication, 
-						data engine management, project management, and pixel execution for analytical workflows.
-						</description>
+										<description>     
+											SEMOSS (Semantic Modeling and Service Support) API providing access to data analytics, 
+    										machine learning, and visualization capabilities. This API supports authentication, 
+    										data engine management, project management, and pixel execution for analytical workflows.
+
+    										## Authentication
+    										The API supports multiple authentication methods:
+    										- Basic Authentication (using access token and secret)
+    										- Trusted Token Authentication
+    										- OAuth2 providers (Google, Microsoft, GitHub, etc.)
+    										- SAML SSO
+
+    										## Base URL Structure
+    										- Main API: `/api/*`
+    										- Trusted Token API: `/token/*`
+    										- Data API: `/data/*`
+    										- Admin Configuration: `/adminconfig/*`
+										</description>
 									</info>
-									<swaggerDirectory>${project.build.directory}/swagger-ui</swaggerDirectory>
+									<securityDefinitions>
+										<securityDefinition>
+										    <name>MybasicAuth</name>
+										    <type>basic</type>
+										</securityDefinition>
+									</securityDefinitions>
+									<swaggerDirectory>${basedir}/swagger-ui</swaggerDirectory>
 									<outputFormats>JSON,YAML</outputFormats>
 								</apiSource>
 							</apiSources>
