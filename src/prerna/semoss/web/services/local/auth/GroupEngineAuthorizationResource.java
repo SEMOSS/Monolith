@@ -1,5 +1,10 @@
 package prerna.semoss.web.services.local.auth;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +50,17 @@ public class GroupEngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getGroupAppPermission")
+	@Operation(summary = "Get group permission for an app/engine", description = "Returns the permission string for the specified group, type, and app/engine id.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission fetched",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Invalid input",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getGroupAppPermission(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, 
 			@QueryParam("type") String type, @QueryParam("appId") String appId) {
 		
@@ -101,6 +117,15 @@ public class GroupEngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addGroupEnginePermission")
+	@Operation(summary = "Add group permission to an engine")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission added",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response addGroupEnginePermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -164,6 +189,15 @@ public class GroupEngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editGroupAppPermission")
+	@Operation(summary = "Edit group permission for an app")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission updated",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response editGroupAppPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -225,6 +259,15 @@ public class GroupEngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeGroupAppPermission")
+	@Operation(summary = "Remove group permission for an app")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission removed",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response removeGroupAppPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {

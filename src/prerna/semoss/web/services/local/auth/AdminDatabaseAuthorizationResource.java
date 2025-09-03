@@ -789,11 +789,5 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(appId, WebUtility.inputSanitizer(searchTerm), limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
-}
 
-// Minimal success response DTO for documentation
-class LegacyAdminSuccessResponse {
-	@Schema(description = "Indicates if the operation succeeded")
-	public Boolean success;
-}
+	}

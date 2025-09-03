@@ -1122,11 +1122,5 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
-}
 
-// Minimal success response DTO for documentation
-class LegacyAdminSuccessResponse {
-	@Schema(description = "Indicates if the operation succeeded")
-	public Boolean success;
-}
+	}

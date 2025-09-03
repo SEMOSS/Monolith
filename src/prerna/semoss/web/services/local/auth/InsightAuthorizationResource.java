@@ -1,6 +1,13 @@
 package prerna.semoss.web.services.local.auth;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +28,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.User;
@@ -48,6 +56,13 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsights")
+	@Operation(summary = "List insights available to the user", description = "Search and list insights optionally filtered by project, search term, and pagination.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Insights fetched",
+			content = @Content(array = @ArraySchema(schema = @Schema(implementation = Object.class)))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getInsights(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, 
 			@QueryParam("searchTerm") String searchTerm, 
@@ -89,6 +104,13 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectInsights")
+	@Operation(summary = "List project insights the user can edit")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Insights fetched",
+			content = @Content(array = @ArraySchema(schema = @Schema(implementation = Object.class)))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getProjectInsights(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
 		
@@ -119,6 +141,13 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getUserInsightPermission")
+	@Operation(summary = "Get current user's permission for an insight")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission fetched",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or no access",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getUserInsightPermission(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
 		
@@ -158,6 +187,13 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsightUsers")
+	@Operation(summary = "List insight users and permissions")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users fetched",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or no access",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getInsightUsers(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, 
 			@QueryParam("insightId") String insightId, 
@@ -209,6 +245,15 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addInsightUserPermission")
+	@Operation(summary = "Grant insight access to a user")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission added",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response addInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -270,6 +315,15 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editInsightUserPermission")
+	@Operation(summary = "Edit a user's insight permission")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission updated",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response editInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -320,6 +374,15 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editInsightUserPermissions")
+	@Operation(summary = "Edit multiple users' insight permissions")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permissions updated",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response editInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -343,7 +406,8 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		Type listMapStr = new TypeToken<List<Map<String, String>>>(){}.getType();
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), listMapStr);
 		try {
 			SecurityInsightUtils.editInsightUserPermissions(user, projectId, insightId, requests, endDate);
 		} catch(IllegalAccessException e) {
@@ -376,6 +440,15 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeInsightUserPermission")
+	@Operation(summary = "Remove a user's insight access")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission removed",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response removeInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -424,6 +497,15 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setInsightGlobal")
+	@Operation(summary = "Set insight global visibility (public/private)")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Flag updated",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response setInsightGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -497,6 +579,15 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setInsightFavorite")
+	@Operation(summary = "Set insight favorite flag for the current user")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Favorite set",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response setInsightFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form, String appId) {
 		User user = null;
 		try {
@@ -546,6 +637,13 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsightUsersNoCredentials")
+	@Operation(summary = "List users without access to an insight")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users fetched",
+			content = @Content(array = @ArraySchema(schema = @Schema(implementation = Object.class)))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or no access",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getInsightUsersNoCredentials(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, 
 			@QueryParam("insightId") String insightId,
@@ -591,6 +689,15 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addInsightUserPermissions")
+	@Operation(summary = "Grant insight access to multiple users")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permissions added",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response addInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -613,7 +720,8 @@ public class InsightAuthorizationResource {
 		}
 		
 		// adding user permissions in bulk
-		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		Type listMapStr = new TypeToken<List<Map<String, String>>>(){}.getType();
+		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), listMapStr);
 		try {
 			SecurityInsightUtils.addInsightUserPermissions(user, projectId, insightId, permission, endDate);
 		} catch (Exception e) {
@@ -640,6 +748,15 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeInsightUserPermissions")
+	@Operation(summary = "Remove multiple users' insight access")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permissions removed",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response removeInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -651,7 +768,8 @@ public class InsightAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<String> ids = new Gson().fromJson(form.getFirst("ids"), List.class);
+		Type listString = new TypeToken<List<String>>(){}.getType();
+		List<String> ids = new Gson().fromJson(form.getFirst("ids"), listString);
 		ids = WebUtility.inputSanitizer(ids);
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
@@ -695,6 +813,15 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("approveInsightUserAccessRequest")
+	@Operation(summary = "Approve user access requests for an insight")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Requests approved",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response approveInsightUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -718,7 +845,8 @@ public class InsightAuthorizationResource {
 		}
 		
 		// adding user permissions and updating user access requests in bulk
-		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
+		Type listMapStr = new TypeToken<List<Map<String, String>>>(){}.getType();
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), listMapStr);
 		try {
 			SecurityInsightUtils.approveInsightUserAccessRequests(user, projectId, insightId, requests, endDate);
 		} catch (IllegalAccessException e) {
@@ -751,6 +879,15 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("denyInsightUserAccessRequest")
+	@Operation(summary = "Deny user access requests for an insight")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Requests denied",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response denyInsightUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -773,7 +910,8 @@ public class InsightAuthorizationResource {
 		}
 		
 		// updating user access requests in bulk
-		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
+		Type listString = new TypeToken<List<String>>(){}.getType();
+		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), listString);
 		requestIds = WebUtility.inputSanitizer(requestIds);
 		try {
 			SecurityInsightUtils.denyInsightUserAccessRequests(user, projectId, insightId, requestIds);

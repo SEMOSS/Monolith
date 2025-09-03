@@ -1,4 +1,10 @@
 package prerna.semoss.web.services.local.auth;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.HashMap;
@@ -21,6 +27,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.lang.reflect.Type;
 
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
@@ -40,6 +48,16 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	
 	@GET
 	@Path("/isAdminUser")
+	@Produces("application/json")
+	@Operation(summary = "Check if current user is admin", description = "Returns whether the authenticated user has admin privileges.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Admin status",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response isAdminUser(@Context HttpServletRequest request) {
 		User user = null;
 		try {
@@ -57,6 +75,21 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/registerUser")
+	@Operation(summary = "Register a user", description = "Registers a new user with optional admin/publisher/exporter flags and model usage restrictions.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "User registered",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response registerUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -167,6 +200,18 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/setUserPublisher")
+	@Operation(summary = "Set user publisher flag", description = "Sets or unsets a user's publisher status.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Publisher flag updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response setUserPublisher(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -206,6 +251,18 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/setUserLocked")
+	@Operation(summary = "Set user lock status", description = "Locks or unlocks a user's account.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Lock status updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response setUserLocked(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -246,6 +303,18 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Path("/editUser")
 	@Produces("application/json")
+	@Operation(summary = "Edit user", description = "Edits user properties including admin flag; prevents removing the last admin.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "User updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response editUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -260,7 +329,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		}
 
 		Gson gson = new Gson();
-		Map<String, Object> userInfo = gson.fromJson(form.getFirst("user"), Map.class);
+		Type userInfoType = new TypeToken<Map<String, Object>>(){}.getType();
+		Map<String, Object> userInfo = gson.fromJson(form.getFirst("user"), userInfoType);
 		
 		Boolean adminChange = null;
 		if(userInfo.containsKey("admin")) {
@@ -310,6 +380,18 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/deleteUser")
+	@Operation(summary = "Delete user", description = "Deletes a user; prevents deleting the last admin.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "User deleted",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response deleteUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -346,6 +428,17 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getAllDbUsers")
 	@Produces("application/json")
+	@Operation(summary = "List users (deprecated)", description = "Deprecated: use /getAllUsers instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	@Deprecated
 	/**
 	 * PLEASE USE {@link AdminUserAuthorizationResource#getAllUsers(HttpServletRequest)}
@@ -372,6 +465,17 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getAllUsers")
 	@Produces("application/json")
+	@Operation(summary = "List users", description = "Returns all users filtered by an optional search term with pagination.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response searchTerm(@Context HttpServletRequest request, 
 			@QueryParam("filterWord") String searchTerm,
 			@QueryParam("limit") long limit, 
@@ -395,6 +499,16 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	
 	@GET
 	@Path("/getNumUsers")
+	@Produces("application/json")
+	@Operation(summary = "Get number of users", description = "Returns the total number of users.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Count returned",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "integer", format = "int64"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getNumUsers(@Context HttpServletRequest request) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;

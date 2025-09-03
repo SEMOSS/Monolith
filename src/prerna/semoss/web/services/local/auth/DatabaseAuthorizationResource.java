@@ -1,4 +1,10 @@
 package prerna.semoss.web.services.local.auth;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.HashMap;
@@ -53,6 +59,17 @@ public class DatabaseAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getApps")
+	@Operation(summary = "[LEGACY] List apps (databases)", description = "Legacy endpoint. Use /auth/engine/getEngines with engineTypes instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Apps retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getApps(@Context HttpServletRequest request, 
 			@QueryParam("databaseId") List<String> databaseFilter,
 			@QueryParam("filterWord") String searchTerm, 
@@ -147,6 +164,15 @@ public class DatabaseAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getUserAppPermission")
+	@Operation(summary = "[LEGACY] Get user app permission", description = "Legacy endpoint. Use /auth/engine/getUserEnginePermission instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission retrieved",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getUserAppPermission(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
@@ -187,6 +213,17 @@ public class DatabaseAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getAppUsers")
+	@Operation(summary = "[LEGACY] List app users", description = "Legacy endpoint. Use /auth/engine/getEngineUsers instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getAppUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
@@ -229,6 +266,18 @@ public class DatabaseAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addAppUserPermission")
+	@Operation(summary = "[LEGACY] Add app user permission", description = "Legacy endpoint. Use /auth/engine/addEngineUserPermission instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission added",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or admin required",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response addAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
@@ -282,6 +331,18 @@ public class DatabaseAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editAppUserPermission")
+	@Operation(summary = "[LEGACY] Edit app user permission", description = "Legacy endpoint. Use /auth/engine/editEngineUserPermission instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or admin required",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response editAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
@@ -338,6 +399,18 @@ public class DatabaseAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeAppUserPermission")
+	@Operation(summary = "[LEGACY] Remove app user permission", description = "Legacy endpoint. Use /auth/engine/removeEngineUserPermission instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission removed",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or admin required",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response removeAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/removeEngineUserPermission with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/removeEngineUserPermission with PARAM engineId");
@@ -397,6 +470,21 @@ public class DatabaseAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setAppGlobal")
+	@Operation(summary = "[LEGACY] Set app global visibility", description = "Legacy endpoint. Use /auth/engine/setEngineGlobal instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Visibility updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or admin required",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response setAppGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineGlobal with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineGlobal with PARAM engineId");
@@ -457,6 +545,21 @@ public class DatabaseAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setAppDiscoverable")
+	@Operation(summary = "[LEGACY] Set app discoverable", description = "Legacy endpoint. Use /auth/engine/setEngineDiscoverable instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Discoverability updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or admin required",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response setAppDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineDiscoverable with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineDiscoverable with PARAM engineId");
@@ -517,6 +620,21 @@ public class DatabaseAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setAppVisibility")
+	@Operation(summary = "[LEGACY] Set app visibility", description = "Legacy endpoint. Use /auth/engine/setEngineVisibility instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Visibility updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response setAppVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineVisibility with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineVisibility with PARAM engineId");
@@ -568,6 +686,21 @@ public class DatabaseAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setAppFavorite")
+	@Operation(summary = "[LEGACY] Set app favorite", description = "Legacy endpoint. Use /auth/engine/setEngineFavorite instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Favorite updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response setAppFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineFavorite with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineFavorite with PARAM engineId");
@@ -619,6 +752,17 @@ public class DatabaseAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getAppUsersNoCredentials")
+	@Operation(summary = "[LEGACY] List users without app access", description = "Legacy endpoint. Use /auth/engine/getEngineUsersNoCredentials instead.", deprecated = true)
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getAppUsersNoCredentials(@Context HttpServletRequest request, 
 			@QueryParam("appId") String appId,
 			@QueryParam("searchTerm") String searchTerm,

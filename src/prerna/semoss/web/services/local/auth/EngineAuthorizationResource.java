@@ -1,5 +1,6 @@
 package prerna.semoss.web.services.local.auth;
 
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
@@ -44,6 +54,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/auth/engine")
 @PermitAll
+@Tag(name = "auth", description = "Engine authorization and access management APIs")
 public class EngineAuthorizationResource {
 
 	private static final Logger classLogger = LogManager.getLogger(EngineAuthorizationResource.class);
@@ -59,6 +70,13 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngines")
+	@Operation(summary = "List engines available to the user", description = "Returns engines the current user can access, with optional filters like types, favorites, search term, and metadata options.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Engines fetched",
+			content = @Content(array = @ArraySchema(schema = @Schema(implementation = Object.class)))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getEngines(@Context HttpServletRequest request, 
 			@QueryParam("engineId") List<String> engineFilter,
 			@QueryParam("engineTypes") List<String> engineTypes,
@@ -159,6 +177,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("getEngines")
+	@Operation(summary = "List engines (POST)", description = "Same as GET /getEngines but accepts parameters as form/URL-encoded body.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Engines fetched",
+			content = @Content(array = @ArraySchema(schema = @Schema(implementation = Object.class)))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getEnginesPOST(@Context HttpServletRequest request) {
 		User user = null;
 		try {
@@ -219,7 +244,8 @@ public class EngineAuthorizationResource {
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
 		if(parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null && parameterMap.get("metaFilters").length > 0) {
-			Map<String, Object> metaFilters = new Gson().fromJson(WebUtility.jsonSanitizer(parameterMap.get("metaFilters")[0]), Map.class);
+			Type metaMapType = new TypeToken<Map<String, Object>>(){}.getType();
+			Map<String, Object> metaFilters = new Gson().fromJson(WebUtility.jsonSanitizer(parameterMap.get("metaFilters")[0]), metaMapType);
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
@@ -248,6 +274,13 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getUserEnginePermission")
+	@Operation(summary = "Get current user's permission for an engine")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission resolved",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or no access",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getUserEnginePermission(@Context HttpServletRequest request, @QueryParam("engineId") String engineId) {
 		engineId = WebUtility.inputSanitizer(engineId);
 		
@@ -289,6 +322,13 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsers")
+	@Operation(summary = "List engine users and permissions")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users fetched",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or no access",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId, 
 			@QueryParam("userId") String userId, 
 			@QueryParam("searchTerm") String searchTerm, 
@@ -338,6 +378,15 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addEngineUserPermission")
+	@Operation(summary = "Grant engine access to a user")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission added",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response addEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
@@ -416,6 +465,15 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addEngineUserPermissions")
+	@Operation(summary = "Grant engine access to multiple users")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permissions added",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		
 		User user = null;
@@ -439,7 +497,8 @@ public class EngineAuthorizationResource {
 		
 		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
 		// adding user permissions in bulk
-		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		Type listMapObj = new TypeToken<List<Map<String, Object>>>(){}.getType();
+		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), listMapObj);
 		try {
 			// if we are doing the grpah api
 			// then the users might not already exist in the security db
@@ -488,6 +547,15 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editEngineUserPermission")
+	@Operation(summary = "Edit a user's engine permission")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission updated",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response editEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
@@ -567,6 +635,15 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editEngineUserPermissions")
+	@Operation(summary = "Edit multiple users' engine permissions")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permissions updated",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -587,7 +664,8 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		Type listMapObj = new TypeToken<List<Map<String, Object>>>(){}.getType();
+		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), listMapObj);
 		try {
 			SecurityEngineUtils.editEngineUserPermissions(user, engineId, requests);
 		} catch(IllegalAccessException e) {
@@ -620,6 +698,15 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeEngineUserPermission")
+	@Operation(summary = "Remove a user's engine access")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission removed",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response removeEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -673,6 +760,15 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeEngineUserPermissions")
+	@Operation(summary = "Remove multiple users' engine access")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permissions removed",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response removeEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -685,7 +781,8 @@ public class EngineAuthorizationResource {
 		}
 		
 		Gson gson = new Gson();
-		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		Type listString = new TypeToken<List<String>>(){}.getType();
+		List<String> ids = gson.fromJson(form.getFirst("ids"), listString);
 		ids = WebUtility.inputSQLSanitizer(ids);
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
@@ -728,6 +825,17 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineGlobal")
+	@Operation(summary = "Set engine global visibility (public/private)")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Flag updated",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response setEngineGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -783,6 +891,17 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineDiscoverable")
+	@Operation(summary = "Set engine discoverable flag")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Flag updated",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response setEngineDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -838,6 +957,15 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineVisibility")
+	@Operation(summary = "Set engine visibility for the current user")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Visibility set",
+			content = @Content(schema = @Schema(implementation = Boolean.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response setEngineVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -884,6 +1012,15 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineFavorite")
+	@Operation(summary = "Set engine favorite flag for the current user")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Favorite set",
+			content = @Content(schema = @Schema(implementation = Boolean.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response setEngineFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -930,6 +1067,15 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsersNoCredentials")
+	@Operation(summary = "List users without access to an engine")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users fetched",
+			content = @Content(array = @ArraySchema(schema = @Schema(implementation = Object.class)))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or no access",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request,
 			@QueryParam("engineId") String engineId,
 			@QueryParam("searchTerm") String searchTerm,
@@ -990,6 +1136,15 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("approveEngineUserAccessRequest")
+	@Operation(summary = "Approve user access requests for an engine")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Requests approved",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response approveEngineUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -1012,7 +1167,8 @@ public class EngineAuthorizationResource {
 		}
 		
 		// adding user permissions and updating user access requests in bulk
-		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
+		Type listMapStr = new TypeToken<List<Map<String, String>>>(){}.getType();
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), listMapStr);
 		try {
 			SecurityEngineUtils.approveEngineUserAccessRequests(user, engineId, requests, endDate);
 		} catch (IllegalAccessException e) {
@@ -1045,6 +1201,15 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("denyEngineUserAccessRequest")
+	@Operation(summary = "Deny user access requests for an engine")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Requests denied",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or forbidden",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response denyEngineUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -1066,7 +1231,8 @@ public class EngineAuthorizationResource {
 		}
 		
 		// updating user access requests in bulk
-		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
+		Type listString = new TypeToken<List<String>>(){}.getType();
+		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), listString);
 		requestIds = WebUtility.inputSQLSanitizer(requestIds);
 		try {
 			SecurityEngineUtils.denyEngineUserAccessRequests(user, engineId, requestIds);

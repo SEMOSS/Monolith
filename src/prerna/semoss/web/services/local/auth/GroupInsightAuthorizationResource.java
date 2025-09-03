@@ -1,5 +1,10 @@
 package prerna.semoss.web.services.local.auth;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +50,17 @@ public class GroupInsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getGroupInsightPermission")
+	@Operation(summary = "Get group permission for an insight", description = "Returns the permission string for the specified group, type, projectId, and insightId.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission fetched",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Invalid input",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response getGroupInsightPermission(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, 
 			@QueryParam("type") String type, @QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
 		
@@ -105,6 +121,15 @@ public class GroupInsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addGroupInsightPermission")
+	@Operation(summary = "Add group permission to an insight")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission added",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response addGroupInsightPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -172,6 +197,15 @@ public class GroupInsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editGroupInsightPermission")
+	@Operation(summary = "Edit group permission for an insight")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission updated",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response editGroupInsightPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -237,6 +271,15 @@ public class GroupInsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeGroupInsightPermission")
+	@Operation(summary = "Remove group permission for an insight")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission removed",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(schema = @Schema(implementation = Object.class))),
+		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
+			content = @Content(schema = @Schema(implementation = Object.class)))
+	})
 	public Response removeGroupInsightPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
