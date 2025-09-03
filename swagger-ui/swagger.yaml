@@ -3669,7 +3669,8 @@ paths:
         "200":
           description: No-op
           content:
-            application/json: {}
+            application/json:
+              example: {}
       security:
       - basicAuth: []
   /engine/all:
@@ -3683,11 +3684,18 @@ paths:
         "200":
           description: Engines returned
           content:
-            application/json: {}
+            application/json:
+              example:
+              - id: engine1
+                name: SalesDB
+              - id: engine2
+                name: HRDB
         "401":
           description: Unauthorized
           content:
-            application/json: {}
+            application/json:
+              example:
+                error: Unauthorized
       security:
       - basicAuth: []
   /engine/central/context/getAutoCompleteResults:
@@ -3706,7 +3714,10 @@ paths:
         "200":
           description: Suggestions returned
           content:
-            application/json: {}
+            application/json:
+              example:
+              - sales by region
+              - customer churn
       security:
       - basicAuth: []
   /engine/central/context/getSearchInsightsResults:
@@ -3726,7 +3737,13 @@ paths:
         "200":
           description: Results returned
           content:
-            application/json: {}
+            application/json:
+              example:
+              - id: bf235853-86b7-483f-a0a5-ae489bfed97b
+                title: Sales by Region
+                tags:
+                - sales
+                - region
       security:
       - basicAuth: []
   /engine/comet:
@@ -3740,7 +3757,8 @@ paths:
         "200":
           description: Job started
           content:
-            text/plain: {}
+            text/plain:
+              example: abc123-job-id
       security:
       - basicAuth: []
   /engine/console:
@@ -3760,7 +3778,12 @@ paths:
         "200":
           description: Console logs returned
           content:
-            application/json: {}
+            application/json:
+              example:
+                status: RUNNING
+                message:
+                - line 1
+                - line 2
       security:
       - basicAuth: []
   /engine/downloadFile:
@@ -3783,15 +3806,26 @@ paths:
         "200":
           description: File downloaded
           content:
-            application/octet-stream: {}
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+              examples:
+                Binary:
+                  description: Binary
+                  value: binary content (octet-stream)
         "400":
           description: Invalid insight or file key
           content:
-            application/json: {}
+            application/json:
+              example:
+                error: Could not find the insight id
         "401":
           description: Unauthorized
           content:
-            application/json: {}
+            application/json:
+              example:
+                error: Unauthorized
       security:
       - basicAuth: []
   /engine/error:
@@ -3811,7 +3845,11 @@ paths:
         "200":
           description: Error logs returned
           content:
-            application/json: {}
+            application/json:
+              example:
+                status: FAILED
+                message:
+                - "Error: Something went wrong"
       security:
       - basicAuth: []
   /engine/getPipeline:
@@ -3831,15 +3869,27 @@ paths:
         "200":
           description: Pipeline returned
           content:
-            application/json: {}
+            application/json:
+              example:
+                pipeline:
+                - step: Connect
+                  details:
+                    engine: mydb
+                - step: Select
+                  details:
+                    table: customers
         "400":
           description: Invalid insight
           content:
-            application/json: {}
+            application/json:
+              example:
+                error: Could not find the insight id
         "401":
           description: Unauthorized
           content:
-            application/json: {}
+            application/json:
+              example:
+                error: User session is invalid
       security:
       - basicAuth: []
   /engine/help:
@@ -3853,7 +3903,8 @@ paths:
         "200":
           description: HTML returned
           content:
-            text/html: {}
+            text/html:
+              example: <html><body><h1>SEMOSS Engine API</h1></body></html>
       security:
       - basicAuth: []
   /engine/jkill:
@@ -3872,7 +3923,8 @@ paths:
         "200":
           description: Job terminated
           content:
-            application/xml: {}
+            application/xml:
+              example: <status>terminated</status>
       security:
       - basicAuth: []
   /engine/joutput:
@@ -3891,7 +3943,8 @@ paths:
         "200":
           description: Output returned
           content:
-            text/plain: {}
+            text/plain:
+              example: Comet job output...
       security:
       - basicAuth: []
   /engine/mediawiki/tags:
@@ -3916,7 +3969,9 @@ paths:
         "200":
           description: Results returned
           content:
-            application/json: {}
+            application/json:
+              example:
+                http://www.productontology.org/id/Apple: Fruit description...
       security:
       - basicAuth: []
   /engine/partial:
@@ -3937,7 +3992,11 @@ paths:
         "200":
           description: Partial output returned
           content:
-            application/json: {}
+            application/json:
+              example:
+                status: RUNNING
+                message:
+                  partial: value
       security:
       - basicAuth: []
   /engine/playsheets:
@@ -3951,11 +4010,16 @@ paths:
         "200":
           description: Successful operation
           content:
-            application/json: {}
+            application/json:
+              example:
+                PlaySheetA: com.semoss.PlaySheetA
+                PlaySheetB: com.semoss.PlaySheetB
         "401":
           description: Unauthorized
           content:
-            application/json: {}
+            application/json:
+              example:
+                error: Unauthorized
       security:
       - basicAuth: []
   /engine/reset:
@@ -3975,7 +4039,8 @@ paths:
         "200":
           description: Job reset
           content:
-            application/json: {}
+            application/json:
+              example: success
       security:
       - basicAuth: []
   /engine/result:
@@ -3996,11 +4061,17 @@ paths:
         "200":
           description: Result returned
           content:
-            application/json: {}
+            application/json:
+              example:
+                status: success
+                data:
+                  result: Pixel execution output
         "404":
           description: Job not found or not in session
           content:
-            application/json: {}
+            application/json:
+              example:
+                error: Job not found or expired
       security:
       - basicAuth: []
   /engine/runPixel:
@@ -4025,6 +4096,12 @@ paths:
           description: Pixel executed
           content:
             application/json:
+              schema:
+                type: object
+                example:
+                  status: success
+                  data:
+                    result: Pixel execution output
               examples:
                 Sample Response:
                   description: Sample Response
@@ -4063,15 +4140,21 @@ paths:
         "200":
           description: Job submitted
           content:
-            application/json: {}
+            application/json:
+              example:
+                jobId: 123e4567-e89b-12d3-a456-426614174000
         "400":
           description: Invalid request
           content:
-            application/json: {}
+            application/json:
+              example:
+                error: Must pass in 'expression'
         "401":
           description: Unauthorized
           content:
-            application/json: {}
+            application/json:
+              example:
+                error: User session is invalid
       security:
       - basicAuth: []
   /engine/status:
@@ -4091,7 +4174,10 @@ paths:
         "200":
           description: Status returned
           content:
-            application/json: {}
+            application/json:
+              example:
+                status: RUNNING
+                progress: 45
       security:
       - basicAuth: []
   /engine/terminate:
@@ -4111,7 +4197,8 @@ paths:
         "200":
           description: Job terminated
           content:
-            application/json: {}
+            application/json:
+              example: success
       security:
       - basicAuth: []
   /ext/mcp/{toolbox_id}/comms:
