@@ -194,7 +194,7 @@
     		    <resourcePackages>
     		      <resourcePackage>prerna.semoss.web.services.local</resourcePackage>
 				  <resourcePackage>prerna.semoss.web.services.local.auth</resourcePackage>
-    		    </resourcePackages>
+    		    </resourcePackages>	
     		    <outputDirectory>${basedir}/swagger-ui</outputDirectory>
     		    <outputFilename>swagger</outputFilename>
     		    <outputFormats>JSON,YAML</outputFormats>

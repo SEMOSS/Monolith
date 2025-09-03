@@ -116,10 +116,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Add all users (legacy)
+      description: "Adds all users to a database. Deprecated: use /auth/admin/engine/addAllUsers."
       operationId: addAllUsers
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -127,10 +139,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Add app user permission (legacy)
+      description: "Adds a user permission for a database. Deprecated: use /auth/admin/engine/addEngineUserPermission."
       operationId: addAppUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -138,10 +162,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Edit app user permission (legacy)
+      description: "Edits a user's permission for a database. Deprecated: use /auth/admin/engine/editEngineUserPermission."
       operationId: editAppUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -149,10 +185,21 @@ paths:
     post:
       tags:
       - auth
+      summary: Get all user apps (legacy)
+      description: "Lists engines a user has access to. Deprecated: use /auth/admin/engine/getAllUserEngines\
+        \ with engineTypes."
       operationId: getAllUserApps
       responses:
-        default:
-          description: default response
+        "200":
+          description: User apps retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -160,8 +207,30 @@ paths:
     get:
       tags:
       - auth
+      summary: Get app users (legacy)
+      description: "Gets users and permissions for a database. Deprecated: use /auth/admin/engine/getEngineUsers."
       operationId: getAppUsers
       parameters:
+      - name: appId
+        in: query
+        description: Database identifier
+        schema:
+          type: string
+      - name: searchTerm
+        in: query
+        description: Search term
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Limit
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: Offset
+        schema:
+          type: string
       - name: appId
         in: query
         schema:
@@ -181,8 +250,16 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -190,8 +267,30 @@ paths:
     get:
       tags:
       - auth
+      summary: Get app users without credentials (legacy)
+      description: "Lists users without engine credentials. Deprecated: use /auth/admin/engine/getEngineUsersNoCredentials."
       operationId: getAppUsersNoCredentials
       parameters:
+      - name: appId
+        in: query
+        description: Database identifier
+        schema:
+          type: string
+      - name: searchTerm
+        in: query
+        description: Search term
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Limit
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: Offset
+        schema:
+          type: string
       - name: appId
         in: query
         schema:
@@ -211,8 +310,16 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -220,8 +327,16 @@ paths:
     get:
       tags:
       - auth
+      summary: Get apps (legacy)
+      description: "Returns engine settings for database-type engines. Deprecated:\
+        \ use /auth/admin/engine/getEngines with engineTypes."
       operationId: getUserApps
       parameters:
+      - name: databaseId
+        in: query
+        description: Filter by databaseId (repeatable)
+        schema:
+          type: string
       - name: databaseId
         in: query
         schema:
@@ -229,8 +344,16 @@ paths:
           items:
             type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Apps retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -238,10 +361,23 @@ paths:
     post:
       tags:
       - auth
+      summary: Grant all apps (legacy)
+      description: "Grants a user permissions to all database-type engines. Deprecated:\
+        \ use /auth/admin/engine/grantAllEngines."
       operationId: grantAllApps
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -249,10 +385,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Grant new users app access (legacy)
+      description: "Grants all new users access to a database. Deprecated: use /auth/admin/engine/grantNewUsersEngineAccess."
       operationId: grantNewUsersAppAccess
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -260,10 +408,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Remove app user permission (legacy)
+      description: "Removes a user's permission for a database. Deprecated: use /auth/admin/engine/removeEngineUserPermission."
       operationId: removeAppUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -271,10 +431,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Set app discoverable (legacy)
+      description: "Sets the database discoverability. Deprecated: use /auth/admin/engine/setEngineDiscoverable."
       operationId: setAppDiscoverable
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json: {}
+        "500":
+          description: Internal server error
           content:
             application/json: {}
       deprecated: true
@@ -282,10 +454,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Set app global (legacy)
+      description: "Sets the database public/private. Deprecated: use /auth/admin/engine/setEngineGlobal."
       operationId: setAppGlobal
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json: {}
+        "500":
+          description: Internal server error
           content:
             application/json: {}
       deprecated: true
@@ -293,10 +477,23 @@ paths:
     post:
       tags:
       - auth
+      summary: Update app user permissions (legacy)
+      description: "Updates all users' permissions for a database. Deprecated: use\
+        \ /auth/admin/engine/updateEngineUserPermissions."
       operationId: updateAppUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -304,10 +501,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Add all users (legacy)
+      description: "Adds all users to a database. Deprecated: use /auth/admin/engine/addAllUsers."
       operationId: addAllUsers_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -315,10 +524,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Add database user permission (legacy)
+      description: "Adds a user permission for a database. Deprecated: use /auth/admin/engine/addEngineUserPermission."
       operationId: addDatabaseUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -326,10 +547,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Add database user permissions in bulk (legacy)
+      description: "Adds user permissions in bulk. Deprecated: use /auth/admin/engine/addEngineUserPermissions."
       operationId: addDatabaseUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -337,10 +570,23 @@ paths:
     post:
       tags:
       - auth
+      summary: Approve database user access request (legacy)
+      description: "Approves user access requests and adds permissions. Deprecated:\
+        \ use /auth/admin/engine/approveEngineUserAccessRequest."
       operationId: approveDatabaseUserAccessRequest
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -348,10 +594,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Deny database user access request (legacy)
+      description: "Denies user access requests. Deprecated: use /auth/admin/engine/denyEngineUserAccessRequest."
       operationId: denyDatabaseUserAccessRequest
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -359,10 +617,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Edit database user permission (legacy)
+      description: "Edits a user's permission for a database. Deprecated: use /auth/admin/engine/editEngineUserPermission."
       operationId: editDatabaseUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -370,10 +640,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Edit database user permissions in bulk (legacy)
+      description: "Edits multiple user permissions. Deprecated: use /auth/admin/engine/editEngineUserPermissions."
       operationId: editDatabaseUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -381,10 +663,21 @@ paths:
     post:
       tags:
       - auth
+      summary: Get all user databases (legacy)
+      description: "Lists engines a user has access to. Deprecated: use /auth/admin/engine/getAllUserEngines\
+        \ with engineTypes."
       operationId: getAllUserDatabases
       responses:
-        default:
-          description: default response
+        "200":
+          description: User databases retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -392,8 +685,40 @@ paths:
     get:
       tags:
       - auth
+      summary: Get database users (legacy)
+      description: "Gets users and permissions for a database. Deprecated: use /auth/admin/engine/getEngineUsers."
       operationId: getDatabaseUsers
       parameters:
+      - name: databaseId
+        in: query
+        description: Database identifier
+        schema:
+          type: string
+      - name: userId
+        in: query
+        description: User identifier to filter
+        schema:
+          type: string
+      - name: searchTerm
+        in: query
+        description: Search term
+        schema:
+          type: string
+      - name: permission
+        in: query
+        description: Permission filter
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Limit
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: Offset
+        schema:
+          type: string
       - name: databaseId
         in: query
         schema:
@@ -421,8 +746,14 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -430,8 +761,30 @@ paths:
     get:
       tags:
       - auth
+      summary: Get database users without credentials (legacy)
+      description: "Lists users without engine credentials. Deprecated: use /auth/admin/engine/getEngineUsersNoCredentials."
       operationId: getDatabaseUsersNoCredentials
       parameters:
+      - name: databaseId
+        in: query
+        description: Database identifier
+        schema:
+          type: string
+      - name: searchTerm
+        in: query
+        description: Search term
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Limit
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: Offset
+        schema:
+          type: string
       - name: databaseId
         in: query
         schema:
@@ -451,8 +804,16 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -460,8 +821,16 @@ paths:
     get:
       tags:
       - auth
+      summary: Get databases (legacy)
+      description: "Returns engine settings for database-type engines. Deprecated:\
+        \ use /auth/admin/engine/getEngines with engineTypes."
       operationId: getDatabases
       parameters:
+      - name: databaseId
+        in: query
+        description: Filter by databaseId (repeatable)
+        schema:
+          type: string
       - name: databaseId
         in: query
         schema:
@@ -469,8 +838,16 @@ paths:
           items:
             type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Databases retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -478,10 +855,23 @@ paths:
     post:
       tags:
       - auth
+      summary: Grant all databases (legacy)
+      description: "Grants a user permissions to all database-type engines. Deprecated:\
+        \ use /auth/admin/engine/grantAllEngines."
       operationId: grantAllDatabases
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -489,10 +879,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Grant new users database access (legacy)
+      description: "Grants all new users access to a database. Deprecated: use /auth/admin/engine/grantNewUsersEngineAccess."
       operationId: grantNewUsersDatabaseAccess
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -500,10 +902,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Remove database user permission (legacy)
+      description: "Removes a user's permission for a database. Deprecated: use /auth/admin/engine/removeEngineUserPermission."
       operationId: removeDatabaseUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -511,10 +925,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Remove database user permissions in bulk (legacy)
+      description: "Removes multiple users' permissions. Deprecated: use /auth/admin/engine/removeEngineUserPermissions."
       operationId: removeDatabaseUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
@@ -522,10 +948,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Set database discoverable (legacy)
+      description: "Sets the database discoverability. Deprecated: use /auth/admin/engine/setEngineDiscoverable."
       operationId: setDatabaseDiscoverable
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json: {}
+        "500":
+          description: Internal server error
           content:
             application/json: {}
       deprecated: true
@@ -533,10 +971,22 @@ paths:
     post:
       tags:
       - auth
+      summary: Set database global (legacy)
+      description: "Sets the database public/private. Deprecated: use /auth/admin/engine/setEngineGlobal."
       operationId: setDatabaseGlobal
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "401":
+          description: Unauthorized
+          content:
+            application/json: {}
+        "500":
+          description: Internal server error
           content:
             application/json: {}
       deprecated: true
@@ -544,81 +994,238 @@ paths:
     post:
       tags:
       - auth
+      summary: Update database user permissions (legacy)
+      description: "Updates all users' permissions for a database. Deprecated: use\
+        \ /auth/admin/engine/updateEngineUserPermissions."
       operationId: updateDatabaseUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyAdminSuccessResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
       deprecated: true
   /auth/admin/engine/addAllUsers:
     post:
+      tags:
+      - auth
+      summary: Add all users
+      description: Adds all users to an engine.
       operationId: addAllUsers_2
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/addEngineUserPermission:
     post:
+      tags:
+      - auth
+      summary: Add engine user permission
+      description: Adds a user's permission for an engine.
       operationId: addEngineUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/addEngineUserPermissions:
     post:
+      tags:
+      - auth
+      summary: Add engine user permissions (bulk)
+      description: Adds user permissions in bulk for an engine.
       operationId: addEngineUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/approveEngineUserAccessRequest:
     post:
+      tags:
+      - auth
+      summary: Approve engine user access request
+      description: Approves user access requests and adds permissions.
       operationId: approveEngineUserAccessRequest
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/denyEngineUserAccessRequest:
     post:
+      tags:
+      - auth
+      summary: Deny engine user access request
+      description: Denies user access requests.
       operationId: denyEngineUserAccessRequest
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/editEngineUserPermission:
     post:
+      tags:
+      - auth
+      summary: Edit engine user permission
+      description: Edits a user's permission for an engine.
       operationId: editEngineUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/editEngineUserPermissions:
     post:
+      tags:
+      - auth
+      summary: Edit engine user permissions (bulk)
+      description: Edits multiple user permissions for an engine.
       operationId: editEngineUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/getAllUserEngines:
     post:
+      tags:
+      - auth
+      summary: Get all user engines
+      description: "Lists engines a user has access to, optionally filtered by types."
       operationId: getAllUserEngines
       responses:
-        default:
-          description: default response
+        "200":
+          description: User engines retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/getEngineUsers:
     get:
+      tags:
+      - auth
+      summary: Get engine users
+      description: Gets users and permissions for an engine.
       operationId: getEngineUsers
       parameters:
+      - name: engineId
+        in: query
+        description: Engine identifier
+        schema:
+          type: string
+      - name: userId
+        in: query
+        description: User identifier to filter
+        schema:
+          type: string
+      - name: searchTerm
+        in: query
+        description: Search term
+        schema:
+          type: string
+      - name: permission
+        in: query
+        description: Permission filter
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Limit
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: Offset
+        schema:
+          type: string
       - name: engineId
         in: query
         schema:
@@ -646,14 +1253,44 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/getEngineUsersNoCredentials:
     get:
+      tags:
+      - auth
+      summary: Get engine users without credentials
+      description: Lists users without engine credentials.
       operationId: getEngineUsersNoCredentials
       parameters:
+      - name: engineId
+        in: query
+        description: Engine identifier
+        schema:
+          type: string
+      - name: searchTerm
+        in: query
+        description: Search term
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Limit
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: Offset
+        schema:
+          type: string
       - name: engineId
         in: query
         schema:
@@ -673,14 +1310,70 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json: {}
+        "500":
+          description: Internal server error
           content:
             application/json: {}
   /auth/admin/engine/getEngines:
     get:
+      tags:
+      - auth
+      summary: Get engines
+      description: Returns engines with optional filters.
       operationId: getEnginesGET
       parameters:
+      - name: engineId
+        in: query
+        description: Filter by engineId
+        schema:
+          type: string
+      - name: engineTypes
+        in: query
+        description: Filter by engine types
+        schema:
+          type: string
+      - name: filterWord
+        in: query
+        description: Search term
+        schema:
+          type: string
+      - name: limit
+        in: query
+        description: Limit
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: Offset
+        schema:
+          type: string
+      - name: metaKeys
+        in: query
+        description: Meta keys to include
+        schema:
+          type: string
+      - name: noMeta
+        in: query
+        description: Exclude metadata
+        schema:
+          type: string
+      - name: userT
+        in: query
+        description: Include user tracking
+        schema:
+          type: string
       - name: engineId
         in: query
         schema:
@@ -722,177 +1415,514 @@ paths:
         schema:
           type: boolean
       responses:
-        default:
-          description: default response
+        "200":
+          description: Engines retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
     post:
+      tags:
+      - auth
+      summary: Get engines (POST)
+      description: Returns engines using form parameters in request body.
       operationId: getEnginesPOST
       responses:
-        default:
-          description: default response
+        "200":
+          description: Engines retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/grantAllEngines:
     post:
+      tags:
+      - auth
+      summary: Grant all engines
+      description: "Grants a user permissions to all engines, optionally filtered\
+        \ by types."
       operationId: grantAllEngines
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/grantNewUsersEngineAccess:
     post:
+      tags:
+      - auth
+      summary: Grant new users engine access
+      description: Grants all new users access to an engine.
       operationId: grantNewUsersEngineAccess
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/removeEngineUserPermission:
     post:
+      tags:
+      - auth
+      summary: Remove engine user permission
+      description: Removes a user's permission for an engine.
       operationId: removeEngineUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/removeEngineUserPermissions:
     post:
+      tags:
+      - auth
+      summary: Remove engine user permissions (bulk)
+      description: Removes multiple users' permissions for an engine.
       operationId: removeEngineUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/engine/setEngineDiscoverable:
     post:
+      tags:
+      - auth
+      summary: Set engine discoverable
+      description: Sets the engine discoverability.
       operationId: setEngineDiscoverable
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json: {}
+        "500":
+          description: Internal server error
           content:
             application/json: {}
   /auth/admin/engine/setEngineGlobal:
     post:
+      tags:
+      - auth
+      summary: Set engine global
+      description: Sets the engine public/private.
       operationId: setEngineGlobal
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json: {}
+        "500":
+          description: Internal server error
           content:
             application/json: {}
   /auth/admin/engine/updateEngineUserPermissions:
     post:
+      tags:
+      - auth
+      summary: Update engine user permissions
+      description: Updates all users' permissions for an engine.
       operationId: updateEngineUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Operation successful
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
           content:
             application/json: {}
   /auth/admin/group/addGroup:
     post:
       tags:
       - auth
+      summary: Create a group
+      description: Creates a new security group.
       operationId: addGroup
       responses:
-        default:
-          description: default response
+        "200":
+          description: Group created
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/addGroupEnginePermission:
     post:
       tags:
       - auth
+      summary: Grant engine permission to group
+      description: Adds an engine permission for a group.
       operationId: addGroupEnginePermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission granted
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/addGroupMember:
     post:
       tags:
       - auth
+      summary: Add group member
+      description: "Adds a user to a group, optionally until an end date."
       operationId: addGroupMember
       responses:
-        default:
-          description: default response
+        "200":
+          description: Member added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/addGroupProjectPermission:
     post:
       tags:
       - auth
+      summary: Grant project permission to group
+      description: Adds a project permission for a group.
       operationId: addGroupProjectPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission granted
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/deleteGroup:
     post:
       tags:
       - auth
+      summary: Delete a group
+      description: Deletes a security group and propagates changes.
       operationId: deleteGroup
       responses:
-        default:
-          description: default response
+        "200":
+          description: Group deleted
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/deleteGroupMember:
     post:
       tags:
       - auth
+      summary: Remove group member
+      description: Removes a user from a group.
       operationId: deleteGroupMember
       responses:
-        default:
-          description: default response
+        "200":
+          description: Member removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/editGroup:
     post:
       tags:
       - auth
+      summary: Edit a group
+      description: "Edits a group's id, type, or description and propagates changes."
       operationId: editGroup
       responses:
-        default:
-          description: default response
+        "200":
+          description: Group edited
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/editGroupDetails:
     post:
       tags:
       - auth
+      summary: Edit group details
+      description: "Updates group id, type, and description without membership changes."
       operationId: editGroupDetails
       responses:
-        default:
-          description: default response
+        "200":
+          description: Group details updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/editGroupEnginePermission:
     post:
       tags:
       - auth
+      summary: Edit engine permission for group
+      description: Edits a group's engine permission.
       operationId: editGroupEnginePermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/editGroupProjectPermission:
     post:
       tags:
       - auth
+      summary: Edit project permission for group
+      description: Edits a group's project permission.
       operationId: editGroupProjectPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getAvailableEnginesForGroup:
     get:
       tags:
       - auth
+      summary: List available engines for group
+      description: Returns engines that can be assigned to the group.
       operationId: getAvailableEnginesForGroup
       parameters:
       - name: groupId
@@ -918,14 +1948,32 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Engines retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getAvailableProjectsForGroup:
     get:
       tags:
       - auth
+      summary: List available projects for group
+      description: Returns projects that can be assigned to the group.
       operationId: getAvailableProjectsForGroup
       parameters:
       - name: groupId
@@ -955,14 +2003,33 @@ paths:
         schema:
           type: boolean
       responses:
-        default:
-          description: default response
+        "200":
+          description: Projects retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getEnginesForGroup:
     get:
       tags:
       - auth
+      summary: List engines for group
+      description: Returns engines assigned to the specified group with optional filters
+        and pagination.
       operationId: getEnginesForGroup
       parameters:
       - name: groupId
@@ -988,14 +2055,32 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Engines retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getGroupMembers:
     get:
       tags:
       - auth
+      summary: List group members
+      description: Returns members of a group with optional search and pagination.
       operationId: getGroupMembers
       parameters:
       - name: groupId
@@ -1017,14 +2102,32 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Members retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getGroups:
     get:
       tags:
       - auth
+      summary: List groups
+      description: Returns groups matching an optional search term with pagination.
       operationId: getAllGroups
       parameters:
       - name: searchTerm
@@ -1042,14 +2145,32 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Groups retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getNonGroupMembers:
     get:
       tags:
       - auth
+      summary: List non-members
+      description: Returns users not assigned to the specified group.
       operationId: getNonGroupMembers
       parameters:
       - name: groupId
@@ -1071,14 +2192,32 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getNumAvailableEnginesForGroup:
     get:
       tags:
       - auth
+      summary: Count available engines for group
+      description: Returns the number of engines that can be assigned to the group.
       operationId: getNumAvailableEnginesForGroup
       parameters:
       - name: groupId
@@ -1094,14 +2233,31 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Count returned
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: integer
+                format: int64
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getNumAvailableProjectsForGroup:
     get:
       tags:
       - auth
+      summary: Count available projects for group
+      description: Returns the number of projects that can be assigned to the group.
       operationId: getNumAvailableProjectsForGroup
       parameters:
       - name: groupId
@@ -1121,14 +2277,31 @@ paths:
         schema:
           type: boolean
       responses:
-        default:
-          description: default response
+        "200":
+          description: Count returned
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: integer
+                format: int64
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getNumEnginesForGroup:
     get:
       tags:
       - auth
+      summary: Count engines for group
+      description: Returns the number of engines assigned to the specified group.
       operationId: getNumEnginesForGroup
       parameters:
       - name: groupId
@@ -1144,14 +2317,32 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Count returned
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: integer
+                format: int64
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getNumMembersInGroup:
     get:
       tags:
       - auth
+      summary: Count group members
+      description: "Returns the number of users in a group, optionally filtered by\
+        \ a search term."
       operationId: getNumMembersInGroup
       parameters:
       - name: groupId
@@ -1163,14 +2354,31 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Count returned
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: integer
+                format: int64
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getNumNonMembersInGroup:
     get:
       tags:
       - auth
+      summary: Count non-members
+      description: Returns the number of users not assigned to a group.
       operationId: getNumNonMembersInGroup
       parameters:
       - name: groupId
@@ -1182,14 +2390,32 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Count returned
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: integer
+                format: int64
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getNumProjectsForGroup:
     get:
       tags:
       - auth
+      summary: Count projects for group
+      description: "Returns the number of projects assigned to a group, with optional\
+        \ filters."
       operationId: getNumProjectsForGroup
       parameters:
       - name: groupId
@@ -1209,14 +2435,32 @@ paths:
         schema:
           type: boolean
       responses:
-        default:
-          description: default response
+        "200":
+          description: Count returned
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: integer
+                format: int64
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/getProjectsForGroup:
     get:
       tags:
       - auth
+      summary: List projects for group
+      description: Returns projects assigned to the specified group with optional
+        filters and pagination.
       operationId: getProjectsForGroup
       parameters:
       - name: groupId
@@ -1246,124 +2490,385 @@ paths:
         schema:
           type: boolean
       responses:
-        default:
-          description: default response
+        "200":
+          description: Projects retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/removeGroupEnginePermission:
     post:
       tags:
       - auth
+      summary: Revoke engine permission from group
+      description: Removes an engine's permission for a group.
       operationId: removeGroupEnginePermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/group/removeGroupProjectPermission:
     post:
       tags:
       - auth
+      summary: Revoke project permission from group
+      description: Removes a project's permission for a group.
       operationId: removeGroupProjectPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/addAllUsers:
     post:
       tags:
       - auth
+      summary: Add all users to an insight
+      description: Adds all users to the given insight with a permission level.
       operationId: addAllUsers_3
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/addInsightUserPermission:
     post:
       tags:
       - auth
+      summary: Add insight user permission
+      description: Adds a user to an insight with a specific permission level.
       operationId: addInsightUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/addInsightUserPermissions:
     post:
       tags:
       - auth
+      summary: Add multiple insight user permissions
+      description: Adds user permissions to an insight in bulk.
       operationId: addInsightUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/approveInsightUserAccessRequest:
     post:
       tags:
       - auth
+      summary: Approve insight user access requests
+      description: Approves user access requests for an insight and grants permissions.
       operationId: approveInsightUserAccessRequest
       responses:
-        default:
-          description: default response
+        "200":
+          description: Requests approved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/deleteProjectInsights:
     post:
       tags:
       - auth
+      summary: Delete project insights
+      description: Deletes one or more insights from a project.
       operationId: deleteProjectInsights
       responses:
-        default:
-          description: default response
+        "200":
+          description: Insights deleted
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/denyInsightUserAccessRequest:
     post:
       tags:
       - auth
+      summary: Deny insight user access requests
+      description: Denies user access requests for an insight.
       operationId: denyInsightUserAccessRequest
       responses:
-        default:
-          description: default response
+        "200":
+          description: Requests denied
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/editInsightUserPermission:
     post:
       tags:
       - auth
+      summary: Edit insight user permission
+      description: Edits a user's permission for a given insight.
       operationId: editInsightUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/editInsightUserPermissions:
     post:
       tags:
       - auth
+      summary: Edit multiple insight user permissions
+      description: Edits multiple user permissions for an insight in bulk.
       operationId: editInsightUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/getAllProjectInsightUsers:
     post:
       tags:
       - auth
+      summary: List project insight users
+      description: Returns all users and their permissions for project insights.
       operationId: getAllProjectInsightUsers
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/getInsightUsers:
     get:
       tags:
       - auth
+      summary: List insight users
+      description: "Returns users who have access to a given insight, with total count\
+        \ and pagination."
       operationId: getInsightUsers
       parameters:
       - name: projectId
@@ -1393,14 +2898,30 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/getInsightUsersNoCredentials:
     get:
       tags:
       - auth
+      summary: List users without insight access
+      description: Returns users who do not have access to a given insight.
       operationId: getInsightUsersNoCredentials
       parameters:
       - name: projectId
@@ -1426,14 +2947,33 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/getInsights:
     get:
       tags:
       - auth
+      summary: List insights
+      description: "Returns insights for the current user filtered by project and/or\
+        \ search term, with pagination."
       operationId: getInsights_1
       parameters:
       - name: projectId
@@ -1455,14 +2995,32 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Insights retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/getProjectInsights:
     get:
       tags:
       - auth
+      summary: List project insights
+      description: Returns insights belonging to the specified project.
       operationId: getProjectInsights
       parameters:
       - name: projectId
@@ -1474,136 +3032,476 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Insights retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/grantAllProjectInsights:
     post:
       tags:
       - auth
+      summary: Grant all project insights
+      description: Grants a user access to all insights in a project.
       operationId: grantAllProjectInsights
       responses:
-        default:
-          description: default response
+        "200":
+          description: Access granted
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/grantNewUsersInsightAccess:
     post:
       tags:
       - auth
+      summary: Grant new users insight access
+      description: Grants access to new users for an insight with a given permission.
       operationId: grantNewUsersInsightAccess
       responses:
-        default:
-          description: default response
+        "200":
+          description: Access granted
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/removeInsightUserPermission:
     post:
       tags:
       - auth
+      summary: Remove insight user permission
+      description: Removes a user's access to a given insight.
       operationId: removeInsightUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/removeInsightUserPermissions:
     post:
       tags:
       - auth
+      summary: Remove multiple insight user permissions
+      description: Removes user permissions from an insight in bulk.
       operationId: removeInsightUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/setInsightGlobal:
     post:
       tags:
       - auth
+      summary: Set insight visibility
+      description: Sets an insight to public or private within a project.
       operationId: setInsightGlobal
       responses:
-        default:
-          description: default response
+        "200":
+          description: Visibility updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/insight/updateInsightUserPermissions:
     post:
       tags:
       - auth
+      summary: Update all insight user permissions
+      description: Updates all users' permissions for an insight to a new level.
       operationId: updateAppUserPermissions_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/addAllUsers:
     post:
+      tags:
+      - auth
+      summary: Add all users to project
+      description: Adds all users to a project with a permission level.
       operationId: addAllUsers_4
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/addProjectUserPermission:
     post:
+      tags:
+      - auth
+      summary: Add project user permission
+      description: Adds a user to a project with a permission level.
       operationId: addProjectUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/addProjectUserPermissions:
     post:
+      tags:
+      - auth
+      summary: Add multiple project user permissions
+      description: Adds user permissions to a project in bulk.
       operationId: addProjectUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/approveProjectUserAccessRequest:
     post:
+      tags:
+      - auth
+      summary: Approve project user access requests
+      description: Approves access requests for a project and grants permissions.
       operationId: approveProjectUserAccessRequest
       responses:
-        default:
-          description: default response
+        "200":
+          description: Requests approved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/denyProjectUserAccessRequest:
     post:
+      tags:
+      - auth
+      summary: Deny project user access requests
+      description: Denies user access requests for a project.
       operationId: denyProjectUserAccessRequest
       responses:
-        default:
-          description: default response
+        "200":
+          description: Requests denied
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/editProjectUserPermission:
     post:
+      tags:
+      - auth
+      summary: Edit project user permission
+      description: Edits a user's permission for a project.
       operationId: editProjectUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/editProjectUserPermissions:
     post:
+      tags:
+      - auth
+      summary: Edit multiple project user permissions
+      description: Edits multiple user permissions for a project in bulk.
       operationId: editProjectUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/getAllUserProjects:
     post:
+      tags:
+      - auth
+      summary: List a user's projects
+      description: Returns all projects the specified user has access to.
       operationId: getAllUserProjects
       responses:
-        default:
-          description: default response
+        "200":
+          description: Projects retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/getProjectUsers:
     get:
+      tags:
+      - auth
+      summary: List project users
+      description: "Returns users and permissions for a project, with total and pagination."
       operationId: getProjectUsers
       parameters:
       - name: projectId
@@ -1633,12 +3531,30 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/getProjectUsersNoCredentials:
     get:
+      tags:
+      - auth
+      summary: List users without project access
+      description: Returns users who do not have access to the given project.
       operationId: getProjectUsersNoCredentials
       parameters:
       - name: projectId
@@ -1660,12 +3576,33 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/getProjects:
     get:
+      tags:
+      - auth
+      summary: List projects
+      description: Returns projects filtered by optional parameters with pagination
+        and metadata options.
       operationId: getProjectsGET
       parameters:
       - name: projectId
@@ -1703,116 +3640,374 @@ paths:
         schema:
           type: boolean
       responses:
-        default:
-          description: default response
+        "200":
+          description: Projects retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
     post:
+      tags:
+      - auth
+      summary: List projects (POST)
+      description: Returns projects using form parameters for filtering and pagination.
       operationId: getProjectsPOST
       responses:
-        default:
-          description: default response
+        "200":
+          description: Projects retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/grantAllProjects:
     post:
+      tags:
+      - auth
+      summary: Grant all projects
+      description: Grants a user access to all projects.
       operationId: grantAllProjects
       responses:
-        default:
-          description: default response
+        "200":
+          description: Access granted
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/grantNewUsersProjectAccess:
     post:
+      tags:
+      - auth
+      summary: Grant new users project access
+      description: Grants a project permission to new users.
       operationId: grantNewUsersProjectAccess
       responses:
-        default:
-          description: default response
+        "200":
+          description: Access granted
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/removeProjectUserPermission:
     post:
+      tags:
+      - auth
+      summary: Remove project user permission
+      description: Removes a user's access to a project.
       operationId: removeProjectUserPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/removeProjectUserPermissions:
     post:
+      tags:
+      - auth
+      summary: Remove multiple project user permissions
+      description: Removes user permissions from a project in bulk.
       operationId: removeProjectUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/setProjectDiscoverable:
     post:
+      tags:
+      - auth
+      summary: Set project discoverability
+      description: Sets whether a project is discoverable across the instance.
       operationId: setProjectDiscoverable
       responses:
-        default:
-          description: default response
+        "200":
+          description: Discoverability updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/setProjectGlobal:
     post:
+      tags:
+      - auth
+      summary: Set project visibility
+      description: Sets a project to public or private.
       operationId: setProjectGlobal
       responses:
-        default:
-          description: default response
+        "200":
+          description: Visibility updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/setProjectPortal:
     post:
+      tags:
+      - auth
+      summary: Set project portal
+      description: Enables or disables the public portal for a project and updates
+        configuration.
       operationId: setProjectPortal
       responses:
-        default:
-          description: default response
+        "200":
+          description: Portal updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/project/updateProjectUserPermissions:
     post:
+      tags:
+      - auth
+      summary: Update all project user permissions
+      description: Updates all users' permissions for a project to a new level.
       operationId: updateProjectUserPermissions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/user/deleteUser:
     post:
       tags:
       - auth
+      summary: Delete user
+      description: Deletes a user; prevents deleting the last admin.
       operationId: deleteUser
       responses:
-        default:
-          description: default response
+        "200":
+          description: User deleted
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/user/editUser:
     post:
       tags:
       - auth
+      summary: Edit user
+      description: Edits user properties including admin flag; prevents removing the
+        last admin.
       operationId: editUser
       responses:
-        default:
-          description: default response
+        "200":
+          description: User updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/user/getAllDbUsers:
     get:
       tags:
       - auth
+      summary: List users (deprecated)
+      description: "Deprecated: use /getAllUsers instead."
       operationId: getAllDbUsers
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/admin/user/getAllUsers:
     get:
       tags:
       - auth
+      summary: List users
+      description: Returns all users filtered by an optional search term with pagination.
       operationId: searchTerm
       parameters:
       - name: filterWord
@@ -1830,86 +4025,206 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/user/getNumUsers:
     get:
       tags:
       - auth
+      summary: Get number of users
+      description: Returns the total number of users.
       operationId: getNumUsers
       responses:
-        default:
-          description: default response
+        "200":
+          description: Count returned
           content:
-            '*/*': {}
+            application/json:
+              schema:
+                type: integer
+                format: int64
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/user/isAdminUser:
     get:
       tags:
       - auth
+      summary: Check if current user is admin
+      description: Returns whether the authenticated user has admin privileges.
       operationId: isAdminUser
       responses:
-        default:
-          description: default response
+        "200":
+          description: Admin status
           content:
-            '*/*': {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/user/registerUser:
     post:
       tags:
       - auth
+      summary: Register a user
+      description: Registers a new user with optional admin/publisher/exporter flags
+        and model usage restrictions.
       operationId: registerUser
       responses:
-        default:
-          description: default response
+        "200":
+          description: User registered
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/user/setUserLocked:
     post:
       tags:
       - auth
+      summary: Set user lock status
+      description: Locks or unlocks a user's account.
       operationId: setUserLocked
       responses:
-        default:
-          description: default response
+        "200":
+          description: Lock status updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/admin/user/setUserPublisher:
     post:
       tags:
       - auth
+      summary: Set user publisher flag
+      description: Sets or unsets a user's publisher status.
       operationId: setUserPublisher
       responses:
-        default:
-          description: default response
+        "200":
+          description: Publisher flag updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/app/addAppUserPermission:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Add app user permission"
+      description: Legacy endpoint. Use /auth/engine/addEngineUserPermission instead.
       operationId: addAppUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/app/editAppUserPermission:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Edit app user permission"
+      description: Legacy endpoint. Use /auth/engine/editEngineUserPermission instead.
       operationId: editAppUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/app/getAppUsers:
     get:
       tags:
       - auth
+      summary: "[LEGACY] List app users"
+      description: Legacy endpoint. Use /auth/engine/getEngineUsers instead.
       operationId: getAppUsers_1
       parameters:
       - name: appId
@@ -1917,15 +4232,27 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/app/getAppUsersNoCredentials:
     get:
       tags:
       - auth
+      summary: "[LEGACY] List users without app access"
+      description: Legacy endpoint. Use /auth/engine/getEngineUsersNoCredentials instead.
       operationId: getAppUsersNoCredentials_1
       parameters:
       - name: appId
@@ -1947,15 +4274,27 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/app/getApps:
     get:
       tags:
       - auth
+      summary: "[LEGACY] List apps (databases)"
+      description: Legacy endpoint. Use /auth/engine/getEngines with engineTypes instead.
       operationId: getApps
       parameters:
       - name: databaseId
@@ -1993,15 +4332,27 @@ paths:
         schema:
           type: boolean
       responses:
-        default:
-          description: default response
+        "200":
+          description: Apps retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/app/getUserAppPermission:
     get:
       tags:
       - auth
+      summary: "[LEGACY] Get user app permission"
+      description: Legacy endpoint. Use /auth/engine/getUserEnginePermission instead.
       operationId: getUserAppPermission
       parameters:
       - name: appId
@@ -2009,65 +4360,177 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/app/removeAppUserPermission:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Remove app user permission"
+      description: Legacy endpoint. Use /auth/engine/removeEngineUserPermission instead.
       operationId: removeAppUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/app/setAppDiscoverable:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Set app discoverable"
+      description: Legacy endpoint. Use /auth/engine/setEngineDiscoverable instead.
       operationId: setAppDiscoverable_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Discoverability updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/app/setAppFavorite:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Set app favorite"
+      description: Legacy endpoint. Use /auth/engine/setEngineFavorite instead.
       operationId: setAppFavorite
       responses:
-        default:
-          description: default response
+        "200":
+          description: Favorite updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/app/setAppGlobal:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Set app global visibility"
+      description: Legacy endpoint. Use /auth/engine/setEngineGlobal instead.
       operationId: setAppGlobal_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Visibility updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/app/setAppVisibility:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Set app visibility"
+      description: Legacy endpoint. Use /auth/engine/setEngineVisibility instead.
       operationId: setAppVisibility
       responses:
-        default:
-          description: default response
+        "200":
+          description: Visibility updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/changeADPassword:
     post:
@@ -2103,72 +4566,171 @@ paths:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Add database user permission"
+      description: Legacy endpoint. Use /auth/engine/addEngineUserPermission instead.
       operationId: addDatabaseUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/addDatabaseUserPermissions:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Add database user permissions (bulk)"
+      description: Legacy endpoint. Use /auth/engine/addEngineUserPermissions instead.
       operationId: addDatabaseUserPermissions_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/approveDatabaseUserAccessRequest:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Approve database user access requests"
+      description: Legacy endpoint. Use /auth/engine/approveEngineUserAccessRequest
+        instead.
       operationId: approveDatabaseUserAccessRequest_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Requests approved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/denyDatabaseUserAccessRequest:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Deny database user access requests"
+      description: Legacy endpoint. Use /auth/engine/denyEngineUserAccessRequest instead.
       operationId: denyDatabaseUserAccessRequest_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Requests denied
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/editDatabaseUserPermission:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Edit database user permission"
+      description: Legacy endpoint. Use /auth/engine/editEngineUserPermission instead.
       operationId: editDatabaseUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/editDatabaseUserPermissions:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Edit database user permissions (bulk)"
+      description: Legacy endpoint. Use /auth/engine/editEngineUserPermissions instead.
       operationId: editDatabaseUserPermissions_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/getDatabaseUsers:
     get:
       tags:
       - auth
+      summary: "[LEGACY] List database users"
+      description: Legacy endpoint. Use /auth/engine/getEngineUsers instead.
       operationId: getDatabaseUsers_1
       parameters:
       - name: databaseId
@@ -2198,15 +4760,25 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/getDatabaseUsersNoCredentials:
     get:
       tags:
       - auth
+      summary: "[LEGACY] List users without database access"
+      description: Legacy endpoint. Use /auth/engine/getEngineUsersNoCredentials instead.
       operationId: getDatabaseUsersNoCredentials_1
       parameters:
       - name: databaseId
@@ -2228,15 +4800,27 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/getDatabases:
     get:
       tags:
       - auth
+      summary: "[LEGACY] List databases"
+      description: Legacy endpoint. Use /auth/engine/getEngines with engineTypes instead.
       operationId: getDatabases_1
       parameters:
       - name: databaseId
@@ -2274,15 +4858,27 @@ paths:
         schema:
           type: boolean
       responses:
-        default:
-          description: default response
+        "200":
+          description: Databases retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/getUserDatabasePermission:
     get:
       tags:
       - auth
+      summary: "[LEGACY] Get user database permission"
+      description: Legacy endpoint. Use /auth/engine/getUserEnginePermission instead.
       operationId: getUserDatabasePermission
       parameters:
       - name: databaseId
@@ -2290,127 +4886,360 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission retrieved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/removeDatabaseUserPermission:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Remove database user permission"
+      description: Legacy endpoint. Use /auth/engine/removeEngineUserPermission instead.
       operationId: removeDatabaseUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/removeDatabaseUserPermissions:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Remove database user permissions (bulk)"
+      description: Legacy endpoint. Use /auth/engine/removeEngineUserPermissions instead.
       operationId: removeDatabaseUserPermissions_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/setDatabaseDiscoverable:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Set database discoverable"
+      description: Legacy endpoint. Use /auth/engine/setEngineDiscoverable instead.
       operationId: setDatabaseDiscoverable_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Discoverability updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/setDatabaseFavorite:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Set database favorite"
+      description: Legacy endpoint. Use /auth/engine/setEngineFavorite instead.
       operationId: setDatabaseFavorite
       responses:
-        default:
-          description: default response
+        "200":
+          description: Favorite updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/setDatabaseGlobal:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Set database global visibility"
+      description: Legacy endpoint. Use /auth/engine/setEngineGlobal instead.
       operationId: setDatabaseGlobal_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Visibility updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or admin required
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/database/setDatabaseVisibility:
     post:
       tags:
       - auth
+      summary: "[LEGACY] Set database visibility"
+      description: Legacy endpoint. Use /auth/engine/setEngineVisibility instead.
       operationId: setDatabaseVisibility
       responses:
-        default:
-          description: default response
+        "200":
+          description: Visibility updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
       deprecated: true
   /auth/engine/addEngineUserPermission:
     post:
+      tags:
+      - auth
+      summary: Grant engine access to a user
       operationId: addEngineUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/addEngineUserPermissions:
     post:
+      tags:
+      - auth
+      summary: Grant engine access to multiple users
       operationId: addEngineUserPermissions_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/approveEngineUserAccessRequest:
     post:
+      tags:
+      - auth
+      summary: Approve user access requests for an engine
       operationId: approveEngineUserAccessRequest_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Requests approved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/denyEngineUserAccessRequest:
     post:
+      tags:
+      - auth
+      summary: Deny user access requests for an engine
       operationId: denyEngineUserAccessRequest_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Requests denied
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/editEngineUserPermission:
     post:
+      tags:
+      - auth
+      summary: Edit a user's engine permission
       operationId: editEngineUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/editEngineUserPermissions:
     post:
+      tags:
+      - auth
+      summary: Edit multiple users' engine permissions
       operationId: editEngineUserPermissions_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/getEngineUsers:
     get:
+      tags:
+      - auth
+      summary: List engine users and permissions
       operationId: getEngineUsers_1
       parameters:
       - name: engineId
@@ -2440,12 +5269,23 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or no access
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/getEngineUsersNoCredentials:
     get:
+      tags:
+      - auth
+      summary: List users without access to an engine
       operationId: getEngineUsersNoCredentials_1
       parameters:
       - name: engineId
@@ -2467,12 +5307,33 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized or no access
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/getEngines:
     get:
+      tags:
+      - auth
+      summary: List engines available to the user
+      description: "Returns engines the current user can access, with optional filters\
+        \ like types, favorites, search term, and metadata options."
       operationId: getEngines
       parameters:
       - name: engineId
@@ -2520,19 +5381,47 @@ paths:
         schema:
           type: boolean
       responses:
-        default:
-          description: default response
+        "200":
+          description: Engines fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
     post:
+      tags:
+      - auth
+      summary: List engines (POST)
+      description: Same as GET /getEngines but accepts parameters as form/URL-encoded
+        body.
       operationId: getEnginesPOST_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Engines fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/getUserEnginePermission:
     get:
+      tags:
+      - auth
+      summary: Get current user's permission for an engine
       operationId: getUserEnginePermission
       parameters:
       - name: engineId
@@ -2540,58 +5429,180 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission resolved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or no access
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/removeEngineUserPermission:
     post:
+      tags:
+      - auth
+      summary: Remove a user's engine access
       operationId: removeEngineUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/removeEngineUserPermissions:
     post:
+      tags:
+      - auth
+      summary: Remove multiple users' engine access
       operationId: removeEngineUserPermissions_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/setEngineDiscoverable:
     post:
+      tags:
+      - auth
+      summary: Set engine discoverable flag
       operationId: setEngineDiscoverable_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Flag updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/setEngineFavorite:
     post:
+      tags:
+      - auth
+      summary: Set engine favorite flag for the current user
       operationId: setEngineFavorite
       responses:
-        default:
-          description: default response
+        "200":
+          description: Favorite set
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/setEngineGlobal:
     post:
+      tags:
+      - auth
+      summary: Set engine global visibility (public/private)
       operationId: setEngineGlobal_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Flag updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/engine/setEngineVisibility:
     post:
+      tags:
+      - auth
+      summary: Set engine visibility for the current user
       operationId: setEngineVisibility
       responses:
-        default:
-          description: default response
+        "200":
+          description: Visibility set
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: boolean
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/getAllLoginProperties:
     get:
       tags:
@@ -2606,26 +5617,59 @@ paths:
     post:
       tags:
       - auth
+      summary: Add group permission to an engine
       operationId: addGroupEnginePermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/group/engine/editGroupAppPermission:
     post:
       tags:
       - auth
+      summary: Edit group permission for an app
       operationId: editGroupAppPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/group/engine/getGroupAppPermission:
     get:
       tags:
       - auth
+      summary: Get group permission for an app/engine
+      description: "Returns the permission string for the specified group, type, and\
+        \ app/engine id."
       operationId: getGroupAppPermission
       parameters:
       - name: groupId
@@ -2641,44 +5685,112 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/group/engine/removeGroupAppPermission:
     post:
       tags:
       - auth
+      summary: Remove group permission for an app
       operationId: removeGroupAppPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/group/insight/addGroupInsightPermission:
     post:
       tags:
       - auth
+      summary: Add group permission to an insight
       operationId: addGroupInsightPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/group/insight/editGroupInsightPermission:
     post:
       tags:
       - auth
+      summary: Edit group permission for an insight
       operationId: editGroupInsightPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/group/insight/getGroupInsightPermission:
     get:
       tags:
       - auth
+      summary: Get group permission for an insight
+      description: "Returns the permission string for the specified group, type, projectId,\
+        \ and insightId."
       operationId: getGroupInsightPermission
       parameters:
       - name: groupId
@@ -2698,44 +5810,112 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/group/insight/removeGroupInsightPermission:
     post:
       tags:
       - auth
+      summary: Remove group permission for an insight
       operationId: removeGroupInsightPermission
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/group/project/addGroupProjectPermission:
     post:
       tags:
       - auth
+      summary: Add group permission to a project
       operationId: addGroupProjectPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/group/project/editGroupProjectPermission:
     post:
       tags:
       - auth
+      summary: Edit group permission for a project
       operationId: editGroupProjectPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/group/project/getGroupProjectPermission:
     get:
       tags:
       - auth
+      summary: Get group permission for a project
+      description: "Returns the permission string for the specified group, type, and\
+        \ projectId."
       operationId: getGroupProjectPermission
       parameters:
       - name: groupId
@@ -2751,84 +5931,210 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/group/project/removeGroupProjectPermission:
     post:
       tags:
       - auth
+      summary: Remove group permission for a project
       operationId: removeGroupProjectPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/addInsightUserPermission:
     post:
       tags:
       - auth
+      summary: Grant insight access to a user
       operationId: addInsightUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/addInsightUserPermissions:
     post:
       tags:
       - auth
+      summary: Grant insight access to multiple users
       operationId: addInsightUserPermissions_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions added
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/approveInsightUserAccessRequest:
     post:
       tags:
       - auth
+      summary: Approve user access requests for an insight
       operationId: approveInsightUserAccessRequest_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Requests approved
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/denyInsightUserAccessRequest:
     post:
       tags:
       - auth
+      summary: Deny user access requests for an insight
       operationId: denyInsightUserAccessRequest_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Requests denied
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/editInsightUserPermission:
     post:
       tags:
       - auth
+      summary: Edit a user's insight permission
       operationId: editInsightUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/editInsightUserPermissions:
     post:
       tags:
       - auth
+      summary: Edit multiple users' insight permissions
       operationId: editInsightUserPermissions_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/getInsightUsers:
     get:
       tags:
       - auth
+      summary: List insight users and permissions
       operationId: getInsightUsers_1
       parameters:
       - name: projectId
@@ -2858,14 +6164,23 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or no access
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/getInsightUsersNoCredentials:
     get:
       tags:
       - auth
+      summary: List users without access to an insight
       operationId: getInsightUsersNoCredentials_1
       parameters:
       - name: projectId
@@ -2891,14 +6206,27 @@ paths:
           type: integer
           format: int64
       responses:
-        default:
-          description: default response
+        "200":
+          description: Users fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized or no access
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/getInsights:
     get:
       tags:
       - auth
+      summary: List insights available to the user
+      description: "Search and list insights optionally filtered by project, search\
+        \ term, and pagination."
       operationId: getInsights_2
       parameters:
       - name: projectId
@@ -2918,14 +6246,25 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Insights fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/getProjectInsights:
     get:
       tags:
       - auth
+      summary: List project insights the user can edit
       operationId: getProjectInsights_1
       parameters:
       - name: projectId
@@ -2937,14 +6276,25 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Insights fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/getUserInsightPermission:
     get:
       tags:
       - auth
+      summary: Get current user's permission for an insight
       operationId: getUserInsightPermission
       parameters:
       - name: projectId
@@ -2956,34 +6306,73 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission fetched
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or no access
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/removeInsightUserPermission:
     post:
       tags:
       - auth
+      summary: Remove a user's insight access
       operationId: removeInsightUserPermission_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permission removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or invalid session
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/removeInsightUserPermissions:
     post:
       tags:
       - auth
+      summary: Remove multiple users' insight access
       operationId: removeInsightUserPermissions_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Permissions removed
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/setInsightFavorite:
     post:
       tags:
       - auth
+      summary: Set insight favorite flag for the current user
       operationId: setInsightFavorite
       requestBody:
         content:
@@ -2991,20 +6380,49 @@ paths:
             schema:
               type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Favorite set
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/insight/setInsightGlobal:
     post:
       tags:
       - auth
+      summary: Set insight global visibility (public/private)
       operationId: setInsightGlobal_1
       responses:
-        default:
-          description: default response
+        "200":
+          description: Flag updated
           content:
-            application/json: {}
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized or forbidden
+          content:
+            application/json:
+              schema:
+                type: object
   /auth/login:
     post:
       tags:
@@ -4904,6 +8322,12 @@ components:
         jobId:
           type: string
           description: Asynchronous job identifier
+    LegacyAdminSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Indicates if the operation succeeded
     LegacyUpdateResponse:
       type: object
       properties:
