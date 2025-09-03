@@ -11,17 +11,35 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import prerna.om.ThreadStore;
 import prerna.rpa.config.JobConfigKeys;
 import prerna.web.requests.OverrideParametersServletRequest;
 
 @Path("/schedule")
 @PermitAll
+@Tag(name = "Scheduler", description = "Execute Pixel in scheduler context.")
 public class SchedulerResource {
 
 	@POST
 	@Path("/executePixel")
 	@Produces("application/json")
+	@Operation(
+		summary = "Execute Pixel (scheduler)",
+		description = "Executes a Pixel expression in the scheduler context and returns the result.",
+		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded",
+			schema = @Schema(implementation = ExecutePixelForm.class))),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Pixel executed",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response executePixel(@Context HttpServletRequest request) {
 		// we will flush the user object inside
 		// and make sure the 
@@ -61,4 +79,10 @@ public class SchedulerResource {
 		}
 	}
 	
+}
+
+// DTO for OpenAPI documentation
+class ExecutePixelForm {
+	@Schema(description = "Pixel expression to execute", required = true)
+	public String pixel;
 }

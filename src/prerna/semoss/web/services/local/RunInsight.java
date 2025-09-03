@@ -1,5 +1,9 @@
 package prerna.semoss.web.services.local;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,6 +27,7 @@ import prerna.web.requests.OverrideParametersServletRequest;
 
 @PermitAll
 @SecurityRequirement(name = "basicAuth")
+@Tag(name = "Insight Execution", description = "Run common insight operations such as retrieving table data or recreating insight state.")
 public class RunInsight {
 
 	private static final Logger classLogger = LogManager.getLogger(RunInsight.class);
@@ -41,6 +46,14 @@ public class RunInsight {
 	@POST
 	@Path("/getTableData")
 	@Produces("application/json")
+	@Operation(
+		summary = "Get table data",
+		description = "Runs a default Pixel to fetch table data for the current insight.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Data returned",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response getInsightData(@Context HttpServletRequest request) {
 		String pixel = "QueryAll()|Collect(-1);FrameHeaders();";
 		return runPixel(request, pixel);
@@ -49,6 +62,14 @@ public class RunInsight {
 	@POST
 	@Path("/getInsightState")
 	@Produces("application/json")
+	@Operation(
+		summary = "Recreate insight state",
+		description = "Recreates and returns the insight's state.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "State returned",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response recreateInsightState(@Context HttpServletRequest request) {
 		PixelRunner pixelRunner = InsightUtility.recreateInsightState(in);
 		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, null))

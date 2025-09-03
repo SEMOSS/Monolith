@@ -13,6 +13,8 @@ tags:
 - name: Engine Execution
   description: " Executes a Pixel (SEMOSS scripting language) command. Pixels are\
     \ used for data processing, analytics, and workflow automation in SEMOSS."
+- name: Scheduler
+  description: Execute Pixel in scheduler context.
 - name: auth
   description: "Endpoints for managing authentication and authorization of users and\
     \ applications, including user permissions, access control, and administrative\
@@ -4439,10 +4441,21 @@ paths:
       - basicAuth: []
   /schedule/executePixel:
     post:
+      tags:
+      - Scheduler
+      summary: Execute Pixel (scheduler)
+      description: Executes a Pixel expression in the scheduler context and returns
+        the result.
       operationId: executePixel
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExecutePixelForm'
+        required: true
       responses:
-        default:
-          description: default response
+        "200":
+          description: Pixel executed
           content:
             application/json: {}
   /session/active:
@@ -4554,6 +4567,14 @@ paths:
             application/json: {}
 components:
   schemas:
+    ExecutePixelForm:
+      required:
+      - pixel
+      type: object
+      properties:
+        pixel:
+          type: string
+          description: Pixel expression to execute
     InsightIdForm:
       required:
       - insightId
