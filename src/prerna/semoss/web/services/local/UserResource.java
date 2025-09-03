@@ -64,6 +64,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -108,6 +117,7 @@ import waffle.servlet.WindowsPrincipal;
 
 @Path("/auth")
 @PermitAll
+@Tag(name = "Authentication", description = "User authentication and session management")
 public class UserResource {
 
 	private static final Logger classLogger = LogManager.getLogger(UserResource.class);
@@ -119,8 +129,44 @@ public class UserResource {
 		socialData = SocialPropertiesUtil.getInstance();
 	}
 
+	// DTOs for OpenAPI schema documentation
+	static class UserInfoDTO {
+		@Schema(description = "User identifier")
+		public String id;
+		@Schema(description = "Display name")
+		public String name;
+		@Schema(description = "Email address")
+		public String email;
+		@Schema(description = "User type", allowableValues = {"admin", "user", "api"})
+		public String type;
+		@Schema(description = "List of permissions")
+		public List<String> permissions;
+	}
+
+	static class LoginProviderDTO {
+		@Schema(description = "Provider display name", example = "Google")
+		public String name;
+		@Schema(description = "Provider key", example = "google")
+		public String type;
+		@Schema(description = "Whether this provider is enabled")
+		public Boolean enabled;
+		@Schema(description = "Login URL for redirection")
+		public String loginUrl;
+	}
+
 	@GET
 	@Path("/logins")
+	@Produces("application/json")
+	@Operation(
+		summary = "Get available login providers",
+		description = "Returns a list of available authentication providers",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Login providers retrieved successfully",
+				content = @Content(mediaType = "application/json",
+					schema = @Schema(implementation = LoginProviderDTO[].class))),
+			@ApiResponse(responseCode = "500", description = "Internal server error")
+		}
+	)
 	public Response getAllLogins(@Context HttpServletRequest request) {
 		List<NewCookie> newCookies = new ArrayList<>();
 		HttpSession session = request.getSession(false);
@@ -146,6 +192,24 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/logout/{provider}")
+	@Operation(
+		summary = "Logout from specific provider",
+		description = "Logs out the user from the specified authentication provider",
+		parameters = {
+			@Parameter(name = "provider", in = ParameterIn.PATH, required = true,
+				description = "Authentication provider",
+				allowEmptyValue = false,
+				schema = @Schema(type = "string", allowableValues = {"local","google","microsoft","github","okta","saml","ALL"})),
+			@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, required = false,
+				description = "If true, disables redirect after logout", schema = @Schema(type = "boolean", defaultValue = "false"))
+		},
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Logout successful"),
+			@ApiResponse(responseCode = "302", description = "Redirect to logout URL"),
+			@ApiResponse(responseCode = "400", description = "Bad request - no user in session"),
+			@ApiResponse(responseCode = "401", description = "Unauthorized")
+		}
+	)
 	public Response logout(@PathParam("provider") String provider, @QueryParam("disableRedirect") boolean disableRedirect,
 			@Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws IOException {
@@ -3247,6 +3311,21 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/whoami")
+	@Operation(
+		summary = "Get current user information",
+		description = "Returns information about the currently authenticated user",
+		security = {
+			@SecurityRequirement(name = "basicAuth"),
+			@SecurityRequirement(name = "trustedToken")
+		},
+		responses = {
+			@ApiResponse(responseCode = "200", description = "User information retrieved successfully",
+				content = @Content(mediaType = "application/json",
+					schema = @Schema(implementation = UserInfoDTO.class))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized"),
+			@ApiResponse(responseCode = "500", description = "Internal server error")
+		}
+	)
 	public Response show(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Principal principal = request.getUserPrincipal();
 		Map<String, Object> output = new HashMap<>();

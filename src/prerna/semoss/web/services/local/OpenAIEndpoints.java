@@ -65,6 +65,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/model/openai")
 @PermitAll
 @SecurityRequirement(name = "basicAuth")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "AI Models", description = "AI and machine learning model operations")
 public class OpenAIEndpoints {
 
 	private static final Logger classLogger = LogManager.getLogger(NameServer.class);

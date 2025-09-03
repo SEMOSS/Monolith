@@ -15,8 +15,14 @@ tags:
 - name: Engine Execution
   description: " Executes a Pixel (SEMOSS scripting language) command. Pixels are\
     \ used for data processing, analytics, and workflow automation in SEMOSS."
+- name: AI Models
+  description: AI and machine learning model operations
 - name: Scheduler
   description: Execute Pixel in scheduler context.
+- name: Session
+  description: Session management and cleanup
+- name: Authentication
+  description: User authentication and session management
 - name: auth
   description: "Endpoints for managing authentication and authorization of users and\
     \ applications, including user permissions, access control, and administrative\
@@ -2016,6 +2022,8 @@ paths:
       deprecated: true
   /auth/changeADPassword:
     post:
+      tags:
+      - Authentication
       operationId: changeADPassword
       responses:
         default:
@@ -2024,6 +2032,8 @@ paths:
             application/json: {}
   /auth/createAPIUser:
     post:
+      tags:
+      - Authentication
       operationId: createAPIUser
       responses:
         default:
@@ -2032,6 +2042,8 @@ paths:
             application/json: {}
   /auth/createUser:
     post:
+      tags:
+      - Authentication
       operationId: createNativeUser
       responses:
         default:
@@ -2533,6 +2545,8 @@ paths:
             application/json: {}
   /auth/getAllLoginProperties:
     get:
+      tags:
+      - Authentication
       operationId: getAllLoginProperties
       responses:
         default:
@@ -2944,6 +2958,8 @@ paths:
             application/json: {}
   /auth/login:
     post:
+      tags:
+      - Authentication
       operationId: loginNative
       responses:
         default:
@@ -2952,6 +2968,8 @@ paths:
             application/json: {}
   /auth/login/adfs:
     get:
+      tags:
+      - Authentication
       operationId: loginADFS
       responses:
         default:
@@ -2960,6 +2978,8 @@ paths:
             application/json: {}
   /auth/login/dropbox:
     get:
+      tags:
+      - Authentication
       operationId: loginDropBox
       responses:
         default:
@@ -2968,6 +2988,8 @@ paths:
             application/json: {}
   /auth/login/github:
     get:
+      tags:
+      - Authentication
       operationId: loginGithub
       responses:
         default:
@@ -2976,6 +2998,8 @@ paths:
             application/json: {}
   /auth/login/gitlab:
     get:
+      tags:
+      - Authentication
       operationId: loginGitlab
       responses:
         default:
@@ -2984,6 +3008,8 @@ paths:
             application/json: {}
   /auth/login/google:
     get:
+      tags:
+      - Authentication
       operationId: loginGoogle
       responses:
         default:
@@ -2992,6 +3018,8 @@ paths:
             application/json: {}
   /auth/login/linkedin:
     get:
+      tags:
+      - Authentication
       operationId: loginLinkedin
       responses:
         default:
@@ -3000,6 +3028,8 @@ paths:
             application/json: {}
   /auth/login/microsoft:
     get:
+      tags:
+      - Authentication
       operationId: loginMicrosoft
       responses:
         default:
@@ -3008,6 +3038,8 @@ paths:
             application/json: {}
   /auth/login/ms:
     get:
+      tags:
+      - Authentication
       operationId: loginMS
       responses:
         default:
@@ -3017,6 +3049,8 @@ paths:
       deprecated: true
   /auth/login/okta:
     get:
+      tags:
+      - Authentication
       operationId: loginOkta
       responses:
         default:
@@ -3025,6 +3059,8 @@ paths:
             application/json: {}
   /auth/login/producthunt:
     get:
+      tags:
+      - Authentication
       operationId: loginProducthunt
       responses:
         default:
@@ -3033,6 +3069,8 @@ paths:
             application/json: {}
   /auth/login/salesforce:
     get:
+      tags:
+      - Authentication
       operationId: loginSalesforce
       responses:
         default:
@@ -3041,6 +3079,8 @@ paths:
             application/json: {}
   /auth/login/siteminder:
     get:
+      tags:
+      - Authentication
       operationId: loginSiteminder
       responses:
         default:
@@ -3049,6 +3089,8 @@ paths:
             application/json: {}
   /auth/login/surveymonkey:
     get:
+      tags:
+      - Authentication
       operationId: loginSurveyMonkey
       responses:
         default:
@@ -3057,6 +3099,8 @@ paths:
             application/json: {}
   /auth/login/twitter:
     get:
+      tags:
+      - Authentication
       operationId: loginTwitter
       responses:
         default:
@@ -3065,6 +3109,8 @@ paths:
             application/json: {}
   /auth/login/{provider}:
     get:
+      tags:
+      - Authentication
       operationId: loginGeneric
       parameters:
       - name: provider
@@ -3079,6 +3125,8 @@ paths:
             application/json: {}
   /auth/loginLDAP:
     post:
+      tags:
+      - Authentication
       operationId: loginLDAP
       responses:
         default:
@@ -3087,6 +3135,8 @@ paths:
             application/json: {}
   /auth/loginLinOTP:
     post:
+      tags:
+      - Authentication
       operationId: loginLinOTP
       responses:
         default:
@@ -3095,6 +3145,8 @@ paths:
             application/json: {}
   /auth/loginProperties:
     get:
+      tags:
+      - Authentication
       operationId: loginProperties
       responses:
         default:
@@ -3103,14 +3155,24 @@ paths:
             application/json: {}
   /auth/logins:
     get:
+      tags:
+      - Authentication
+      summary: Get available login providers
+      description: Returns a list of available authentication providers
       operationId: getAllLogins
       responses:
-        default:
-          description: default response
+        "200":
+          description: Login providers retrieved successfully
           content:
-            '*/*': {}
+            application/json:
+              schema:
+                type: string
+        "500":
+          description: Internal server error
   /auth/loginsAllowed:
     get:
+      tags:
+      - Authentication
       operationId: loginsAllowed
       responses:
         default:
@@ -3119,8 +3181,32 @@ paths:
             application/json: {}
   /auth/logout/{provider}:
     get:
+      tags:
+      - Authentication
+      summary: Logout from specific provider
+      description: Logs out the user from the specified authentication provider
       operationId: logout
       parameters:
+      - name: provider
+        in: path
+        description: Authentication provider
+        required: true
+        schema:
+          type: string
+          enum:
+          - local
+          - google
+          - microsoft
+          - github
+          - okta
+          - saml
+          - ALL
+      - name: disableRedirect
+        in: query
+        description: "If true, disables redirect after logout"
+        schema:
+          type: boolean
+          default: false
       - name: provider
         in: path
         required: true
@@ -3131,12 +3217,18 @@ paths:
         schema:
           type: boolean
       responses:
-        default:
-          description: default response
-          content:
-            application/json: {}
+        "200":
+          description: Logout successful
+        "302":
+          description: Redirect to logout URL
+        "400":
+          description: Bad request - no user in session
+        "401":
+          description: Unauthorized
   /auth/modifyAllLoginProperties:
     post:
+      tags:
+      - Authentication
       operationId: modifyAllLoginProperties
       responses:
         default:
@@ -3145,6 +3237,8 @@ paths:
             application/json: {}
   /auth/modifyLoginProperties/{provider}:
     post:
+      tags:
+      - Authentication
       operationId: modifyLoginProperties
       parameters:
       - name: provider
@@ -3442,6 +3536,8 @@ paths:
             application/json: {}
   /auth/resetLinOTPFailCounter:
     post:
+      tags:
+      - Authentication
       operationId: resetLinOTPFailCounter
       responses:
         default:
@@ -3520,6 +3616,8 @@ paths:
             application/json: {}
   /auth/userinfo/adfs:
     get:
+      tags:
+      - Authentication
       operationId: userinfoADFS
       responses:
         default:
@@ -3528,6 +3626,8 @@ paths:
             application/json: {}
   /auth/userinfo/dropbox:
     get:
+      tags:
+      - Authentication
       operationId: userinfoDropbox
       responses:
         default:
@@ -3536,6 +3636,8 @@ paths:
             application/json: {}
   /auth/userinfo/github:
     get:
+      tags:
+      - Authentication
       operationId: userinfoGithub
       responses:
         default:
@@ -3544,6 +3646,8 @@ paths:
             application/json: {}
   /auth/userinfo/google:
     get:
+      tags:
+      - Authentication
       operationId: userinfoGoogle
       responses:
         default:
@@ -3552,6 +3656,8 @@ paths:
             application/json: {}
   /auth/userinfo/microsoft:
     get:
+      tags:
+      - Authentication
       operationId: userinfoMicrosoft
       responses:
         default:
@@ -3560,6 +3666,8 @@ paths:
             application/json: {}
   /auth/userinfo/ms:
     get:
+      tags:
+      - Authentication
       operationId: userinfoMs
       responses:
         default:
@@ -3569,6 +3677,8 @@ paths:
       deprecated: true
   /auth/userinfo/okta:
     get:
+      tags:
+      - Authentication
       operationId: userinfoOkta
       responses:
         default:
@@ -3577,6 +3687,8 @@ paths:
             application/json: {}
   /auth/userinfo/{provider}:
     get:
+      tags:
+      - Authentication
       operationId: userinfoGeneric
       parameters:
       - name: provider
@@ -3591,12 +3703,25 @@ paths:
             application/json: {}
   /auth/whoami:
     get:
+      tags:
+      - Authentication
+      summary: Get current user information
+      description: Returns information about the currently authenticated user
       operationId: show
       responses:
-        default:
-          description: default response
+        "200":
+          description: User information retrieved successfully
           content:
-            application/json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfoDTO'
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal server error
+      security:
+      - basicAuth: []
+      - trustedToken: []
   /authorization/searchForUser:
     get:
       tags:
@@ -4253,6 +4378,8 @@ paths:
             application/json;charset=utf-8: {}
   /model/openai/chat/completions:
     post:
+      tags:
+      - AI Models
       operationId: runModelChatCompletion
       responses:
         default:
@@ -4263,6 +4390,8 @@ paths:
       - basicAuth: []
   /model/openai/completions:
     post:
+      tags:
+      - AI Models
       operationId: runModelCompletion
       responses:
         default:
@@ -4273,6 +4402,8 @@ paths:
       - basicAuth: []
   /model/openai/embeddings:
     post:
+      tags:
+      - AI Models
       operationId: runModelEmbeddings
       responses:
         default:
@@ -4283,6 +4414,8 @@ paths:
       - basicAuth: []
   /model/openai/models:
     get:
+      tags:
+      - AI Models
       operationId: listModels
       responses:
         default:
@@ -4293,6 +4426,8 @@ paths:
       - basicAuth: []
   /model/openai/models/{modelId}:
     get:
+      tags:
+      - AI Models
       operationId: retrieveModel
       parameters:
       - name: modelId
@@ -4566,14 +4701,22 @@ paths:
             application/json: {}
   /session/active:
     get:
+      tags:
+      - Session
+      summary: Get active sessions
+      description: Returns the number of active sessions
       operationId: getActiveSessions
       responses:
-        default:
-          description: default response
+        "200":
+          description: Active sessions count retrieved
           content:
-            application/json;charset=utf-8: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveSessionsDTO'
   /session/cancelCleanSession:
     post:
+      tags:
+      - Session
       operationId: cancelCleanSession
       responses:
         default:
@@ -4582,14 +4725,20 @@ paths:
             application/json;charset=utf-8: {}
   /session/cleanSession:
     post:
+      tags:
+      - Session
+      summary: Clean session
+      description: Cleans up session resources
       operationId: cleanSession
       responses:
-        default:
-          description: default response
+        "200":
+          description: Session cleaned successfully
           content:
-            application/json;charset=utf-8: {}
+            application/json: {}
   /session/insights:
     get:
+      tags:
+      - Session
       operationId: getInsights
       responses:
         default:
@@ -4598,6 +4747,8 @@ paths:
             application/json;charset=utf-8: {}
   /session/invalidateSession:
     get:
+      tags:
+      - Session
       operationId: invalidateSession
       responses:
         default:
@@ -4673,6 +4824,13 @@ paths:
             application/json: {}
 components:
   schemas:
+    ActiveSessionsDTO:
+      type: object
+      properties:
+        activeSessions:
+          type: integer
+          description: Number of active sessions
+          format: int32
     ExecutePixelForm:
       required:
       - pixel
@@ -4697,6 +4855,23 @@ components:
         jobId:
           type: string
           description: Asynchronous job identifier
+    LoginProviderDTO:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Whether this provider is enabled
+        loginUrl:
+          type: string
+          description: Login URL for redirection
+        name:
+          type: string
+          description: Provider display name
+          example: Google
+        type:
+          type: string
+          description: Provider key
+          example: google
     RunPixelRequest:
       required:
       - expression
@@ -4736,3 +4911,28 @@ components:
         searchString:
           type: string
           description: Search string
+    UserInfoDTO:
+      type: object
+      properties:
+        email:
+          type: string
+          description: Email address
+        id:
+          type: string
+          description: User identifier
+        name:
+          type: string
+          description: Display name
+        permissions:
+          type: array
+          description: List of permissions
+          items:
+            type: string
+            description: List of permissions
+        type:
+          type: string
+          description: User type
+          enum:
+          - admin
+          - user
+          - api

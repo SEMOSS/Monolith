@@ -27,6 +27,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import prerna.auth.User;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -37,6 +43,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/session")
 @PermitAll
+@Tag(name = "Session", description = "Session management and cleanup")
 public class SessionResource {
 	
 	private static final Logger logger = LogManager.getLogger(SessionResource.class);
@@ -52,6 +59,15 @@ public class SessionResource {
 	@GET
 	@Path("/active")
 	@Produces("application/json;charset=utf-8")
+	@Operation(
+		summary = "Get active sessions",
+		description = "Returns the number of active sessions",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Active sessions count retrieved",
+				content = @Content(mediaType = "application/json",
+					schema = @Schema(implementation = ActiveSessionsDTO.class)))
+		}
+	)
 	public Response getActiveSessions(@Context HttpServletRequest request) {
 		Map<String, Object> ret = new HashMap<>();
 		HttpSession session = request.getSession(true);
@@ -65,7 +81,7 @@ public class SessionResource {
 			StandardManager manager = getManager(session);
 			if(manager != null) {
 				int sessions = manager.getActiveSessions();
-				if(session.isNew()) {
+				if(session != null && session.isNew()) {
 					sessions -= 1;
 				}
 				ret.put("activeSessions", sessions);
@@ -73,7 +89,7 @@ public class SessionResource {
 				ret.put("activeSessions", "Error in getting manager context");
 			}
 		} finally {
-			if(session.isNew()) {
+			if(session != null && session.isNew()) {
 				session.invalidate();
 			}
 		}
@@ -108,6 +124,14 @@ public class SessionResource {
 	@POST
 	@Path("/cleanSession")
 	@Produces("application/json;charset=utf-8")
+	@Operation(
+		summary = "Clean session",
+		description = "Cleans up session resources",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Session cleaned successfully",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response cleanSession(@Context HttpServletRequest request) {
 		// need to compare when this method was called
 		// to a potential cancellation
@@ -283,4 +307,10 @@ public class SessionResource {
 		return WebUtility.getResponse(ids, 200);
 	}
 
+}
+
+// DTO for OpenAPI docs
+class ActiveSessionsDTO {
+	@Schema(description = "Number of active sessions")
+	public Integer activeSessions;
 }
