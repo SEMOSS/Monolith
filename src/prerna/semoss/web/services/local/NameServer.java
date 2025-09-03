@@ -65,6 +65,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
@@ -171,9 +172,11 @@ public class NameServer {
 		description = "Returns a map of PlaySheet names to their implementation classes.",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Successful operation",
-				content = @Content(mediaType = "application/json")),
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"PlaySheetA\": \"com.semoss.PlaySheetA\",\n  \"PlaySheetB\": \"com.semoss.PlaySheetB\"\n}"))),
 			@ApiResponse(responseCode = "401", description = "Unauthorized",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"error\": \"Unauthorized\"\n}")))
 		}
 	)
 	public StreamingOutput getPlaySheets(@Context HttpServletRequest request) {
@@ -285,11 +288,15 @@ public class NameServer {
 		description = "Downloads an exported file for a given insight and file key.",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "File downloaded",
-				content = @Content(mediaType = "application/octet-stream")),
+				content = @Content(mediaType = "application/octet-stream",
+					schema = @Schema(type = "string", format = "binary"),
+					examples = @ExampleObject(name = "Binary", value = "binary content (octet-stream)"))),
 			@ApiResponse(responseCode = "400", description = "Invalid insight or file key",
-				content = @Content(mediaType = "application/json")),
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"error\": \"Could not find the insight id\"\n}"))),
 			@ApiResponse(responseCode = "401", description = "Unauthorized",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"error\": \"Unauthorized\"\n}")))
 		}
 	)
 	public Response downloadFile(@QueryParam("insightId") String insightId, @QueryParam("fileKey") String fileKey) {
@@ -348,6 +355,10 @@ public class NameServer {
 				description = "Pixel executed",
 				content = @Content(
 					mediaType = "application/json",
+					schema = @Schema(
+						type = "object",
+						example = "{ \"status\": \"success\", \"data\": { \"result\": \"Pixel execution output\" } }"
+					),
 					examples = {
 						@io.swagger.v3.oas.annotations.media.ExampleObject(
 							name = "Sample Response",
@@ -564,11 +575,14 @@ public class NameServer {
 		}),
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Pipeline returned",
-				content = @Content(mediaType = "application/json")),
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"pipeline\": [\n    { \"step\": \"Connect\", \"details\": { \"engine\": \"mydb\" } },\n    { \"step\": \"Select\", \"details\": { \"table\": \"customers\" } }\n  ]\n}"))),
 			@ApiResponse(responseCode = "400", description = "Invalid insight",
-				content = @Content(mediaType = "application/json")),
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"error\": \"Could not find the insight id\"\n}"))),
 			@ApiResponse(responseCode = "401", description = "Unauthorized",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"error\": \"User session is invalid\"\n}")))
 		}
 	)
 	public Response getPixelPipelinePlan(@Context HttpServletRequest request) {
@@ -688,11 +702,14 @@ public class NameServer {
 		}),
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Job submitted",
-				content = @Content(mediaType = "application/json")),
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"jobId\": \"123e4567-e89b-12d3-a456-426614174000\"\n}"))),
 			@ApiResponse(responseCode = "400", description = "Invalid request",
-				content = @Content(mediaType = "application/json")),
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"error\": \"Must pass in 'expression'\"\n}"))),
 			@ApiResponse(responseCode = "401", description = "Unauthorized",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"error\": \"User session is invalid\"\n}")))
 		}
 	)
 	public Response runPixelAsync(@Context HttpServletRequest request) {
@@ -874,9 +891,11 @@ public class NameServer {
 		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Result returned",
-				content = @Content(mediaType = "application/json")),
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"status\": \"success\",\n  \"data\": { \"result\": \"Pixel execution output\" }\n}"))),
 			@ApiResponse(responseCode = "404", description = "Job not found or not in session",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"error\": \"Job not found or expired\"\n}")))
 		}
 	)
 	public StreamingOutput result(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
@@ -917,7 +936,8 @@ public class NameServer {
 		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Status returned",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"status\": \"RUNNING\",\n  \"progress\": 45\n}")))
 		}
 	)
 	public Response status(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
@@ -945,7 +965,8 @@ public class NameServer {
 		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Console logs returned",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"status\": \"RUNNING\",\n  \"message\": [\"line 1\", \"line 2\"]\n}")))
 		}
 	)
 	public Response console(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
@@ -971,7 +992,8 @@ public class NameServer {
 		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Partial output returned",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"status\": \"RUNNING\",\n  \"message\": { \"partial\": \"value\" }\n}")))
 		}
 	)
 	public Response partial(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
@@ -997,7 +1019,8 @@ public class NameServer {
 		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Error logs returned",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"status\": \"FAILED\",\n  \"message\": [\"Error: Something went wrong\"]\n}")))
 		}
 	)
 	public Response error(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
@@ -1023,7 +1046,8 @@ public class NameServer {
 		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Job terminated",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "\"success\"")))
 		}
 	)
 	public StreamingOutput terminate(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
@@ -1046,7 +1070,8 @@ public class NameServer {
 		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Job reset",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "\"success\"")))
 		}
 	)
 	public StreamingOutput reset(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
@@ -1066,7 +1091,8 @@ public class NameServer {
 		description = "Starts a legacy long-running job and returns its identifier.",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Job started",
-				content = @Content(mediaType = "text/plain"))
+				content = @Content(mediaType = "text/plain",
+					examples = @ExampleObject(value = "abc123-job-id")))
 		}
 	)
 	public String cometTry(@Context HttpServletRequest request) {
@@ -1092,7 +1118,8 @@ public class NameServer {
 		description = "Retrieves output for a legacy comet job.",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Output returned",
-				content = @Content(mediaType = "text/plain"))
+				content = @Content(mediaType = "text/plain",
+					examples = @ExampleObject(value = "Comet job output...")))
 		}
 	)
 	public String getJobOutput(@QueryParam("jobId") String jobId, @Context HttpServletRequest request) {
@@ -1127,7 +1154,8 @@ public class NameServer {
 		description = "Terminates a legacy comet job.",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Job terminated",
-				content = @Content(mediaType = "application/xml"))
+				content = @Content(mediaType = "application/xml",
+					examples = @ExampleObject(value = "<status>terminated</status>")))
 		}
 	)
 	public void killJob(@QueryParam("jobId") String jobId, @Context HttpServletRequest request) {
@@ -1196,7 +1224,8 @@ public class NameServer {
 		description = "Searches Wikipedia for a term and returns top results with Product Ontology links.",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Results returned",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"http://www.productontology.org/id/Apple\": \"Fruit description...\"\n}")))
 		}
 	)
 	public StreamingOutput getMediaWikiTagsForSearchTerm(@QueryParam("searchTerm") String searchTerm,
@@ -1324,9 +1353,11 @@ public class NameServer {
 		description = "Returns basic information for all engines the user can access.",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Engines returned",
-				content = @Content(mediaType = "application/json")),
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "[\n  { \"id\": \"engine1\", \"name\": \"SalesDB\" },\n  { \"id\": \"engine2\", \"name\": \"HRDB\" }\n]"))),
 			@ApiResponse(responseCode = "401", description = "Unauthorized",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"error\": \"Unauthorized\"\n}")))
 		}
 	)
 	public StreamingOutput printEngines(@Context HttpServletRequest request) {
@@ -1351,7 +1382,8 @@ public class NameServer {
 		description = "Placeholder endpoint for adding an engine. Currently no-op.",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "No-op",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{}")))
 		}
 	)
 	public void addEngine(@Context HttpServletRequest request, @QueryParam("api") String api,
@@ -1385,7 +1417,8 @@ public class NameServer {
 		description = "Returns a simple HTML page describing available routes.",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "HTML returned",
-				content = @Content(mediaType = "text/html"))
+				content = @Content(mediaType = "text/html",
+					examples = @ExampleObject(value = "<html><body><h1>SEMOSS Engine API</h1></body></html>")))
 		}
 	)
 	public StreamingOutput printURL(@Context HttpServletRequest request, @Context HttpServletResponse response) {
@@ -1518,7 +1551,8 @@ public class NameServer {
 		description = "Returns autocomplete suggestions for insight search.",
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Suggestions returned",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "[\n  \"sales by region\",\n  \"customer churn\"\n]")))
 		}
 	)
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String searchString,
@@ -1553,7 +1587,8 @@ public class NameServer {
 		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.SearchInsightsForm.class))),
 		responses = {
 			@ApiResponse(responseCode = "200", description = "Results returned",
-				content = @Content(mediaType = "application/json"))
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "[\n  { \"id\": \"bf235853-86b7-483f-a0a5-ae489bfed97b\", \"title\": \"Sales by Region\", \"tags\": [\"sales\", \"region\"] }\n]")))
 		}
 	)
 	public StreamingOutput getSearchInsightsResults(MultivaluedMap<String, String> form,
