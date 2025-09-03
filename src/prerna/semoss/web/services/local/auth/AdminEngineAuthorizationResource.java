@@ -1,6 +1,15 @@
 package prerna.semoss.web.services.local.auth;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.HashMap;
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -21,6 +30,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
@@ -42,6 +52,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/engine")
 @PermitAll
+@Tag(name = "auth", description = "Endpoints for managing authentication and authorization of users and applications, including user permissions, access control, and administrative actions.")
 public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
 	private static final Logger classLogger = LogManager.getLogger(AdminEngineAuthorizationResource.class);
@@ -57,6 +68,26 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngines")
+	@Operation(
+		summary = "Get engines",
+		description = "Returns engines with optional filters.",
+		parameters = {
+			@Parameter(name = "engineId", in = ParameterIn.QUERY, description = "Filter by engineId", required = false),
+			@Parameter(name = "engineTypes", in = ParameterIn.QUERY, description = "Filter by engine types", required = false),
+			@Parameter(name = "filterWord", in = ParameterIn.QUERY, description = "Search term", required = false),
+			@Parameter(name = "limit", in = ParameterIn.QUERY, description = "Limit", required = false),
+			@Parameter(name = "offset", in = ParameterIn.QUERY, description = "Offset", required = false),
+			@Parameter(name = "metaKeys", in = ParameterIn.QUERY, description = "Meta keys to include", required = false),
+			@Parameter(name = "noMeta", in = ParameterIn.QUERY, description = "Exclude metadata", required = false),
+			@Parameter(name = "userT", in = ParameterIn.QUERY, description = "Include user tracking", required = false)
+		},
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Engines retrieved",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response getEnginesGET(@Context HttpServletRequest request, 
 			@QueryParam("engineId") List<String> engineFilter,
 			@QueryParam("engineTypes") List<String> engineTypes,
@@ -150,6 +181,16 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("getEngines")
+	@Operation(
+		summary = "Get engines (POST)",
+		description = "Returns engines using form parameters in request body.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Engines retrieved",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response getEnginesPOST(@Context HttpServletRequest request) {
 		User user = null;
 		try {
@@ -211,7 +252,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
 		if(parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null && parameterMap.get("metaFilters").length > 0) {
-			Map<String, Object> metaFilters = new Gson().fromJson(parameterMap.get("metaFilters")[0], Map.class);
+			Type mapStringObject = new TypeToken<Map<String, Object>>(){}.getType();
+			Map<String, Object> metaFilters = new Gson().fromJson(parameterMap.get("metaFilters")[0], mapStringObject);
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
@@ -234,13 +276,24 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Path("/getAllUserEngines")
 	@Produces("application/json")
+	@Operation(
+		summary = "Get all user engines",
+		description = "Lists engines a user has access to, optionally filtered by types.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "User engines retrieved",
+				content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = java.lang.Object.class)))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response getAllUserEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		List<String> engineTypes = null;
 		if(WebUtility.inputSQLSanitizer(form.getFirst("engineTypes")) != null) {
-			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
+			Type listOfString = new TypeToken<List<String>>(){}.getType();
+			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), listOfString);
 			engineTypes = WebUtility.inputSanitizer(engineTypes);  
 		}
 		try {
@@ -260,6 +313,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Path("/grantAllEngines")
 	@Produces("application/json")
+	@Operation(
+		summary = "Grant all engines",
+		description = "Grants a user permissions to all engines, optionally filtered by types.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response grantAllEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -268,7 +333,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		boolean isAddNew = Boolean.parseBoolean(form.getFirst("isAddNew") + "");
 		List<String> engineTypes = null;
 		if(form.getFirst("engineTypes") != null) {
-			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
+			Type listOfString = new TypeToken<List<String>>(){}.getType();
+			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), listOfString);
 			engineTypes = WebUtility.inputSanitizer(engineTypes);
 		}
 
@@ -306,6 +372,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Path("/grantNewUsersEngineAccess")
 	@Produces("application/json")
+	@Operation(
+		summary = "Grant new users engine access",
+		description = "Grants all new users access to an engine.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response grantNewUsersEngineAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -353,6 +431,24 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsers")
+	@Operation(
+		summary = "Get engine users",
+		description = "Gets users and permissions for an engine.",
+		parameters = {
+			@Parameter(name = "engineId", in = ParameterIn.QUERY, description = "Engine identifier"),
+			@Parameter(name = "userId", in = ParameterIn.QUERY, description = "User identifier to filter"),
+			@Parameter(name = "searchTerm", in = ParameterIn.QUERY, description = "Search term"),
+			@Parameter(name = "permission", in = ParameterIn.QUERY, description = "Permission filter"),
+			@Parameter(name = "limit", in = ParameterIn.QUERY, description = "Limit"),
+			@Parameter(name = "offset", in = ParameterIn.QUERY, description = "Offset")
+		},
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Users retrieved",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response getEngineUsers(@Context HttpServletRequest request, 
 			@QueryParam("engineId") String engineId, @QueryParam("userId") String userId, 
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("permission") String permission, 
@@ -393,6 +489,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addEngineUserPermission")
+	@Operation(
+		summary = "Add engine user permission",
+		description = "Adds a user's permission for an engine.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response addEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
@@ -463,6 +571,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addEngineUserPermissions")
+	@Operation(
+		summary = "Add engine user permissions (bulk)",
+		description = "Adds user permissions in bulk for an engine.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -481,7 +601,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
 
 		// adding user permissions in bulk
-		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+	Type listOfMapStringObject = new TypeToken<List<Map<String, Object>>>(){}.getType();
+	List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), listOfMapStringObject);
 		try {
 			// if we are doing the grpah api
 			// then the users might not already exist in the security db
@@ -528,6 +649,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addAllUsers")
+	@Operation(
+		summary = "Add all users",
+		description = "Adds all users to an engine.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -572,6 +705,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("editEngineUserPermission")
+	@Operation(
+		summary = "Edit engine user permission",
+		description = "Edits a user's permission for an engine.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response editEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
@@ -642,6 +787,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("editEngineUserPermissions")
+	@Operation(
+		summary = "Edit engine user permissions (bulk)",
+		description = "Edits multiple user permissions for an engine.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
@@ -656,7 +813,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+	Type listOfMapStringObject = new TypeToken<List<Map<String, Object>>>(){}.getType();
+	List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), listOfMapStringObject);
 		try {
 			SecurityAdminUtils.editEngineUserPermissions(engineId, requests, user);
 		} catch (Exception e) {
@@ -683,6 +841,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("updateEngineUserPermissions")
+	@Operation(
+		summary = "Update engine user permissions",
+		description = "Updates all users' permissions for an engine.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response updateEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -726,6 +896,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeEngineUserPermission")
+	@Operation(
+		summary = "Remove engine user permission",
+		description = "Removes a user's permission for an engine.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response removeEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -770,6 +952,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeEngineUserPermissions")
+	@Operation(
+		summary = "Remove engine user permissions (bulk)",
+		description = "Removes multiple users' permissions for an engine.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response removeEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -784,8 +978,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		Gson gson = new Gson();
-		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+	Gson gson = new Gson();
+	Type listOfString = new TypeToken<List<String>>(){}.getType();
+	List<String> ids = gson.fromJson(form.getFirst("ids"), listOfString);
 		ids = WebUtility.inputSQLSanitizer(ids);
 		try {
 			adminUtils.removeEngineUsers(ids, engineId);
@@ -807,6 +1002,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineGlobal")
+	@Operation(
+		summary = "Set engine global",
+		description = "Sets the engine public/private.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "500", description = "Internal server error",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response setEngineGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -852,6 +1059,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineDiscoverable")
+	@Operation(
+		summary = "Set engine discoverable",
+		description = "Sets the engine discoverability.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "500", description = "Internal server error",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response setEngineDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -897,6 +1116,24 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsersNoCredentials")
+	@Operation(
+		summary = "Get engine users without credentials",
+		description = "Lists users without engine credentials.",
+		parameters = {
+			@Parameter(name = "engineId", in = ParameterIn.QUERY, description = "Engine identifier"),
+			@Parameter(name = "searchTerm", in = ParameterIn.QUERY, description = "Search term"),
+			@Parameter(name = "limit", in = ParameterIn.QUERY, description = "Limit"),
+			@Parameter(name = "offset", in = ParameterIn.QUERY, description = "Offset")
+		},
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Users retrieved",
+				content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = java.lang.Object.class)))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "500", description = "Internal server error",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request,
 			@QueryParam("engineId") String engineId, 
 			@QueryParam("searchTerm") String searchTerm,
@@ -951,6 +1188,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("approveEngineUserAccessRequest")
+	@Operation(
+		summary = "Approve engine user access request",
+		description = "Approves user access requests and adds permissions.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response approveEngineUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 
@@ -969,7 +1218,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// adding user permissions and updating user access requests in bulk
-		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
+	Type listOfMapStringObject = new TypeToken<List<Map<String, Object>>>(){}.getType();
+	List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("requests"), listOfMapStringObject);
 		try {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
@@ -999,6 +1249,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("denyEngineUserAccessRequest")
+	@Operation(
+		summary = "Deny engine user access request",
+		description = "Denies user access requests.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response denyEngineUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 
@@ -1016,7 +1278,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// updating user access requests in bulk
-		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
+	Type listOfString = new TypeToken<List<String>>(){}.getType();
+	List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), listOfString);
 		requestIds = WebUtility.inputSQLSanitizer(requestIds);
 		try {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());

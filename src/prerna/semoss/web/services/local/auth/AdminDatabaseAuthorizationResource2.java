@@ -1,10 +1,18 @@
 package prerna.semoss.web.services.local.auth;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.lang.reflect.Type;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
@@ -22,6 +30,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AccessToken;
 import prerna.auth.User;
@@ -50,6 +59,20 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getDatabases")
+	@Operation(
+		summary = "Get databases (legacy)",
+		description = "Returns engine settings for database-type engines. Deprecated: use /auth/admin/engine/getEngines with engineTypes.",
+		deprecated = true,
+		parameters = {
+			@Parameter(name = "databaseId", in = ParameterIn.QUERY, description = "Filter by databaseId (repeatable)")
+		},
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Databases retrieved",
+				content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = java.lang.Object.class)))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response getDatabases(@Context HttpServletRequest request, @QueryParam("databaseId") List<String> databaseId) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngines with PARAM engineTypes");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngines with PARAM engineTypes");
@@ -79,6 +102,17 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Path("/getAllUserDatabases")
 	@Produces("application/json")
+	@Operation(
+		summary = "Get all user databases (legacy)",
+		description = "Lists engines a user has access to. Deprecated: use /auth/admin/engine/getAllUserEngines with engineTypes.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "User databases retrieved",
+				content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = java.lang.Object.class)))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response getAllUserDatabases(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getAllUserEngines with PARAM engineTypes");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getAllUserEngines with PARAM engineTypes");
@@ -89,10 +123,10 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		User user = null;
 		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		List<String> engineTypes = null;
-		
-		if(form.getFirst("engineTypes") != null) {
-			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
-			engineTypes=WebUtility.inputSanitizer(engineTypes);
+		if (form.getFirst("engineTypes") != null) {
+			Type listOfString = new TypeToken<List<String>>(){}.getType();
+			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), listOfString);
+			engineTypes = WebUtility.inputSanitizer(engineTypes);
 		}
 
 		try {
@@ -112,6 +146,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Path("/grantAllDatabases")
 	@Produces("application/json")
+	@Operation(
+		summary = "Grant all databases (legacy)",
+		description = "Grants a user permissions to all database-type engines. Deprecated: use /auth/admin/engine/grantAllEngines.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response grantAllDatabases(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantAllEngines with PARAM engineTypes");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantAllEngines with PARAM engineTypes");
@@ -157,6 +204,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Path("/grantNewUsersDatabaseAccess")
 	@Produces("application/json")
+	@Operation(
+		summary = "Grant new users database access (legacy)",
+		description = "Grants all new users access to a database. Deprecated: use /auth/admin/engine/grantNewUsersEngineAccess.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response grantNewUsersDatabaseAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantNewUsersEngineAccess with PARAM engineTypes");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/grantNewUsersEngineAccess with PARAM engineTypes");
@@ -210,6 +270,25 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getDatabaseUsers")
+	@Operation(
+		summary = "Get database users (legacy)",
+		description = "Gets users and permissions for a database. Deprecated: use /auth/admin/engine/getEngineUsers.",
+		deprecated = true,
+		parameters = {
+			@Parameter(name = "databaseId", in = ParameterIn.QUERY, description = "Database identifier"),
+			@Parameter(name = "userId", in = ParameterIn.QUERY, description = "User identifier to filter"),
+			@Parameter(name = "searchTerm", in = ParameterIn.QUERY, description = "Search term"),
+			@Parameter(name = "permission", in = ParameterIn.QUERY, description = "Permission filter"),
+			@Parameter(name = "limit", in = ParameterIn.QUERY, description = "Limit"),
+			@Parameter(name = "offset", in = ParameterIn.QUERY, description = "Offset")
+		},
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Users retrieved",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = java.lang.Object.class))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response getDatabaseUsers(@Context HttpServletRequest request, 
 			@QueryParam("databaseId") String databaseId,  @QueryParam("userId") String userId, @QueryParam("searchTerm") String searchTerm,  @QueryParam("permission") String permission, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
@@ -253,6 +332,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addDatabaseUserPermission")
+	@Operation(
+		summary = "Add database user permission (legacy)",
+		description = "Adds a user permission for a database. Deprecated: use /auth/admin/engine/addEngineUserPermission.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response addDatabaseUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
@@ -302,6 +394,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addDatabaseUserPermissions")
+	@Operation(
+		summary = "Add database user permissions in bulk (legacy)",
+		description = "Adds user permissions in bulk. Deprecated: use /auth/admin/engine/addEngineUserPermissions.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response addDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addEngineUserPermissions with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addEngineUserPermissions with PARAM engineId");
@@ -323,7 +428,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 		
 		// adding user permissions in bulk
-		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+	Type listOfMapStringObject = new TypeToken<List<Map<String, Object>>>(){}.getType();
+	List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), listOfMapStringObject);
 		try {
 			adminUtils.addEngineUserPermissions(databaseId, permission, user);
 		} catch (Exception e) {
@@ -350,6 +456,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addAllUsers")
+	@Operation(
+		summary = "Add all users (legacy)",
+		description = "Adds all users to a database. Deprecated: use /auth/admin/engine/addAllUsers.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addAllUsers with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addAllUsers with PARAM engineId");
@@ -399,6 +518,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("editDatabaseUserPermission")
+	@Operation(
+		summary = "Edit database user permission (legacy)",
+		description = "Edits a user's permission for a database. Deprecated: use /auth/admin/engine/editEngineUserPermission.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response editDatabaseUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
@@ -447,6 +579,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("editDatabaseUserPermissions")
+	@Operation(
+		summary = "Edit database user permissions in bulk (legacy)",
+		description = "Edits multiple user permissions. Deprecated: use /auth/admin/engine/editEngineUserPermissions.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response editDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/editEngineUserPermissions with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/editEngineUserPermissions with PARAM engineId");
@@ -466,7 +611,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+	Type listOfMapStringObject = new TypeToken<List<Map<String, Object>>>(){}.getType();
+	List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), listOfMapStringObject);
 		try {
 			SecurityAdminUtils.editEngineUserPermissions(databaseId, requests, user);
 		} catch (Exception e) {
@@ -493,6 +639,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("updateDatabaseUserPermissions")
+	@Operation(
+		summary = "Update database user permissions (legacy)",
+		description = "Updates all users' permissions for a database. Deprecated: use /auth/admin/engine/updateEngineUserPermissions.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response updateDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/updateEngineUserPermissions with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/updateEngineUserPermissions with PARAM engineId");
@@ -541,6 +700,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeDatabaseUserPermission")
+	@Operation(
+		summary = "Remove database user permission (legacy)",
+		description = "Removes a user's permission for a database. Deprecated: use /auth/admin/engine/removeEngineUserPermission.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response removeDatabaseUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/removeEngineUserPermission with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/removeEngineUserPermission with PARAM engineId");
@@ -590,6 +762,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeDatabaseUserPermissions")
+	@Operation(
+		summary = "Remove database user permissions in bulk (legacy)",
+		description = "Removes multiple users' permissions. Deprecated: use /auth/admin/engine/removeEngineUserPermissions.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response removeDatabaseUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/removeEngineUserPermissions with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/removeEngineUserPermissions with PARAM engineId");
@@ -609,8 +794,9 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		Gson gson = new Gson();
-		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+	Gson gson = new Gson();
+	Type listOfString = new TypeToken<List<String>>(){}.getType();
+	List<String> ids = gson.fromJson(form.getFirst("ids"), listOfString);
 		ids =  WebUtility.inputSanitizer(ids);
 		try {
 			adminUtils.removeEngineUsers(ids, databaseId);
@@ -632,6 +818,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("setDatabaseGlobal")
+	@Operation(
+		summary = "Set database global (legacy)",
+		description = "Sets the database public/private. Deprecated: use /auth/admin/engine/setEngineGlobal.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "500", description = "Internal server error",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response setDatabaseGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineGlobal with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineGlobal with PARAM engineId");
@@ -682,6 +881,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("setDatabaseDiscoverable")
+	@Operation(
+		summary = "Set database discoverable (legacy)",
+		description = "Sets the database discoverability. Deprecated: use /auth/admin/engine/setEngineDiscoverable.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "500", description = "Internal server error",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response setDatabaseDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineDiscoverable with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/setEngineDiscoverable with PARAM engineId");
@@ -732,6 +944,23 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getDatabaseUsersNoCredentials")
+	@Operation(
+		summary = "Get database users without credentials (legacy)",
+		description = "Lists users without engine credentials. Deprecated: use /auth/admin/engine/getEngineUsersNoCredentials.",
+		deprecated = true,
+		parameters = {
+			@Parameter(name = "databaseId", in = ParameterIn.QUERY, description = "Database identifier"),
+			@Parameter(name = "searchTerm", in = ParameterIn.QUERY, description = "Search term"),
+			@Parameter(name = "limit", in = ParameterIn.QUERY, description = "Limit"),
+			@Parameter(name = "offset", in = ParameterIn.QUERY, description = "Offset")
+		},
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Users retrieved",
+				content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = java.lang.Object.class)))),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response getDatabaseUsersNoCredentials(@Context HttpServletRequest request, 
 			@QueryParam("databaseId") String databaseId, 
 			@QueryParam("searchTerm") String searchTerm,
@@ -770,6 +999,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("approveDatabaseUserAccessRequest")
+	@Operation(
+		summary = "Approve database user access request (legacy)",
+		description = "Approves user access requests and adds permissions. Deprecated: use /auth/admin/engine/approveEngineUserAccessRequest.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response approveDatabaseUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/approveEngineUserAccessRequest with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/approveEngineUserAccessRequest with PARAM engineId");
@@ -793,7 +1035,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 		
 		// adding user permissions and updating user access requests in bulk
-		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
+	Type listOfMapStringObject = new TypeToken<List<Map<String, Object>>>(){}.getType();
+	List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("requests"), listOfMapStringObject);
 		try {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
@@ -823,6 +1066,19 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("denyDatabaseUserAccessRequest")
+	@Operation(
+		summary = "Deny database user access request (legacy)",
+		description = "Denies user access requests. Deprecated: use /auth/admin/engine/denyEngineUserAccessRequest.",
+		deprecated = true,
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Operation successful",
+				content = @Content(mediaType = "application/json", schema = @Schema(implementation = LegacyAdminSuccessResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response denyDatabaseUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/denyEngineUserAccessRequest with PARAM engineId");
 		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/denyEngineUserAccessRequest with PARAM engineId");
@@ -845,7 +1101,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 		
 		// updating user access requests in bulk
-		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
+	Type listOfString = new TypeToken<List<String>>(){}.getType();
+	List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), listOfString);
 		try {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
@@ -866,4 +1123,10 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 	
+}
+
+// Minimal success response DTO for documentation
+class LegacyAdminSuccessResponse {
+	@Schema(description = "Indicates if the operation succeeded")
+	public Boolean success;
 }

@@ -1,4 +1,10 @@
 package prerna.semoss.web.services.local.auth;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.HashMap;
@@ -42,6 +48,20 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getGroups")
 	@Produces("application/json")
+	@Operation(summary = "List groups", description = "Returns groups matching an optional search term with pagination.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Groups retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getAllGroups(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		searchTerm = WebUtility.inputSanitizer(searchTerm);
 		AdminSecurityGroupUtils groupUtils = null;
@@ -64,6 +84,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/addGroup")
+	@Operation(summary = "Create a group", description = "Creates a new security group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Group created",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response addGroup(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -114,6 +149,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/deleteGroup")
+	@Operation(summary = "Delete a group", description = "Deletes a security group and propagates changes.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Group deleted",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response deleteGroup(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -157,6 +207,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/editGroup")
+	@Operation(summary = "Edit a group", description = "Edits a group's id, type, or description and propagates changes.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Group edited",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response editGroup(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -210,6 +275,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/editGroupDetails")
+	@Operation(summary = "Edit group details", description = "Updates group id, type, and description without membership changes.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Group details updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response editGroupDetails(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -270,6 +350,20 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getGroupMembers")
 	@Produces("application/json")
+	@Operation(summary = "List group members", description = "Returns members of a group with optional search and pagination.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Members retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getGroupMembers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		groupId = WebUtility.inputSanitizer(groupId);
@@ -313,6 +407,18 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getNumMembersInGroup")
 	@Produces("application/json")
+	@Operation(summary = "Count group members", description = "Returns the number of users in a group, optionally filtered by a search term.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Count returned",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "integer", format = "int64"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getNumMembersInGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm) {
 		groupId = WebUtility.inputSanitizer(groupId);
 		searchTerm = WebUtility.inputSanitizer(searchTerm);
@@ -355,6 +461,20 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getNonGroupMembers")
 	@Produces("application/json")
+	@Operation(summary = "List non-members", description = "Returns users not assigned to the specified group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getNonGroupMembers(@Context HttpServletRequest request,  @QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		searchTerm = WebUtility.inputSanitizer(searchTerm);
@@ -398,6 +518,18 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getNumNonMembersInGroup")
 	@Produces("application/json")
+	@Operation(summary = "Count non-members", description = "Returns the number of users not assigned to a group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Count returned",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "integer", format = "int64"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getNumNonMembersInGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("searchTerm") String searchTerm) {
 		groupId = WebUtility.inputSanitizer(groupId);
 		searchTerm = WebUtility.inputSanitizer(searchTerm);
@@ -440,6 +572,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/addGroupMember")
+	@Operation(summary = "Add group member", description = "Adds a user to a group, optionally until an end date.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Member added",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response addGroupMember(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -491,6 +638,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/deleteGroupMember")
+	@Operation(summary = "Remove group member", description = "Removes a user from a group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Member removed",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response deleteGroupMember(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -550,6 +712,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/addGroupProjectPermission")
+	@Operation(summary = "Grant project permission to group", description = "Adds a project permission for a group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission granted",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response addGroupProjectPermission(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -610,6 +787,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/editGroupProjectPermission")
+	@Operation(summary = "Edit project permission for group", description = "Edits a group's project permission.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response editGroupProjectPermission(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -671,6 +863,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/removeGroupProjectPermission")
+	@Operation(summary = "Revoke project permission from group", description = "Removes a project's permission for a group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission removed",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response removeGroupProjectPermission(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -718,6 +925,20 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getProjectsForGroup")
 	@Produces("application/json")
+	@Operation(summary = "List projects for group", description = "Returns projects assigned to the specified group with optional filters and pagination.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Projects retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getProjectsForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
 		groupType = WebUtility.inputSanitizer(groupType);
@@ -762,6 +983,18 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getNumProjectsForGroup")
 	@Produces("application/json")
+	@Operation(summary = "Count projects for group", description = "Returns the number of projects assigned to a group, with optional filters.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Count returned",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "integer", format = "int64"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getNumProjectsForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, 
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
 		groupType = WebUtility.inputSanitizer(groupType);
@@ -806,6 +1039,20 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getAvailableProjectsForGroup")
 	@Produces("application/json")
+	@Operation(summary = "List available projects for group", description = "Returns projects that can be assigned to the group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Projects retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getAvailableProjectsForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
 		groupType = WebUtility.inputSanitizer(groupType);
@@ -850,6 +1097,18 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getNumAvailableProjectsForGroup")
 	@Produces("application/json")
+	@Operation(summary = "Count available projects for group", description = "Returns the number of projects that can be assigned to the group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Count returned",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "integer", format = "int64"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getNumAvailableProjectsForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, 
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
 		groupType = WebUtility.inputSanitizer(groupType);
@@ -909,6 +1168,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/addGroupEnginePermission")
+	@Operation(summary = "Grant engine permission to group", description = "Adds an engine permission for a group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission granted",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response addGroupEnginePermission(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -969,6 +1243,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/editGroupEnginePermission")
+	@Operation(summary = "Edit engine permission for group", description = "Edits a group's engine permission.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response editGroupEnginePermission(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -1030,6 +1319,21 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/removeGroupEnginePermission")
+	@Operation(summary = "Revoke engine permission from group", description = "Removes an engine's permission for a group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission removed",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response removeGroupEnginePermission(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new Hashtable<>();
 		User user = null;
@@ -1077,6 +1381,20 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getEnginesForGroup")
 	@Produces("application/json")
+	@Operation(summary = "List engines for group", description = "Returns engines assigned to the specified group with optional filters and pagination.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Engines retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getEnginesForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		groupType = WebUtility.inputSanitizer(groupType);
@@ -1121,6 +1439,18 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getNumEnginesForGroup")
 	@Produces("application/json")
+	@Operation(summary = "Count engines for group", description = "Returns the number of engines assigned to the specified group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Count returned",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "integer", format = "int64"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getNumEnginesForGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
 		groupType = WebUtility.inputSanitizer(groupType);
@@ -1165,6 +1495,20 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getAvailableEnginesForGroup")
 	@Produces("application/json")
+	@Operation(summary = "List available engines for group", description = "Returns engines that can be assigned to the group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Engines retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getAvailableEnginesForGroup(@Context HttpServletRequest request, 
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
@@ -1210,6 +1554,18 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getNumAvailableEnginesForGroup")
 	@Produces("application/json")
+	@Operation(summary = "Count available engines for group", description = "Returns the number of engines that can be assigned to the group.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Count returned",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "integer", format = "int64"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getNumAvailableEnginesForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
 		groupType = WebUtility.inputSanitizer(groupType);
 		groupId = WebUtility.inputSanitizer(groupId);

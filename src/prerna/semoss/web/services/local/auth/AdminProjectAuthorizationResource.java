@@ -1,5 +1,13 @@
 package prerna.semoss.web.services.local.auth;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +30,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.lang.reflect.Type;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
@@ -48,6 +58,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/project")
 @PermitAll
+@Tag(name = "auth", description = "Endpoints for managing authentication and authorization of users and applications, including user permissions, access control, and administrative actions.")
 public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 
 	private static final Logger classLogger = LogManager.getLogger(AdminProjectAuthorizationResource.class);
@@ -63,6 +74,20 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjects")
+	@Operation(summary = "List projects", description = "Returns projects filtered by optional parameters with pagination and metadata options.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Projects retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getProjectsGET(@Context HttpServletRequest request, 
 			@QueryParam("projectId") List<String> projectFilter,
 			@QueryParam("filterWord") String searchTerm, 
@@ -77,11 +102,10 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		projectFilter = WebUtility.inputSQLSanitizer(projectFilter);
 		metaKeys = WebUtility.inputSQLSanitizer(metaKeys);
 		
-		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
-			adminUtils = performAdminCheck(request, user);
+			performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all projects when not an admin"));
 			classLogger.error(Constants.STACKTRACE, e);
@@ -148,6 +172,20 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("getProjects")
+	@Operation(summary = "List projects (POST)", description = "Returns projects using form parameters for filtering and pagination.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Projects retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getProjectsPOST(@Context HttpServletRequest request) {
 		User user = null;
 		try {
@@ -201,7 +239,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
 		if(parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null && parameterMap.get("metaFilters").length > 0) {
-			Map<String, Object> metaFilters = new Gson().fromJson(parameterMap.get("metaFilters")[0], Map.class);
+			Type metaFiltersType = new TypeToken<Map<String, Object>>(){}.getType();
+			Map<String, Object> metaFilters = new Gson().fromJson(parameterMap.get("metaFilters")[0], metaFiltersType);
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
@@ -224,6 +263,20 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Path("/getAllUserProjects")
 	@Produces("application/json")
+	@Operation(summary = "List a user's projects", description = "Returns all projects the specified user has access to.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Projects retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getAllUserProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -245,6 +298,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Path("/grantAllProjects")
 	@Produces("application/json")
+	@Operation(summary = "Grant all projects", description = "Grants a user access to all projects.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Access granted",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response grantAllProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -286,6 +354,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Path("/grantNewUsersProjectAccess")
 	@Produces("application/json")
+	@Operation(summary = "Grant new users project access", description = "Grants a project permission to new users.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Access granted",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response grantNewUsersProjectAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -331,6 +414,18 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectUsers")
+	@Operation(summary = "List project users", description = "Returns users and permissions for a project, with total and pagination.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users retrieved",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getProjectUsers(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, @QueryParam("userId") String userId, 
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("permission") String permission, 
@@ -370,6 +465,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addProjectUserPermission")
+	@Operation(summary = "Add project user permission", description = "Adds a user to a project with a permission level.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission added",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response addProjectUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -414,6 +524,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addAllUsers")
+	@Operation(summary = "Add all users to project", description = "Adds all users to a project with a permission level.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users added",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -458,6 +583,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("editProjectUserPermission")
+	@Operation(summary = "Edit project user permission", description = "Edits a user's permission for a project.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response editProjectUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -504,6 +644,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("editProjectUserPermissions")
+	@Operation(summary = "Edit multiple project user permissions", description = "Edits multiple user permissions for a project in bulk.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permissions updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response editProjectUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
@@ -519,7 +674,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		Type requestsType = new TypeToken<List<Map<String, String>>>(){}.getType();
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), requestsType);
 		try {
 			SecurityAdminUtils.editProjectUserPermissions(projectId, requests, user, endDate);
 		} catch (Exception e) {
@@ -546,6 +702,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("updateProjectUserPermissions")
+	@Operation(summary = "Update all project user permissions", description = "Updates all users' permissions for a project to a new level.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permissions updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response updateProjectUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -589,6 +760,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeProjectUserPermission")
+	@Operation(summary = "Remove project user permission", description = "Removes a user's access to a project.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permission removed",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response removeProjectUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -627,6 +813,18 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("setProjectGlobal")
+	@Operation(summary = "Set project visibility", description = "Sets a project to public or private.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Visibility updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response setProjectGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -672,6 +870,18 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("setProjectDiscoverable")
+	@Operation(summary = "Set project discoverability", description = "Sets whether a project is discoverable across the instance.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Discoverability updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response setProjectDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -717,6 +927,20 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectUsersNoCredentials")
+	@Operation(summary = "List users without project access", description = "Returns users who do not have access to the given project.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Users retrieved",
+			content = @Content(mediaType = "application/json",
+				array = @ArraySchema(schema = @Schema(type = "object"))
+			)
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response getProjectUsersNoCredentials(@Context HttpServletRequest request, 
 			@QueryParam("projectId") String projectId, 
 			@QueryParam("searchTerm") String searchTerm,
@@ -770,6 +994,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("approveProjectUserAccessRequest")
+	@Operation(summary = "Approve project user access requests", description = "Approves access requests for a project and grants permissions.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Requests approved",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response approveProjectUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 
@@ -788,7 +1027,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// adding user permissions and updating user access requests in bulk
-		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
+		Type approveRequestsType = new TypeToken<List<Map<String, Object>>>(){}.getType();
+		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("requests"), approveRequestsType);
 		try {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
@@ -818,6 +1058,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("denyProjectUserAccessRequest")
+	@Operation(summary = "Deny project user access requests", description = "Denies user access requests for a project.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Requests denied",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response denyProjectUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 
@@ -835,7 +1090,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		}
 		
 		// updating user access requests in bulk
-		List<String> requestids = new Gson().fromJson(form.getFirst("requestids"), List.class);
+		Type requestIdsType = new TypeToken<List<String>>(){}.getType();
+		List<String> requestids = new Gson().fromJson(form.getFirst("requestids"), requestIdsType);
 		try {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
@@ -865,6 +1121,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addProjectUserPermissions")
+	@Operation(summary = "Add multiple project user permissions", description = "Adds user permissions to a project in bulk.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permissions added",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response addProjectUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -883,7 +1154,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
 		
 		// adding user permissions in bulk
-		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		Type permissionType = new TypeToken<List<Map<String, String>>>(){}.getType();
+		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), permissionType);
 		try {
 			// if we are doing the grpah api
 			// then the users might not already exist in the security db
@@ -930,6 +1202,21 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeProjectUserPermissions")
+	@Operation(summary = "Remove multiple project user permissions", description = "Removes user permissions from a project in bulk.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Permissions removed",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "400", description = "Bad request",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response removeProjectUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -945,7 +1232,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		Gson gson = new Gson();
-		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		Type idsType = new TypeToken<List<String>>(){}.getType();
+		List<String> ids = gson.fromJson(form.getFirst("ids"), idsType);
 		ids = WebUtility.inputSQLSanitizer(ids);
 		try {
 			adminUtils.removeProjectUsers(ids, projectId);
@@ -967,6 +1255,18 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("setProjectPortal")
+	@Operation(summary = "Set project portal", description = "Enables or disables the public portal for a project and updates configuration.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "Portal updated",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "boolean"))
+		),
+		@ApiResponse(responseCode = "401", description = "Unauthorized",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		),
+		@ApiResponse(responseCode = "500", description = "Server error",
+			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
+		)
+	})
 	public Response setProjectPortal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
