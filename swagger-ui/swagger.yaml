@@ -4576,8 +4576,9 @@ components:
       type: object
       properties:
         dropLogging:
-          type: string
+          type: boolean
           description: "If true, drop console logging after run"
+          example: true
         expression:
           type: string
           description: Pixel expression to execute
@@ -4586,6 +4587,7 @@ components:
           type: string
           description: Insight identifier. Use 'new' to create a new insight or omit
             for temporary.
+          example: bf235853-86b7-483f-a0a5-ae489bfed97b
         tz:
           type: string
           description: Client timezone ID

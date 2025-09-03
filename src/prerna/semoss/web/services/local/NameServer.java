@@ -130,14 +130,14 @@ public class NameServer {
 
 	// --- OpenAPI DTOs for request/response documentation only ---
 	static class RunPixelRequest {
-		@Schema(description = "Insight identifier. Use 'new' to create a new insight or omit for temporary.")
+		@Schema(description = "Insight identifier. Use 'new' to create a new insight or omit for temporary.", example = "bf235853-86b7-483f-a0a5-ae489bfed97b")
 		public String insightId;
 		@Schema(description = "Pixel expression to execute", required = true, example = "Connect(engine:'mydb');")
 		public String expression;
 		@Schema(description = "Client timezone ID", example = "America/New_York")
 		public String tz;
-		@Schema(description = "If true, drop console logging after run")
-		public String dropLogging;
+		@Schema(description = "If true, drop console logging after run", example = "true")
+		public Boolean dropLogging;
 	}
 
 	static class InsightIdForm {
