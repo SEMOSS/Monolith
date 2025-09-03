@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.local.auth;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +39,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/auth/database")
 @PermitAll
 @Deprecated
+@Tag(name = "auth", description = "Endpoints for managing authentication and authorization of users and applications, including user permissions, access control, and administrative actions.")
 public class DatabaseAuthorizationResource2 {
 
 	private static final Logger classLogger = LogManager.getLogger(DatabaseAuthorizationResource2.class);
@@ -539,7 +541,9 @@ public class DatabaseAuthorizationResource2 {
 		}
 		
 		Gson gson = new Gson();
-		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);		ids=WebUtility.inputSanitizer(ids);		String databaseId =WebUtility.inputSanitizer( form.getFirst("databaseId"));
+		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
+		ids=WebUtility.inputSanitizer(ids);
+		String databaseId =WebUtility.inputSanitizer( form.getFirst("databaseId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(databaseId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove users from having access to database " + databaseId + " but is not an admin"));

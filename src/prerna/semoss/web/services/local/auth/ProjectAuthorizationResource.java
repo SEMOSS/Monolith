@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.local.auth;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,6 +53,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/auth/project")
 @PermitAll
+@Tag(name = "auth", description = "Endpoints for managing authentication and authorization of users and applications, including user permissions, access control, and administrative actions.")
 public class ProjectAuthorizationResource {
 
 	private static final Logger classLogger = LogManager.getLogger(ProjectAuthorizationResource.class);

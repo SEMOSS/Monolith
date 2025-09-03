@@ -193,6 +193,7 @@
     		  <configuration>
     		    <resourcePackages>
     		      <resourcePackage>prerna.semoss.web.services.local</resourcePackage>
+				  <resourcePackage>prerna.semoss.web.services.local.auth</resourcePackage>
     		    </resourcePackages>
     		    <outputDirectory>${basedir}/swagger-ui</outputDirectory>
     		    <outputFilename>swagger</outputFilename>
@@ -201,11 +202,11 @@
 				    <swaggerConfig>
     				  <servers>
     				    <server>
-    				      <url>https://workshop.cfg.deloitte.com/cfg-ai-demo/Monolith</url>
+    				      <url>https://workshop.cfg.deloitte.com/cfg-ai-demo/Monolith/api</url>
     				      <description>Demo Endpoint URL</description>
     				    </server>
     				    <server>
-    				      <url>http://localhost:8080/Monolith</url>
+    				      <url>http://localhost:8080/Monolith/api</url>
     				      <description>Local Development</description>
     				    </server>
     				  </servers>

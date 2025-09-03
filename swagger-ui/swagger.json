@@ -5,15 +5,18 @@
     "version" : "0.0.1-SNAPSHOT"
   },
   "servers" : [ {
-    "url" : "https://workshop.cfg.deloitte.com/cfg-ai-demo/Monolith",
+    "url" : "https://workshop.cfg.deloitte.com/cfg-ai-demo/Monolith/api",
     "description" : "Demo Endpoint URL"
   }, {
-    "url" : "http://localhost:8080/Monolith",
+    "url" : "http://localhost:8080/Monolith/api",
     "description" : "Local Development"
   } ],
   "tags" : [ {
     "name" : "API",
     "description" : "API for querying insights"
+  }, {
+    "name" : "auth",
+    "description" : "Endpoints for managing authentication and authorization of users and applications, including user permissions, access control, and administrative actions."
   } ],
   "paths" : {
     "/app-{databaseId}/appImage/download" : {
@@ -67,6 +70,2823 @@
         } ]
       }
     },
+    "/auth/admin/app/addAllUsers" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addAllUsers",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/addAppUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addAppUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/editAppUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editAppUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/getAllUserApps" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getAllUserApps",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/getAppUsers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getAppUsers",
+        "parameters" : [ {
+          "name" : "appId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/getAppUsersNoCredentials" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getAppUsersNoCredentials",
+        "parameters" : [ {
+          "name" : "appId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/getApps" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getUserApps",
+        "parameters" : [ {
+          "name" : "databaseId",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/grantAllApps" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "grantAllApps",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/grantNewUsersAppAccess" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "grantNewUsersAppAccess",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/removeAppUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeAppUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/setAppDiscoverable" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setAppDiscoverable",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/setAppGlobal" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setAppGlobal",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/app/updateAppUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "updateAppUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/addAllUsers" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addAllUsers_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/addDatabaseUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addDatabaseUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/addDatabaseUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addDatabaseUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/approveDatabaseUserAccessRequest" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "approveDatabaseUserAccessRequest",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/denyDatabaseUserAccessRequest" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "denyDatabaseUserAccessRequest",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/editDatabaseUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editDatabaseUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/editDatabaseUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editDatabaseUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/getAllUserDatabases" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getAllUserDatabases",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/getDatabaseUsers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getDatabaseUsers",
+        "parameters" : [ {
+          "name" : "databaseId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "permission",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/getDatabaseUsersNoCredentials" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getDatabaseUsersNoCredentials",
+        "parameters" : [ {
+          "name" : "databaseId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/getDatabases" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getDatabases",
+        "parameters" : [ {
+          "name" : "databaseId",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/grantAllDatabases" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "grantAllDatabases",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/grantNewUsersDatabaseAccess" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "grantNewUsersDatabaseAccess",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/removeDatabaseUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeDatabaseUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/removeDatabaseUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeDatabaseUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/setDatabaseDiscoverable" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setDatabaseDiscoverable",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/setDatabaseGlobal" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setDatabaseGlobal",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/database/updateDatabaseUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "updateDatabaseUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/engine/addAllUsers" : {
+      "post" : {
+        "operationId" : "addAllUsers_2",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/addEngineUserPermission" : {
+      "post" : {
+        "operationId" : "addEngineUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/addEngineUserPermissions" : {
+      "post" : {
+        "operationId" : "addEngineUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/approveEngineUserAccessRequest" : {
+      "post" : {
+        "operationId" : "approveEngineUserAccessRequest",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/denyEngineUserAccessRequest" : {
+      "post" : {
+        "operationId" : "denyEngineUserAccessRequest",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/editEngineUserPermission" : {
+      "post" : {
+        "operationId" : "editEngineUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/editEngineUserPermissions" : {
+      "post" : {
+        "operationId" : "editEngineUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/getAllUserEngines" : {
+      "post" : {
+        "operationId" : "getAllUserEngines",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/getEngineUsers" : {
+      "get" : {
+        "operationId" : "getEngineUsers",
+        "parameters" : [ {
+          "name" : "engineId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "permission",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/getEngineUsersNoCredentials" : {
+      "get" : {
+        "operationId" : "getEngineUsersNoCredentials",
+        "parameters" : [ {
+          "name" : "engineId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/getEngines" : {
+      "get" : {
+        "operationId" : "getEnginesGET",
+        "parameters" : [ {
+          "name" : "engineId",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "engineTypes",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "filterWord",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "metaKeys",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "noMeta",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "userT",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      },
+      "post" : {
+        "operationId" : "getEnginesPOST",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/grantAllEngines" : {
+      "post" : {
+        "operationId" : "grantAllEngines",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/grantNewUsersEngineAccess" : {
+      "post" : {
+        "operationId" : "grantNewUsersEngineAccess",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/removeEngineUserPermission" : {
+      "post" : {
+        "operationId" : "removeEngineUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/removeEngineUserPermissions" : {
+      "post" : {
+        "operationId" : "removeEngineUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/setEngineDiscoverable" : {
+      "post" : {
+        "operationId" : "setEngineDiscoverable",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/setEngineGlobal" : {
+      "post" : {
+        "operationId" : "setEngineGlobal",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/engine/updateEngineUserPermissions" : {
+      "post" : {
+        "operationId" : "updateEngineUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/addGroup" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addGroup",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/addGroupEnginePermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addGroupEnginePermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/addGroupMember" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addGroupMember",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/addGroupProjectPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addGroupProjectPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/deleteGroup" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "deleteGroup",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/deleteGroupMember" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "deleteGroupMember",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/editGroup" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editGroup",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/editGroupDetails" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editGroupDetails",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/editGroupEnginePermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editGroupEnginePermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/editGroupProjectPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editGroupProjectPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getAvailableEnginesForGroup" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getAvailableEnginesForGroup",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "groupType",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getAvailableProjectsForGroup" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getAvailableProjectsForGroup",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "groupType",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "onlyApps",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getEnginesForGroup" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getEnginesForGroup",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "groupType",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getGroupMembers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getGroupMembers",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getGroups" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getAllGroups",
+        "parameters" : [ {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getNonGroupMembers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getNonGroupMembers",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getNumAvailableEnginesForGroup" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getNumAvailableEnginesForGroup",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "groupType",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getNumAvailableProjectsForGroup" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getNumAvailableProjectsForGroup",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "groupType",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "onlyApps",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getNumEnginesForGroup" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getNumEnginesForGroup",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "groupType",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getNumMembersInGroup" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getNumMembersInGroup",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getNumNonMembersInGroup" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getNumNonMembersInGroup",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getNumProjectsForGroup" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getNumProjectsForGroup",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "groupType",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "onlyApps",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/getProjectsForGroup" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getProjectsForGroup",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "groupType",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "onlyApps",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/removeGroupEnginePermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeGroupEnginePermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/group/removeGroupProjectPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeGroupProjectPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/addAllUsers" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addAllUsers_3",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/addInsightUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addInsightUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/addInsightUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addInsightUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/approveInsightUserAccessRequest" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "approveInsightUserAccessRequest",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/deleteProjectInsights" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "deleteProjectInsights",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/denyInsightUserAccessRequest" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "denyInsightUserAccessRequest",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/editInsightUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editInsightUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/editInsightUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editInsightUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/getAllProjectInsightUsers" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getAllProjectInsightUsers",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/getInsightUsers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getInsightUsers",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "insightId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "permission",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/getInsightUsersNoCredentials" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getInsightUsersNoCredentials",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "insightId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/getInsights" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getInsights_1",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/getProjectInsights" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getProjectInsights",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/grantAllProjectInsights" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "grantAllProjectInsights",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/grantNewUsersInsightAccess" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "grantNewUsersInsightAccess",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/removeInsightUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeInsightUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/removeInsightUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeInsightUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/setInsightGlobal" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setInsightGlobal",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/insight/updateInsightUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "updateAppUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/addAllUsers" : {
+      "post" : {
+        "operationId" : "addAllUsers_4",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/addProjectUserPermission" : {
+      "post" : {
+        "operationId" : "addProjectUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/addProjectUserPermissions" : {
+      "post" : {
+        "operationId" : "addProjectUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/approveProjectUserAccessRequest" : {
+      "post" : {
+        "operationId" : "approveProjectUserAccessRequest",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/denyProjectUserAccessRequest" : {
+      "post" : {
+        "operationId" : "denyProjectUserAccessRequest",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/editProjectUserPermission" : {
+      "post" : {
+        "operationId" : "editProjectUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/editProjectUserPermissions" : {
+      "post" : {
+        "operationId" : "editProjectUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/getAllUserProjects" : {
+      "post" : {
+        "operationId" : "getAllUserProjects",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/getProjectUsers" : {
+      "get" : {
+        "operationId" : "getProjectUsers",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "permission",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/getProjectUsersNoCredentials" : {
+      "get" : {
+        "operationId" : "getProjectUsersNoCredentials",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/getProjects" : {
+      "get" : {
+        "operationId" : "getProjectsGET",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "filterWord",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "metaKeys",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "noMeta",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "userT",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      },
+      "post" : {
+        "operationId" : "getProjectsPOST",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/grantAllProjects" : {
+      "post" : {
+        "operationId" : "grantAllProjects",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/grantNewUsersProjectAccess" : {
+      "post" : {
+        "operationId" : "grantNewUsersProjectAccess",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/removeProjectUserPermission" : {
+      "post" : {
+        "operationId" : "removeProjectUserPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/removeProjectUserPermissions" : {
+      "post" : {
+        "operationId" : "removeProjectUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/setProjectDiscoverable" : {
+      "post" : {
+        "operationId" : "setProjectDiscoverable",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/setProjectGlobal" : {
+      "post" : {
+        "operationId" : "setProjectGlobal",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/setProjectPortal" : {
+      "post" : {
+        "operationId" : "setProjectPortal",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/project/updateProjectUserPermissions" : {
+      "post" : {
+        "operationId" : "updateProjectUserPermissions",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/user/deleteUser" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "deleteUser",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/user/editUser" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editUser",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/user/getAllDbUsers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getAllDbUsers",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/admin/user/getAllUsers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "searchTerm",
+        "parameters" : [ {
+          "name" : "filterWord",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/user/getNumUsers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getNumUsers",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "*/*" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/user/isAdminUser" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "isAdminUser",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "*/*" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/user/registerUser" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "registerUser",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/user/setUserLocked" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setUserLocked",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/admin/user/setUserPublisher" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setUserPublisher",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/app/addAppUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addAppUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/app/editAppUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editAppUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/app/getAppUsers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getAppUsers_1",
+        "parameters" : [ {
+          "name" : "appId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/app/getAppUsersNoCredentials" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getAppUsersNoCredentials_1",
+        "parameters" : [ {
+          "name" : "appId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/app/getApps" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getApps",
+        "parameters" : [ {
+          "name" : "databaseId",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "filterWord",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "onlyFavorites",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "metaKeys",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "noMeta",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/app/getUserAppPermission" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getUserAppPermission",
+        "parameters" : [ {
+          "name" : "appId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/app/removeAppUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeAppUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/app/setAppDiscoverable" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setAppDiscoverable_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/app/setAppFavorite" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setAppFavorite",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/app/setAppGlobal" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setAppGlobal_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/app/setAppVisibility" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setAppVisibility",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
     "/auth/changeADPassword" : {
       "post" : {
         "operationId" : "changeADPassword",
@@ -106,9 +2926,1304 @@
         }
       }
     },
+    "/auth/database/addDatabaseUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addDatabaseUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/addDatabaseUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addDatabaseUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/approveDatabaseUserAccessRequest" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "approveDatabaseUserAccessRequest_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/denyDatabaseUserAccessRequest" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "denyDatabaseUserAccessRequest_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/editDatabaseUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editDatabaseUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/editDatabaseUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editDatabaseUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/getDatabaseUsers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getDatabaseUsers_1",
+        "parameters" : [ {
+          "name" : "databaseId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "permission",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/getDatabaseUsersNoCredentials" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getDatabaseUsersNoCredentials_1",
+        "parameters" : [ {
+          "name" : "databaseId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/getDatabases" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getDatabases_1",
+        "parameters" : [ {
+          "name" : "databaseId",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "filterWord",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "onlyFavorites",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "metaKeys",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "noMeta",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/getUserDatabasePermission" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getUserDatabasePermission",
+        "parameters" : [ {
+          "name" : "databaseId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/removeDatabaseUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeDatabaseUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/removeDatabaseUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeDatabaseUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/setDatabaseDiscoverable" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setDatabaseDiscoverable_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/setDatabaseFavorite" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setDatabaseFavorite",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/setDatabaseGlobal" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setDatabaseGlobal_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/database/setDatabaseVisibility" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setDatabaseVisibility",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        },
+        "deprecated" : true
+      }
+    },
+    "/auth/engine/addEngineUserPermission" : {
+      "post" : {
+        "operationId" : "addEngineUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/addEngineUserPermissions" : {
+      "post" : {
+        "operationId" : "addEngineUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/approveEngineUserAccessRequest" : {
+      "post" : {
+        "operationId" : "approveEngineUserAccessRequest_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/denyEngineUserAccessRequest" : {
+      "post" : {
+        "operationId" : "denyEngineUserAccessRequest_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/editEngineUserPermission" : {
+      "post" : {
+        "operationId" : "editEngineUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/editEngineUserPermissions" : {
+      "post" : {
+        "operationId" : "editEngineUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/getEngineUsers" : {
+      "get" : {
+        "operationId" : "getEngineUsers_1",
+        "parameters" : [ {
+          "name" : "engineId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "permission",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/getEngineUsersNoCredentials" : {
+      "get" : {
+        "operationId" : "getEngineUsersNoCredentials_1",
+        "parameters" : [ {
+          "name" : "engineId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/getEngines" : {
+      "get" : {
+        "operationId" : "getEngines",
+        "parameters" : [ {
+          "name" : "engineId",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "engineTypes",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "filterWord",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "onlyFavorites",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "metaKeys",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "noMeta",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "userT",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      },
+      "post" : {
+        "operationId" : "getEnginesPOST_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/getUserEnginePermission" : {
+      "get" : {
+        "operationId" : "getUserEnginePermission",
+        "parameters" : [ {
+          "name" : "engineId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/removeEngineUserPermission" : {
+      "post" : {
+        "operationId" : "removeEngineUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/removeEngineUserPermissions" : {
+      "post" : {
+        "operationId" : "removeEngineUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/setEngineDiscoverable" : {
+      "post" : {
+        "operationId" : "setEngineDiscoverable_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/setEngineFavorite" : {
+      "post" : {
+        "operationId" : "setEngineFavorite",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/setEngineGlobal" : {
+      "post" : {
+        "operationId" : "setEngineGlobal_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/engine/setEngineVisibility" : {
+      "post" : {
+        "operationId" : "setEngineVisibility",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
     "/auth/getAllLoginProperties" : {
       "get" : {
         "operationId" : "getAllLoginProperties",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/engine/addGroupEnginePermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addGroupEnginePermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/engine/editGroupAppPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editGroupAppPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/engine/getGroupAppPermission" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getGroupAppPermission",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "type",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "appId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/engine/removeGroupAppPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeGroupAppPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/insight/addGroupInsightPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addGroupInsightPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/insight/editGroupInsightPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editGroupInsightPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/insight/getGroupInsightPermission" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getGroupInsightPermission",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "type",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "insightId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/insight/removeGroupInsightPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeGroupInsightPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/project/addGroupProjectPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addGroupProjectPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/project/editGroupProjectPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editGroupProjectPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/project/getGroupProjectPermission" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getGroupProjectPermission",
+        "parameters" : [ {
+          "name" : "groupId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "type",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/group/project/removeGroupProjectPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeGroupProjectPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/addInsightUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addInsightUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/addInsightUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addInsightUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/approveInsightUserAccessRequest" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "approveInsightUserAccessRequest_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/denyInsightUserAccessRequest" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "denyInsightUserAccessRequest_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/editInsightUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editInsightUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/editInsightUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editInsightUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/getInsightUsers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getInsightUsers_1",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "insightId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "permission",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/getInsightUsersNoCredentials" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getInsightUsersNoCredentials_1",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "insightId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/getInsights" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getInsights_2",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/getProjectInsights" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getProjectInsights_1",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/getUserInsightPermission" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getUserInsightPermission",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "insightId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/removeInsightUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeInsightUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/removeInsightUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeInsightUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/setInsightFavorite" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setInsightFavorite",
+        "requestBody" : {
+          "content" : {
+            "*/*" : {
+              "schema" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/insight/setInsightGlobal" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setInsightGlobal_1",
         "responses" : {
           "default" : {
             "description" : "default response",
@@ -462,9 +4577,507 @@
         }
       }
     },
+    "/auth/project/addProjectUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addProjectUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/addProjectUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "addProjectUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/approveProjectUserAccessRequest" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "approveProjectUserAccessRequest_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/denyProjectUserAccessRequest" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "denyProjectUserAccessRequest_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/editProjectUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editProjectUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/editProjectUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editProjectUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/getProjectUsers" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getProjectUsers_1",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "userId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "permission",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/getProjectUsersNoCredentials" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getProjectUsersNoCredentials_1",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/getProjects" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getProjectsGET_1",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "filterWord",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "offset",
+          "in" : "query",
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }, {
+          "name" : "onlyFavorites",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "metaKeys",
+          "in" : "query",
+          "schema" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }, {
+          "name" : "noMeta",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
+          "name" : "userT",
+          "in" : "query",
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getProjectsPOST_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/getUserProjectPermission" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getUserProjectPermission",
+        "parameters" : [ {
+          "name" : "projectId",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "searchTerm",
+          "in" : "query",
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/propagateProjectDependencyPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "propagateProjectDependencyPermission",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/removeProjectUserPermission" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeProjectUserPermission_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/removeProjectUserPermissions" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "removeProjectUserPermissions_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/setProjectDiscoverable" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setProjectDiscoverable_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/setProjectFavorite" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setProjectFavorite",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/setProjectGlobal" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setProjectGlobal_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/setProjectPortal" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setProjectPortal_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/project/setProjectVisibility" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setProjectVisibility",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
     "/auth/resetLinOTPFailCounter" : {
       "post" : {
         "operationId" : "resetLinOTPFailCounter",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user/createUserAccessKey" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "createUserAccessKey",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user/deleteUser" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "deleteUser_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user/deleteUserAccessKey" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "deleteUserAccessKey",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user/editUser" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "editUser_1",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user/getUserAccessKeys" : {
+      "get" : {
+        "tags" : [ "auth" ],
+        "operationId" : "getUserAccessKeys",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user/resetPassword" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "resetPassword",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json" : { }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user/setupResetPassword" : {
+      "post" : {
+        "tags" : [ "auth" ],
+        "operationId" : "setupResetPassword",
         "responses" : {
           "default" : {
             "description" : "default response",

@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.local.auth;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.HashMap;
 import java.util.List;
@@ -36,6 +37,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/auth/app")
 @PermitAll
 @Deprecated
+@Tag(name = "auth", description = "Endpoints for managing authentication and authorization of users and applications, including user permissions, access control, and administrative actions.")
 public class DatabaseAuthorizationResource {
 
 	private static final Logger classLogger = LogManager.getLogger(DatabaseAuthorizationResource.class);

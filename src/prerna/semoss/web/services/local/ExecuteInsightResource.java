@@ -24,8 +24,8 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("exec")
-public class ExecuteInsightResource {
 @SecurityRequirement(name = "basicAuth")
+public class ExecuteInsightResource {
 
 	@Path("/test")
 	public Object test() {
