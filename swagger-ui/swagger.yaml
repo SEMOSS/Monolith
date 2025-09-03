@@ -10,6 +10,8 @@ servers:
 tags:
 - name: API
   description: API for querying insights
+- name: Authorization
+  description: Authorization and user search APIs
 - name: Engine Execution
   description: " Executes a Pixel (SEMOSS scripting language) command. Pixels are\
     \ used for data processing, analytics, and workflow automation in SEMOSS."
@@ -3597,6 +3599,10 @@ paths:
             application/json: {}
   /authorization/searchForUser:
     get:
+      tags:
+      - Authorization
+      summary: Search for users
+      description: Searches for users by a case-insensitive search term.
       operationId: searchForUser
       parameters:
       - name: searchTerm
@@ -3604,10 +3610,16 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: List of matched users
           content:
             application/json: {}
+        "401":
+          description: Unauthorized
+        "500":
+          description: Server error
+      security:
+      - basicAuth: []
   /e-{engineId}/image/download:
     get:
       operationId: imageDownload
@@ -4012,7 +4024,14 @@ paths:
         "200":
           description: Pixel executed
           content:
-            application/json: {}
+            application/json:
+              examples:
+                Sample Response:
+                  description: Sample Response
+                  value:
+                    status: success
+                    data:
+                      result: Pixel execution output
         "400":
           description: Invalid request
           content:

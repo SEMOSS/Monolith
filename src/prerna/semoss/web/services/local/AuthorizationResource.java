@@ -42,10 +42,18 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/authorization")
+@Tag(name = "Authorization", description = "Authorization and user search APIs")
+@SecurityRequirement(name = "basicAuth")
 public class AuthorizationResource {
 
 	private static final Logger classLogger = LogManager.getLogger(AuthorizationResource.class);
@@ -55,6 +63,18 @@ public class AuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("searchForUser")
+	@Operation(
+		summary = "Search for users",
+		description = "Searches for users by a case-insensitive search term.",
+		parameters = {
+			@Parameter(name = "searchTerm", description = "Search term to match against user attributes", required = true)
+		},
+		responses = {
+			@ApiResponse(responseCode = "200", description = "List of matched users", content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized"),
+			@ApiResponse(responseCode = "500", description = "Server error")
+		}
+	)
 	public StreamingOutput searchForUser(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm) {
 		List<Map<String, Object>> ret = SecurityQueryUtils.searchForUser(WebUtility.inputSQLSanitizer(searchTerm.trim()));
 		return WebUtility.getSO(ret);

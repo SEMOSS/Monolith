@@ -343,15 +343,25 @@ public class NameServer {
 			@Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.RunPixelRequest.class))
 		}),
 		responses = {
-			@ApiResponse(responseCode = "200", description = "Pixel executed",
-				content = @Content(mediaType = "application/json")),
+			@ApiResponse(
+				responseCode = "200",
+				description = "Pixel executed",
+				content = @Content(
+					mediaType = "application/json",
+					examples = {
+						@io.swagger.v3.oas.annotations.media.ExampleObject(
+							name = "Sample Response",
+							value = "{ \"status\": \"success\", \"data\": { \"result\": \"Pixel execution output\" } }"
+						)
+					}
+				)
+			),
 			@ApiResponse(responseCode = "400", description = "Invalid request",
 				content = @Content(mediaType = "application/json")),
 			@ApiResponse(responseCode = "401", description = "Unauthorized",
 				content = @Content(mediaType = "application/json"))
 		}
 	)
-	
 	public Response runPixelSync(@Context HttpServletRequest request) {
 		// I need to do a couple of things here
 		// I need to get the basic blocking queue as a singleton
