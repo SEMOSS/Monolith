@@ -1,5 +1,12 @@
 package prerna.semoss.web.services.local;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -54,6 +61,7 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 @Deprecated
 @SecurityRequirement(name = "basicAuth")
+@Tag(name = "Database Engine", description = "LEGACY endpoints for database operations. Deprecated: use /e-{engineId} or /database-{databaseId} endpoints instead.")
 // replaced by DatabaseResource
 public class LegacyAppResource {
 
@@ -78,6 +86,23 @@ public class LegacyAppResource {
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
+	@Operation(
+		summary = "Update database SMSS file (legacy)",
+		description = "Updates the SMSS configuration file for the specified database. Deprecated: use /database-{databaseId} or /e-{engineId} equivalent.",
+		deprecated = true,
+		parameters = {
+			@Parameter(name = "databaseId", in = ParameterIn.PATH, required = true, description = "Database identifier")
+		},
+		responses = {
+			@ApiResponse(responseCode = "200", description = "SMSS file updated",
+				content = @Content(mediaType = "application/json",
+					schema = @Schema(implementation = LegacyUpdateResponse.class))),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
@@ -189,6 +214,26 @@ public class LegacyAppResource {
 	@GET
 	@Path("/appImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
+	@Operation(
+		summary = "Download database image (legacy)",
+		description = "Downloads the database image for the specified database. Deprecated: use /e-{engineId}/image/download.",
+		deprecated = true,
+		parameters = {
+			@Parameter(name = "databaseId", in = ParameterIn.PATH, required = true, description = "Database identifier")
+		},
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Image downloaded",
+				content = {
+					@Content(mediaType = "application/octet-stream", schema = @Schema(type = "string", format = "binary")),
+					@Content(mediaType = MediaType.APPLICATION_SVG_XML, schema = @Schema(type = "string", format = "binary"))
+				}
+			),
+			@ApiResponse(responseCode = "400", description = "Bad request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
@@ -342,4 +387,10 @@ public class LegacyAppResource {
 			}
 		}
 	}
+}
+
+// DTOs for OpenAPI documentation of legacy responses
+class LegacyUpdateResponse {
+	@Schema(description = "Whether the operation succeeded")
+	public Boolean success;
 }

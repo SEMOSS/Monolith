@@ -12,6 +12,9 @@ tags:
   description: API for querying insights
 - name: Authorization
   description: Authorization and user search APIs
+- name: Database Engine
+  description: "LEGACY endpoints for database operations. Deprecated: use /e-{engineId}\
+    \ or /database-{databaseId} endpoints instead."
 - name: Engine Execution
   description: " Executes a Pixel (SEMOSS scripting language) command. Pixels are\
     \ used for data processing, analytics, and workflow automation in SEMOSS."
@@ -30,36 +33,82 @@ tags:
 paths:
   /app-{databaseId}/appImage/download:
     get:
+      tags:
+      - Database Engine
+      summary: Download database image (legacy)
+      description: "Downloads the database image for the specified database. Deprecated:\
+        \ use /e-{engineId}/image/download."
       operationId: imageDownload_1
       parameters:
+      - name: databaseId
+        in: path
+        description: Database identifier
+        required: true
+        schema:
+          type: string
       - name: databaseId
         in: path
         required: true
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Image downloaded
           content:
-            application/octet-stream: {}
-            application/svg+xml: {}
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            application/svg+xml:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
+          content:
+            application/json: {}
       deprecated: true
       security:
       - basicAuth: []
   /app-{databaseId}/updateSmssFile:
     post:
+      tags:
+      - Database Engine
+      summary: Update database SMSS file (legacy)
+      description: "Updates the SMSS configuration file for the specified database.\
+        \ Deprecated: use /database-{databaseId} or /e-{engineId} equivalent."
       operationId: updateSmssFile_1
       parameters:
+      - name: databaseId
+        in: path
+        description: Database identifier
+        required: true
+        schema:
+          type: string
       - name: databaseId
         in: path
         required: true
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: SMSS file updated
           content:
-            application/json;charset=utf-8: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyUpdateResponse'
+        "400":
+          description: Bad request
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
+          content:
+            application/json: {}
       deprecated: true
       security:
       - basicAuth: []
@@ -4855,6 +4904,12 @@ components:
         jobId:
           type: string
           description: Asynchronous job identifier
+    LegacyUpdateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation succeeded
     LoginProviderDTO:
       type: object
       properties:
