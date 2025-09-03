@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.local;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -79,6 +80,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/project-{projectId}")
 @PermitAll
+@SecurityRequirement(name = "basicAuth")
 public class ProjectResource {
 
 	private static final Logger classLogger = LogManager.getLogger(ProjectResource.class);

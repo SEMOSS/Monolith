@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.config;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -31,6 +32,7 @@ import prerna.util.Utility;
 import prerna.web.conf.AdminStartupFilter;
 import prerna.web.services.util.WebUtility;
 
+@SecurityRequirement(name = "basicAuth")
 @Path("/")
 @PermitAll
 public class AdminConfigService {

@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.local;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,6 +22,7 @@ import prerna.util.insight.InsightUtility;
 import prerna.web.requests.OverrideParametersServletRequest;
 
 @PermitAll
+@SecurityRequirement(name = "basicAuth")
 public class RunInsight {
 
 	private static final Logger classLogger = LogManager.getLogger(RunInsight.class);

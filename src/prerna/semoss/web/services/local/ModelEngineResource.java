@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.local;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import javax.ws.rs.Path;
 
@@ -9,6 +10,7 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 
+@SecurityRequirement(name = "basicAuth")
 @Path("/model-{modelId}")
 public class ModelEngineResource {
 

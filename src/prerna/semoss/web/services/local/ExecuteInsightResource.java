@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.local;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.util.HashMap;
 import java.util.List;
@@ -24,6 +25,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("exec")
 public class ExecuteInsightResource {
+@SecurityRequirement(name = "basicAuth")
 
 	@Path("/test")
 	public Object test() {

@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.config;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/")
 @PermitAll
+@SecurityRequirement(name = "basicAuth")
 public class TrustedTokenService {
 	
 	private static final Logger logger = LogManager.getLogger(TrustedTokenService.class);
@@ -70,6 +72,7 @@ public class TrustedTokenService {
 		return WebUtility.getResponse(retMap, 200);
 	}
 	
+	@SecurityRequirement(name = "basicAuth")
 	@POST
 	@Path("/getToken")
 	public Response getTokenPost(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {

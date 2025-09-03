@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.local;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -52,6 +53,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/app-{databaseId}")
 @PermitAll
 @Deprecated
+@SecurityRequirement(name = "basicAuth")
 // replaced by DatabaseResource
 public class LegacyAppResource {
 

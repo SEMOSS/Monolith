@@ -26,6 +26,7 @@
  * 	GNU General Public License for more details.
  *******************************************************************************/
 package prerna.semoss.web.services.local;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -76,6 +77,7 @@ import prerna.web.services.util.WebUtility;
 
 @PermitAll
 @Deprecated
+@SecurityRequirement(name = "basicAuth")
 public class OldEngineResource {
 
 	private static final Logger logger = LogManager.getLogger(OldEngineResource.class);

@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.local;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -43,6 +44,7 @@ import prerna.util.Utility;
 @Singleton
 @Path("/ext/mcp/{toolbox_id}")
 @PermitAll
+@SecurityRequirement(name = "basicAuth")
 public class MCPResource {
 
 	// MCP remote communication - https://www.npmjs.com/package/mcp-remote

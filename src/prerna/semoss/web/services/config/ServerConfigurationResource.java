@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.config;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,6 +40,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/config")
 @PermitAll
+@SecurityRequirement(name = "basicAuth")
 public class ServerConfigurationResource {
 	
 	private static final Logger logger = LogManager.getLogger(ServerConfigurationResource.class); 

@@ -82,6 +82,7 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.ToNumberPolicy;
 import com.google.gson.internal.LinkedTreeMap;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
@@ -109,6 +110,7 @@ import prerna.web.services.util.SemossThread;
 import prerna.web.services.util.WebUtility;
 
 @Path("/engine")
+@SecurityRequirement(name = "basicAuth")
 @PermitAll
 public class NameServer {
 

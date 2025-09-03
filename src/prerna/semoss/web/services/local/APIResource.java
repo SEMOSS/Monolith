@@ -50,6 +50,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
@@ -58,6 +59,7 @@ import prerna.web.requests.OverrideParametersServletRequest;
 import prerna.web.services.util.WebUtility;
 
 @Path("/")
+@Tag(name = "API", description = "API for querying insights")
 public class APIResource {
 
 	private static final Logger logger = LogManager.getLogger(APIResource.class);

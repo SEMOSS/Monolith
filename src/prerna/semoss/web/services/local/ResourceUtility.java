@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.local;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
+@SecurityRequirement(name = "basicAuth")
 public class ResourceUtility {
 
 	protected static List<String> allowAccessWithoutUsers = new ArrayList<>();

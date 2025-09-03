@@ -1,4 +1,5 @@
 package prerna.semoss.web.services.local;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -63,6 +64,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/model/openai")
 @PermitAll
+@SecurityRequirement(name = "basicAuth")
 public class OpenAIEndpoints {
 
 	private static final Logger classLogger = LogManager.getLogger(NameServer.class);
