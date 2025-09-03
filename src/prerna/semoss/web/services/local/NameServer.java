@@ -61,6 +61,12 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -112,6 +118,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/engine")
 @SecurityRequirement(name = "basicAuth")
 @PermitAll
+@Tag(name = "Engine Execution", description=" Executes a Pixel (SEMOSS scripting language) command. Pixels are used for data processing, analytics, and workflow automation in SEMOSS.")	
 public class NameServer {
 
 	private static final Logger classLogger = LogManager.getLogger(NameServer.class);
@@ -120,12 +127,55 @@ public class NameServer {
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
 	// base URL for the requests on this server instance
 	private static String baseURL = null;
+
+	// --- OpenAPI DTOs for request/response documentation only ---
+	static class RunPixelRequest {
+		@Schema(description = "Insight identifier. Use 'new' to create a new insight or omit for temporary.")
+		public String insightId;
+		@Schema(description = "Pixel expression to execute", required = true, example = "Connect(engine:'mydb');")
+		public String expression;
+		@Schema(description = "Client timezone ID", example = "America/New_York")
+		public String tz;
+		@Schema(description = "If true, drop console logging after run")
+		public String dropLogging;
+	}
+
+	static class InsightIdForm {
+		@Schema(description = "Insight identifier", required = true)
+		public String insightId;
+	}
+
+	static class JobIdRequest {
+		@Schema(description = "Asynchronous job identifier", required = true)
+		public String jobId;
+	}
+
+	static class SearchInsightsForm {
+		@Schema(description = "Search string")
+		public String searchString;
+		@Schema(description = "Offset for pagination", example = "0")
+		public String offset;
+		@Schema(description = "Limit for pagination", example = "15")
+		public String limit;
+		@Schema(description = "JSON-encoded filters including app_id and tags")
+		public String filterData;
+	}
 	
 	////////////////////////////////////////////////////////////////////////////////
 
 	@GET
 	@Path("playsheets")
 	@Produces("application/json")
+	@Operation(
+		summary = "List available PlaySheets",
+		description = "Returns a map of PlaySheet names to their implementation classes.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Successful operation",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public StreamingOutput getPlaySheets(@Context HttpServletRequest request) {
 		Hashtable<String, String> hashTable = new Hashtable<>();
 		List<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
@@ -230,6 +280,18 @@ public class NameServer {
 	@GET
 	@Path("/downloadFile")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	@Operation(
+		summary = "Download exported file",
+		description = "Downloads an exported file for a given insight and file key.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "File downloaded",
+				content = @Content(mediaType = "application/octet-stream")),
+			@ApiResponse(responseCode = "400", description = "Invalid insight or file key",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response downloadFile(@QueryParam("insightId") String insightId, @QueryParam("fileKey") String fileKey) {
 		// for "security"
 		// require the person to have both the insight id
@@ -273,6 +335,23 @@ public class NameServer {
 	@Path("/runPixel")
 	@Consumes({"application/x-www-form-urlencoded", "application/json"})
 	@Produces("application/json;charset=utf-8")
+	@Operation(
+		summary = "Execute Pixel synchronously",
+		description = "Executes a Pixel expression and returns the full result in the response.",
+		requestBody = @RequestBody(required = true, content = {
+			@Content(mediaType = "application/json", schema = @Schema(implementation = NameServer.RunPixelRequest.class)),
+			@Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.RunPixelRequest.class))
+		}),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Pixel executed",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "400", description = "Invalid request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
+	
 	public Response runPixelSync(@Context HttpServletRequest request) {
 		// I need to do a couple of things here
 		// I need to get the basic blocking queue as a singleton
@@ -467,6 +546,21 @@ public class NameServer {
 	@POST
 	@Path("/getPipeline")
 	@Produces("application/json;charset=utf-8")
+	@Operation(
+		summary = "Get Pixel pipeline plan",
+		description = "Returns the execution plan/pipeline for the current insight.",
+		requestBody = @RequestBody(required = true, content = {
+			@Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.InsightIdForm.class))
+		}),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Pipeline returned",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "400", description = "Invalid insight",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response getPixelPipelinePlan(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		String sessionId = null;
@@ -575,6 +669,22 @@ public class NameServer {
 	@Path("runPixelAsync")
 	@Consumes({"application/x-www-form-urlencoded", "application/json"})
 	@Produces("application/json;charset=utf-8")
+	@Operation(
+		summary = "Execute Pixel asynchronously",
+		description = "Submits a Pixel expression to run asynchronously and returns a jobId.",
+		requestBody = @RequestBody(required = true, content = {
+			@Content(mediaType = "application/json", schema = @Schema(implementation = NameServer.RunPixelRequest.class)),
+			@Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.RunPixelRequest.class))
+		}),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Job submitted",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "400", description = "Invalid request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response runPixelAsync(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		String sessionId = null;
@@ -748,6 +858,17 @@ public class NameServer {
 	@POST
 	@Path("/result")
 	@Produces("application/json")
+	@Operation(
+		summary = "Get async job result",
+		description = "Retrieves the final result for a previously submitted asynchronous Pixel job.",
+		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Result returned",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "404", description = "Job not found or not in session",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public StreamingOutput result(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 //		Object dataReturn = "NULL";
 //		HttpSession session = request.getSession(true);
@@ -780,6 +901,15 @@ public class NameServer {
 	@POST
 	@Path("/status")
 	@Produces("application/json")
+	@Operation(
+		summary = "Get async job status",
+		description = "Returns the current status of an asynchronous Pixel job.",
+		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Status returned",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response status(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Object dataReturn = "NULL";
 		HttpSession session = request.getSession(true);
@@ -799,6 +929,15 @@ public class NameServer {
 	@POST
 	@Path("/console")
 	@Produces("application/json")
+	@Operation(
+		summary = "Get async job console logs",
+		description = "Returns standard output logs for an asynchronous Pixel job.",
+		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Console logs returned",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response console(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId =WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -816,6 +955,15 @@ public class NameServer {
 	@POST
 	@Path("/partial")
 	@Produces("application/json")
+	@Operation(
+		summary = "Get async job partial output",
+		description = "Returns partial outputs produced so far for an asynchronous Pixel job.",
+		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Partial output returned",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response partial(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -833,6 +981,15 @@ public class NameServer {
 	@POST
 	@Path("/error")
 	@Produces("application/json")
+	@Operation(
+		summary = "Get async job error logs",
+		description = "Returns error logs for an asynchronous Pixel job.",
+		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Error logs returned",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response error(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -850,6 +1007,15 @@ public class NameServer {
 	@POST
 	@Path("/terminate")
 	@Produces("application/json")
+	@Operation(
+		summary = "Terminate async job",
+		description = "Terminates a running asynchronous Pixel job.",
+		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Job terminated",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public StreamingOutput terminate(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -864,6 +1030,15 @@ public class NameServer {
 	@POST
 	@Path("/reset")
 	@Produces("application/json")
+	@Operation(
+		summary = "Reset async job",
+		description = "Resets a previously submitted asynchronous Pixel job.",
+		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Job reset",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public StreamingOutput reset(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -876,6 +1051,14 @@ public class NameServer {
 	@GET
 	@Path("/comet")
 	@Produces("text/plain")
+	@Operation(
+		summary = "Start a comet job (legacy)",
+		description = "Starts a legacy long-running job and returns its identifier.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Job started",
+				content = @Content(mediaType = "text/plain"))
+		}
+	)
 	public String cometTry(@Context HttpServletRequest request) {
 		// I need to create a job id
 		// then I need to start the thread with this job id
@@ -894,6 +1077,14 @@ public class NameServer {
 	@GET
 	@Path("/joutput")
 	@Produces("text/plain")
+	@Operation(
+		summary = "Get comet job output (legacy)",
+		description = "Retrieves output for a legacy comet job.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Output returned",
+				content = @Content(mediaType = "text/plain"))
+		}
+	)
 	public String getJobOutput(@QueryParam("jobId") String jobId, @Context HttpServletRequest request) {
 
 		jobId=WebUtility.inputSQLSanitizer(jobId);
@@ -921,6 +1112,14 @@ public class NameServer {
 	@GET
 	@Path("/jkill")
 	@Produces("application/xml")
+	@Operation(
+		summary = "Kill comet job (legacy)",
+		description = "Terminates a legacy comet job.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Job terminated",
+				content = @Content(mediaType = "application/xml"))
+		}
+	)
 	public void killJob(@QueryParam("jobId") String jobId, @Context HttpServletRequest request) {
 		// AsyncResponse myResponse =
 		// (AsyncResponse)ResponseHashSingleton.getResponseforJobId(jobId);
@@ -982,6 +1181,14 @@ public class NameServer {
 	@GET
 	@Path("mediawiki/tags")
 	@Produces("application/json")
+	@Operation(
+		summary = "Search MediaWiki tags",
+		description = "Searches Wikipedia for a term and returns top results with Product Ontology links.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Results returned",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public StreamingOutput getMediaWikiTagsForSearchTerm(@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("numResults") int numResults) {
 		
@@ -1102,6 +1309,16 @@ public class NameServer {
 	@GET
 	@Path("all")
 	@Produces("application/json")
+	@Operation(
+		summary = "List engines",
+		description = "Returns basic information for all engines the user can access.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Engines returned",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public StreamingOutput printEngines(@Context HttpServletRequest request) {
 		List<Map<String, Object>> engines = null;
 		HttpSession session = request.getSession(false);
@@ -1119,6 +1336,14 @@ public class NameServer {
 	@GET
 	@Path("add")
 	@Produces("application/json")
+	@Operation(
+		summary = "Add engine (placeholder)",
+		description = "Placeholder endpoint for adding an engine. Currently no-op.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "No-op",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public void addEngine(@Context HttpServletRequest request, @QueryParam("api") String api,
 			@QueryParam("database") String database) {
 //		// would be cool to give this as an HTML
@@ -1145,6 +1370,14 @@ public class NameServer {
 	@GET
 	@Path("help")
 	@Produces("text/html")
+	@Operation(
+		summary = "Help routes",
+		description = "Returns a simple HTML page describing available routes.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "HTML returned",
+				content = @Content(mediaType = "text/html"))
+		}
+	)
 	public StreamingOutput printURL(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Hashtable<String, String> helpHash = null;
 		// would be cool to give this as an HTML
@@ -1270,6 +1503,14 @@ public class NameServer {
 	@GET
 	@Path("central/context/getAutoCompleteResults")
 	@Produces("application/json")
+	@Operation(
+		summary = "Autocomplete insights",
+		description = "Returns autocomplete suggestions for insight search.",
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Suggestions returned",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String searchString,
 			@Context HttpServletRequest request) {
 
@@ -1296,6 +1537,15 @@ public class NameServer {
 	@POST
 	@Path("central/context/getSearchInsightsResults")
 	@Produces("application/json")
+	@Operation(
+		summary = "Search insights",
+		description = "Searches insights with optional filters and pagination.",
+		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.SearchInsightsForm.class))),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Results returned",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public StreamingOutput getSearchInsightsResults(MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request) {
 		Gson gson = new Gson();

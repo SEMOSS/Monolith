@@ -15,6 +15,9 @@
     "name" : "API",
     "description" : "API for querying insights"
   }, {
+    "name" : "Engine Execution",
+    "description" : " Executes a Pixel (SEMOSS scripting language) command. Pixels are used for data processing, analytics, and workflow automation in SEMOSS."
+  }, {
     "name" : "auth",
     "description" : "Endpoints for managing authentication and authorization of users and applications, including user permissions, access control, and administrative actions."
   } ],
@@ -5279,6 +5282,9 @@
     },
     "/engine/add" : {
       "get" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Add engine (placeholder)",
+        "description" : "Placeholder endpoint for adding an engine. Currently no-op.",
         "operationId" : "addEngine",
         "parameters" : [ {
           "name" : "api",
@@ -5294,8 +5300,8 @@
           }
         } ],
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "No-op",
             "content" : {
               "application/json" : { }
             }
@@ -5308,10 +5314,19 @@
     },
     "/engine/all" : {
       "get" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "List engines",
+        "description" : "Returns basic information for all engines the user can access.",
         "operationId" : "printEngines",
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Engines returned",
+            "content" : {
+              "application/json" : { }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized",
             "content" : {
               "application/json" : { }
             }
@@ -5324,6 +5339,9 @@
     },
     "/engine/central/context/getAutoCompleteResults" : {
       "get" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Autocomplete insights",
+        "description" : "Returns autocomplete suggestions for insight search.",
         "operationId" : "getAutoCompleteResults",
         "parameters" : [ {
           "name" : "completeTerm",
@@ -5333,8 +5351,8 @@
           }
         } ],
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Suggestions returned",
             "content" : {
               "application/json" : { }
             }
@@ -5347,10 +5365,23 @@
     },
     "/engine/central/context/getSearchInsightsResults" : {
       "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Search insights",
+        "description" : "Searches insights with optional filters and pagination.",
         "operationId" : "getSearchInsightsResults",
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SearchInsightsForm"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Results returned",
             "content" : {
               "application/json" : { }
             }
@@ -5363,16 +5394,15 @@
     },
     "/engine/comet" : {
       "get" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Start a comet job (legacy)",
+        "description" : "Starts a legacy long-running job and returns its identifier.",
         "operationId" : "cometTry",
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Job started",
             "content" : {
-              "text/plain" : {
-                "schema" : {
-                  "type" : "string"
-                }
-              }
+              "text/plain" : { }
             }
           }
         },
@@ -5383,10 +5413,23 @@
     },
     "/engine/console" : {
       "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Get async job console logs",
+        "description" : "Returns standard output logs for an asynchronous Pixel job.",
         "operationId" : "console",
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JobIdRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Console logs returned",
             "content" : {
               "application/json" : { }
             }
@@ -5399,6 +5442,9 @@
     },
     "/engine/downloadFile" : {
       "get" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Download exported file",
+        "description" : "Downloads an exported file for a given insight and file key.",
         "operationId" : "downloadFile",
         "parameters" : [ {
           "name" : "insightId",
@@ -5414,10 +5460,22 @@
           }
         } ],
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "File downloaded",
             "content" : {
               "application/octet-stream" : { }
+            }
+          },
+          "400" : {
+            "description" : "Invalid insight or file key",
+            "content" : {
+              "application/json" : { }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized",
+            "content" : {
+              "application/json" : { }
             }
           }
         },
@@ -5428,10 +5486,23 @@
     },
     "/engine/error" : {
       "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Get async job error logs",
+        "description" : "Returns error logs for an asynchronous Pixel job.",
         "operationId" : "error",
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JobIdRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Error logs returned",
             "content" : {
               "application/json" : { }
             }
@@ -5444,12 +5515,37 @@
     },
     "/engine/getPipeline" : {
       "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Get Pixel pipeline plan",
+        "description" : "Returns the execution plan/pipeline for the current insight.",
         "operationId" : "getPixelPipelinePlan",
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/InsightIdForm"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Pipeline returned",
             "content" : {
-              "application/json;charset=utf-8" : { }
+              "application/json" : { }
+            }
+          },
+          "400" : {
+            "description" : "Invalid insight",
+            "content" : {
+              "application/json" : { }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized",
+            "content" : {
+              "application/json" : { }
             }
           }
         },
@@ -5460,10 +5556,13 @@
     },
     "/engine/help" : {
       "get" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Help routes",
+        "description" : "Returns a simple HTML page describing available routes.",
         "operationId" : "printURL",
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "HTML returned",
             "content" : {
               "text/html" : { }
             }
@@ -5476,6 +5575,9 @@
     },
     "/engine/jkill" : {
       "get" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Kill comet job (legacy)",
+        "description" : "Terminates a legacy comet job.",
         "operationId" : "killJob",
         "parameters" : [ {
           "name" : "jobId",
@@ -5485,8 +5587,8 @@
           }
         } ],
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Job terminated",
             "content" : {
               "application/xml" : { }
             }
@@ -5499,6 +5601,9 @@
     },
     "/engine/joutput" : {
       "get" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Get comet job output (legacy)",
+        "description" : "Retrieves output for a legacy comet job.",
         "operationId" : "getJobOutput",
         "parameters" : [ {
           "name" : "jobId",
@@ -5508,14 +5613,10 @@
           }
         } ],
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Output returned",
             "content" : {
-              "text/plain" : {
-                "schema" : {
-                  "type" : "string"
-                }
-              }
+              "text/plain" : { }
             }
           }
         },
@@ -5526,6 +5627,9 @@
     },
     "/engine/mediawiki/tags" : {
       "get" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Search MediaWiki tags",
+        "description" : "Searches Wikipedia for a term and returns top results with Product Ontology links.",
         "operationId" : "getMediaWikiTagsForSearchTerm",
         "parameters" : [ {
           "name" : "searchTerm",
@@ -5542,8 +5646,8 @@
           }
         } ],
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Results returned",
             "content" : {
               "application/json" : { }
             }
@@ -5556,10 +5660,23 @@
     },
     "/engine/partial" : {
       "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Get async job partial output",
+        "description" : "Returns partial outputs produced so far for an asynchronous Pixel job.",
         "operationId" : "partial",
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JobIdRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Partial output returned",
             "content" : {
               "application/json" : { }
             }
@@ -5572,10 +5689,19 @@
     },
     "/engine/playsheets" : {
       "get" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "List available PlaySheets",
+        "description" : "Returns a map of PlaySheet names to their implementation classes.",
         "operationId" : "getPlaySheets",
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Successful operation",
+            "content" : {
+              "application/json" : { }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized",
             "content" : {
               "application/json" : { }
             }
@@ -5588,10 +5714,23 @@
     },
     "/engine/reset" : {
       "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Reset async job",
+        "description" : "Resets a previously submitted asynchronous Pixel job.",
         "operationId" : "reset",
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JobIdRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Job reset",
             "content" : {
               "application/json" : { }
             }
@@ -5604,10 +5743,29 @@
     },
     "/engine/result" : {
       "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Get async job result",
+        "description" : "Retrieves the final result for a previously submitted asynchronous Pixel job.",
         "operationId" : "result",
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JobIdRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Result returned",
+            "content" : {
+              "application/json" : { }
+            }
+          },
+          "404" : {
+            "description" : "Job not found or not in session",
             "content" : {
               "application/json" : { }
             }
@@ -5620,12 +5778,42 @@
     },
     "/engine/runPixel" : {
       "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Execute Pixel synchronously",
+        "description" : "Executes a Pixel expression and returns the full result in the response.",
         "operationId" : "runPixelSync",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RunPixelRequest"
+              }
+            },
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RunPixelRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Pixel executed",
             "content" : {
-              "application/json;charset=utf-8" : { }
+              "application/json" : { }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request",
+            "content" : {
+              "application/json" : { }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized",
+            "content" : {
+              "application/json" : { }
             }
           }
         },
@@ -5636,12 +5824,42 @@
     },
     "/engine/runPixelAsync" : {
       "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Execute Pixel asynchronously",
+        "description" : "Submits a Pixel expression to run asynchronously and returns a jobId.",
         "operationId" : "runPixelAsync",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RunPixelRequest"
+              }
+            },
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RunPixelRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Job submitted",
             "content" : {
-              "application/json;charset=utf-8" : { }
+              "application/json" : { }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request",
+            "content" : {
+              "application/json" : { }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized",
+            "content" : {
+              "application/json" : { }
             }
           }
         },
@@ -5652,10 +5870,23 @@
     },
     "/engine/status" : {
       "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Get async job status",
+        "description" : "Returns the current status of an asynchronous Pixel job.",
         "operationId" : "status",
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JobIdRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Status returned",
             "content" : {
               "application/json" : { }
             }
@@ -5668,10 +5899,23 @@
     },
     "/engine/terminate" : {
       "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Terminate async job",
+        "description" : "Terminates a running asynchronous Pixel job.",
         "operationId" : "terminate",
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JobIdRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Job terminated",
             "content" : {
               "application/json" : { }
             }
@@ -6382,6 +6626,77 @@
             "content" : {
               "application/json" : { }
             }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "InsightIdForm" : {
+        "required" : [ "insightId" ],
+        "type" : "object",
+        "properties" : {
+          "insightId" : {
+            "type" : "string",
+            "description" : "Insight identifier"
+          }
+        }
+      },
+      "JobIdRequest" : {
+        "required" : [ "jobId" ],
+        "type" : "object",
+        "properties" : {
+          "jobId" : {
+            "type" : "string",
+            "description" : "Asynchronous job identifier"
+          }
+        }
+      },
+      "RunPixelRequest" : {
+        "required" : [ "expression" ],
+        "type" : "object",
+        "properties" : {
+          "dropLogging" : {
+            "type" : "string",
+            "description" : "If true, drop console logging after run"
+          },
+          "expression" : {
+            "type" : "string",
+            "description" : "Pixel expression to execute",
+            "example" : "Connect(engine:'mydb');"
+          },
+          "insightId" : {
+            "type" : "string",
+            "description" : "Insight identifier. Use 'new' to create a new insight or omit for temporary."
+          },
+          "tz" : {
+            "type" : "string",
+            "description" : "Client timezone ID",
+            "example" : "America/New_York"
+          }
+        }
+      },
+      "SearchInsightsForm" : {
+        "type" : "object",
+        "properties" : {
+          "filterData" : {
+            "type" : "string",
+            "description" : "JSON-encoded filters including app_id and tags"
+          },
+          "limit" : {
+            "type" : "string",
+            "description" : "Limit for pagination",
+            "example" : "15"
+          },
+          "offset" : {
+            "type" : "string",
+            "description" : "Offset for pagination",
+            "example" : "0"
+          },
+          "searchString" : {
+            "type" : "string",
+            "description" : "Search string"
           }
         }
       }
