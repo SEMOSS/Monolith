@@ -31,6 +31,8 @@ tags:
   description: Execute Pixel in scheduler context.
 - name: Session
   description: Session management and cleanup
+- name: Themes
+  description: Endpoints for managing administrative UI themes
 - name: Authentication
   description: User authentication and session management
 - name: auth
@@ -8473,38 +8475,113 @@ paths:
             application/json;charset=utf-8: {}
   /themes/createAdminTheme:
     post:
+      tags:
+      - Themes
+      summary: Create admin theme
+      description: Creates a new admin theme (admin only).
       operationId: createAdminTheme
+      requestBody:
+        description: "Form data with name, json, isActive"
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: string
+              description: Theme create form
+        required: true
       responses:
-        default:
-          description: default response
+        "200":
+          description: Theme created
           content:
             application/json: {}
+        "400":
+          description: Validation or init error
+          content:
+            application/json: {}
+        "401":
+          description: Not authorized / not admin
+          content:
+            application/json: {}
+      security:
+      - basicAuth: []
   /themes/deleteAdminTheme:
     post:
+      tags:
+      - Themes
+      summary: Delete admin theme
+      description: Deletes an admin theme (admin only).
       operationId: deleteAdminTheme
+      requestBody:
+        description: Form data with id
+        content:
+          application/x-www-form-urlencoded: {}
+        required: true
       responses:
-        default:
-          description: default response
+        "200":
+          description: Theme deleted
           content:
             application/json: {}
+        "400":
+          description: Deletion or init error
+          content:
+            application/json: {}
+        "401":
+          description: Not authorized / not admin
+          content:
+            application/json: {}
+      security:
+      - basicAuth: []
   /themes/editAdminTheme:
     post:
+      tags:
+      - Themes
+      summary: Edit admin theme
+      description: Edits an existing admin theme (admin only).
       operationId: editAdminTheme
+      requestBody:
+        description: "Form data with id, name, json, isActive"
+        content:
+          application/x-www-form-urlencoded: {}
+        required: true
       responses:
-        default:
-          description: default response
+        "200":
+          description: Theme updated
           content:
             application/json: {}
+        "400":
+          description: Update or init error
+          content:
+            application/json: {}
+        "401":
+          description: Not authorized / not admin
+          content:
+            application/json: {}
+      security:
+      - basicAuth: []
   /themes/getActiveAdminTheme:
     get:
+      tags:
+      - Themes
+      summary: Get active admin theme
+      description: Returns the currently active administrative theme if theming is
+        initialized.
       operationId: getActiveAdminTheme
       responses:
-        default:
-          description: default response
+        "200":
+          description: Active theme returned
           content:
             application/json: {}
+        "400":
+          description: Theming not initialized
+          content:
+            application/json: {}
+      security:
+      - basicAuth: []
   /themes/getAdminThemes:
     get:
+      tags:
+      - Themes
+      summary: List admin themes
+      description: Returns a paginated list of admin themes (admin only).
       operationId: getAdminThemes
       parameters:
       - name: limit
@@ -8518,26 +8595,69 @@ paths:
           type: integer
           format: int32
       responses:
-        default:
-          description: default response
+        "200":
+          description: Themes list returned
           content:
             application/json: {}
+        "400":
+          description: Theming not initialized
+          content:
+            application/json: {}
+        "401":
+          description: Not authorized / not admin
+          content:
+            application/json: {}
+      security:
+      - basicAuth: []
   /themes/setActiveAdminTheme:
     post:
+      tags:
+      - Themes
+      summary: Set active admin theme
+      description: Sets a specific theme as the active admin theme (admin only).
       operationId: setActiveAdminTheme
+      requestBody:
+        description: Form data with id
+        content:
+          application/x-www-form-urlencoded: {}
+        required: true
       responses:
-        default:
-          description: default response
+        "200":
+          description: Theme set active
           content:
             application/json: {}
+        "400":
+          description: Activation or init error
+          content:
+            application/json: {}
+        "401":
+          description: Not authorized / not admin
+          content:
+            application/json: {}
+      security:
+      - basicAuth: []
   /themes/setAllAdminThemesInactive:
     post:
+      tags:
+      - Themes
+      summary: Set all admin themes inactive
+      description: Marks all admin themes as inactive (admin only).
       operationId: setAllAdminThemesInactive
       responses:
-        default:
-          description: default response
+        "200":
+          description: All themes set inactive
           content:
             application/json: {}
+        "400":
+          description: Operation or init error
+          content:
+            application/json: {}
+        "401":
+          description: Not authorized / not admin
+          content:
+            application/json: {}
+      security:
+      - basicAuth: []
 components:
   schemas:
     ActiveSessionsDTO:
