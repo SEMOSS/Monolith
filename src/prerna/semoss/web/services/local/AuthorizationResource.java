@@ -44,6 +44,8 @@ import org.apache.logging.log4j.Logger;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -54,6 +56,7 @@ import prerna.web.services.util.WebUtility;
 @Path("/authorization")
 @Tag(name = "Authorization", description = "Authorization and user search APIs")
 @SecurityRequirement(name = "basicAuth")
+@SecurityScheme(name = "basicAuth", type = SecuritySchemeType.HTTP, scheme = "basic")
 public class AuthorizationResource {
 
 	private static final Logger classLogger = LogManager.getLogger(AuthorizationResource.class);

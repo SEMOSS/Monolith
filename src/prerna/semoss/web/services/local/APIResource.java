@@ -51,6 +51,9 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
@@ -60,6 +63,8 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/")
 @Tag(name = "API", description = "API for querying insights")
+@SecurityRequirement(name = "basicAuth")
+@SecurityScheme(name = "basicAuth", type = SecuritySchemeType.HTTP, scheme = "basic")
 public class APIResource {
 
 	private static final Logger logger = LogManager.getLogger(APIResource.class);

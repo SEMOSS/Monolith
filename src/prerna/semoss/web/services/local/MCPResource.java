@@ -55,7 +55,6 @@ import prerna.util.Utility;
 @Singleton
 @Path("/ext/mcp/{toolbox_id}")
 @PermitAll
-//@SecurityRequirement(name = "basicAuth")
 @SecurityScheme(name = "basicAuth", type = SecuritySchemeType.HTTP, scheme = "basic")
 @Tag(name = "MCP", description = "Endpoints for Model Context Protocol streaming and event communication")
 public class MCPResource {
