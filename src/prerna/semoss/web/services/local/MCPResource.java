@@ -1,5 +1,7 @@
 package prerna.semoss.web.services.local;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -53,7 +55,8 @@ import prerna.util.Utility;
 @Singleton
 @Path("/ext/mcp/{toolbox_id}")
 @PermitAll
-@SecurityRequirement(name = "basicAuth")
+//@SecurityRequirement(name = "basicAuth")
+@SecurityScheme(name = "basicAuth", type = SecuritySchemeType.HTTP, scheme = "basic")
 @Tag(name = "MCP", description = "Endpoints for Model Context Protocol streaming and event communication")
 public class MCPResource {
 
@@ -70,6 +73,7 @@ public class MCPResource {
         summary = "Process insight data and stream incremental plain text output",
         description = "Accepts a JSON payload and returns a streamed plain text response where each line represents incremental processing output.",
         tags = { "MCP" },
+        security = @SecurityRequirement(name = "basicAuth"),
         parameters = {
             @Parameter(name="toolbox_id", in = ParameterIn.PATH, required = true,
                        description = "Identifier of the MCP toolbox",
@@ -134,6 +138,7 @@ public class MCPResource {
         summary = "Open an SSE channel for MCP tool communications",
         description = "Establishes a Server-Sent Events (SSE) stream used for real-time interaction with a toolbox. The stream emits event data as processing progresses.",
         tags = { "MCP" },
+    security = @SecurityRequirement(name = "basicAuth"),
         parameters = {
             @Parameter(name="toolbox_id", in=ParameterIn.PATH, required=true,
                 description="Identifier of the MCP toolbox",

@@ -466,6 +466,7 @@
 			<artifactId>swagger-core</artifactId>
 			<version>2.2.21</version>
 		</dependency>
+
 		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
 		<!-- this is the primary tomcat specific jar -->
 		<dependency>

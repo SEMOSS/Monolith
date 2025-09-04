@@ -8535,3 +8535,7 @@ components:
           - admin
           - user
           - api
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
