@@ -26,6 +26,13 @@ import javax.ws.rs.core.Request;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.logging.log4j.LogManager;
@@ -49,6 +56,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/e-{engineId}")
 @PermitAll
+@Tag(name = "Engine Route", description = "Per-engine endpoints for SMSS configuration updates and image download.")
 public class EngineRouteResource {
 
 	private static final Logger classLogger = LogManager.getLogger(ModelEngineResource.class);
@@ -73,6 +81,12 @@ public class EngineRouteResource {
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
+	@Operation(summary = "Update engine SMSS file", description = "Updates the engine's SMSS configuration file with new content, preserving concealed sensitive values and validating immutable fields (engine id, name, type). Requires admin or engine owner.")
+	@ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "SMSS updated", content = @Content(schema = @Schema(implementation = Map.class))),
+        @ApiResponse(responseCode = "400", description = "Validation or processing error", content = @Content(schema = @Schema(implementation = Map.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized or insufficient permissions", content = @Content(schema = @Schema(implementation = Map.class)))
+    })
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
 		engineId = WebUtility.inputSanitizer(engineId);
 		
@@ -197,6 +211,13 @@ public class EngineRouteResource {
 	@GET
 	@Path("/image/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
+	@Operation(summary = "Download engine image", description = "Returns the engine image (PNG/JPEG/GIF/SVG). Supports ETag-based client caching. Falls back to generated default if none found.")
+	@ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Image file returned"),
+        @ApiResponse(responseCode = "304", description = "Not modified (ETag match)"),
+        @ApiResponse(responseCode = "400", description = "Invalid engine or retrieval error", content = @Content(schema = @Schema(implementation = Map.class))),
+        @ApiResponse(responseCode = "401", description = "Unauthorized or no access", content = @Content(schema = @Schema(implementation = Map.class)))
+    })
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("engineId") String engineId) {
 		engineId=WebUtility.inputSanitizer(engineId);
 
@@ -313,6 +334,7 @@ public class EngineRouteResource {
 		extensions.add("image.jpg");
 		extensions.add("image.gif");
 		extensions.add("image.svg");
+		@SuppressWarnings("deprecation")
 		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
 		File baseFolder = new File(WebUtility.normalizePath(folderDirectory));
 		File[] imageFiles = baseFolder.listFiles(imageExtensionFilter);

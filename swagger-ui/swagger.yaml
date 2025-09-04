@@ -12,6 +12,8 @@ tags:
   description: API for querying insights
 - name: Authorization
   description: Authorization and user search APIs
+- name: Engine Route
+  description: Per-engine endpoints for SMSS configuration updates and image download.
 - name: Database Engine
   description: "LEGACY endpoints for database operations. Deprecated: use /e-{engineId}\
     \ or /database-{databaseId} endpoints instead."
@@ -7214,6 +7216,11 @@ paths:
       - basicAuth: []
   /e-{engineId}/image/download:
     get:
+      tags:
+      - Engine Route
+      summary: Download engine image
+      description: Returns the engine image (PNG/JPEG/GIF/SVG). Supports ETag-based
+        client caching. Falls back to generated default if none found.
       operationId: imageDownload
       parameters:
       - name: engineId
@@ -7222,13 +7229,36 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Image file returned
+        "304":
+          description: Not modified (ETag match)
+        "400":
+          description: Invalid engine or retrieval error
           content:
-            application/octet-stream: {}
-            application/svg+xml: {}
+            application/octet-stream:
+              schema:
+                type: string
+            application/svg+xml:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized or no access
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+            application/svg+xml:
+              schema:
+                type: string
   /e-{engineId}/updateSmssFile:
     post:
+      tags:
+      - Engine Route
+      summary: Update engine SMSS file
+      description: "Updates the engine's SMSS configuration file with new content,\
+        \ preserving concealed sensitive values and validating immutable fields (engine\
+        \ id, name, type). Requires admin or engine owner."
       operationId: updateSmssFile
       parameters:
       - name: engineId
@@ -7237,10 +7267,24 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: SMSS updated
           content:
-            application/json;charset=utf-8: {}
+            application/json;charset=utf-8:
+              schema:
+                type: string
+        "400":
+          description: Validation or processing error
+          content:
+            application/json;charset=utf-8:
+              schema:
+                type: string
+        "401":
+          description: Unauthorized or insufficient permissions
+          content:
+            application/json;charset=utf-8:
+              schema:
+                type: string
   /engine/add:
     get:
       tags:
