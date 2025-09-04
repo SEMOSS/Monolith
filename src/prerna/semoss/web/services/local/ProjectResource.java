@@ -1,5 +1,14 @@
 package prerna.semoss.web.services.local;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -81,6 +90,8 @@ import prerna.web.services.util.WebUtility;
 @Path("/project-{projectId}")
 @PermitAll
 @SecurityRequirement(name = "basicAuth")
+@SecurityScheme(name = "basicAuth", type = SecuritySchemeType.HTTP, scheme = "basic")
+@Tag(name = "Project", description = "Endpoints for managing projects, accessing project assets, images, and executing project-level queries (JDBC JSON/CSV outputs)")
 public class ProjectResource {
 
 	private static final Logger classLogger = LogManager.getLogger(ProjectResource.class);
@@ -126,6 +137,18 @@ public class ProjectResource {
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
+	@Operation(
+		summary = "Update a project SMSS file",
+		description = "Validates and updates the project's SMSS configuration file. Only project owners or admins may perform this action.",
+		parameters = {
+			@Parameter(name = "projectId", description = "Project identifier", required = true)
+		}
+	)
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "SMSS file updated successfully", content = @Content(mediaType = "application/json")),
+		@ApiResponse(responseCode = "400", description = "Validation or processing error", content = @Content(mediaType = "application/json")),
+		@ApiResponse(responseCode = "401", description = "Unauthorized / invalid session", content = @Content(mediaType = "application/json"))
+	})
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("projectId") String projectId) {
 		projectId = WebUtility.inputSanitizer(projectId);
 		User user = null;
@@ -231,6 +254,19 @@ public class ProjectResource {
 	@POST
 	@Path("/runReactor/{reactorName}")
 	@Produces("application/json;charset=utf-8")
+	@Operation(
+		summary = "Execute a reactor in the project context",
+		description = "Runs a named reactor with a JSON body representing noun store input and returns pixel runner output.",
+		parameters = {
+			@Parameter(name = "projectId", description = "Project identifier", required = true),
+			@Parameter(name = "reactorName", description = "Name of the reactor to execute", required = true)
+		}
+	)
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Reactor executed successfully", content = @Content(mediaType = "application/json")),
+		@ApiResponse(responseCode = "400", description = "Reactor not found or execution error", content = @Content(mediaType = "application/json")),
+		@ApiResponse(responseCode = "401", description = "Unauthorized / invalid session", content = @Content(mediaType = "application/json"))
+	})
 	public Response runReactor(@Context HttpServletRequest request, 
 			@PathParam("projectId") String projectId, 
 			@PathParam("reactorName") String reactorName) {
@@ -316,6 +352,18 @@ public class ProjectResource {
 	@GET
 	@Path("/landing")
 	@Produces(MediaType.TEXT_HTML)
+	@Operation(
+		summary = "Get project landing page",
+		description = "Retrieves the custom landing HTML page for the project if it exists.",
+		parameters = {
+			@Parameter(name = "projectId", description = "Project identifier", required = true)
+		}
+	)
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Landing page HTML returned", content = @Content(mediaType = "text/html")),
+		@ApiResponse(responseCode = "401", description = "Unauthorized / access denied", content = @Content(mediaType = "application/json")),
+		@ApiResponse(responseCode = "404", description = "Landing page not found", content = @Content(mediaType = "application/json"))
+	})
 	public Response getProjectLandingPage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("projectId") String projectId) {
 		User user = null;
 		projectId= WebUtility.inputSanitizer(projectId);
@@ -377,6 +425,19 @@ public class ProjectResource {
 	@GET
 	@Path("/downloadProjectAsset/{relPath}")
 	@Produces({MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM})
+	@Operation(
+		summary = "Download a project asset file",
+		description = "Returns the content of an asset under app_root/version/assets by relative path.",
+		parameters = {
+			@Parameter(name = "projectId", description = "Project identifier", required = true),
+			@Parameter(name = "relPath", description = "Relative path under the assets directory", required = true)
+		}
+	)
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Asset content returned"),
+		@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+		@ApiResponse(responseCode = "404", description = "File not found", content = @Content(mediaType = "application/json"))
+	})
 	public Response downloadProjectAsset(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("projectId") String projectId, @PathParam("relPath") String relPath) {
 		projectId= WebUtility.inputSanitizer(projectId);
 
@@ -439,6 +500,19 @@ public class ProjectResource {
 	@GET
 	@Path("/embedLogo")
 	@Produces({MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM})
+	@Operation(
+		summary = "Get embed logo for project",
+		description = "Returns the default (or configured) embed logo file contents for the project.",
+		parameters = {
+			@Parameter(name = "projectId", description = "Project identifier", required = true),
+			@Parameter(name = "insightId", description = "Insight identifier (optional for contextual logo)")
+		}
+	)
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Logo content returned"),
+		@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+		@ApiResponse(responseCode = "404", description = "Logo not found", content = @Content(mediaType = "application/json"))
+	})
 	public Response getEmbedUrl(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
 		
 	    projectId=WebUtility.inputSanitizer(projectId);
@@ -535,6 +609,18 @@ public class ProjectResource {
 	@GET
 	@Path("/projectImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
+	@Operation(
+		summary = "Download project image",
+		description = "Returns the representative project image file (auto-generated or uploaded).",
+		parameters = {
+			@Parameter(name = "projectId", description = "Project identifier", required = true)
+		}
+	)
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Image file returned"),
+		@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+		@ApiResponse(responseCode = "400", description = "Error sending image", content = @Content(mediaType = "application/json"))
+	})
 	public Response downloadProjectImage(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("projectId") String projectId) {
 		projectId= WebUtility.inputSanitizer(projectId);
 		
@@ -642,6 +728,20 @@ public class ProjectResource {
 	@GET
 	@Path("/insightImage/download")
 	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
+	@Operation(
+		summary = "Download insight image",
+		description = "Returns the representative image for a specific insight within the project.",
+		parameters = {
+			@Parameter(name = "projectId", description = "Project identifier", required = true),
+			@Parameter(name = "rdbmsId", description = "Insight identifier", required = true),
+			@Parameter(name = "params", description = "Optional parameters affecting cached image selection" )
+		}
+	)
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Insight image returned"),
+		@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+		@ApiResponse(responseCode = "404", description = "Image not found", content = @Content(mediaType = "application/json"))
+	})
 	public Response downloadInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request, 
 			@PathParam("projectId") String projectId, @QueryParam("rdbmsId") String id, @QueryParam("params") String params) {
 		
@@ -823,6 +923,19 @@ public class ProjectResource {
 	@GET
 	@Path("/projectWidget")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	@Operation(
+		summary = "Download project widget file",
+		description = "Retrieves a binary widget asset within the project widget directory.",
+		parameters = {
+			@Parameter(name = "projectId", description = "Project identifier", required = true),
+			@Parameter(name = "widget", description = "Widget name", required = true),
+			@Parameter(name = "file", description = "File name inside the widget", required = true)
+		}
+	)
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Widget file returned"),
+		@ApiResponse(responseCode = "400", description = "Error sending widget file", content = @Content(mediaType = "application/json"))
+	})
 	public Response getAppWidget(@PathParam("projectId") String projectId, @QueryParam("widget") String widgetName, @QueryParam("file") String fileName) {
 
 	    projectId=WebUtility.inputSanitizer(projectId);
@@ -881,6 +994,21 @@ public class ProjectResource {
 	@GET
 	@Path("/jdbc")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	@Operation(
+		summary = "Execute SQL or pixel via JDBC bridge (binary)",
+		description = "Opens (optionally) an insight and executes a SQL/pixel expression returning a binary payload.",
+		parameters = {
+			@Parameter(name = "projectId", description = "Project identifier or 'session'", required = true),
+			@Parameter(name = "insightId", description = "Insight identifier (runtime or existing)"),
+			@Parameter(name = "sql", description = "SQL or pixel to execute"),
+			@Parameter(name = "open", description = "If true, opens the insight before execution")
+		}
+	)
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Execution output returned"),
+		@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+		@ApiResponse(responseCode = "400", description = "Execution error", content = @Content(mediaType = "application/octet-stream"))
+	})
 	public StreamingOutput  getJDBCOutput(@PathParam("projectId") String projectId, @QueryParam("insightId") String insightId, @QueryParam("sql") String sql,  
 			@QueryParam("open") String open,
 			@Context HttpServletRequest request, 
@@ -999,6 +1127,20 @@ public class ProjectResource {
 	@POST
 	@Path("/jdbc_json")
 	@Produces(MediaType.APPLICATION_JSON)
+	@Operation(
+		summary = "Execute SQL or pixel via JDBC bridge (JSON)",
+		description = "Executes a query against the project / insight and returns JSON formatted results.",
+		parameters = {
+			@Parameter(name = "projectId", description = "Project identifier or 'session'", required = true),
+			@Parameter(name = "insightId", description = "Insight identifier"),
+			@Parameter(name = "sql", description = "SQL or pixel to execute")
+		}
+	)
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Execution JSON returned", content = @Content(mediaType = "application/json")),
+		@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+		@ApiResponse(responseCode = "400", description = "Execution error", content = @Content(mediaType = "application/json"))
+	})
 	public StreamingOutput  getJDBCJsonOutput(@PathParam("projectId") String projectId, 
 			@QueryParam("insightId") String insightId, 
 			@QueryParam("sql") String  sql, @Context HttpServletRequest request, 
@@ -1102,6 +1244,20 @@ public class ProjectResource {
 	@GET
 	@Path("/jdbc_csv")
 	@Produces(MediaType.TEXT_PLAIN + ";charset=utf-8")
+	@Operation(
+		summary = "Execute SQL or pixel via JDBC bridge (CSV)",
+		description = "Executes a query and returns CSV formatted results.",
+		parameters = {
+			@Parameter(name = "projectId", description = "Project identifier or 'session'", required = true),
+			@Parameter(name = "insightId", description = "Insight identifier"),
+			@Parameter(name = "sql", description = "SQL or pixel to execute")
+		}
+	)
+	@ApiResponses({
+		@ApiResponse(responseCode = "200", description = "Execution CSV returned", content = @Content(mediaType = "text/plain")),
+		@ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+		@ApiResponse(responseCode = "400", description = "Execution error", content = @Content(mediaType = "text/plain"))
+	})
 	public StreamingOutput  getJDBCCSVOutput(@PathParam("projectId") String projectId, 
 			@QueryParam("insightId") String insightId, 
 			@QueryParam("sql") String sql,

@@ -24,6 +24,9 @@ tags:
     \ used for data processing, analytics, and workflow automation in SEMOSS."
 - name: AI Models
   description: AI and machine learning model operations
+- name: Project
+  description: "Endpoints for managing projects, accessing project assets, images,\
+    \ and executing project-level queries (JDBC JSON/CSV outputs)"
 - name: Scheduler
   description: Execute Pixel in scheduler context.
 - name: Session
@@ -8033,6 +8036,11 @@ paths:
       - basicAuth: []
   /project-{projectId}/downloadProjectAsset/{relPath}:
     get:
+      tags:
+      - Project
+      summary: Download a project asset file
+      description: Returns the content of an asset under app_root/version/assets by
+        relative path.
       operationId: downloadProjectAsset
       parameters:
       - name: projectId
@@ -8046,15 +8054,26 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Asset content returned
+        "401":
+          description: Unauthorized
           content:
             text/html: {}
             application/octet-stream: {}
+        "404":
+          description: File not found
+          content:
+            application/json: {}
       security:
       - basicAuth: []
   /project-{projectId}/embedLogo:
     get:
+      tags:
+      - Project
+      summary: Get embed logo for project
+      description: Returns the default (or configured) embed logo file contents for
+        the project.
       operationId: getEmbedUrl
       parameters:
       - name: projectId
@@ -8067,15 +8086,26 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Logo content returned
+        "401":
+          description: Unauthorized
           content:
             text/html: {}
             application/octet-stream: {}
+        "404":
+          description: Logo not found
+          content:
+            application/json: {}
       security:
       - basicAuth: []
   /project-{projectId}/insightImage/download:
     get:
+      tags:
+      - Project
+      summary: Download insight image
+      description: Returns the representative image for a specific insight within
+        the project.
       operationId: downloadInsightImage
       parameters:
       - name: projectId
@@ -8092,15 +8122,26 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Insight image returned
+        "401":
+          description: Unauthorized
           content:
             application/octet-stream: {}
             application/svg+xml: {}
+        "404":
+          description: Image not found
+          content:
+            application/json: {}
       security:
       - basicAuth: []
   /project-{projectId}/jdbc:
     get:
+      tags:
+      - Project
+      summary: Execute SQL or pixel via JDBC bridge (binary)
+      description: Opens (optionally) an insight and executes a SQL/pixel expression
+        returning a binary payload.
       operationId: getJDBCOutput
       parameters:
       - name: projectId
@@ -8121,14 +8162,24 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Execution output returned
+        "401":
+          description: Unauthorized
+          content:
+            application/octet-stream: {}
+        "400":
+          description: Execution error
           content:
             application/octet-stream: {}
       security:
       - basicAuth: []
   /project-{projectId}/jdbc_csv:
     get:
+      tags:
+      - Project
+      summary: Execute SQL or pixel via JDBC bridge (CSV)
+      description: Executes a query and returns CSV formatted results.
       operationId: getJDBCCSVOutput
       parameters:
       - name: projectId
@@ -8145,14 +8196,27 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Execution CSV returned
+          content:
+            text/plain: {}
+        "401":
+          description: Unauthorized
           content:
             text/plain;charset=utf-8: {}
+        "400":
+          description: Execution error
+          content:
+            text/plain: {}
       security:
       - basicAuth: []
   /project-{projectId}/jdbc_json:
     get:
+      tags:
+      - Project
+      summary: Execute SQL or pixel via JDBC bridge (JSON)
+      description: Executes a query against the project / insight and returns JSON
+        formatted results.
       operationId: getJDBCJsonOutput
       parameters:
       - name: projectId
@@ -8169,14 +8233,26 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Execution JSON returned
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized
+          content:
+            application/json: {}
+        "400":
+          description: Execution error
           content:
             application/json: {}
       security:
       - basicAuth: []
   /project-{projectId}/landing:
     get:
+      tags:
+      - Project
+      summary: Get project landing page
+      description: Retrieves the custom landing HTML page for the project if it exists.
       operationId: getProjectLandingPage
       parameters:
       - name: projectId
@@ -8185,14 +8261,27 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Landing page HTML returned
           content:
             text/html: {}
+        "401":
+          description: Unauthorized / access denied
+          content:
+            application/json: {}
+        "404":
+          description: Landing page not found
+          content:
+            application/json: {}
       security:
       - basicAuth: []
   /project-{projectId}/projectImage/download:
     get:
+      tags:
+      - Project
+      summary: Download project image
+      description: Returns the representative project image file (auto-generated or
+        uploaded).
       operationId: downloadProjectImage
       parameters:
       - name: projectId
@@ -8201,15 +8290,25 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Image file returned
+        "401":
+          description: Unauthorized
           content:
             application/octet-stream: {}
             application/svg+xml: {}
+        "400":
+          description: Error sending image
+          content:
+            application/json: {}
       security:
       - basicAuth: []
   /project-{projectId}/projectWidget:
     get:
+      tags:
+      - Project
+      summary: Download project widget file
+      description: Retrieves a binary widget asset within the project widget directory.
       operationId: getAppWidget
       parameters:
       - name: projectId
@@ -8226,14 +8325,21 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Widget file returned
+        "400":
+          description: Error sending widget file
           content:
-            application/octet-stream: {}
+            application/json: {}
       security:
       - basicAuth: []
   /project-{projectId}/runReactor/{reactorName}:
     post:
+      tags:
+      - Project
+      summary: Execute a reactor in the project context
+      description: Runs a named reactor with a JSON body representing noun store input
+        and returns pixel runner output.
       operationId: runReactor
       parameters:
       - name: projectId
@@ -8247,14 +8353,27 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: Reactor executed successfully
           content:
-            application/json;charset=utf-8: {}
+            application/json: {}
+        "400":
+          description: Reactor not found or execution error
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized / invalid session
+          content:
+            application/json: {}
       security:
       - basicAuth: []
   /project-{projectId}/updateSmssFile:
     post:
+      tags:
+      - Project
+      summary: Update a project SMSS file
+      description: Validates and updates the project's SMSS configuration file. Only
+        project owners or admins may perform this action.
       operationId: updateSmssFile_2
       parameters:
       - name: projectId
@@ -8263,10 +8382,18 @@ paths:
         schema:
           type: string
       responses:
-        default:
-          description: default response
+        "200":
+          description: SMSS file updated successfully
           content:
-            application/json;charset=utf-8: {}
+            application/json: {}
+        "400":
+          description: Validation or processing error
+          content:
+            application/json: {}
+        "401":
+          description: Unauthorized / invalid session
+          content:
+            application/json: {}
       security:
       - basicAuth: []
   /schedule/executePixel:
