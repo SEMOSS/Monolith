@@ -24,6 +24,9 @@
     "name" : "Database Engine",
     "description" : "LEGACY endpoints for database operations. Deprecated: use /e-{engineId} or /database-{databaseId} endpoints instead."
   }, {
+    "name" : "MCP",
+    "description" : "Endpoints for Model Context Protocol streaming and event communication"
+  }, {
     "name" : "Engine Execution",
     "description" : " Executes a Pixel (SEMOSS scripting language) command. Pixels are used for data processing, analytics, and workflow automation in SEMOSS."
   }, {
@@ -11614,10 +11617,14 @@
     },
     "/ext/mcp/{toolbox_id}/comms" : {
       "post" : {
+        "tags" : [ "MCP" ],
+        "summary" : "Open an SSE channel for MCP tool communications",
+        "description" : "Establishes a Server-Sent Events (SSE) stream used for real-time interaction with a toolbox. The stream emits event data as processing progresses.",
         "operationId" : "comms",
         "parameters" : [ {
           "name" : "toolbox_id",
           "in" : "path",
+          "description" : "Identifier of the MCP toolbox",
           "required" : true,
           "schema" : {
             "type" : "string"
@@ -11625,13 +11632,37 @@
         }, {
           "name" : "access_key",
           "in" : "query",
+          "description" : "Optional access key for additional authorization",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "Authorization",
+          "in" : "header",
+          "description" : "Authorization header (e.g., Basic or Bearer token)",
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "toolbox_id",
+          "in" : "path",
+          "description" : "Toolbox identifier",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "access_key",
+          "in" : "query",
+          "description" : "Optional access key",
           "schema" : {
             "type" : "string"
           }
         } ],
         "requestBody" : {
+          "description" : "Optional JSON command payload at stream initiation",
           "content" : {
-            "*/*" : {
+            "application/json" : {
               "schema" : {
                 "type" : "object"
               }
@@ -11639,8 +11670,37 @@
           }
         },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "SSE stream established; events will be pushed until completion or disconnect",
+            "content" : {
+              "text/event-stream" : {
+                "schema" : {
+                  "type" : "string",
+                  "description" : "Server-Sent Events stream (event: <type>\\n data: <payload>)"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad request",
+            "content" : {
+              "text/event-stream" : { }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized",
+            "content" : {
+              "text/event-stream" : { }
+            }
+          },
+          "410" : {
+            "description" : "Connection closed",
+            "content" : {
+              "text/event-stream" : { }
+            }
+          },
+          "500" : {
+            "description" : "Internal server error",
             "content" : {
               "text/event-stream" : { }
             }
@@ -11653,19 +11713,56 @@
     },
     "/ext/mcp/{toolbox_id}/it" : {
       "post" : {
+        "tags" : [ "MCP" ],
+        "summary" : "Process insight data and stream incremental plain text output",
+        "description" : "Accepts a JSON payload and returns a streamed plain text response where each line represents incremental processing output.",
         "operationId" : "getInsightData",
+        "parameters" : [ {
+          "name" : "toolbox_id",
+          "in" : "path",
+          "description" : "Identifier of the MCP toolbox",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "requestBody" : {
+          "description" : "JSON payload to process",
           "content" : {
             "application/json" : {
               "schema" : {
                 "type" : "object"
               }
             }
-          }
+          },
+          "required" : true
         },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Streaming text response; each line is an incremental processing result",
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string",
+                  "description" : "Newline-delimited streaming text"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Bad request",
+            "content" : {
+              "text/plain" : { }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized",
+            "content" : {
+              "text/plain" : { }
+            }
+          },
+          "500" : {
+            "description" : "Internal server error",
             "content" : {
               "text/plain" : { }
             }
