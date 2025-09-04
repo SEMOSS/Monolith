@@ -11784,7 +11784,10 @@
               "application/json;charset=utf-8" : { }
             }
           }
-        }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
       }
     },
     "/model/openai/chat/completions" : {

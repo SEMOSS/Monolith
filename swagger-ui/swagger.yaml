@@ -7963,6 +7963,8 @@ paths:
           description: default response
           content:
             application/json;charset=utf-8: {}
+      security:
+      - basicAuth: []
   /model/openai/chat/completions:
     post:
       tags:
