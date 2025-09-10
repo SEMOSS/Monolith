@@ -49,8 +49,10 @@ import java.util.List;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
+import javax.servlet.ServletRequest;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
@@ -61,16 +63,21 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
 import org.owasp.encoder.Encode;
 import org.owasp.esapi.ESAPI;
 import org.owasp.esapi.codecs.MySQLCodec;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
 
+import com.github.f4b6a3.uuid.alt.GUID;
 import com.google.common.net.InternetDomainName;
 import com.google.gson.Gson;
 import com.google.json.JsonSanitizer;
 
+import prerna.auth.User;
+import prerna.logging.SemossLogUtils;
+import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.FstUtil;
 import prerna.util.Utility;
@@ -83,9 +90,9 @@ import prerna.web.conf.DBLoader;
  * concept names, printing messages, loading engines, and writing Excel
  * workbooks.
  */
-public class WebUtility {
+public final class WebUtility {
 
-	private static final Logger classLogger = LogManager.getLogger(WebUtility.class);
+	private static final Logger classLogger = LogManager.getLogger();
 
 	private static final FastDateFormat expiresDateFormat = FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz",
 			TimeZone.getTimeZone("GMT"));
@@ -93,12 +100,14 @@ public class WebUtility {
 	private static final List<String[]> noCacheHeaders = new ArrayList<String[]>();
 	static {
 		noCacheHeaders.add(new String[] { "Cache-Control", "private" });
-//		noCacheHeaders.add(new String[] {"Cache-Control", "no-store, no-cache, must-revalidate, max-age=20, post-check=0, pre-check=0"});
-//		noCacheHeaders.add(new String[] {"Pragma", "no-cache"});
 	}
 
 	private static Gson getDefaultGson() {
 		return GsonUtility.getDefaultGson();
+	}
+
+	private WebUtility() {
+
 	}
 
 	/**
@@ -112,12 +121,9 @@ public class WebUtility {
 			try {
 				final byte[] output = gson.toJson(vec).getBytes("UTF8");
 				return new StreamingOutput() {
+					@Override
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-						try (PrintStream ps = new PrintStream(outputStream); // using try with resources to
-																				// automatically close PrintStream
-																				// object since it implements
-																				// AutoCloseable
-						) {
+						try (PrintStream ps = new PrintStream(outputStream);) {
 							ps.write(output, 0, output.length);
 						}
 					}
@@ -142,15 +148,13 @@ public class WebUtility {
 				FileReader fr = new FileReader(daFile);
 				BufferedReader br = new BufferedReader(fr);
 				return new StreamingOutput() {
+					@Override
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-						try (PrintWriter pw = new PrintWriter(outputStream); // using try with resources to
-																				// automatically close PrintStream
-																				// object since it implements
-																				// AutoCloseable
-						) {
+						try (PrintWriter pw = new PrintWriter(outputStream);) {
 							String data = null;
-							while ((data = br.readLine()) != null)
+							while ((data = br.readLine()) != null) {
 								pw.println(data);
+							}
 							// ps.write(data, 0 , data.length);
 							fr.close();
 							br.close();
@@ -224,6 +228,11 @@ public class WebUtility {
 		return null;
 	}
 
+	/**
+	 * 
+	 * @param cookie
+	 * @return
+	 */
 	public static String convertCookieToHeader(NewCookie cookie) {
 		StringBuilder c = new StringBuilder(64 + cookie.getValue().length());
 		// add the cookie
@@ -265,6 +274,11 @@ public class WebUtility {
 		return c.toString();
 	}
 
+	/**
+	 * 
+	 * @param maxAge
+	 * @return
+	 */
 	private static String getExpires(int maxAge) {
 		if (maxAge < 0) {
 			return "";
@@ -283,11 +297,9 @@ public class WebUtility {
 	public static StreamingOutput getSO(byte[] output) {
 		try {
 			return new StreamingOutput() {
+				@Override
 				public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-					try (PrintStream ps = new PrintStream(outputStream); // using try with resources to automatically
-																			// close PrintStream object since it
-																			// implements AutoCloseable
-					) {
+					try (PrintStream ps = new PrintStream(outputStream);) {
 						ps.write(output, 0, output.length);
 					}
 				}
@@ -309,6 +321,7 @@ public class WebUtility {
 			try {
 				final byte[] output = FstUtil.serialize(obj);
 				return new StreamingOutput() {
+					@Override
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
 						try {
 							outputStream.write(output);
@@ -354,10 +367,10 @@ public class WebUtility {
 		}
 		return Encode.forUriComponent(message);
 	}
-	
+
 	/**
-	 * This is to remove scripts from being passed
-	 *  also removed sql injection
+	 * This is to remove scripts from being passed also removed sql injection
+	 * 
 	 * @param stringToSanitize
 	 * @return
 	 */
@@ -372,7 +385,7 @@ public class WebUtility {
 		MySQLCodec mySQLCodec = new MySQLCodec(MySQLCodec.Mode.ANSI);
 		return ESAPI.encoder().encodeForSQL(mySQLCodec, policy.sanitize(stringToSanitize));
 	}
-	
+
 	/**
 	 * This is to just escape for sql, not remove scripts.
 	 * 
@@ -388,7 +401,7 @@ public class WebUtility {
 		MySQLCodec mySQLCodec = new MySQLCodec(MySQLCodec.Mode.ANSI);
 		return ESAPI.encoder().encodeForSQL(mySQLCodec, stringToSanitize);
 	}
-	
+
 	/**
 	 * This is to just escape for sql, not remove scripts.
 	 * 
@@ -401,61 +414,59 @@ public class WebUtility {
 		}
 
 		ArrayList<String> newList = new ArrayList<>(listToSanitize.size());
-		for(String s : listToSanitize) {
+		for (String s : listToSanitize) {
 			newList.add(inputSQLSanitizer(s));
 		}
 		return newList;
 	}
-	
+
 	/**
 	 * 
 	 * @param listToSanitize
 	 * @return
 	 */
 	public static List<String> inputSanitizer(List<String> listToSanitize) {
-		if(listToSanitize == null) {
+		if (listToSanitize == null) {
 			return null;
 		}
 		ArrayList<String> newList = new ArrayList<>(listToSanitize.size());
-		for(String s : listToSanitize) {
+		for (String s : listToSanitize) {
 			newList.add(inputSanitizer(s));
 		}
 		return newList;
 	}
-	
+
 	/**
 	 * 
 	 * @param listToSanitize
 	 * @return
 	 */
 	public static HashSet<String> inputSanitizer(HashSet<String> listToSanitize) {
-		if(listToSanitize == null) {
+		if (listToSanitize == null) {
 			return null;
 		}
 		HashSet<String> newList = new HashSet<>(listToSanitize.size());
-		for(String s : listToSanitize) {
+		for (String s : listToSanitize) {
 			newList.add(inputSanitizer(s));
 		}
 		return newList;
 	}
-	
+
 	/**
 	 * 
 	 * @param listToSanitize
 	 * @return
 	 */
 	public static LinkedHashSet<String> inputSanitizer(LinkedHashSet<String> listToSanitize) {
-		if(listToSanitize == null) {
+		if (listToSanitize == null) {
 			return null;
 		}
 		LinkedHashSet<String> newList = new LinkedHashSet<>(listToSanitize.size());
-		for(String s : listToSanitize) {
+		for (String s : listToSanitize) {
 			newList.add(inputSanitizer(s));
 		}
 		return newList;
 	}
-	
-
 
 	/**
 	 * Given JSON-like content, produces a string of JSON that is safe to embed,
@@ -495,21 +506,20 @@ public class WebUtility {
 		return normalizedString;
 	}
 
+	/**
+	 * 
+	 * @param request
+	 * @param newCookies
+	 */
 	public static void expireSessionCookies(HttpServletRequest request, List<NewCookie> newCookies) {
 		Cookie[] cookies = request.getCookies();
 		if (cookies != null) {
 			for (Cookie c : cookies) {
 				if (DBLoader.getSessionIdKey().equals(c.getName())) {
 					// we need to null this out
-					NewCookie nullC = new NewCookie(
-						c.getName(), 
-						cleanHttpResponse(c.getValue()), 
-						cleanHttpResponse(c.getPath()), 
-						cleanHttpResponse(c.getDomain()),
-						cleanHttpResponse(c.getComment()), 
-						0, 
-						c.getSecure()
-					);
+					NewCookie nullC = new NewCookie(c.getName(), cleanHttpResponse(c.getValue()),
+							cleanHttpResponse(c.getPath()), cleanHttpResponse(c.getDomain()),
+							cleanHttpResponse(c.getComment()), 0, c.getSecure());
 					newCookies.add(nullC);
 				}
 			}
@@ -521,18 +531,18 @@ public class WebUtility {
 	 * @param urlString
 	 */
 	public static void checkIfValidDomain(String urlString) {
-		String whiteListDomains =  Utility.getDIHelperProperty(Constants.WHITE_LIST_DOMAINS);
-		if(whiteListDomains == null || (whiteListDomains=whiteListDomains.trim()).isEmpty()) {
+		String whiteListDomains = Utility.getDIHelperProperty(Constants.WHITE_LIST_DOMAINS);
+		if (whiteListDomains == null || (whiteListDomains = whiteListDomains.trim()).isEmpty()) {
 			return;
 		}
-		
+
 		List<String> domainList = Arrays.stream(whiteListDomains.split(",")).collect(Collectors.toList());
 		URL url = null;
 		try {
 			url = new URL(urlString);
 			final String host = url.getHost();
 			final InternetDomainName domainName = InternetDomainName.from(host).topPrivateDomain();
-			if(!domainList.contains(domainName.toString())) {
+			if (!domainList.contains(domainName.toString())) {
 				throw new IllegalArgumentException("You are not allowed to make requests to the URL: " + urlString);
 			}
 		} catch (MalformedURLException e) {
@@ -540,7 +550,7 @@ public class WebUtility {
 			throw new IllegalArgumentException("Invalid URL: " + urlString + ". Detailed message: " + e.getMessage());
 		}
 	}
-	
+
 	/**
 	 * 
 	 * @param request
@@ -549,13 +559,46 @@ public class WebUtility {
 	public static String determineLoginExtension(HttpServletRequest request) {
 		String referer = request.getHeader("referer");
 		String login = "#/login";
-		if(referer != null && !referer.contains("/public_home/") && 
-				(referer.endsWith("SemossWeb") || referer.endsWith("semoss-ui")
-				|| referer.endsWith("SemossWeb/") || referer.endsWith("semoss-ui/")
-				)
-			) {
+		if (referer != null && !referer.contains("/public_home/") && (referer.endsWith("SemossWeb")
+				|| referer.endsWith("semoss-ui") || referer.endsWith("SemossWeb/") || referer.endsWith("semoss-ui/"))) {
 			login = "#!/login";
 		}
 		return login;
+	}
+
+	/**
+	 * 
+	 * @param servletRequest
+	 */
+	public static void loggingContext(ServletRequest servletRequest) {
+		ThreadContext.put(SemossLogUtils.REQUEST_ID, GUID.v7().toUUID().toString());
+
+		HttpServletRequest request = (HttpServletRequest) servletRequest;
+		ThreadContext.put(SemossLogUtils.CLIENT_IP, ResourceUtility.getClientIp(request));
+		ThreadContext.put(SemossLogUtils.SERVICE_NAME, request.getContextPath());
+		ThreadContext.put(SemossLogUtils.METHOD, request.getMethod());
+		ThreadContext.put(SemossLogUtils.ENDPOINT, request.getRequestURI());
+		ThreadContext.put(SemossLogUtils.HOST, request.getHeader("Host"));
+		loggingContextLoginEvent(request.getSession(false));
+	}
+
+	/**
+	 * 
+	 * @param servletRequest
+	 */
+	public static void loggingContextLoginEvent(HttpSession session) {
+		if (session != null) {
+			ThreadContext.put(SemossLogUtils.SESSION_ID, session.getId());
+
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
+			if (user != null) {
+				ThreadContext.put(SemossLogUtils.USER_ID, User.getSingleLogginName(user));
+			} else {
+				ThreadContext.put(SemossLogUtils.USER_ID, "UNKNOWN");
+			}
+		} else {
+			ThreadContext.put(SemossLogUtils.USER_ID, "UNKNOWN");
+			ThreadContext.put(SemossLogUtils.SESSION_ID, "UNKNOWN");
+		}
 	}
 }
