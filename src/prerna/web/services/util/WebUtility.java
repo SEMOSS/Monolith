@@ -92,7 +92,7 @@ import prerna.web.conf.DBLoader;
  */
 public final class WebUtility {
 
-	private static final Logger classLogger = LogManager.getLogger();
+	private static final Logger classLogger = LogManager.getLogger(WebUtility.class);
 
 	private static final FastDateFormat expiresDateFormat = FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz",
 			TimeZone.getTimeZone("GMT"));
