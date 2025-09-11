@@ -9,9 +9,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.core.Context;
 
+import org.eclipse.jgit.util.StringUtils;
+
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.util.Constants;
+import prerna.util.DIHelper;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -143,10 +146,14 @@ public class ResourceUtility {
 		if(session != null) {
 			sessionId = session.getId();
 		}
+		String enableData = DIHelper.getInstance().getCoreProp().getProperty("ENABLE_SESSION_IN_LOG");
+		if (!StringUtils.isEmptyOrNull(enableData)) {
+	       sessionId = Constants.SENSITIVE_INFO_MASK;
+	    }
 		if(userId == null || userId.isEmpty()) {
 			return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request) + " : Session = " + sessionId + " : USERID = INVALID " + message);
 		}
 		return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request) + " : Session = " + sessionId + " : USERID = " + userId + " " + message);
 	}
-	
+		
 }
